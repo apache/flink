@@ -31,6 +31,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -73,12 +75,18 @@ public class BlobUtilsTest extends TestLogger {
 	@Test(expected = IOException.class)
 	public void testExceptionOnCreateCacheDirectoryFailureNoJob() throws IOException {
 		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), null, new BlobKey());
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), null, new BlobKey(TRANSIENT_BLOB));
 	}
 
 	@Test(expected = IOException.class)
-	public void testExceptionOnCreateCacheDirectoryFailureForJob() throws IOException {
+	public void testExceptionOnCreateCacheDirectoryFailureForJobTransient() throws IOException {
 		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new BlobKey());
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new BlobKey(TRANSIENT_BLOB));
+	}
+
+	@Test(expected = IOException.class)
+	public void testExceptionOnCreateCacheDirectoryFailureForJobPermanent() throws IOException {
+		// Should throw an Exception
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new BlobKey(PERMANENT_BLOB));
 	}
 }

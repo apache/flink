@@ -25,7 +25,14 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -54,48 +61,107 @@ public final class BlobKeyTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testSerializationTransient() throws Exception {
+		testSerialization(TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testSerializationPermanent() throws Exception {
+		testSerialization(PERMANENT_BLOB);
+	}
+
 	/**
 	 * Tests the serialization/deserialization of BLOB keys.
 	 */
-	@Test
-	public void testSerialization() throws Exception {
-		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
+	private void testSerialization(BlobType blobType) throws Exception {
+		final BlobKey k1 = new BlobKey(blobType, KEY_ARRAY_1);
 		final BlobKey k2 = CommonTestUtils.createCopySerializable(k1);
 		assertEquals(k1, k2);
 		assertEquals(k1.hashCode(), k2.hashCode());
 		assertEquals(0, k1.compareTo(k2));
 	}
 
+	@Test
+	public void testEqualsTransient() {
+		testEquals(TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testEqualsPermanent() {
+		testEquals(PERMANENT_BLOB);
+	}
+
+	/**
+	 * Tests the equals method.
+	 */
+	private void testEquals(BlobType blobType) {
+		final BlobKey k1 = new BlobKey(blobType, KEY_ARRAY_1);
+		final BlobKey k2 = new BlobKey(blobType, KEY_ARRAY_1);
+		final BlobKey k3 = new BlobKey(blobType, KEY_ARRAY_2);
+		assertTrue(k1.equals(k2));
+		assertTrue(k2.equals(k1));
+		assertFalse(k1.equals(k3));
+		assertFalse(k3.equals(k1));
+	}
+
 	/**
 	 * Tests the equals method.
 	 */
 	@Test
-	public void testEquals() {
-		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
-		final BlobKey k2 = new BlobKey(KEY_ARRAY_1);
-		final BlobKey k3 = new BlobKey(KEY_ARRAY_2);
-		assertTrue(k1.equals(k2));
-		assertFalse(k1.equals(k3));
+	public void testEqualsDifferentBlobType() {
+		final BlobKey k1 = new BlobKey(TRANSIENT_BLOB, KEY_ARRAY_1);
+		final BlobKey k2 = new BlobKey(PERMANENT_BLOB, KEY_ARRAY_1);
+		assertFalse(k1.equals(k2));
+		assertFalse(k2.equals(k1));
+	}
+
+	@Test
+	public void testComparesTransient() {
+		testCompares(TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testComparesPermanent() {
+		testCompares(PERMANENT_BLOB);
 	}
 
 	/**
 	 * Tests the compares method.
 	 */
+	private void testCompares(BlobType blobType) {
+		final BlobKey k1 = new BlobKey(blobType, KEY_ARRAY_1);
+		final BlobKey k2 = new BlobKey(blobType, KEY_ARRAY_1);
+		final BlobKey k3 = new BlobKey(blobType, KEY_ARRAY_2);
+		assertThat(k1.compareTo(k2), is(0));
+		assertThat(k2.compareTo(k1), is(0));
+		assertThat(k1.compareTo(k3), lessThan(0));
+		assertThat(k3.compareTo(k1), greaterThan(0));
+	}
+
 	@Test
-	public void testCompares() {
-		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
-		final BlobKey k2 = new BlobKey(KEY_ARRAY_1);
-		final BlobKey k3 = new BlobKey(KEY_ARRAY_2);
-		assertTrue(k1.compareTo(k2) == 0);
-		assertTrue(k1.compareTo(k3) < 0);
+	public void testComparesDifferentBlobType() {
+		final BlobKey k1 = new BlobKey(TRANSIENT_BLOB, KEY_ARRAY_1);
+		final BlobKey k2 = new BlobKey(PERMANENT_BLOB, KEY_ARRAY_1);
+		assertThat(k1.compareTo(k2), greaterThan(0));
+		assertThat(k2.compareTo(k1), lessThan(0));
+	}
+
+	@Test
+	public void testStreamsTransient() throws Exception {
+		testStreams(TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testStreamsPermanent() throws Exception {
+		testStreams(PERMANENT_BLOB);
 	}
 
 	/**
 	 * Test the serialization/deserialization using input/output streams.
 	 */
-	@Test
-	public void testStreams() throws Exception {
-		final BlobKey k1 = new BlobKey(KEY_ARRAY_1);
+	private void testStreams(BlobType blobType) throws IOException {
+		final BlobKey k1 = new BlobKey(blobType, KEY_ARRAY_1);
 		final ByteArrayOutputStream baos = new ByteArrayOutputStream(20);
 
 		k1.writeToOutputStream(baos);

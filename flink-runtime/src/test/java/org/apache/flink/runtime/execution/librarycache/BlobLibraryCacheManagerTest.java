@@ -44,6 +44,7 @@ import java.util.List;
 
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -87,10 +88,10 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys1.add(server.putHA(jobId1, buf));
+			keys1.add(server.putPermanent(jobId1, buf));
 			buf[0] += 1;
-			keys1.add(server.putHA(jobId1, buf));
-			keys2.add(server.putHA(jobId2, buf));
+			keys1.add(server.putPermanent(jobId1, buf));
+			keys2.add(server.putPermanent(jobId2, buf));
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId1);
@@ -218,9 +219,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 			buf[0] += 1;
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId);
@@ -330,9 +331,9 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", server.getPort());
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 			buf[0] += 1;
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId);
@@ -437,8 +438,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload some meaningless data to the server
-			BlobKey dataKey1 = server.putHA(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
-			BlobKey dataKey2 = server.putHA(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
+			BlobKey dataKey1 = server.putPermanent(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
+			BlobKey dataKey2 = server.putPermanent(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			assertEquals(0, libCache.getNumberOfManagedJobs());
@@ -514,7 +515,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			}
 
 			// see BlobUtils for the directory layout
-			cacheDir = cache.getStorageLocation(jobId, new BlobKey()).getParentFile();
+			cacheDir = cache.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB)).getParentFile();
 			assertTrue(cacheDir.exists());
 
 			// make sure no further blobs can be downloaded by removing the write

@@ -142,8 +142,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
 		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
 
-		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
-		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+		when(blobCache.getPermanentBlobService()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobService()).thenReturn(transientBlobCache);
 
 		final Task task = new Task(
 			jobInformation,

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -72,7 +71,6 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
@@ -98,9 +96,9 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			JobID jobId = new JobID();
 
 			// Upload some data (libraries)
-			keys.add(server[0].putHA(jobId, expected)); // Request 1
+			keys.add(server[0].putPermanent(jobId, expected)); // Request 1
 			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
-			keys.add(server[0].putHA(jobId, expected2)); // Request 2
+			keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
 
 			// The cache
 			cache = new PermanentBlobCache(serverAddress[0], config, blobStoreService);
@@ -110,7 +108,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			libServer[0].registerTask(jobId, executionId, keys, Collections.<URL>emptyList());
 
 			// Verify key 1
-			File f = cache.getHAFile(jobId, keys.get(0));
+			File f = cache.getPermanentFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -127,7 +125,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			cache = new PermanentBlobCache(serverAddress[1], config, blobStoreService);
 
 			// Verify key 1
-			f = cache.getHAFile(jobId, keys.get(0));
+			f = cache.getPermanentFile(jobId, keys.get(0));
 			assertEquals(expected.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
@@ -139,7 +137,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			}
 
 			// Verify key 2
-			f = cache.getHAFile(jobId, keys.get(1));
+			f = cache.getPermanentFile(jobId, keys.get(1));
 			assertEquals(expected2.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {

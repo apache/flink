@@ -107,7 +107,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				try {
 					// add URLs to locally cached JAR files
 					for (BlobKey key : requiredJarFiles) {
-						urls[count] = blobService.getHAFile(jobId, key).toURI().toURL();
+						urls[count] = blobService.getPermanentFile(jobId, key).toURI().toURL();
 						++count;
 					}
 

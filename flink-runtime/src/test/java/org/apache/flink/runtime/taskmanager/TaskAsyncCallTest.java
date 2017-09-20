@@ -152,8 +152,8 @@ public class TaskAsyncCallTest {
 		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
 		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
 
-		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
-		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+		when(blobCache.getPermanentBlobService()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobService()).thenReturn(transientBlobCache);
 
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());

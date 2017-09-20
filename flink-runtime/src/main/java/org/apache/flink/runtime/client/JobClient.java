@@ -215,10 +215,10 @@ public class JobClient {
 			JobManagerMessages.ClassloadingProps props = optProps.get();
 
 			InetSocketAddress serverAddress = new InetSocketAddress(jobManager.getHostname(), props.blobManagerPort());
-			final PermanentBlobCache blobClient;
+			final PermanentBlobCache permanentBlobCache;
 			try {
 				// TODO: Fix lifecycle of PermanentBlobCache to properly close it upon usage
-				blobClient = new PermanentBlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
+				permanentBlobCache = new PermanentBlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
 			} catch (IOException e) {
 				throw new JobRetrievalException(
 					jobID,
@@ -234,10 +234,10 @@ public class JobClient {
 			int pos = 0;
 			for (BlobKey blobKey : props.requiredJarFiles()) {
 				try {
-					allURLs[pos++] = blobClient.getHAFile(jobID, blobKey).toURI().toURL();
+					allURLs[pos++] = permanentBlobCache.getPermanentFile(jobID, blobKey).toURI().toURL();
 				} catch (Exception e) {
 					try {
-						blobClient.close();
+						permanentBlobCache.close();
 					} catch (IOException ioe) {
 						LOG.warn("Could not properly close the BlobClient.", ioe);
 					}

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.InstantiationUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,18 +38,20 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_FOR_JOB;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_NO_JOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.CONTENT_FOR_JOB_HA;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CONTENT;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.closeSilently;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -65,12 +68,12 @@ class BlobServerConnection extends Thread {
 	/** The BLOB server. */
 	private final BlobServer blobServer;
 
-	/** Read lock to synchronize file accesses */
+	/** Read lock to synchronize file accesses. */
 	private final Lock readLock;
 
 	/**
-	 * Creates a new BLOB connection for a client request
-	 * 
+	 * Creates a new BLOB connection for a client request.
+	 *
 	 * @param clientSocket The socket to read/write data.
 	 * @param blobServer The BLOB server.
 	 */
@@ -173,7 +176,6 @@ class BlobServerConnection extends Thread {
 		final File blobFile;
 		final JobID jobId;
 		final BlobKey blobKey;
-		final boolean permanentBlob;
 
 		try {
 			// read HEADER contents: job ID, key, HA mode/permanent or transient BLOB
@@ -182,24 +184,20 @@ class BlobServerConnection extends Thread {
 				throw new EOFException("Premature end of GET request");
 			}
 
-			// Receive the
-			if (mode == CONTENT_NO_JOB) {
+			// Receive the jobId and key
+			if (mode == JOB_UNRELATED_CONTENT) {
 				jobId = null;
-				permanentBlob = false;
-			} else if (mode == CONTENT_FOR_JOB_HA) {
+			} else if (mode == JOB_RELATED_CONTENT) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);
-				permanentBlob = true;
-			} else if (mode == CONTENT_FOR_JOB) {
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-				jobId = JobID.fromByteArray(jidBytes);
-				permanentBlob = false;
 			} else {
 				throw new IOException("Unknown type of BLOB addressing: " + mode + '.');
 			}
 			blobKey = BlobKey.readFromInputStream(inputStream);
+
+			checkArgument(blobKey.getType() != PERMANENT_BLOB || jobId != null,
+				"Invalid BLOB addressing for permanent BLOBs");
 
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Received GET request for BLOB {}/{} from {}.", jobId,
@@ -229,7 +227,7 @@ class BlobServerConnection extends Thread {
 		try {
 			// copy the file to local store if it does not exist yet
 			try {
-				blobServer.getFileInternal(jobId, blobKey, permanentBlob, blobFile);
+				blobServer.getFileInternal(jobId, blobKey, blobFile);
 
 				// enforce a 2GB max for now (otherwise the protocol's length field needs to be increased)
 				if (blobFile.length() > Integer.MAX_VALUE) {
@@ -300,22 +298,29 @@ class BlobServerConnection extends Thread {
 			}
 
 			final JobID jobId;
-			final boolean permanentBlob;
-			if (mode == CONTENT_NO_JOB) {
+			if (mode == JOB_UNRELATED_CONTENT) {
 				jobId = null;
-				permanentBlob = false;
-			} else if (mode == CONTENT_FOR_JOB_HA) {
+			} else if (mode == JOB_RELATED_CONTENT) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);
-				permanentBlob = true;
-			} else if (mode == CONTENT_FOR_JOB) {
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-				jobId = JobID.fromByteArray(jidBytes);
-				permanentBlob = false;
 			} else {
 				throw new IOException("Unknown type of BLOB addressing.");
+			}
+
+			final BlobType blobType;
+			{
+				final int read = inputStream.read();
+				if (read < 0) {
+					throw new EOFException("Read an incomplete BLOB type");
+				} else if (read == TRANSIENT_BLOB.ordinal()) {
+					blobType = TRANSIENT_BLOB;
+				} else if (read == PERMANENT_BLOB.ordinal()) {
+					blobType = PERMANENT_BLOB;
+					checkArgument(jobId != null, "Invalid BLOB addressing for permanent BLOBs");
+				} else {
+					throw new IOException("Invalid data received for the BLOB type: " + read);
+				}
 			}
 
 			if (LOG.isDebugEnabled()) {
@@ -324,9 +329,9 @@ class BlobServerConnection extends Thread {
 			}
 
 			incomingFile = blobServer.createTemporaryFilename();
-			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf);
+			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf, blobType);
 
-			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey, permanentBlob);
+			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey);
 
 			// Return computed key to client for validation
 			outputStream.write(RETURN_OKAY);
@@ -365,6 +370,8 @@ class BlobServerConnection extends Thread {
 	 * 		file to write to
 	 * @param buf
 	 * 		An auxiliary buffer for data serialization/deserialization
+	 * @param blobType
+	 * 		whether to make the data permanent or transient
 	 *
 	 * @return the received file's content hash as a BLOB key
 	 *
@@ -372,7 +379,7 @@ class BlobServerConnection extends Thread {
 	 * 		thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
 	private static BlobKey readFileFully(
-			final InputStream inputStream, final File incomingFile, final byte[] buf)
+			final InputStream inputStream, final File incomingFile, final byte[] buf, BlobType blobType)
 			throws IOException {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -393,7 +400,7 @@ class BlobServerConnection extends Thread {
 
 				md.update(buf, 0, bytesExpected);
 			}
-			return new BlobKey(md.digest());
+			return new BlobKey(blobType, md.digest());
 		}
 	}
 
@@ -418,9 +425,9 @@ class BlobServerConnection extends Thread {
 			}
 
 			final JobID jobId;
-			if (mode == CONTENT_NO_JOB) {
+			if (mode == JOB_UNRELATED_CONTENT) {
 				jobId = null;
-			} else if (mode == CONTENT_FOR_JOB) {
+			} else if (mode == JOB_RELATED_CONTENT) {
 				byte[] jidBytes = new byte[JobID.SIZE];
 				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
 				jobId = JobID.fromByteArray(jidBytes);

@@ -57,12 +57,12 @@ public class BlobCache implements BlobService {
 	}
 
 	@Override
-	public PermanentBlobCache getPermanentBlobStore() {
+	public PermanentBlobCache getPermanentBlobService() {
 		return permanentBlobStore;
 	}
 
 	@Override
-	public TransientBlobCache getTransientBlobStore() {
+	public TransientBlobCache getTransientBlobService() {
 		return transientBlobStore;
 	}
 

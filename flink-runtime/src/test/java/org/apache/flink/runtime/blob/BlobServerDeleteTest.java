@@ -48,6 +48,8 @@ import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountF
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -109,35 +111,34 @@ public class BlobServerDeleteTest extends TestLogger {
 			data2[0] ^= 1;
 
 			// put first BLOB
-			BlobKey key1 = put(server, jobId1, data, false);
+			BlobKey key1 = put(server, jobId1, data, TRANSIENT_BLOB);
 			assertNotNull(key1);
 
 			// put two more BLOBs (same key, other key) for another job ID
-			BlobKey key2a = put(server, jobId2, data, false);
+			BlobKey key2a = put(server, jobId2, data, TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1, key2a);
-			BlobKey key2b = put(server, jobId2, data2, false);
+			BlobKey key2b = put(server, jobId2, data2, TRANSIENT_BLOB);
 			assertNotNull(key2b);
 
 			// issue a DELETE request
 			assertTrue(delete(server, jobId1, key1));
 
-			verifyDeleted(server, jobId1, key1, false);
+			verifyDeleted(server, jobId1, key1);
 			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
 			if ((jobId1 == null && jobId2 != null) || (jobId1 != null && !jobId1.equals(jobId2))) {
-				verifyContents(server, jobId2, key2a, data, false);
+				verifyContents(server, jobId2, key2a, data);
 			}
-			verifyContents(server, jobId2, key2b, data2, false);
+			verifyContents(server, jobId2, key2b, data2);
 
 			// delete first file of second job
 			assertTrue(delete(server, jobId2, key2a));
-			verifyDeleted(server, jobId2, key2a, false);
-			verifyContents(server, jobId2, key2b, data2, false);
+			verifyDeleted(server, jobId2, key2a);
+			verifyContents(server, jobId2, key2b, data2);
 
 			// delete second file of second job
-			assertTrue(delete(server, jobId2, key2a));
-			verifyDeleted(server, jobId2, key2a, false);
-			verifyContents(server, jobId2, key2b, data2, false);
+			assertTrue(delete(server, jobId2, key2b));
+			verifyDeleted(server, jobId2, key2b);
 		}
 	}
 
@@ -171,7 +172,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// put BLOB
-			BlobKey key = put(server, jobId, data, false);
+			BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
 			assertNotNull(key);
 
 			File blobFile = server.getStorageLocation(jobId, key);
@@ -179,11 +180,11 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			// DELETE operation should not fail if file is already deleted
 			assertTrue(delete(server, jobId, key));
-			verifyDeleted(server, jobId, key, false);
+			verifyDeleted(server, jobId, key);
 
 			// one more delete call that should not fail
 			assertTrue(delete(server, jobId, key));
-			verifyDeleted(server, jobId, key, false);
+			verifyDeleted(server, jobId, key);
 		}
 	}
 
@@ -223,7 +224,7 @@ public class BlobServerDeleteTest extends TestLogger {
 				rnd.nextBytes(data);
 
 				// put BLOB
-				BlobKey key = put(server, jobId, data, false);
+				BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
 				assertNotNull(key);
 
 				blobFile = server.getStorageLocation(jobId, key);
@@ -236,7 +237,7 @@ public class BlobServerDeleteTest extends TestLogger {
 				assertFalse(delete(server, jobId, key));
 
 				// the file should still be there
-				verifyContents(server, jobId, key, data, false);
+				verifyContents(server, jobId, key, data);
 			} finally {
 				if (blobFile != null && directory != null) {
 					//noinspection ResultOfMethodCallIgnored
@@ -250,21 +251,21 @@ public class BlobServerDeleteTest extends TestLogger {
 
 	@Test
 	public void testJobCleanup() throws IOException, InterruptedException {
-		testJobCleanup(false);
+		testJobCleanup(TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testJobCleanupHa() throws IOException, InterruptedException {
-		testJobCleanup(true);
+		testJobCleanup(PERMANENT_BLOB);
 	}
 
 	/**
 	 * Tests that {@link BlobServer} cleans up after calling {@link BlobServer#cleanupJob(JobID)}.
 	 *
-	 * @param highAvailability
-	 * 		whether to use permanent (<tt>true</tt>) or transient BLOBs (<tt>false</tt>)
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testJobCleanup(boolean highAvailability) throws IOException {
+	private void testJobCleanup(BlobType blobType) throws IOException {
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();
 
@@ -280,31 +281,31 @@ public class BlobServerDeleteTest extends TestLogger {
 			byte[] data2 = Arrays.copyOf(data, data.length);
 			data2[0] ^= 1;
 
-			BlobKey key1a = put(server, jobId1, data, highAvailability);
-			BlobKey key2 = put(server, jobId2, data, highAvailability);
+			BlobKey key1a = put(server, jobId1, data, blobType);
+			BlobKey key2 = put(server, jobId2, data, blobType);
 			assertEquals(key1a, key2);
 
-			BlobKey key1b = put(server, jobId1, data2, highAvailability);
+			BlobKey key1b = put(server, jobId1, data2, blobType);
 
-			verifyContents(server, jobId1, key1a, data, highAvailability);
-			verifyContents(server, jobId1, key1b, data2, highAvailability);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
 			checkFileCountForJob(2, jobId1, server);
 
-			verifyContents(server, jobId2, key2, data, highAvailability);
+			verifyContents(server, jobId2, key2, data);
 			checkFileCountForJob(1, jobId2, server);
 
 			server.cleanupJob(jobId1);
 
-			verifyDeleted(server, jobId1, key1a, highAvailability);
-			verifyDeleted(server, jobId1, key1b, highAvailability);
+			verifyDeleted(server, jobId1, key1a);
+			verifyDeleted(server, jobId1, key1b);
 			checkFileCountForJob(0, jobId1, server);
-			verifyContents(server, jobId2, key2, data, highAvailability);
+			verifyContents(server, jobId2, key2, data);
 			checkFileCountForJob(1, jobId2, server);
 
 			server.cleanupJob(jobId2);
 
 			checkFileCountForJob(0, jobId1, server);
-			verifyDeleted(server, jobId2, key2, highAvailability);
+			verifyDeleted(server, jobId2, key2);
 			checkFileCountForJob(0, jobId2, server);
 
 			// calling a second time should not fail
@@ -350,7 +351,7 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			server.start();
 
-			final BlobKey blobKey = put(server, jobId, data, false);
+			final BlobKey blobKey = put(server, jobId, data, TRANSIENT_BLOB);
 
 			assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 
@@ -398,9 +399,9 @@ public class BlobServerDeleteTest extends TestLogger {
 	 */
 	static boolean delete(BlobService service, @Nullable JobID jobId, BlobKey key) {
 		if (jobId == null) {
-			return service.getTransientBlobStore().delete(key);
+			return service.getTransientBlobService().deleteTransient(key);
 		} else {
-			return service.getTransientBlobStore().delete(jobId, key);
+			return service.getTransientBlobService().deleteTransient(jobId, key);
 		}
 	}
 }

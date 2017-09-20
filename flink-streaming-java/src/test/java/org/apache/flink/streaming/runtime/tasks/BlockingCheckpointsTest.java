@@ -145,8 +145,8 @@ public class BlockingCheckpointsTest {
 		PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
 		TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
 
-		when(blobCache.getPermanentBlobStore()).thenReturn(permanentBlobCache);
-		when(blobCache.getTransientBlobStore()).thenReturn(transientBlobCache);
+		when(blobCache.getPermanentBlobService()).thenReturn(permanentBlobCache);
+		when(blobCache.getTransientBlobService()).thenReturn(transientBlobCache);
 
 		return new Task(
 				jobInformation,

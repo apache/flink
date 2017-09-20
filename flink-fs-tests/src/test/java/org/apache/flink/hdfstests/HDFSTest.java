@@ -26,7 +26,6 @@ import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.io.AvroOutputFormat;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -64,6 +63,7 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -255,21 +255,16 @@ public class HDFSTest {
 		org.apache.flink.configuration.Configuration
 			config = new org.apache.flink.configuration.Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
-		BlobStoreService blobStoreService = null;
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
-
 			BlobServerRecoveryTest.testBlobServerRecovery(config, blobStoreService);
 		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
+			blobStoreService.closeAndCleanupAllData();
 		}
 	}
 
@@ -282,21 +277,16 @@ public class HDFSTest {
 		org.apache.flink.configuration.Configuration
 			config = new org.apache.flink.configuration.Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
-		BlobStoreService blobStoreService = null;
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
-
 			BlobServerCorruptionTest.testGetFailsFromCorruptFile(config, blobStoreService, exception);
 		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
+			blobStoreService.closeAndCleanupAllData();
 		}
 	}
 
@@ -309,21 +299,16 @@ public class HDFSTest {
 		org.apache.flink.configuration.Configuration
 			config = new org.apache.flink.configuration.Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
-		BlobStoreService blobStoreService = null;
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
-
 			BlobCacheRecoveryTest.testBlobCacheRecovery(config, blobStoreService);
 		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
+			blobStoreService.closeAndCleanupAllData();
 		}
 	}
 
@@ -336,21 +321,18 @@ public class HDFSTest {
 		org.apache.flink.configuration.Configuration
 			config = new org.apache.flink.configuration.Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "ZOOKEEPER");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI);
 
-		BlobStoreService blobStoreService = null;
+		BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
 		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
-
-			BlobCacheCorruptionTest.testGetFailsFromCorruptFile(new JobID(), true, true, config, blobStoreService, exception);
+			BlobCacheCorruptionTest
+				.testGetFailsFromCorruptFile(new JobID(), PERMANENT_BLOB, true, config,
+					blobStoreService, exception);
 		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
+			blobStoreService.closeAndCleanupAllData();
 		}
 	}
 

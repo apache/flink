@@ -154,7 +154,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 					try {
 						return new TransientBlobCache(new InetSocketAddress(jobManagerGateway.getHostname(), port), config);
 					} catch (IOException e) {
-						throw new CompletionException(new FlinkException("Could not create BlobCache.", e));
+						throw new CompletionException(new FlinkException("Could not create TransientBlobCache.", e));
 					}
 				},
 				executor);
@@ -191,7 +191,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
-									if (!blobCache.delete(lastSubmittedFile.get(taskManagerID))) {
+									if (!blobCache.deleteTransient(lastSubmittedFile.get(taskManagerID))) {
 										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.'));
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);
@@ -200,7 +200,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 								lastSubmittedFile.put(taskManagerID, blobKey);
 							}
 							try {
-								return blobCache.getFile(blobKey).getAbsolutePath();
+								return blobCache.getTransientFile(blobKey).getAbsolutePath();
 							} catch (IOException e) {
 								throw new CompletionException(new FlinkException("Could not retrieve blob for " + blobKey + '.', e));
 							}

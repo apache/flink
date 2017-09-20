@@ -18,31 +18,18 @@
 
 package org.apache.flink.runtime.blob;
 
-import java.io.Closeable;
-
 /**
- * A simple store and retrieve binary large objects (BLOBs).
+ * BLOB type, i.e. permanent or transient.
  */
-public interface BlobService extends Closeable {
-
+public enum BlobType {
 	/**
-	 * Returns a BLOB service for accessing permanent BLOBs.
-	 *
-	 * @return BLOB service
+	 * Indicates a permanent BLOB whose lifecycle is that of a job and which is made highly
+	 * available.
 	 */
-	PermanentBlobService getPermanentBlobService();
-
+	PERMANENT_BLOB,
 	/**
-	 * Returns a BLOB service for accessing transient BLOBs.
-	 *
-	 * @return BLOB service
+	 * Indicates a transient BLOB whose lifecycle is managed by the user and which is not made
+	 * highly available.
 	 */
-	TransientBlobService getTransientBlobService();
-
-	/**
-	 * Returns the port of the BLOB server that this BLOB service is working with.
-	 *
-	 * @return the port the blob server.
-	 */
-	int getPort();
+	TRANSIENT_BLOB
 }

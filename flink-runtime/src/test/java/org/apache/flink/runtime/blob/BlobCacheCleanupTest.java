@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -73,9 +74,9 @@ public class BlobCacheCleanupTest extends TestLogger {
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload blobs
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 			buf[0] += 1;
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -87,13 +88,13 @@ public class BlobCacheCleanupTest extends TestLogger {
 			checkFileCountForJob(0, jobId, cache);
 
 			for (BlobKey key : keys) {
-				cache.getHAFile(jobId, key);
+				cache.getPermanentFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
 			for (BlobKey key : keys) {
-				cache.getHAFile(jobId, key);
+				cache.getPermanentFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
@@ -226,9 +227,9 @@ public class BlobCacheCleanupTest extends TestLogger {
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload blobs
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 			buf[0] += 1;
-			keys.add(server.putHA(jobId, buf));
+			keys.add(server.putPermanent(jobId, buf));
 
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
@@ -240,13 +241,13 @@ public class BlobCacheCleanupTest extends TestLogger {
 			checkFileCountForJob(0, jobId, cache);
 
 			for (BlobKey key : keys) {
-				cache.getHAFile(jobId, key);
+				cache.getPermanentFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
 			for (BlobKey key : keys) {
-				cache.getHAFile(jobId, key);
+				cache.getPermanentFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
@@ -317,7 +318,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 	 * @param doThrow
 	 * 		whether exceptions should be ignored (<tt>false</tt>), or thrown (<tt>true</tt>)
 	 *
-	 * @return number of files we were able to retrieve via {@link PermanentBlobService#getHAFile}
+	 * @return number of files we were able to retrieve via {@link PermanentBlobService#getPermanentFile}
 	 */
 	public static int checkFilesExist(
 		JobID jobId, Collection<BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
@@ -361,10 +362,10 @@ public class BlobCacheCleanupTest extends TestLogger {
 		final File jobDir;
 		if (blobService instanceof BlobServer) {
 			BlobServer server = (BlobServer) blobService;
-			jobDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
+			jobDir = server.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB)).getParentFile();
 		} else {
 			PermanentBlobCache cache = (PermanentBlobCache) blobService;
-			jobDir = cache.getStorageLocation(jobId, new BlobKey()).getParentFile();
+			jobDir = cache.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB)).getParentFile();
 		}
 		File[] blobsForJob = jobDir.listFiles();
 		if (blobsForJob == null) {

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.util.StringUtils;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +28,10 @@ import java.io.Serializable;
 import java.security.MessageDigest;
 import java.util.Arrays;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A BLOB key uniquely identifies a BLOB.
  */
@@ -33,35 +39,59 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	private static final long serialVersionUID = 3847117712521785209L;
 
-	/** Array of hex characters to facilitate fast toString() method. */
-	private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
-
 	/** Size of the internal BLOB key in bytes. */
 	private static final int SIZE = 20;
 
-	
 	/** The byte buffer storing the actual key data. */
 	private final byte[] key;
 
+	private final BlobType type;
+
 	/**
 	 * Constructs a new BLOB key.
+	 *
+	 * @param type
+	 * 		whether the referenced BLOB is permanent or transient
 	 */
-	public BlobKey() {
+	public BlobKey(BlobType type) {
+		this.type = checkNotNull(type);
 		this.key = new byte[SIZE];
 	}
 
 	/**
 	 * Constructs a new BLOB key from the given byte array.
-	 * 
+	 *
+	 * @param type
+	 * 		whether the referenced BLOB is permanent or transient
 	 * @param key
 	 *        the actual key data
 	 */
-	BlobKey(byte[] key) {
-		if (key.length != SIZE) {
+	BlobKey(BlobType type, byte[] key) {
+		this.type = checkNotNull(type);
+
+		if (key == null || key.length != SIZE) {
 			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
 		}
 
 		this.key = key;
+	}
+
+	/**
+	 * Returns the hash component of this key.
+	 *
+	 * @return a 20 bit hash of the contents the key refers to
+	 */
+	byte[] getHash() {
+		return key;
+	}
+
+	/**
+	 * Returns the referenced BLOB's type.
+	 *
+	 * @return whether the BLOB is permanent or transient
+	 */
+	public BlobType getType() {
+		return type;
 	}
 
 	/**
@@ -83,30 +113,34 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
 		final BlobKey bk = (BlobKey) obj;
 
-		return Arrays.equals(this.key, bk.key);
+		return Arrays.equals(this.key, bk.key) && this.type == bk.type;
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(this.key);
+		return Arrays.hashCode(this.key) + this.type.hashCode();
 	}
 
 	@Override
 	public String toString() {
-		// from http://stackoverflow.com/questions/9655181/convert-from-byte-array-to-hex-string-in-java
-		final char[] hexChars = new char[SIZE * 2];
-		for (int i = 0; i < SIZE; ++i) {
-			int v = this.key[i] & 0xff;
-			hexChars[i * 2] = HEX_ARRAY[v >>> 4];
-			hexChars[i * 2 + 1] = HEX_ARRAY[v & 0x0f];
+		final String typeString;
+		switch (this.type) {
+			case TRANSIENT_BLOB:
+				typeString = "t-";
+				break;
+			case PERMANENT_BLOB:
+				typeString = "p-";
+				break;
+			default:
+				// this actually never happens!
+				throw new IllegalStateException("Invalid BLOB type");
 		}
-
-		return new String(hexChars);
+		return typeString + StringUtils.byteToHexString(this.key);
 	}
 
 	@Override
 	public int compareTo(BlobKey o) {
-	
+		// compare the hashes first
 		final byte[] aarr = this.key;
 		final byte[] barr = o.key;
 		final int len = Math.min(aarr.length, barr.length);
@@ -118,8 +152,13 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 				return a - b;
 			}
 		}
-	
-		return aarr.length - barr.length;
+
+		if (aarr.length == barr.length) {
+			// same hash contents - compare the BLOB types
+			return this.type.compareTo(o.type);
+		} else {
+			return aarr.length - barr.length;
+		}
 	}
 	
 	// --------------------------------------------------------------------------------------------
@@ -138,15 +177,30 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 		final byte[] key = new byte[BlobKey.SIZE];
 
 		int bytesRead = 0;
-		while (bytesRead < BlobKey.SIZE) {
-			final int read = inputStream.read(key, bytesRead, BlobKey.SIZE - bytesRead);
+		// read key
+		while (bytesRead < key.length) {
+			final int read = inputStream.read(key, bytesRead, key.length - bytesRead);
 			if (read < 0) {
 				throw new EOFException("Read an incomplete BLOB key");
 			}
 			bytesRead += read;
 		}
+		// read BLOB type
+		final BlobType blobType;
+		{
+			final int read = inputStream.read();
+			if (read < 0) {
+				throw new EOFException("Read an incomplete BLOB type");
+			} else if (read == TRANSIENT_BLOB.ordinal()) {
+				blobType = TRANSIENT_BLOB;
+			} else if (read == PERMANENT_BLOB.ordinal()) {
+				blobType = PERMANENT_BLOB;
+			} else {
+				throw new IOException("Invalid data received for the BLOB type: " + read);
+			}
+		}
 
-		return new BlobKey(key);
+		return new BlobKey(blobType, key);
 	}
 
 	/**
@@ -159,5 +213,6 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 */
 	void writeToOutputStream(final OutputStream outputStream) throws IOException {
 		outputStream.write(this.key);
+		outputStream.write(this.type.ordinal());
 	}
 }

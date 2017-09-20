@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.security.MessageDigest;
+import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -113,8 +114,8 @@ public class FileSystemBlobStore implements BlobStoreService {
 			}
 
 			// verify that file contents are correct
-			final BlobKey computedKey = new BlobKey(md.digest());
-			if (!computedKey.equals(blobKey)) {
+			final byte[] computedKey = md.digest();
+			if (!Arrays.equals(computedKey, blobKey.getHash())) {
 				throw new IOException("Detected data corruption during transfer");
 			}
 

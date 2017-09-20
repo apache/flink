@@ -42,22 +42,18 @@ public class BlobServerProtocol {
 	static final byte RETURN_ERROR = 1;
 
 	/**
-	 * Internal code to identify a job-unrelated transient BLOB.
-	 * <p>
-	 * Note: previously, there was also <tt>NAME_ADDRESSABLE</tt> (code <tt>1</tt>) and
-	 * <tt>JOB_ID_SCOPE</tt> (code <tt>2</tt>).
+	 * Internal code to identify a job-unrelated BLOBs (only for transient BLOBs!).
+	 *
+	 * <p>Note: previously, there was also <tt>NAME_ADDRESSABLE</tt> (code <tt>1</tt>).
 	 */
-	static final byte CONTENT_NO_JOB = 0;
+	static final byte JOB_UNRELATED_CONTENT = 0;
 
 	/**
-	 * Internal code to identify a job-related transient BLOB.
+	 * Internal code to identify a job-related (permanent or transient) BLOBs.
+	 *
+	 * <p>Note: This is equal to the previous <tt>JOB_ID_SCOPE</tt> (code <tt>2</tt>).
 	 */
-	static final byte CONTENT_FOR_JOB = 3;
-
-	/**
-	 * Internal code to identify a job-related permanent BLOB.
-	 */
-	static final byte CONTENT_FOR_JOB_HA = 4;
+	static final byte JOB_RELATED_CONTENT = 2;
 
 	// --------------------------------------------------------------------------------------------
 

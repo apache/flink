@@ -59,6 +59,8 @@ import static org.apache.flink.runtime.blob.BlobServerPutTest.BlockingInputStrea
 import static org.apache.flink.runtime.blob.BlobServerPutTest.ChunkedInputStream;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -154,7 +156,7 @@ public class BlobCachePutTest extends TestLogger {
 
 			server.start();
 
-			BlobKey key = new BlobKey();
+			BlobKey key = new BlobKey(TRANSIENT_BLOB);
 			CheckedThread[] threads = new CheckedThread[] {
 				new TransientBlobCacheGetStorageLocation(cache, jobId, key),
 				new TransientBlobCacheGetStorageLocation(cache, jobId, key),
@@ -180,7 +182,7 @@ public class BlobCachePutTest extends TestLogger {
 
 			server.start();
 
-			BlobKey key = new BlobKey();
+			BlobKey key = new BlobKey(PERMANENT_BLOB);
 			CheckedThread[] threads = new CheckedThread[] {
 				new PermanentBlobCacheGetStorageLocation(cache, jobId, key),
 				new PermanentBlobCacheGetStorageLocation(cache, jobId, key),
@@ -214,27 +216,27 @@ public class BlobCachePutTest extends TestLogger {
 
 	@Test
 	public void testPutBufferSuccessfulGet1() throws IOException {
-		testPutBufferSuccessfulGet(null, null, false);
+		testPutBufferSuccessfulGet(null, null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferSuccessfulGet2() throws IOException {
-		testPutBufferSuccessfulGet(null, new JobID(), false);
+		testPutBufferSuccessfulGet(null, new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferSuccessfulGet3() throws IOException {
-		testPutBufferSuccessfulGet(new JobID(), new JobID(), false);
+		testPutBufferSuccessfulGet(new JobID(), new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferSuccessfulGet4() throws IOException {
-		testPutBufferSuccessfulGet(new JobID(), null, false);
+		testPutBufferSuccessfulGet(new JobID(), null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferSuccessfulGetHa() throws IOException {
-		testPutBufferSuccessfulGet(new JobID(), new JobID(), true);
+		testPutBufferSuccessfulGet(new JobID(), new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -245,14 +247,11 @@ public class BlobCachePutTest extends TestLogger {
 	 * 		first job id
 	 * @param jobId2
 	 * 		second job id
-	 * @param highAvailability
-	 * 		whether to upload a permanent blob (<tt>true</tt>, via {@link
-	 * 		BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}) or not
-	 * 		(<tt>false</tt>, via {@link TransientBlobCache#put(JobID, byte[])}
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testPutBufferSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2, boolean highAvailability)
-			throws IOException {
+			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType) throws IOException {
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -269,30 +268,30 @@ public class BlobCachePutTest extends TestLogger {
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
 			// put data for jobId1 and verify
-			BlobKey key1a = put(cache, jobId1, data, highAvailability);
+			BlobKey key1a = put(cache, jobId1, data, blobType);
 			assertNotNull(key1a);
 
-			BlobKey key1b = put(cache, jobId1, data2, highAvailability);
+			BlobKey key1b = put(cache, jobId1, data2, blobType);
 			assertNotNull(key1b);
 
 			// files should be available on the server
-			verifyContents(server, jobId1, key1a, data, highAvailability);
-			verifyContents(server, jobId1, key1b, data2, highAvailability);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
-			BlobKey key2a = put(cache, jobId2, data, highAvailability);
+			BlobKey key2a = put(cache, jobId2, data, blobType);
 			assertNotNull(key2a);
 			assertEquals(key1a, key2a);
 
-			BlobKey key2b = put(cache, jobId2, data2, highAvailability);
+			BlobKey key2b = put(cache, jobId2, data2, blobType);
 			assertNotNull(key2b);
 			assertEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
-			verifyContents(server, jobId1, key1a, data, highAvailability);
-			verifyContents(server, jobId1, key1b, data2, highAvailability);
-			verifyContents(server, jobId2, key2a, data, highAvailability);
-			verifyContents(server, jobId2, key2b, data2, highAvailability);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
+			verifyContents(server, jobId2, key2a, data);
+			verifyContents(server, jobId2, key2b, data2);
 		}
 	}
 
@@ -348,30 +347,30 @@ public class BlobCachePutTest extends TestLogger {
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
 			// put data for jobId1 and verify
-			BlobKey key1a = put(cache, jobId1, new ByteArrayInputStream(data), false);
+			BlobKey key1a = put(cache, jobId1, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key1a);
 
-			BlobKey key1b = put(cache, jobId1, new ByteArrayInputStream(data2), false);
+			BlobKey key1b = put(cache, jobId1, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key1b);
 
 			// files should be available on the server
-			verifyContents(server, jobId1, key1a, data, false);
-			verifyContents(server, jobId1, key1b, data2, false);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
-			BlobKey key2a = put(cache, jobId2, new ByteArrayInputStream(data), false);
+			BlobKey key2a = put(cache, jobId2, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1a, key2a);
 
-			BlobKey key2b = put(cache, jobId2, new ByteArrayInputStream(data2), false);
+			BlobKey key2b = put(cache, jobId2, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key2b);
 			assertEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
-			verifyContents(server, jobId1, key1a, data, false);
-			verifyContents(server, jobId1, key1b, data2, false);
-			verifyContents(server, jobId2, key2a, data, false);
-			verifyContents(server, jobId2, key2b, data2, false);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
+			verifyContents(server, jobId2, key2a, data);
+			verifyContents(server, jobId2, key2b, data2);
 		}
 	}
 
@@ -427,30 +426,30 @@ public class BlobCachePutTest extends TestLogger {
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
 			// put data for jobId1 and verify
-			BlobKey key1a = put(cache, jobId1, new ChunkedInputStream(data, 19), false);
+			BlobKey key1a = put(cache, jobId1, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key1a);
 
-			BlobKey key1b = put(cache, jobId1, new ChunkedInputStream(data2, 19), false);
+			BlobKey key1b = put(cache, jobId1, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
 			assertNotNull(key1b);
 
 			// files should be available on the server
-			verifyContents(server, jobId1, key1a, data, false);
-			verifyContents(server, jobId1, key1b, data2, false);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
-			BlobKey key2a = put(cache, jobId2, new ChunkedInputStream(data, 19), false);
+			BlobKey key2a = put(cache, jobId2, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1a, key2a);
 
-			BlobKey key2b = put(cache, jobId2, new ChunkedInputStream(data2, 19), false);
+			BlobKey key2b = put(cache, jobId2, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
 			assertNotNull(key2b);
 			assertEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
-			verifyContents(server, jobId1, key1a, data, false);
-			verifyContents(server, jobId1, key1b, data2, false);
-			verifyContents(server, jobId2, key2a, data, false);
-			verifyContents(server, jobId2, key2b, data2, false);
+			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1b, data2);
+			verifyContents(server, jobId2, key2a, data);
+			verifyContents(server, jobId2, key2b, data2);
 		}
 	}
 
@@ -458,17 +457,17 @@ public class BlobCachePutTest extends TestLogger {
 
 	@Test
 	public void testPutBufferFailsNoJob() throws IOException {
-		testPutBufferFails(null, false);
+		testPutBufferFails(null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferFailsForJob() throws IOException {
-		testPutBufferFails(new JobID(), false);
+		testPutBufferFails(new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferFailsForJobHa() throws IOException {
-		testPutBufferFails(new JobID(), true);
+		testPutBufferFails(new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -477,12 +476,10 @@ public class BlobCachePutTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job id
-	 * @param highAvailability
-	 * 		whether to upload a permanent blob (<tt>true</tt>, via {@link
-	 * 		BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}) or not
-	 * 		(<tt>false</tt>, via {@link TransientBlobCache#put(JobID, byte[])}
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFails(@Nullable final JobID jobId, boolean highAvailability)
+	private void testPutBufferFails(@Nullable final JobID jobId, BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -510,7 +507,7 @@ public class BlobCachePutTest extends TestLogger {
 			exception.expect(IOException.class);
 			exception.expectMessage("PUT operation failed: ");
 
-			put(cache, jobId, data, highAvailability);
+			put(cache, jobId, data, blobType);
 
 		} finally {
 			// set writable again to make sure we can remove the directory
@@ -523,17 +520,17 @@ public class BlobCachePutTest extends TestLogger {
 
 	@Test
 	public void testPutBufferFailsIncomingNoJob() throws IOException {
-		testPutBufferFailsIncoming(null, false);
+		testPutBufferFailsIncoming(null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferFailsIncomingForJob() throws IOException {
-		testPutBufferFailsIncoming(new JobID(), false);
+		testPutBufferFailsIncoming(new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferFailsIncomingForJobHa() throws IOException {
-		testPutBufferFailsIncoming(new JobID(), true);
+		testPutBufferFailsIncoming(new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -542,12 +539,10 @@ public class BlobCachePutTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job id
-	 * @param highAvailability
-	 * 		whether to upload a permanent blob (<tt>true</tt>, via {@link
-	 * 		BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}) or not
-	 * 		(<tt>false</tt>, via {@link TransientBlobCache#put(JobID, byte[])}
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFailsIncoming(@Nullable final JobID jobId, boolean highAvailability)
+	private void testPutBufferFailsIncoming(@Nullable final JobID jobId, BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -576,7 +571,7 @@ public class BlobCachePutTest extends TestLogger {
 			exception.expectMessage("PUT operation failed: ");
 
 			try {
-				put(cache, jobId, data, highAvailability);
+				put(cache, jobId, data, blobType);
 			} finally {
 				File storageDir = tempFileDir.getParentFile();
 				// only the incoming directory should exist (no job directory!)
@@ -593,17 +588,17 @@ public class BlobCachePutTest extends TestLogger {
 
 	@Test
 	public void testPutBufferFailsStoreNoJob() throws IOException {
-		testPutBufferFailsStore(null, false);
+		testPutBufferFailsStore(null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferFailsStoreForJob() throws IOException {
-		testPutBufferFailsStore(new JobID(), false);
+		testPutBufferFailsStore(new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testPutBufferFailsStoreForJobHa() throws IOException {
-		testPutBufferFailsStore(new JobID(), true);
+		testPutBufferFailsStore(new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -612,12 +607,10 @@ public class BlobCachePutTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job id
-	 * @param highAvailability
-	 * 		whether to upload a permanent blob (<tt>true</tt>, via {@link
-	 * 		BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}) or not
-	 * 		(<tt>false</tt>, via {@link TransientBlobCache#put(JobID, byte[])}
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFailsStore(@Nullable final JobID jobId, boolean highAvailability)
+	private void testPutBufferFailsStore(@Nullable final JobID jobId, BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -633,7 +626,8 @@ public class BlobCachePutTest extends TestLogger {
 			server.start();
 
 			// make sure the blob server cannot create any files in its storage dir
-			jobStoreDir = server.getStorageLocation(jobId, new BlobKey()).getParentFile();
+			jobStoreDir = server.getStorageLocation(jobId,
+				new BlobKey(blobType)).getParentFile();
 			assertTrue(jobStoreDir.setExecutable(true, false));
 			assertTrue(jobStoreDir.setReadable(true, false));
 			assertTrue(jobStoreDir.setWritable(false, false));
@@ -646,7 +640,7 @@ public class BlobCachePutTest extends TestLogger {
 			exception.expectMessage("PUT operation failed: ");
 
 			try {
-				put(cache, jobId, data, highAvailability);
+				put(cache, jobId, data, blobType);
 			} finally {
 				// there should be no remaining incoming files
 				File incomingFileDir = new File(jobStoreDir.getParent(), "incoming");
@@ -666,17 +660,17 @@ public class BlobCachePutTest extends TestLogger {
 
 	@Test
 	public void testConcurrentPutOperationsNoJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentPutOperations(null, false);
+		testConcurrentPutOperations(null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testConcurrentPutOperationsForJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentPutOperations(new JobID(), false);
+		testConcurrentPutOperations(new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testConcurrentPutOperationsForJobHa() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentPutOperations(new JobID(), true);
+		testConcurrentPutOperations(new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -686,11 +680,11 @@ public class BlobCachePutTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
-	 * @param highAvailability
-	 * 		whether to use permanent (<tt>true</tt>) or transient BLOBs (<tt>false</tt>)
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testConcurrentPutOperations(
-			@Nullable final JobID jobId, final boolean highAvailability)
+			@Nullable final JobID jobId, final BlobType blobType)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -705,7 +699,7 @@ public class BlobCachePutTest extends TestLogger {
 		final byte[] data = new byte[dataSize];
 
 		final List<Path> jars;
-		if (highAvailability) {
+		if (blobType == PERMANENT_BLOB) {
 			// implement via JAR file upload instead:
 			File tmpFile = temporaryFolder.newFile();
 			FileUtils.writeByteArrayToFile(tmpFile, data);
@@ -732,7 +726,7 @@ public class BlobCachePutTest extends TestLogger {
 
 			for (int i = 0; i < concurrentPutOperations; i++) {
 				final Supplier<BlobKey> callable;
-				if (highAvailability) {
+				if (blobType == PERMANENT_BLOB) {
 					// cannot use a blocking stream here (upload only possible via files)
 					callable =
 						() -> {
@@ -742,7 +736,7 @@ public class BlobCachePutTest extends TestLogger {
 								assertEquals(1, keys.size());
 								BlobKey uploadedKey = keys.get(0);
 								// check the uploaded file's contents (concurrently)
-								verifyContents(server, jobId, uploadedKey, data, true);
+								verifyContents(server, jobId, uploadedKey, data);
 								return uploadedKey;
 							} catch (IOException e) {
 								throw new CompletionException(new FlinkException(
@@ -756,9 +750,9 @@ public class BlobCachePutTest extends TestLogger {
 							try {
 								BlockingInputStream inputStream =
 									new BlockingInputStream(countDownLatch, data);
-								BlobKey uploadedKey = put(cache, jobId, inputStream, false);
+								BlobKey uploadedKey = put(cache, jobId, inputStream, blobType);
 								// check the uploaded file's contents (concurrently)
-								verifyContents(server, jobId, uploadedKey, data, false);
+								verifyContents(server, jobId, uploadedKey, data);
 								return uploadedKey;
 							} catch (IOException e) {
 								throw new CompletionException(new FlinkException(
@@ -789,10 +783,10 @@ public class BlobCachePutTest extends TestLogger {
 			}
 
 			// check the uploaded file's contents
-			verifyContents(server, jobId, blobKey, data, highAvailability);
+			verifyContents(server, jobId, blobKey, data);
 
 			// check that we only uploaded the file once to the blob store
-			if (highAvailability) {
+			if (blobType == PERMANENT_BLOB) {
 				verify(blobStoreServer, times(1)).put(any(File.class), eq(jobId), eq(blobKey));
 			} else {
 				// can't really verify much in the other cases other than that the put operations should

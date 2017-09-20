@@ -59,6 +59,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -197,7 +198,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 
 						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							// add an invalid key so that the submission fails
-							jobGraph.addBlob(new BlobKey());
+							jobGraph.addBlob(new BlobKey(PERMANENT_BLOB));
 						}
 
 						// Submit the job and wait for all vertices to be running

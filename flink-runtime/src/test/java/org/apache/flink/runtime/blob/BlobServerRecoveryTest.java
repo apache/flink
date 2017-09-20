@@ -21,7 +21,6 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -41,7 +40,11 @@ import java.util.Random;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -61,7 +64,6 @@ public class BlobServerRecoveryTest extends TestLogger {
 	public void testBlobServerRecovery() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
@@ -119,12 +121,13 @@ public class BlobServerRecoveryTest extends TestLogger {
 
 			// Put job-related HA data
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
-			keys[0] = put(server0, jobId[0], expected, true); // Request 1
-			keys[1] = put(server0, jobId[1], expected2, true); // Request 2
+			keys[0] = put(server0, jobId[0], expected, PERMANENT_BLOB); // Request 1
+			keys[1] = put(server0, jobId[1], expected2, PERMANENT_BLOB); // Request 2
 
 			// put non-HA data
-			nonHAKey = put(server0, jobId[0], expected2, false);
-			assertEquals(keys[1], nonHAKey);
+			nonHAKey = put(server0, jobId[0], expected2, TRANSIENT_BLOB);
+			assertNotEquals(keys[1], nonHAKey);
+			assertThat(keys[1].getHash(), equalTo(nonHAKey.getHash()));
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
@@ -132,11 +135,11 @@ public class BlobServerRecoveryTest extends TestLogger {
 			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
 
 			// Verify HA requests from cache1 (connected to server1) with no immediate access to the file
-			verifyContents(cache1, jobId[0], keys[0], expected, true);
-			verifyContents(cache1, jobId[1], keys[1], expected2, true);
+			verifyContents(cache1, jobId[0], keys[0], expected);
+			verifyContents(cache1, jobId[1], keys[1], expected2);
 
 			// Verify non-HA file is not accessible from server1
-			verifyDeleted(cache1, jobId[0], nonHAKey, true);
+			verifyDeleted(cache1, jobId[0], nonHAKey);
 
 			// Remove again
 			server1.cleanupJob(jobId[0]);

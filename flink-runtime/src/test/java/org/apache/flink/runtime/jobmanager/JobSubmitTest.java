@@ -56,6 +56,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -132,7 +133,7 @@ public class JobSubmitTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// add a reference to some non-existing BLOB to the job graph as a dependency
-			jg.addBlob(new BlobKey());
+			jg.addBlob(new BlobKey(PERMANENT_BLOB));
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

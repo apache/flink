@@ -23,6 +23,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
+import java.util.Arrays;
 
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 
@@ -106,8 +107,8 @@ final class BlobInputStream extends InputStream {
 		if (this.md != null) {
 			this.md.update((byte) read);
 			if (this.bytesReceived == this.bytesToReceive) {
-				final BlobKey computedKey = new BlobKey(this.md.digest());
-				if (!computedKey.equals(this.blobKey)) {
+				final byte[] computedKey = this.md.digest();
+				if (!Arrays.equals(computedKey, this.blobKey.getHash())) {
 					throw new IOException("Detected data corruption during transfer");
 				}
 			}
@@ -140,8 +141,8 @@ final class BlobInputStream extends InputStream {
 		if (this.md != null) {
 			this.md.update(b, off, read);
 			if (this.bytesReceived == this.bytesToReceive) {
-				final BlobKey computedKey = new BlobKey(this.md.digest());
-				if (!computedKey.equals(this.blobKey)) {
+				final byte[] computedKey = this.md.digest();
+				if (!Arrays.equals(computedKey, this.blobKey.getHash())) {
 					throw new IOException("Detected data corruption during transfer");
 				}
 			}
