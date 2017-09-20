@@ -111,7 +111,11 @@ public class SortPerformance {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().enableObjectReuse();
-		env.getConfig().setCodeGenerationForSorterEnabled(codeGeneration);
+		if (codeGeneration){
+			env.getConfig().enableCodeGenerationForSorters();
+		} else {
+			env.getConfig().disableCodeGenerationForSorters();
+		}
 
 		@SuppressWarnings("unchecked")
 		DataSet<T> output =

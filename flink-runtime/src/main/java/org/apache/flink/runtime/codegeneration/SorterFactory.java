@@ -117,7 +117,7 @@ public class SorterFactory {
 	 */
 	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer,
 											TypeComparator<T> comparator, List<MemorySegment> memory) {
-		if (config.isCodeGenerationForSorterEnabled()){
+		if (config.isCodeGenerationForSortersEnabled()){
 			try {
 				return createCodegenSorter(serializer, comparator, memory);
 			} catch (IOException | TemplateException | ClassNotFoundException | IllegalAccessException |

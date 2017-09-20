@@ -49,8 +49,8 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 
 	@Test
 	public void testCodeGenerationEnabled() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
-		executionConfig.setCodeGenerationForSorterEnabled(true);
-		Assert.assertTrue(executionConfig.isCodeGenerationForSorterEnabled());
+		executionConfig.enableCodeGenerationForSorters();
+		Assert.assertTrue(executionConfig.isCodeGenerationForSortersEnabled());
 
 		List<MemorySegment> memory = createMemory();
 
@@ -79,8 +79,8 @@ public class SorterFactoryTest extends CodeGenerationSorterBaseTest {
 
 	@Test
 	public void testCodeGenerationDisabled() throws MemoryAllocationException, IllegalAccessException, TemplateException, IOException, InstantiationException, NoSuchMethodException, InvocationTargetException, ClassNotFoundException, CompileException {
-		executionConfig.setCodeGenerationForSorterEnabled(false);
-		Assert.assertTrue(!executionConfig.isCodeGenerationForSorterEnabled());
+		executionConfig.disableCodeGenerationForSorters();
+		Assert.assertTrue(!executionConfig.isCodeGenerationForSortersEnabled());
 
 		List<MemorySegment> memory = createMemory();
 

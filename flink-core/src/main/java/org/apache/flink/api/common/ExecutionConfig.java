@@ -130,7 +130,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * The flag determines whether a custom NormalizedKeySorter will be dynamically created
 	 * for underlying data
 	 */
-	private boolean codeGenerationForSorterEnabled = false;
+	private boolean codeGenerationForSortersEnabled = false;
 
 	/**
 	 * Interval in milliseconds for sending latency tracking marks from the sources to the sinks.
@@ -616,7 +616,33 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public boolean isObjectReuseEnabled() {
 		return objectReuse;
 	}
-	
+
+	/**
+	 * Enables code generation for sorters. This can increase the performance of batch jobs, as
+	 * Flink generates specialized sorting code for every type and comparator.
+	 *
+	 * <p>This is disabled by default.
+	 */
+	public ExecutionConfig enableCodeGenerationForSorters() {
+		this.codeGenerationForSortersEnabled = true;
+		return this;
+	}
+
+	/**
+	 * Disables code generation for sorters. @see #enableCodeGenerationForSorters()
+	 */
+	public ExecutionConfig disableCodeGenerationForSorters() {
+		this.codeGenerationForSortersEnabled = false;
+		return this;
+	}
+
+	/**
+	 * Returns whether code generation for sorters has been enabled or disabled. @see #enableCodeGenerationForSorters()
+	 */
+	public boolean isCodeGenerationForSortersEnabled() {
+		return codeGenerationForSortersEnabled;
+	}
+
 	/**
 	 * Sets the {@link CodeAnalysisMode} of the program. Specifies to which extent user-defined
 	 * functions are analyzed in order to give the Flink optimizer an insight of UDF internals
@@ -884,7 +910,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				registeredPojoTypes.equals(other.registeredPojoTypes) &&
 				taskCancellationIntervalMillis == other.taskCancellationIntervalMillis &&
 				useSnapshotCompression == other.useSnapshotCompression &&
-				codeGenerationForSorterEnabled == other.codeGenerationForSorterEnabled;
+				codeGenerationForSortersEnabled == other.codeGenerationForSortersEnabled;
 
 		} else {
 			return false;
@@ -913,7 +939,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			registeredPojoTypes,
 			taskCancellationIntervalMillis,
 			useSnapshotCompression,
-			codeGenerationForSorterEnabled
+			codeGenerationForSortersEnabled
 		);
 	}
 
@@ -926,15 +952,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	public ArchivedExecutionConfig archive() {
 		return new ArchivedExecutionConfig(this);
 	}
-
-	public boolean isCodeGenerationForSorterEnabled() {
-		return codeGenerationForSorterEnabled;
-	}
-
-	public void setCodeGenerationForSorterEnabled(boolean codeGenerationForSorterEnabled) {
-		this.codeGenerationForSorterEnabled = codeGenerationForSorterEnabled;
-	}
-
 
 	// ------------------------------ Utilities  ----------------------------------
 

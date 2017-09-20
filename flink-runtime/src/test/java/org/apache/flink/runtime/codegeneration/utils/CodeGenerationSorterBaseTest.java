@@ -71,7 +71,7 @@ public class CodeGenerationSorterBaseTest {
 
 	protected ExecutionConfig executionConfig = new ExecutionConfig(){
 		{
-			setCodeGenerationForSorterEnabled(true);
+			enableCodeGenerationForSorters();
 		}
 	};
 
@@ -81,7 +81,7 @@ public class CodeGenerationSorterBaseTest {
 		this.sorterFactory = SorterFactory.getInstance();
 		this.sorterFactory.forceCodeGeneration = true;
 
-		Assert.assertTrue("Code generation for sorter is enabled", executionConfig.isCodeGenerationForSorterEnabled());
+		Assert.assertTrue("Code generation for sorter is enabled", executionConfig.isCodeGenerationForSortersEnabled());
 	}
 
 	@After
