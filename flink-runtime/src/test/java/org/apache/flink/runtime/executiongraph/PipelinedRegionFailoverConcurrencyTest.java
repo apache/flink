@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -42,7 +41,6 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 
@@ -320,8 +318,8 @@ public class PipelinedRegionFailoverConcurrencyTest {
 				Time.seconds(10),
 				restartStrategy,
 				failoverStrategy,
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				slotProvider,
 				getClass().getClassLoader());
 

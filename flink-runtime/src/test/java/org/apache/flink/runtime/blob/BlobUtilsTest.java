@@ -73,12 +73,18 @@ public class BlobUtilsTest extends TestLogger {
 	@Test(expected = IOException.class)
 	public void testExceptionOnCreateCacheDirectoryFailureNoJob() throws IOException {
 		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), null, new BlobKey());
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), null, new TransientBlobKey());
 	}
 
 	@Test(expected = IOException.class)
-	public void testExceptionOnCreateCacheDirectoryFailureForJob() throws IOException {
+	public void testExceptionOnCreateCacheDirectoryFailureForJobTransient() throws IOException {
 		// Should throw an Exception
-		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new BlobKey());
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new TransientBlobKey());
+	}
+
+	@Test(expected = IOException.class)
+	public void testExceptionOnCreateCacheDirectoryFailureForJobPermanent() throws IOException {
+		// Should throw an Exception
+		BlobUtils.getStorageLocation(new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), new JobID(), new PermanentBlobKey());
 	}
 }

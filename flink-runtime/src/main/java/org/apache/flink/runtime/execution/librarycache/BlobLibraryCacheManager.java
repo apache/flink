@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.execution.librarycache;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
@@ -76,7 +76,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	}
 
 	@Override
-	public void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+	public void registerJob(JobID id, Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
 		throws IOException {
 		registerTask(id, JOB_ATTEMPT_ID, requiredJarFiles, requiredClasspaths);
 	}
@@ -85,7 +85,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	public void registerTask(
 		JobID jobId,
 		ExecutionAttemptID task,
-		@Nullable Collection<BlobKey> requiredJarFiles,
+		@Nullable Collection<PermanentBlobKey> requiredJarFiles,
 		@Nullable Collection<URL> requiredClasspaths) throws IOException {
 
 		checkNotNull(jobId, "The JobId must not be null.");
@@ -106,8 +106,8 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				int count = 0;
 				try {
 					// add URLs to locally cached JAR files
-					for (BlobKey key : requiredJarFiles) {
-						urls[count] = blobService.getHAFile(jobId, key).toURI().toURL();
+					for (PermanentBlobKey key : requiredJarFiles) {
+						urls[count] = blobService.getFile(jobId, key).toURI().toURL();
 						++count;
 					}
 
@@ -219,7 +219,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 * <p>The purpose of this is to make sure, future registrations do not differ in content as
 		 * this is a contract of the {@link BlobLibraryCacheManager}.
 		 */
-		private final Set<BlobKey> libraries;
+		private final Set<PermanentBlobKey> libraries;
 
 		/**
 		 * Set of class path URLs used for a previous job/task registration.
@@ -245,7 +245,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 		 * 		reference holder ID
 		 */
 		LibraryCacheEntry(
-				Collection<BlobKey> requiredLibraries,
+				Collection<PermanentBlobKey> requiredLibraries,
 				Collection<URL> requiredClasspaths,
 				URL[] libraryURLs,
 				ExecutionAttemptID initialReference,
@@ -273,12 +273,12 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 			return classLoader;
 		}
 
-		public Set<BlobKey> getLibraries() {
+		public Set<PermanentBlobKey> getLibraries() {
 			return libraries;
 		}
 
 		public void register(
-				ExecutionAttemptID task, Collection<BlobKey> requiredLibraries,
+				ExecutionAttemptID task, Collection<PermanentBlobKey> requiredLibraries,
 				Collection<URL> requiredClasspaths) {
 
 			// Make sure the previous registration referred to the same libraries and class paths.

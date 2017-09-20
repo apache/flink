@@ -29,7 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -188,7 +188,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 
 						// upload a blob
 						tempBlob = File.createTempFile("Required", ".jar");
-						List<BlobKey> keys =
+						List<PermanentBlobKey> keys =
 							BlobClient.uploadJarFiles(new InetSocketAddress("localhost", blobPort),
 								config, jid,
 								Collections.singletonList(new Path(tempBlob.getAbsolutePath())));
@@ -197,7 +197,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 
 						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							// add an invalid key so that the submission fails
-							jobGraph.addBlob(new BlobKey());
+							jobGraph.addBlob(new PermanentBlobKey());
 						}
 
 						// Submit the job and wait for all vertices to be running
@@ -275,7 +275,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 	 *
 	 * @param blobDir
 	 * 		directory of a {@link org.apache.flink.runtime.blob.BlobServer} or {@link
-	 * 		org.apache.flink.runtime.blob.BlobCache}
+	 * 		org.apache.flink.runtime.blob.BlobCacheService}
 	 * @param remaining
 	 * 		remaining time for this test
 	 *

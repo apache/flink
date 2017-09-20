@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import java.io.IOException;
@@ -48,7 +48,7 @@ public interface LibraryCacheManager {
 	 *
 	 * @see #unregisterJob(JobID) counterpart of this method
 	 */
-	void registerJob(JobID id, Collection<BlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
+	void registerJob(JobID id, Collection<PermanentBlobKey> requiredJarFiles, Collection<URL> requiredClasspaths)
 		throws IOException;
 
 	/**
@@ -63,7 +63,7 @@ public interface LibraryCacheManager {
 	 *
 	 * @see #unregisterTask(JobID, ExecutionAttemptID) counterpart of this method
 	 */
-	void registerTask(JobID id, ExecutionAttemptID execution, Collection<BlobKey> requiredJarFiles,
+	void registerTask(JobID id, ExecutionAttemptID execution, Collection<PermanentBlobKey> requiredJarFiles,
 		Collection<URL> requiredClasspaths) throws IOException;
 
 	/**

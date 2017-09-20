@@ -462,7 +462,7 @@ public class BlobUtils {
 						"BlobServer use the same storage directory.");
 					// we cannot be sure at this point whether the file has already been uploaded to the blob
 					// store or not. Even if the blobStore might shortly be in an inconsistent state, we have
-					// persist the blob. Otherwise we might not be able to recover the job.
+					// to persist the blob. Otherwise we might not be able to recover the job.
 				}
 
 				if (blobStore != null) {

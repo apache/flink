@@ -18,31 +18,28 @@
 
 package org.apache.flink.runtime.blob;
 
-import java.io.Closeable;
+import org.apache.flink.annotation.VisibleForTesting;
 
 /**
- * A simple store and retrieve binary large objects (BLOBs).
+ * BLOB key referencing permanent BLOB files.
  */
-public interface BlobService extends Closeable {
+public final class PermanentBlobKey extends BlobKey {
 
 	/**
-	 * Returns a BLOB service for accessing permanent BLOBs.
-	 *
-	 * @return BLOB service
+	 * Constructs a new BLOB key.
 	 */
-	PermanentBlobService getPermanentBlobService();
+	@VisibleForTesting
+	public PermanentBlobKey() {
+		super(BlobType.PERMANENT_BLOB);
+	}
 
 	/**
-	 * Returns a BLOB service for accessing transient BLOBs.
+	 * Constructs a new BLOB key from the given byte array.
 	 *
-	 * @return BLOB service
+	 * @param key
+	 *        the actual key data
 	 */
-	TransientBlobService getTransientBlobService();
-
-	/**
-	 * Returns the port of the BLOB server that this BLOB service is working with.
-	 *
-	 * @return the port the blob server.
-	 */
-	int getPort();
+	PermanentBlobKey(byte[] key) {
+		super(BlobType.PERMANENT_BLOB, key);
+	}
 }
