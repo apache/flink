@@ -26,14 +26,17 @@ import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
 import org.apache.flink.runtime.operators.sort.NormalizedKeySorter;
 
+import freemarker.template.Configuration;
+import freemarker.template.Template;
 import freemarker.template.TemplateException;
-
+import freemarker.template.TemplateExceptionHandler;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
@@ -63,8 +66,8 @@ public class SorterFactory {
 	//                                   Attributes
 	// ------------------------------------------------------------------------
 	private SimpleCompiler classCompiler;
-	private TemplateManager templateManager;
 	private HashMap<String, Constructor> constructorCache;
+	private final Template template;
 
 	/**
 	 * This is only for testing. If an error occurs, we want to fail the test, instead of falling back
@@ -76,9 +79,18 @@ public class SorterFactory {
 	 * Constructor.
 	 */
 	private SorterFactory() {
-		this.templateManager = TemplateManager.getInstance();
 		this.classCompiler = new SimpleCompiler();
 		this.constructorCache = new HashMap<>();
+		Configuration templateConf;
+		templateConf = new Configuration();
+		templateConf.setClassForTemplateLoading(SorterFactory.class, "/templates");
+		templateConf.setDefaultEncoding("UTF-8");
+		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
+		try {
+			template = templateConf.getTemplate(SorterTemplateModel.TEMPLATE_NAME);
+		} catch (IOException e) {
+			throw new RuntimeException("Couldn't read sorter template.", e);
+		}
 	}
 
 	/**
@@ -140,8 +152,11 @@ public class SorterFactory {
 				sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 			} else {
 				String sorterName = sorterModel.getSorterName();
-				String generatedCode = this.templateManager.getGeneratedCode(sorterModel);
-				this.classCompiler.cook(generatedCode);
+
+				StringWriter generatedCodeWriter = new StringWriter();
+				template.process(sorterModel.getTemplateVariables(), generatedCodeWriter);
+
+				this.classCompiler.cook(generatedCodeWriter.toString());
 
 				sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
 						TypeSerializer.class, TypeComparator.class, List.class
