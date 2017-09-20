@@ -28,7 +28,7 @@ under the License.
 ## Overview of Classloading in Flink
 
 When running Flink applications, the JVM will load various classes over time.
-These classes can be devided into two domains:
+These classes can be divided into two domains:
 
   - The **Flink Framework** domain: This includes all code in the `/lib` directory in the Flink directory.
     By default these are the classes of Apache Flink and its core dependencies.
@@ -41,12 +41,12 @@ The class loading behaves slightly different for various Flink setups:
 
 **Standalone**
 
-When starting a the Flink cluster, the JobManagers and TaskManagers are started with the Flink framework classes in the
+When starting a Flink cluster, the JobManagers and TaskManagers are started with the Flink framework classes in the
 classpath. The classes from all jobs that are submitted against the cluster are loaded *dynamically*.
 
 **YARN**
 
-YARN classloading differs between single job deploymens and sessions:
+YARN classloading differs between single job deployments and sessions:
 
   - When submitting a Flink job directly to YARN (via `bin/flink run -m yarn-cluster ...`), dedicated TaskManagers and
     JobManagers are started for that job. Those JVMs have both Flink framework classes and user code classes in their classpath.
@@ -65,7 +65,7 @@ classes are loaded dynamically when the jobs are submitted.
 ## Avoiding Dynamic Classloading
 
 All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log their classpath setting on startup.
-They can be found as part of the environment information at the beginnign of the log.
+They can be found as part of the environment information at the beginning of the log.
 
 When running a setup where the Flink JobManager and TaskManagers are exclusive to one particular job, one can put JAR files
 directly into the `/lib` folder to make sure they are part of the classpath and not loaded dynamically. 
@@ -76,7 +76,7 @@ Because the AppClassLoader is the parent of the FlinkUserCodeClassLoader (and Ja
 result in classes being loaded only once.
 
 For setups where the job's JAR file cannot be put to the `/lib` folder (for example because the setup is a session that is
-used by multiple jobs), it may still be posible to put common libraries to the `/lib` folder, and avoid dynamic class loading
+used by multiple jobs), it may still be possible to put common libraries to the `/lib` folder, and avoid dynamic class loading
 for those.
 
 
