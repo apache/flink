@@ -25,18 +25,18 @@ import org.apache.flink.runtime.rpc.exceptions.RpcException;
  * Exception which is thrown if the fencing tokens of a {@link FencedRpcEndpoint} do
  * not match.
  */
-public class FencingTokenMismatchException extends RpcException {
+public class FencingTokenException extends RpcException {
 	private static final long serialVersionUID = -500634972988881467L;
 
-	public FencingTokenMismatchException(String message) {
+	public FencingTokenException(String message) {
 		super(message);
 	}
 
-	public FencingTokenMismatchException(String message, Throwable cause) {
+	public FencingTokenException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public FencingTokenMismatchException(Throwable cause) {
+	public FencingTokenException(Throwable cause) {
 		super(cause);
 	}
 }
