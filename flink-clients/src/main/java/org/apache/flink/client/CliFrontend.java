@@ -30,6 +30,7 @@ import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -59,13 +60,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
-import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -146,6 +141,8 @@ public class CliFrontend {
 		} catch (Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnCLI, e);
 		}
+
+		customCommandLines.add(new Flip6DefaultCLI());
 		customCommandLines.add(new DefaultCLI());
 	}
 
@@ -555,17 +552,18 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new StopJob(jobId), clientTimeout);
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+			try {
+				logAndSysout("Stopping job " + jobId + '.');
+				client.stop(jobId);
+				logAndSysout("Stopped job " + jobId + '.');
 
-			final Object rc = Await.result(response, clientTimeout);
-
-			if (rc instanceof StoppingFailure) {
-				throw new Exception("Stopping the job with ID " + jobId + " failed.",
-						((StoppingFailure) rc).cause());
+				return 0;
+			} finally {
+				client.shutdown();
 			}
 
-			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -636,40 +634,27 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-
-			Object cancelMsg;
-			if (withSavepoint) {
-				if (targetDirectory == null) {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
-				} else {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + ".");
-				}
-				cancelMsg = new CancelJobWithSavepoint(jobId, targetDirectory);
-			} else {
-				logAndSysout("Cancelling job " + jobId + ".");
-				cancelMsg = new CancelJob(jobId);
-			}
-
-			Future<Object> response = jobManager.ask(cancelMsg, clientTimeout);
-			final Object rc = Await.result(response, clientTimeout);
-
-			if (rc instanceof CancellationSuccess) {
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+			try {
 				if (withSavepoint) {
-					CancellationSuccess success = (CancellationSuccess) rc;
-					String savepointPath = success.savepointPath();
-					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + ".");
+					if (targetDirectory == null) {
+						logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
+					} else {
+						logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + '.');
+					}
+					String savepointPath = client.cancelWithSavepoint(jobId, targetDirectory);
+					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + '.');
 				} else {
-					logAndSysout("Cancelled job " + jobId + ".");
+					logAndSysout("Cancelling job " + jobId + '.');
+					client.cancel(jobId);
+					logAndSysout("Cancelled job " + jobId + '.');
 				}
-			} else if (rc instanceof CancellationFailure) {
-				throw new Exception("Canceling the job with ID " + jobId + " failed.",
-						((CancellationFailure) rc).cause());
-			} else {
-				throw new IllegalStateException("Unexpected response: " + rc);
-			}
 
-			return 0;
+				return 0;
+			} finally {
+				client.shutdown();
+			}
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -978,7 +963,11 @@ public class CliFrontend {
 		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
 		final InetSocketAddress jobManagerAddress = client.getJobManagerAddress();
 		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
-		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		try {
+			logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		} catch (UnsupportedOperationException uoe) {
+			logAndSysout("JobManager web interface not active.");
+		}
 		return client;
 	}
 

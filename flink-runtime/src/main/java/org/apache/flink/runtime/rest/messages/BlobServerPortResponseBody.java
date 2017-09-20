@@ -18,26 +18,40 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Collection;
-import java.util.Collections;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Parameters for job related REST handlers.
- *
- * <p>A job related REST handler always requires a {@link JobIDPathParameter}.
+ * Response containing the blob server port.
  */
-public class JobTerminationMessageParameters extends MessageParameters {
+public final class BlobServerPortResponseBody implements ResponseBody {
 
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-	public final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
+	static final String FIELD_NAME_PORT = "port";
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
+	/**
+	 * The port of the blob server.
+	 */
+	@JsonProperty(FIELD_NAME_PORT)
+	public final int port;
+
+	@JsonCreator
+	public BlobServerPortResponseBody(
+		@JsonProperty(FIELD_NAME_PORT) int port) {
+
+		this.port = port;
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(terminationModeQueryParameter);
+	public int hashCode() {
+		return 67 * port;
+	}
+
+	@Override
+	public boolean equals(Object object) {
+		if (object instanceof BlobServerPortResponseBody) {
+			BlobServerPortResponseBody other = (BlobServerPortResponseBody) object;
+			return this.port == other.port;
+		}
+		return false;
 	}
 }

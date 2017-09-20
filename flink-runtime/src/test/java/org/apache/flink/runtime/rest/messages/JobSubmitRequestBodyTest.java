@@ -18,26 +18,24 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.rest.handler.legacy.messages.RestRequestMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
+
+import java.io.IOException;
 
 /**
- * Parameters for job related REST handlers.
- *
- * <p>A job related REST handler always requires a {@link JobIDPathParameter}.
+ * Tests for the {@link JobSubmitRequestBody}.
  */
-public class JobTerminationMessageParameters extends MessageParameters {
-
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-	public final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
+public class JobSubmitRequestBodyTest extends RestRequestMarshallingTestBase<JobSubmitRequestBody> {
 
 	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
+	protected Class<JobSubmitRequestBody> getTestRequestClass() {
+		return JobSubmitRequestBody.class;
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(terminationModeQueryParameter);
+	protected JobSubmitRequestBody getTestRequestInstance() throws IOException {
+		return new JobSubmitRequestBody(new JobGraph("job"));
 	}
 }
