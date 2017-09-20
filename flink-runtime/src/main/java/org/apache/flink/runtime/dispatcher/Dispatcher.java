@@ -312,6 +312,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 	}
 
+	@Override
+	public CompletableFuture<Integer> getBlobServerPort(Time timeout) {
+		return CompletableFuture.completedFuture(jobManagerServices.blobServer.getPort());
+	}
+
 	/**
 	 * Cleans up the job related data from the dispatcher. If cleanupHA is true, then
 	 * the data will also be removed from HA.

@@ -71,4 +71,12 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	 * @return A future acknowledge if the stopping succeeded
 	 */
 	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Returns the port of the blob server.
+	 *
+	 * @param timeout of the operation
+	 * @return A future integer of the blob server port
+	 */
+	CompletableFuture<Integer> getBlobServerPort(@RpcTimeout Time timeout);
 }
