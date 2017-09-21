@@ -195,13 +195,16 @@ public class NetworkBufferPoolTest {
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128, MemoryType.HEAP);
 
+		List<MemorySegment> memorySegments = Collections.emptyList();
 		try {
-			List<MemorySegment> memorySegments = globalPool.requestMemorySegments(numBuffers / 2);
+			memorySegments = globalPool.requestMemorySegments(numBuffers / 2);
 			assertEquals(memorySegments.size(), numBuffers / 2);
 
 			globalPool.recycleMemorySegments(memorySegments);
+			memorySegments.clear();
 			assertEquals(globalPool.getNumberOfAvailableMemorySegments(), numBuffers);
 		} finally {
+			globalPool.recycleMemorySegments(memorySegments); // just in case
 			globalPool.destroy();
 		}
 	}
@@ -271,7 +274,7 @@ public class NetworkBufferPoolTest {
 				assertNotNull(buffer);
 			}
 
-			// requestMemorySegments() below will and wait for buffers
+			// requestMemorySegments() below will wait for buffers
 			// this will make sure that enough buffers are freed eventually for it to continue
 			final OneShotLatch isRunning = new OneShotLatch();
 			bufferRecycler = new Thread(() -> {
