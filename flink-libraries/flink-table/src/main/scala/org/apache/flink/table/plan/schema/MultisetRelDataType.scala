@@ -30,7 +30,7 @@ class MultisetRelDataType(
     elementType,
     isNullable) {
 
-  override def toString = s"MULTISET($typeInfo)"
+  override def toString = s"MULTISET($elementType)"
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[MultisetRelDataType]
 
