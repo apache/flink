@@ -35,21 +35,23 @@ for the rest of the page.
 **Keyed Windows**
 
     stream
-           .keyBy(...)          <-  keyed versus non-keyed windows
-           .window(...)         <-  required: "assigner"
-          [.trigger(...)]       <-  optional: "trigger" (else default trigger)
-          [.evictor(...)]       <-  optional: "evictor" (else no evictor)
-          [.allowedLateness()]  <-  optional, else zero
-           .reduce/fold/apply() <-  required: "function"
+           .keyBy(...)               <-  keyed versus non-keyed windows
+           .window(...)              <-  required: "assigner"
+          [.trigger(...)]            <-  optional: "trigger" (else default trigger)
+          [.evictor(...)]            <-  optional: "evictor" (else no evictor)
+          [.allowedLateness(...)]    <-  optional: "lateness" (else zero)
+          [.sideOutputLateData(...)] <-  optional: "output tag" (else no side output for late data)
+           .reduce/fold/apply()      <-  required: "function"
 
 **Non-Keyed Windows**
 
     stream
-           .windowAll(...)      <-  required: "assigner"
-          [.trigger(...)]       <-  optional: "trigger" (else default trigger)
-          [.evictor(...)]       <-  optional: "evictor" (else no evictor)
-          [.allowedLateness()]  <-  optional, else zero
-           .reduce/fold/apply() <-  required: "function"
+           .windowAll(...)           <-  required: "assigner"
+          [.trigger(...)]            <-  optional: "trigger" (else default trigger)
+          [.evictor(...)]            <-  optional: "evictor" (else no evictor)
+          [.allowedLateness(...)]    <-  optional: "lateness" (else zero)
+          [.sideOutputLateData(...)] <-  optional: "output tag" (else no side output for late data)
+           .reduce/fold/apply()      <-  required: "function"
 
 In the above, the commands in square brackets ([...]) are optional. This reveals that Flink allows you to customize your
 windowing logic in many different ways so that it best fits your needs.
