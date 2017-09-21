@@ -22,11 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -41,6 +42,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -475,7 +477,7 @@ public class BlobServerPutTest extends TestLogger {
 									.put(jobId, new BlockingInputStream(countDownLatch, data));
 							}
 						} catch (IOException e) {
-							throw new FlinkFutureException("Could not upload blob.", e);
+							throw new CompletionException(new FlinkException("Could not upload blob.", e));
 						}
 					},
 					executor);

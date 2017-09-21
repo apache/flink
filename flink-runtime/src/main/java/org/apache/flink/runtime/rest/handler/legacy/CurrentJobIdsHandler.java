@@ -20,15 +20,16 @@ package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -104,7 +105,7 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 					}
 				}
 				catch (Exception e) {
-					throw new FlinkFutureException("Failed to fetch list of all running jobs.", e);
+					throw new CompletionException(new FlinkException("Failed to fetch list of all running jobs.", e));
 				}
 			},
 			executor);

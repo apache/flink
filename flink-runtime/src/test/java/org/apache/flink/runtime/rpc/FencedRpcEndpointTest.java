@@ -20,11 +20,11 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -33,6 +33,7 @@ import org.junit.Test;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -326,7 +327,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 					try {
 						computationLatch.await();
 					} catch (InterruptedException e) {
-						throw new FlinkFutureException("Waiting on latch failed.", e);
+						throw new CompletionException(new FlinkException("Waiting on latch failed.", e));
 					}
 
 					return value;

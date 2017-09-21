@@ -18,14 +18,15 @@
 
 package org.apache.flink.runtime.blob;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -36,7 +37,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.security.MessageDigest;
@@ -45,12 +45,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -303,7 +308,7 @@ public class BlobServerGetTest extends TestLogger {
 
 							return new ByteArrayInputStream(buffer);
 						} catch (IOException e) {
-							throw new FlinkFutureException("Could not read blob for key " + blobKey + '.', e);
+							throw new CompletionException(new FlinkException("Could not read blob for key " + blobKey + '.', e));
 						}
 					},
 					executor);

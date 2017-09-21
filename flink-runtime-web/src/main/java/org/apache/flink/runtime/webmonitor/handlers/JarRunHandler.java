@@ -24,10 +24,10 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -36,6 +36,7 @@ import java.io.File;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -86,7 +87,7 @@ public class JarRunHandler extends JarActionHandler {
 					gen.close();
 					return writer.toString();
 				} catch (Exception e) {
-					throw new FlinkFutureException("Could not run the jar.", e);
+					throw new CompletionException(new FlinkException("Could not run the jar.", e));
 				}
 			},
 			executor);

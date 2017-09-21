@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -39,6 +38,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders.CLUSTER_OVERVIEW_REST_PATH;
@@ -96,7 +96,7 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler implement
 							gen.close();
 							return writer.toString();
 						} catch (IOException exception) {
-							throw new FlinkFutureException("Could not write cluster overview.", exception);
+							throw new CompletionException(new FlinkException("Could not write cluster overview.", exception));
 						}
 					},
 					executor);

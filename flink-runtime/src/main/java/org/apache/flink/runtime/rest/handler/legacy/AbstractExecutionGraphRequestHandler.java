@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -30,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -70,7 +70,7 @@ public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonR
 				if (optGraph.isPresent()) {
 					return handleRequest(optGraph.get(), pathParams);
 				} else {
-					throw new FlinkFutureException(new NotFoundException("Could not find job with jobId " + jid + '.'));
+					throw new CompletionException(new NotFoundException("Could not find job with jobId " + jid + '.'));
 				}
 			}, executor);
 	}

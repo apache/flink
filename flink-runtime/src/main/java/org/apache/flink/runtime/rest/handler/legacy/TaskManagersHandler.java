@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static java.util.Objects.requireNonNull;
@@ -83,7 +84,7 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 								optTaskManager.map(Collections::singleton).orElse(Collections.emptySet()),
 								pathParams);
 						} catch (IOException e) {
-							throw new FlinkFutureException("Could not write TaskManagers JSON.", e);
+							throw new CompletionException(new FlinkException("Could not write TaskManagers JSON.", e));
 						}
 					},
 					executor);
@@ -95,7 +96,7 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 						try {
 							return writeTaskManagersJson(taskManagers, pathParams);
 						} catch (IOException e) {
-							throw new FlinkFutureException("Could not write TaskManagers JSON.", e);
+							throw new CompletionException(new FlinkException("Could not write TaskManagers JSON.", e));
 						}
 					},
 					executor);

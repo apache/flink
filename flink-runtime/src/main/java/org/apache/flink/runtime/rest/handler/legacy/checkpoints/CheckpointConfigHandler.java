@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -27,6 +26,7 @@ import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -61,7 +62,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 				try {
 					return createCheckpointConfigJson(graph);
 				} catch (IOException e) {
-					throw new FlinkFutureException("Could not create checkpoint config json.", e);
+					throw new CompletionException(new FlinkException("Could not create checkpoint config json.", e));
 				}
 			},
 			executor);
