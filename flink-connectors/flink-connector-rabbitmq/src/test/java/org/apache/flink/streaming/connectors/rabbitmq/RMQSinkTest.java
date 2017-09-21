@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.rabbitmq.common;
+package org.apache.flink.streaming.connectors.rabbitmq;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.connectors.rabbitmq.RMQSink;
+import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import com.rabbitmq.client.Channel;
