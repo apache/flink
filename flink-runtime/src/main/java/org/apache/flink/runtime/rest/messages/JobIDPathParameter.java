@@ -16,26 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
+import org.apache.flink.api.common.JobID;
 
 /**
- * This class wraps netty's {@link HttpMethod}s into an enum, allowing us to use them in switches.
+ * Path parameter identifying jobs.
  */
-public enum HttpMethodWrapper {
-	GET(HttpMethod.GET),
-	POST(HttpMethod.POST),
-	DELETE(HttpMethod.DELETE),
-	PATCH(HttpMethod.PATCH);
+public class JobIDPathParameter extends MessagePathParameter<JobID> {
 
-	private HttpMethod nettyHttpMethod;
+	private static final String JOB_ID = "jobid";
 
-	HttpMethodWrapper(HttpMethod nettyHttpMethod) {
-		this.nettyHttpMethod = nettyHttpMethod;
+	public JobIDPathParameter() {
+		super(JOB_ID);
 	}
 
-	public HttpMethod getNettyHttpMethod() {
-		return nettyHttpMethod;
+	@Override
+	protected JobID convertFromString(String value) {
+		return JobID.fromHexString(value);
+	}
+
+	@Override
+	protected String convertToString(JobID value) {
+		return value.toString();
 	}
 }

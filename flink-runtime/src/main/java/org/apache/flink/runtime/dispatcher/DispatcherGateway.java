@@ -48,7 +48,7 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Lists the current set of submitted jobs.
+	 * List the current set of submitted jobs.
 	 *
 	 * @param timeout RPC timeout
 	 * @return A future collection of currently submitted jobs
@@ -56,6 +56,21 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	CompletableFuture<Collection<JobID>> listJobs(
 		@RpcTimeout Time timeout);
 
+	/**
+	 * Cancel the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the cancellation succeeded
+	 */
+	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Request the cluster overview.
+	 *
+	 * @param timeout of the operation
+	 * @return Future {@link StatusOverview} containing the cluster information
+	 */
 	CompletableFuture<StatusOverview> requestStatusOverview(@RpcTimeout Time timeout);
 
 	CompletableFuture<MultipleJobsDetails> requestJobDetails(@RpcTimeout Time timeout);
