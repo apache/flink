@@ -18,25 +18,34 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
 
 /**
- * Parameters for job related REST handlers.
- *
- * <p>A job related REST handler always requires a {@link JobIDPathParameter}.
+ * Termination mode for the {@link JobCancellationHandler}.
  */
-public class JobMessageParameters extends MessageParameters {
+public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
-	private final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	private static final String key = "mode";
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
+	public TerminationModeQueryParameter() {
+		super(key, MessageParameterRequisiteness.OPTIONAL);
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
+	public TerminationMode convertValueFromString(String value) {
+		return TerminationMode.valueOf(value.toUpperCase());
+	}
+
+	@Override
+	public String convertStringToValue(TerminationMode value) {
+		return value.name().toLowerCase();
+	}
+
+	/**
+	 * Supported termination modes.
+	 */
+	public enum TerminationMode {
+		CANCEL,
+		STOP
 	}
 }

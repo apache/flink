@@ -63,6 +63,14 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
 
 	/**
+	 * Cancel the currently executed job.
+	 *
+	 * @param timeout of this operation
+	 * @return Future acknowledge if the cancellation was successful
+	 */
+	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
+
+	/**
 	 * Updates the task execution state for a given task.
 	 *
 	 * @param taskExecutionState New task execution state for a given task

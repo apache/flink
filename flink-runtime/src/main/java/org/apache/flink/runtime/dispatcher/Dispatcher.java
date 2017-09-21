@@ -254,6 +254,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
+	public CompletableFuture<Acknowledge> stopJob(JobID jobId, Time timeout) {
+		JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
+
+		if (jobManagerRunner == null) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		} else {
+			return jobManagerRunner.getJobManagerGateway().stop(timeout);
+		}
+	}
+
+	@Override
 	public CompletableFuture<String> requestRestAddress(Time timeout) {
 		return restAddressFuture;
 	}
