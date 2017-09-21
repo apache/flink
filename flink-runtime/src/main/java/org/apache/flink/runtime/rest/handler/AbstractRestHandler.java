@@ -117,11 +117,26 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				}
 			}
 
-			CompletableFuture<P> response;
+			final HandlerRequest<R, M> handlerRequest;
+
 			try {
-				HandlerRequest<R, M> handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
+				handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
+			} catch (HandlerRequestException hre) {
+				log.error("Could not create the handler request.", hre);
+
+				HandlerUtils.sendErrorResponse(
+					ctx,
+					httpRequest,
+					new ErrorResponseBody(String.format("Bad request, could not parse parameters: %s", hre.getMessage())),
+					HttpResponseStatus.BAD_REQUEST);
+				return;
+			}
+
+			CompletableFuture<P> response;
+
+			try {
 				response = handleRequest(handlerRequest, gateway);
-			} catch (Exception e) {
+			} catch (RestHandlerException e) {
 				response = FutureUtils.completedExceptionally(e);
 			}
 
@@ -138,7 +153,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
 				}
 			});
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			log.error("Request processing failed.", e);
 			HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}

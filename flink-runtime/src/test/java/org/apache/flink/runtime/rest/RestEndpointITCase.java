@@ -26,16 +26,19 @@ import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -44,15 +47,19 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -68,8 +75,11 @@ public class RestEndpointITCase extends TestLogger {
 	private static final String JOB_ID_KEY = "jobid";
 	private static final Time timeout = Time.seconds(10L);
 
-	@Test
-	public void testEndpoints() throws Exception {
+	private RestServerEndpoint serverEndpoint;
+	private RestClient clientEndpoint;
+
+	@Before
+	public void setup() throws Exception {
 		Configuration config = new Configuration();
 
 		RestServerEndpointConfiguration serverConfig = RestServerEndpointConfiguration.fromConfiguration(config);
@@ -86,46 +96,101 @@ public class RestEndpointITCase extends TestLogger {
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
-		RestServerEndpoint serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
-		RestClient clientEndpoint = new TestRestClient(clientConfig);
+		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
+		clientEndpoint = new TestRestClient(clientConfig);
 
-		try {
-			serverEndpoint.start();
+		serverEndpoint.start();
+	}
 
-			TestParameters parameters = new TestParameters();
-			parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
-			parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+	@After
+	public void teardown() {
+		if (clientEndpoint != null) {
+			clientEndpoint.shutdown(timeout);
+			clientEndpoint = null;
+		}
 
-			// send first request and wait until the handler blocks
-			CompletableFuture<TestResponse> response1;
-			synchronized (TestHandler.LOCK) {
-				response1 = clientEndpoint.sendRequest(
-					serverConfig.getEndpointBindAddress(),
-					serverConfig.getEndpointBindPort(),
-					new TestHeaders(),
-					parameters,
-					new TestRequest(1));
-				TestHandler.LOCK.wait();
-			}
+		if (serverEndpoint != null) {
+			serverEndpoint.shutdown(timeout);
+			serverEndpoint = null;
+		}
+	}
 
-			// send second request and verify response
-			CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(
-				serverConfig.getEndpointBindAddress(),
-				serverConfig.getEndpointBindPort(),
+	/**
+	 * Tests that request are handled as individual units which don't interfere with each other.
+	 * This means that request responses can overtake each other.
+	 */
+	@Test
+	public void testRequestInterleaving() throws Exception {
+
+		TestParameters parameters = new TestParameters();
+		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
+		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+
+		// send first request and wait until the handler blocks
+		CompletableFuture<TestResponse> response1;
+		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
+
+		synchronized (TestHandler.LOCK) {
+			response1 = clientEndpoint.sendRequest(
+				serverAddress.getHostName(),
+				serverAddress.getPort(),
 				new TestHeaders(),
 				parameters,
-				new TestRequest(2));
-			Assert.assertEquals(2, response2.get().id);
+				new TestRequest(1));
+			TestHandler.LOCK.wait();
+		}
 
-			// wake up blocked handler
-			synchronized (TestHandler.LOCK) {
-				TestHandler.LOCK.notifyAll();
-			}
-			// verify response to first request
-			Assert.assertEquals(1, response1.get().id);
-		} finally {
-			clientEndpoint.shutdown(timeout);
-			serverEndpoint.shutdown(timeout);
+		// send second request and verify response
+		CompletableFuture<TestResponse> response2 = clientEndpoint.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(2));
+		Assert.assertEquals(2, response2.get().id);
+
+		// wake up blocked handler
+		synchronized (TestHandler.LOCK) {
+			TestHandler.LOCK.notifyAll();
+		}
+		// verify response to first request
+		Assert.assertEquals(1, response1.get().id);
+	}
+
+	/**
+	 * Tests that a bad handler request (HandlerRequest cannot be created) is reported as a BAD_REQUEST
+	 * and not an internal server error.
+	 *
+	 * <p>See FLINK-7663
+	 */
+	@Test
+	public void testBadHandlerRequest() throws Exception {
+		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
+
+		final FaultyTestParameters parameters = new FaultyTestParameters();
+
+		parameters.faultyJobIDPathParameter.resolve(PATH_JOB_ID);
+		((TestParameters) parameters).jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+
+		CompletableFuture<TestResponse> response = clientEndpoint.sendRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestHeaders(),
+			parameters,
+			new TestRequest(2));
+
+		try {
+			response.get();
+
+			Assert.fail("The request should fail with a bad request return code.");
+		} catch (ExecutionException ee) {
+			Throwable t = ExceptionUtils.stripExecutionException(ee);
+
+			Assert.assertTrue(t instanceof RestClientException);
+
+			RestClientException rce = (RestClientException) t;
+
+			Assert.assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
 		}
 	}
 
@@ -251,6 +316,15 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
+	private static class FaultyTestParameters extends TestParameters {
+		private final FaultyJobIDPathParameter faultyJobIDPathParameter = new FaultyJobIDPathParameter();
+
+		@Override
+		public Collection<MessagePathParameter<?>> getPathParameters() {
+			return Collections.singleton(faultyJobIDPathParameter);
+		}
+	}
+
 	static class JobIDPathParameter extends MessagePathParameter<JobID> {
 		JobIDPathParameter() {
 			super(JOB_ID_KEY);
@@ -264,6 +338,23 @@ public class RestEndpointITCase extends TestLogger {
 		@Override
 		protected String convertToString(JobID value) {
 			return value.toString();
+		}
+	}
+
+	static class FaultyJobIDPathParameter extends MessagePathParameter<JobID> {
+
+		FaultyJobIDPathParameter() {
+			super(JOB_ID_KEY);
+		}
+
+		@Override
+		protected JobID convertFromString(String value) throws ConversionException {
+			return JobID.fromHexString(value);
+		}
+
+		@Override
+		protected String convertToString(JobID value) {
+			return "foobar";
 		}
 	}
 
