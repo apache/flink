@@ -106,7 +106,7 @@ public class PartitionRequestClient {
 		partitionRequestHandler.addInputChannel(inputChannel);
 
 		final PartitionRequest request = new PartitionRequest(
-				partitionId, subpartitionIndex, inputChannel.getInputChannelId());
+				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getInitialCredit());
 
 		final ChannelFutureListener listener = new ChannelFutureListener() {
 			@Override
