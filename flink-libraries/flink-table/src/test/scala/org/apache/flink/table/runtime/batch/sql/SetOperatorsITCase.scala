@@ -52,7 +52,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'd, 'e, 'f)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hi\n" + "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
@@ -72,7 +72,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'd, 'e, 'f)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hi\n" + "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
@@ -94,7 +94,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'a, 'b, 'd, 'c, 'e)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hi\n" + "Hallo\n"
     val results = result.toDataSet[Row].collect()
@@ -115,7 +115,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'a, 'b, 'd, 'c, 'e)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "18"
     val results = result.toDataSet[Row].collect()
@@ -135,7 +135,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
@@ -161,7 +161,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'c)
     tEnv.registerDataSet("t2", ds2, 'c)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "1\n1"
     val results = result.toDataSet[Row].collect()
@@ -183,7 +183,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'a, 'b, 'd, 'c, 'e)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hi\n"
     val results = result.toDataSet[Row].collect()
@@ -208,7 +208,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hi\n" + "Hello\n"
     val results = result.toDataSet[Row].collect()
@@ -234,7 +234,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'c)
     tEnv.registerDataSet("t2", ds2, 'c)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "1\n2\n2"
     val results = result.toDataSet[Row].collect()
@@ -254,7 +254,7 @@ class SetOperatorsITCase(
     tEnv.registerDataSet("t1", ds1, 'a, 'b, 'c)
     tEnv.registerDataSet("t2", ds2, 'a, 'b, 'c)
 
-    val result = tEnv.sql(sqlQuery)
+    val result = tEnv.sqlQuery(sqlQuery)
 
     val expected = "Hello\n" + "Hello world\n"
     val results = result.toDataSet[Row].collect()
@@ -271,7 +271,7 @@ class SetOperatorsITCase(
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    val result = tEnv.sql("SELECT d FROM Table5 WHERE d IN (SELECT a FROM Table3)")
+    val result = tEnv.sqlQuery("SELECT d FROM Table5 WHERE d IN (SELECT a FROM Table3)")
 
     val expected = Seq("1", "2", "2", "3", "3", "3").mkString("\n")
     val results = result.toDataSet[Row].collect()
@@ -288,7 +288,7 @@ class SetOperatorsITCase(
     tEnv.registerTable("Table3", ds1)
     tEnv.registerTable("Table5", ds2)
 
-    val result = tEnv.sql("SELECT d IN (SELECT a FROM Table3) FROM Table5")
+    val result = tEnv.sqlQuery("SELECT d IN (SELECT a FROM Table3) FROM Table5")
 
     val expected = Seq("false", "false", "false", "false", "false", "false", "false",
       "false", "false", "true", "true", "true", "true", "true", "true").mkString("\n")

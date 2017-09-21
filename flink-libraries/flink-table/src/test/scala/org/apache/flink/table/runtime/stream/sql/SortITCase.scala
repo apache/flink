@@ -87,7 +87,7 @@ class SortITCase extends StreamingWithStateTestBase {
     val  sqlQuery = "SELECT b FROM T1 ORDER BY rowtime, b ASC "
       
       
-    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
     result.addSink(new StringRowSelectorSink(0)).setParallelism(1)
     env.execute()
     

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
@@ -51,6 +52,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -80,6 +82,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private final LeaderElectionService leaderElectionService;
 
+	private final CompletableFuture<String> restAddressFuture;
+
 	protected Dispatcher(
 			RpcService rpcService,
 			String endpointId,
@@ -88,7 +92,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			Optional<String> restAddress) throws Exception {
 		super(rpcService, endpointId, DispatcherId.generate());
 
 		this.configuration = Preconditions.checkNotNull(configuration);
@@ -106,6 +111,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		jobManagerRunners = new HashMap<>(16);
 
 		leaderElectionService = highAvailabilityServices.getDispatcherLeaderElectionService();
+		this.restAddressFuture = restAddress
+			.map(CompletableFuture::completedFuture)
+			.orElse(FutureUtils.completedExceptionally(new DispatcherException("The Dispatcher has not been started with a REST endpoint.")));
+
 	}
 
 	//------------------------------------------------------
@@ -228,6 +237,25 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
 		// TODO: return proper list of running jobs
 		return CompletableFuture.completedFuture(jobManagerRunners.keySet());
+	}
+
+	@Override
+	public CompletableFuture<String> requestRestAddress(Time timeout) {
+		return restAddressFuture;
+	}
+
+	@Override
+	public CompletableFuture<StatusOverview> requestStatusOverview(Time timeout) {
+		// TODO: Implement proper cluster overview generation
+		return CompletableFuture.completedFuture(
+			new StatusOverview(
+				42,
+				1337,
+				1337,
+				5,
+				6,
+				7,
+				8));
 	}
 
 	/**

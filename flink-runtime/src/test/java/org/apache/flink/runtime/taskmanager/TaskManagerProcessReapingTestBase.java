@@ -38,6 +38,8 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
+
+import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
@@ -119,6 +121,7 @@ public abstract class TaskManagerProcessReapingTestBase extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1;
 

@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionPar
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
+import org.apache.flink.table.plan.schema.TableSinkTable
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.annotation.varargs
@@ -762,13 +763,10 @@ class Table(
     * @tparam T The data type that the [[TableSink]] expects.
     */
   def writeToSink[T](sink: TableSink[T]): Unit = {
-
-    def queryConfig = this.tableEnv match {
-      case s: StreamTableEnvironment => s.queryConfig
-      case b: BatchTableEnvironment => new BatchQueryConfig
-      case _ => null
+    val queryConfig = Option(this.tableEnv) match {
+      case None => null
+      case _ => this.tableEnv.queryConfig
     }
-
     writeToSink(sink, queryConfig)
   }
 
@@ -797,6 +795,37 @@ class Table(
 
     // emit the table to the configured table sink
     tableEnv.writeToSink(this, configuredSink, conf)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
+    *
+    * @param tableName Name of the registered [[TableSink]] to which the [[Table]] is written.
+    */
+  def insertInto(tableName: String): Unit = {
+    tableEnv.insertInto(this, tableName, this.tableEnv.queryConfig)
+  }
+
+  /**
+    * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
+    *
+    * A batch [[Table]] can only be written to a
+    * [[org.apache.flink.table.sinks.BatchTableSink]], a streaming [[Table]] requires a
+    * [[org.apache.flink.table.sinks.AppendStreamTableSink]], a
+    * [[org.apache.flink.table.sinks.RetractStreamTableSink]], or an
+    * [[org.apache.flink.table.sinks.UpsertStreamTableSink]].
+    *
+    * @param tableName Name of the [[TableSink]] to which the [[Table]] is written.
+    * @param conf The [[QueryConfig]] to use.
+    */
+  def insertInto(tableName: String, conf: QueryConfig): Unit = {
+    tableEnv.insertInto(this, tableName, conf)
   }
 
   /**

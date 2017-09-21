@@ -45,6 +45,8 @@ import org.apache.flink.util.NetUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import scala.Option;
 import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -94,6 +96,7 @@ public class JobSubmitTest {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
+			Option.empty(),
 			JobManager.class,
 			MemoryArchivist.class)._1();
 

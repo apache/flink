@@ -791,7 +791,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private Acknowledge suspendExecution(final Throwable cause) {
 		validateRunsInMainThread();
 
-		if (getFencingToken() == null) {
+		if (Objects.equals(JobMasterId.INITIAL_JOB_MASTER_ID, getFencingToken())) {
 			log.debug("Job has already been suspended or shutdown.");
 			return Acknowledge.get();
 		}

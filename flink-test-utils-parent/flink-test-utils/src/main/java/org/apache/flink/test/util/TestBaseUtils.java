@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -29,6 +30,8 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import akka.actor.ActorRef;
 import akka.dispatch.Futures;
@@ -63,7 +66,9 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -94,6 +99,8 @@ public class TestBaseUtils extends TestLogger {
 	protected static final String DEFAULT_AKKA_STARTUP_TIMEOUT = "60 s";
 
 	public static final FiniteDuration DEFAULT_TIMEOUT = new FiniteDuration(DEFAULT_AKKA_ASK_TIMEOUT, TimeUnit.SECONDS);
+
+	public static final Time DEFAULT_HTTP_TIMEOUT = Time.seconds(10L);
 
 	// ------------------------------------------------------------------------
 
@@ -600,21 +607,40 @@ public class TestBaseUtils extends TestLogger {
 	//---------------------------------------------------------------------------------------------
 
 	public static String getFromHTTP(String url) throws Exception {
-		URL u = new URL(url);
+		return getFromHTTP(url, DEFAULT_HTTP_TIMEOUT);
+	}
+
+	public static String getFromHTTP(String url, Time timeout) throws Exception {
+		final URL u = new URL(url);
 		LOG.info("Accessing URL " + url + " as URL: " + u);
-		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
-		connection.setConnectTimeout(100000);
-		connection.connect();
-		InputStream is;
-		if (connection.getResponseCode() >= 400) {
-			// error!
-			LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
-			is = connection.getErrorStream();
-		} else {
-			is = connection.getInputStream();
+
+		final long deadline = timeout.toMilliseconds() + System.currentTimeMillis();
+
+		while (System.currentTimeMillis() <= deadline) {
+			HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+			connection.setConnectTimeout(100000);
+			connection.connect();
+
+			if (Objects.equals(HttpResponseStatus.SERVICE_UNAVAILABLE, HttpResponseStatus.valueOf(connection.getResponseCode()))) {
+				// service not available --> Sleep and retry
+				LOG.debug("Web service currently not available. Retrying the request in a bit.");
+				Thread.sleep(100L);
+			} else {
+				InputStream is;
+
+				if (connection.getResponseCode() >= 400) {
+					// error!
+					LOG.warn("HTTP Response code when connecting to {} was {}", url, connection.getResponseCode());
+					is = connection.getErrorStream();
+				} else {
+					is = connection.getInputStream();
+				}
+
+				return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+			}
 		}
 
-		return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+		throw new TimeoutException("Could not get HTTP response in time since the service is still unavailable.");
 	}
 
 	/**

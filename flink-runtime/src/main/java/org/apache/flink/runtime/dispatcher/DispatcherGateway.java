@@ -22,8 +22,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Gateway for the Dispatcher component.
  */
-public interface DispatcherGateway extends FencedRpcGateway<DispatcherId> {
+public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, RestfulGateway {
 
 	/**
 	 * Submit a job to the dispatcher.
@@ -52,4 +54,6 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId> {
 	 */
 	CompletableFuture<Collection<JobID>> listJobs(
 		@RpcTimeout Time timeout);
+
+	CompletableFuture<StatusOverview> requestStatusOverview(@RpcTimeout Time timeout);
 }

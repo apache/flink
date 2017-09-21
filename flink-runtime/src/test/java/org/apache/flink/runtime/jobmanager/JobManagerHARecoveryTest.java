@@ -203,7 +203,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				mySubmittedJobGraphStore,
 				checkpointStateFactory,
 				jobRecoveryTimeout,
-				Option.apply(null));
+				Option.<MetricRegistry>empty(),
+				Option.<String>empty());
 
 			jobManager = system.actorOf(jobManagerProps);
 			ActorGateway gateway = new AkkaActorGateway(jobManager, leaderSessionID);
@@ -430,7 +431,8 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				submittedJobGraphs,
 				checkpointRecoveryFactory,
 				jobRecoveryTimeout,
-				metricsRegistry);
+				metricsRegistry,
+				Option.empty());
 
 			this.recoveredJobs = recoveredJobs;
 		}

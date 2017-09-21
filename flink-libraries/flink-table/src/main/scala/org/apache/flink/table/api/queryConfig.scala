@@ -19,6 +19,7 @@
 package org.apache.flink.table.api
 
 import _root_.java.io.Serializable
+
 import org.apache.flink.api.common.time.Time
 
 class QueryConfig private[table] extends Serializable {}

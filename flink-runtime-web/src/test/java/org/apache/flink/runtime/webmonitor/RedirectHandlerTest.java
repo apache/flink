@@ -21,7 +21,8 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.webmonitor.handlers.HandlerRedirectUtils;
+import org.apache.flink.runtime.rest.handler.RedirectHandler;
+import org.apache.flink.runtime.rest.handler.util.HandlerRedirectUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
@@ -65,10 +66,9 @@ public class RedirectHandlerTest extends TestLogger {
 	@Test
 	public void testRedirectHandler() throws Exception {
 		final String restPath = "/testing";
-		final String correctAddress = "foobar";
-		final String incorrectAddres = "barfoo";
-		final String redirectionAddress = "foobar:12345";
-		final String expectedRedirection = "http://" + redirectionAddress + restPath;
+		final String correctAddress = "foobar:21345";
+		final String redirectionAddress = "http://foobar:12345";
+		final String expectedRedirection = redirectionAddress + restPath;
 
 		final Configuration configuration = new Configuration();
 		final Router router = new Router();
@@ -77,19 +77,17 @@ public class RedirectHandlerTest extends TestLogger {
 		final GatewayRetriever<RestfulGateway> gatewayRetriever = mock(GatewayRetriever.class);
 
 		final RestfulGateway redirectionGateway = mock(RestfulGateway.class);
-		when(redirectionGateway.getAddress()).thenReturn(incorrectAddres);
 		when(redirectionGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(redirectionAddress));
 
 		final RestfulGateway localGateway = mock(RestfulGateway.class);
-		when(localGateway.getAddress()).thenReturn(correctAddress);
+		when(localGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(correctAddress));
 
 		when(gatewayRetriever.getNow()).thenReturn(Optional.empty(), Optional.of(redirectionGateway), Optional.of(localGateway));
 
 		final TestingHandler testingHandler = new TestingHandler(
 			localAddressFuture,
 			gatewayRetriever,
-			timeout,
-			false);
+			timeout);
 
 		router.GET(restPath, testingHandler);
 		WebFrontendBootstrap bootstrap = new WebFrontendBootstrap(
@@ -102,12 +100,12 @@ public class RedirectHandlerTest extends TestLogger {
 			configuration);
 
 		try (HttpTestClient httpClient = new HttpTestClient("localhost", bootstrap.getServerPort())) {
-			// 1. without completed local address future --> Service unavailable
+			// 1. without completed local address future --> Internal server error
 			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
 
 			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
 
-			Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
+			Assert.assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, response.getStatus());
 
 			// 2. with completed local address future but no leader gateway available --> Service unavailable
 			localAddressFuture.complete(correctAddress);
@@ -144,9 +142,8 @@ public class RedirectHandlerTest extends TestLogger {
 		protected TestingHandler(
 				@Nonnull CompletableFuture<String> localAddressFuture,
 				@Nonnull GatewayRetriever<RestfulGateway> leaderRetriever,
-				@Nonnull Time timeout,
-				boolean httpsEnabled) {
-			super(localAddressFuture, leaderRetriever, timeout, httpsEnabled);
+				@Nonnull Time timeout) {
+			super(localAddressFuture, leaderRetriever, timeout);
 		}
 
 		@Override

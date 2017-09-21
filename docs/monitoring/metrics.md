@@ -808,7 +808,7 @@ Thus, in order to infer the metric identifier:
   </thead>
   <tbody>
     <tr>
-      <th rowspan="3"><strong>Job (only available on JobManager)</strong></th>
+      <th rowspan="9"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
       <td>The time it took to complete the last checkpoint.</td>
     </tr>
@@ -819,6 +819,30 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>lastCheckpointExternalPath</td>
       <td>The path where the last checkpoint was stored.</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointRestoreTimestamp</td>
+      <td>Timestamp when the last checkpoint was restored at the coordinator.</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointAlignmentBuffered</td>
+      <td>The number of buffered bytes during alignment over all subtasks for the last checkpoint.</td>
+    </tr>
+    <tr>
+      <td>numberOfInProgressCheckpoints</td>
+      <td>The number of in progress checkpoints.</td>
+    </tr>
+    <tr>
+      <td>numberOfCompletedCheckpoints</td>
+      <td>The number of successfully completed checkpoints.</td>
+    </tr>            
+    <tr>
+      <td>numberOfFailedCheckpoints</td>
+      <td>The number of failed checkpoints.</td>
+    </tr>
+    <tr>
+      <td>totalNumberOfCheckpoints</td>
+      <td>The number of total checkpoints (in progress, completed, failed).</td>
     </tr>
     <tr>
       <th rowspan="1">Task</th>

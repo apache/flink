@@ -155,7 +155,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
 		tableEnv.registerTableSource("hTable", hbaseTable);
 
-		Table result = tableEnv.sql(
+		Table result = tableEnv.sqlQuery(
 			"SELECT " +
 				"  h.family1.col1, " +
 				"  h.family2.col1, " +
@@ -196,7 +196,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
 		tableEnv.registerTableSource("hTable", hbaseTable);
 
-		Table result = tableEnv.sql(
+		Table result = tableEnv.sqlQuery(
 			"SELECT " +
 				"  h.family1.col1, " +
 				"  h.family3.col1, " +
@@ -236,7 +236,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		hbaseTable.addColumn(FAMILY3, F3COL3, String.class);
 		tableEnv.registerTableSource("hTable", hbaseTable);
 
-		Table result = tableEnv.sql(
+		Table result = tableEnv.sqlQuery(
 			"SELECT * FROM hTable AS h"
 		);
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
@@ -270,7 +270,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		tableEnv.registerFunction("toUTF8", new ToUTF8());
 		tableEnv.registerFunction("toLong", new ToLong());
 
-		Table result = tableEnv.sql(
+		Table result = tableEnv.sqlQuery(
 			"SELECT " +
 				"  toUTF8(h.family2.col1), " +
 				"  toLong(h.family2.col2) " +

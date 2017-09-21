@@ -18,30 +18,25 @@
 
 package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.rest.handler.util.HandlerUtils;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
-import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -52,13 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.util.concurrent.CompletableFuture;
-
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
 /**
  * Super class for netty-based handlers that work with {@link RequestBody}s and {@link ResponseBody}s.
@@ -69,14 +58,19 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVer
  * @param <P> type of outgoing responses
  */
 @ChannelHandler.Sharable
-public abstract class AbstractRestHandler<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends SimpleChannelInboundHandler<Routed> {
+public abstract class AbstractRestHandler<T extends RestfulGateway, R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends RedirectHandler<T> {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private static final ObjectMapper mapper = RestMapperUtils.getStrictObjectMapper();
 
 	private final MessageHeaders<R, P, M> messageHeaders;
 
-	protected AbstractRestHandler(MessageHeaders<R, P, M> messageHeaders) {
+	protected AbstractRestHandler(
+			CompletableFuture<String> localRestAddress,
+			GatewayRetriever<T> leaderRetriever,
+			Time timeout,
+			MessageHeaders<R, P, M> messageHeaders) {
+		super(localRestAddress, leaderRetriever, timeout);
 		this.messageHeaders = messageHeaders;
 	}
 
@@ -85,7 +79,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	}
 
 	@Override
-	protected void channelRead0(final ChannelHandlerContext ctx, Routed routed) throws Exception {
+	protected void respondAsLeader(final ChannelHandlerContext ctx, Routed routed, T gateway) throws Exception {
 		if (log.isDebugEnabled()) {
 			log.debug("Received request " + routed.request().getUri() + '.');
 		}
@@ -97,7 +91,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
 				// FullHttpRequests.
 				log.error("Implementation error: Received a request that wasn't a FullHttpRequest.");
-				sendErrorResponse(new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST, ctx, httpRequest);
+				HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST);
 				return;
 			}
 
@@ -109,7 +103,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 					request = mapper.readValue("{}", messageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
 					log.error("Implementation error: Get request bodies must have a no-argument constructor.", je);
-					sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+					HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 					return;
 				}
 			} else {
@@ -118,7 +112,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 					request = mapper.readValue(in, messageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
 					log.error("Failed to read request.", je);
-					sendErrorResponse(new ErrorResponseBody(String.format("Request did not match expected format %s.", messageHeaders.getRequestClass().getSimpleName())), HttpResponseStatus.BAD_REQUEST, ctx, httpRequest);
+					HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody(String.format("Request did not match expected format %s.", messageHeaders.getRequestClass().getSimpleName())), HttpResponseStatus.BAD_REQUEST);
 					return;
 				}
 			}
@@ -126,7 +120,7 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 			CompletableFuture<P> response;
 			try {
 				HandlerRequest<R, M> handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
-				response = handleRequest(handlerRequest);
+				response = handleRequest(handlerRequest, gateway);
 			} catch (Exception e) {
 				response = FutureUtils.completedExceptionally(e);
 			}
@@ -135,18 +129,18 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 				if (error != null) {
 					if (error instanceof RestHandlerException) {
 						RestHandlerException rhe = (RestHandlerException) error;
-						sendErrorResponse(new ErrorResponseBody(rhe.getErrorMessage()), rhe.getHttpResponseStatus(), ctx, httpRequest);
+						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody(rhe.getErrorMessage()), rhe.getHttpResponseStatus());
 					} else {
 						log.error("Implementation error: Unhandled exception.", error);
-						sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 					}
 				} else {
-					sendResponse(messageHeaders.getResponseStatusCode(), resp, ctx, httpRequest);
+					HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
 				}
 			});
 		} catch (Exception e) {
 			log.error("Request processing failed.", e);
-			sendErrorResponse(new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
+			HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -161,57 +155,9 @@ public abstract class AbstractRestHandler<R extends RequestBody, P extends Respo
 	 * {@link HttpResponseStatus#INTERNAL_SERVER_ERROR} will be returned.
 	 *
 	 * @param request request that should be handled
+	 * @param gateway leader gateway
 	 * @return future containing a handler response
 	 * @throws RestHandlerException if the handling failed
 	 */
-	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request) throws RestHandlerException;
-
-	private static <P extends ResponseBody> void sendResponse(HttpResponseStatus statusCode, P response, ChannelHandlerContext ctx, HttpRequest httpRequest) {
-		StringWriter sw = new StringWriter();
-		try {
-			mapper.writeValue(sw, response);
-		} catch (IOException ioe) {
-			sendErrorResponse(new ErrorResponseBody("Internal server error. Could not map response to JSON."), HttpResponseStatus.INTERNAL_SERVER_ERROR, ctx, httpRequest);
-			return;
-		}
-		sendResponse(ctx, httpRequest, statusCode, sw.toString());
-	}
-
-	static void sendErrorResponse(ErrorResponseBody error, HttpResponseStatus statusCode, ChannelHandlerContext ctx, HttpRequest httpRequest) {
-
-		StringWriter sw = new StringWriter();
-		try {
-			mapper.writeValue(sw, error);
-		} catch (IOException e) {
-			// this should never happen
-			sendResponse(ctx, httpRequest, HttpResponseStatus.INTERNAL_SERVER_ERROR, "Internal server error. Could not map error response to JSON.");
-		}
-		sendResponse(ctx, httpRequest, statusCode, sw.toString());
-	}
-
-	private static void sendResponse(@Nonnull ChannelHandlerContext ctx, @Nonnull HttpRequest httpRequest, @Nonnull HttpResponseStatus statusCode, @Nonnull String message) {
-		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, statusCode);
-
-		response.headers().set(CONTENT_TYPE, "application/json");
-
-		if (HttpHeaders.isKeepAlive(httpRequest)) {
-			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-		}
-
-		byte[] buf = message.getBytes(ConfigConstants.DEFAULT_CHARSET);
-		ByteBuf b = Unpooled.copiedBuffer(buf);
-		HttpHeaders.setContentLength(response, buf.length);
-
-		// write the initial line and the header.
-		ctx.write(response);
-
-		ctx.write(b);
-
-		ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-
-		// close the connection, if no keep-alive is needed
-		if (!HttpHeaders.isKeepAlive(httpRequest)) {
-			lastContentFuture.addListener(ChannelFutureListener.CLOSE);
-		}
-	}
+	protected abstract CompletableFuture<P> handleRequest(@Nonnull HandlerRequest<R, M> request, @Nonnull T gateway) throws RestHandlerException;
 }

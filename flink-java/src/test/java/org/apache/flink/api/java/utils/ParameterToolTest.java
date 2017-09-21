@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -119,6 +120,16 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 			props.store(out, "Test properties");
 		}
 		ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
+		Assert.assertEquals(2, parameter.getNumberOfParameters());
+		validate(parameter);
+
+		parameter = ParameterTool.fromPropertiesFile(propertiesFile);
+		Assert.assertEquals(2, parameter.getNumberOfParameters());
+		validate(parameter);
+
+		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
+			parameter = ParameterTool.fromPropertiesFile(fis);
+		}
 		Assert.assertEquals(2, parameter.getNumberOfParameters());
 		validate(parameter);
 	}
