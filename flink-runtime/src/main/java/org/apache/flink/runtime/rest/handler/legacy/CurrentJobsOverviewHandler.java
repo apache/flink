@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -42,6 +42,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -129,7 +130,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler imple
 						gen.close();
 						return writer.toString();
 					} catch (IOException e) {
-						throw new FlinkFutureException("Could not write current jobs overview json.", e);
+						throw new CompletionException(new FlinkException("Could not write current jobs overview json.", e));
 					}
 				},
 				executor);

@@ -32,13 +32,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobCache;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobView;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.WebHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -74,6 +74,7 @@ import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
@@ -160,7 +161,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 					try {
 						return new BlobCache(new InetSocketAddress(jobManagerGateway.getHostname(), port), config, blobView);
 					} catch (IOException e) {
-						throw new FlinkFutureException("Could not create BlobCache.", e);
+						throw new CompletionException(new FlinkException("Could not create BlobCache.", e));
 					}
 				},
 				executor);
@@ -178,7 +179,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 				CompletableFuture<BlobKey> blobKeyFuture = taskManagerFuture.thenCompose(
 					(Optional<Instance> optTMInstance) -> {
 						Instance taskManagerInstance = optTMInstance.orElseThrow(
-							() -> new FlinkFutureException("Could not find instance with " + instanceID + '.'));
+							() -> new CompletionException(new FlinkException("Could not find instance with " + instanceID + '.')));
 						switch (fileMode) {
 							case LOG:
 								return taskManagerInstance.getTaskManagerGateway().requestTaskManagerLog(timeout);
@@ -200,7 +201,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 									try {
 										blobCache.deleteGlobal(lastSubmittedFile.get(taskManagerID));
 									} catch (IOException e) {
-										throw new FlinkFutureException("Could not delete file for " + taskManagerID + '.', e);
+										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.', e));
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);
 								}
@@ -210,7 +211,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 							try {
 								return blobCache.getFile(blobKey).getAbsolutePath();
 							} catch (IOException e) {
-								throw new FlinkFutureException("Could not retrieve blob for " + blobKey + '.', e);
+								throw new CompletionException(new FlinkException("Could not retrieve blob for " + blobKey + '.', e));
 							}
 						},
 						executor);

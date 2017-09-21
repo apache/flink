@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +66,7 @@ public class FutureUtilsTest extends TestLogger {
 						if (atomicInteger.incrementAndGet() == retries) {
 							return true;
 						} else {
-							throw new FlinkFutureException("Test exception");
+							throw new CompletionException(new FlinkException("Test exception"));
 						}
 					},
 					TestingUtils.defaultExecutor()),
@@ -119,7 +120,7 @@ public class FutureUtilsTest extends TestLogger {
 							}
 						}
 
-						throw new FlinkFutureException("Test exception");
+						throw new CompletionException(new FlinkException("Test exception"));
 					},
 					TestingUtils.defaultExecutor()),
 			retries,

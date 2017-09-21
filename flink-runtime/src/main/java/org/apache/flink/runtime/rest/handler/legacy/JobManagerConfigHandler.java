@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -79,7 +80,7 @@ public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 					gen.close();
 					return writer.toString();
 				} catch (IOException e) {
-					throw new FlinkFutureException("Could not write configuration.", e);
+					throw new CompletionException(new FlinkException("Could not write configuration.", e));
 				}
 			},
 			executor);
