@@ -59,10 +59,9 @@ public class RemoteInputChannelTest {
 		final SingleInputGate inputGate = mock(SingleInputGate.class);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
 		final Buffer buffer = TestBufferFactory.createBuffer();
-		buffer.retain(); // used twice
 
 		// The test
-		inputChannel.onBuffer(buffer, 0);
+		inputChannel.onBuffer(buffer.retain(), 0);
 
 		// This does not yet throw the exception, but sets the error at the channel.
 		inputChannel.onBuffer(buffer, 29);
@@ -109,8 +108,7 @@ public class RemoteInputChannelTest {
 							for (int j = 0; j < 128; j++) {
 								// this is the same buffer over and over again which will be
 								// recycled by the RemoteInputChannel
-								buffer.retain();
-								inputChannel.onBuffer(buffer, j);
+								inputChannel.onBuffer(buffer.retain(), j);
 							}
 
 							if (inputChannel.isReleased()) {
