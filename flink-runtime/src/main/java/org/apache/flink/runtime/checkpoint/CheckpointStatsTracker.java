@@ -429,7 +429,7 @@ public class CheckpointStatsTracker {
 	private class LatestCompletedCheckpointAlignmentBufferedGauge implements Gauge<Long> {
 		@Override
 		public Long getValue() {
-			CompletedCheckpointStats completed = latestCompletedCheckpoint;;
+			CompletedCheckpointStats completed = latestCompletedCheckpoint;
 			if (completed != null) {
 				return completed.getAlignmentBuffered();
 			} else {
