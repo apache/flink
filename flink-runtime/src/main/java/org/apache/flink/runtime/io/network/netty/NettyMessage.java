@@ -348,13 +348,16 @@ abstract class NettyMessage {
 
 		InputChannelID receiverId;
 
+		int credit;
+
 		public PartitionRequest() {
 		}
 
-		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId) {
+		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId, int credit) {
 			this.partitionId = partitionId;
 			this.queueIndex = queueIndex;
 			this.receiverId = receiverId;
+			this.credit = credit;
 		}
 
 		@Override
@@ -362,12 +365,13 @@ abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16);
+				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16 + 4);
 
 				partitionId.getPartitionId().writeTo(result);
 				partitionId.getProducerId().writeTo(result);
 				result.writeInt(queueIndex);
 				receiverId.writeTo(result);
+				result.writeInt(credit);
 
 				return result;
 			}
@@ -385,6 +389,7 @@ abstract class NettyMessage {
 			partitionId = new ResultPartitionID(IntermediateResultPartitionID.fromByteBuf(buffer), ExecutionAttemptID.fromByteBuf(buffer));
 			queueIndex = buffer.readInt();
 			receiverId = InputChannelID.fromByteBuf(buffer);
+			credit = buffer.readInt();
 		}
 
 		@Override
