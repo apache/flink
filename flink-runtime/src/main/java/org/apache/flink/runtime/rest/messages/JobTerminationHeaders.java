@@ -26,13 +26,13 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link JobCancellationHandler}.
  */
-public class JobCancellationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobMessageParameters> {
+public class JobTerminationHeaders implements MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
 
 	public static final String URL = "/jobs/:jobid";
 
-	private static final JobCancellationHeaders INSTANCE = new JobCancellationHeaders();
+	private static final JobTerminationHeaders INSTANCE = new JobTerminationHeaders();
 
-	private JobCancellationHeaders() {}
+	private JobTerminationHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -50,8 +50,8 @@ public class JobCancellationHeaders implements MessageHeaders<EmptyRequestBody, 
 	}
 
 	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
+	public JobTerminationMessageParameters getUnresolvedMessageParameters() {
+		return new JobTerminationMessageParameters();
 	}
 
 	@Override
@@ -64,7 +64,7 @@ public class JobCancellationHeaders implements MessageHeaders<EmptyRequestBody, 
 		return URL;
 	}
 
-	public static JobCancellationHeaders getInstance() {
+	public static JobTerminationHeaders getInstance() {
 		return INSTANCE;
 	}
 }

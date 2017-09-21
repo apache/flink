@@ -66,6 +66,15 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
+	 * Stop the given job.
+	 *
+	 * @param jobId identifying the job to stop
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the stopping succeeded
+	 */
+	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
 	 * Request the cluster overview.
 	 *
 	 * @param timeout of the operation

@@ -20,34 +20,20 @@ package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
-import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.JobMessageParameters;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeoutException;
 
 /**
- * Request handler for the CANCEL request.
+ * Request handler for the cancel and stop request.
  */
-public class JobCancellationHandler extends AbstractJsonRequestHandler implements LegacyRestHandler<DispatcherGateway, EmptyResponseBody, JobMessageParameters> {
+public class JobCancellationHandler extends AbstractJsonRequestHandler {
 
 	private static final String JOB_CONCELLATION_REST_PATH = "/jobs/:jobid/cancel";
 	private static final String JOB_CONCELLATION_YARN_REST_PATH = "/jobs/:jobid/yarn-cancel";
@@ -83,38 +69,5 @@ public class JobCancellationHandler extends AbstractJsonRequestHandler implement
 				}
 			},
 			executor);
-	}
-
-	@Override
-	public CompletableFuture<EmptyResponseBody> handleRequest(HandlerRequest<EmptyRequestBody, JobMessageParameters> request, DispatcherGateway gateway) {
-		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
-
-		CompletableFuture<Acknowledge> cancelFuture = gateway.cancelJob(jobId, timeout);
-
-		return cancelFuture.handle(
-			(Acknowledge ack, Throwable throwable) -> {
-				if (throwable != null) {
-					Throwable error = ExceptionUtils.stripCompletionException(throwable);
-
-					if (error instanceof TimeoutException) {
-						throw new CompletionException(
-							new RestHandlerException(
-								"Job cancellation timed out.",
-								HttpResponseStatus.REQUEST_TIMEOUT, error));
-					} else if (error instanceof FlinkJobNotFoundException) {
-						throw new CompletionException(
-							new RestHandlerException(
-								"Job could not be found.",
-								HttpResponseStatus.NOT_FOUND, error));
-					} else {
-						throw new CompletionException(
-							new RestHandlerException(
-								"Job cancellation failed: " + error.getMessage(),
-								HttpResponseStatus.INTERNAL_SERVER_ERROR, error));
-					}
-				} else {
-					return EmptyResponseBody.getInstance();
-				}
-			});
 	}
 }
