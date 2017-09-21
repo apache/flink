@@ -179,7 +179,7 @@ class DoubleAggFunctionTest
   extends AggFunctionTestBase[util.Map[Double, Integer], CollectAccumulator[Double]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq(1d, 1d, 2d, null, 3.2d, null, 4d, 5d, null),
+    Seq(1d, 1d, 2d, null, 3.2d, null, 4d, 5d),
     Seq(null, null, null, null, null, null)
   )
 
@@ -200,7 +200,7 @@ class DoubleAggFunctionTest
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
 
-class ObjectAggFunctionTest
+class ObjectCollectAggFunctionTest
   extends AggFunctionTestBase[util.Map[Object, Integer], CollectAccumulator[Object]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
