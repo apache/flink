@@ -35,7 +35,7 @@ import org.apache.flink.util.OutputTag;
 /**
  * An example that illustrates the use of side outputs.
  *
- * <p>This is a modified version of {@link WindowWordCount}
+ * <p>This is a modified version of {@link org.apache.flink.streaming.examples.windowing.WindowWordCount}
  * that has a filter in the tokenizer and only emits some words for counting
  * while emitting the other words to a side output.
  */
