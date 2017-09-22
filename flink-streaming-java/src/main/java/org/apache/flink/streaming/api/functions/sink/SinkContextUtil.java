@@ -16,27 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc.exceptions;
+package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
-import org.apache.flink.runtime.rpc.exceptions.RpcException;
+import org.apache.flink.annotation.Internal;
 
 /**
- * Exception which is thrown if the fencing tokens of a {@link FencedRpcEndpoint} do
- * not match.
+ * Utility for creating Sink {@link SinkFunction.Context Contexts}.
  */
-public class FencingTokenMismatchException extends RpcException {
-	private static final long serialVersionUID = -500634972988881467L;
+@Internal
+public class SinkContextUtil {
 
-	public FencingTokenMismatchException(String message) {
-		super(message);
-	}
+	/**
+	 * Creates a {@link SinkFunction.Context} that
+	 * throws an exception when trying to access the current watermark or processing time.
+	 */
+	public static <T> SinkFunction.Context<T> forTimestamp(long timestamp) {
+		return new SinkFunction.Context<T>() {
+			@Override
+			public long currentProcessingTime() {
+				throw new RuntimeException("Not implemented");
+			}
 
-	public FencingTokenMismatchException(String message, Throwable cause) {
-		super(message, cause);
-	}
+			@Override
+			public long currentWatermark() {
+				throw new RuntimeException("Not implemented");
+			}
 
-	public FencingTokenMismatchException(Throwable cause) {
-		super(cause);
+			@Override
+			public Long timestamp() {
+				return timestamp;
+			}
+		};
 	}
 }

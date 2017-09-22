@@ -276,7 +276,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 	 * 		The incoming data
 	 */
 	@Override
-	public void invoke(IN next) throws Exception {
+	public void invoke(IN next, Context context) throws Exception {
 		// propagate asynchronous errors
 		checkErroneous();
 

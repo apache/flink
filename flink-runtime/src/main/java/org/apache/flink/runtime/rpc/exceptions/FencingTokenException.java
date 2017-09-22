@@ -16,43 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster;
+package org.apache.flink.runtime.rpc.exceptions;
 
-import org.apache.flink.util.AbstractID;
-
-import java.util.UUID;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 
 /**
- * The {@link JobMaster} fencing token.
+ * Exception which is thrown if the fencing tokens of a {@link FencedRpcEndpoint} do
+ * not match.
  */
-public class JobMasterId extends AbstractID {
+public class FencingTokenException extends RpcException {
+	private static final long serialVersionUID = -500634972988881467L;
 
-	private static final long serialVersionUID = -933276753644003754L;
-
-	public JobMasterId(byte[] bytes) {
-		super(bytes);
+	public FencingTokenException(String message) {
+		super(message);
 	}
 
-	public JobMasterId(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
+	public FencingTokenException(String message, Throwable cause) {
+		super(message, cause);
 	}
 
-	public JobMasterId(AbstractID id) {
-		super(id);
-	}
-
-	public JobMasterId() {
-	}
-
-	public JobMasterId(UUID uuid) {
-		this(uuid.getLeastSignificantBits(), uuid.getMostSignificantBits());
-	}
-
-	public UUID toUUID() {
-		return new UUID(getUpperPart(), getLowerPart());
-	}
-
-	public static JobMasterId generate() {
-		return new JobMasterId();
+	public FencingTokenException(Throwable cause) {
+		super(cause);
 	}
 }

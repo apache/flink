@@ -27,6 +27,14 @@ public class CoreOptions {
 	//  process parameters
 	// ------------------------------------------------------------------------
 
+	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
+		.key("classloader.resolve-order")
+		.defaultValue("child-first");
+
+	// ------------------------------------------------------------------------
+	//  process parameters
+	// ------------------------------------------------------------------------
+
 	public static final ConfigOption<String> FLINK_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts")
 		.defaultValue("");

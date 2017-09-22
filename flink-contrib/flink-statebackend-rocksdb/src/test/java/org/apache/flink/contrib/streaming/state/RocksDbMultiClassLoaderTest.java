@@ -18,6 +18,8 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -25,7 +27,6 @@ import org.rocksdb.RocksDB;
 
 import java.lang.reflect.Method;
 import java.net.URL;
-import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertNotEquals;
 
@@ -46,8 +47,8 @@ public class RocksDbMultiClassLoaderTest {
 		final URL codePath2 = RocksDB.class.getProtectionDomain().getCodeSource().getLocation();
 
 		final ClassLoader parent = getClass().getClassLoader();
-		final ClassLoader loader1 = new ChildFirstClassLoader(new URL[] { codePath1, codePath2 }, parent);
-		final ClassLoader loader2 = new ChildFirstClassLoader(new URL[] { codePath1, codePath2 }, parent);
+		final ClassLoader loader1 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent);
+		final ClassLoader loader2 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent);
 
 		final String className = RocksDBStateBackend.class.getName();
 
@@ -68,33 +69,5 @@ public class RocksDbMultiClassLoaderTest {
 		// if all is well, these methods can both complete successfully
 		meth1.invoke(instance1, tempDir);
 		meth2.invoke(instance2, tempDir);
-	}
-
-	// ------------------------------------------------------------------------
-
-	/**
-	 * A variant of the URLClassLoader that first loads from the URLs and only after that from the parent.
-	 */
-	private static final class ChildFirstClassLoader extends URLClassLoader {
-
-		private final ClassLoader parent;
-
-		public ChildFirstClassLoader(URL[] urls, ClassLoader parent) {
-			super(urls, null);
-			this.parent = parent;
-		}
-
-		@Override
-		public Class<?> findClass(String name) throws ClassNotFoundException {
-			// first try to load from the URLs
-			// because the URLClassLoader's parent is null, this cannot implicitly load from the parent
-			try {
-				return super.findClass(name);
-			}
-			catch (ClassNotFoundException e) {
-				// not in the URL, check the parent
-				return parent.loadClass(name);
-			}
-		}
 	}
 }

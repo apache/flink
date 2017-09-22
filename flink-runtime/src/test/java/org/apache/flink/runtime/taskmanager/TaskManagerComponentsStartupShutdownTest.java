@@ -35,6 +35,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -121,7 +122,8 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				Time.seconds(10),
 				1000000, // cleanup interval
 				config,
-				false); // exit-jvm-on-fatal-error
+				false, // exit-jvm-on-fatal-error
+				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 
 			final int networkBufNum = 32;
 			// note: the network buffer memory configured here is not actually used below but set

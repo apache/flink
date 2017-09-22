@@ -30,7 +30,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.rpc.exceptions.FencingTokenMismatchException;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
@@ -134,7 +134,7 @@ public class ResourceManagerTaskExecutorTest extends TestLogger {
 				unMatchedLeaderFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 				fail("Should have failed because we are using a wrongly fenced ResourceManagerGateway.");
 			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 			}
 		} finally {
 			if (testingFatalErrorHandler.hasExceptionOccurred()) {

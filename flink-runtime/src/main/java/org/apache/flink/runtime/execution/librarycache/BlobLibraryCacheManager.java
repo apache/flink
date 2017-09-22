@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -63,10 +64,16 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	/** The blob service to download libraries */
 	private final BlobService blobService;
 
+	/** The resolve order to use when creating a {@link ClassLoader}. */
+	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
+
 	// --------------------------------------------------------------------------------------------
 
-	public BlobLibraryCacheManager(BlobService blobService) {
+	public BlobLibraryCacheManager(
+			BlobService blobService,
+			FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder) {
 		this.blobService = checkNotNull(blobService);
+		this.classLoaderResolveOrder = checkNotNull(classLoaderResolveOrder);
 	}
 
 	@Override
@@ -112,7 +119,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 					}
 
 					cacheEntries.put(jobId, new LibraryCacheEntry(
-						requiredJarFiles, requiredClasspaths, urls, task));
+						requiredJarFiles, requiredClasspaths, urls, task, classLoaderResolveOrder));
 				} catch (Throwable t) {
 					// rethrow or wrap
 					ExceptionUtils.tryRethrowIOException(t);
@@ -148,7 +155,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 			// else has already been unregistered
 		}
 	}
-	
+
 	@Override
 	public ClassLoader getClassLoader(JobID jobId) {
 		checkNotNull(jobId, "The JobId must not be null.");
@@ -204,7 +211,7 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 	 */
 	private static class LibraryCacheEntry {
 
-		private final FlinkUserCodeClassLoader classLoader;
+		private final URLClassLoader classLoader;
 
 		private final Set<ExecutionAttemptID> referenceHolders;
 		/**
@@ -242,9 +249,15 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				Collection<BlobKey> requiredLibraries,
 				Collection<URL> requiredClasspaths,
 				URL[] libraryURLs,
-				ExecutionAttemptID initialReference) {
+				ExecutionAttemptID initialReference,
+				FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder) {
 
-			this.classLoader = new FlinkUserCodeClassLoader(libraryURLs);
+			this.classLoader =
+				FlinkUserCodeClassLoaders.create(
+					classLoaderResolveOrder,
+					libraryURLs,
+					FlinkUserCodeClassLoaders.class.getClassLoader());
+
 			// NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
 			//       see http://findbugs.sourceforge.net/bugDescriptions.html#DMI_COLLECTION_OF_URLS
 			//       -> alternatively, compare their string representation

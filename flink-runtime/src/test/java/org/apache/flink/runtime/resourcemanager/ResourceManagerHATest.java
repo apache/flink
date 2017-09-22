@@ -108,7 +108,7 @@ public class ResourceManagerHATest extends TestLogger {
 		try {
 			resourceManager.start();
 
-			Assert.assertNotNull(resourceManager.getFencingToken());
+			Assert.assertNull(resourceManager.getFencingToken());
 			final UUID leaderId = UUID.randomUUID();
 			leaderElectionService.isLeader(leaderId);
 			// after grant leadership, resourceManager's leaderId has value

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.exceptions.FencingTokenMismatchException;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
@@ -39,6 +39,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -67,17 +68,15 @@ public class FencedRpcEndpointTest extends TestLogger {
 	 */
 	@Test
 	public void testFencingTokenSetting() throws Exception {
-		final UUID initialFencingToken = UUID.randomUUID();
 		final String value = "foobar";
-		FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, initialFencingToken, value);
-		FencedTestingGateway fencedTestingGateway = fencedTestingEndpoint.getSelfGateway(FencedTestingGateway.class);
+		FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, value);
 		FencedTestingGateway fencedGateway = fencedTestingEndpoint.getSelfGateway(FencedTestingGateway.class);
 
 		try {
 			fencedTestingEndpoint.start();
 
-			assertEquals(initialFencingToken, fencedGateway.getFencingToken());
-			assertEquals(initialFencingToken, fencedTestingEndpoint.getFencingToken());
+			assertNull(fencedGateway.getFencingToken());
+			assertNull(fencedTestingEndpoint.getFencingToken());
 
 			final UUID newFencingToken = UUID.randomUUID();
 
@@ -88,9 +87,9 @@ public class FencedRpcEndpointTest extends TestLogger {
 				// expected to fail
 			}
 
-			assertEquals(initialFencingToken, fencedTestingEndpoint.getFencingToken());
+			assertNull(fencedTestingEndpoint.getFencingToken());
 
-			CompletableFuture<Acknowledge> setFencingFuture = fencedTestingGateway.rpcSetFencingToken(newFencingToken, timeout);
+			CompletableFuture<Acknowledge> setFencingFuture = fencedTestingEndpoint.setFencingTokenInMainThread(newFencingToken, timeout);
 
 			// wait for the completion of the set fencing token operation
 			setFencingFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -109,15 +108,15 @@ public class FencedRpcEndpointTest extends TestLogger {
 	 */
 	@Test
 	public void testFencing() throws Exception {
-		final UUID initialFencingToken = UUID.randomUUID();
+		final UUID fencingToken = UUID.randomUUID();
 		final UUID wrongFencingToken = UUID.randomUUID();
 		final String value = "barfoo";
-		FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, initialFencingToken, value);
+		FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, value, fencingToken);
 
 		try {
 			fencedTestingEndpoint.start();
 
-			final FencedTestingGateway properFencedGateway = rpcService.connect(fencedTestingEndpoint.getAddress(), initialFencingToken, FencedTestingGateway.class)
+			final FencedTestingGateway properFencedGateway = rpcService.connect(fencedTestingEndpoint.getAddress(), fencingToken, FencedTestingGateway.class)
 				.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 			final FencedTestingGateway wronglyFencedGateway = rpcService.connect(fencedTestingEndpoint.getAddress(), wrongFencingToken, FencedTestingGateway.class)
 				.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -128,12 +127,12 @@ public class FencedRpcEndpointTest extends TestLogger {
 				wronglyFencedGateway.foobar(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 				fail("This should fail since we have the wrong fencing token.");
 			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 			}
 
 			final UUID newFencingToken = UUID.randomUUID();
 
-			CompletableFuture<Acknowledge> newFencingTokenFuture = properFencedGateway.rpcSetFencingToken(newFencingToken, timeout);
+			CompletableFuture<Acknowledge> newFencingTokenFuture = fencedTestingEndpoint.setFencingTokenInMainThread(newFencingToken, timeout);
 
 			// wait for the new fencing token to be set
 			newFencingTokenFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -144,7 +143,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 
 				fail("This should fail since we have the wrong fencing token by now.");
 			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 			}
 
 		} finally {
@@ -163,7 +162,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 		final UUID newFencingToken = UUID.randomUUID();
 		final String value = "foobar";
 
-		final FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, initialFencingToken, value);
+		final FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, value, initialFencingToken);
 
 		try {
 			fencedTestingEndpoint.start();
@@ -178,7 +177,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 			assertEquals(value, selfGateway.foobar(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
 			assertEquals(value, remoteGateway.foobar(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
 
-			CompletableFuture<Acknowledge> newFencingTokenFuture = selfGateway.rpcSetFencingToken(newFencingToken, timeout);
+			CompletableFuture<Acknowledge> newFencingTokenFuture = fencedTestingEndpoint.setFencingTokenInMainThread(newFencingToken, timeout);
 
 			// wait for the new fencing token to be set
 			newFencingTokenFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -192,7 +191,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 				remoteGateway.foobar(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 				fail("This should have failed because we don't have the right fencing token.");
 			} catch (ExecutionException e) {
-				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+				assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 			}
 		} finally {
 			fencedTestingEndpoint.shutDown();
@@ -208,7 +207,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 		final Time shortTimeout = Time.milliseconds(100L);
 		final UUID initialFencingToken = UUID.randomUUID();
 		final String value = "foobar";
-		final FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, initialFencingToken, value);
+		final FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, value, initialFencingToken);
 
 		try {
 			fencedTestingEndpoint.start();
@@ -221,7 +220,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 			// therefore, we know that the change fencing token call is executed after the trigger MainThreadExecutor
 			// computation
 			final UUID newFencingToken = UUID.randomUUID();
-			CompletableFuture<Acknowledge> newFencingTokenFuture = selfGateway.rpcSetFencingToken(newFencingToken, timeout);
+			CompletableFuture<Acknowledge> newFencingTokenFuture = fencedTestingEndpoint.setFencingTokenInMainThread(newFencingToken, timeout);
 
 			newFencingTokenFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
@@ -253,7 +252,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 		final UUID initialFencingToken = UUID.randomUUID();
 		final String value = "foobar";
 
-		final FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, initialFencingToken, value);
+		final FencedTestingEndpoint fencedTestingEndpoint = new FencedTestingEndpoint(rpcService, value, initialFencingToken);
 
 		try {
 			fencedTestingEndpoint.start();
@@ -283,8 +282,6 @@ public class FencedRpcEndpointTest extends TestLogger {
 	public interface FencedTestingGateway extends FencedRpcGateway<UUID> {
 		CompletableFuture<String> foobar(@RpcTimeout Time timeout);
 
-		CompletableFuture<Acknowledge> rpcSetFencingToken(UUID fencingToken, @RpcTimeout Time timeout);
-
 		CompletableFuture<Acknowledge> triggerMainThreadExecutorComputation(@RpcTimeout Time timeout);
 
 		CompletableFuture<Acknowledge> triggerComputationLatch(@RpcTimeout Time timeout);
@@ -296,24 +293,30 @@ public class FencedRpcEndpointTest extends TestLogger {
 
 		private final String value;
 
-		protected FencedTestingEndpoint(RpcService rpcService, UUID initialFencingToken, String value) {
-			super(rpcService, initialFencingToken);
+		protected FencedTestingEndpoint(RpcService rpcService, String value) {
+			this(rpcService, value, null);
+		}
+
+		protected FencedTestingEndpoint(RpcService rpcService, String value, UUID initialFencingToken) {
+			super(rpcService);
 
 			computationLatch = new OneShotLatch();
 
 			this.value = value;
+
+			// make sure that it looks as if we are running in the main thread
+			currentMainThread.set(Thread.currentThread());
+
+			try {
+				setFencingToken(initialFencingToken);
+			} finally {
+				currentMainThread.set(null);
+			}
 		}
 
 		@Override
 		public CompletableFuture<String> foobar(Time timeout) {
 			return CompletableFuture.completedFuture(value);
-		}
-
-		@Override
-		public CompletableFuture<Acknowledge> rpcSetFencingToken(UUID fencingToken, Time timeout) {
-			setFencingToken(fencingToken);
-
-			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
 
 		@Override
@@ -339,6 +342,16 @@ public class FencedRpcEndpointTest extends TestLogger {
 			computationLatch.trigger();
 
 			return CompletableFuture.completedFuture(Acknowledge.get());
+		}
+
+		public CompletableFuture<Acknowledge> setFencingTokenInMainThread(UUID fencingToken, Time timeout) {
+			return callAsyncWithoutFencing(
+				() -> {
+					setFencingToken(fencingToken);
+
+					return Acknowledge.get();
+				},
+				timeout);
 		}
 	}
 }

@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.UUID;
@@ -39,25 +40,26 @@ public class FencedRpcEndpoint<F extends Serializable> extends RpcEndpoint {
 	private volatile F fencingToken;
 	private volatile MainThreadExecutor fencedMainThreadExecutor;
 
-	protected FencedRpcEndpoint(RpcService rpcService, String endpointId, F initialFencingToken) {
+	protected FencedRpcEndpoint(RpcService rpcService, String endpointId) {
 		super(rpcService, endpointId);
 
-		this.fencingToken = Preconditions.checkNotNull(initialFencingToken);
+		// no fencing token == no leadership
+		this.fencingToken = null;
 		this.fencedMainThreadExecutor = new MainThreadExecutor(
 			getRpcService().fenceRpcServer(
 				rpcServer,
-				initialFencingToken));
+				null));
 	}
 
-	protected FencedRpcEndpoint(RpcService rpcService, F initialFencingToken) {
-		this(rpcService, UUID.randomUUID().toString(), initialFencingToken);
+	protected FencedRpcEndpoint(RpcService rpcService) {
+		this(rpcService, UUID.randomUUID().toString());
 	}
 
 	public F getFencingToken() {
 		return fencingToken;
 	}
 
-	protected void setFencingToken(F newFencingToken) {
+	protected void setFencingToken(@Nullable F newFencingToken) {
 		// this method should only be called from within the main thread
 		validateRunsInMainThread();
 
