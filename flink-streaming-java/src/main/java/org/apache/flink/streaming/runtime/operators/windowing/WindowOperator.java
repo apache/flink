@@ -779,7 +779,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			if (outputTag == null) {
 				throw new IllegalArgumentException("OutputTag must not be null.");
 			}
-			output.collect(outputTag, new StreamRecord<>(value, cleanupTime(window)));
+			output.collect(outputTag, new StreamRecord<>(value, window.maxTimestamp()));
 		}
 
 	}

@@ -216,7 +216,7 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 
 		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
-			throw new UnsupportedOperationException("current watermark is not supported in this context");
+			throw new UnsupportedOperationException("side output is not supported in this context");
 		}
 	}
 
