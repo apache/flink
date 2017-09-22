@@ -103,12 +103,24 @@ Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state wi
 #### Trigger a Savepoint
 
 ```sh
-$ bin/flink savepoint :jobId [:targetDirectory]
+$ bin/flink savepoint :jobId [:savepointDirectory]
 ```
 
-This will trigger a savepoint for the job with ID `:jobid`. Furthermore, you can specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
+This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-If you don't specify a target directory, you need to have [configured a default directory](#configuration). Otherwise, triggering the savepoint will fail.
+Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
+
+If you don't specify a target directory, you need to have [configured a default directory](#configuration) (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)). Otherwise, triggering the savepoint will fail.
+
+#### Trigger a Savepoint with YARN
+
+```sh
+$ bin/flink savepoint :jobId [:savepointDirectory] -yid :yarnAppId
+```
+
+This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
+
+Everything else is the same as described in the above **Trigger a Savepoint** section.
 
 #### Cancel Job with Savepoint
 
