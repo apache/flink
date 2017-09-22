@@ -68,6 +68,6 @@ public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
 
 	@Override
 	public <X> void output(OutputTag<X> outputTag, X value) {
-
+		context.output(outputTag, value);
 	}
 }

@@ -74,7 +74,6 @@ public class ProcessOperator<IN, OUT>
 	}
 
 	private class ContextImpl extends ProcessFunction<IN, OUT>.Context implements TimerService {
-
 		private StreamRecord<IN> element;
 
 		private final ProcessingTimeService processingTimeService;
