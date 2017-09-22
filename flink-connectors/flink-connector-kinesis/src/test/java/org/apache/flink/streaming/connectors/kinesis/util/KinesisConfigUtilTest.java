@@ -17,9 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
+
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,7 +37,7 @@ import static org.junit.Assert.assertEquals;
  * Tests for KinesisConfigUtil.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
+@PrepareForTest(KinesisConfigUtil.class)
 public class KinesisConfigUtilTest {
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
@@ -50,7 +51,66 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		testConfig.setProperty("RateLimit", "unparsableLong");
 
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
+		KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+	}
+
+	@Test
+	public void testDefaultRateLimitInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(100, kpc.getRateLimit());
+	}
+
+	@Test
+	public void testCustomizedRateLimitInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigUtil.RATE_LIMIT, "150");
+
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(150, kpc.getRateLimit());
+	}
+
+	@Test
+	public void testDefaultThreadingModelInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(KinesisProducerConfiguration.ThreadingModel.POOLED, kpc.getThreadingModel());
+	}
+
+	@Test
+	public void testCustomizedThreadingModelSizeInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigUtil.THREADING_MODEL, "PER_REQUEST");
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(KinesisProducerConfiguration.ThreadingModel.PER_REQUEST, kpc.getThreadingModel());
+	}
+
+	@Test
+	public void testDefaultThreadPoolSizeInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(10, kpc.getThreadPoolSize());
+	}
+
+	@Test
+	public void testCustomizedThreadPoolSizeInProducerConfiguration() {
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		testConfig.setProperty(KinesisConfigUtil.THREAD_POOL_SIZE, "12");
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals(12, kpc.getThreadPoolSize());
 	}
 
 	@Test
