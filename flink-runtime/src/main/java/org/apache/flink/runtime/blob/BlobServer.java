@@ -692,7 +692,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 *          <tt>false</tt> otherwise
 	 */
 	@Override
-	public boolean deleteTransient(BlobKey key) {
+	public boolean deleteTransientFromCache(BlobKey key) {
 		return deleteInternal(null, key);
 	}
 
@@ -708,7 +708,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 *          <tt>false</tt> otherwise
 	 */
 	@Override
-	public boolean deleteTransient(JobID jobId, BlobKey key) {
+	public boolean deleteTransientFromCache(JobID jobId, BlobKey key) {
 		checkNotNull(jobId);
 		return deleteInternal(jobId, key);
 	}

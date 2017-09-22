@@ -97,6 +97,7 @@ public class BlobServerDeleteTest extends TestLogger {
 	 */
 	private void testDeleteTransient(@Nullable JobID jobId1, @Nullable JobID jobId2)
 			throws IOException {
+		final boolean sameJobId = (jobId1 == jobId2) || (jobId1 != null && jobId1.equals(jobId2));
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -126,7 +127,7 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			verifyDeleted(server, jobId1, key1);
 			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
-			if ((jobId1 == null && jobId2 != null) || (jobId1 != null && !jobId1.equals(jobId2))) {
+			if (!sameJobId) {
 				verifyContents(server, jobId2, key2a, data);
 			}
 			verifyContents(server, jobId2, key2b, data2);
@@ -314,13 +315,21 @@ public class BlobServerDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testConcurrentDeleteOperationsNoJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(null);
+	public void testConcurrentDeleteOperationsNoJobTransient()
+			throws IOException, ExecutionException, InterruptedException {
+		testConcurrentDeleteOperations(null, TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testConcurrentDeleteOperationsForJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(new JobID());
+	public void testConcurrentDeleteOperationsForJobTransient()
+			throws IOException, ExecutionException, InterruptedException {
+		testConcurrentDeleteOperations(new JobID(), TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testConcurrentDeleteOperationsForJobPermanent()
+			throws IOException, ExecutionException, InterruptedException {
+		testConcurrentDeleteOperations(new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -333,8 +342,10 @@ public class BlobServerDeleteTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testConcurrentDeleteOperations(@Nullable final JobID jobId)
+	private void testConcurrentDeleteOperations(@Nullable final JobID jobId, BlobType blobType)
 			throws IOException, InterruptedException, ExecutionException {
 
 		final Configuration config = new Configuration();
@@ -351,7 +362,7 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			server.start();
 
-			final BlobKey blobKey = put(server, jobId, data, TRANSIENT_BLOB);
+			final BlobKey blobKey = put(server, jobId, data, blobType);
 
 			assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 
@@ -399,9 +410,9 @@ public class BlobServerDeleteTest extends TestLogger {
 	 */
 	static boolean delete(BlobService service, @Nullable JobID jobId, BlobKey key) {
 		if (jobId == null) {
-			return service.getTransientBlobService().deleteTransient(key);
+			return service.getTransientBlobService().deleteTransientFromCache(key);
 		} else {
-			return service.getTransientBlobService().deleteTransient(jobId, key);
+			return service.getTransientBlobService().deleteTransientFromCache(jobId, key);
 		}
 	}
 }

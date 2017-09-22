@@ -51,7 +51,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CONTENT;
@@ -129,6 +128,9 @@ public final class BlobClient implements Closeable {
 	/**
 	 * Downloads the given BLOB from the given server and stores its contents to a (local) file.
 	 *
+	 * <p>Transient BLOB files are deleted after a successful copy of the server's data into the
+	 * given <tt>localJarFile</tt>.
+	 *
 	 * @param jobId
 	 * 		job ID the BLOB belongs to or <tt>null</tt> if job-unrelated
 	 * @param blobKey
@@ -169,7 +171,6 @@ public final class BlobClient implements Closeable {
 					os.write(buf, 0, read);
 				}
 
-				// success, we finished
 				return;
 			}
 			catch (Throwable t) {
@@ -242,7 +243,7 @@ public final class BlobClient implements Closeable {
 			sendGetHeader(os, jobId, blobKey);
 			receiveAndCheckGetResponse(is);
 
-			return new BlobInputStream(is, blobKey);
+			return new BlobInputStream(is, blobKey, os);
 		}
 		catch (Throwable t) {
 			BlobUtils.closeSilently(socket, LOG);
@@ -508,85 +509,6 @@ public final class BlobClient implements Closeable {
 		else {
 			throw new IOException("Unrecognized response: " + response + '.');
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  DELETE
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Deletes the (transient) BLOB identified by the given BLOB key and job ID from the BLOB
-	 * server.
-	 *
-	 * @param jobId
-	 * 		the ID of job the BLOB belongs to (or <tt>null</tt> if job-unrelated)
-	 * @param key
-	 * 		the key to identify the BLOB
-	 *
-	 * @return <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
-	 * <tt>false</tt> otherwise
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while transferring the request to the BLOB server or if the
-	 * 		BLOB server throws an exception while processing the request
-	 */
-	boolean deleteInternal(@Nullable JobID jobId, BlobKey key) throws IOException {
-
-		checkNotNull(key);
-
-		try {
-			final OutputStream outputStream = this.socket.getOutputStream();
-			final InputStream inputStream = this.socket.getInputStream();
-
-			// Signal type of operation
-			outputStream.write(DELETE_OPERATION);
-
-			// delete blob key
-			if (jobId == null) {
-				outputStream.write(JOB_UNRELATED_CONTENT);
-			} else {
-				outputStream.write(JOB_RELATED_CONTENT);
-				outputStream.write(jobId.getBytes());
-			}
-			key.writeToOutputStream(outputStream);
-
-			return receiveAndCheckDeleteResponse(inputStream);
-		}
-		catch (Throwable t) {
-			BlobUtils.closeSilently(socket, LOG);
-			throw new IOException("DELETE operation failed: " + t.getMessage(), t);
-		}
-	}
-
-	/**
-	 * Reads the response from the input stream and throws in case of errors.
-	 *
-	 * @param is
-	 * 		stream to read from
-	 *
-	 * @return  <tt>true</tt> if the delete operation was successful at the {@link BlobServer};
-	 *          <tt>false</tt> otherwise
-	 *
-	 * @throws IOException
-	 * 		if the server code throws an exception or if reading the response failed
-	 */
-	private static boolean receiveAndCheckDeleteResponse(InputStream is) throws IOException {
-		int response = is.read();
-		if (response < 0) {
-			throw new EOFException("Premature end of response");
-		}
-		if (response == RETURN_ERROR) {
-			Throwable cause = readExceptionFromStream(is);
-			if (cause == null) {
-				return false;
-			} else {
-				throw new IOException("Server side error: " + cause.getMessage(), cause);
-			}
-		}
-		else if (response != RETURN_OKAY) {
-			throw new IOException("Unrecognized response");
-		}
-		return true;
 	}
 
 	/**

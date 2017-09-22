@@ -191,7 +191,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
-									if (!blobCache.deleteTransient(lastSubmittedFile.get(taskManagerID))) {
+									if (!blobCache.deleteTransientFromCache(lastSubmittedFile.get(taskManagerID))) {
 										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.'));
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);

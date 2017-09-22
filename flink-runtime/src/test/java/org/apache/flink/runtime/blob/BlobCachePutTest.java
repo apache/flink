@@ -55,6 +55,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
+import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.BlockingInputStream;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.ChunkedInputStream;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
@@ -215,27 +217,27 @@ public class BlobCachePutTest extends TestLogger {
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testPutBufferSuccessfulGet1() throws IOException {
+	public void testPutBufferTransientSuccessfulGet1() throws IOException, InterruptedException {
 		testPutBufferSuccessfulGet(null, null, TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testPutBufferSuccessfulGet2() throws IOException {
+	public void testPutBufferTransientSuccessfulGet2() throws IOException, InterruptedException {
 		testPutBufferSuccessfulGet(null, new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testPutBufferSuccessfulGet3() throws IOException {
+	public void testPutBufferTransientSuccessfulGet3() throws IOException, InterruptedException {
 		testPutBufferSuccessfulGet(new JobID(), new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testPutBufferSuccessfulGet4() throws IOException {
+	public void testPutBufferTransientSuccessfulGet4() throws IOException, InterruptedException {
 		testPutBufferSuccessfulGet(new JobID(), null, TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testPutBufferSuccessfulGetHa() throws IOException {
+	public void testPutBufferPermanentSuccessfulGet() throws IOException, InterruptedException {
 		testPutBufferSuccessfulGet(new JobID(), new JobID(), PERMANENT_BLOB);
 	}
 
@@ -251,7 +253,8 @@ public class BlobCachePutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testPutBufferSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType) throws IOException {
+			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
+			throws IOException, InterruptedException {
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -270,9 +273,11 @@ public class BlobCachePutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(cache, jobId1, data, blobType);
 			assertNotNull(key1a);
+			assertEquals(blobType, key1a.getType());
 
 			BlobKey key1b = put(cache, jobId1, data2, blobType);
 			assertNotNull(key1b);
+			assertEquals(blobType, key1b.getType());
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
@@ -292,29 +297,55 @@ public class BlobCachePutTest extends TestLogger {
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
+
+			// now verify we can access the BLOBs from the cache
+			verifyContents(cache, jobId1, key1a, data);
+			verifyContents(cache, jobId1, key1b, data2);
+			verifyContents(cache, jobId2, key2a, data);
+			verifyContents(cache, jobId2, key2b, data2);
+
+			// transient BLOBs should be deleted from the server, eventually
+			if (blobType == TRANSIENT_BLOB) {
+				verifyDeletedEventually(server, jobId1, key1a);
+				verifyDeletedEventually(server, jobId1, key1b);
+				verifyDeletedEventually(server, jobId2, key2a);
+				verifyDeletedEventually(server, jobId2, key2b);
+
+				// the files are still there on the cache though
+				verifyContents(cache, jobId1, key1a, data);
+				verifyContents(cache, jobId1, key1b, data2);
+				verifyContents(cache, jobId2, key2a, data);
+				verifyContents(cache, jobId2, key2b, data2);
+			} else {
+				// still on the server for permanent BLOBs after accesses from a cache
+				verifyContents(server, jobId1, key1a, data);
+				verifyContents(server, jobId1, key1b, data2);
+				verifyContents(server, jobId2, key2a, data);
+				verifyContents(server, jobId2, key2b, data2);
+			}
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testPutStreamSuccessfulGet1() throws IOException {
-		testPutStreamSuccessfulGet(null, null);
+	public void testPutStreamTransientSuccessfulGet1() throws IOException, InterruptedException {
+		testPutStreamTransientSuccessfulGet(null, null);
 	}
 
 	@Test
-	public void testPutStreamSuccessfulGet2() throws IOException {
-		testPutStreamSuccessfulGet(null, new JobID());
+	public void testPutStreamTransientSuccessfulGet2() throws IOException, InterruptedException {
+		testPutStreamTransientSuccessfulGet(null, new JobID());
 	}
 
 	@Test
-	public void testPutStreamSuccessfulGet3() throws IOException {
-		testPutStreamSuccessfulGet(new JobID(), new JobID());
+	public void testPutStreamTransientSuccessfulGet3() throws IOException, InterruptedException {
+		testPutStreamTransientSuccessfulGet(new JobID(), new JobID());
 	}
 
 	@Test
-	public void testPutStreamSuccessfulGet4() throws IOException {
-		testPutStreamSuccessfulGet(new JobID(), null);
+	public void testPutStreamTransientSuccessfulGet4() throws IOException, InterruptedException {
+		testPutStreamTransientSuccessfulGet(new JobID(), null);
 	}
 
 	/**
@@ -329,8 +360,8 @@ public class BlobCachePutTest extends TestLogger {
 	 * @param jobId2
 	 * 		second job id
 	 */
-	private void testPutStreamSuccessfulGet(@Nullable JobID jobId1, @Nullable JobID jobId2)
-			throws IOException {
+	private void testPutStreamTransientSuccessfulGet(@Nullable JobID jobId1, @Nullable JobID jobId2)
+			throws IOException, InterruptedException {
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -349,9 +380,11 @@ public class BlobCachePutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(cache, jobId1, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key1a);
+			assertEquals(TRANSIENT_BLOB, key1a.getType());
 
 			BlobKey key1b = put(cache, jobId1, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key1b);
+			assertEquals(TRANSIENT_BLOB, key1b.getType());
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
@@ -371,29 +404,51 @@ public class BlobCachePutTest extends TestLogger {
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
+
+			// now verify we can access the BLOBs from the cache
+			verifyContents(cache, jobId1, key1a, data);
+			verifyContents(cache, jobId1, key1b, data2);
+			verifyContents(cache, jobId2, key2a, data);
+			verifyContents(cache, jobId2, key2b, data2);
+
+			// transient BLOBs should be deleted from the server, eventually
+			verifyDeletedEventually(server, jobId1, key1a);
+			verifyDeletedEventually(server, jobId1, key1b);
+			verifyDeletedEventually(server, jobId2, key2a);
+			verifyDeletedEventually(server, jobId2, key2b);
+
+			// the files are still there on the cache though
+			verifyContents(cache, jobId1, key1a, data);
+			verifyContents(cache, jobId1, key1b, data2);
+			verifyContents(cache, jobId2, key2a, data);
+			verifyContents(cache, jobId2, key2b, data2);
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	@Test
-	public void testPutChunkedStreamSuccessfulGet1() throws IOException {
-		testPutChunkedStreamSuccessfulGet(null, null);
+	public void testPutChunkedStreamTransientSuccessfulGet1()
+			throws IOException, InterruptedException {
+		testPutChunkedStreamTransientSuccessfulGet(null, null);
 	}
 
 	@Test
-	public void testPutChunkedStreamSuccessfulGet2() throws IOException {
-		testPutChunkedStreamSuccessfulGet(null, new JobID());
+	public void testPutChunkedStreamTransientSuccessfulGet2()
+			throws IOException, InterruptedException {
+		testPutChunkedStreamTransientSuccessfulGet(null, new JobID());
 	}
 
 	@Test
-	public void testPutChunkedStreamSuccessfulGet3() throws IOException {
-		testPutChunkedStreamSuccessfulGet(new JobID(), new JobID());
+	public void testPutChunkedStreamTransientSuccessfulGet3()
+			throws IOException, InterruptedException {
+		testPutChunkedStreamTransientSuccessfulGet(new JobID(), new JobID());
 	}
 
 	@Test
-	public void testPutChunkedStreamSuccessfulGet4() throws IOException {
-		testPutChunkedStreamSuccessfulGet(new JobID(), null);
+	public void testPutChunkedStreamTransientSuccessfulGet4()
+			throws IOException, InterruptedException {
+		testPutChunkedStreamTransientSuccessfulGet(new JobID(), null);
 	}
 
 	/**
@@ -408,8 +463,9 @@ public class BlobCachePutTest extends TestLogger {
 	 * @param jobId2
 	 * 		second job id
 	 */
-	private void testPutChunkedStreamSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2) throws IOException {
+	private void testPutChunkedStreamTransientSuccessfulGet(
+			@Nullable JobID jobId1, @Nullable JobID jobId2)
+			throws IOException, InterruptedException {
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -428,9 +484,11 @@ public class BlobCachePutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(cache, jobId1, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key1a);
+			assertEquals(TRANSIENT_BLOB, key1a.getType());
 
 			BlobKey key1b = put(cache, jobId1, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
 			assertNotNull(key1b);
+			assertEquals(TRANSIENT_BLOB, key1b.getType());
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
@@ -450,6 +508,24 @@ public class BlobCachePutTest extends TestLogger {
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
+
+			// now verify we can access the BLOBs from the cache
+			verifyContents(cache, jobId1, key1a, data);
+			verifyContents(cache, jobId1, key1b, data2);
+			verifyContents(cache, jobId2, key2a, data);
+			verifyContents(cache, jobId2, key2b, data2);
+
+			// transient BLOBs should be deleted from the server, eventually
+			verifyDeletedEventually(server, jobId1, key1a);
+			verifyDeletedEventually(server, jobId1, key1b);
+			verifyDeletedEventually(server, jobId2, key2a);
+			verifyDeletedEventually(server, jobId2, key2b);
+
+			// the files are still there on the cache though
+			verifyContents(cache, jobId1, key1a, data);
+			verifyContents(cache, jobId1, key1b, data2);
+			verifyContents(cache, jobId2, key2a, data);
+			verifyContents(cache, jobId2, key2b, data2);
 		}
 	}
 
@@ -798,5 +874,28 @@ public class BlobCachePutTest extends TestLogger {
 		} finally {
 			executor.shutdownNow();
 		}
+	}
+
+	/**
+	 * Checks that the given blob will be deleted at the {@link BlobServer} eventually (waits at most 30s).
+	 *
+	 * @param server
+	 * 		BLOB server
+	 * @param jobId
+	 * 		job ID or <tt>null</tt> if job-unrelated
+	 * @param key
+	 * 		key identifying the BLOB to request
+	 */
+	static void verifyDeletedEventually(BlobServer server, @Nullable JobID jobId, BlobKey key)
+			throws IOException, InterruptedException {
+
+		long deadline = System.currentTimeMillis() + 30_000L;
+		do {
+			Thread.sleep(10);
+		}
+		while (checkFilesExist(jobId, Collections.singletonList(key), server, false) != 0 &&
+			System.currentTimeMillis() < deadline);
+
+		verifyDeleted(server, jobId, key);
 	}
 }

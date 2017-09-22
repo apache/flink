@@ -110,21 +110,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 
 			// after releasing the second time, the job is up for deferred cleanup
 			cache.releaseJob(jobId);
-
-			// because we cannot guarantee that there are not thread races in the build system, we
-			// loop for a certain while until the references disappear
-			{
-				long deadline = System.currentTimeMillis() + 30_000L;
-				do {
-					Thread.sleep(100);
-				}
-				while (checkFilesExist(jobId, keys, cache, false) != 0 &&
-					System.currentTimeMillis() < deadline);
-			}
-
-			// the blob cache should no longer contain the files
-			// this fails if we exited via a timeout
-			checkFileCountForJob(0, jobId, cache);
+			verifyJobCleanup(cache, jobId, keys);
 			// server should be unaffected
 			checkFileCountForJob(2, jobId, server);
 		}
@@ -276,20 +262,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 			Thread.sleep((cleanupInterval * 4) / 5);
 
 			// files are up for cleanup now...wait for it:
-			// because we cannot guarantee that there are not thread races in the build system, we
-			// loop for a certain while until the references disappear
-			{
-				long deadline = System.currentTimeMillis() + 30_000L;
-				do {
-					Thread.sleep(100);
-				}
-				while (checkFilesExist(jobId, keys, cache, false) != 0 &&
-					System.currentTimeMillis() < deadline);
-			}
-
-			// the blob cache should no longer contain the files
-			// this fails if we exited via a timeout
-			checkFileCountForJob(0, jobId, cache);
+			verifyJobCleanup(cache, jobId, keys);
 			// server should be unaffected
 			checkFileCountForJob(2, jobId, server);
 		}
@@ -307,6 +280,36 @@ public class BlobCacheCleanupTest extends TestLogger {
 	}
 
 	/**
+	 * Checks that BLOBs for the given <tt>jobId</tt> are cleaned up eventually (after calling
+	 * {@link PermanentBlobCache#releaseJob(JobID)}, which is not done by this method!) (waits at
+	 * most 30s).
+	 *
+	 * @param cache
+	 * 		BLOB server
+	 * @param jobId
+	 * 		job ID or <tt>null</tt> if job-unrelated
+	 * @param keys
+	 * 		keys identifying BLOBs which were previously registered for the <tt>jobId</tt>
+	 */
+	static void verifyJobCleanup(PermanentBlobCache cache, JobID jobId, List<BlobKey> keys)
+		throws InterruptedException, IOException {
+		// because we cannot guarantee that there are not thread races in the build system, we
+		// loop for a certain while until the references disappear
+		{
+			long deadline = System.currentTimeMillis() + 30_000L;
+			do {
+				Thread.sleep(100);
+			}
+			while (checkFilesExist(jobId, keys, cache, false) != 0 &&
+				System.currentTimeMillis() < deadline);
+		}
+
+		// the blob cache should no longer contain the files
+		// this fails if we exited via a timeout
+		checkFileCountForJob(0, jobId, cache);
+	}
+
+	/**
 	 * Checks how many of the files given by blob keys are accessible.
 	 *
 	 * @param jobId
@@ -318,11 +321,12 @@ public class BlobCacheCleanupTest extends TestLogger {
 	 * @param doThrow
 	 * 		whether exceptions should be ignored (<tt>false</tt>), or thrown (<tt>true</tt>)
 	 *
-	 * @return number of files we were able to retrieve via {@link PermanentBlobService#getPermanentFile}
+	 * @return number of files existing at {@link BlobServer#getStorageLocation(JobID, BlobKey)} and
+	 * {@link PermanentBlobCache#getStorageLocation(JobID, BlobKey)}, respectively
 	 */
 	public static int checkFilesExist(
-		JobID jobId, Collection<BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
-		throws IOException {
+			JobID jobId, Collection<BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
+			throws IOException {
 
 		int numFiles = 0;
 

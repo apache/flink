@@ -26,7 +26,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * A service to retrieve transient binary large objects (BLOBs).
+ * A service to retrieve transient binary large objects (BLOBs) which are deleted on the
+ * {@link BlobServer} when they are retrieved.
  *
  * <p>These may include per-job BLOBs like files in the {@link
  * org.apache.flink.api.common.cache.DistributedCache}, for example.
@@ -34,8 +35,7 @@ import java.io.InputStream;
  * <p>Note: None of these BLOBs is highly available (HA). This case is covered by BLOBs in the
  * {@link PermanentBlobService}.
  *
- * <p>TODO: change API to not rely on local files but return {@link InputStream} objects instead and
- * change getFile to get-and-delete semantics
+ * <p>TODO: change API to not rely on local files but return {@link InputStream} objects
  */
 public interface TransientBlobService extends Closeable {
 
@@ -144,7 +144,7 @@ public interface TransientBlobService extends Closeable {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Deletes the (job-unrelated) file associated with the provided blob key.
+	 * Deletes the (job-unrelated) file associated with the provided blob key from the local cache.
 	 *
 	 * @param key
 	 * 		associated with the file to be deleted
@@ -152,10 +152,10 @@ public interface TransientBlobService extends Closeable {
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	boolean deleteTransient(BlobKey key);
+	boolean deleteTransientFromCache(BlobKey key);
 
 	/**
-	 * Deletes the file associated with the provided job ID and blob key.
+	 * Deletes the file associated with the provided job ID and blob key from the local cache.
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to
@@ -165,6 +165,6 @@ public interface TransientBlobService extends Closeable {
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	boolean deleteTransient(JobID jobId, BlobKey key);
+	boolean deleteTransientFromCache(JobID jobId, BlobKey key);
 
 }

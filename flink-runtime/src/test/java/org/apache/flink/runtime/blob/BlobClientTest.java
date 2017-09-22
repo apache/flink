@@ -44,6 +44,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
 import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertArrayEquals;
@@ -230,12 +231,12 @@ public class BlobClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testContentAddressableBufferTransientBlob() throws IOException {
+	public void testContentAddressableBufferTransientBlob() throws IOException, InterruptedException {
 		testContentAddressableBuffer(TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testContentAddressableBufferPermantBlob() throws IOException {
+	public void testContentAddressableBufferPermantBlob() throws IOException, InterruptedException {
 		testContentAddressableBuffer(PERMANENT_BLOB);
 	}
 
@@ -245,7 +246,8 @@ public class BlobClientTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testContentAddressableBuffer(BlobType blobType) throws IOException {
+	private void testContentAddressableBuffer(BlobType blobType)
+			throws IOException, InterruptedException {
 		BlobClient client = null;
 
 		try {
@@ -273,9 +275,15 @@ public class BlobClientTest extends TestLogger {
 			// Retrieve the data (job-unrelated)
 			if (blobType == TRANSIENT_BLOB) {
 				validateGetAndClose(client.getInternal(null, receivedKey), testBuffer);
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), null, receivedKey);
 			}
 			// job-related
 			validateGetAndClose(client.getInternal(jobId, receivedKey), testBuffer);
+			if (blobType == TRANSIENT_BLOB) {
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), jobId, receivedKey);
+			}
 
 			// Check reaction to invalid keys for job-unrelated blobs
 			try (InputStream ignored = client.getInternal(null, new BlobKey(blobType))) {
@@ -313,12 +321,14 @@ public class BlobClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testContentAddressableStreamTransientBlob() throws IOException {
+	public void testContentAddressableStreamTransientBlob()
+			throws IOException, InterruptedException {
 		testContentAddressableStream(TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testContentAddressableStreamPermanentBlob() throws IOException {
+	public void testContentAddressableStreamPermanentBlob()
+			throws IOException, InterruptedException {
 		testContentAddressableStream(PERMANENT_BLOB);
 	}
 
@@ -328,7 +338,8 @@ public class BlobClientTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testContentAddressableStream(BlobType blobType) throws IOException {
+	private void testContentAddressableStream(BlobType blobType)
+			throws IOException, InterruptedException {
 
 		File testFile = temporaryFolder.newFile();
 		BlobKey origKey = prepareTestFile(testFile, blobType);
@@ -358,9 +369,15 @@ public class BlobClientTest extends TestLogger {
 			// Retrieve the data (job-unrelated)
 			if (blobType == TRANSIENT_BLOB) {
 				validateGetAndClose(client.getInternal(null, receivedKey), testFile);
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), null, receivedKey);
 			}
 			// job-related
 			validateGetAndClose(client.getInternal(jobId, receivedKey), testFile);
+			if (blobType == TRANSIENT_BLOB) {
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), jobId, receivedKey);
+			}
 		} finally {
 			if (is != null) {
 				try {

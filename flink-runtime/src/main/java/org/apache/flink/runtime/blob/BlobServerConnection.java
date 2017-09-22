@@ -38,7 +38,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
-import static org.apache.flink.runtime.blob.BlobServerProtocol.DELETE_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CONTENT;
@@ -117,9 +116,6 @@ class BlobServerConnection extends Thread {
 				case GET_OPERATION:
 					get(inputStream, outputStream, new byte[BUFFER_SIZE]);
 					break;
-				case DELETE_OPERATION:
-					delete(inputStream, outputStream);
-					break;
 				default:
 					throw new IOException("Unknown operation " + operation);
 				}
@@ -152,6 +148,10 @@ class BlobServerConnection extends Thread {
 
 	/**
 	 * Handles an incoming GET request from a BLOB client.
+	 *
+	 * <p>Transient BLOB files are deleted after a successful read operation by the client. Note
+	 * that we do not enforce atomicity here, i.e. multiple clients reading from the same BLOB may
+	 * still succeed.
 	 *
 	 * @param inputStream
 	 * 		the input stream to read incoming data from
@@ -210,7 +210,7 @@ class BlobServerConnection extends Thread {
 			// up to here, an error can give a good message
 		}
 		catch (Throwable t) {
-			LOG.error("GET operation failed", t);
+			LOG.error("GET operation from {} failed.", clientSocket.getInetAddress(), t);
 			try {
 				writeErrorToStream(outputStream, t);
 			}
@@ -222,56 +222,73 @@ class BlobServerConnection extends Thread {
 			return;
 		}
 
-		readLock.lock();
-
 		try {
-			// copy the file to local store if it does not exist yet
+
+			readLock.lock();
 			try {
-				blobServer.getFileInternal(jobId, blobKey, blobFile);
-
-				// enforce a 2GB max for now (otherwise the protocol's length field needs to be increased)
-				if (blobFile.length() > Integer.MAX_VALUE) {
-					throw new IOException("BLOB size exceeds the maximum size (2 GB).");
-				}
-
-				outputStream.write(RETURN_OKAY);
-			} catch (Throwable t) {
-				LOG.error("GET operation failed", t);
+				// copy the file to local store if it does not exist yet
 				try {
-					writeErrorToStream(outputStream, t);
-				}
-				catch (IOException e) {
-					// since we are in an exception case, it means that we could not send the error
-					// ignore this
-				}
-				clientSocket.close();
-				return;
-			}
+					blobServer.getFileInternal(jobId, blobKey, blobFile);
 
-			// from here on, we started sending data, so all we can do is close the connection when something happens
-			int blobLen = (int) blobFile.length();
-			writeLength(blobLen, outputStream);
-
-			try (FileInputStream fis = new FileInputStream(blobFile)) {
-				int bytesRemaining = blobLen;
-				while (bytesRemaining > 0) {
-					int read = fis.read(buf);
-					if (read < 0) {
-						throw new IOException("Premature end of BLOB file stream for " + blobFile.getAbsolutePath());
+					// enforce a 2GB max for now (otherwise the protocol's length field needs to be increased)
+					if (blobFile.length() > Integer.MAX_VALUE) {
+						throw new IOException("BLOB size exceeds the maximum size (2 GB).");
 					}
-					outputStream.write(buf, 0, read);
-					bytesRemaining -= read;
+
+					outputStream.write(RETURN_OKAY);
+				} catch (Throwable t) {
+					LOG.error("GET operation failed for BLOB {}/{} from {}.", jobId,
+						blobKey, clientSocket.getInetAddress(), t);
+					try {
+						writeErrorToStream(outputStream, t);
+					} catch (IOException e) {
+						// since we are in an exception case, it means that we could not send the error
+						// ignore this
+					}
+					clientSocket.close();
+					return;
+				}
+
+				// from here on, we started sending data, so all we can do is close the connection when something happens
+				int blobLen = (int) blobFile.length();
+				writeLength(blobLen, outputStream);
+
+				try (FileInputStream fis = new FileInputStream(blobFile)) {
+					int bytesRemaining = blobLen;
+					while (bytesRemaining > 0) {
+						int read = fis.read(buf);
+						if (read < 0) {
+							throw new IOException("Premature end of BLOB file stream for " +
+								blobFile.getAbsolutePath());
+						}
+						outputStream.write(buf, 0, read);
+						bytesRemaining -= read;
+					}
+				}
+			} finally {
+				readLock.unlock();
+			}
+
+			// on successful transfer, delete transient files
+			int result = inputStream.read();
+			if (result < 0) {
+				throw new EOFException("Premature end of GET request");
+			} else if (blobKey.getType() == TRANSIENT_BLOB && result == RETURN_OKAY) {
+				// ignore the result from the operation
+				if (!blobServer.deleteInternal(jobId, blobKey)) {
+					LOG.warn("DELETE operation failed for BLOB {}/{} from {}.", jobId,
+						blobKey, clientSocket.getInetAddress());
 				}
 			}
+
 		} catch (SocketException e) {
 			// happens when the other side disconnects
 			LOG.debug("Socket connection closed", e);
 		} catch (Throwable t) {
 			LOG.error("GET operation failed", t);
 			clientSocket.close();
-		} finally {
-			readLock.unlock();
 		}
+
 	}
 
 	/**
@@ -401,58 +418,6 @@ class BlobServerConnection extends Thread {
 				md.update(buf, 0, bytesExpected);
 			}
 			return new BlobKey(blobType, md.digest());
-		}
-	}
-
-	/**
-	 * Handles an incoming DELETE request from a BLOB client.
-	 *
-	 * @param inputStream
-	 * 		The input stream to read the request from.
-	 * @param outputStream
-	 * 		The output stream to write the response to.
-	 *
-	 * @throws IOException
-	 * 		Thrown if an I/O error occurs while reading the request data from the input stream.
-	 */
-	private void delete(InputStream inputStream, OutputStream outputStream) throws IOException {
-
-		try {
-			// read HEADER contents: job ID, key, HA mode/permanent or transient BLOB
-			final int mode = inputStream.read();
-			if (mode < 0) {
-				throw new EOFException("Premature end of DELETE request");
-			}
-
-			final JobID jobId;
-			if (mode == JOB_UNRELATED_CONTENT) {
-				jobId = null;
-			} else if (mode == JOB_RELATED_CONTENT) {
-				byte[] jidBytes = new byte[JobID.SIZE];
-				readFully(inputStream, jidBytes, 0, JobID.SIZE, "JobID");
-				jobId = JobID.fromByteArray(jidBytes);
-			} else {
-				throw new IOException("Unknown type of BLOB addressing.");
-			}
-			BlobKey key = BlobKey.readFromInputStream(inputStream);
-
-			if (!blobServer.deleteInternal(jobId, key)) {
-				LOG.error("DELETE operation failed");
-				writeErrorToStream(outputStream, null);
-			} else {
-				outputStream.write(RETURN_OKAY);
-			}
-		}
-		catch (Throwable t) {
-			LOG.error("DELETE operation failed", t);
-			try {
-				writeErrorToStream(outputStream, t);
-			}
-			catch (IOException e) {
-				// since we are in an exception case, it means not much that we could not send the error
-				// ignore this
-			}
-			clientSocket.close();
 		}
 	}
 

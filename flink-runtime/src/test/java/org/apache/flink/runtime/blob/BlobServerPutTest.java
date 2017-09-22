@@ -243,6 +243,11 @@ public class BlobServerPutTest extends TestLogger {
 			assertEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
+			verifyContents(server, jobId2, key2a, data);
+			verifyContents(server, jobId2, key2b, data2);
+
+			// verify the accessibility and the BLOB contents one more time (transient BLOBs should
+			// not be deleted here)
 			verifyContents(server, jobId1, key1a, data);
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
@@ -323,6 +328,11 @@ public class BlobServerPutTest extends TestLogger {
 			assertEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
+			verifyContents(server, jobId2, key2a, data);
+			verifyContents(server, jobId2, key2b, data2);
+
+			// verify the accessibility and the BLOB contents one more time (transient BLOBs should
+			// not be deleted here)
 			verifyContents(server, jobId1, key1a, data);
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
@@ -403,6 +413,11 @@ public class BlobServerPutTest extends TestLogger {
 			assertEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
+			verifyContents(server, jobId2, key2a, data);
+			verifyContents(server, jobId2, key2b, data2);
+
+			// verify the accessibility and the BLOB contents one more time (transient BLOBs should
+			// not be deleted here)
 			verifyContents(server, jobId1, key1a, data);
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);

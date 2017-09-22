@@ -74,7 +74,8 @@ import static org.mockito.Mockito.mock;
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
  * BlobServer}.
  *
- * <p>Successful GET requests are tested in conjunction wit the PUT requests.
+ * <p>Successful GET requests are tested in conjunction wit the PUT requests by {@link
+ * BlobServerPutTest}.
  */
 public class BlobServerGetTest extends TestLogger {
 
@@ -87,22 +88,22 @@ public class BlobServerGetTest extends TestLogger {
 	public final ExpectedException exception = ExpectedException.none();
 
 	@Test
-	public void testGetFailsDuringLookup1() throws IOException {
+	public void testGetTransientFailsDuringLookup1() throws IOException {
 		testGetFailsDuringLookup(null, new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testGetFailsDuringLookup2() throws IOException {
+	public void testGetTransientFailsDuringLookup2() throws IOException {
 		testGetFailsDuringLookup(new JobID(), new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testGetFailsDuringLookup3() throws IOException {
+	public void testGetTransientFailsDuringLookup3() throws IOException {
 		testGetFailsDuringLookup(new JobID(), null, TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testGetFailsDuringLookupHa() throws IOException {
+	public void testGetPermanentFailsDuringLookup() throws IOException {
 		testGetFailsDuringLookup(new JobID(), new JobID(), PERMANENT_BLOB);
 	}
 

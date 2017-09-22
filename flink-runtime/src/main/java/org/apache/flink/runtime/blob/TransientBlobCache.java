@@ -103,12 +103,12 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	}
 
 	@Override
-	public boolean deleteTransient(BlobKey key) {
+	public boolean deleteTransientFromCache(BlobKey key) {
 		return deleteInternal(null, key);
 	}
 
 	@Override
-	public boolean deleteTransient(JobID jobId, BlobKey key) {
+	public boolean deleteTransientFromCache(JobID jobId, BlobKey key) {
 		checkNotNull(jobId);
 		return deleteInternal(jobId, key);
 	}
@@ -125,32 +125,20 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	 *          <tt>false</tt> otherwise
 	 */
 	private boolean deleteInternal(@Nullable JobID jobId, BlobKey key) {
-
-		// delete locally
 		final File localFile =
 			new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 
 		readWriteLock.writeLock().lock();
-
-		boolean deleteLocal = true;
 		try {
 			if (!localFile.delete() && localFile.exists()) {
 				LOG.warn("Failed to delete locally cached BLOB {} at {}", key,
 					localFile.getAbsolutePath());
-				deleteLocal = false;
+				return false;
 			}
 		} finally {
 			readWriteLock.writeLock().unlock();
 		}
-
-		// then delete on the BLOB server
-		boolean deletedGlobal;
-		try (BlobClient bc = createClient()) {
-			deletedGlobal = bc.deleteInternal(jobId, key);
-		} catch (Throwable t) {
-			deletedGlobal = false;
-		}
-		return deleteLocal && deletedGlobal;
+		return true;
 	}
 
 	/**

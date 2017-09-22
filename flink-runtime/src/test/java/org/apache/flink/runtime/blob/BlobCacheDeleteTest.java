@@ -49,6 +49,7 @@ import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -68,22 +69,27 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 	@Test
 	public void testDeleteTransient1() throws IOException {
-		testDeleteTransient(null, new JobID());
+		testDelete(null, new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testDeleteTransient2() throws IOException {
-		testDeleteTransient(new JobID(), null);
+		testDelete(new JobID(), null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testDeleteTransient3() throws IOException {
-		testDeleteTransient(null, null);
+		testDelete(null, null, TRANSIENT_BLOB);
 	}
 
 	@Test
 	public void testDeleteTransient4() throws IOException {
-		testDeleteTransient(new JobID(), new JobID());
+		testDelete(new JobID(), new JobID(), TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testDeletePermanent() throws IOException {
+		testDelete(new JobID(), new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -94,9 +100,12 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 * 		first job id
 	 * @param jobId2
 	 * 		second job id
+	 * @param blobType
+	 * 		whether the BLOBs should become permanent or transient
 	 */
-	private void testDeleteTransient(@Nullable JobID jobId1, @Nullable JobID jobId2)
+	private void testDelete(@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
 			throws IOException {
+		final boolean sameJobId = (jobId1 == jobId2) || (jobId1 != null && jobId1.equals(jobId2));
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -114,37 +123,46 @@ public class BlobCacheDeleteTest extends TestLogger {
 			data2[0] ^= 1;
 
 			// put first BLOB
-			BlobKey key1 = put(server, jobId1, data, TRANSIENT_BLOB);
+			BlobKey key1 = put(server, jobId1, data, blobType);
 			assertNotNull(key1);
 
 			// put two more BLOBs (same key, other key) for another job ID
-			BlobKey key2a = put(server, jobId2, data, TRANSIENT_BLOB);
+			BlobKey key2a = put(server, jobId2, data, blobType);
 			assertNotNull(key2a);
 			assertEquals(key1, key2a);
-			BlobKey key2b = put(server, jobId2, data2, TRANSIENT_BLOB);
+			BlobKey key2b = put(server, jobId2, data2, blobType);
 			assertNotNull(key2b);
 
 			// issue a DELETE request
 			assertTrue(delete(cache, jobId1, key1));
 
+			// delete only works on local cache!
+			assertTrue(server.getStorageLocation(jobId1, key1).exists());
+			// delete on server so that the cache cannot re-download
+			assertTrue(server.deleteInternal(jobId1, key1));
 			verifyDeleted(cache, jobId1, key1);
-			verifyDeleted(server, jobId1, key1);
 			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
-			if ((jobId1 == null && jobId2 != null) || (jobId1 != null && !jobId1.equals(jobId2))) {
+			if (!sameJobId) {
 				verifyContents(server, jobId2, key2a, data);
 			}
 			verifyContents(server, jobId2, key2b, data2);
 
 			// delete first file of second job
 			assertTrue(delete(cache, jobId2, key2a));
+			// delete only works on local cache (unless already deleted - key1 == key2a)!
+			assertTrue(sameJobId || server.getStorageLocation(jobId2, key2a).exists());
+			// delete on server so that the cache cannot re-download
+			assertTrue(server.deleteInternal(jobId2, key2a));
 			verifyDeleted(cache, jobId2, key2a);
-			verifyDeleted(server, jobId2, key2a);
 			verifyContents(server, jobId2, key2b, data2);
 
 			// delete second file of second job
 			assertTrue(delete(cache, jobId2, key2b));
+			// delete only works on local cache (unless already deleted - key1 == key2a)!
+			assertTrue(server.getStorageLocation(jobId2, key2b).exists());
+			// delete on server so that the cache cannot re-download
+			assertTrue(server.deleteInternal(jobId2, key2b));
 			verifyDeleted(cache, jobId2, key2b);
-			verifyDeleted(server, jobId2, key2b);
 		}
 	}
 
@@ -265,84 +283,21 @@ public class BlobCacheDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteTransientRemoteFailsNoJob() throws IOException {
-		testDeleteTransientRemoteFails(null);
+	public void testConcurrentDeleteOperationsNoJobTransient()
+			throws IOException, ExecutionException, InterruptedException {
+		testConcurrentDeleteOperations(null, TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testDeleteTransientRemoteFailsForJob() throws IOException {
-		testDeleteTransientRemoteFails(new JobID());
-	}
-
-	/**
-	 * Uploads a byte array for the given job and verifies that a delete operation (via the {@link
-	 * BlobCache}) does not fail even if the file is not deletable on the {@link BlobServer}, e.g.
-	 * via restricting the permissions.
-	 *
-	 * @param jobId
-	 * 		job id
-	 */
-	private void testDeleteTransientRemoteFails(@Nullable final JobID jobId) throws IOException {
-		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
-
-		final Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-		File blobFile = null;
-		File directory = null;
-
-		try (
-			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
-
-			server.start();
-
-			try {
-				byte[] data = new byte[2000000];
-				rnd.nextBytes(data);
-
-				// put BLOB
-				BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
-				assertNotNull(key);
-
-				// access from cache once to have it available there
-				verifyContents(cache, jobId, key, data);
-
-				blobFile = server.getStorageLocation(jobId, key);
-				directory = blobFile.getParentFile();
-
-				assertTrue(blobFile.setWritable(false, false));
-				assertTrue(directory.setWritable(false, false));
-
-				// issue a DELETE request
-				assertFalse(delete(cache, jobId, key));
-				File blobFileAtCache = cache.getTransientBlobService().getStorageLocation(jobId, key);
-				assertFalse(blobFileAtCache.exists());
-
-				// the file should still be there on the server
-				verifyContents(server, jobId, key, data);
-				// ... and may be retrieved by the cache
-				verifyContents(cache, jobId, key, data);
-			} finally {
-				if (blobFile != null && directory != null) {
-					//noinspection ResultOfMethodCallIgnored
-					blobFile.setWritable(true, false);
-					//noinspection ResultOfMethodCallIgnored
-					directory.setWritable(true, false);
-				}
-			}
-		}
+	public void testConcurrentDeleteOperationsForJobTransient()
+			throws IOException, ExecutionException, InterruptedException {
+		testConcurrentDeleteOperations(new JobID(), TRANSIENT_BLOB);
 	}
 
 	@Test
-	public void testConcurrentDeleteOperationsNoJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(null);
-	}
-
-	@Test
-	public void testConcurrentDeleteOperationsForJob() throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(new JobID());
+	public void testConcurrentDeleteOperationsForJobPermanent()
+			throws IOException, ExecutionException, InterruptedException {
+		testConcurrentDeleteOperations(new JobID(), PERMANENT_BLOB);
 	}
 
 	/**
@@ -355,8 +310,10 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testConcurrentDeleteOperations(@Nullable final JobID jobId)
+	private void testConcurrentDeleteOperations(@Nullable final JobID jobId, BlobType blobType)
 			throws IOException, InterruptedException, ExecutionException {
 
 		final Configuration config = new Configuration();
@@ -376,7 +333,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 			server.start();
 
-			final BlobKey blobKey = put(server, jobId, data, TRANSIENT_BLOB);
+			final BlobKey blobKey = put(server, jobId, data, blobType);
 
 			assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 
@@ -387,7 +344,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 							try {
 								assertTrue(delete(cache, jobId, blobKey));
 								assertFalse(cache.getTransientBlobService().getStorageLocation(jobId, blobKey).exists());
-								assertFalse(server.getStorageLocation(jobId, blobKey).exists());
+								// delete only works on local cache!
+								assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 								return null;
 							} catch (IOException e) {
 								throw new CompletionException(new FlinkException(
@@ -404,7 +362,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 			// in case of no lock, one of the delete operations should eventually fail
 			waitFuture.get();
 
-			assertFalse(server.getStorageLocation(jobId, blobKey).exists());
+			// delete only works on local cache!
+			assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 
 		} finally {
 			executor.shutdownNow();

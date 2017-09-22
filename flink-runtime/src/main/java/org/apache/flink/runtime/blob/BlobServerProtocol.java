@@ -26,14 +26,19 @@ public class BlobServerProtocol {
 	/** The buffer size in bytes for network transfers. */
 	static final int BUFFER_SIZE = 65536; // 64 K
 
-	/** Internal code to identify a PUT operation. */
+	/**
+	 * Internal code to identify a PUT operation.
+	 *
+	 * <p>Note: previously, there was also <tt>DELETE_OPERATION</tt> (code <tt>2</tt>).
+	 */
 	static final byte PUT_OPERATION = 0;
 
-	/** Internal code to identify a GET operation. */
+	/**
+	 * Internal code to identify a GET operation.
+	 *
+	 * <p>Note: previously, there was also <tt>DELETE_OPERATION</tt> (code <tt>2</tt>).
+	 */
 	static final byte GET_OPERATION = 1;
-
-	/** Internal code to identify a DELETE operation. */
-	static final byte DELETE_OPERATION = 2;
 
 	/** Internal code to identify a successful operation. */
 	static final byte RETURN_OKAY = 0;
