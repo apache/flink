@@ -24,6 +24,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.sources.TableSource
 
 import scala.collection.JavaConverters._
@@ -31,9 +32,10 @@ import scala.collection.JavaConverters._
 abstract class PhysicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    val tableSource: TableSource[_])
-  extends TableScan(cluster, traitSet, table) {
+    relOptTable: RelOptTable)
+  extends TableScan(cluster, traitSet, relOptTable) {
+
+  protected val tableSource: TableSource[_]
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -66,6 +68,6 @@ abstract class PhysicalTableSourceScan(
     }
   }
 
-  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): PhysicalTableSourceScan
+  def copy(traitSet: RelTraitSet, relOptTable: FlinkRelOptTable): PhysicalTableSourceScan
 
 }

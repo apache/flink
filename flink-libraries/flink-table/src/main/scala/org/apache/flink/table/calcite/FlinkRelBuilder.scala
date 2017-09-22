@@ -24,7 +24,6 @@ import java.util.Collections
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.volcano.VolcanoPlanner
-import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.tools.RelBuilder.{AggCall, GroupKey}
@@ -83,7 +82,7 @@ object FlinkRelBuilder {
     planner.addRelTraitDef(ConventionTraitDef.INSTANCE)
     val cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory))
     val calciteSchema = CalciteSchema.from(config.getDefaultSchema)
-    val relOptSchema = new CalciteCatalogReader(
+    val relOptSchema = new FlinkCalciteCatalogReader(
       calciteSchema,
       config.getParserConfig.caseSensitive(),
       Collections.emptyList(),

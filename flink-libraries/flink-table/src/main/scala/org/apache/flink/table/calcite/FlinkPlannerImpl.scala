@@ -155,7 +155,7 @@ class FlinkPlannerImpl(
 
   private def createCatalogReader: CalciteCatalogReader = {
     val rootSchema: SchemaPlus = FlinkPlannerImpl.rootSchema(defaultSchema)
-    new CalciteCatalogReader(
+    new FlinkCalciteCatalogReader(
       CalciteSchema.from(rootSchema),
       parserConfig.caseSensitive,
       CalciteSchema.from(defaultSchema).path(null),

@@ -24,10 +24,10 @@ import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.plan.util.RexProgramExtractor
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.sources.FilterableTableSource
+import org.apache.flink.table.sources.{FilterableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
 
@@ -99,7 +99,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
     // check whether we still need a RexProgram. An RexProgram is needed when either
     // projection or filter exists.
-    val newScan = scan.copy(scan.getTraitSet, newTableSource)
+    val newScan = createNewScan(scan, newTableSource)
     val newRexProgram = {
       if (remainingCondition != null || !program.projectsOnlyIdentity) {
         val expandedProjectList = program.getProjectList.asScala
@@ -122,6 +122,19 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       call.transformTo(newScan)
     }
   }
+
+  private def createNewScan(
+      scan: FlinkLogicalTableSourceScan,
+      newTableSource: TableSource[_]): FlinkLogicalTableSourceScan = {
+    val oldRelOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val newTableSoureTable = newTableSource match {
+      case ts: StreamTableSource[_] => new StreamTableSourceTable(ts)
+      case _ => new TableSourceTable(newTableSource)
+    }
+    val newRelOptTable = oldRelOptTable.copy(newTableSoureTable, scan.getCluster.getTypeFactory)
+    scan.copy(scan.getTraitSet, newRelOptTable)
+  }
+
 }
 
 object PushFilterIntoTableSourceScanRule {

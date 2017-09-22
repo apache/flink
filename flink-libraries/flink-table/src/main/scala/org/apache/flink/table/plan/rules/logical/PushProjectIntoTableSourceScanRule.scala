@@ -22,6 +22,8 @@ import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, NestedFieldsProjectableTableSource, ProjectableTableSource}
 
 class PushProjectIntoTableSourceScanRule extends RelOptRule(
@@ -46,10 +48,8 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
     val usedFields = RexProgramExtractor.extractRefInputFields(calc.getProgram)
 
     // if no fields can be projected, we keep the original plan.
-    val source = scan.tableSource
     if (scan.getRowType.getFieldCount != usedFields.length) {
-
-      val newTableSource = source match {
+      val newTableSource = scan.tableSource match {
         case nested: NestedFieldsProjectableTableSource[_] =>
           val nestedFields = RexProgramExtractor
             .extractRefNestedInputFields(calc.getProgram, usedFields)
@@ -58,7 +58,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
           projecting.projectFields(usedFields)
       }
 
-      val newScan = scan.copy(scan.getTraitSet, newTableSource)
+      val newScan = createNewScan(scan, newTableSource)
       val newCalcProgram = RexProgramRewriter.rewriteWithFieldProjection(
         calc.getProgram,
         newScan.getRowType,
@@ -73,6 +73,18 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
         call.transformTo(newCalc)
       }
     }
+  }
+
+  private def createNewScan(
+      scan: FlinkLogicalTableSourceScan,
+      newTableSource: TableSource[_]): FlinkLogicalTableSourceScan = {
+    val oldRelOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
+    val newTableSoureTable = newTableSource match {
+      case ts: StreamTableSource[_] => new StreamTableSourceTable(ts)
+      case _ => new TableSourceTable(newTableSource)
+    }
+    val newRelOptTable = oldRelOptTable.copy(newTableSoureTable, scan.getCluster.getTypeFactory)
+    scan.copy(scan.getTraitSet, newRelOptTable)
   }
 }
 

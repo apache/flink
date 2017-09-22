@@ -28,21 +28,22 @@ import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
-import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource}
 
 import scala.collection.JavaConverters._
 
 class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    val tableSource: TableSource[_])
-  extends TableScan(cluster, traitSet, table)
+    relOptTable: FlinkRelOptTable)
+  extends TableScan(cluster, traitSet, relOptTable)
   with FlinkLogicalRel {
 
-  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, getTable, tableSource)
+  val tableSource = relOptTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+
+  def copy(traitSet: RelTraitSet, relOptTable: FlinkRelOptTable): FlinkLogicalTableSourceScan = {
+    new FlinkLogicalTableSourceScan(cluster, traitSet, relOptTable)
   }
 
   override def deriveRowType(): RelDataType = {
@@ -109,14 +110,12 @@ class FlinkLogicalTableSourceScanConverter
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[TableScan]
     val traitSet = rel.getTraitSet.replace(FlinkConventions.LOGICAL)
-    val tableSource = scan.getTable.unwrap(classOf[TableSourceTable[_]]).tableSource
+    val table = scan.getTable.asInstanceOf[FlinkRelOptTable]
 
     new FlinkLogicalTableSourceScan(
       rel.getCluster,
       traitSet,
-      scan.getTable,
-      tableSource
-    )
+      table)
   }
 }
 

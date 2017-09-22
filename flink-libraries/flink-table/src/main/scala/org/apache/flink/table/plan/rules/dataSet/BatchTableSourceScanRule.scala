@@ -24,7 +24,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.BatchTableSourceScan
-import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.sources.BatchTableSource
 
@@ -38,8 +38,8 @@ class BatchTableSourceScanRule
   /** Rule must only match if TableScan targets a [[BatchTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val dataSetTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    dataSetTable match {
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    tableSourceTable match {
       case tst: TableSourceTable[_] =>
         tst.tableSource match {
           case _: BatchTableSource[_] =>
@@ -58,8 +58,7 @@ class BatchTableSourceScanRule
     new BatchTableSourceScan(
       rel.getCluster,
       traitSet,
-      scan.getTable,
-      scan.tableSource.asInstanceOf[BatchTableSource[_]]
+      scan.getTable.asInstanceOf[FlinkRelOptTable]
     )
   }
 }

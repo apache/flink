@@ -25,7 +25,7 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.validate.SqlMonikerType
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.{FlinkCalciteCatalogReader, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.CsvTableSource
@@ -37,7 +37,6 @@ import scala.collection.JavaConverters._
 class ExternalCatalogSchemaTest {
 
   private val schemaName: String = "test"
-  private var externalCatalogSchema: SchemaPlus = _
   private var calciteCatalogReader: CalciteCatalogReader = _
   private val db = "db1"
   private val tb = "tb1"
@@ -47,9 +46,8 @@ class ExternalCatalogSchemaTest {
     val rootSchemaPlus: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
     val catalog = CommonTestData.getInMemoryTestCatalog
     ExternalCatalogSchema.registerCatalog(rootSchemaPlus, schemaName, catalog)
-    externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
-    calciteCatalogReader = new CalciteCatalogReader(
+    calciteCatalogReader = new FlinkCalciteCatalogReader(
       CalciteSchema.from(rootSchemaPlus),
       false,
       Collections.emptyList(),

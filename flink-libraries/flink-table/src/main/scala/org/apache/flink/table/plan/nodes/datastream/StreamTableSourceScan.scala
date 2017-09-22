@@ -20,27 +20,28 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
-import org.apache.flink.table.plan.schema.{RowSchema, StreamTableSourceTable}
+import org.apache.flink.table.plan.schema.StreamTableSourceTable
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, RowSchema}
 import org.apache.flink.table.runtime.types.CRow
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.StreamTableSource
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
 class StreamTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    tableSource: StreamTableSource[_])
-  extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource)
+    relOptTable: FlinkRelOptTable)
+  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
   with StreamScan {
 
-  override def deriveRowType(): RelDataType = {
+  private val tableSourceTable =  relOptTable.unwrap(classOf[StreamTableSourceTable[_]])
+  protected val tableSource = tableSourceTable.tableSource.asInstanceOf[StreamTableSource[_]]
 
+  override def deriveRowType() = {
     StreamTableSourceTable.deriveRowTypeOfTableSource(
       tableSource.asInstanceOf[StreamTableSource[_]],
       cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
@@ -55,21 +56,19 @@ class StreamTableSourceScan(
     new StreamTableSourceScan(
       cluster,
       traitSet,
-      getTable,
-      tableSource
+      relOptTable
     )
   }
 
   override def copy(
       traitSet: RelTraitSet,
-      newTableSource: TableSource[_])
+      relOptTable: FlinkRelOptTable)
     : PhysicalTableSourceScan = {
 
     new StreamTableSourceScan(
       cluster,
       traitSet,
-      getTable,
-      newTableSource.asInstanceOf[StreamTableSource[_]]
+      relOptTable
     )
   }
 
@@ -82,7 +81,7 @@ class StreamTableSourceScan(
     convertToInternalRow(
       new RowSchema(getRowType),
       inputDataStream,
-      new StreamTableSourceTable(tableSource),
+      tableSourceTable,
       config)
   }
 }

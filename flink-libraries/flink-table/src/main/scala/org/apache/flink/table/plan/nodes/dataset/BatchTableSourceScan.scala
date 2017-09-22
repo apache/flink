@@ -25,18 +25,20 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.{BatchTableSource, TableSource}
+import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
+import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.types.Row
 
 /** Flink RelNode to read data from an external source defined by a [[BatchTableSource]]. */
 class BatchTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
-    table: RelOptTable,
-    tableSource: BatchTableSource[_])
-  extends PhysicalTableSourceScan(cluster, traitSet, table, tableSource)
+    relOptTable: FlinkRelOptTable)
+  extends PhysicalTableSourceScan(cluster, traitSet, relOptTable)
   with BatchScan {
+
+  private val tableSourceTable =  relOptTable.unwrap(classOf[TableSourceTable[_]])
+  protected val tableSource = tableSourceTable.tableSource.asInstanceOf[BatchTableSource[_]]
 
   override def deriveRowType() = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
@@ -45,7 +47,7 @@ class BatchTableSourceScan(
       TableEnvironment.getFieldTypes(tableSource.getReturnType))
   }
 
-  override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
+  override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
     planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
   }
@@ -54,27 +56,24 @@ class BatchTableSourceScan(
     new BatchTableSourceScan(
       cluster,
       traitSet,
-      getTable,
-      tableSource
+      relOptTable
     )
   }
 
-  override def copy(
-      traitSet: RelTraitSet,
-      newTableSource: TableSource[_])
-    : PhysicalTableSourceScan = {
+  override def copy(traitSet: RelTraitSet,
+      relOptTable: FlinkRelOptTable)
+  : PhysicalTableSourceScan = {
 
     new BatchTableSourceScan(
       cluster,
       traitSet,
-      getTable,
-      newTableSource.asInstanceOf[BatchTableSource[_]]
+      relOptTable
     )
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
     val config = tableEnv.getConfig
     val inputDataSet = tableSource.getDataSet(tableEnv.execEnv).asInstanceOf[DataSet[Any]]
-    convertToInternalRow(inputDataSet, new TableSourceTable(tableSource), config)
+    convertToInternalRow(inputDataSet, tableSourceTable, config)
   }
 }
