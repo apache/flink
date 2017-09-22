@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -547,4 +548,38 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 		assertEquals(Collections.singletonList(3), lateResultSink.getSortedResult());
 	}
 
+	@Test
+	public void testProcessdWindowFunctionSideOutput() throws Exception {
+		TestListResultSink<Integer> resultSink = new TestListResultSink<>();
+		TestListResultSink<String> sideOutputResultSink = new TestListResultSink<>();
+
+		StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+		see.setParallelism(3);
+		see.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
+		DataStream<Integer> dataStream = see.fromCollection(elements);
+
+		OutputTag<String> sideOutputTag = new OutputTag<String>("side"){};
+
+		SingleOutputStreamOperator<Integer> windowOperator = dataStream
+				.assignTimestampsAndWatermarks(new TestWatermarkAssigner())
+				.keyBy(new TestKeySelector())
+				.timeWindow(Time.milliseconds(1), Time.milliseconds(1))
+				.process(new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
+					private static final long serialVersionUID = 1L;
+
+					@Override
+					public void process(Integer integer, Context context, Iterable<Integer> elements, Collector<Integer> out) throws Exception {
+						out.collect(integer);
+						context.output(sideOutputTag, "sideout-" + String.valueOf(integer));
+					}
+				});
+
+		windowOperator.getSideOutput(sideOutputTag).addSink(sideOutputResultSink);
+		windowOperator.addSink(resultSink);
+		see.execute();
+
+		assertEquals(Arrays.asList("sideout-1", "sideout-2", "sideout-5"), sideOutputResultSink.getSortedResult());
+		assertEquals(Arrays.asList(1, 2, 5), resultSink.getSortedResult());
+	}
 }
