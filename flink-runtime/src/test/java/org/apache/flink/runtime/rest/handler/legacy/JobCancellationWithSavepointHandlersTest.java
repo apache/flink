@@ -21,10 +21,11 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.util.TestLogger;
 
@@ -90,10 +91,15 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		JobID jobId = new JobID();
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
 		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
-		when(graph.getCheckpointCoordinator()).thenReturn(coord);
-		when(coord.getCheckpointTimeout()).thenReturn(timeout);
+		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
+			new CheckpointCoordinatorConfiguration(
+				1L,
+				timeout,
+				1L,
+				1,
+				ExternalizedCheckpointSettings.none(),
+				true));
 
 		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
 		JobCancellationWithSavepointHandlers.TriggerHandler handler = handlers.getTriggerHandler();
@@ -119,10 +125,15 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		JobID jobId = new JobID();
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
 		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
-		when(graph.getCheckpointCoordinator()).thenReturn(coord);
-		when(coord.getCheckpointTimeout()).thenReturn(timeout);
+		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
+			new CheckpointCoordinatorConfiguration(
+				1L,
+				timeout,
+				1L,
+				1,
+				ExternalizedCheckpointSettings.none(),
+				true));
 
 		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor, "the-default-directory");
 		JobCancellationWithSavepointHandlers.TriggerHandler handler = handlers.getTriggerHandler();
@@ -167,9 +178,15 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		JobID jobId = new JobID();
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
 		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
-		when(graph.getCheckpointCoordinator()).thenReturn(coord);
+		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
+			new CheckpointCoordinatorConfiguration(
+				1L,
+				1L,
+				1L,
+				1,
+				ExternalizedCheckpointSettings.none(),
+				true));
 
 		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
 		JobCancellationWithSavepointHandlers.TriggerHandler trigger = handlers.getTriggerHandler();
@@ -293,9 +310,15 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 		JobID jobId = new JobID();
 		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		CheckpointCoordinator coord = mock(CheckpointCoordinator.class);
 		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
-		when(graph.getCheckpointCoordinator()).thenReturn(coord);
+		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
+			new CheckpointCoordinatorConfiguration(
+				1L,
+				1L,
+				1L,
+				1,
+				ExternalizedCheckpointSettings.none(),
+				true));
 
 		JobCancellationWithSavepointHandlers handlers = new JobCancellationWithSavepointHandlers(holder, executor);
 		JobCancellationWithSavepointHandlers.TriggerHandler trigger = handlers.getTriggerHandler();

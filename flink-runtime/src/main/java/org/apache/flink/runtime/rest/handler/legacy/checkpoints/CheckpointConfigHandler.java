@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractExecutionGraphRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
@@ -85,21 +85,21 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 	private static String createCheckpointConfigJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-		JobCheckpointingSettings settings = graph.getJobCheckpointingSettings();
+		CheckpointCoordinatorConfiguration jobCheckpointingConfiguration = graph.getCheckpointCoordinatorConfiguration();
 
-		if (settings == null) {
+		if (jobCheckpointingConfiguration == null) {
 			return "{}";
 		}
 
 		gen.writeStartObject();
 		{
-			gen.writeStringField("mode", settings.isExactlyOnce() ? "exactly_once" : "at_least_once");
-			gen.writeNumberField("interval", settings.getCheckpointInterval());
-			gen.writeNumberField("timeout", settings.getCheckpointTimeout());
-			gen.writeNumberField("min_pause", settings.getMinPauseBetweenCheckpoints());
-			gen.writeNumberField("max_concurrent", settings.getMaxConcurrentCheckpoints());
+			gen.writeStringField("mode", jobCheckpointingConfiguration.isExactlyOnce() ? "exactly_once" : "at_least_once");
+			gen.writeNumberField("interval", jobCheckpointingConfiguration.getCheckpointInterval());
+			gen.writeNumberField("timeout", jobCheckpointingConfiguration.getCheckpointTimeout());
+			gen.writeNumberField("min_pause", jobCheckpointingConfiguration.getMinPauseBetweenCheckpoints());
+			gen.writeNumberField("max_concurrent", jobCheckpointingConfiguration.getMaxConcurrentCheckpoints());
 
-			ExternalizedCheckpointSettings externalization = settings.getExternalizedCheckpointSettings();
+			ExternalizedCheckpointSettings externalization = jobCheckpointingConfiguration.getExternalizedCheckpointSettings();
 			gen.writeObjectFieldStart("externalization");
 			{
 				if (externalization.externalizeCheckpoints()) {

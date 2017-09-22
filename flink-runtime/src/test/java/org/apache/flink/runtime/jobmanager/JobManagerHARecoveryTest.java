@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
@@ -237,13 +238,14 @@ public class JobManagerHARecoveryTest extends TestLogger {
 					vertexId,
 					vertexId,
 					vertexId,
-					100L,
-					10L * 60L * 1000L,
-					0L,
-					1,
-					ExternalizedCheckpointSettings.none(),
-					null,
-					true));
+					new CheckpointCoordinatorConfiguration(
+						100L,
+						10L * 60L * 1000L,
+						0L,
+						1,
+						ExternalizedCheckpointSettings.none(),
+						true),
+					null));
 
 			BlockingStatefulInvokable.initializeStaticHelpers(slots);
 

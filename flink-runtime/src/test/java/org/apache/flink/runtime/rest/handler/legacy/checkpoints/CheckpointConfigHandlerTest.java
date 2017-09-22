@@ -21,9 +21,8 @@ package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -54,7 +53,7 @@ public class CheckpointConfigHandlerTest {
 
 		AccessExecutionGraph graph = graphAndSettings.graph;
 		when(graph.getJobID()).thenReturn(new JobID());
-		JobCheckpointingSettings settings = graphAndSettings.snapshottingSettings;
+		CheckpointCoordinatorConfiguration chkConfig = graphAndSettings.jobCheckpointingConfiguration;
 		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
 
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
@@ -66,10 +65,10 @@ public class CheckpointConfigHandlerTest {
 		JsonNode rootNode = mapper.readTree(archive.getJson());
 
 		Assert.assertEquals("exactly_once", rootNode.get("mode").asText());
-		Assert.assertEquals(settings.getCheckpointInterval(), rootNode.get("interval").asLong());
-		Assert.assertEquals(settings.getCheckpointTimeout(), rootNode.get("timeout").asLong());
-		Assert.assertEquals(settings.getMinPauseBetweenCheckpoints(), rootNode.get("min_pause").asLong());
-		Assert.assertEquals(settings.getMaxConcurrentCheckpoints(), rootNode.get("max_concurrent").asInt());
+		Assert.assertEquals(chkConfig.getCheckpointInterval(), rootNode.get("interval").asLong());
+		Assert.assertEquals(chkConfig.getCheckpointTimeout(), rootNode.get("timeout").asLong());
+		Assert.assertEquals(chkConfig.getMinPauseBetweenCheckpoints(), rootNode.get("min_pause").asLong());
+		Assert.assertEquals(chkConfig.getMaxConcurrentCheckpoints(), rootNode.get("max_concurrent").asInt());
 
 		JsonNode externalizedNode = rootNode.get("externalization");
 		Assert.assertNotNull(externalizedNode);
@@ -94,7 +93,7 @@ public class CheckpointConfigHandlerTest {
 		GraphAndSettings graphAndSettings = createGraphAndSettings(false, true);
 
 		AccessExecutionGraph graph = graphAndSettings.graph;
-		JobCheckpointingSettings settings = graphAndSettings.snapshottingSettings;
+		CheckpointCoordinatorConfiguration chkConfig = graphAndSettings.jobCheckpointingConfiguration;
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor());
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap()).get();
@@ -103,10 +102,10 @@ public class CheckpointConfigHandlerTest {
 		JsonNode rootNode = mapper.readTree(json);
 
 		assertEquals("exactly_once", rootNode.get("mode").asText());
-		assertEquals(settings.getCheckpointInterval(), rootNode.get("interval").asLong());
-		assertEquals(settings.getCheckpointTimeout(), rootNode.get("timeout").asLong());
-		assertEquals(settings.getMinPauseBetweenCheckpoints(), rootNode.get("min_pause").asLong());
-		assertEquals(settings.getMaxConcurrentCheckpoints(), rootNode.get("max_concurrent").asInt());
+		assertEquals(chkConfig.getCheckpointInterval(), rootNode.get("interval").asLong());
+		assertEquals(chkConfig.getCheckpointTimeout(), rootNode.get("timeout").asLong());
+		assertEquals(chkConfig.getMinPauseBetweenCheckpoints(), rootNode.get("min_pause").asLong());
+		assertEquals(chkConfig.getMaxConcurrentCheckpoints(), rootNode.get("max_concurrent").asInt());
 
 		JsonNode externalizedNode = rootNode.get("externalization");
 		assertNotNull(externalizedNode);
@@ -160,35 +159,31 @@ public class CheckpointConfigHandlerTest {
 			? ExternalizedCheckpointSettings.externalizeCheckpoints(true)
 			: ExternalizedCheckpointSettings.none();
 
-		JobCheckpointingSettings settings = new JobCheckpointingSettings(
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			interval,
 			timeout,
 			minPause,
 			maxConcurrent,
 			externalizedSetting,
-			null,
 			exactlyOnce);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		when(graph.getJobCheckpointingSettings()).thenReturn(settings);
+		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(chkConfig);
 
-		return new GraphAndSettings(graph, settings, externalizedSetting);
+		return new GraphAndSettings(graph, chkConfig, externalizedSetting);
 	}
 
 	private static class GraphAndSettings {
 		public final AccessExecutionGraph graph;
-		public final JobCheckpointingSettings snapshottingSettings;
+		public final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 		public final ExternalizedCheckpointSettings externalizedSettings;
 
 		public GraphAndSettings(
 				AccessExecutionGraph graph,
-				JobCheckpointingSettings snapshottingSettings,
+				CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 				ExternalizedCheckpointSettings externalizedSettings) {
 			this.graph = graph;
-			this.snapshottingSettings = snapshottingSettings;
+			this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
 			this.externalizedSettings = externalizedSettings;
 		}
 	}

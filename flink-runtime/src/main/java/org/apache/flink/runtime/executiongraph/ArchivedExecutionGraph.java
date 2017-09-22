@@ -20,14 +20,14 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
@@ -81,7 +81,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	private final Map<String, SerializedValue<Object>> serializedUserAccumulators;
 
 	@Nullable
-	private final JobCheckpointingSettings jobCheckpointingSettings;
+	private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
 	@Nullable
 	private final CheckpointStatsSnapshot checkpointStatsSnapshot;
@@ -99,7 +99,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			Map<String, SerializedValue<Object>> serializedUserAccumulators,
 			ArchivedExecutionConfig executionConfig,
 			boolean isStoppable,
-			@Nullable JobCheckpointingSettings jobCheckpointingSettings,
+			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot) {
 
 		this.jobID = jobID;
@@ -114,7 +114,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 		this.serializedUserAccumulators = serializedUserAccumulators;
 		this.archivedExecutionConfig = executionConfig;
 		this.isStoppable = isStoppable;
-		this.jobCheckpointingSettings = jobCheckpointingSettings;
+		this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
 		this.checkpointStatsSnapshot = checkpointStatsSnapshot;
 	}
 
@@ -206,12 +206,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	}
 
 	@Override
-	public CheckpointCoordinator getCheckpointCoordinator() {
-		return null;
-	}
-
-	public JobCheckpointingSettings getJobCheckpointingSettings() {
-		return jobCheckpointingSettings;
+	public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
+		return jobCheckpointingConfiguration;
 	}
 
 	@Override

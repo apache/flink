@@ -24,7 +24,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -104,10 +103,10 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				100,
 				1,
 				ExternalizedCheckpointSettings.none(),
-				Collections.<ExecutionJobVertex>emptyList(),
-				Collections.<ExecutionJobVertex>emptyList(),
-				Collections.<ExecutionJobVertex>emptyList(),
-				Collections.<MasterTriggerRestoreHook<?>>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				counter,
 				store,
 				null,
