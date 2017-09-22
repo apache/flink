@@ -218,7 +218,9 @@ public class JobCancellationWithSavepointHandlers {
 									completed.put(requestId, path);
 								}
 							} finally {
-								inProgress.remove(jobId);
+								synchronized (lock) {
+									inProgress.remove(jobId);
+								}
 							}
 						}, executor);
 
