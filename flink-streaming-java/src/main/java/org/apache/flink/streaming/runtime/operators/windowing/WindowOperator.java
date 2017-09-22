@@ -781,7 +781,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 			}
 			output.collect(outputTag, new StreamRecord<>(value, window.maxTimestamp()));
 		}
-
 	}
 
 	/**
