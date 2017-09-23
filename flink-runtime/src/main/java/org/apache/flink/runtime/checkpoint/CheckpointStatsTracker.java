@@ -442,7 +442,7 @@ public class CheckpointStatsTracker {
 		@Override
 		public String getValue() {
 			CompletedCheckpointStats completed = latestCompletedCheckpoint;
-			if (completed != null) {
+			if (completed != null && completed.getExternalPath() != null) {
 				return completed.getExternalPath();
 			} else {
 				return "n/a";
