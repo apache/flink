@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.codegeneration;
 
-import freemarker.template.Version;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -31,6 +30,7 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
+import freemarker.template.Version;
 import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.SimpleCompiler;
 import org.slf4j.Logger;
@@ -83,7 +83,7 @@ public class SorterFactory {
 		this.classCompiler = new SimpleCompiler();
 		this.constructorCache = new HashMap<>();
 		Configuration templateConf;
-		templateConf = new Configuration(new Version(2,3,26));
+		templateConf = new Configuration(new Version(2, 3, 26));
 		templateConf.setClassForTemplateLoading(SorterFactory.class, "/templates");
 		templateConf.setDefaultEncoding("UTF-8");
 		templateConf.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
@@ -118,7 +118,7 @@ public class SorterFactory {
 	 */
 	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer,
 											TypeComparator<T> comparator, List<MemorySegment> memory) {
-		if (config.isCodeGenerationForSortersEnabled()){
+		if (config.isCodeGenerationForSortersEnabled()) {
 			try {
 				return createCodegenSorter(serializer, comparator, memory);
 			} catch (IOException | TemplateException | ClassNotFoundException | IllegalAccessException |

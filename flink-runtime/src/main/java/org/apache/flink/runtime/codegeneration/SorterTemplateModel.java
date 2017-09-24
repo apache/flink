@@ -52,7 +52,7 @@ class SorterTemplateModel {
 	private static final Integer[] POSSIBLE_CHUNK_SIZES = {8, 4, 2, 1};
 
 	/** Mapping from chunk sizes to primitive operators. */
-	private static final HashMap<Integer, String> byteOperatorMapping = new HashMap<Integer, String>(){
+	private static final HashMap<Integer, String> byteOperatorMapping = new HashMap<Integer, String>() {
 		{
 			put(8, "Long");
 			put(4, "Int");
@@ -86,7 +86,7 @@ class SorterTemplateModel {
 	 * @param typeComparator
 	 * 		  The type information of underlying data
 	 */
-	SorterTemplateModel(TypeComparator typeComparator){
+	SorterTemplateModel(TypeComparator typeComparator) {
 		this.typeComparator = typeComparator;
 
 		// number of bytes of the sorting key
@@ -171,7 +171,7 @@ class SorterTemplateModel {
 	 *  primitive operations (e.g., integer or long operations)
 	 *  @return ArrayList of chunk sizes
 	 */
-	private ArrayList<Integer> calculateChunks(int numKeyBytes){
+	private ArrayList<Integer> calculateChunks(int numKeyBytes) {
 		ArrayList<Integer> chunks = new ArrayList<>();
 
 		// if no. of bytes is too large, we don't split
@@ -211,7 +211,7 @@ class SorterTemplateModel {
 	 *
 	 * @return code used in the swap method
 	 */
-	private String generateSwapProcedures(){
+	private String generateSwapProcedures() {
 		/* Example generated code, for 20 bytes (8+8+4):
 
 		long temp1 = segI.getLong(segmentOffsetI);
@@ -235,7 +235,7 @@ class SorterTemplateModel {
 			StringBuilder secondSegmentString = new StringBuilder();
 
 			int accOffset = 0;
-			for (int i = 0; i  < primitiveChunks.size(); i++){
+			for (int i = 0; i  < primitiveChunks.size(); i++) {
 				int numberByte = primitiveChunks.get(i);
 				int varIndex = i + 1;
 
@@ -276,7 +276,7 @@ class SorterTemplateModel {
 	 *
 	 * @return code used in the write method
 	 */
-	private String generateWriteProcedures(){
+	private String generateWriteProcedures() {
 		/* Example generated code, for 12 bytes (8+4):
 
 		long temp1 = Long.reverseBytes(this.currentSortIndexSegment.getLong(this.currentSortIndexOffset+8));
@@ -290,9 +290,9 @@ class SorterTemplateModel {
 		if (primitiveChunks.size() > 1 && ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
 			int offset = 0;
 			// starts from 1 because of skipping the first chunk
-			for (int i = 1; i < primitiveChunks.size(); i++){
+			for (int i = 1; i < primitiveChunks.size(); i++) {
 				int noBytes = primitiveChunks.get(i);
-				if (noBytes == 1){
+				if (noBytes == 1) {
 					/* 1-byte chunk doesn't need to be reversed and it always comes last,
 					 * so we can finish the loop early here
 					 */
@@ -329,7 +329,7 @@ class SorterTemplateModel {
 	 *
 	 * @return code used in the compare method
 	 */
-	private String generateCompareProcedures(){
+	private String generateCompareProcedures() {
 		/* Example generated code for 12 bytes (8+4):
 
 		long l_1_1  = segI.getLong(segmentOffsetI + 8);
@@ -350,16 +350,16 @@ class SorterTemplateModel {
 		StringBuilder procedures = new StringBuilder();
 
 		// skip the first chunk, which is the pointer before the key
-		if (primitiveChunks.size() > 1){
+		if (primitiveChunks.size() > 1) {
 			String sortOrder = "";
-			if (this.typeComparator.invertNormalizedKey()){
+			if (this.typeComparator.invertNormalizedKey()) {
 				sortOrder = "-";
 			}
 
 			int offset = 0;
 
 			// starts from 1 because of skipping the first chunk
-			for (int i = 1; i < primitiveChunks.size(); i++){
+			for (int i = 1; i < primitiveChunks.size(); i++) {
 
 				offset += primitiveChunks.get(i - 1);
 				String primitiveClass = byteOperatorMapping.get(primitiveChunks.get(i));
@@ -380,7 +380,7 @@ class SorterTemplateModel {
 			}
 		}
 
-		if (this.normalizedKeyFullyDetermines){
+		if (this.normalizedKeyFullyDetermines) {
 			// don't need to compare records further for fully determined key
 			procedures.append("return 0;\n");
 		} else {
@@ -401,17 +401,17 @@ class SorterTemplateModel {
 
 		StringBuilder name = new StringBuilder();
 
-		for (Integer opt : chunks){
+		for (Integer opt : chunks) {
 			name.append(byteOperatorMapping.get(opt));
 		}
 
-		if (typeComparator.invertNormalizedKey()){
+		if (typeComparator.invertNormalizedKey()) {
 			name.append("_Desc_");
 		} else {
 			name.append("_Asc_");
 		}
 
-		if (normalizedKeyFullyDetermines){
+		if (normalizedKeyFullyDetermines) {
 			name.append("FullyDetermining_");
 		} else {
 			name.append("NonFullyDetermining_");

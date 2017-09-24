@@ -51,7 +51,7 @@ public class SorterTemplateModelTest extends TestLogger {
 		testCases.put(new Integer[]{3},  new Integer[]{8, 2, 1});
 		testCases.put(new Integer[]{1},  new Integer[]{8, 1});
 
-		for (Integer[] keyBytes: testCases.keySet()){
+		for (Integer[] keyBytes: testCases.keySet()) {
 
 			SorterTemplateModel model = new SorterTemplateModel(createTypeComparatorWithCustomKeysize(keyBytes));
 
