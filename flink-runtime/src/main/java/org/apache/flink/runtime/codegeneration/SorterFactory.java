@@ -21,6 +21,7 @@ package org.apache.flink.runtime.codegeneration;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.operators.sort.FixedLengthRecordSorter;
 import org.apache.flink.runtime.operators.sort.InMemorySorter;
@@ -38,10 +39,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
 import java.util.List;
+import java.util.WeakHashMap;
+import java.util.concurrent.ExecutionException;
 
 /**
  * {@link SorterFactory} is a singleton class that provides functionalities to create the most suitable sorter
@@ -66,8 +69,23 @@ public class SorterFactory {
 	// ------------------------------------------------------------------------
 	//                                   Attributes
 	// ------------------------------------------------------------------------
+
 	private SimpleCompiler classCompiler;
-	private HashMap<String, Constructor> constructorCache;
+
+	/**
+	 * The String in the key is the name of the generated class.
+	 * The ClassLoader in the key is the user code classloader, which was set as parent classloader when
+	 * generating the class. This is necessary to be included in the key, to prevent us from using
+	 * generated classes of past jobs. (If we used a generated class from a past job, that would keep the
+	 * user code classloader of the past job alive.)
+	 * Note that we are using a WeakHashMap here, which holds WeakReferences to its keys. This way the cache
+	 * won't keep the user code classloader alive. When the user code classloader of a past job is garbage collected,
+	 * the WeakHashMap will remove any entries that are associated with that classloader.
+	 * Also note that WeakHashMap has weak references only for its keys. Therefore, we have to explicitly wrap the
+	 * values in a WeakReference. Otherwise, the Class objects in tha cache would keep their classloaders alive.
+	 */
+	private WeakHashMap<Tuple2<ClassLoader, String>, WeakReference<Class>> generatedClassCache;
+
 	private final Template template;
 
 	/**
@@ -81,7 +99,7 @@ public class SorterFactory {
 	 */
 	private SorterFactory() {
 		this.classCompiler = new SimpleCompiler();
-		this.constructorCache = new HashMap<>();
+		this.generatedClassCache = new WeakHashMap<>();
 		Configuration templateConf;
 		templateConf = new Configuration(new Version(2, 3, 26));
 		templateConf.setClassForTemplateLoading(SorterFactory.class, "/templates");
@@ -122,8 +140,9 @@ public class SorterFactory {
 		if (config.isCodeGenerationForSortersEnabled()) {
 			try {
 				return createCodegenSorter(serializer, comparator, memory, classLoader);
-			} catch (IOException | TemplateException | ClassNotFoundException | IllegalAccessException |
-					InstantiationException | NoSuchMethodException | InvocationTargetException | CompileException e) {
+			} catch (IllegalAccessException | InstantiationException | NoSuchMethodException | ClassNotFoundException
+					| InvocationTargetException | ExecutionException | TemplateException | IOException
+					| CompileException e) {
 
 				String msg = "Serializer: " + serializer +
 						"[" + serializer + "], comparator: [" + comparator + "], exception: " + e.toString();
@@ -141,35 +160,37 @@ public class SorterFactory {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private <T> InMemorySorter<T> createCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
 													List<MemorySegment> memory, ClassLoader classLoader)
-			throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException,
-			InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
+			throws IllegalAccessException, InstantiationException, NoSuchMethodException, ClassNotFoundException,
+			InvocationTargetException, ExecutionException, TemplateException, IOException, CompileException {
 		SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
 
-		Constructor sorterConstructor;
+		Tuple2<ClassLoader, String> cacheKey = Tuple2.of(classLoader, sorterModel.getSorterName());
 
-		synchronized (this){
-			if (constructorCache.containsKey(sorterModel.getSorterName())) {
-				sorterConstructor = constructorCache.get(sorterModel.getSorterName());
+		Class generatedClass;
+
+		synchronized (this) {
+			// Note: We couldn't use containsKey() and then get() here, since a WeakHashMap has the unpleasant property
+			// that elements might disappear from it between a containsKey() and a get().
+			WeakReference<Class> fromCache = generatedClassCache.getOrDefault(cacheKey, null);
+			if (fromCache != null && fromCache.get() != null) {
+				generatedClass = fromCache.get();
 			} else {
-				String sorterName = sorterModel.getSorterName();
-
 				StringWriter generatedCodeWriter = new StringWriter();
 				template.process(sorterModel.getTemplateVariables(), generatedCodeWriter);
 
-				this.classCompiler.setParentClassLoader(classLoader);
-				this.classCompiler.cook(generatedCodeWriter.toString());
+				classCompiler.setParentClassLoader(classLoader);
+				classCompiler.cook(generatedCodeWriter.toString());
 
-				sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
-						TypeSerializer.class, TypeComparator.class, List.class
-				);
-
-				constructorCache.put(sorterName, sorterConstructor);
+				generatedClass = classCompiler.getClassLoader().loadClass(sorterModel.getSorterName());
+				generatedClassCache.put(cacheKey, new WeakReference<>(generatedClass));
 			}
 		}
 
-		@SuppressWarnings("unchecked")
+		Constructor sorterConstructor = generatedClass.getConstructor(TypeSerializer.class, TypeComparator.class, List.class);
+
 		InMemorySorter<T> sorter = (InMemorySorter<T>) sorterConstructor.newInstance(serializer, comparator, memory);
 
 		if (LOG.isInfoEnabled()){
