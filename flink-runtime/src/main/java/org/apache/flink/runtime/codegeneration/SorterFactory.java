@@ -172,7 +172,7 @@ public class SorterFactory {
 		InMemorySorter<T> sorter = (InMemorySorter<T>) sorterConstructor.newInstance(serializer, comparator, memory);
 
 		if (LOG.isInfoEnabled()){
-			LOG.info("Using a custom sorter : " + sorter.toString());
+			LOG.info("Using a code-generated sorter : " + sorter.toString());
 		}
 
 		return sorter;
