@@ -57,7 +57,7 @@ public class TestHarnessUtil {
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
-	public static void assertOutputEquals(String message, Queue<Object> expected, Queue<Object> actual) {
+	public static <T> void assertOutputEquals(String message, Queue<T> expected, Queue<T> actual) {
 		Assert.assertArrayEquals(message,
 				expected.toArray(),
 				actual.toArray());
