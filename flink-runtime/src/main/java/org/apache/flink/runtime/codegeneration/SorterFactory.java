@@ -81,6 +81,7 @@ public class SorterFactory {
 	 */
 	private SorterFactory() {
 		this.classCompiler = new SimpleCompiler();
+		this.classCompiler.setParentClassLoader(this.getClass().getClassLoader());
 		this.constructorCache = new HashMap<>();
 		Configuration templateConf;
 		templateConf = new Configuration(new Version(2, 3, 26));
@@ -149,7 +150,7 @@ public class SorterFactory {
 		Constructor sorterConstructor;
 
 		synchronized (this){
-			if (constructorCache.getOrDefault(sorterModel.getSorterName(), null) != null) {
+			if (constructorCache.containsKey(sorterModel.getSorterName())) {
 				sorterConstructor = constructorCache.get(sorterModel.getSorterName());
 			} else {
 				String sorterName = sorterModel.getSorterName();
