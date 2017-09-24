@@ -113,8 +113,8 @@ public class ChainedReduceCombineDriver<T> extends ChainedDriver<T, T> {
 
 		switch (strategy) {
 			case SORTED_PARTIAL_REDUCE:
-				sorter = SorterFactory.getInstance()
-					.createSorter(this.parent.getExecutionConfig(), serializer, comparator.duplicate(), memory);
+				sorter = SorterFactory.getInstance().createSorter(this.parent.getExecutionConfig(),
+						serializer, comparator.duplicate(), memory, this.parent.getUserCodeClassLoader());
 				break;
 			case HASHED_PARTIAL_REDUCE:
 				table = new InPlaceMutableHashTable<T>(serializer, comparator, memory);

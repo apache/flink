@@ -101,7 +101,8 @@ public class CodeGenerationSorterBaseTest {
 			executionConfig,
 			serializer,
 			comparator,
-			memory
+			memory,
+			Thread.currentThread().getContextClassLoader()
 		);
 	}
 

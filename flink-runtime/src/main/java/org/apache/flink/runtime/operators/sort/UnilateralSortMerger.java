@@ -340,8 +340,8 @@ public class UnilateralSortMerger<E> implements Sorter<E> {
 			}
 			
 			final TypeComparator<E> comp = comparator.duplicate();
-			final InMemorySorter<E> buffer = SorterFactory.getInstance()
-				.createSorter(parentTask.getExecutionConfig(), serializerFactory.getSerializer(), comp, sortSegments);
+			final InMemorySorter<E> buffer = SorterFactory.getInstance().createSorter(parentTask.getExecutionConfig(),
+					serializerFactory.getSerializer(), comp, sortSegments, parentTask.getUserCodeClassLoader());
 
 			// add to empty queue
 			CircularElement<E> element = new CircularElement<E>(i, buffer, sortSegments);

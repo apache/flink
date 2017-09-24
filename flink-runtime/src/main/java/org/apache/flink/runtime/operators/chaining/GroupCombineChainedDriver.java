@@ -109,8 +109,8 @@ public class GroupCombineChainedDriver<IN, OUT> extends ChainedDriver<IN, OUT> {
 		final int numMemoryPages = memManager.computeNumberOfPages(this.config.getRelativeMemoryDriver());
 		this.memory = memManager.allocatePages(this.parent, numMemoryPages);
 
-		this.sorter = SorterFactory.getInstance()
-			.createSorter(this.executionConfig, this.serializer, sortingComparator.duplicate(), memory);
+		this.sorter = SorterFactory.getInstance().createSorter(this.executionConfig,
+				this.serializer, sortingComparator.duplicate(), memory, this.parent.getUserCodeClassLoader());
 
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("SynchronousChainedCombineDriver object reuse: " + (this.objectReuseEnabled ? "ENABLED" : "DISABLED") + ".");

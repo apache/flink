@@ -127,8 +127,8 @@ public class GroupReduceCombineDriver<IN, OUT> implements Driver<GroupCombineFun
 		final int numMemoryPages = memManager.computeNumberOfPages(this.taskContext.getTaskConfig().getRelativeMemoryDriver());
 		this.memory = memManager.allocatePages(this.taskContext.getContainingTask(), numMemoryPages);
 
-		this.sorter = SorterFactory.getInstance()
-				.createSorter(taskContext.getExecutionConfig(), this.serializer, sortingComparator.duplicate(), memory);
+		this.sorter = SorterFactory.getInstance().createSorter(this.taskContext.getExecutionConfig(),
+				this.serializer, sortingComparator.duplicate(), memory, this.taskContext.getUserCodeClassLoader());
 
 		ExecutionConfig executionConfig = taskContext.getExecutionConfig();
 		this.objectReuseEnabled = executionConfig.isObjectReuseEnabled();

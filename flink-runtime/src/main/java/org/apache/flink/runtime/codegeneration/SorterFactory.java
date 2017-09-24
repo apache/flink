@@ -81,7 +81,6 @@ public class SorterFactory {
 	 */
 	private SorterFactory() {
 		this.classCompiler = new SimpleCompiler();
-		this.classCompiler.setParentClassLoader(this.getClass().getClassLoader());
 		this.constructorCache = new HashMap<>();
 		Configuration templateConf;
 		templateConf = new Configuration(new Version(2, 3, 26));
@@ -118,10 +117,11 @@ public class SorterFactory {
 	 * @return
 	 */
 	public <T> InMemorySorter<T> createSorter(ExecutionConfig config, TypeSerializer<T> serializer,
-											TypeComparator<T> comparator, List<MemorySegment> memory) {
+											TypeComparator<T> comparator, List<MemorySegment> memory,
+											ClassLoader classLoader) {
 		if (config.isCodeGenerationForSortersEnabled()) {
 			try {
-				return createCodegenSorter(serializer, comparator, memory);
+				return createCodegenSorter(serializer, comparator, memory, classLoader);
 			} catch (IOException | TemplateException | ClassNotFoundException | IllegalAccessException |
 					InstantiationException | NoSuchMethodException | InvocationTargetException | CompileException e) {
 
@@ -142,7 +142,7 @@ public class SorterFactory {
 	}
 
 	private <T> InMemorySorter<T> createCodegenSorter(TypeSerializer<T> serializer, TypeComparator<T> comparator,
-													List<MemorySegment> memory)
+													List<MemorySegment> memory, ClassLoader classLoader)
 			throws IOException, TemplateException, ClassNotFoundException, IllegalAccessException,
 			InstantiationException, NoSuchMethodException, InvocationTargetException, CompileException {
 		SorterTemplateModel sorterModel = new SorterTemplateModel(comparator);
@@ -158,6 +158,7 @@ public class SorterFactory {
 				StringWriter generatedCodeWriter = new StringWriter();
 				template.process(sorterModel.getTemplateVariables(), generatedCodeWriter);
 
+				this.classCompiler.setParentClassLoader(classLoader);
 				this.classCompiler.cook(generatedCodeWriter.toString());
 
 				sorterConstructor = this.classCompiler.getClassLoader().loadClass(sorterName).getConstructor(
