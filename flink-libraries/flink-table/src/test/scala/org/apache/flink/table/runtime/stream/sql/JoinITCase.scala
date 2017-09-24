@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
@@ -30,7 +31,7 @@ import scala.collection.mutable
 
 class JoinITCase extends StreamingWithStateTestBase {
 
-  /** test process time inner join **/
+  /** test proctime inner join **/
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
@@ -39,8 +40,14 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
     env.setParallelism(1)
 
-    val sqlQuery = "SELECT t2.a, t2.c, t1.c from T1 as t1 join T2 as t2 on t1.a = t2.a and " +
-      "t1.proctime between t2.proctime - interval '5' second and t2.proctime + interval '5' second"
+    val sqlQuery =
+      """
+        |SELECT t2.a, t2.c, t1.c
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.a = t2.a AND
+        |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND
+        |    t2.proctime + INTERVAL '5' SECOND
+        |""".stripMargin
 
     val data1 = new mutable.MutableList[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))
@@ -65,19 +72,25 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
   }
 
-  /** test process time inner join with other condition **/
+  /** test proctime inner join with other condition **/
   @Test
   def testProcessTimeInnerJoinWithOtherCondition(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
-    env.setParallelism(1)
+    env.setParallelism(2)
 
-    val sqlQuery = "SELECT t2.a, t2.c, t1.c from T1 as t1 join T2 as t2 on t1.a = t2.a and " +
-      "t1.proctime between t2.proctime - interval '5' second " +
-      "and t2.proctime + interval '5' second " +
-      "and t1.b > t2.b and t1.b + t2.b < 14"
+    val sqlQuery =
+      """
+       |SELECT t2.a, t2.c, t1.c
+       |FROM T1 as t1 JOIN T2 as t2 ON
+       |  t1.a = t2.a AND
+       |  t1.proctime BETWEEN t2.proctime - interval '5' SECOND AND
+       |    t2.proctime + interval '5' second AND
+       |  t1.b > t2.b AND
+       |  t1.b + t2.b < 14
+       |""".stripMargin
 
     val data1 = new mutable.MutableList[(String, Long, String)]
     data1.+=(("1", 1L, "Hi1"))
@@ -102,5 +115,118 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
   }
 
-}
+  /** test rowtime inner join **/
+  @Test
+  def testRowTimeInnerJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    StreamITCase.clear
+    env.setParallelism(3)
 
+    val sqlQuery =
+      """
+        |SELECT t2.a, t2.c, t1.c
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rt BETWEEN t2.rt - INTERVAL '5' SECOND AND
+        |    t2.rt + INTERVAL '6' SECOND
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+    // for boundary test
+    data1.+=((1, 999L, "LEFT0.999", 999L))
+    data1.+=((1, 1000L, "LEFT1", 1000L))
+    data1.+=((1, 2000L, "LEFT2", 2000L))
+    data1.+=((1, 3000L, "LEFT3", 3000L))
+    data1.+=((2, 4000L, "LEFT4", 4000L))
+    data1.+=((1, 5000L, "LEFT5", 5000L))
+    data1.+=((1, 6000L, "LEFT6", 6000L))
+
+    val data2 = new mutable.MutableList[(Int, Long, String, Long)]
+    data2.+=((1, 6000L, "RIGHT6", 6000L))
+    data2.+=((2, 7000L, "RIGHT7", 7000L))
+
+    val t1 = env.fromCollection(data1)
+      .assignAscendingTimestamps(row => row._4)
+      .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignAscendingTimestamps(row => row._4)
+      .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+    val expected = new java.util.ArrayList[String]
+    expected.add("1,RIGHT6,LEFT1")
+    expected.add("1,RIGHT6,LEFT2")
+    expected.add("1,RIGHT6,LEFT3")
+    expected.add("1,RIGHT6,LEFT5")
+    expected.add("1,RIGHT6,LEFT6")
+    expected.add("2,RIGHT7,LEFT4")
+    StreamITCase.compareWithList(expected)
+  }
+
+  /** test rowtime inner join with other conditions **/
+  @Test
+  def testRowTimeInnerJoinWithOtherCondition(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    StreamITCase.clear
+    env.setParallelism(4)
+
+    val sqlQuery =
+      """
+        |SELECT t2.a, t1.c, t2.c
+        |FROM T1 as t1 JOIN T2 as t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rt > t2.rt - INTERVAL '5' SECOND AND
+        |    t1.rt < t2.rt - INTERVAL '1' SECOND AND
+        |  t1.b < t2.b AND
+        |  t1.b > 3
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+    data1.+=((1, 4L, "LEFT1", 1000L))
+    // for boundary test
+    data1.+=((1, 8L, "LEFT1.1", 1001L))
+    data1.+=((1, 2L, "LEFT2", 2000L))
+    data1.+=((1, 7L, "LEFT3", 3000L))
+    data1.+=((2, 5L, "LEFT4", 4000L))
+    // for boundary test
+    data1.+=((1, 4L, "LEFT4.9", 4999L))
+    data1.+=((1, 4L, "LEFT5", 5000L))
+    data1.+=((1, 10L, "LEFT6", 6000L))
+
+    val data2 = new mutable.MutableList[(Int, Long, String, Long)]
+    data2.+=((1, 9L, "RIGHT6", 6000L))
+    data2.+=((2, 14L, "RIGHT7", 7000L))
+
+    val t1 = env.fromCollection(data1)
+      .assignAscendingTimestamps(row => row._4)
+      .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignAscendingTimestamps(row => row._4)
+      .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = new java.util.ArrayList[String]
+    expected.add("1,LEFT3,RIGHT6")
+    expected.add("1,LEFT1.1,RIGHT6")
+    expected.add("2,LEFT4,RIGHT7")
+    expected.add("1,LEFT4.9,RIGHT6")
+    StreamITCase.compareWithList(expected)
+  }
+}

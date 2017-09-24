@@ -34,8 +34,8 @@ import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowTimeBoundedStreamInnerJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Collector
-import org.slf4j.{Logger, LoggerFactory}
 
 /**
   * RelNode for a time windowed stream join.
@@ -59,9 +59,8 @@ class DataStreamWindowJoin(
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
     with CommonJoin
-    with DataStreamRel {
-
-  lazy val LOG: Logger = LoggerFactory.getLogger(getClass)
+    with DataStreamRel
+    with Logging {
 
   override def deriveRowType(): RelDataType = schema.relDataType
 
@@ -118,15 +117,12 @@ class DataStreamWindowJoin(
     val leftDataStream = left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
     val rightDataStream = right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
 
-    // get the equality keys and other condition
+    // get the equi-keys and other conditions
     val joinInfo = JoinInfo.of(leftNode, rightNode, joinCondition)
     val leftKeys = joinInfo.leftKeys.toIntArray
     val rightKeys = joinInfo.rightKeys.toIntArray
-
     val relativeWindowSize = leftUpperBound - leftLowerBound
-
     val returnTypeInfo = CRowTypeInfo(schema.typeInfo)
-
 
     // generate join function
     val joinFunction =
@@ -144,11 +140,10 @@ class DataStreamWindowJoin(
         if (relativeWindowSize < 0) {
           LOG.warn(s"The relative window size ${relativeWindowSize} is negative," +
             " please check the join conditions.")
-          createEmptyInnerJoinFunction(leftDataStream, rightDataStream, returnTypeInfo)
+          createEmptyInnerJoin(leftDataStream, rightDataStream, returnTypeInfo)
         } else {
           if (isRowTime) {
-            // RowTime JoinCoProcessFunction
-            createRowTimeInnerJoinFunction(
+            createRowTimeInnerJoin(
               leftDataStream,
               rightDataStream,
               returnTypeInfo,
@@ -158,8 +153,7 @@ class DataStreamWindowJoin(
               rightKeys
             )
           } else {
-            // Proctime JoinCoProcessFunction
-            createProcTimeInnerJoinFunction(
+            createProcTimeInnerJoin(
               leftDataStream,
               rightDataStream,
               returnTypeInfo,
@@ -182,7 +176,28 @@ class DataStreamWindowJoin(
     }
   }
 
-  def createProcTimeInnerJoinFunction(
+  def createEmptyInnerJoin(
+      leftDataStream: DataStream[CRow],
+      rightDataStream: DataStream[CRow],
+      returnTypeInfo: TypeInformation[CRow]) = {
+    leftDataStream.connect(rightDataStream).process(
+      new CoProcessFunction[CRow, CRow, CRow] {
+        override def processElement1(
+          value: CRow,
+          ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
+          out: Collector[CRow]) = {
+          //Do nothing.
+        }
+        override def processElement2(
+          value: CRow,
+          ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
+          out: Collector[CRow]) = {
+          //Do nothing.
+        }
+      })
+  }
+
+  def createProcTimeInnerJoin(
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow],
@@ -215,27 +230,7 @@ class DataStreamWindowJoin(
     }
   }
 
-  def createEmptyInnerJoinFunction(
-      leftDataStream: DataStream[CRow],
-      rightDataStream: DataStream[CRow],
-      returnTypeInfo: TypeInformation[CRow]) = {
-    leftDataStream.connect(rightDataStream).process(
-      new CoProcessFunction[CRow, CRow, CRow] {
-        override def processElement1(
-          value: CRow,
-          ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-          out: Collector[CRow]) = {
-          //Do nothing.
-        }
-        override def processElement2(
-          value: CRow,
-          ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-          out: Collector[CRow]) = {
-          //Do nothing.
-        }
-      })
-  }
-  def createRowTimeInnerJoinFunction(
+  def createRowTimeInnerJoin(
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow],

@@ -26,7 +26,7 @@ import org.apache.flink.types.Row
 /**
   * The function to execute row(event) time bounded stream inner-join.
   */
-class RowTimeBoundedStreamInnerJoin(
+final class RowTimeBoundedStreamInnerJoin(
     leftLowerBound: Long,
     leftUpperBound: Long,
     allowedLateness: Long,
@@ -45,37 +45,35 @@ class RowTimeBoundedStreamInnerJoin(
       genJoinFuncName,
       genJoinFuncCode,
       leftTimeIdx,
-      rightTimeIdx,
-      JoinTimeIndicator.ROWTIME) {
+      rightTimeIdx) {
 
-  override def checkRowOutOfDate(timeForRow: Long, watermark: Long) = {
+  override def isRowTooLate(timeForRow: Long, watermark: Long): Boolean = {
     timeForRow <= watermark - allowedLateness
   }
 
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
-    rightOperatorTime =
+    leftOperatorTime =
       if (ctx.timerService().currentWatermark() > 0) ctx.timerService().currentWatermark()
       else 0L
-    leftOperatorTime =
+    rightOperatorTime =
       if (ctx.timerService().currentWatermark() > 0) ctx.timerService().currentWatermark()
       else 0L
   }
 
   override def getTimeForLeftStream(
       context: CoProcessFunction[CRow, CRow, CRow]#Context,
-      row: CRow): Long = {
-    row.row.getField(leftTimeIdx).asInstanceOf[Long]
+      row: Row): Long = {
+    row.getField(leftTimeIdx).asInstanceOf[Long]
   }
 
   override def getTimeForRightStream(
       context: CoProcessFunction[CRow, CRow, CRow]#Context,
-      row: CRow): Long = {
-    row.row.getField(rightTimeIdx).asInstanceOf[Long]
+      row: Row): Long = {
+    row.getField(rightTimeIdx).asInstanceOf[Long]
   }
 
   override def registerTimer(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-      isLeft: Boolean,
       cleanupTime: Long): Unit = {
     // Maybe we can register timers for different streams in the future.
     ctx.timerService.registerEventTimeTimer(cleanupTime)

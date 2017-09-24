@@ -26,7 +26,7 @@ import org.apache.flink.types.Row
 /**
   * The function to execute processing time bounded stream inner-join.
   */
-class ProcTimeBoundedStreamInnerJoin(
+final class ProcTimeBoundedStreamInnerJoin(
     leftLowerBound: Long,
     leftUpperBound: Long,
     allowedLateness: Long,
@@ -43,31 +43,29 @@ class ProcTimeBoundedStreamInnerJoin(
       genJoinFuncName,
       genJoinFuncCode,
       leftTimeIdx = -1,
-      rightTimeIdx = -1,
-      JoinTimeIndicator.PROCTIME) {
+      rightTimeIdx = -1) {
 
-  override def checkRowOutOfDate(timeForRow: Long, watermark: Long) = false
+  override def isRowTooLate(timeForRow: Long, watermark: Long): Boolean = false
 
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
-    rightOperatorTime = ctx.timerService().currentProcessingTime()
     leftOperatorTime = ctx.timerService().currentProcessingTime()
+    rightOperatorTime = leftOperatorTime
   }
 
   override def getTimeForLeftStream(
       context: CoProcessFunction[CRow, CRow, CRow]#Context,
-      row: CRow): Long = {
-    context.timerService().currentProcessingTime()
+      row: Row): Long = {
+    leftOperatorTime
   }
 
   override def getTimeForRightStream(
       context: CoProcessFunction[CRow, CRow, CRow]#Context,
-      row: CRow): Long = {
-    context.timerService().currentProcessingTime()
+      row: Row): Long = {
+    rightOperatorTime
   }
 
   override def registerTimer(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-      isLeft: Boolean,
       cleanupTime: Long): Unit = {
     ctx.timerService.registerProcessingTimeTimer(cleanupTime)
   }
