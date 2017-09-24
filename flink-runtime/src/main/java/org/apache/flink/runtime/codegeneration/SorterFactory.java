@@ -169,15 +169,23 @@ public class SorterFactory {
 
 		Tuple2<ClassLoader, String> cacheKey = Tuple2.of(classLoader, sorterModel.getSorterName());
 
-		Class generatedClass;
+		Class generatedClass = null;
 
 		synchronized (this) {
 			// Note: We couldn't use containsKey() and then get() here, since a WeakHashMap has the unpleasant property
 			// that elements might disappear from it between a containsKey() and a get().
 			WeakReference<Class> fromCache = generatedClassCache.getOrDefault(cacheKey, null);
-			if (fromCache != null && fromCache.get() != null) {
-				generatedClass = fromCache.get();
-			} else {
+			boolean cacheHit = false;
+			if (fromCache != null) {
+				// Note: we have to do this with using .get() only once and saving its result to a variable,
+				// since the referenced object might be garbage collected between two calls to .get().
+				Class fromCacheGet = fromCache.get();
+				if (fromCacheGet != null) {
+					generatedClass = fromCacheGet;
+					cacheHit = true;
+				}
+			}
+			if (!cacheHit) {
 				StringWriter generatedCodeWriter = new StringWriter();
 				template.process(sorterModel.getTemplateVariables(), generatedCodeWriter);
 
