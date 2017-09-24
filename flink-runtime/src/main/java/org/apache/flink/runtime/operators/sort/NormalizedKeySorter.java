@@ -308,7 +308,9 @@ public class NormalizedKeySorter<T> implements InMemorySorter<T> {
 	// ------------------------------------------------------------------------
 	//                           Access Utilities
 	// ------------------------------------------------------------------------
-	
+
+	// This is protected so that it is accessible from the generated sorters (see sorter.ftl).
+	// It is final, so that the JIT can more easily inline calls to it.
 	protected final long readPointer(int logicalPosition) {
 		if (logicalPosition < 0 | logicalPosition >= this.numRecords) {
 			throw new IndexOutOfBoundsException();
