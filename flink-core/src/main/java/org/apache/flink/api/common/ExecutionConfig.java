@@ -121,6 +121,8 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 
+	private OptimizationTarget optimizationTarget = OptimizationTarget.IO;
+
 	/** If set to true, progress updates are printed to System.out during execution */
 	private boolean printProgressDuringExecution = true;
 
@@ -631,6 +633,24 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	@PublicEvolving
 	public CodeAnalysisMode getCodeAnalysisMode() {
 		return codeAnalysisMode;
+	}
+
+	/**
+	 * Sets the {@link OptimizationTarget} of the program.
+	 *
+	 * By default Flink will optimize for IO.
+	 */
+	@PublicEvolving
+	public void setOptimizationTarget(OptimizationTarget optimizationTarget) {
+		this.optimizationTarget = optimizationTarget;
+	}
+
+	/**
+	 * Returns the {@link OptimizationTarget} of the program.
+	 */
+	@PublicEvolving
+	public OptimizationTarget getOptimizationTarget() {
+		return optimizationTarget;
 	}
 
 	/**
