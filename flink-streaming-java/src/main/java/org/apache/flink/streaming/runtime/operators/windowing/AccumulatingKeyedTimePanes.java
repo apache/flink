@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.UnionIterator;
 
 import java.util.ArrayList;
@@ -211,6 +212,11 @@ public class AccumulatingKeyedTimePanes<Type, Key, Result> extends AbstractKeyed
 		@Override
 		public KeyedStateStore globalState() {
 			return globalState;
+		}
+
+		@Override
+		public <X> void output(OutputTag<X> outputTag, X value) {
+			throw new UnsupportedOperationException("side output is not supported in this context");
 		}
 	}
 
