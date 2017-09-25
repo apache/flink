@@ -220,6 +220,12 @@ under the License.
 			<groupId>com.data-artisans</groupId>
 			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>com.google.code.findbugs</groupId>
+			<artifactId>annotations</artifactId>
+			<version>2.0.1</version>
+		</dependency>
 	</dependencies>
 
 	<build>
