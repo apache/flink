@@ -117,6 +117,7 @@ under the License.
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
 			<version>${curator.version}</version>
+			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
