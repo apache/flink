@@ -52,7 +52,7 @@ public class JobVertexBackPressureHandler extends AbstractJobVertexRequestHandle
 	private final int refreshInterval;
 
 	public JobVertexBackPressureHandler(
-			ExecutionGraphHolder executionGraphHolder,
+			ExecutionGraphCache executionGraphHolder,
 			Executor executor,
 			BackPressureStatsTracker backPressureStatsTracker,
 			int refreshInterval) {

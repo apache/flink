@@ -33,7 +33,7 @@ import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
 import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
@@ -87,7 +87,7 @@ public class CheckpointStatsHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor());
+		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphCache.class), Executors.directExecutor());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/checkpoints", paths[0]);
@@ -100,7 +100,7 @@ public class CheckpointStatsHandlerTest {
 	public void testCheckpointStatsRequest() throws Exception {
 		TestCheckpointStats testCheckpointStats = createTestCheckpointStats();
 
-		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor());
+		CheckpointStatsHandler handler = new CheckpointStatsHandler(mock(ExecutionGraphCache.class), Executors.directExecutor());
 		String json = handler.handleRequest(testCheckpointStats.graph, Collections.<String, String>emptyMap()).get();
 
 		ObjectMapper mapper = new ObjectMapper();

@@ -51,7 +51,7 @@ public class JobPlanHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		JobPlanHandler handler = new JobPlanHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor());
+		JobPlanHandler handler = new JobPlanHandler(mock(ExecutionGraphCache.class), Executors.directExecutor());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/plan", paths[0]);

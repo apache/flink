@@ -27,7 +27,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -38,11 +37,11 @@ import java.util.concurrent.Executor;
  */
 public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonRequestHandler {
 
-	private final ExecutionGraphHolder executionGraphHolder;
+	private final ExecutionGraphCache executionGraphCache;
 
-	public AbstractExecutionGraphRequestHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public AbstractExecutionGraphRequestHandler(ExecutionGraphCache executionGraphCache, Executor executor) {
 		super(executor);
-		this.executionGraphHolder = Preconditions.checkNotNull(executionGraphHolder);
+		this.executionGraphCache = Preconditions.checkNotNull(executionGraphCache);
 	}
 
 	@Override
@@ -63,16 +62,15 @@ public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonR
 			return FutureUtils.completedExceptionally(new FlinkException("Invalid JobID string '" + jidString + "'", e));
 		}
 
-		final CompletableFuture<Optional<AccessExecutionGraph>> graphFuture = executionGraphHolder.getExecutionGraph(jid, jobManagerGateway);
+		final CompletableFuture<AccessExecutionGraph> graphFuture = executionGraphCache.getExecutionGraph(jid, jobManagerGateway);
 
-		return graphFuture.thenComposeAsync(
-			(Optional<AccessExecutionGraph> optGraph) -> {
-				if (optGraph.isPresent()) {
-					return handleRequest(optGraph.get(), pathParams);
-				} else {
-					throw new CompletionException(new NotFoundException("Could not find job with jobId " + jid + '.'));
-				}
-			}, executor);
+		return graphFuture
+			.exceptionally(
+				throwable -> {
+					throw new CompletionException(new NotFoundException("Could not find job " + jid + '.'));
+				})
+			.thenComposeAsync(
+				(AccessExecutionGraph executionGraph) -> handleRequest(executionGraph, pathParams));
 	}
 
 	public abstract CompletableFuture<String> handleRequest(AccessExecutionGraph graph, Map<String, String> params);

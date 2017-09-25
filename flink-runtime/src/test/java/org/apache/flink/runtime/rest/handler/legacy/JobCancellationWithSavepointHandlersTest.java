@@ -44,7 +44,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -66,7 +65,7 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 
 	@Test
 	public void testGetPaths() {
-		JobCancellationWithSavepointHandlers handler = new JobCancellationWithSavepointHandlers(mock(ExecutionGraphHolder.class), executor);
+		JobCancellationWithSavepointHandlers handler = new JobCancellationWithSavepointHandlers(mock(ExecutionGraphCache.class), executor);
 
 		JobCancellationWithSavepointHandlers.TriggerHandler triggerHandler = handler.getTriggerHandler();
 		String[] triggerPaths = triggerHandler.getPaths();
@@ -89,9 +88,9 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 	public void testAskTimeoutEqualsCheckpointTimeout() throws Exception {
 		long timeout = 128288238L;
 		JobID jobId = new JobID();
-		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
+		ExecutionGraphCache holder = mock(ExecutionGraphCache.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(graph));
 		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
 			new CheckpointCoordinatorConfiguration(
 				1L,
@@ -123,9 +122,9 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 	public void testSavepointDirectoryConfiguration() throws Exception {
 		long timeout = 128288238L;
 		JobID jobId = new JobID();
-		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
+		ExecutionGraphCache holder = mock(ExecutionGraphCache.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(graph));
 		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
 			new CheckpointCoordinatorConfiguration(
 				1L,
@@ -176,9 +175,9 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 	@Test
 	public void testTriggerNewRequest() throws Exception {
 		JobID jobId = new JobID();
-		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
+		ExecutionGraphCache holder = mock(ExecutionGraphCache.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(graph));
 		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
 			new CheckpointCoordinatorConfiguration(
 				1L,
@@ -308,9 +307,9 @@ public class JobCancellationWithSavepointHandlersTest extends TestLogger {
 	@Test
 	public void testFailedCancellation() throws Exception {
 		JobID jobId = new JobID();
-		ExecutionGraphHolder holder = mock(ExecutionGraphHolder.class);
+		ExecutionGraphCache holder = mock(ExecutionGraphCache.class);
 		ExecutionGraph graph = mock(ExecutionGraph.class);
-		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(Optional.of(graph)));
+		when(holder.getExecutionGraph(eq(jobId), any(JobManagerGateway.class))).thenReturn(CompletableFuture.completedFuture(graph));
 		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(
 			new CheckpointCoordinatorConfiguration(
 				1L,

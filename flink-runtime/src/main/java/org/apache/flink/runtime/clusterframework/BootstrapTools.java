@@ -18,13 +18,6 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import akka.actor.ActorSystem;
-import com.typesafe.config.Config;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.StringUtils;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -32,6 +25,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
@@ -40,10 +34,13 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
 
+import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
-
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -55,7 +52,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.Executor;
+
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tools for starting JobManager and TaskManager processes, including the
@@ -178,7 +176,7 @@ public class BootstrapTools {
 	 * @param jobManagerRetriever to retrieve the leading JobManagerGateway
 	 * @param queryServiceRetriever to resolve a query service
 	 * @param timeout for asynchronous operations
-	 * @param executor to run asynchronous operations
+	 * @param scheduledExecutor to run asynchronous operations
 	 * @param logger Logger for log output
 	 * @return WebMonitor instance.
 	 * @throws Exception
@@ -189,7 +187,7 @@ public class BootstrapTools {
 			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Time timeout,
-			Executor executor,
+			ScheduledExecutor scheduledExecutor,
 			Logger logger) throws Exception {
 
 		if (config.getInteger(WebOptions.PORT, 0) >= 0) {
@@ -203,7 +201,7 @@ public class BootstrapTools {
 				jobManagerRetriever,
 				queryServiceRetriever,
 				timeout,
-				executor);
+				scheduledExecutor);
 
 			// start the web monitor
 			if (monitor != null) {
