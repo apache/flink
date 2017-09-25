@@ -54,7 +54,7 @@ public class JobAccumulatorsHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		JobAccumulatorsHandler handler = new JobAccumulatorsHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor());
+		JobAccumulatorsHandler handler = new JobAccumulatorsHandler(mock(ExecutionGraphCache.class), Executors.directExecutor());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/accumulators", paths[0]);

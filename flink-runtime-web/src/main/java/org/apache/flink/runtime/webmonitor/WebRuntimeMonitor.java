@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobView;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -34,7 +35,7 @@ import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobIdsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.JobAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobCancellationWithSavepointHandlers;
@@ -93,7 +94,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -143,6 +144,10 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 	private final WebMonitorConfig cfg;
 
+	private final ExecutionGraphCache executionGraphCache;
+
+	private final ScheduledFuture<?> executionGraphCleanupTask;
+
 	private AtomicBoolean cleanedUp = new AtomicBoolean();
 
 
@@ -155,7 +160,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Time timeout,
-			Executor executor) throws IOException, InterruptedException {
+			ScheduledExecutor scheduledExecutor) throws IOException, InterruptedException {
 
 		this.leaderRetrievalService = checkNotNull(leaderRetrievalService);
 		this.retriever = Preconditions.checkNotNull(jobManagerRetriever);
@@ -193,11 +198,23 @@ public class WebRuntimeMonitor implements WebMonitor {
 			this.uploadDir = null;
 		}
 
-		ExecutionGraphHolder currentGraphs = new ExecutionGraphHolder(timeout);
+		final long timeToLive = cfg.getRefreshInterval() * 10L;
+
+		this.executionGraphCache = new ExecutionGraphCache(
+			timeout,
+			Time.milliseconds(timeToLive));
+
+		final long cleanupInterval = timeToLive * 2L;
+
+		this.executionGraphCleanupTask = scheduledExecutor.scheduleWithFixedDelay(
+			executionGraphCache::cleanup,
+			cleanupInterval,
+			cleanupInterval,
+			TimeUnit.MILLISECONDS);
 
 		// - Back pressure stats ----------------------------------------------
 
-		stackTraceSamples = new StackTraceSampleCoordinator(executor, 60000);
+		stackTraceSamples = new StackTraceSampleCoordinator(scheduledExecutor, 60000);
 
 		// Back pressure stats tracker config
 		int cleanUpInterval = config.getInteger(WebOptions.BACKPRESSURE_CLEANUP_INTERVAL);
@@ -228,55 +245,55 @@ public class WebRuntimeMonitor implements WebMonitor {
 		} else {
 			serverSSLContext = null;
 		}
-		metricFetcher = new MetricFetcher(retriever, queryServiceRetriever, executor, timeout);
+		metricFetcher = new MetricFetcher(retriever, queryServiceRetriever, scheduledExecutor, timeout);
 
 		String defaultSavepointDir = config.getString(CoreOptions.SAVEPOINT_DIRECTORY);
 
-		JobCancellationWithSavepointHandlers cancelWithSavepoint = new JobCancellationWithSavepointHandlers(currentGraphs, executor, defaultSavepointDir);
+		JobCancellationWithSavepointHandlers cancelWithSavepoint = new JobCancellationWithSavepointHandlers(executionGraphCache, scheduledExecutor, defaultSavepointDir);
 		RuntimeMonitorHandler triggerHandler = handler(cancelWithSavepoint.getTriggerHandler());
 		RuntimeMonitorHandler inProgressHandler = handler(cancelWithSavepoint.getInProgressHandler());
 
 		Router router = new Router();
 		// config how to interact with this web server
-		get(router, new DashboardConfigHandler(executor, cfg.getRefreshInterval()));
+		get(router, new DashboardConfigHandler(scheduledExecutor, cfg.getRefreshInterval()));
 
 		// the overview - how many task managers, slots, free slots, ...
-		get(router, new ClusterOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT));
+		get(router, new ClusterOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT));
 
 		// job manager configuration
-		get(router, new ClusterConfigHandler(executor, config));
+		get(router, new ClusterConfigHandler(scheduledExecutor, config));
 
 		// overview over jobs
-		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, true, true));
-		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, true, false));
-		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, false, true));
+		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, true, true));
+		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, true, false));
+		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, false, true));
 
-		get(router, new CurrentJobIdsHandler(executor, DEFAULT_REQUEST_TIMEOUT));
+		get(router, new CurrentJobIdsHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT));
 
-		get(router, new JobDetailsHandler(currentGraphs, executor, metricFetcher));
+		get(router, new JobDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 
-		get(router, new JobVertexDetailsHandler(currentGraphs, executor, metricFetcher));
-		get(router, new SubtasksTimesHandler(currentGraphs, executor));
-		get(router, new JobVertexTaskManagersHandler(currentGraphs, executor, metricFetcher));
-		get(router, new JobVertexAccumulatorsHandler(currentGraphs, executor));
-		get(router, new JobVertexBackPressureHandler(currentGraphs, executor, backPressureStatsTracker, refreshInterval));
-		get(router, new JobVertexMetricsHandler(executor, metricFetcher));
-		get(router, new SubtasksAllAccumulatorsHandler(currentGraphs, executor));
-		get(router, new SubtaskCurrentAttemptDetailsHandler(currentGraphs, executor, metricFetcher));
-		get(router, new SubtaskExecutionAttemptDetailsHandler(currentGraphs, executor, metricFetcher));
-		get(router, new SubtaskExecutionAttemptAccumulatorsHandler(currentGraphs, executor));
+		get(router, new JobVertexDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
+		get(router, new SubtasksTimesHandler(executionGraphCache, scheduledExecutor));
+		get(router, new JobVertexTaskManagersHandler(executionGraphCache, scheduledExecutor, metricFetcher));
+		get(router, new JobVertexAccumulatorsHandler(executionGraphCache, scheduledExecutor));
+		get(router, new JobVertexBackPressureHandler(executionGraphCache, scheduledExecutor, backPressureStatsTracker, refreshInterval));
+		get(router, new JobVertexMetricsHandler(scheduledExecutor, metricFetcher));
+		get(router, new SubtasksAllAccumulatorsHandler(executionGraphCache, scheduledExecutor));
+		get(router, new SubtaskCurrentAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
+		get(router, new SubtaskExecutionAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
+		get(router, new SubtaskExecutionAttemptAccumulatorsHandler(executionGraphCache, scheduledExecutor));
 
-		get(router, new JobPlanHandler(currentGraphs, executor));
-		get(router, new JobConfigHandler(currentGraphs, executor));
-		get(router, new JobExceptionsHandler(currentGraphs, executor));
-		get(router, new JobAccumulatorsHandler(currentGraphs, executor));
-		get(router, new JobMetricsHandler(executor, metricFetcher));
+		get(router, new JobPlanHandler(executionGraphCache, scheduledExecutor));
+		get(router, new JobConfigHandler(executionGraphCache, scheduledExecutor));
+		get(router, new JobExceptionsHandler(executionGraphCache, scheduledExecutor));
+		get(router, new JobAccumulatorsHandler(executionGraphCache, scheduledExecutor));
+		get(router, new JobMetricsHandler(scheduledExecutor, metricFetcher));
 
-		get(router, new TaskManagersHandler(executor, DEFAULT_REQUEST_TIMEOUT, metricFetcher));
+		get(router, new TaskManagersHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, metricFetcher));
 		get(router,
 			new TaskManagerLogHandler(
 				retriever,
-				executor,
+				scheduledExecutor,
 				localRestAddress,
 				timeout,
 				TaskManagerLogHandler.FileMode.LOG,
@@ -285,13 +302,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router,
 			new TaskManagerLogHandler(
 				retriever,
-				executor,
+				scheduledExecutor,
 				localRestAddress,
 				timeout,
 				TaskManagerLogHandler.FileMode.STDOUT,
 				config,
 				blobView));
-		get(router, new TaskManagerMetricsHandler(executor, metricFetcher));
+		get(router, new TaskManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
 		router
 			// log and stdout
@@ -305,48 +322,48 @@ public class WebRuntimeMonitor implements WebMonitor {
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
 				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile));
 
-		get(router, new JobManagerMetricsHandler(executor, metricFetcher));
+		get(router, new JobManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
 		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
-		get(router, new JobCancellationHandler(executor, timeout));
+		get(router, new JobCancellationHandler(scheduledExecutor, timeout));
 		// DELETE is the preferred way of canceling a job (Rest-conform)
-		delete(router, new JobCancellationHandler(executor, timeout));
+		delete(router, new JobCancellationHandler(scheduledExecutor, timeout));
 
 		get(router, triggerHandler);
 		get(router, inProgressHandler);
 
 		// stop a job via GET (for proper integration with YARN this has to be performed via GET)
-		get(router, new JobStoppingHandler(executor, timeout));
+		get(router, new JobStoppingHandler(scheduledExecutor, timeout));
 		// DELETE is the preferred way of stopping a job (Rest-conform)
-		delete(router, new JobStoppingHandler(executor, timeout));
+		delete(router, new JobStoppingHandler(scheduledExecutor, timeout));
 
 		int maxCachedEntries = config.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 		CheckpointStatsCache cache = new CheckpointStatsCache(maxCachedEntries);
 
 		// Register the checkpoint stats handlers
-		get(router, new CheckpointStatsHandler(currentGraphs, executor));
-		get(router, new CheckpointConfigHandler(currentGraphs, executor));
-		get(router, new CheckpointStatsDetailsHandler(currentGraphs, executor, cache));
-		get(router, new CheckpointStatsDetailsSubtasksHandler(currentGraphs, executor, cache));
+		get(router, new CheckpointStatsHandler(executionGraphCache, scheduledExecutor));
+		get(router, new CheckpointConfigHandler(executionGraphCache, scheduledExecutor));
+		get(router, new CheckpointStatsDetailsHandler(executionGraphCache, scheduledExecutor, cache));
+		get(router, new CheckpointStatsDetailsSubtasksHandler(executionGraphCache, scheduledExecutor, cache));
 
 		if (webSubmitAllow) {
 			// fetch the list of uploaded jars.
-			get(router, new JarListHandler(executor, uploadDir));
+			get(router, new JarListHandler(scheduledExecutor, uploadDir));
 
 			// get plan for an uploaded jar
-			get(router, new JarPlanHandler(executor, uploadDir));
+			get(router, new JarPlanHandler(scheduledExecutor, uploadDir));
 
 			// run a jar
-			post(router, new JarRunHandler(executor, uploadDir, timeout, config));
+			post(router, new JarRunHandler(scheduledExecutor, uploadDir, timeout, config));
 
 			// upload a jar
-			post(router, new JarUploadHandler(executor, uploadDir));
+			post(router, new JarUploadHandler(scheduledExecutor, uploadDir));
 
 			// delete an uploaded jar from submission interface
-			delete(router, new JarDeleteHandler(executor, uploadDir));
+			delete(router, new JarDeleteHandler(scheduledExecutor, uploadDir));
 		} else {
 			// send an Access Denied message
-			JarAccessDeniedHandler jad = new JarAccessDeniedHandler(executor);
+			JarAccessDeniedHandler jad = new JarAccessDeniedHandler(scheduledExecutor);
 			get(router, jad);
 			post(router, jad);
 			delete(router, jad);
@@ -447,6 +464,11 @@ public class WebRuntimeMonitor implements WebMonitor {
 	@Override
 	public void stop() throws Exception {
 		synchronized (startupShutdownLock) {
+
+			executionGraphCleanupTask.cancel(false);
+
+			executionGraphCache.close();
+
 			leaderRetrievalService.stop();
 
 			netty.shutdown();

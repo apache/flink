@@ -45,7 +45,7 @@ import static org.mockito.Mockito.when;
 public class JobVertexBackPressureHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), mock(BackPressureStatsTracker.class), 0);
+		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), mock(BackPressureStatsTracker.class), 0);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/backpressure", paths[0]);
@@ -61,7 +61,7 @@ public class JobVertexBackPressureHandlerTest {
 				.thenReturn(Optional.empty());
 
 		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(
-				mock(ExecutionGraphHolder.class),
+				mock(ExecutionGraphCache.class),
 				Executors.directExecutor(),
 				statsTracker,
 				9999);
@@ -95,7 +95,7 @@ public class JobVertexBackPressureHandlerTest {
 				.thenReturn(Optional.of(stats));
 
 		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(
-				mock(ExecutionGraphHolder.class),
+				mock(ExecutionGraphCache.class),
 				Executors.directExecutor(),
 				statsTracker,
 				9999);
@@ -157,7 +157,7 @@ public class JobVertexBackPressureHandlerTest {
 				.thenReturn(Optional.of(stats));
 
 		JobVertexBackPressureHandler handler = new JobVertexBackPressureHandler(
-				mock(ExecutionGraphHolder.class),
+				mock(ExecutionGraphCache.class),
 				Executors.directExecutor(),
 				statsTracker,
 				0); // <----- refresh interval should fire immediately

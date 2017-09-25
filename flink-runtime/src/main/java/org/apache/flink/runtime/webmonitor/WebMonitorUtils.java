@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobView;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -55,7 +56,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 /**
  * Utilities for the web runtime monitor. This class contains for example methods to build
@@ -131,7 +131,7 @@ public final class WebMonitorUtils {
 	 * @param jobManagerRetriever which retrieves the currently leading JobManager
 	 * @param queryServiceRetriever which retrieves the query service
 	 * @param timeout for asynchronous operations
-	 * @param executor to run asynchronous operations
+	 * @param scheduledExecutor to run asynchronous operations
 	 */
 	public static WebMonitor startWebRuntimeMonitor(
 			Configuration config,
@@ -139,7 +139,7 @@ public final class WebMonitorUtils {
 			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Time timeout,
-			Executor executor) {
+			ScheduledExecutor scheduledExecutor) {
 		// try to load and instantiate the class
 		try {
 			String classname = "org.apache.flink.runtime.webmonitor.WebRuntimeMonitor";
@@ -152,7 +152,7 @@ public final class WebMonitorUtils {
 				LeaderGatewayRetriever.class,
 				MetricQueryServiceRetriever.class,
 				Time.class,
-				Executor.class);
+				ScheduledExecutor.class);
 			return constructor.newInstance(
 				config,
 				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
@@ -160,7 +160,7 @@ public final class WebMonitorUtils {
 				jobManagerRetriever,
 				queryServiceRetriever,
 				timeout,
-				executor);
+				scheduledExecutor);
 		} catch (ClassNotFoundException e) {
 			LOG.error("Could not load web runtime monitor. " +
 					"Probably reason: flink-runtime-web is not in the classpath");
