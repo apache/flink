@@ -366,6 +366,60 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 
 	}
 
+	/**
+	 * This also verifies that the timestamps ouf side-emitted records is correct.
+	 */
+	@Test
+	public void testSideOutput() throws Exception {
+
+		final OutputTag<Integer> integerOutputTag = new OutputTag<Integer>("int-out") {};
+		final OutputTag<Long> longOutputTag = new OutputTag<Long>("long-out") {};
+
+		WindowAssigner<Integer, TimeWindow> mockAssigner = mockTimeWindowAssigner();
+		Trigger<Integer, TimeWindow> mockTrigger = mockTrigger();
+
+		InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow> windowFunction =
+			new InternalWindowFunction<Iterable<Integer>, Void, Integer, TimeWindow>() {
+				@Override
+				public void process(
+						Integer integer,
+						TimeWindow window,
+						InternalWindowContext ctx,
+						Iterable<Integer> input,
+						Collector<Void> out) throws Exception {
+					Integer inputValue = input.iterator().next();
+
+					ctx.output(integerOutputTag, inputValue);
+					ctx.output(longOutputTag, inputValue.longValue());
+				}
+
+				@Override
+				public void clear(
+					TimeWindow window,
+					InternalWindowContext context) throws Exception {}
+			};
+
+		OneInputStreamOperatorTestHarness<Integer, Void> testHarness =
+			createWindowOperator(mockAssigner, mockTrigger, 0L, windowFunction);
+
+		testHarness.open();
+
+		final long windowEnd = 42L;
+
+		when(mockAssigner.assignWindows(anyInt(), anyLong(), anyAssignerContext()))
+			.thenReturn(Collections.singletonList(new TimeWindow(0, windowEnd)));
+
+		shouldFireOnElement(mockTrigger);
+
+		testHarness.processElement(new StreamRecord<>(17, 5L));
+
+		assertThat(testHarness.getSideOutput(integerOutputTag),
+			contains(isStreamRecord(17, windowEnd - 1)));
+
+		assertThat(testHarness.getSideOutput(longOutputTag),
+			contains(isStreamRecord(17L, windowEnd - 1)));
+	}
+
 	@Test
 	public void testAssignerIsInvokedOncePerElement() throws Exception {
 
