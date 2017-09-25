@@ -18,38 +18,42 @@
 
 package org.apache.flink.core.fs;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.AbstractCloseableRegistry;
 
-import javax.annotation.Nonnull;
-
 import java.io.Closeable;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
- * <p>
- * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
- * <p>
- * All methods in this class are thread-safe.
- */
-@Internal
-public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
+public class CloseableRegistryTest extends AbstractCloseableRegistryTest<Closeable, Object> {
 
-	private static final Object DUMMY = new Object();
+	@Override
+	protected Closeable createCloseable() {
+		return new Closeable() {
+			@Override
+			public void close() throws IOException {
 
-	public CloseableRegistry() {
-		super(new HashMap<>());
+			}
+		};
 	}
 
 	@Override
-	protected void doRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		closeableMap.put(closeable, DUMMY);
+	protected AbstractCloseableRegistry<Closeable, Object> createRegistry() {
+
+		return new CloseableRegistry();
 	}
 
 	@Override
-	protected void doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		closeableMap.remove(closeable);
+	protected ProducerThread<Closeable, Object> createProducerThread(
+		AbstractCloseableRegistry<Closeable, Object> registry,
+		AtomicInteger unclosedCounter,
+		int maxStreams) {
+
+		return new ProducerThread<Closeable, Object>(registry, unclosedCounter, maxStreams) {
+			@Override
+			protected void createAndRegisterStream() throws IOException {
+				TestStream testStream = new TestStream(unclosedCounter);
+				registry.registerClosable(testStream);
+			}
+		};
 	}
 }
