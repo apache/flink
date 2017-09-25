@@ -43,11 +43,11 @@ import java.util.Map;
  * has built-in serializers and comparators.
  *
  * <p>In many cases, Flink tries to analyze generic signatures of functions to determine return
- * types automatically. This class is intended for cases where the extraction is not possible
- * (or inefficient) as well as cases where type information has to be supplied manually.
+ * types automatically. This class is intended for cases where type information has to be
+ * supplied manually or would result in an inefficient type.
  *
- * <p>Depending on the API you are using (e.g. Scala API or Table API), there might be a more
- * specialized <code>Types</code> class.
+ * <p>Please note that the Scala API and Table API provide more specialized Types classes.
+ * (See <code>org.apache.flink.api.scala.Types</code> and <code>org.apache.flink.table.api.Types</code>)
  *
  * <p>A more convenient alternative might be a {@link TypeHint}.
  *
@@ -68,50 +68,50 @@ public class Types {
 	public static final TypeInformation<?> STRING = BasicTypeInfo.STRING_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>byte</code> and a
-	 * wrapped {@link java.lang.Byte}. Does not support a null value.
+	 * Returns type information for both a primitive <code>byte</code> and {@link java.lang.Byte}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> BYTE = BasicTypeInfo.BYTE_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>boolean</code> and a
-	 * wrapped {@link java.lang.Boolean}. Does not support a null value.
+	 * Returns type information for both a primitive <code>boolean</code> and {@link java.lang.Boolean}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> BOOLEAN = BasicTypeInfo.BOOLEAN_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>short</code> and a
-	 * wrapped {@link java.lang.Short}. Does not support a null value.
+	 * Returns type information for both a primitive <code>short</code> and {@link java.lang.Short}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> SHORT = BasicTypeInfo.SHORT_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>int</code> and a
-	 * wrapped {@link java.lang.Integer}. Does not support a null value.
+	 * Returns type information for both a primitive <code>int</code> and {@link java.lang.Integer}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> INT = BasicTypeInfo.INT_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>long</code> and a
-	 * wrapped {@link java.lang.Long}. Does not support a null value.
+	 * Returns type information for both a primitive <code>long</code> and {@link java.lang.Long}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> LONG = BasicTypeInfo.LONG_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>float</code> and a
-	 * wrapped {@link java.lang.Float}. Does not support a null value.
+	 * Returns type information for both a primitive <code>float</code> and {@link java.lang.Float}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> FLOAT = BasicTypeInfo.FLOAT_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>double</code> and a
-	 * wrapped {@link java.lang.Double}. Does not support a null value.
+	 * Returns type information for both a primitive <code>double</code> and {@link java.lang.Double}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO;
 
 	/**
-	 * Returns type information for both a primitive <code>char</code> and a
-	 * wrapped {@link java.lang.Character}. Does not support a null value.
+	 * Returns type information for both a primitive <code>char</code> and {@link java.lang.Character}.
+	 * Does not support a null value.
 	 */
 	public static final TypeInformation<?> CHAR = BasicTypeInfo.CHAR_TYPE_INFO;
 
@@ -144,9 +144,13 @@ public class Types {
 	 * Returns type information for {@link org.apache.flink.types.Row} with fields of the given types.
 	 * A row itself must not be null.
 	 *
-	 * <p>A row is a variable-length, null-aware composite type for storing multiple values in a
+	 * <p>A row is a fixed-length, null-aware composite type for storing multiple values in a
 	 * deterministic field order. Every field can be null independent of the field's type.
-	 * Fields of a row are untyped; therefore, it is required to pass type information whenever a row is used.
+	 * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+	 * type information whenever a row is used.
+	 *
+	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
+	 * must have the same length otherwise serialization fails or information is lost.
 	 * 
 	 * <p>This method generates type information with fields of the given types; the fields have
 	 * the default names (f0, f1, f2 ..).
@@ -161,9 +165,13 @@ public class Types {
 	 * Returns type information for {@link org.apache.flink.types.Row} with fields of the given types and
 	 * with given names. A row must not be null.
 	 *
-	 * <p>A row is a variable-length, null-aware composite type for storing multiple values in a
+	 * <p>A row is a fixed-length, null-aware composite type for storing multiple values in a
 	 * deterministic field order. Every field can be null independent of the field's type.
-	 * Fields of a row are untyped; therefore, it is required to pass type information whenever a row is used.
+	 * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+	 * type information whenever a row is used.
+	 *
+	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
+	 * must have the same length otherwise serialization fails or information is lost.
 	 *
 	 * <p>Example use: {@code ROW_NAMED(new String[]{"name", "number"}, Types.STRING, Types.INT)}.
 	 *
@@ -181,7 +189,7 @@ public class Types {
 	 *
 	 * <p>A tuple is a fixed-length composite type for storing multiple values in a
 	 * deterministic field order. Fields of a tuple are typed. Tuples are the most efficient composite
-	 * type; therefore, a tuple does not support null values unless its field type supports nullability.
+	 * type; a tuple does not support null values unless its field type supports nullability.
 	 *
 	 * @param types The types of the tuple fields, e.g., Types.STRING, Types.INT
 	 */
@@ -193,13 +201,14 @@ public class Types {
 	 * Returns type information for typed subclasses of Flink's {@link org.apache.flink.api.java.tuple.Tuple}.
 	 * Typed subclassed are classes that extend {@link org.apache.flink.api.java.tuple.Tuple0} till
 	 * {@link org.apache.flink.api.java.tuple.Tuple25} to provide types for all fields and might add
-	 * additional getters and setters for better readability. A tuple must not be null.
+	 * additional getters and setters for better readability. Additional member fields must not be added.
+	 * A tuple must not be null.
 	 *
 	 * <p>A tuple is a fixed-length composite type for storing multiple values in a
 	 * deterministic field order. Fields of a tuple are typed. Tuples are the most efficient composite
-	 * type; therefore, a tuple does not support null values unless a field type supports nullability.
+	 * type; a tuple does not support null values unless a field type supports nullability.
 	 *
-	 * <p>Types for all fields of the tuple can be defined in a hierarchy of subclasses.
+	 * <p>The generic types for all fields of the tuple can be defined in a hierarchy of subclasses.
 	 *
 	 * <p>If Flink's type analyzer is unable to extract a tuple type information with
 	 * type information for all fields, an {@link org.apache.flink.api.common.functions.InvalidTypesException}
@@ -242,11 +251,11 @@ public class Types {
 	 * <p>A POJO is a fixed-length, null-aware composite type with non-deterministic field order. Every field
 	 * can be null independent of the field's type.
 	 *
-	 * <p>Types for all fields of the POJO can be defined in a hierarchy of subclasses.
+	 * <p>The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
 	 *
 	 * <p>If Flink's type analyzer is unable to extract a valid POJO type information with
 	 * type information for all fields, an {@link org.apache.flink.api.common.functions.InvalidTypesException}
-	 * is thrown.
+	 * is thrown. Alternatively, you can use {@link Types#POJO(Class, Map)} to specify all fields manually.
 	 *
 	 * @param pojoClass POJO class to be analyzed by Flink
 	 */
@@ -269,7 +278,7 @@ public class Types {
 	 * <p>A POJO is a fixed-length, null-aware composite type with non-deterministic field order. Every field
 	 * can be null independent of the field's type.
 	 *
-	 * <p>Types for all fields of the POJO can be defined in a hierarchy of subclasses.
+	 * <p>The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
 	 *
 	 * <p>If Flink's type analyzer is unable to extract a POJO field, an
 	 * {@link org.apache.flink.api.common.functions.InvalidTypesException} is thrown.
@@ -310,7 +319,7 @@ public class Types {
 
 	/**
 	 * Returns type information for Java arrays of primitive type (such as <code>byte[]</code>). The array
-	 * and its elements do not support null values.
+	 * must not be null.
 	 *
 	 * @param elementType element type of the array (e.g. Types.BOOLEAN, Types.INT, Types.DOUBLE)
 	 */

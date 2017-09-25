@@ -35,11 +35,8 @@ import _root_.scala.util.Try
   * types for Scala specific classes (such as [[Unit]] or case classes).
   *
   * In many cases, Flink tries to analyze generic signatures of functions to determine return
-  * types automatically. This class is intended for cases where the extraction is not possible
-  * (or inefficient) as well as cases where type information has to be supplied manually.
-  *
-  * Depending on the API you are using (e.g. Java API or Table API), there might be a more
-  * specialized `Types` class.
+  * types automatically. This class is intended for cases where type information has to be
+  * supplied manually or would result in an inefficient type.
   *
   * Scala macros allow to determine type information of classes and type parameters. You can
   * use [[Types.of]] to let type information be determined automatically.
@@ -164,10 +161,13 @@ object Types {
     * Returns type information for [[org.apache.flink.types.Row]] with fields of the given types.
     * A row itself must not be null.
     *
-    * A row is a variable-length, null-aware composite type for storing multiple values in a
+    * A row is a fixed-length, null-aware composite type for storing multiple values in a
     * deterministic field order. Every field can be null independent of the field's type.
-    * Fields of a row are untyped; therefore, it is required to pass type information whenever
-    * a row is used.
+    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * type information whenever a row is used.
+    *
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
+    * must have the same length otherwise serialization fails or information is lost.
     *
     * This method generates type information with fields of the given types; the fields have
     * the default names (f0, f1, f2 ..).
@@ -182,8 +182,11 @@ object Types {
     *
     * A row is a variable-length, null-aware composite type for storing multiple values in a
     * deterministic field order. Every field can be null independent of the field's type.
-    * Fields of a row are untyped; therefore, it is required to pass type information whenever
-    * a row is used.
+    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * type information whenever a row is used.
+    *
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
+    * must have the same length otherwise serialization fails or information is lost.
     *
     * Example use: `Types.ROW(Array("name", "number"), Array(Types.STRING, Types.INT))`.
     *
@@ -204,11 +207,12 @@ object Types {
     * A POJO is a fixed-length, null-aware composite type with non-deterministic field order.
     * Every field can be null independent of the field's type.
     *
-    * Types for all fields of the POJO can be defined in a hierarchy of subclasses.
+    * The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
     *
     * If Flink's type analyzer is unable to extract a valid POJO type information with
     * type information for all fields, an
     * [[org.apache.flink.api.common.functions.InvalidTypesException}]] is thrown.
+    * Alternatively, you can use [[Types.POJO(Class, Map)]] to specify all fields manually.
     *
     * @param pojoClass POJO class to be analyzed by Flink
     */
@@ -228,7 +232,7 @@ object Types {
     * A POJO is a fixed-length, null-aware composite type with non-deterministic field order.
     * Every field can be null independent of the field's type.
     *
-    * Types for all fields of the POJO can be defined in a hierarchy of subclasses.
+    * The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
     *
     * If Flink's type analyzer is unable to extract a POJO field, an
     * [[org.apache.flink.api.common.functions.InvalidTypesException]] is thrown.

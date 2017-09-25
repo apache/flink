@@ -103,8 +103,11 @@ object Types {
     *
     * A row is a variable-length, null-aware composite type for storing multiple values in a
     * deterministic field order. Every field can be null independent of the field's type.
-    * Fields of a row are untyped; therefore, it is required to pass type information whenever
-    * a row is used.
+    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * type information whenever a row is used.
+    *
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
+    * must have the same length otherwise serialization fails or information is lost.
     *
     * This method generates type information with fields of the given types; the fields have
     * the default names (f0, f1, f2 ..).
@@ -122,8 +125,11 @@ object Types {
     *
     * A row is a variable-length, null-aware composite type for storing multiple values in a
     * deterministic field order. Every field can be null independent of the field's type.
-    * Fields of a row are untyped; therefore, it is required to pass type information whenever
-    * a row is used.
+    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * type information whenever a row is used.
+    *
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
+    * must have the same length otherwise serialization fails or information is lost.
     *
     * Example use: `Types.ROW(Array("name", "number"), Array(Types.STRING, Types.INT))`.
     *
