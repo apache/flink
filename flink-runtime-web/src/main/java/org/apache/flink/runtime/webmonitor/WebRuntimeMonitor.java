@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.WebHandler;
+import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobIdsHandler;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.rest.handler.legacy.JobCancellationWithSavepoint
 import org.apache.flink.runtime.rest.handler.legacy.JobConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobDetailsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobExceptionsHandler;
-import org.apache.flink.runtime.rest.handler.legacy.JobManagerConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobPlanHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobStoppingHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobVertexAccumulatorsHandler;
@@ -244,7 +244,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new ClusterOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT));
 
 		// job manager configuration
-		get(router, new JobManagerConfigHandler(executor, config));
+		get(router, new ClusterConfigHandler(executor, config));
 
 		// overview over jobs
 		get(router, new CurrentJobsOverviewHandler(executor, DEFAULT_REQUEST_TIMEOUT, true, true));

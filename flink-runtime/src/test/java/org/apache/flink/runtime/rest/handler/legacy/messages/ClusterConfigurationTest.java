@@ -19,26 +19,21 @@
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
 /**
- * Tests for the {@link StatusOverviewWithVersion}.
+ * Tests for the {@link ClusterConfiguration}.
  */
-public class StatusOverviewWithVersionTest extends RestResponseMarshallingTestBase<StatusOverviewWithVersion> {
+public class ClusterConfigurationTest extends RestResponseMarshallingTestBase<ClusterConfiguration> {
 
 	@Override
-	protected Class<StatusOverviewWithVersion> getTestResponseClass() {
-		return StatusOverviewWithVersion.class;
+	protected Class<ClusterConfiguration> getTestResponseClass() {
+		return ClusterConfiguration.class;
 	}
 
 	@Override
-	protected StatusOverviewWithVersion getTestResponseInstance() {
-		return new StatusOverviewWithVersion(
-			1,
-			3,
-			3,
-			7,
-			4,
-			2,
-			0,
-			"version",
-			"commit");
+	protected ClusterConfiguration getTestResponseInstance() {
+		final ClusterConfiguration expected = new ClusterConfiguration(2);
+		expected.add(new ClusterConfigurationEntry("key1", "value1"));
+		expected.add(new ClusterConfigurationEntry("key2", "value2"));
+
+		return expected;
 	}
 }

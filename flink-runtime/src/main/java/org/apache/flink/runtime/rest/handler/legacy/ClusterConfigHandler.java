@@ -20,7 +20,17 @@ package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FlinkFutureException;
+import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
+import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationEntry;
+import org.apache.flink.runtime.rest.messages.ClusterConfigurationHeaders;
+import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -33,20 +43,27 @@ import java.util.concurrent.Executor;
 /**
  * Returns the Job Manager's configuration.
  */
-public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
-
-	private static final String JOBMANAGER_CONFIG_REST_PATH = "/jobmanager/config";
+public class ClusterConfigHandler extends AbstractJsonRequestHandler
+		implements LegacyRestHandler<DispatcherGateway, ClusterConfiguration, EmptyMessageParameters> {
 
 	private final Configuration config;
 
-	public JobManagerConfigHandler(Executor executor, Configuration config) {
+	public ClusterConfigHandler(Executor executor, Configuration config) {
 		super(executor);
-		this.config = config;
+		this.config = Preconditions.checkNotNull(config);
 	}
 
 	@Override
 	public String[] getPaths() {
-		return new String[]{JOBMANAGER_CONFIG_REST_PATH};
+		return new String[]{ClusterConfigurationHeaders.CLUSTER_CONFIG_REST_PATH};
+	}
+
+	@Override
+	public CompletableFuture<ClusterConfiguration> handleRequest(
+			HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+			DispatcherGateway gateway) {
+
+		return CompletableFuture.supplyAsync(() -> ClusterConfiguration.from(config), executor);
 	}
 
 	@Override
@@ -60,18 +77,15 @@ public class JobManagerConfigHandler extends AbstractJsonRequestHandler {
 					gen.writeStartArray();
 					for (String key : config.keySet()) {
 						gen.writeStartObject();
-						gen.writeStringField("key", key);
+						gen.writeStringField(ClusterConfigurationEntry.FIELD_NAME_CONFIG_KEY, key);
 
+						String value = config.getString(key, null);
 						// Mask key values which contain sensitive information
-						if (key.toLowerCase().contains("password")) {
-							String value = config.getString(key, null);
-							if (value != null) {
-								value = "******";
-							}
-							gen.writeStringField("value", value);
-						} else {
-							gen.writeStringField("value", config.getString(key, null));
+						if (value != null && key.toLowerCase().contains("password")) {
+							value = "******";
 						}
+						gen.writeStringField(ClusterConfigurationEntry.FIELD_NAME_CONFIG_VALUE, value);
+
 						gen.writeEndObject();
 					}
 					gen.writeEndArray();
