@@ -124,7 +124,7 @@ You need to point Flink to a valid Hadoop configuration, which contains the foll
 </configuration>
 ```
 
-This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3://` scheme.
+This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3a://` scheme.
 
 #### `NativeS3FileSystem`
 
