@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Utility for keeping track of merging {@link Window Windows} when using a
@@ -65,7 +66,7 @@ public class MergingWindowSet<W extends Window> {
 	 * Mapping when we created the {@code MergingWindowSet}. We use this to decide whether
 	 * we need to persist any changes to state.
 	 */
-	private final Map<W, W> initialMapping;
+	private final Optional<Map<W, W>> initialMapping;
 
 	private final ValueState<Map<W, W>> state;
 
@@ -76,14 +77,22 @@ public class MergingWindowSet<W extends Window> {
 
 	/**
 	 * Restores a {@link MergingWindowSet} from the given state.
+	 *
+	 * @param windowAssigner
+	 * @param state
+	 * @param alwaysPersist when set to true disables modification checking before persisting state. On a one hand
+	 *                      modification check adds a constant per processed element CPU overhead while on the other
+	 *                      hand unnecessary state writes can add additional state (IO) operations.
+	 * @throws Exception
 	 */
 	public MergingWindowSet(
 			MergingWindowAssigner<?, W> windowAssigner,
-			ValueState<Map<W, W>> state) throws Exception {
+			ValueState<Map<W, W>> state,
+			boolean alwaysPersist) throws Exception {
 		this.windowAssigner = windowAssigner;
 		this.mapping = (state.value() == null) ? new HashMap<>() : state.value();
 		this.state = state;
-		this.initialMapping = new HashMap<>(mapping);
+		this.initialMapping = alwaysPersist ? Optional.empty() : Optional.of(new HashMap<>(mapping));
 	}
 
 	/**
@@ -91,7 +100,7 @@ public class MergingWindowSet<W extends Window> {
 	 * initialization.
 	 */
 	public void persist() throws Exception {
-		if (!mapping.equals(initialMapping)) {
+		if (!initialMapping.isPresent() || !mapping.equals(initialMapping.get())) {
 			if (mapping.isEmpty()) {
 				state.clear();
 			}

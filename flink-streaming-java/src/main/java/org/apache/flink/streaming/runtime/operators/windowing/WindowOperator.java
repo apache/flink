@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.OptimizationTarget;
 import org.apache.flink.api.common.state.AppendingState;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -608,7 +609,10 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	protected MergingWindowSet<W> getMergingWindowSet() throws Exception {
 		@SuppressWarnings("unchecked")
 		MergingWindowAssigner<? super IN, W> mergingAssigner = (MergingWindowAssigner<? super IN, W>) windowAssigner;
-		return new MergingWindowSet<>(mergingAssigner, mergingSetsState);
+		return new MergingWindowSet<>(
+			mergingAssigner,
+			mergingSetsState,
+			getExecutionConfig().getOptimizationTarget() == OptimizationTarget.CPU);
 	}
 
 	/**
