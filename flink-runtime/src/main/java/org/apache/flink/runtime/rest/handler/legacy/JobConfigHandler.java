@@ -42,8 +42,8 @@ public class JobConfigHandler extends AbstractExecutionGraphRequestHandler {
 
 	private static final String JOB_CONFIG_REST_PATH = "/jobs/:jobid/config";
 
-	public JobConfigHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
-		super(executionGraphHolder, executor);
+	public JobConfigHandler(ExecutionGraphCache executionGraphCache, Executor executor) {
+		super(executionGraphCache, executor);
 	}
 
 	@Override

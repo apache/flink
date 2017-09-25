@@ -42,7 +42,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 
 	private static final String JOB_ACCUMULATORS_REST_PATH = "/jobs/:jobid/accumulators";
 
-	public JobAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public JobAccumulatorsHandler(ExecutionGraphCache executionGraphHolder, Executor executor) {
 		super(executionGraphHolder, executor);
 	}
 
