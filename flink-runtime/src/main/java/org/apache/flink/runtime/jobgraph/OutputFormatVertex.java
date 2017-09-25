@@ -73,15 +73,24 @@ public class OutputFormatVertex extends JobVertex {
 		catch (Throwable t) {
 			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
 		}
+
+		// set user classloader before calling user code
+		final ClassLoader prevContextCl = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(loader);
+
 		try {
-			outputFormat.configure(cfg.getStubParameters());
-		}
-		catch (Throwable t) {
-			throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
-		
-		if (outputFormat instanceof InitializeOnMaster) {
-			((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
+			// configure output format
+			try {
+				outputFormat.configure(cfg.getStubParameters());
+			} catch (Throwable t) {
+				throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+			}
+			if (outputFormat instanceof InitializeOnMaster) {
+				((InitializeOnMaster) outputFormat).initializeGlobal(getParallelism());
+			}
+		} finally {
+			// restore previous classloader
+			Thread.currentThread().setContextClassLoader(prevContextCl);
 		}
 	}
 	
@@ -107,15 +116,24 @@ public class OutputFormatVertex extends JobVertex {
 		catch (Throwable t) {
 			throw new Exception("Instantiating the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
 		}
+
+		// set user classloader before calling user code
+		final ClassLoader prevContextCl = Thread.currentThread().getContextClassLoader();
+		Thread.currentThread().setContextClassLoader(loader);
+
 		try {
-			outputFormat.configure(cfg.getStubParameters());
-		}
-		catch (Throwable t) {
-			throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
-		}
-		
-		if (outputFormat instanceof FinalizeOnMaster) {
-			((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
+			// configure output format
+			try {
+				outputFormat.configure(cfg.getStubParameters());
+			} catch (Throwable t) {
+				throw new Exception("Configuring the OutputFormat (" + formatDescription + ") failed: " + t.getMessage(), t);
+			}
+			if (outputFormat instanceof FinalizeOnMaster) {
+				((FinalizeOnMaster) outputFormat).finalizeGlobal(getParallelism());
+			}
+		} finally {
+			// restore previous classloader
+			Thread.currentThread().setContextClassLoader(prevContextCl);
 		}
 	}
 }

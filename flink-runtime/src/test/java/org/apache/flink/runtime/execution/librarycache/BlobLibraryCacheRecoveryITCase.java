@@ -86,7 +86,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config, blobStoreService);
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-				libServer[i] = new BlobLibraryCacheManager(server[i]);
+				libServer[i] = new BlobLibraryCacheManager(server[i], FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			}
 
 			// Random data

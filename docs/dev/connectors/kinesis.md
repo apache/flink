@@ -279,6 +279,10 @@ producerConfig.put("AggregationMaxCount", "4294967295");
 producerConfig.put("CollectionMaxCount", "1000");
 producerConfig.put("RecordTtl", "30000");
 producerConfig.put("RequestTimeout", "6000");
+producerConfig.put("ThreadPoolSize", "15");
+
+// Switch KinesisProducer's threading model
+// producerConfig.put("ThreadingModel", "PER_REQUEST");
 
 FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(), producerConfig);
 kinesis.setFailOnError(true);
@@ -301,6 +305,10 @@ producerConfig.put("AggregationMaxCount", "4294967295");
 producerConfig.put("CollectionMaxCount", "1000");
 producerConfig.put("RecordTtl", "30000");
 producerConfig.put("RequestTimeout", "6000");
+producerConfig.put("ThreadPoolSize", "15");
+
+// Switch KinesisProducer's threading model
+// producerConfig.put("ThreadingModel", "PER_REQUEST");
 
 val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig);
 kinesis.setFailOnError(true);
@@ -321,6 +329,11 @@ Instead of a `SerializationSchema`, it also supports a `KinesisSerializationSche
 done using the `KinesisSerializationSchema.getTargetStream(T element)` method. Returning `null` there will instruct the producer to write the element to the default stream.
 Otherwise, the returned stream name is used.
 
+### Threading Model
+
+Since Flink 1.4.0, `FlinkKinesisProducer` switches its default underlying KPL from a one-thread-per-request mode to a thread-pool mode. KPL in thread-pool mode uses a queue and thread pool to execute requests to Kinesis. This limits the number of threads that KPL's native process may create, and therefore greatly lowers CPU utilizations and improves efficiency. **Thus, We highly recommend Flink users use thread-pool model.** The default thread pool size is `10`. Users can set the pool size in `java.util.Properties` instance with key `ThreadPoolSize`, as shown in the above example.
+
+Users can still switch back to one-thread-per-request mode by setting a key-value pair of `ThreadingModel` and `PER_REQUEST` in `java.util.Properties`, as shown in the code commented out in above example.
 
 ## Using Non-AWS Kinesis Endpoints for Testing
 

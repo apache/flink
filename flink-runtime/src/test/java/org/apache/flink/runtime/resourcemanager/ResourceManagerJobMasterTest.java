@@ -38,7 +38,7 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
-import org.apache.flink.runtime.rpc.exceptions.FencingTokenMismatchException;
+import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -47,6 +47,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -81,9 +82,13 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 		TestingLeaderRetrievalService jobMasterLeaderRetrievalService = new TestingLeaderRetrievalService(jobMasterAddress, jobMasterId.toUUID());
+		TestingLeaderElectionService resourceManagerLeaderElectionService = new TestingLeaderElectionService();
 		TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
-		final ResourceManager<?> resourceManager = createAndStartResourceManager(mock(LeaderElectionService.class), jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
+		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+		// wait until the leader election has been completed
+		resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		// test response successful
 		CompletableFuture<RegistrationResponse> successfulFuture = rmGateway.registerJobManager(
@@ -127,7 +132,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			unMatchedLeaderFuture.get(5L, TimeUnit.SECONDS);
 			fail("Should fail because we are using the wrong fencing token.");
 		} catch (ExecutionException e) {
-			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenMismatchException);
+			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
 		}
 
 		if (testingFatalErrorHandler.hasExceptionOccurred()) {
@@ -150,6 +155,9 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
+
+		// wait until the leader election has been completed
+		resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		// test throw exception when receive a registration from job master which takes unmatched leaderSessionId
 		JobMasterId differentJobMasterId = JobMasterId.generate();
@@ -181,6 +189,9 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		final ResourceManager<?> resourceManager = createAndStartResourceManager(resourceManagerLeaderElectionService, jobID, jobMasterLeaderRetrievalService, testingFatalErrorHandler);
 		final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
+
+		// wait until the leader election has been completed
+		resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		// test throw exception when receive a registration from job master which takes invalid address
 		String invalidAddress = "/jobMasterAddress2";
@@ -218,6 +229,9 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 		final ResourceID jmResourceId = new ResourceID(jobMasterAddress);
 
 		JobID unknownJobIDToHAServices = new JobID();
+
+		// wait until the leader election has been completed
+		resourceManagerLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		// this should fail because we try to register a job leader listener for an unknown job id
 		CompletableFuture<RegistrationResponse> registrationFuture = rmGateway.registerJobManager(

@@ -970,7 +970,7 @@ class TaskManager(
           highAvailabilityServices.createBlobStore())
         blobCache = Option(blobcache)
         libraryCacheManager = Some(
-          new BlobLibraryCacheManager(blobcache))
+          new BlobLibraryCacheManager(blobcache, config.getClassLoaderResolveOrder()))
       }
       catch {
         case e: Exception =>

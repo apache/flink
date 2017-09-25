@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import org.junit.After;
@@ -40,7 +41,7 @@ public class PrintSinkFunctionTest {
 	private String line = System.lineSeparator();
 
 	@Test
-	public void testPrintSinkStdOut(){
+	public void testPrintSinkStdOut() throws Exception {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream stream = new PrintStream(baos);
 		System.setOut(stream);
@@ -55,7 +56,7 @@ public class PrintSinkFunctionTest {
 			Assert.fail();
 		}
 		printSink.setTargetToStandardOut();
-		printSink.invoke("hello world!");
+		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
 		assertEquals("Print to System.out", printSink.toString());
 		assertEquals("hello world!" + line, baos.toString());
@@ -65,7 +66,7 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkStdErr(){
+	public void testPrintSinkStdErr() throws Exception {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream stream = new PrintStream(baos);
 		System.setOut(stream);
@@ -80,7 +81,7 @@ public class PrintSinkFunctionTest {
 			Assert.fail();
 		}
 		printSink.setTargetToStandardErr();
-		printSink.invoke("hello world!");
+		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
 		assertEquals("Print to System.err", printSink.toString());
 		assertEquals("hello world!" + line, baos.toString());
@@ -90,7 +91,7 @@ public class PrintSinkFunctionTest {
 	}
 
 	@Test
-	public void testPrintSinkWithPrefix(){
+	public void testPrintSinkWithPrefix() throws Exception {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		PrintStream stream = new PrintStream(baos);
 		System.setOut(stream);
@@ -107,7 +108,7 @@ public class PrintSinkFunctionTest {
 			Assert.fail();
 		}
 		printSink.setTargetToStandardErr();
-		printSink.invoke("hello world!");
+		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
 		assertEquals("Print to System.err", printSink.toString());
 		assertEquals("2> hello world!" + line, baos.toString());

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages.webmonitor;
+package org.apache.flink.runtime.rest.handler.legacy.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
@@ -29,32 +29,28 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for the {@link StatusOverviewWithVersion}.
+ * Tests for the {@link DashboardConfiguration}.
  */
-public class StatusOverviewWithVersionTest extends TestLogger {
+public class DashboardConfigurationTest extends TestLogger {
 
 	/**
-	 * Tests that we can marshal and unmarshal StatusOverviewWithVersion.
+	 * Tests that we can marshal and unmarshal {@link DashboardConfiguration} objects.
 	 */
 	@Test
 	public void testJsonMarshalling() throws JsonProcessingException {
-		final StatusOverviewWithVersion expected = new StatusOverviewWithVersion(
-			1,
-			3,
-			3,
-			7,
-			4,
-			2,
-			0,
+		final DashboardConfiguration expected = new DashboardConfiguration(
+			1L,
+			"foobar",
+			42,
 			"version",
-			"commit");
+			"revision");
 
-		ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 
-		JsonNode json = objectMapper.valueToTree(expected);
+		JsonNode marshaled = objectMapper.valueToTree(expected);
 
-		final StatusOverviewWithVersion unmarshalled = objectMapper.treeToValue(json, StatusOverviewWithVersion.class);
+		final DashboardConfiguration unmarshaled = objectMapper.treeToValue(marshaled, DashboardConfiguration.class);
 
-		assertEquals(expected, unmarshalled);
+		assertEquals(expected, unmarshaled);
 	}
 }

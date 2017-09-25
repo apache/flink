@@ -20,6 +20,8 @@ package org.apache.flink.runtime.rpc.messages;
 
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**
@@ -34,8 +36,8 @@ public class LocalFencedMessage<F extends Serializable, P> implements FencedMess
 	private final F fencingToken;
 	private final P payload;
 
-	public LocalFencedMessage(F fencingToken, P payload) {
-		this.fencingToken = Preconditions.checkNotNull(fencingToken);
+	public LocalFencedMessage(@Nullable F fencingToken, P payload) {
+		this.fencingToken = fencingToken;
 		this.payload = Preconditions.checkNotNull(payload);
 	}
 

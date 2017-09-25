@@ -68,6 +68,7 @@ under the License.
 		<module>flink-examples</module>
 		<module>flink-clients</module>
 		<module>flink-tests</module>
+		<module>flink-end-to-end-tests</module>
 		<module>flink-test-utils-parent</module>
 		<module>flink-libraries</module>
 		<module>flink-scala-shell</module>
@@ -1457,6 +1458,8 @@ under the License.
 							<excludes>
 								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
+								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
+								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>

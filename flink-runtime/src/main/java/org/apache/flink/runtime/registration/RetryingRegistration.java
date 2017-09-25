@@ -151,6 +151,7 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 	 * Cancels the registration procedure.
 	 */
 	public void cancel() {
+		completionFuture.cancel(false);
 		canceled = true;
 	}
 
@@ -175,6 +176,11 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 	 */
 	@SuppressWarnings("unchecked")
 	public void startRegistration() {
+		if (canceled) {
+			// we already got canceled
+			return;
+		}
+
 		try {
 			// trigger resolution of the resource manager address to a callable gateway
 			final CompletableFuture<G> resourceManagerFuture;
@@ -199,16 +205,17 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			// upon failure, retry, unless this is cancelled
 			resourceManagerAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
-					if (failure != null && !isCanceled()) {
-						log.warn("Could not resolve {} address {}, retrying...", targetName, targetAddress, failure);
-						startRegistration();
+					if (failure != null && !canceled) {
+						log.warn("Could not resolve {} address {}, retrying in {} ms", targetName, targetAddress, delayOnError, failure);
+
+						startRegistrationLater(delayOnError);
 					}
 				},
 				rpcService.getExecutor());
 		}
 		catch (Throwable t) {
-			cancel();
 			completionFuture.completeExceptionally(t);
+			cancel();
 		}
 	}
 
@@ -280,8 +287,8 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 				rpcService.getExecutor());
 		}
 		catch (Throwable t) {
-			cancel();
 			completionFuture.completeExceptionally(t);
+			cancel();
 		}
 	}
 
@@ -292,5 +299,12 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 				register(gateway, attempt, timeoutMillis);
 			}
 		}, delay, TimeUnit.MILLISECONDS);
+	}
+
+	private void startRegistrationLater(final long delay) {
+		rpcService.scheduleRunnable(
+			this::startRegistration,
+			delay,
+			TimeUnit.MILLISECONDS);
 	}
 }

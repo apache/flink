@@ -20,15 +20,19 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverviewWithVersion;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.LegacyRestHandlerAdapter;
+import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
+import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
+import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -51,26 +55,25 @@ import java.util.concurrent.Executor;
 public class DispatcherRestEndpoint extends RestServerEndpoint {
 
 	private final GatewayRetriever<DispatcherGateway> leaderRetriever;
-	private final Time timeout;
-	private final File tmpDir;
+	private final RestHandlerConfiguration restConfiguration;
 	private final Executor executor;
 
 	public DispatcherRestEndpoint(
 			RestServerEndpointConfiguration configuration,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
-			Time timeout,
-			File tmpDir,
+			RestHandlerConfiguration restConfiguration,
 			Executor executor) {
 		super(configuration);
 		this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
-		this.timeout = Preconditions.checkNotNull(timeout);
-		this.tmpDir = Preconditions.checkNotNull(tmpDir);
+		this.restConfiguration = Preconditions.checkNotNull(restConfiguration);
 		this.executor = Preconditions.checkNotNull(executor);
 	}
 
 	@Override
 	protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(2);
+		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(3);
+
+		final Time timeout = restConfiguration.getTimeout();
 
 		LegacyRestHandlerAdapter<DispatcherGateway, StatusOverviewWithVersion, EmptyMessageParameters> clusterOverviewHandler = new LegacyRestHandlerAdapter<>(
 			restAddressFuture,
@@ -81,7 +84,16 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 				executor,
 				timeout));
 
-		handlers.add(Tuple2.of(ClusterOverviewHeaders.getInstance(), clusterOverviewHandler));
+		LegacyRestHandlerAdapter<DispatcherGateway, DashboardConfiguration, EmptyMessageParameters> dashboardConfigurationHandler = new LegacyRestHandlerAdapter<>(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			DashboardConfigurationHeaders.getInstance(),
+			new DashboardConfigHandler(
+				executor,
+				restConfiguration.getRefreshInterval()));
+
+		final File tmpDir = restConfiguration.getTmpDir();
 
 		Optional<StaticFileServerHandler<DispatcherGateway>> optWebContent;
 
@@ -96,6 +108,9 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			optWebContent = Optional.empty();
 		}
 
+		handlers.add(Tuple2.of(ClusterOverviewHeaders.getInstance(), clusterOverviewHandler));
+		handlers.add(Tuple2.of(DashboardConfigurationHeaders.getInstance(), dashboardConfigurationHandler));
+
 		optWebContent.ifPresent(
 			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));
 
@@ -105,6 +120,8 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 	@Override
 	public void shutdown(Time timeout) {
 		super.shutdown(timeout);
+
+		final File tmpDir = restConfiguration.getTmpDir();
 
 		try {
 			log.info("Removing cache directory {}", tmpDir);

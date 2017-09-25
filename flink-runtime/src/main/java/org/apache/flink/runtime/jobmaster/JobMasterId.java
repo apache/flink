@@ -29,8 +29,6 @@ public class JobMasterId extends AbstractID {
 
 	private static final long serialVersionUID = -933276753644003754L;
 
-	public static final JobMasterId INITIAL_JOB_MASTER_ID = new JobMasterId(0L, 0L);
-
 	public JobMasterId(byte[] bytes) {
 		super(bytes);
 	}

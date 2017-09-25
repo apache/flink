@@ -212,7 +212,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			FatalErrorHandler errorHandler,
 			ClassLoader userCodeLoader) throws Exception {
 
-		super(rpcService, AkkaRpcServiceUtils.createRandomName(JobMaster.JOB_MANAGER_NAME), JobMasterId.INITIAL_JOB_MASTER_ID);
+		super(rpcService, AkkaRpcServiceUtils.createRandomName(JobMaster.JOB_MANAGER_NAME));
 
 		selfGateway = getSelfGateway(JobMasterGateway.class);
 
@@ -735,7 +735,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			return Acknowledge.get();
 		}
 
-		if (!Objects.equals(getFencingToken(), JobMasterId.INITIAL_JOB_MASTER_ID)) {
+		if (getFencingToken() != null) {
 			log.info("Restarting old job with JobMasterId {}. The new JobMasterId is {}.", getFencingToken(), newJobMasterId);
 
 			// first we have to suspend the current execution
@@ -791,13 +791,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	private Acknowledge suspendExecution(final Throwable cause) {
 		validateRunsInMainThread();
 
-		if (Objects.equals(JobMasterId.INITIAL_JOB_MASTER_ID, getFencingToken())) {
+		if (getFencingToken() == null) {
 			log.debug("Job has already been suspended or shutdown.");
 			return Acknowledge.get();
 		}
 
-		// not leader anymore --> set the JobMasterId to the initial id
-		setFencingToken(JobMasterId.INITIAL_JOB_MASTER_ID);
+		// not leader anymore --> set the JobMasterId to null
+		setFencingToken(null);
 
 		try {
 			resourceManagerLeaderRetriever.stop();

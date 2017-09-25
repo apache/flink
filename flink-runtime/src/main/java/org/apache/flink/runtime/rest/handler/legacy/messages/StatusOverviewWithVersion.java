@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.messages.webmonitor;
+package org.apache.flink.runtime.rest.handler.legacy.messages;
 
+import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 

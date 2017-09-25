@@ -95,7 +95,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 			bc.close();
 
-			libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId1);
 			cache.registerJob(jobId2);
 
@@ -227,7 +227,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 			bc.close();
 
-			libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId);
 
 			assertEquals(0, libCache.getNumberOfManagedJobs());
@@ -341,7 +341,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 			bc.close();
 
-			libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			cache.registerJob(jobId);
 
 			assertEquals(0, libCache.getNumberOfManagedJobs());
@@ -448,7 +448,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			BlobKey dataKey2 = uploader.put(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 			uploader.close();
 
-			libCache = new BlobLibraryCacheManager(cache);
+			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			assertEquals(0, libCache.getNumberOfManagedJobs());
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);

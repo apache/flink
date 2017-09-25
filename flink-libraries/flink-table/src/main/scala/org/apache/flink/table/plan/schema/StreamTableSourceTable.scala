@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
@@ -28,48 +29,113 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 class StreamTableSourceTable[T](
     override val tableSource: TableSource[T],
     override val statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
-  extends TableSourceTable[T](tableSource, statistic) {
-
+  extends TableSourceTable[T](
+    tableSource,
+    StreamTableSourceTable.adjustFieldIndexes(tableSource),
+    StreamTableSourceTable.adjustFieldNames(tableSource),
+    statistic) {
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    val fieldTypes = StreamTableSourceTable.adjustFieldTypes(tableSource)
+
     val flinkTypeFactory = typeFactory.asInstanceOf[FlinkTypeFactory]
+    flinkTypeFactory.buildLogicalRowType(
+      this.fieldNames,
+      fieldTypes)
+  }
 
-    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+}
 
-    val fields = fieldNames.zip(fieldTypes)
+object StreamTableSourceTable {
 
-    val withRowtime = tableSource match {
+  private def adjustFieldIndexes(tableSource: TableSource[_]): Array[Int] = {
+    val (rowtime, proctime) = getTimeIndicators(tableSource)
+
+    val original = TableEnvironment.getFieldIndices(tableSource)
+
+    // append rowtime marker
+    val withRowtime = if (rowtime.isDefined) {
+      original :+ TimeIndicatorTypeInfo.ROWTIME_MARKER
+    } else {
+      original
+    }
+
+    // append proctime marker
+    if (proctime.isDefined) {
+      withRowtime :+ TimeIndicatorTypeInfo.PROCTIME_MARKER
+    } else {
+      withRowtime
+    }
+  }
+
+  private def adjustFieldNames(tableSource: TableSource[_]): Array[String] = {
+    val (rowtime, proctime) = getTimeIndicators(tableSource)
+
+    val original = TableEnvironment.getFieldNames(tableSource)
+
+    // append rowtime field
+    val withRowtime = if (rowtime.isDefined) {
+      original :+ rowtime.get
+    } else {
+      original
+    }
+
+    // append proctime field
+    if (proctime.isDefined) {
+      withRowtime :+ proctime.get
+    } else {
+      withRowtime
+    }
+  }
+
+  private def adjustFieldTypes(tableSource: TableSource[_]): Array[TypeInformation[_]] = {
+    val (rowtime, proctime) = StreamTableSourceTable.getTimeIndicators(tableSource)
+
+    val original = TableEnvironment.getFieldTypes(tableSource.getReturnType)
+
+    // append rowtime type
+    val withRowtime = if (rowtime.isDefined) {
+      original :+ TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+    } else {
+      original
+    }
+
+    // append proctime type
+    val withProctime = if (proctime.isDefined) {
+      withRowtime :+ TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+    } else {
+      withRowtime
+    }
+
+    withProctime.asInstanceOf[Array[TypeInformation[_]]]
+  }
+
+  private def getTimeIndicators(tableSource: TableSource[_]): (Option[String], Option[String]) = {
+
+    val rowtime: Option[String] = tableSource match {
       case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute == null =>
-        fields
+        None
       case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute.trim.equals("") =>
         throw TableException("The name of the rowtime attribute must not be empty.")
       case timeSource: DefinedRowtimeAttribute =>
         val rowtimeAttribute = timeSource.getRowtimeAttribute
-        fields :+ (rowtimeAttribute, TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+        Some(rowtimeAttribute)
       case _ =>
-        fields
+        None
     }
 
-    val withProctime = tableSource match {
+    val proctime: Option[String] = tableSource match {
       case timeSource : DefinedProctimeAttribute if timeSource.getProctimeAttribute == null =>
-        withRowtime
+        None
       case timeSource: DefinedProctimeAttribute
         if timeSource.getProctimeAttribute.trim.equals("") =>
         throw TableException("The name of the rowtime attribute must not be empty.")
       case timeSource: DefinedProctimeAttribute =>
         val proctimeAttribute = timeSource.getProctimeAttribute
-        withRowtime :+ (proctimeAttribute, TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
+        Some(proctimeAttribute)
       case _ =>
-        withRowtime
+        None
     }
-
-    val (fieldNamesWithIndicators, fieldTypesWithIndicators) = withProctime.unzip
-
-    flinkTypeFactory.buildLogicalRowType(
-      fieldNamesWithIndicators,
-      fieldTypesWithIndicators)
-
+    (rowtime, proctime)
   }
-
 }
