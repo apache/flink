@@ -35,8 +35,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.checkpoint.AbstractAsyncSnapshotIOCallable;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -325,30 +325,56 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		//--------------------------------------------------- this becomes the end of sync part
 
 		// implementation of the async IO operation, based on FutureTask
-		final AbstractAsyncSnapshotIOCallable<KeyedStateHandle> ioCallable =
-			new AbstractAsyncSnapshotIOCallable<KeyedStateHandle>(
-				checkpointId,
-				timestamp,
-				streamFactory,
-				cancelStreamRegistry) {
+		final AbstractAsyncCallableWithResources<KeyedStateHandle> ioCallable =
+			new AbstractAsyncCallableWithResources<KeyedStateHandle>() {
+
+				CheckpointStreamFactory.CheckpointStateOutputStream stream = null;
+
+				@Override
+				protected void acquireResources() throws Exception {
+					stream = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+					cancelStreamRegistry.registerCloseable(stream);
+				}
+
+				@Override
+				protected void releaseResources() throws Exception {
+
+					if (cancelStreamRegistry.unregisterCloseable(stream)) {
+						IOUtils.closeQuietly(stream);
+						stream = null;
+					}
+
+					for (StateTableSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
+						tableSnapshot.release();
+					}
+				}
+
+				@Override
+				protected void stopOperation() throws Exception {
+					if (cancelStreamRegistry.unregisterCloseable(stream)) {
+						IOUtils.closeQuietly(stream);
+						stream = null;
+					}
+				}
 
 				@Override
 				public KeyGroupsStateHandle performOperation() throws Exception {
 					long asyncStartTime = System.currentTimeMillis();
 
-					CheckpointStreamFactory.CheckpointStateOutputStream stream = getIoHandle();
-					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(stream);
+					CheckpointStreamFactory.CheckpointStateOutputStream localStream = this.stream;
+
+					DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(localStream);
 					serializationProxy.write(outView);
 
 					long[] keyGroupRangeOffsets = new long[keyGroupRange.getNumberOfKeyGroups()];
 
 					for (int keyGroupPos = 0; keyGroupPos < keyGroupRange.getNumberOfKeyGroups(); ++keyGroupPos) {
 						int keyGroupId = keyGroupRange.getKeyGroupId(keyGroupPos);
-						keyGroupRangeOffsets[keyGroupPos] = stream.getPos();
+						keyGroupRangeOffsets[keyGroupPos] = localStream.getPos();
 						outView.writeInt(keyGroupId);
 
 						for (Map.Entry<String, StateTable<K, ?, ?>> kvState : stateTables.entrySet()) {
-							OutputStream kgCompressionOut = keyGroupCompressionDecorator.decorateWithCompression(stream);
+							OutputStream kgCompressionOut = keyGroupCompressionDecorator.decorateWithCompression(localStream);
 							DataOutputViewStreamWrapper kgCompressionView = new DataOutputViewStreamWrapper(kgCompressionOut);
 							kgCompressionView.writeShort(kVStateToId.get(kvState.getKey()));
 							cowStateStableSnapshots.get(kvState.getValue()).writeMappingsInKeyGroup(kgCompressionView, keyGroupId);
@@ -356,21 +382,29 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						}
 					}
 
-					final StreamStateHandle streamStateHandle = closeStreamAndGetStateHandle();
+					if (cancelStreamRegistry.unregisterCloseable(stream)) {
 
-					if (asynchronousSnapshots) {
-						LOG.info("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
-							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
+						final StreamStateHandle streamStateHandle = stream.closeAndGetHandle();
+						stream = null;
+
+						if (asynchronousSnapshots) {
+							LOG.info("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
+								streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
+						}
+
+						if (streamStateHandle != null) {
+
+							KeyGroupRangeOffsets offsets =
+								new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
+
+							final KeyGroupsStateHandle keyGroupsStateHandle =
+								new KeyGroupsStateHandle(offsets, streamStateHandle);
+
+							return keyGroupsStateHandle;
+						}
 					}
 
-					if (streamStateHandle == null) {
-						return null;
-					}
-
-					KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
-					final KeyGroupsStateHandle keyGroupsStateHandle = new KeyGroupsStateHandle(offsets, streamStateHandle);
-
-					return keyGroupsStateHandle;
+					return null;
 				}
 			};
 
@@ -425,7 +459,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
 			FSDataInputStream fsDataInputStream = keyGroupsStateHandle.openInputStream();
-			cancelStreamRegistry.registerClosable(fsDataInputStream);
+			cancelStreamRegistry.registerCloseable(fsDataInputStream);
 
 			try {
 				DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(fsDataInputStream);
@@ -533,8 +567,9 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					}
 				}
 			} finally {
-				cancelStreamRegistry.unregisterClosable(fsDataInputStream);
-				IOUtils.closeQuietly(fsDataInputStream);
+				if (cancelStreamRegistry.unregisterCloseable(fsDataInputStream)) {
+					IOUtils.closeQuietly(fsDataInputStream);
+				}
 			}
 		}
 	}

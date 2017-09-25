@@ -254,9 +254,10 @@ public class StateInitializationContextImpl implements StateInitializationContex
 						this.offsets = metaOffsets;
 						this.offPos = 0;
 
-						closableRegistry.unregisterClosable(currentStream);
-						IOUtils.closeQuietly(currentStream);
-						currentStream = null;
+						if (closableRegistry.unregisterCloseable(currentStream)) {
+							IOUtils.closeQuietly(currentStream);
+							currentStream = null;
+						}
 
 						return true;
 					}
@@ -308,14 +309,18 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		}
 
 		protected void openCurrentStream() throws IOException {
+
+			Preconditions.checkState(currentStream == null);
+
 			FSDataInputStream stream = currentStateHandle.openInputStream();
-			closableRegistry.registerClosable(stream);
+			closableRegistry.registerCloseable(stream);
 			currentStream = stream;
 		}
 
 		protected void closeCurrentStream() {
-			closableRegistry.unregisterClosable(currentStream);
-			IOUtils.closeQuietly(currentStream);
+			if (closableRegistry.unregisterCloseable(currentStream)) {
+				IOUtils.closeQuietly(currentStream);
+			}
 			currentStream = null;
 		}
 

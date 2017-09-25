@@ -43,7 +43,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.io.async.AbstractAsyncIOCallable;
+import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -384,8 +384,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final CheckpointStreamFactory streamFactory) throws Exception {
 
 		long startTime = System.currentTimeMillis();
+		final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
 
-		final RocksDBFullSnapshotOperation<K> snapshotOperation = new RocksDBFullSnapshotOperation<>(this, streamFactory);
+		final RocksDBFullSnapshotOperation<K> snapshotOperation;
+
 		// hold the db lock while operation on the db to guard us against async db disposal
 		synchronized (asyncSnapshotLock) {
 
@@ -399,6 +401,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					return DoneFuture.nullValue();
 				}
 
+				snapshotOperation =
+					new RocksDBFullSnapshotOperation<>(this, streamFactory, snapshotCloseableRegistry);
+
 				snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
 			} else {
 				throw new IOException("RocksDB closed.");
@@ -406,48 +411,61 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		// implementation of the async IO operation, based on FutureTask
-		AbstractAsyncIOCallable<KeyedStateHandle, CheckpointStreamFactory.CheckpointStateOutputStream> ioCallable =
-			new AbstractAsyncIOCallable<KeyedStateHandle, CheckpointStreamFactory.CheckpointStateOutputStream>() {
+		AbstractAsyncCallableWithResources<KeyedStateHandle> ioCallable =
+			new AbstractAsyncCallableWithResources<KeyedStateHandle>() {
 
 				@Override
-				public CheckpointStreamFactory.CheckpointStateOutputStream openIOHandle() throws Exception {
+				protected void acquireResources() throws Exception {
+					cancelStreamRegistry.registerCloseable(snapshotCloseableRegistry);
 					snapshotOperation.openCheckpointStream();
-					return snapshotOperation.getOutStream();
+				}
+
+				@Override
+				protected void releaseResources() throws Exception {
+					closeLocalRegistry();
+					releaseSnapshotOperationResources();
+				}
+
+				private void releaseSnapshotOperationResources() {
+					// hold the db lock while operation on the db to guard us against async db disposal
+					synchronized (asyncSnapshotLock) {
+						snapshotOperation.releaseSnapshotResources();
+					}
+				}
+
+				@Override
+				protected void stopOperation() throws Exception {
+					closeLocalRegistry();
+				}
+
+				private void closeLocalRegistry() {
+					if (cancelStreamRegistry.unregisterCloseable(snapshotCloseableRegistry)) {
+						try {
+							snapshotCloseableRegistry.close();
+						} catch (Exception ex) {
+							LOG.warn("Error closing local registry", ex);
+						}
+					}
 				}
 
 				@Override
 				public KeyGroupsStateHandle performOperation() throws Exception {
 					long startTime = System.currentTimeMillis();
+
 					synchronized (asyncSnapshotLock) {
-						try {
-							// hold the db lock while operation on the db to guard us against async db disposal
-							if (db == null) {
-								throw new IOException("RocksDB closed.");
-							}
-
-							snapshotOperation.writeDBSnapshot();
-
-						} finally {
-							snapshotOperation.closeCheckpointStream();
+						// hold the db lock while operation on the db to guard us against async db disposal
+						if (db == null) {
+							throw new IOException("RocksDB closed.");
 						}
+
+						snapshotOperation.writeDBSnapshot();
+						snapshotOperation.createSnapshotResultStateHandleFromOutputStream();
 					}
 
 					LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
 						streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 
 					return snapshotOperation.getSnapshotResultStateHandle();
-				}
-
-				private void releaseSnapshotOperationResources(boolean canceled) {
-					// hold the db lock while operation on the db to guard us against async db disposal
-					synchronized (asyncSnapshotLock) {
-						snapshotOperation.releaseSnapshotResources(canceled);
-					}
-				}
-
-				@Override
-				public void done(boolean canceled) {
-					releaseSnapshotOperationResources(canceled);
 				}
 			};
 
@@ -468,6 +486,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private final RocksDBKeyedStateBackend<K> stateBackend;
 		private final KeyGroupRangeOffsets keyGroupRangeOffsets;
 		private final CheckpointStreamFactory checkpointStreamFactory;
+		private final CloseableRegistry snapshotCloseableRegistry;
 
 		private long checkpointId;
 		private long checkpointTimeStamp;
@@ -482,11 +501,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		RocksDBFullSnapshotOperation(
 			RocksDBKeyedStateBackend<K> stateBackend,
-			CheckpointStreamFactory checkpointStreamFactory) {
+			CheckpointStreamFactory checkpointStreamFactory,
+			CloseableRegistry registry) {
 
 			this.stateBackend = stateBackend;
 			this.checkpointStreamFactory = checkpointStreamFactory;
 			this.keyGroupRangeOffsets = new KeyGroupRangeOffsets(stateBackend.keyGroupRange);
+			this.snapshotCloseableRegistry = registry;
 		}
 
 		/**
@@ -510,9 +531,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void openCheckpointStream() throws Exception {
 			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
-			outStream = checkpointStreamFactory.
-				createCheckpointStateOutputStream(checkpointId, checkpointTimeStamp);
-			stateBackend.cancelStreamRegistry.registerClosable(outStream);
+			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(checkpointId, checkpointTimeStamp);
+			snapshotCloseableRegistry.registerCloseable(outStream);
 			outputView = new DataOutputViewStreamWrapper(outStream);
 		}
 
@@ -537,18 +557,25 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 * @throws IOException
 		 */
-		public void closeCheckpointStream() throws IOException {
-			if (outStream != null) {
-				snapshotResultStateHandle = closeSnapshotStreamAndGetHandle();
-			} else {
-				snapshotResultStateHandle = null;
+		public void createSnapshotResultStateHandleFromOutputStream() throws IOException {
+
+			if (snapshotCloseableRegistry.unregisterCloseable(outStream)) {
+
+				StreamStateHandle stateHandle = outStream.closeAndGetHandle();
+				outStream = null;
+
+				if (stateHandle != null) {
+					this.snapshotResultStateHandle = new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+				}
 			}
 		}
 
 		/**
 		 * 5) Release the snapshot object for RocksDB and clean up.
 		 */
-		public void releaseSnapshotResources(boolean canceled) {
+		public void releaseSnapshotResources() {
+
+			outStream = null;
 
 			if (null != kvStateIterators) {
 				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
@@ -569,12 +596,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				IOUtils.closeQuietly(readOptions);
 				readOptions = null;
 			}
+		}
 
-			if (canceled) {
+		/**
+		 * Drop the created snapshot if we have ben cancelled.
+		 */
+		public void dropSnapshotResult() {
+			if (null != snapshotResultStateHandle) {
 				try {
-					if (null != snapshotResultStateHandle) {
-						snapshotResultStateHandle.discardState();
-					}
+					snapshotResultStateHandle.discardState();
 				} catch (Exception e) {
 					LOG.warn("Exception occurred during snapshot state handle cleanup.", e);
 				}
@@ -719,13 +749,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		private KeyGroupsStateHandle closeSnapshotStreamAndGetHandle() throws IOException {
-			stateBackend.cancelStreamRegistry.unregisterClosable(outStream);
-			StreamStateHandle stateHandle = outStream.closeAndGetHandle();
-			outStream = null;
-			return stateHandle != null ? new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle) : null;
-		}
-
 		private void writeKeyValuePair(byte[] key, byte[] value, DataOutputView out) throws IOException {
 			BytePrimitiveArraySerializer.INSTANCE.serialize(key, out);
 			BytePrimitiveArraySerializer.INSTANCE.serialize(value, out);
@@ -805,11 +828,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				FileSystem backupFileSystem = backupPath.getFileSystem();
 				inputStream = backupFileSystem.open(filePath);
-				closeableRegistry.registerClosable(inputStream);
+				closeableRegistry.registerCloseable(inputStream);
 
 				outputStream = checkpointStreamFactory
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
-				closeableRegistry.registerClosable(outputStream);
+				closeableRegistry.registerCloseable(outputStream);
 
 				while (true) {
 					int numBytes = inputStream.read(buffer);
@@ -821,19 +844,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					outputStream.write(buffer, 0, numBytes);
 				}
 
-				closeableRegistry.unregisterClosable(outputStream);
-				StreamStateHandle result = outputStream.closeAndGetHandle();
-				outputStream = null;
-
+				StreamStateHandle result = null;
+				if (closeableRegistry.unregisterCloseable(outputStream)) {
+					result = outputStream.closeAndGetHandle();
+					outputStream = null;
+				}
 				return result;
+
 			} finally {
-				if (inputStream != null) {
-					closeableRegistry.unregisterClosable(inputStream);
+				if (inputStream != null && closeableRegistry.unregisterCloseable(inputStream)) {
 					inputStream.close();
 				}
 
-				if (outputStream != null) {
-					closeableRegistry.unregisterClosable(outputStream);
+				if (outputStream != null && closeableRegistry.unregisterCloseable(outputStream)) {
 					outputStream.close();
 				}
 			}
@@ -845,7 +868,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			try {
 				outputStream = checkpointStreamFactory
 					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
-				closeableRegistry.registerClosable(outputStream);
+				closeableRegistry.registerCloseable(outputStream);
 
 				//no need for compression scheme support because sst-files are already compressed
 				KeyedBackendSerializationProxy<K> serializationProxy =
@@ -858,15 +881,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				serializationProxy.write(out);
 
-				closeableRegistry.unregisterClosable(outputStream);
-				StreamStateHandle result = outputStream.closeAndGetHandle();
-				outputStream = null;
-
+				StreamStateHandle result = null;
+				if (closeableRegistry.unregisterCloseable(outputStream)) {
+					result = outputStream.closeAndGetHandle();
+					outputStream = null;
+				}
 				return result;
 			} finally {
 				if (outputStream != null) {
-					closeableRegistry.unregisterClosable(outputStream);
-					outputStream.close();
+					if (closeableRegistry.unregisterCloseable(outputStream)) {
+						outputStream.close();
+					}
 				}
 			}
 		}
@@ -905,7 +930,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		KeyedStateHandle materializeSnapshot() throws Exception {
 
-			stateBackend.cancelStreamRegistry.registerClosable(closeableRegistry);
+			stateBackend.cancelStreamRegistry.registerCloseable(closeableRegistry);
 
 			// write meta data
 			metaStateHandle = materializeMetaData();
@@ -954,15 +979,25 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		void stop() {
-			try {
-				closeableRegistry.close();
-			} catch (IOException e) {
-				LOG.warn("Could not properly close io streams.", e);
+
+			if (stateBackend.cancelStreamRegistry.unregisterCloseable(closeableRegistry)) {
+				try {
+					closeableRegistry.close();
+				} catch (IOException e) {
+					LOG.warn("Could not properly close io streams.", e);
+				}
 			}
 		}
 
 		void releaseResources(boolean canceled) {
-			stateBackend.cancelStreamRegistry.unregisterClosable(closeableRegistry);
+
+			if (stateBackend.cancelStreamRegistry.unregisterCloseable(closeableRegistry)) {
+				try {
+					closeableRegistry.close();
+				} catch (IOException e) {
+					LOG.warn("Exception on closing registry.", e);
+				}
+			}
 
 			if (backupPath != null) {
 				try {
@@ -1128,13 +1163,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throws IOException, StateMigrationException, RocksDBException {
 			try {
 				currentStateHandleInStream = currentKeyGroupsStateHandle.openInputStream();
-				rocksDBKeyedStateBackend.cancelStreamRegistry.registerClosable(currentStateHandleInStream);
+				rocksDBKeyedStateBackend.cancelStreamRegistry.registerCloseable(currentStateHandleInStream);
 				currentStateHandleInView = new DataInputViewStreamWrapper(currentStateHandleInStream);
 				restoreKVStateMetaData();
 				restoreKVStateData();
 			} finally {
-				if (currentStateHandleInStream != null) {
-					rocksDBKeyedStateBackend.cancelStreamRegistry.unregisterClosable(currentStateHandleInStream);
+				if (currentStateHandleInStream != null
+					&& rocksDBKeyedStateBackend.cancelStreamRegistry.unregisterCloseable(currentStateHandleInStream)) {
 					IOUtils.closeQuietly(currentStateHandleInStream);
 				}
 			}
@@ -1275,7 +1310,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			try {
 				inputStream = metaStateHandle.openInputStream();
-				stateBackend.cancelStreamRegistry.registerClosable(inputStream);
+				stateBackend.cancelStreamRegistry.registerCloseable(inputStream);
 
 				KeyedBackendSerializationProxy<T> serializationProxy =
 					new KeyedBackendSerializationProxy<>(stateBackend.userCodeClassLoader);
@@ -1298,8 +1333,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				return serializationProxy.getStateMetaInfoSnapshots();
 			} finally {
-				if (inputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(inputStream);
+				if (inputStream != null && stateBackend.cancelStreamRegistry.unregisterCloseable(inputStream)) {
 					inputStream.close();
 				}
 			}
@@ -1316,10 +1350,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			try {
 				inputStream = remoteFileHandle.openInputStream();
-				stateBackend.cancelStreamRegistry.registerClosable(inputStream);
+				stateBackend.cancelStreamRegistry.registerCloseable(inputStream);
 
 				outputStream = restoreFileSystem.create(restoreFilePath, FileSystem.WriteMode.OVERWRITE);
-				stateBackend.cancelStreamRegistry.registerClosable(outputStream);
+				stateBackend.cancelStreamRegistry.registerCloseable(outputStream);
 
 				byte[] buffer = new byte[8 * 1024];
 				while (true) {
@@ -1331,13 +1365,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					outputStream.write(buffer, 0, numBytes);
 				}
 			} finally {
-				if (inputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(inputStream);
+				if (inputStream != null && stateBackend.cancelStreamRegistry.unregisterCloseable(inputStream)) {
 					inputStream.close();
 				}
 
-				if (outputStream != null) {
-					stateBackend.cancelStreamRegistry.unregisterClosable(outputStream);
+				if (outputStream != null && stateBackend.cancelStreamRegistry.unregisterCloseable(outputStream)) {
 					outputStream.close();
 				}
 			}
