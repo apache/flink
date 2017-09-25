@@ -120,7 +120,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 	public void close() {
 		Exception t = null;
 		try {
-			if(channel != null) {
+			if (channel != null) {
 				channel.close();
 			}
 		} catch (IOException | TimeoutException e) {
@@ -128,7 +128,7 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 		}
 
 		try {
-			if(connection != null) {
+			if (connection != null) {
 				connection.close();
 			}
 		} catch (IOException e) {

@@ -178,7 +178,7 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
 	public void close() throws Exception {
 		super.close();
 		try {
-			if(connection != null) {
+			if (connection != null) {
 				connection.close();
 			}
 		} catch (IOException e) {
