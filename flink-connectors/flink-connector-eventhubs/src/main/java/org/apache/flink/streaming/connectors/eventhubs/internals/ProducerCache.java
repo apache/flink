@@ -61,7 +61,7 @@ public final class ProducerCache implements Closeable, Serializable {
 		this.closed = false;
 	}
 
-	public void put(EventData value) throws InterruptedException{
+	public void put(EventData value) throws Exception{
 		if (value == null){
 			logger.error("Received empty events from event producer");
 			return;
@@ -69,8 +69,9 @@ public final class ProducerCache implements Closeable, Serializable {
 
 		synchronized (cacheQueue){
 			while (cacheQueue.remainingCapacity() <= 0 && !closed){
+				checkErr();
 				logger.warn("Event queue is full, current size is {}", cacheQueue.size());
-				cacheQueue.wait();
+				cacheQueue.wait(defaultCheckQueueStatusInterval);
 			}
 
 			if (closed){
