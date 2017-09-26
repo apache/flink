@@ -450,7 +450,7 @@ These are valid field expressions for the example code above:
 {:.no_toc}
 
 An additional way to define keys are "key selector" functions. A key selector function
-takes a single element as input and returns the key for the element. The key can be of any type and be derived from arbitrary computations.
+takes a single element as input and returns the key for the element. The key can be of any type and be derived from deterministic computations.
 
 The following example shows a key selector function that simply returns the field of an object:
 
