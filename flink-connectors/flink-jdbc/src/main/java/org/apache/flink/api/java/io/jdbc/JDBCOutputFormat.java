@@ -46,6 +46,11 @@ import java.sql.SQLException;
 public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	private static final long serialVersionUID = 1L;
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
+	static final String FLUSH_SCOPE = "flush";
+	static final String FLUSH_RATE_METER_NAME = "rate";
+	static final String FLUSH_RATE_GR_BATCH_INT_METER_NAME = "rateGreaterThanBatchInterval";
+	static final String FLUSH_DURATION_HISTO_NAME = "durationMs";
+	static final String FLUSH_BATCH_COUNT_HISTO_NAME = "batchCount";
 
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCOutputFormat.class);
 
@@ -92,19 +97,22 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
-		this.greaterThanBatchIntervMeter = getRuntimeContext()
-			.getMetricGroup()
-			.meter("greaterThanBatchInterval", new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
 		this.flushMeter = getRuntimeContext()
 			.getMetricGroup()
-			.meter("flush", new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
+			.addGroup(FLUSH_SCOPE)
+			.meter(FLUSH_RATE_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
+		this.greaterThanBatchIntervMeter = getRuntimeContext()
+			.getMetricGroup()
+			.addGroup(FLUSH_SCOPE)
+			.meter(FLUSH_RATE_GR_BATCH_INT_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
 		this.flushDurationMsHisto = getRuntimeContext()
 			.getMetricGroup()
-			.histogram("flushDurationMs", new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
+			.addGroup(FLUSH_SCOPE)
+			.histogram(FLUSH_DURATION_HISTO_NAME, new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
 		this.flushBatchCountHisto = getRuntimeContext()
 			.getMetricGroup()
-			.histogram("flushBatchCount", new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
-
+			.addGroup(FLUSH_SCOPE)
+			.histogram(FLUSH_BATCH_COUNT_HISTO_NAME, new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {

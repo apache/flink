@@ -18,7 +18,15 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
+import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.types.Row;
+
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
 
 import org.junit.After;
 import org.junit.Test;
@@ -34,6 +42,14 @@ import java.sql.Types;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link JDBCOutputFormat}.
@@ -95,6 +111,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.setDBUrl(DB_URL)
 				.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
 				.finish();
+		jdbcOutputFormat.setRuntimeContext(createMockRuntimeContext());
 		jdbcOutputFormat.open(0, 1);
 
 		Row row = new Row(5);
@@ -121,6 +138,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				Types.DOUBLE,
 				Types.INTEGER})
 			.finish();
+		jdbcOutputFormat.setRuntimeContext(createMockRuntimeContext());
 		jdbcOutputFormat.open(0, 1);
 
 		JDBCTestBase.TestEntry entry = TEST_DATA[0];
@@ -147,6 +165,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				Types.DOUBLE,
 				Types.INTEGER})
 			.finish();
+		jdbcOutputFormat.setRuntimeContext(createMockRuntimeContext());
 		jdbcOutputFormat.open(0, 1);
 
 		JDBCTestBase.TestEntry entry = TEST_DATA[0];
@@ -169,6 +188,8 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.setDBUrl(DB_URL)
 				.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
 				.finish();
+
+		jdbcOutputFormat.setRuntimeContext(createMockRuntimeContext());
 		jdbcOutputFormat.open(0, 1);
 
 		for (JDBCTestBase.TestEntry entry : TEST_DATA) {
@@ -208,6 +229,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 			Connection dbConn = DriverManager.getConnection(DB_URL);
 			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS_2)
 		) {
+			jdbcOutputFormat.setRuntimeContext(createMockRuntimeContext());
 			jdbcOutputFormat.open(0, 1);
 			for (int i = 0; i < 2; ++i) {
 				jdbcOutputFormat.writeRecord(toRow(TEST_DATA[i]));
@@ -233,6 +255,30 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		}
 	}
 
+	@Test
+	public void testMetricsSetup() throws IOException {
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
+			.finish();
+		Tuple5<RuntimeContext, MetricGroup, MetricGroup, Meter, Histogram> mocks = createMocks();
+		RuntimeContext ctxMock = mocks.f0;
+		MetricGroup mgrMock1 = mocks.f1;
+		MetricGroup mgrMock2 = mocks.f2;
+		Meter meterMock = mocks.f3;
+		Histogram histoMock = mocks.f4;
+		jdbcOutputFormat.setRuntimeContext(ctxMock);
+		jdbcOutputFormat.open(0, 1);
+		verify(ctxMock, times(4)).getMetricGroup();
+		verify(mgrMock1, times(4)).addGroup(JDBCOutputFormat.FLUSH_SCOPE);
+		verify(mgrMock2).meter(eq(JDBCOutputFormat.FLUSH_RATE_METER_NAME), any(DropwizardMeterWrapper.class));
+		verify(mgrMock2).meter(eq(JDBCOutputFormat.FLUSH_RATE_GR_BATCH_INT_METER_NAME), any(DropwizardMeterWrapper.class));
+		verify(mgrMock2).histogram(eq(JDBCOutputFormat.FLUSH_DURATION_HISTO_NAME), any(DropwizardHistogramWrapper.class));
+		verify(mgrMock2).histogram(eq(JDBCOutputFormat.FLUSH_BATCH_COUNT_HISTO_NAME), any(DropwizardHistogramWrapper.class));
+		verifyZeroInteractions(ctxMock, mgrMock1, mgrMock2, meterMock, histoMock);
+	}
+
 	@After
 	public void clearOutputTable() throws Exception {
 		Class.forName(DRIVER_CLASS);
@@ -255,4 +301,24 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		row.setField(4, entry.qty);
 		return row;
 	}
+
+	private Tuple5<RuntimeContext, MetricGroup, MetricGroup, Meter, Histogram> createMocks() {
+		RuntimeContext ctxMock = mock(RuntimeContext.class);
+		MetricGroup mgrMock1 = mock(MetricGroup.class);
+		MetricGroup mgrMock2 = mock(MetricGroup.class);
+		Meter meterMock = mock(Meter.class);
+		DropwizardMeterWrapper meterWrapperMock = new DropwizardMeterWrapper(meterMock);
+		Histogram histoMock = mock(Histogram.class);
+		DropwizardHistogramWrapper histoWrapeprMock = new DropwizardHistogramWrapper(histoMock);
+		when(ctxMock.getMetricGroup()).thenReturn(mgrMock1);
+		when(mgrMock1.addGroup(anyString())).thenReturn(mgrMock2);
+		when(mgrMock2.meter(anyString(), any(DropwizardMeterWrapper.class))).thenReturn(meterWrapperMock);
+		when(mgrMock2.histogram(anyString(), any(DropwizardHistogramWrapper.class))).thenReturn(histoWrapeprMock);
+		return Tuple5.of(ctxMock, mgrMock1, mgrMock2, meterMock, histoMock);
+	}
+
+	private RuntimeContext createMockRuntimeContext() {
+		return createMocks().f0;
+	}
+
 }
