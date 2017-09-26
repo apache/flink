@@ -69,6 +69,7 @@ public interface AccessExecutionGraph {
 	 *
 	 * @return failure causing exception, or null
 	 */
+	@Nullable
 	ErrorInfo getFailureCause();
 
 	/**
@@ -131,6 +132,7 @@ public interface AccessExecutionGraph {
 	 *
 	 * @return execution config summary for this execution graph, or null in case of errors
 	 */
+	@Nullable
 	ArchivedExecutionConfig getArchivedExecutionConfig();
 
 	/**
