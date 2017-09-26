@@ -105,6 +105,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -264,34 +265,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return Stream.empty();
 		}
 
-		RocksIterator iterator = db.newIterator(columnInfo.f0);
+		ReadOptions readOptions = new ReadOptions();
+		Snapshot snapshot = db.getSnapshot();
+		readOptions.setSnapshot(snapshot);
+		RocksIterator iterator = db.newIterator(columnInfo.f0, readOptions);
 		iterator.seekToFirst();
 
-		Iterator<K> sourceIterator = new Iterator<K>() {
-			@Override
-			public boolean hasNext() {
-				return iterator.isValid();
-			}
-
-			@Override
-			public K next() {
-				try {
-					byte[] key = iterator.key();
-
-					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(
-						new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes));
-					K value = keySerializer.deserialize(dataInput);
-					iterator.next();
-					return value;
-				} catch (IOException e) {
-					throw new FlinkRuntimeException("Failed to access field [" + field + "]", e);
-				}
-			}
-		};
-
-		Iterable<K> iterable = () -> sourceIterator;
+		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, field, keySerializer, keyGroupPrefixBytes);
 		Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
-		return targetStream.onClose(iterator::close);
+		return targetStream.onClose(() -> {
+			iterator.close();
+			snapshot.close();
+			readOptions.close();
+		});
 	}
 
 	/**
@@ -1987,5 +1973,45 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public boolean supportsAsynchronousSnapshots() {
 		return true;
+	}
+
+	private static class RocksIteratorWrapper<K> implements Iterator<K> {
+		private final RocksIterator iterator;
+		private final String field;
+		private final TypeSerializer<K> keySerializer;
+		private final int keyGroupPrefixBytes;
+
+		public RocksIteratorWrapper(
+				RocksIterator iterator,
+				String field,
+				TypeSerializer<K> keySerializer,
+				int keyGroupPrefixBytes) {
+			this.iterator = Preconditions.checkNotNull(iterator);
+			this.field = Preconditions.checkNotNull(field);
+			this.keySerializer = Preconditions.checkNotNull(keySerializer);
+			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
+		}
+
+		@Override
+		public boolean hasNext() {
+			return iterator.isValid();
+		}
+
+		@Override
+		public K next() {
+			if (!iterator.isValid()) {
+				throw new NoSuchElementException("Failed to access field [" + field + "]");
+			}
+			try {
+				byte[] key = iterator.key();
+					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(
+					new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes));
+				K value = keySerializer.deserialize(dataInput);
+				iterator.next();
+				return value;
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to access field [" + field + "]", e);
+			}
+		}
 	}
 }

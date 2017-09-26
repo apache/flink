@@ -35,6 +35,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeSet;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Implementation of Flink's in-memory state tables with copy-on-write support. This map does not support null values
@@ -290,10 +291,9 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 
 	@Override
 	public Stream<K> getKeys(N namespace) {
-		return Arrays.stream(primaryTable)
-			.filter(namespaces -> namespaces != null)
-			.filter(namespaces -> namespaces.namespace.equals(namespace))
-			.map(namespaces -> namespaces.key);
+		Iterable<StateEntry<K, N, S>> iterable = () -> iterator();
+		return StreamSupport.stream(iterable.spliterator(), false)
+			.map(entry -> entry.getKey());
 	}
 
 	@Override

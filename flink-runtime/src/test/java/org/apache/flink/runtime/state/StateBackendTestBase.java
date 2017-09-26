@@ -83,14 +83,17 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -187,6 +190,69 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.restore(state);
 
 		return backend;
+	}
+
+	@Test
+	public void testGetKeys() throws Exception {
+		String fieldName = "get-keys-test";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+			((InternalValueState<VoidNamespace, Integer>) keyedState).setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			int[] expectedKeys = {0, 42, 44, 1337};
+			for (int key : expectedKeys) {
+				backend.setCurrentKey(key);
+				keyedState.update(key * 2);
+			}
+
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
+				int[] actualKeys = keysStream.mapToInt(value -> value.intValue()).toArray();
+				assertArrayEquals(expectedKeys, actualKeys);
+			}
+		}
+		finally {
+			org.apache.commons.io.IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
+	}
+
+	@Test
+	public void testGetKeysWhileModifying() throws Exception {
+		final int elementsToTest = 1000;
+		String fieldName = "get-keys-while-modifying-test";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+			((InternalValueState<VoidNamespace, Integer>) keyedState).setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int key = 0; key < elementsToTest; key++) {
+				backend.setCurrentKey(key);
+				keyedState.update(key * 2);
+			}
+
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
+				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
+
+				for (int expectedKey = 0; expectedKey < elementsToTest; expectedKey++) {
+					assertTrue(actualIterator.hasNext());
+					assertEquals(expectedKey, actualIterator.nextInt());
+
+					backend.setCurrentKey(expectedKey + elementsToTest);
+					keyedState.update((expectedKey + elementsToTest) * 2);
+				}
+
+				assertFalse(actualIterator.hasNext());
+			}
+		}
+		finally {
+			org.apache.commons.io.IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
 	}
 
 	@Test
