@@ -20,13 +20,14 @@ package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -64,7 +65,7 @@ public class JobStoppingHandler extends AbstractJsonRequestHandler {
 					}
 				}
 				catch (Exception e) {
-					throw new FlinkFutureException("Failed to stop the job with id: "  + pathParams.get("jobid") + '.', e);
+					throw new CompletionException(new FlinkException("Failed to stop the job with id: "  + pathParams.get("jobid") + '.', e));
 				}
 			},
 			executor);

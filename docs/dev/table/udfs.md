@@ -44,7 +44,7 @@ Scalar Functions
 
 If a required scalar function is not contained in the built-in functions, it is possible to define custom, user-defined scalar functions for both the Table API and SQL. A user-defined scalar functions maps zero, one, or multiple scalar values to a new scalar value.
 
-In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`.
+In order to define a scalar function one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a scalar function is determined by the evaluation method. An evaluation method must be declared publicly and named `eval`. The parameter types and return type of the evaluation method also determine the parameter and return types of the scalar function. Evaluation methods can also be overloaded by implementing multiple methods named `eval`. Evaluation methods can also support variable arguments, such as `eval(String... strs)`.
 
 The following example shows how to define your own hash code function, register it in the TableEnvironment, and call it in a query. Note that you can configure your scalar function via a constructor before it is registered:
 
@@ -139,7 +139,7 @@ Table Functions
 
 Similar to a user-defined scalar function, a user-defined table function takes zero, one, or multiple scalar values as input parameters. However in contrast to a scalar function, it can return an arbitrary number of rows as output instead of a single value. The returned rows may consist of one or more columns. 
 
-In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
+In order to define a table function one has to extend the base class `TableFunction` in `org.apache.flink.table.functions` and implement (one or more) evaluation methods. The behavior of a table function is determined by its evaluation methods. An evaluation method must be declared `public` and named `eval`. The `TableFunction` can be overloaded by implementing multiple methods named `eval`. The parameter types of the evaluation methods determine all valid parameters of the table function. Evaluation methods can also support variable arguments, such as `eval(String... strs)`. The type of the returned table is determined by the generic type of `TableFunction`. Evaluation methods emit output rows using the protected `collect(T)` method.
 
 In the Table API, a table function is used with `.join(Expression)` or `.leftOuterJoin(Expression)` for Scala users and `.join(String)` or `.leftOuterJoin(String)` for Java users. The `join` operator (cross) joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator). The `leftOuterJoin` operator joins each row from the outer table (table on the left of the operator) with all rows produced by the table-valued function (which is on the right side of the operator) and preserves outer rows for which the table function returns an empty table. In SQL use `LATERAL TABLE(<TableFunction>)` with CROSS JOIN and LEFT JOIN with an ON TRUE join condition (see examples below).
 
@@ -235,8 +235,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return new RowTypeInfo(new TypeInformation[]{
-               			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO});
+        return Types.ROW(Types.STRING(), Types.INT());
     }
 }
 {% endhighlight %}
@@ -255,8 +254,7 @@ class CustomTypeSplit extends TableFunction[Row] {
   }
 
   override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Seq(BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.INT_TYPE_INFO))
+    Types.ROW(Types.STRING, Types.INT)
   }
 }
 {% endhighlight %}
@@ -297,7 +295,7 @@ optionally implemented. While some of these methods allow the system more effici
 - `merge()` is required for many batch aggreagtions and session window aggregations.
 - `resetAccumulator()` is required for many batch aggregations.
 
-All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a table function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods. 
+All methods of `AggregateFunction` must be declared as `public`, not `static` and named exactly as the names mentioned above. The methods `createAccumulator`, `getValue`, `getResultType`, and `getAccumulatorType` are defined in the `AggregateFunction` abstract class, while others are contracted methods. In order to define a aggregate function, one has to extend the base class `org.apache.flink.table.functions.AggregateFunction` and implement one (or more) `accumulate` methods. The method `accumulate` can be overloaded with different parameter types and supports variable arguments.
 
 Detailed documentation for all methods of `AggregateFunction` is given below. 
 
@@ -526,7 +524,7 @@ public static class WeightedAvgAccum {
 /**
  * Weighted Average user-defined aggregate function.
  */
-public static class WeightedAvg extends AggregateFunction<long, WeightedAvgAccum> {
+public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum> {
 
     @Override
     public WeightedAvgAccum createAccumulator() {
@@ -534,7 +532,7 @@ public static class WeightedAvg extends AggregateFunction<long, WeightedAvgAccum
     }
 
     @Override
-    public long getValue(WeightedAvgAccum acc) {
+    public Long getValue(WeightedAvgAccum acc) {
         if (acc.count == 0) {
             return null;
         } else {
@@ -581,8 +579,8 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 {% highlight scala %}
 import java.lang.{Long => JLong, Integer => JInteger}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
@@ -635,13 +633,10 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
   }
 
   override def getAccumulatorType: TypeInformation[WeightedAvgAccum] = {
-    new TupleTypeInfo(classOf[WeightedAvgAccum], 
-                      BasicTypeInfo.LONG_TYPE_INFO,
-                      BasicTypeInfo.INT_TYPE_INFO)
+    new TupleTypeInfo(classOf[WeightedAvgAccum], Types.LONG, Types.INT)
   }
 
-  override def getResultType: TypeInformation[JLong] =
-    BasicTypeInfo.LONG_TYPE_INFO
+  override def getResultType: TypeInformation[JLong] = Types.LONG
 }
 
 // register function

@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -140,7 +141,7 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					return writer.toString();
 				}
 				catch (Exception e) {
-					throw new FlinkFutureException("Failed to fetch jar list.", e);
+					throw new CompletionException(new FlinkException("Failed to fetch jar list.", e));
 				}
 			},
 			executor);

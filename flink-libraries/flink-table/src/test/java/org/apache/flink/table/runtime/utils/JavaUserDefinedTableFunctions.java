@@ -35,4 +35,21 @@ public class JavaUserDefinedTableFunctions {
 			collect(c);
 		}
 	}
+
+	/**
+	 * Emit every input string.
+	 */
+	public static class JavaVarsArgTableFunc0 extends TableFunction<String> {
+		public void eval(String... strs) {
+			for (String s : strs) {
+				collect(s);
+			}
+		}
+
+		public void eval(int val, String str) {
+			for (int i = 0; i < val; i++) {
+				collect(str);
+			}
+		}
+	}
 }

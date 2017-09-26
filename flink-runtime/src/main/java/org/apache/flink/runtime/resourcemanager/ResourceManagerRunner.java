@@ -20,17 +20,19 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * Simple {@link StandaloneResourceManager} runner. It instantiates the resource manager's services
@@ -107,7 +109,7 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 						try {
 							resourceManagerRuntimeServices.shutDown();
 						} catch (Exception e) {
-							throw new FlinkFutureException("Could not properly shut down the resource manager runtime services.", e);
+							throw new CompletionException(new FlinkException("Could not properly shut down the resource manager runtime services.", e));
 						}
 					});
 		}

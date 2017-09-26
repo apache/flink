@@ -91,7 +91,7 @@ public class MetricFetcherTest extends TestLogger {
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 
 		when(jobManagerGateway.requestJobDetails(anyBoolean(), anyBoolean(), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(new JobDetails[0], new JobDetails[0])));
+			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList(), Collections.emptyList())));
 		when(jobManagerGateway.requestTaskManagerInstances(any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(Collections.singleton(taskManager)));
 		when(jobManagerGateway.getAddress()).thenReturn("/jm/address");

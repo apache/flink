@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -30,6 +29,7 @@ import java.io.File;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -65,7 +65,7 @@ public class JarPlanHandler extends JarActionHandler {
 					return writer.toString();
 				}
 				catch (Exception e) {
-					throw new FlinkFutureException(e);
+					throw new CompletionException(e);
 				}
 			},
 			executor);

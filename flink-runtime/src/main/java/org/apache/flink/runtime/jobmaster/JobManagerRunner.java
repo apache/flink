@@ -24,7 +24,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -40,6 +39,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -177,6 +178,10 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 		}
 	}
 
+	public JobMasterGateway getJobManagerGateway() {
+		return jobManager.getSelfGateway(JobMasterGateway.class);
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Lifecycle management
 	//----------------------------------------------------------------------------------------------
@@ -219,7 +224,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 						}
 
 						if (exception != null) {
-							throw new FlinkFutureException("Could not properly shut down the JobManagerRunner.", exception);
+							throw new CompletionException(new FlinkException("Could not properly shut down the JobManagerRunner.", exception));
 						}
 					});
 		}

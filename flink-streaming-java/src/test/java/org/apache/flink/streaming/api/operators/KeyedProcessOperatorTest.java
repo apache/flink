@@ -31,9 +31,12 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -43,6 +46,9 @@ import static org.junit.Assert.assertEquals;
  * Tests {@link KeyedProcessOperator}.
  */
 public class KeyedProcessOperatorTest extends TestLogger {
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Test
 	public void testTimestampAndWatermarkQuerying() throws Exception {
@@ -275,6 +281,93 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
+	}
+
+	@Test
+	public void testNullOutputTagRefusal() throws Exception {
+		KeyedProcessOperator<Integer, Integer, String> operator =
+			new KeyedProcessOperator<>(new NullOutputTagEmittingProcessFunction());
+
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				operator, new IdentityKeySelector<>(), BasicTypeInfo.INT_TYPE_INFO);
+
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.setProcessingTime(17);
+		try {
+			expectedException.expect(IllegalArgumentException.class);
+			testHarness.processElement(new StreamRecord<>(5));
+		} finally {
+			testHarness.close();
+		}
+	}
+
+	/**
+	 * This also verifies that the timestamps ouf side-emitted records is correct.
+	 */
+	@Test
+	public void testSideOutput() throws Exception {
+		KeyedProcessOperator<Integer, Integer, String> operator =
+			new KeyedProcessOperator<>(new SideOutputProcessFunction());
+
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+			new KeyedOneInputStreamOperatorTestHarness<>(
+				operator, new IdentityKeySelector<>(), BasicTypeInfo.INT_TYPE_INFO);
+
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(42, 17L /* timestamp */));
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		expectedOutput.add(new StreamRecord<>("IN:42", 17L /* timestamp */));
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		ConcurrentLinkedQueue<StreamRecord<Integer>> expectedIntSideOutput = new ConcurrentLinkedQueue<>();
+		expectedIntSideOutput.add(new StreamRecord<>(42, 17L /* timestamp */));
+		ConcurrentLinkedQueue<StreamRecord<Integer>> intSideOutput =
+			testHarness.getSideOutput(SideOutputProcessFunction.INTEGER_OUTPUT_TAG);
+		TestHarnessUtil.assertOutputEquals(
+			"Side output was not correct.",
+			expectedIntSideOutput,
+			intSideOutput);
+
+		ConcurrentLinkedQueue<StreamRecord<Long>> expectedLongSideOutput = new ConcurrentLinkedQueue<>();
+		expectedLongSideOutput.add(new StreamRecord<>(42L, 17L /* timestamp */));
+		ConcurrentLinkedQueue<StreamRecord<Long>> longSideOutput =
+			testHarness.getSideOutput(SideOutputProcessFunction.LONG_OUTPUT_TAG);
+		TestHarnessUtil.assertOutputEquals(
+			"Side output was not correct.",
+			expectedLongSideOutput,
+			longSideOutput);
+
+		testHarness.close();
+	}
+
+	private static class NullOutputTagEmittingProcessFunction extends ProcessFunction<Integer, String> {
+
+		@Override
+		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+			ctx.output(null, value);
+		}
+	}
+
+	private static class SideOutputProcessFunction extends ProcessFunction<Integer, String> {
+
+		static final OutputTag<Integer> INTEGER_OUTPUT_TAG = new OutputTag<Integer>("int-out") {};
+		static final OutputTag<Long> LONG_OUTPUT_TAG = new OutputTag<Long>("long-out") {};
+
+		@Override
+		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+			out.collect("IN:" + value);
+
+			ctx.output(INTEGER_OUTPUT_TAG, value);
+			ctx.output(LONG_OUTPUT_TAG, value.longValue());
+		}
 	}
 
 	private static class IdentityKeySelector<T> implements KeySelector<T, T> {
