@@ -19,10 +19,12 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc2, _}
+import org.apache.flink.types.Row
 import org.junit.Test
 
 class CorrelateTest extends TableTestBase {
@@ -221,6 +223,38 @@ class CorrelateTest extends TableTestBase {
         term("joinType", "INNER")
       ),
       term("select", "c", "name", "age")
+    )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testRowType(): Unit = {
+    val util = streamTestUtil()
+    val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+    util.addTable[Row]("MyTable", 'a, 'b, 'c)(rowType)
+    val function = new TableFunc4
+    util.addFunction("tableFunc4", function)
+
+    val sqlQuery = "SELECT c, tf.f2 FROM MyTable, LATERAL TABLE(tableFunc4(c)) AS tf"
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamCorrelate",
+        streamTableNode(0),
+        term("invocation", "tableFunc4($cor0.c)"),
+        term("function", function.getClass.getCanonicalName),
+        term("rowType", "RecordType(" +
+          "INTEGER a, " +
+          "BOOLEAN b, " +
+          "COMPOSITE(Row(f0: Integer, f1: Integer, f2: Integer)) c, " +
+          "INTEGER f0, " +
+          "INTEGER f1, " +
+          "INTEGER f2)"),
+        term("joinType", "INNER")
+      ),
+      term("select", "c", "f2")
     )
 
     util.verifySql(sqlQuery, expected)

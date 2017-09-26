@@ -119,6 +119,26 @@ class TableFunc4 extends TableFunction[Row] {
   }
 }
 
+class TableFunc5 extends TableFunction[Row] {
+  def eval(row: Row): Unit = {
+    collect(row)
+  }
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(Types.ROW(Types.INT, Types.INT, Types.INT))
+
+  override def getResultType: TypeInformation[Row] =
+    Types.ROW(Types.INT, Types.INT, Types.INT)
+
+}
+
+class VarArgsFunc0 extends TableFunction[String] {
+  @varargs
+  def eval(str: String*): Unit = {
+    str.foreach(collect)
+  }
+}
+
 class HierarchyTableFunction extends SplittableTableFunction[Boolean, Integer] {
   def eval(user: String) {
     if (user.contains("#")) {
@@ -213,12 +233,5 @@ class RichTableFunc1 extends TableFunction[String] {
 
   override def close(): Unit = {
     separator = None
-  }
-}
-
-class VarArgsFunc0 extends TableFunction[String] {
-  @varargs
-  def eval(str: String*): Unit = {
-    str.foreach(collect)
   }
 }

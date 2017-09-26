@@ -22,7 +22,8 @@ import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.{ScalarFunction, FunctionContext}
+import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
+import org.apache.flink.types.Row
 import org.junit.Assert
 
 import scala.annotation.varargs
@@ -273,4 +274,17 @@ object Func18 extends ScalarFunction {
   def eval(str: String, prefix: String): Boolean = {
     str.startsWith(prefix)
   }
+}
+
+object Func19 extends ScalarFunction {
+  def eval(row: Row): Row = {
+    row
+  }
+
+  override def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] =
+    Array(Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)))
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+
 }
