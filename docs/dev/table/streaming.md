@@ -346,7 +346,7 @@ An event time attribute can be defined either during DataStream-to-Table convers
 
 #### During DataStream-to-Table Conversion
 
-The event time attribute is defined with the `.rowtime` property during schema definition. Timestamps and watermarks must have been assigned in the `DataStream` that is converted.
+The event time attribute is defined with the `.rowtime` property during schema definition. [Timestamps and watermarks]({{ site.baseurl }}/dev/event_time.html) must have been assigned in the `DataStream` that is converted.
 
 There are two ways of defining the time attribute when converting a `DataStream` into a `Table`. Depending on whether the specified `.rowtime` field name exists in the schema of the `DataStream` or not, the timestamp field is either 
 

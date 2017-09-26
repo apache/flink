@@ -49,7 +49,7 @@ class StreamTableSourceTable[T](
 object StreamTableSourceTable {
 
   private def adjustFieldIndexes(tableSource: TableSource[_]): Array[Int] = {
-    val (rowtime, proctime) = getTimeIndicators(tableSource)
+    val (_, proctime) = getTimeIndicators(tableSource)
 
     val original = TableEnvironment.getFieldIndices(tableSource)
 
@@ -62,7 +62,7 @@ object StreamTableSourceTable {
   }
 
   private def adjustFieldNames(tableSource: TableSource[_]): Array[String] = {
-    val (rowtime, proctime) = getTimeIndicators(tableSource)
+    val (_, proctime) = getTimeIndicators(tableSource)
 
     val original = TableEnvironment.getFieldNames(tableSource)
 

@@ -52,7 +52,7 @@ class FlinkLogicalTableSourceScan(
     tableSource match {
       case s: StreamTableSource[_] =>
         StreamTableSourceTable.deriveRowTypeOfTableSource(s, flinkTypeFactory)
-      case b: BatchTableSource[_] =>
+      case _: BatchTableSource[_] =>
         val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
         val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
         flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes)

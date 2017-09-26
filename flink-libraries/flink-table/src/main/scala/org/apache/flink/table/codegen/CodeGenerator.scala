@@ -269,7 +269,8 @@ abstract class CodeGenerator(
         // Change output type to rowtime indicator
         if (FlinkTypeFactory.isRowtimeIndicatorType(outType) &&
           (inputAccess.resultType == Types.LONG || inputAccess.resultType == Types.SQL_TIMESTAMP)) {
-          // Hard cast possible because LONG, TIMESTAMP, and ROW_TIMEINDICATOR are internally
+          // This case is required for TableSources that implement DefinedRowtimeAttribute.
+          // Hard cast possible because LONG, TIMESTAMP, and ROWTIME_INDICATOR are internally
           // represented as Long.
           GeneratedExpression(
             inputAccess.resultTerm,
