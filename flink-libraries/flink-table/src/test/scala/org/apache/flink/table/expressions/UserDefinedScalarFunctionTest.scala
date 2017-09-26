@@ -119,16 +119,6 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   }
 
   @Test
-  def testDoubleQuoteParameters(): Unit = {
-    val hello = "\"<hello>\""
-    testAllApis(
-      Func3(42, hello),
-      s"Func3(42, '$hello')",
-      s"Func3(42, '$hello')",
-      s"42 and $hello")
-  }
-
-  @Test
   def testResults(): Unit = {
     testAllApis(
       Func4(),
