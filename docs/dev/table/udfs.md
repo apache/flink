@@ -235,8 +235,7 @@ public class CustomTypeSplit extends TableFunction<Row> {
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return new RowTypeInfo(new TypeInformation[]{
-               			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO});
+        return Types.ROW(Types.STRING(), Types.INT());
     }
 }
 {% endhighlight %}
@@ -255,8 +254,7 @@ class CustomTypeSplit extends TableFunction[Row] {
   }
 
   override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Seq(BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.INT_TYPE_INFO))
+    Types.ROW(Types.STRING, Types.INT)
   }
 }
 {% endhighlight %}
@@ -526,7 +524,7 @@ public static class WeightedAvgAccum {
 /**
  * Weighted Average user-defined aggregate function.
  */
-public static class WeightedAvg extends AggregateFunction<long, WeightedAvgAccum> {
+public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum> {
 
     @Override
     public WeightedAvgAccum createAccumulator() {
@@ -534,7 +532,7 @@ public static class WeightedAvg extends AggregateFunction<long, WeightedAvgAccum
     }
 
     @Override
-    public long getValue(WeightedAvgAccum acc) {
+    public Long getValue(WeightedAvgAccum acc) {
         if (acc.count == 0) {
             return null;
         } else {
@@ -581,8 +579,8 @@ tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GRO
 {% highlight scala %}
 import java.lang.{Long => JLong, Integer => JInteger}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
 
 /**
@@ -635,13 +633,10 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
   }
 
   override def getAccumulatorType: TypeInformation[WeightedAvgAccum] = {
-    new TupleTypeInfo(classOf[WeightedAvgAccum], 
-                      BasicTypeInfo.LONG_TYPE_INFO,
-                      BasicTypeInfo.INT_TYPE_INFO)
+    new TupleTypeInfo(classOf[WeightedAvgAccum], Types.LONG, Types.INT)
   }
 
-  override def getResultType: TypeInformation[JLong] =
-    BasicTypeInfo.LONG_TYPE_INFO
+  override def getResultType: TypeInformation[JLong] = Types.LONG
 }
 
 // register function
