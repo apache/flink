@@ -48,6 +48,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -206,8 +208,10 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
 	}
 
-	protected void shutDown(boolean cleanupHaData) throws FlinkException {
+	protected List<CompletableFuture<Void>> shutDown(boolean cleanupHaData) throws FlinkException {
 		LOG.info("Stopping {}.", getClass().getSimpleName());
+
+		List<CompletableFuture<Void>> terminationFutures = new ArrayList<>();
 
 		Throwable exception = null;
 
@@ -250,6 +254,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 			if (commonRpcService != null) {
 				try {
 					commonRpcService.stopService();
+					terminationFutures.add(commonRpcService.getTerminationFuture());
 				} catch (Throwable t) {
 					exception = ExceptionUtils.firstOrSuppressed(t, exception);
 				}
@@ -261,6 +266,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		if (exception != null) {
 			throw new FlinkException("Could not properly shut down the cluster services.", exception);
 		}
+
+		return terminationFutures;
 	}
 
 	@Override

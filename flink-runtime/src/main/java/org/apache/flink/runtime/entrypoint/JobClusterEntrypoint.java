@@ -37,6 +37,14 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 /**
  * Base class for per-job cluster entry points.
  */
@@ -47,6 +55,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 	private JobManagerServices jobManagerServices;
 
 	private JobManagerRunner jobManagerRunner;
+
+	private ExecutorService shutdownExecutorService;
 
 	public JobClusterEntrypoint(Configuration configuration) {
 		super(configuration);
@@ -87,6 +97,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 		LOG.debug("Starting JobManager.");
 		jobManagerRunner.start();
+
+		shutdownExecutorService = Executors.newSingleThreadExecutor();
 	}
 
 	protected JobManagerRunner createJobManagerRunner(
@@ -149,12 +161,26 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 	private void shutDownAndTerminate(boolean cleanupHaData) {
 		try {
-			shutDown(cleanupHaData);
+			final List<CompletableFuture<Void>> terminationFutures = shutDown(cleanupHaData);
+			shutdownExecutorService.execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						for (CompletableFuture<Void> future : terminationFutures) {
+							future.get(30, TimeUnit.SECONDS);
+						}
+						System.exit(SUCCESS_RETURN_CODE);
+					} catch (InterruptedException | ExecutionException | TimeoutException e) {
+						LOG.error("Could not properly shut down cluster entrypoint.", e);
+						System.exit(RUNTIME_FAILURE_RETURN_CODE);
+					}
+				}
+			});
+
 		} catch (Throwable t) {
 			LOG.error("Could not properly shut down cluster entrypoint.", t);
+			System.exit(RUNTIME_FAILURE_RETURN_CODE);
 		}
-
-		System.exit(SUCCESS_RETURN_CODE);
 	}
 
 	protected abstract ResourceManager<?> createResourceManager(

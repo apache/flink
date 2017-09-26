@@ -313,10 +313,6 @@ public class AkkaRpcService implements RpcService {
 			actorSystem.shutdown();
 			actors.clear();
 		}
-
-		actorSystem.awaitTermination();
-
-		LOG.info("Stopped Akka RPC service.");
 	}
 
 	@Override
