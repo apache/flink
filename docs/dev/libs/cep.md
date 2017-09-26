@@ -1416,7 +1416,7 @@ used to forward your output elements downstream.
 {% highlight java %}
 class MyPatternFlatSelectFunction<IN, OUT> implements PatternFlatSelectFunction<IN, OUT> {
     @Override
-    public void select(Map<String, List<IN>> pattern, Collector<OUT> collector) {
+    public void flatSelect(Map<String, List<IN>> pattern, Collector<OUT> collector) {
         IN startEvent = pattern.get("start").get(0);
         IN endEvent = pattern.get("end").get(0);
 
