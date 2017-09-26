@@ -70,7 +70,7 @@ public abstract class AbstractExecutionGraphRequestHandler extends AbstractJsonR
 					throw new CompletionException(new NotFoundException("Could not find job " + jid + '.'));
 				})
 			.thenComposeAsync(
-				(AccessExecutionGraph executionGraph) -> handleRequest(executionGraph, pathParams));
+				(AccessExecutionGraph executionGraph) -> handleRequest(executionGraph, pathParams), executor);
 	}
 
 	public abstract CompletableFuture<String> handleRequest(AccessExecutionGraph graph, Map<String, String> params);
