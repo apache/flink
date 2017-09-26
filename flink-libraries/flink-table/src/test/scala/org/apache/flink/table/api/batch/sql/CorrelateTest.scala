@@ -209,7 +209,6 @@ class CorrelateTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-
   @Test
   def testScalarFunction(): Unit = {
     val util = batchTestUtil()

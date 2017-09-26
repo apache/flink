@@ -25,7 +25,6 @@ import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
@@ -38,44 +37,45 @@ import org.apache.flink.table.functions.utils.TableSqlFunction._
   */
 class TableSqlFunction(
     name: String,
-    udtf: TableFunction[_],
+    tableFunction: TableFunction[_],
     rowTypeInfo: TypeInformation[_],
     typeFactory: FlinkTypeFactory,
     functionImpl: FlinkTableFunctionImpl[_])
   extends SqlUserDefinedTableFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     ReturnTypes.CURSOR,
-    createOperandTypeInference(name, udtf, typeFactory),
-    createOperandTypeChecker(name, udtf),
+    createOperandTypeInference(name, tableFunction, typeFactory),
+    createOperandTypeChecker(name, tableFunction),
     null,
     functionImpl) {
 
   /**
     * Get the user-defined table function.
     */
-  def getTableFunction = udtf
+  def getTableFunction: TableFunction[_] = tableFunction
 
   /**
     * Get the type information of the table returned by the table function.
     */
-  def getRowTypeInfo = rowTypeInfo
+  def getRowTypeInfo: TypeInformation[_] = rowTypeInfo
 
   /**
     * Get additional mapping information if the returned table type is a POJO
     * (POJO types have no deterministic field order).
     */
-  def getPojoFieldMapping = functionImpl.fieldIndexes
+  def getPojoFieldMapping: Array[Int] = functionImpl.fieldIndexes
 
-  override def isDeterministic: Boolean = udtf.isDeterministic
+  override def isDeterministic: Boolean = tableFunction.isDeterministic
 }
 
 object TableSqlFunction {
 
   private[flink] def createOperandTypeInference(
     name: String,
-    udtf: TableFunction[_],
+    tableFunction: TableFunction[_],
     typeFactory: FlinkTypeFactory)
   : SqlOperandTypeInference = {
+
     /**
       * Operand type inference based on [[TableFunction]] given information.
       */
@@ -87,14 +87,14 @@ object TableSqlFunction {
 
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getEvalMethodSignature(udtf, operandTypeInfo)
+        val foundSignature = getEvalMethodSignature(tableFunction, operandTypeInfo)
           .getOrElse(throw new ValidationException(
             s"Given parameters of function '$name' do not match any signature. \n" +
               s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-              s"Expected: ${signaturesToString(udtf, "eval")}"))
+              s"Expected: ${signaturesToString(tableFunction, "eval")}"))
 
-        val inferredTypes = foundSignature
-          .map(TypeExtractor.getForClass(_))
+        val inferredTypes = tableFunction
+          .getParameterTypes(foundSignature)
           .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
 
         for (i <- operandTypes.indices) {
@@ -113,17 +113,17 @@ object TableSqlFunction {
 
   private[flink] def createOperandTypeChecker(
     name: String,
-    udtf: TableFunction[_])
+    tableFunction: TableFunction[_])
   : SqlOperandTypeChecker = {
 
-    val signatures = getMethodSignatures(udtf, "eval")
+    val signatures = getMethodSignatures(tableFunction, "eval")
 
     /**
       * Operand type checker based on [[TableFunction]] given information.
       */
     new SqlOperandTypeChecker {
       override def getAllowedSignatures(op: SqlOperator, opName: String): String = {
-        s"$opName[${signaturesToString(udtf, "eval")}]"
+        s"$opName[${signaturesToString(tableFunction, "eval")}]"
       }
 
       override def getOperandCountRange: SqlOperandCountRange = {
@@ -147,14 +147,14 @@ object TableSqlFunction {
       : Boolean = {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
-        val foundSignature = getEvalMethodSignature(udtf, operandTypeInfo)
+        val foundSignature = getEvalMethodSignature(tableFunction, operandTypeInfo)
 
         if (foundSignature.isEmpty) {
           if (throwOnFailure) {
             throw new ValidationException(
               s"Given parameters of function '$name' do not match any signature. \n" +
                 s"Actual: ${signatureToString(operandTypeInfo)} \n" +
-                s"Expected: ${signaturesToString(udtf, "eval")}")
+                s"Expected: ${signaturesToString(tableFunction, "eval")}")
           } else {
             false
           }
