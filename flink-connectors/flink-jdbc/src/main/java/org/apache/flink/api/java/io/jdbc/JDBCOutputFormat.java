@@ -20,8 +20,13 @@ package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
+import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.Meter;
 import org.apache.flink.types.Row;
 
+import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +63,11 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 	private int[] typesArray;
 
+	private Meter greaterThanBatchIntervMeter;
+	private Meter flushMeter;
+	private Histogram flushDurationMsHisto;
+	private Histogram flushBatchCountHisto;
+
 	public JDBCOutputFormat() {
 	}
 
@@ -82,6 +92,19 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		} catch (ClassNotFoundException cnfe) {
 			throw new IllegalArgumentException("JDBC driver class not found.", cnfe);
 		}
+		this.greaterThanBatchIntervMeter = getRuntimeContext()
+			.getMetricGroup()
+			.meter("greaterThanBatchInterval", new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
+		this.flushMeter = getRuntimeContext()
+			.getMetricGroup()
+			.meter("flush", new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
+		this.flushDurationMsHisto = getRuntimeContext()
+			.getMetricGroup()
+			.histogram("flushDurationMs", new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
+		this.flushBatchCountHisto = getRuntimeContext()
+			.getMetricGroup()
+			.histogram("flushBatchCount", new DropwizardHistogramWrapper(new com.codahale.metrics.Histogram(new ExponentiallyDecayingReservoir())));
+
 	}
 
 	private void establishConnection() throws SQLException, ClassNotFoundException {
@@ -207,13 +230,18 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		if (batchCount >= batchInterval) {
 			// execute batch
+			greaterThanBatchIntervMeter.markEvent();
 			flush();
 		}
 	}
 
 	void flush() {
 		try {
+			flushMeter.markEvent();
+			flushBatchCountHisto.update(batchCount);
+			long before = System.currentTimeMillis();
 			upload.executeBatch();
+			flushDurationMsHisto.update(System.currentTimeMillis() - before);
 			batchCount = 0;
 		} catch (SQLException e) {
 			throw new RuntimeException("Execution of JDBC statement failed.", e);

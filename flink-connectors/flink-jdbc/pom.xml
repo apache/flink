@@ -59,5 +59,11 @@ under the License.
 			<version>10.10.1.1</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-dropwizard</artifactId>
+			<version>1.4-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 </project>
