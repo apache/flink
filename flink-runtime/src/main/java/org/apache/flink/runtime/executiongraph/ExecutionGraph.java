@@ -1223,7 +1223,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	/**
-	 * Returns the serializable ArchivedExecutionConfig
+	 * Returns the serializable {@link ArchivedExecutionConfig}.
+	 *
 	 * @return ArchivedExecutionConfig which may be null in case of errors
 	 */
 	@Override
