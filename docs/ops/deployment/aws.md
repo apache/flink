@@ -117,14 +117,14 @@ You need to point Flink to a valid Hadoop configuration, which contains the foll
 <!-- Comma separated list of local directories used to buffer
      large results prior to transmitting them to S3. -->
 <property>
-  <name>fs.s3.buffer.dir</name>
+  <name>fs.s3a.buffer.dir</name>
   <value>/tmp</value>
 </property>
 
 </configuration>
 ```
 
-This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3://` scheme.
+This registers `S3AFileSystem` as the default FileSystem for URIs with the `s3a://` scheme.
 
 #### `NativeS3FileSystem`
 
