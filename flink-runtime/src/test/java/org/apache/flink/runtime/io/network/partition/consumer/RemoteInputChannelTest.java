@@ -298,8 +298,15 @@ public class RemoteInputChannelTest {
 		// Recycle exclusive segment
 		inputChannel.recycle(MemorySegmentFactory.getFactory().allocateUnpooledSegment(1024, inputChannel));
 
-		assertEquals("There should have one available buffer after recycle.",
+		assertEquals("There should be one buffer available after recycle.",
 			1, inputChannel.getNumberOfAvailableBuffers());
+		verify(inputChannel, times(1)).notifyCreditAvailable();
+
+		inputChannel.recycle(MemorySegmentFactory.getFactory().allocateUnpooledSegment(1024, inputChannel));
+
+		assertEquals("There should be two buffers available after recycle.",
+			2, inputChannel.getNumberOfAvailableBuffers());
+		// It should be called only once when increased from zero.
 		verify(inputChannel, times(1)).notifyCreditAvailable();
 	}
 

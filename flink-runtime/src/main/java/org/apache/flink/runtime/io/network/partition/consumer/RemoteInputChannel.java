@@ -84,7 +84,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler {
 	/** The current available buffers including both exclusive buffers and requested floating buffers. */
 	private final ArrayDeque<Buffer> availableBuffers = new ArrayDeque<>();
 
-	/** The number of available buffers that have not been unannounced to producer yet. */
+	/** The number of available buffers that have not been announced to the producer yet. */
 	private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
 
 	public RemoteInputChannel(
@@ -119,7 +119,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler {
 	 * after this input channel is created.
 	 */
 	void assignExclusiveSegments(List<MemorySegment> segments) {
-		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have" +
+		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
 			"already been set for this input channel.");
 
 		checkNotNull(segments);
@@ -288,6 +288,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler {
 	@Override
 	public void recycle(MemorySegment segment) {
 		synchronized (availableBuffers) {
+			// Important: the isReleased check should be inside the synchronized block.
+			// that way the segment can also be returned to global pool after added into
+			// the available queue during releasing all resources.
 			if (isReleased.get()) {
 				try {
 					inputGate.returnExclusiveSegments(Arrays.asList(segment));
