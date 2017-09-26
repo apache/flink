@@ -22,13 +22,12 @@ import java.sql.{Date, Timestamp}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.{TableEnvironment, TableException, Types, ValidationException}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{Func1, Func13, Func18, RichFunc2}
-import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase
+import org.apache.flink.table.api.{TableEnvironment, Types, ValidationException}
+import org.apache.flink.table.expressions.utils.{Func1, Func18, RichFunc2}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.runtime.utils._
+import org.apache.flink.table.runtime.utils.{TableProgramsClusterTestBase, _}
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
