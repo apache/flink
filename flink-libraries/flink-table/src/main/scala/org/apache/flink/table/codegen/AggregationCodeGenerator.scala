@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen
 import java.lang.reflect.{Modifier, ParameterizedType}
 import java.lang.{Iterable => JIterable}
 
+import org.apache.calcite.rex.RexLiteral
 import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -41,11 +42,13 @@ import scala.collection.mutable
   * @param config configuration that determines runtime behavior
   * @param nullableInput input(s) can be null.
   * @param input type information about the input of the Function
+  * @param constants constant expressions that act like a second input in the parameter indices.
   */
 class AggregationCodeGenerator(
     config: TableConfig,
     nullableInput: Boolean,
-    input: TypeInformation[_ <: Any])
+    input: TypeInformation[_ <: Any],
+    constants: Option[Seq[RexLiteral]])
   extends CodeGenerator(config, nullableInput, input) {
 
   // set of statements for cleanup dataview that will be added only once
@@ -81,25 +84,26 @@ class AggregationCodeGenerator(
     * @param needRetract a flag to indicate if the aggregate needs the retract method
     * @param needMerge a flag to indicate if the aggregate needs the merge method
     * @param needReset a flag to indicate if the aggregate needs the resetAccumulator method
+    * @param accConfig Data view specification for accumulators
     *
     * @return A GeneratedAggregationsFunction
     */
   def generateAggregations(
-    name: String,
-    physicalInputTypes: Seq[TypeInformation[_]],
-    aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
-    aggFields: Array[Array[Int]],
-    aggMapping: Array[Int],
-    partialResults: Boolean,
-    fwdMapping: Array[Int],
-    mergeMapping: Option[Array[Int]],
-    constantFlags: Option[Array[(Int, Boolean)]],
-    outputArity: Int,
-    needRetract: Boolean,
-    needMerge: Boolean,
-    needReset: Boolean,
-    accConfig: Option[Array[Seq[DataViewSpec[_]]]])
-  : GeneratedAggregationsFunction = {
+      name: String,
+      physicalInputTypes: Seq[TypeInformation[_]],
+      aggregates: Array[AggregateFunction[_ <: Any, _ <: Any]],
+      aggFields: Array[Array[Int]],
+      aggMapping: Array[Int],
+      partialResults: Boolean,
+      fwdMapping: Array[Int],
+      mergeMapping: Option[Array[Int]],
+      constantFlags: Option[Array[(Int, Boolean)]],
+      outputArity: Int,
+      needRetract: Boolean,
+      needMerge: Boolean,
+      needReset: Boolean,
+      accConfig: Option[Array[Seq[DataViewSpec[_]]]])
+    : GeneratedAggregationsFunction = {
 
     // get unique function name
     val funcName = newName(name)
@@ -112,17 +116,41 @@ class AggregationCodeGenerator(
     }
     val accTypes = accTypeClasses.map(_.getCanonicalName)
 
+    // create constants
+    val constantExprs = constants.map(_.map(generateExpression)).getOrElse(Seq())
+    val constantTypes = constantExprs.map(_.resultType)
+    val constantFields = constantExprs.map(addReusableBoxedConstant)
+
     // get parameter lists for aggregation functions
     val parametersCode = aggFields.map { inFields =>
-      val fields = for (f <- inFields) yield
-        s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
+      val fields = inFields.map { f =>
+        // index to constant
+        if (f >= physicalInputTypes.length) {
+          constantFields(f - physicalInputTypes.length)
+        }
+        // index to input field
+        else {
+          s"(${CodeGenUtils.boxedTypeTermForTypeInfo(physicalInputTypes(f))}) input.getField($f)"
+        }
+      }
+
       fields.mkString(", ")
     }
 
     // get method signatures
     val classes = UserDefinedFunctionUtils.typeInfoToClass(physicalInputTypes)
+    val constantClasses = UserDefinedFunctionUtils.typeInfoToClass(constantTypes)
     val methodSignaturesList = aggFields.map { inFields =>
-      inFields.map(classes(_))
+      inFields.map { f =>
+        // index to constant
+        if (f >= physicalInputTypes.length) {
+          constantClasses(f - physicalInputTypes.length)
+        }
+        // index to input field
+        else {
+          classes(f)
+        }
+      }
     }
 
     // initialize and create data views
@@ -219,7 +247,7 @@ class AggregationCodeGenerator(
             val dataViewFieldTerm = createDataViewTerm(i, dataViewField.getName)
             val field =
               s"""
-                 |    transient $dataViewTypeTerm $dataViewFieldTerm = null;
+                 |    final $dataViewTypeTerm $dataViewFieldTerm;
                  |""".stripMargin
             reusableMemberStatements.add(field)
 

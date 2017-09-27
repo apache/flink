@@ -19,11 +19,10 @@
 package org.apache.flink.table.plan.nodes
 
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.{RelFieldCollation, RelNode}
-import org.apache.calcite.rex.RexInputRef
-import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.calcite.rex.{RexInputRef, RexLiteral}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil._
 
 import scala.collection.JavaConverters._
@@ -61,9 +60,11 @@ trait OverAggregate {
   }
 
   private[flink] def aggregationToString(
-    inputType: RelDataType,
-    rowType: RelDataType,
-    namedAggregates: Seq[CalcitePair[AggregateCall, String]]): String = {
+      inputType: RelDataType,
+      constants: Seq[RexLiteral],
+      rowType: RelDataType,
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]])
+    : String = {
 
     val inFields = inputType.getFieldNames.asScala
     val outFields = rowType.getFieldNames.asScala
@@ -71,7 +72,16 @@ trait OverAggregate {
     val aggStrings = namedAggregates.map(_.getKey).map(
       a => s"${a.getAggregation}(${
         if (a.getArgList.size() > 0) {
-          a.getArgList.asScala.map(inFields(_)).mkString(", ")
+          a.getArgList.asScala.map { arg =>
+            // index to constant
+            if (arg >= inputType.getFieldCount) {
+              constants(arg - inputType.getFieldCount)
+            }
+            // index to input field
+            else {
+              inFields(arg)
+            }
+          }.mkString(", ")
         } else {
           "*"
         }
