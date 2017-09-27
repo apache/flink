@@ -98,7 +98,8 @@ class DataSetAggregate(
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputDS.getType)
+      inputDS.getType,
+      None)
 
     val (
       preAgg: Option[DataSetPreAggFunction],

@@ -1670,4 +1670,34 @@ abstract class CodeGenerator(
 
     fieldTerm
   }
+
+  /**
+    * Adds a reusable constant to the member area of the generated [[Function]].
+    *
+    * @param constant constant expression
+    * @return member variable term
+    */
+  def addReusableBoxedConstant(constant: GeneratedExpression): String = {
+    require(constant.literal, "Literal expected")
+
+    val fieldTerm = newName("constant")
+
+    val boxed = generateOutputFieldBoxing(constant)
+    val boxedType = boxedTypeTermForTypeInfo(boxed.resultType)
+
+    val field =
+      s"""
+        |transient $boxedType $fieldTerm;
+        |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val init =
+      s"""
+        |${boxed.code}
+        |$fieldTerm = ${boxed.resultTerm};
+        |""".stripMargin
+    reusableInitStatements.add(init)
+
+    fieldTerm
+  }
 }

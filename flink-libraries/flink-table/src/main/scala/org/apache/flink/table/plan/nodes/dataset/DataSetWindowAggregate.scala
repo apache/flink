@@ -112,7 +112,8 @@ class DataSetWindowAggregate(
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputDS.getType)
+      inputDS.getType,
+      None)
 
     // whether identifiers are matched case-sensitively
     val caseSensitive = tableEnv.getFrameworkConfig.getParserConfig.caseSensitive()
