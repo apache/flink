@@ -160,16 +160,19 @@ public class StatusWatermarkValve {
 
 	private void findAndOutputNewMinWatermarkAcrossAlignedChannels() {
 		long newMinWatermark = Long.MAX_VALUE;
+		boolean hasAlignedChannels = false;
 
 		// determine new overall watermark by considering only watermark-aligned channels across all channels
 		for (InputChannelStatus channelStatus : channelStatuses) {
 			if (channelStatus.isWatermarkAligned) {
+				hasAlignedChannels = true;
 				newMinWatermark = Math.min(channelStatus.watermark, newMinWatermark);
 			}
 		}
 
-		// we acknowledge and output the new overall watermark if it is larger than the last output watermark
-		if (newMinWatermark > lastOutputWatermark) {
+		// we acknowledge and output the new overall watermark if it really is aggregated
+		// from some remaining aligned channel, and is also larger than the last output watermark
+		if (hasAlignedChannels && newMinWatermark > lastOutputWatermark) {
 			lastOutputWatermark = newMinWatermark;
 			outputHandler.handleWatermark(new Watermark(lastOutputWatermark));
 		}
@@ -184,7 +187,7 @@ public class StatusWatermarkValve {
 	 * <ul>
 	 *   <li>the current stream status of the channel is idle
 	 *   <li>the stream status has resumed to be active, but the watermark of the channel hasn't
-	 *   caught up to thelast output watermark from the valve yet.
+	 *   caught up to the last output watermark from the valve yet.
 	 * </ul>
 	 */
 	private static class InputChannelStatus {
