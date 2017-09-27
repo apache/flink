@@ -67,7 +67,9 @@ public class CheckpointMetadataLoadingTest {
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 
 		OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-				new OperatorStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("testHandler", new byte[0])),
+				new OperatorStateHandle(
+				Collections.emptyMap(),
+				new ByteStreamStateHandle("testHandler", new byte[0])),
 				null,
 				null,
 				null);

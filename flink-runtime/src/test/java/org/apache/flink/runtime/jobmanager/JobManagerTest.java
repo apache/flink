@@ -35,7 +35,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
@@ -1537,7 +1536,7 @@ public class JobManagerTest extends TestLogger {
 		 *
 		 * @param environment The environment assigned to this invokable.
 		 */
-		public FailOnSavepointSourceTask(Environment environment, TaskStateSnapshot initialState) {
+		public FailOnSavepointSourceTask(Environment environment) {
 			super(environment);
 		}
 

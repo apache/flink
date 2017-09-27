@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -86,8 +87,7 @@ public class StateBackendITCase extends AbstractTestBase {
 			fail();
 		}
 		catch (JobExecutionException e) {
-			Throwable t = e.getCause();
-			assertTrue("wrong exception", t instanceof SuccessException);
+			assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
 		}
 	}
 
@@ -113,7 +113,7 @@ public class StateBackendITCase extends AbstractTestBase {
 		@Override
 		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
 			String operatorIdentifier, String targetLocation) throws IOException {
-			throw new UnsupportedOperationException();
+			throw new SuccessException();
 		}
 
 		@Override
@@ -133,7 +133,7 @@ public class StateBackendITCase extends AbstractTestBase {
 			Environment env,
 			String operatorIdentifier) throws Exception {
 
-			throw new UnsupportedOperationException();
+			throw new SuccessException();
 		}
 	}
 

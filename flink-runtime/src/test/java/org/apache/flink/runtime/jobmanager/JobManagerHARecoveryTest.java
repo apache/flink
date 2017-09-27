@@ -67,6 +67,7 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -98,7 +99,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -121,8 +121,6 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 import scala.runtime.BoxedUnit;
-
-import javax.annotation.Nullable;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertFalse;
@@ -492,12 +490,28 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 		private static final OneShotLatch LATCH = new OneShotLatch();
 
-		public BlockingInvokable(Environment environment, @Nullable TaskStateSnapshot initialState) {
+		public BlockingInvokable(Environment environment) {
 			super(environment);
 		}
 
 		@Override
 		public void invoke() throws Exception {
+
+			OperatorID operatorID = OperatorID.fromJobVertexID(getEnvironment().getJobVertexId());
+			TaskStateManager taskStateManager = getEnvironment().getTaskStateManager();
+			OperatorSubtaskState subtaskState = taskStateManager.operatorStates(operatorID);
+
+			if(subtaskState != null) {
+				int subtaskIndex = getIndexInSubtaskGroup();
+				if (subtaskIndex < BlockingStatefulInvokable.recoveredStates.length) {
+					OperatorStateHandle operatorStateHandle = subtaskState.getManagedOperatorState().iterator().next();
+					try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
+						BlockingStatefulInvokable.recoveredStates[subtaskIndex] =
+							InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
+					}
+				}
+			}
+
 			LATCH.await();
 		}
 
@@ -512,23 +526,12 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 		private static volatile CountDownLatch completedCheckpointsLatch = new CountDownLatch(1);
 
-		private static volatile long[] recoveredStates = new long[0];
+		static volatile long[] recoveredStates = new long[0];
 
 		private int completedCheckpoints = 0;
 
-		public BlockingStatefulInvokable(Environment environment, @Nullable TaskStateSnapshot initialState) {
-			super(environment, initialState);
-
-			int subtaskIndex = getIndexInSubtaskGroup();
-			if (initialState != null && subtaskIndex < recoveredStates.length) {
-				OperatorStateHandle operatorStateHandle = extractSingletonOperatorState(initialState);
-				try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
-					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
-				}
-				catch (IOException | ClassNotFoundException e) {
-					throw new RuntimeException(e.getMessage(), e);
-				}
-			}
+		public BlockingStatefulInvokable(Environment environment) {
+			super(environment);
 		}
 
 		@Override

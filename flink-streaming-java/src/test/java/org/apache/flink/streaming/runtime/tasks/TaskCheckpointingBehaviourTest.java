@@ -63,6 +63,7 @@ import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -77,8 +78,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -231,11 +230,11 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
 				0,
-				null,
 				mock(MemoryManager.class),
 				mock(IOManager.class),
 				network,
 				mock(BroadcastVariableManager.class),
+				new TestTaskStateManager(),
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				checkpointResponder,
@@ -478,8 +477,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	 */
 	public static final class TestStreamTask extends OneInputStreamTask<Object, Object> {
 
-		public TestStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-			super(env, initialState);
+		public TestStreamTask(Environment env) {
+			super(env);
 		}
 
 		@Override

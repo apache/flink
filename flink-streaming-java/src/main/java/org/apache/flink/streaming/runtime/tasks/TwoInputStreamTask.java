@@ -19,15 +19,12 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
-
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,10 +43,9 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends StreamTask<OUT, TwoInputS
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
 	 * @param env The task environment for this task.
-	 * @param initialState The initial state for this task (null indicates no initial state)
 	 */
-	public TwoInputStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-		super(env, initialState);
+	public TwoInputStreamTask(Environment env) {
+		super(env);
 	}
 
 	@Override

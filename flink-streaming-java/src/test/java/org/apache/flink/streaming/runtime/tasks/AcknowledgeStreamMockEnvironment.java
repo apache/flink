@@ -24,6 +24,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.TaskStateManager;
 
 /**
  * Stream environment that allows to wait for checkpoint acknowledgement.
@@ -39,8 +40,16 @@ public class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
 		ExecutionConfig executionConfig,
 		long memorySize,
 		MockInputSplitProvider inputSplitProvider,
-		int bufferSize) {
-		super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
+		int bufferSize,
+		TaskStateManager taskStateManager) {
+		super(
+			jobConfig,
+			taskConfig,
+			executionConfig,
+			memorySize,
+			inputSplitProvider,
+			bufferSize,
+			taskStateManager);
 	}
 
 	public long getCheckpointId() {

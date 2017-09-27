@@ -47,8 +47,8 @@ import java.util.UUID;
 /**
  * Generic Sink that emits its input elements into an arbitrary backend. This sink is integrated with Flink's checkpointing
  * mechanism and can provide exactly-once guarantees; depending on the storage backend and sink/committer implementation.
- * <p/>
- * Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
+ *
+ * <p>Incoming records are stored within a {@link org.apache.flink.runtime.state.AbstractStateBackend}, and only committed if a
  * checkpoint is completed.
  *
  * @param <IN> Type of the elements emitted by this sink
@@ -204,8 +204,8 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 	}
 
 	@Override
-	public void notifyOfCompletedCheckpoint(long checkpointId) throws Exception {
-		super.notifyOfCompletedCheckpoint(checkpointId);
+	public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		super.notifyCheckpointComplete(checkpointId);
 
 		synchronized (pendingCheckpoints) {
 

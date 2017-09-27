@@ -72,6 +72,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -101,6 +102,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -133,6 +135,7 @@ import static org.mockito.Mockito.when;
 public class TaskExecutorTest extends TestLogger {
 
 	private final Time timeout = Time.milliseconds(10000L);
+	private final File tempDir = new File(System.getProperty("java.io.tmpdir"));
 
 	private TestingRpcService rpc;
 
@@ -216,9 +219,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -321,9 +326,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -438,9 +445,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			heartbeatServices,
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -530,9 +539,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -612,9 +623,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -755,9 +768,11 @@ public class TaskExecutorTest extends TestLogger {
 			mock(TaskManagerLocation.class),
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			networkEnvironment,
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			taskManagerMetricGroup,
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -876,9 +891,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -995,9 +1012,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -1089,9 +1108,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			mock(TaskManagerMetricGroup.class),
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -1264,9 +1285,11 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			networkMock,
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
+
 			taskManagerMetricGroup,
 			mock(BroadcastVariableManager.class),
 			mock(FileCache.class),
@@ -1386,6 +1409,7 @@ public class TaskExecutorTest extends TestLogger {
 			taskManagerLocation,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
+			new TaskExecutorLocalStateStoresManager(),
 			mock(NetworkEnvironment.class),
 			haServicesMock,
 			heartbeatServicesMock,

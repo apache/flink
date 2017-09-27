@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -42,10 +43,12 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -139,21 +142,15 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		final OneShotLatch delayCheckpointLatch = new OneShotLatch();
 		final OneShotLatch ensureCheckpointLatch = new OneShotLatch();
 
-		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
-				testHarness.jobConfig,
-				testHarness.taskConfig,
-				testHarness.memorySize,
-				new MockInputSplitProvider(),
-				testHarness.bufferSize) {
+		CheckpointResponder checkpointResponderMock = new CheckpointResponder() {
 
 			@Override
 			public void acknowledgeCheckpoint(
-					long checkpointId,
-					CheckpointMetrics checkpointMetrics,
-					TaskStateSnapshot checkpointStateHandles) {
-
-				super.acknowledgeCheckpoint(checkpointId, checkpointMetrics);
-
+				JobID jobID,
+				ExecutionAttemptID executionAttemptID,
+				long checkpointId,
+				CheckpointMetrics checkpointMetrics,
+				TaskStateSnapshot subtaskState) {
 				// block on the latch, to verify that triggerCheckpoint returns below,
 				// even though the async checkpoint would not finish
 				try {
@@ -163,7 +160,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 				}
 
 				boolean hasManagedKeyedState = false;
-				for (Map.Entry<OperatorID, OperatorSubtaskState> entry : checkpointStateHandles.getSubtaskStateMappings()) {
+				for (Map.Entry<OperatorID, OperatorSubtaskState> entry : subtaskState.getSubtaskStateMappings()) {
 					OperatorSubtaskState state = entry.getValue();
 					if (state != null) {
 						hasManagedKeyedState |= state.getManagedKeyedState() != null;
@@ -176,7 +173,29 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 				// we now know that the checkpoint went through
 				ensureCheckpointLatch.trigger();
 			}
+
+			@Override
+			public void declineCheckpoint(
+				JobID jobID, ExecutionAttemptID executionAttemptID,
+				long checkpointId, Throwable cause) {
+
+			}
 		};
+
+		JobID jobID = new JobID();
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(0L, 0L);
+		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager(
+			jobID,
+			executionAttemptID,
+			checkpointResponderMock);
+
+		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
+			testHarness.jobConfig,
+			testHarness.taskConfig,
+			testHarness.memorySize,
+			new MockInputSplitProvider(),
+			testHarness.bufferSize,
+			taskStateManagerTestMock);
 
 		testHarness.invoke(mockEnv);
 
@@ -269,12 +288,15 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		streamConfig.setStreamOperator(new AsyncCheckpointOperator());
 		streamConfig.setOperatorID(new OperatorID());
 
+		TestTaskStateManager taskStateManagerTestMock = new TestTaskStateManager();
+
 		StreamMockEnvironment mockEnv = new StreamMockEnvironment(
 				testHarness.jobConfig,
 				testHarness.taskConfig,
 				testHarness.memorySize,
 				new MockInputSplitProvider(),
-				testHarness.bufferSize);
+				testHarness.bufferSize,
+				taskStateManagerTestMock);
 
 		blockerCheckpointStreamFactory.setBlockerLatch(new OneShotLatch());
 		blockerCheckpointStreamFactory.setWaiterLatch(new OneShotLatch());

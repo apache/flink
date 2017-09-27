@@ -63,6 +63,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
@@ -578,6 +579,9 @@ public class AbstractStreamOperatorTest {
 		AbstractStreamOperator<Void> operator = mock(AbstractStreamOperator.class);
 		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
 
+		doCallRealMethod().when(operator).close();
+		doCallRealMethod().when(operator).dispose();
+
 		// The amount of mocking in this test makes it necessary to make the
 		// getCheckpointStreamFactory method visible for the test and to
 		// overwrite its behaviour.
@@ -588,10 +592,21 @@ public class AbstractStreamOperatorTest {
 		RunnableFuture<OperatorStateHandle> futureManagedOperatorStateHandle = mock(RunnableFuture.class);
 
 		OperatorStateBackend operatorStateBackend = mock(OperatorStateBackend.class);
-		when(operatorStateBackend.snapshot(eq(checkpointId), eq(timestamp), eq(streamFactory), any(CheckpointOptions.class))).thenReturn(futureManagedOperatorStateHandle);
+		when(operatorStateBackend.snapshot(
+			eq(checkpointId),
+			eq(timestamp),
+			eq(streamFactory),
+			any(CheckpointOptions.class))).thenReturn(futureManagedOperatorStateHandle);
 
 		AbstractKeyedStateBackend<?> keyedStateBackend = mock(AbstractKeyedStateBackend.class);
-		when(keyedStateBackend.snapshot(eq(checkpointId), eq(timestamp), eq(streamFactory), eq(CheckpointOptions.forCheckpoint()))).thenThrow(failingException);
+		when(keyedStateBackend.snapshot(
+			eq(checkpointId),
+			eq(timestamp),
+			eq(streamFactory),
+			eq(CheckpointOptions.forCheckpoint()))).thenThrow(failingException);
+
+		closeableRegistry.registerCloseable(operatorStateBackend);
+		closeableRegistry.registerCloseable(keyedStateBackend);
 
 		Whitebox.setInternalState(operator, "operatorStateBackend", operatorStateBackend);
 		Whitebox.setInternalState(operator, "keyedStateBackend", keyedStateBackend);
@@ -612,6 +627,15 @@ public class AbstractStreamOperatorTest {
 		verify(futureKeyedStateHandle).cancel(anyBoolean());
 		verify(futureOperatorStateHandle).cancel(anyBoolean());
 		verify(futureKeyedStateHandle).cancel(anyBoolean());
+
+		operator.close();
+
+		operator.dispose();
+
+		verify(operatorStateBackend).close();
+		verify(keyedStateBackend).close();
+		verify(operatorStateBackend).dispose();
+		verify(keyedStateBackend).dispose();
 	}
 
 	/**

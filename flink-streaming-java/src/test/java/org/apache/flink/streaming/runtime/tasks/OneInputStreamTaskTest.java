@@ -27,15 +27,16 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -496,19 +497,15 @@ public class OneInputStreamTaskTest extends TestLogger {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 
 		configureChainedTestingStreamOperator(streamConfig, numberChainedTasks);
+		TestTaskStateManager taskStateManager = testHarness.taskStateManager;
+		OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
 
-		AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
-			testHarness.jobConfig,
-			testHarness.taskConfig,
-			testHarness.executionConfig,
-			testHarness.memorySize,
-			new MockInputSplitProvider(),
-			testHarness.bufferSize);
+		taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
 
 		// reset number of restore calls
 		TestingStreamOperator.numberRestoreCalls = 0;
 
-		testHarness.invoke(env);
+		testHarness.invoke();
 		testHarness.waitForTaskRunning(deadline.timeLeft().toMillis());
 
 		final OneInputStreamTask<String, String> streamTask = testHarness.getTask();
@@ -520,9 +517,9 @@ public class OneInputStreamTaskTest extends TestLogger {
 		// since no state was set, there shouldn't be restore calls
 		assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
-		env.getCheckpointLatch().await();
+		waitForAcknowledgeLatch.await();
 
-		assertEquals(checkpointId, env.getCheckpointId());
+		assertEquals(checkpointId, taskStateManager.getReportedCheckpointId());
 
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
@@ -533,16 +530,21 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 		restoredTaskHarness.configureForKeyedStream(keySelector, BasicTypeInfo.STRING_TYPE_INFO);
 
+		restoredTaskHarness.setTaskStateSnapshot(checkpointId, taskStateManager.getLastTaskStateSnapshot());
+
 		StreamConfig restoredTaskStreamConfig = restoredTaskHarness.getStreamConfig();
 
 		configureChainedTestingStreamOperator(restoredTaskStreamConfig, numberChainedTasks);
 
-		TaskStateSnapshot stateHandles = env.getCheckpointStateHandles();
+		TaskStateSnapshot stateHandles = taskStateManager.getLastTaskStateSnapshot();
 		Assert.assertEquals(numberChainedTasks, stateHandles.getSubtaskStateMappings().size());
 
 		TestingStreamOperator.numberRestoreCalls = 0;
 
-		restoredTaskHarness.invoke(stateHandles);
+		// transfer state to new harness
+		restoredTaskHarness.taskStateManager.restoreLatestCheckpointState(
+			taskStateManager.getTaskStateSnapshotsByCheckpointId());
+		restoredTaskHarness.invoke();
 		restoredTaskHarness.endInput();
 		restoredTaskHarness.waitForTaskCompletion(deadline.timeLeft().toMillis());
 
@@ -679,28 +681,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public static int numberSnapshotCalls = 0;
 
 		@Override
-		public void open() throws Exception {
-			super.open();
-
-			ListState<Integer> partitionableState = getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
-
-			if (numberSnapshotCalls == 0) {
-				for (Integer v : partitionableState.get()) {
-					fail();
-				}
-			} else {
-				Set<Integer> result = new HashSet<>();
-				for (Integer v : partitionableState.get()) {
-					result.add(v);
-				}
-
-				assertEquals(2, result.size());
-				assertTrue(result.contains(42));
-				assertTrue(result.contains(4711));
-			}
-		}
-
-		@Override
 		public void snapshotState(StateSnapshotContext context) throws Exception {
 			ListState<Integer> partitionableState =
 				getOperatorStateBackend().getListState(TEST_DESCRIPTOR);
@@ -716,6 +696,23 @@ public class OneInputStreamTaskTest extends TestLogger {
 		public void initializeState(StateInitializationContext context) throws Exception {
 			if (context.isRestored()) {
 				++numberRestoreCalls;
+			}
+
+			ListState<Integer> partitionableState = context.getOperatorStateStore().getListState(TEST_DESCRIPTOR);
+
+			if (numberSnapshotCalls == 0) {
+				for (Integer v : partitionableState.get()) {
+					fail();
+				}
+			} else {
+				Set<Integer> result = new HashSet<>();
+				for (Integer v : partitionableState.get()) {
+					result.add(v);
+				}
+
+				assertEquals(2, result.size());
+				assertTrue(result.contains(42));
+				assertTrue(result.contains(4711));
 			}
 		}
 

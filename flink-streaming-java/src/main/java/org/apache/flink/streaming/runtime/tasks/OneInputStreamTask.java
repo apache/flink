@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -44,10 +43,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
 	 * @param env The task environment for this task.
-	 * @param initialState The initial state for this task (null indicates no initial state)
 	 */
-	public OneInputStreamTask(Environment env, @Nullable TaskStateSnapshot initialState) {
-		super(env, initialState);
+	public OneInputStreamTask(Environment env) {
+		super(env);
 	}
 
 	/**
@@ -58,15 +56,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	 * will be used.
 	 *
 	 * @param env The task environment for this task.
-	 * @param initialState The initial state for this task (null indicates no initial state)
 	 * @param timeProvider Optionally, a specific time provider to use.
 	 */
 	@VisibleForTesting
 	public OneInputStreamTask(
 			Environment env,
-			@Nullable TaskStateSnapshot initialState,
 			@Nullable ProcessingTimeService timeProvider) {
-		super(env, initialState, timeProvider);
+		super(env, timeProvider);
 	}
 
 	@Override

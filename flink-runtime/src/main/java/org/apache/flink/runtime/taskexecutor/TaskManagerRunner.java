@@ -285,6 +285,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getTaskManagerLocation(),
 			taskManagerServices.getMemoryManager(),
 			taskManagerServices.getIOManager(),
+			taskManagerServices.getTaskStateManager(),
 			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
 			heartbeatServices,

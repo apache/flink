@@ -151,6 +151,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private volatile Throwable failureCause;          // once assigned, never changes
 
 	/** Information to restore the task on recovery, such as checkpoint id and task state snapshot */
+	@Nullable
 	private volatile JobManagerTaskRestore taskRestore;
 
 	// ------------------------ Accumulators & Metrics ------------------------
@@ -316,6 +317,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return state.isTerminal();
 	}
 
+	@Nullable
 	public JobManagerTaskRestore getTaskRestore() {
 		return taskRestore;
 	}
@@ -326,7 +328,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param taskRestore information to restore the state
 	 */
-	public void setInitialState(JobManagerTaskRestore taskRestore) {
+	public void setInitialState(@Nullable JobManagerTaskRestore taskRestore) {
 		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
 		this.taskRestore = taskRestore;
 	}
