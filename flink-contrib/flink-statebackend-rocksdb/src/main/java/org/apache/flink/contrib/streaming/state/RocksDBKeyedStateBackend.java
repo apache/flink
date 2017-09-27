@@ -259,25 +259,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N> Stream<K> getKeys(String field, N namespace) {
-		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(field);
+	public <N> Stream<K> getKeys(String state, N namespace) {
+		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
 		if (columnInfo == null) {
 			return Stream.empty();
 		}
 
-		ReadOptions readOptions = new ReadOptions();
-		Snapshot snapshot = db.getSnapshot();
-		readOptions.setSnapshot(snapshot);
-		RocksIterator iterator = db.newIterator(columnInfo.f0, readOptions);
+		RocksIterator iterator = db.newIterator(columnInfo.f0);
 		iterator.seekToFirst();
 
-		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, field, keySerializer, keyGroupPrefixBytes);
+		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes);
 		Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
-		return targetStream.onClose(() -> {
-			iterator.close();
-			snapshot.close();
-			readOptions.close();
-		});
+		return targetStream.onClose(iterator::close);
 	}
 
 	/**
@@ -1977,17 +1970,17 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private static class RocksIteratorWrapper<K> implements Iterator<K> {
 		private final RocksIterator iterator;
-		private final String field;
+		private final String state;
 		private final TypeSerializer<K> keySerializer;
 		private final int keyGroupPrefixBytes;
 
 		public RocksIteratorWrapper(
 				RocksIterator iterator,
-				String field,
+				String state,
 				TypeSerializer<K> keySerializer,
 				int keyGroupPrefixBytes) {
 			this.iterator = Preconditions.checkNotNull(iterator);
-			this.field = Preconditions.checkNotNull(field);
+			this.state = Preconditions.checkNotNull(state);
 			this.keySerializer = Preconditions.checkNotNull(keySerializer);
 			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
 		}
@@ -2000,7 +1993,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		@Override
 		public K next() {
 			if (!hasNext()) {
-				throw new NoSuchElementException("Failed to access field [" + field + "]");
+				throw new NoSuchElementException("Failed to access state [" + state + "]");
 			}
 			try {
 				byte[] key = iterator.key();
@@ -2010,7 +2003,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				iterator.next();
 				return value;
 			} catch (IOException e) {
-				throw new FlinkRuntimeException("Failed to access field [" + field + "]", e);
+				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
 			}
 		}
 	}

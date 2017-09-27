@@ -214,11 +214,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	@Override
-	public <N> Stream<K> getKeys(String field, N namespace) {
-		if (!stateTables.containsKey(field)) {
+	public <N> Stream<K> getKeys(String state, N namespace) {
+		if (!stateTables.containsKey(state)) {
 			return Stream.empty();
 		}
-		StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateTables.get(field);
+		StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateTables.get(state);
 		return table.getKeys(namespace);
 	}
 

@@ -39,10 +39,12 @@ public interface KeyedStateBackend<K> extends InternalKeyContext<K> {
 	void setCurrentKey(K newKey);
 
 	/**
-	 * @return Stream of existing keys in the namespace.
-	 * @param field
+	 * @return A stream of all keys for the given state and namespace. Modifications to the state during iterating
+	 * 		   over it keys are not supported.
+	 * @param state State variable for which existing keys will be returned.
+	 * @param namespace Namespace for which existing keys will be returned.
 	 */
-	<N> Stream<K> getKeys(String field, N namespace);
+	<N> Stream<K> getKeys(String state, N namespace);
 
 	/**
 	 * Creates or retrieves a keyed state backed by this state backend.

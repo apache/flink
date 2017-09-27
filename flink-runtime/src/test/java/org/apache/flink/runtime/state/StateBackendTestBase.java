@@ -60,12 +60,13 @@ import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -93,7 +94,6 @@ import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -194,33 +194,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 	@Test
 	public void testGetKeys() throws Exception {
-		String fieldName = "get-keys-test";
-		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-		try {
-			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
-				VoidNamespaceSerializer.INSTANCE,
-				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
-			((InternalValueState<VoidNamespace, Integer>) keyedState).setCurrentNamespace(VoidNamespace.INSTANCE);
-
-			int[] expectedKeys = {0, 42, 44, 1337};
-			for (int key : expectedKeys) {
-				backend.setCurrentKey(key);
-				keyedState.update(key * 2);
-			}
-
-			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
-				int[] actualKeys = keysStream.mapToInt(value -> value.intValue()).toArray();
-				assertArrayEquals(expectedKeys, actualKeys);
-			}
-		}
-		finally {
-			org.apache.commons.io.IOUtils.closeQuietly(backend);
-			backend.dispose();
-		}
-	}
-
-	@Test
-	public void testGetKeysWhileModifying() throws Exception {
 		final int elementsToTest = 1000;
 		String fieldName = "get-keys-while-modifying-test";
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
@@ -241,9 +214,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				for (int expectedKey = 0; expectedKey < elementsToTest; expectedKey++) {
 					assertTrue(actualIterator.hasNext());
 					assertEquals(expectedKey, actualIterator.nextInt());
-
-					backend.setCurrentKey(expectedKey + elementsToTest);
-					keyedState.update((expectedKey + elementsToTest) * 2);
 				}
 
 				assertFalse(actualIterator.hasNext());
