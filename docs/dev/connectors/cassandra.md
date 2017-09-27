@@ -64,7 +64,7 @@ The following configuration methods can be used:
 1. _setQuery(String query)_
     * sets the upsert query that is executed for every record the sink receives.
     * internally treated as CQL prepared statement, in which parameters could be shared or anonymous.
-    * __DO__ set the upsert query for processing __Java Tuple__ data type
+    * __DO__ set the upsert query for processing __Tuple__ data type
     * __DO NOT__ set the query for processing __POJO__ data type.
 2. _setClusterBuilder()_
     * sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
@@ -99,30 +99,13 @@ Note that that enabling this feature will have an adverse impact on latency.
 ### Checkpointing and Fault Tolerance
 With checkpointing enabled, Cassandra Sink guarantees at-least-once delivery of action requests to C* instance.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>:However, current Cassandra Sink implementation does not flush the pending mutations  before the checkpoint was triggered. Thus, some in-flight mutations might not be replayed when the job recovered. </p>
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: However, current Cassandra Sink implementation does not flush the pending mutations before the checkpoint was triggered. Thus, some in-flight mutations might not be replayed when the job recovered. </p>
 
 More details on [checkpoints docs]({{ site.baseurl }}/dev/stream/state/checkpointing.html) and [fault tolerance guarantee docs]({{ site.baseurl }}/dev/connectors/guarantees.html)
 
-To enable fault tolerant guarantee, checkpointing of the topology needs to be enabled at the execution environment:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.enableCheckpointing(5000); // checkpoint every 5000 msecs
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.enableCheckpointing(5000) // checkpoint every 5000 msecs
-{% endhighlight %}
-</div>
-</div>
-
 ## Examples
 
-The Cassandra sinks currently support both Java Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use case of those streaming data type, please refer to [Supported Data Types]({{ site.baseurl }}/dev/api_concepts.html). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for Pojo and Java Tuple data types respectively.
+The Cassandra sinks currently support both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use case of those streaming data type, please refer to [Supported Data Types]({{ site.baseurl }}/dev/api_concepts.html). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for Pojo and Tuple data types respectively.
 
 In all these examples, we assumed the associated Keyspace `example` and Table `wordcount` have been created.
 
@@ -140,12 +123,10 @@ CREATE TABLE IF NOT EXISTS example.wordcount (
 </div>
 </div>
 
-### Cassandra Sink Example for Streaming Java Tuple Data Type
-While storing the result with Java Tuple data type to a Cassandra sink, it is required to set a CQL upsert statement (via setQuery('stmt')) to persist each record back to database. With the upsert query cached as `PreparedStatement`, Cassandra connector internally converts each Tuple elements as parameters to the statement.
+### Cassandra Sink Example for Streaming Tuple Data Type
+While storing the result with Java/Scala Tuple data type to a Cassandra sink, it is required to set a CQL upsert statement (via setQuery('stmt')) to persist each record back to database. With the upsert query cached as `PreparedStatement`, Cassandra connector internally converts each Tuple elements as parameters to the statement.
 
 For details about `PreparedStatement` and `BoundStatement`, please visit [DataStax Java Driver manual](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)
-
-Please note that if the upsert query were not set, an `IllegalArgumentException` would be thrown with the following error message `Query must not be null or empty.`
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -158,12 +139,11 @@ DataStream<String> text = env.socketTextStream(hostname, port, "\n");
 
 // parse the data, group it, window it, and aggregate the counts
 DataStream<Tuple2<String, Long>> result = text
-
         .flatMap(new FlatMapFunction<String, Tuple2<String, Long>>() {
             @Override
             public void flatMap(String value, Collector<Tuple2<String, Long>> out) {
                 // normalize and split the line
-                String[] words = value.toLowerCase().split("\\W+");
+                String[] words = value.toLowerCase().split("\\s");
 
                 // emit the pairs
                 for (String word : words) {
@@ -174,7 +154,6 @@ DataStream<Tuple2<String, Long>> result = text
                 }
             }
         })
-
         .keyBy(0)
         .timeWindow(Time.seconds(5))
         .sum(1)
@@ -189,26 +168,38 @@ CassandraSink.addSink(result)
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-CassandraSink.addSink(input.javaStream)
-    .setQuery("INSERT INTO test.wordcount(word, count) values (?, ?);")
-    .setClusterBuilder(new ClusterBuilder() {
-        @Override
-        def buildCluster(builder: Cluster.Builder): Cluster = {
-            builder.addContactPoint("127.0.0.1").build()
-        }
-    })
-    .build()
+val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+
+// get input data by connecting to the socket
+val text: DataStream[String] = env.socketTextStream(hostname, port, '\n')
+
+// parse the data, group it, window it, and aggregate the counts
+val result: DataStream[(String, Long)] = text
+  // split up the lines in pairs (2-tuples) containing: (word,1)
+  .flatMap(_.toLowerCase.split("\\s"))
+  .filter(_.nonEmpty)
+  .map((_, 1L))
+  // group by the tuple field "0" and sum up tuple field "1"
+  .keyBy(0)
+  .timeWindow(Time.seconds(5))
+  .sum(1)
+
+CassandraSink.addSink(result)
+  .setQuery("INSERT INTO example.wordcount(word, count) values (?, ?);")
+  .setHost("127.0.0.1")
+  .build()
+
+result.print().setParallelism(1)
 {% endhighlight %}
 </div>
+
 </div>
 
 
 ### Cassandra Sink Example for Streaming POJO Data Type
 An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as Cassandra connector internally maps each field of this entity to an associated column of the desginated Table using `com.datastax.driver.mapping.Mapper` class of DataStax Java Driver.
 
-Please note that if the upsert query was set, an `IllegalArgumentException` would be thrown with the following error message `Specifying a query is not allowed when using a Pojo-Stream as input.`
-
-For each CQL defined data type for columns, please refer to [CQL Documentation](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
+The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -221,11 +212,13 @@ DataStream<String> text = env.socketTextStream(hostname, port, "\n");
 
 // parse the data, group it, window it, and aggregate the counts
 DataStream<WordCount> result = text
-
         .flatMap(new FlatMapFunction<String, WordCount>() {
-            @Override
             public void flatMap(String value, Collector<WordCount> out) {
-                for (String word : value.split("\\s")) {
+                // normalize and split the line
+                String[] words = value.toLowerCase().split("\\s");
+
+                // emit the pairs
+                for (String word : words) {
                     if (!word.isEmpty()) {
                         //Do not accept empty word, since word is defined as primary key in C* table
                         out.collect(new WordCount(word, 1L));
@@ -233,7 +226,6 @@ DataStream<WordCount> result = text
                 }
             }
         })
-
         .keyBy("word")
         .timeWindow(Time.seconds(5))
 
@@ -288,4 +280,5 @@ public class WordCount {
 }
 {% endhighlight %}
 </div>
+
 </div>
