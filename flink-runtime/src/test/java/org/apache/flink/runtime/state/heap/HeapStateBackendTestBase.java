@@ -50,7 +50,7 @@ public abstract class HeapStateBackendTestBase {
 		return new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			keySerializer,
-			HeapReducingStateTest.class.getClassLoader(),
+			HeapStateBackendTestBase.class.getClassLoader(),
 			16,
 			new KeyGroupRange(0, 15),
 			async,
