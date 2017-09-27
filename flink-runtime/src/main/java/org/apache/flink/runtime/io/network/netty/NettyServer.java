@@ -124,8 +124,18 @@ class NettyServer {
 		}
 
 		// Low and high water marks for flow control
-		bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 2 * config.getMemorySegmentSize());
-		bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, config.getMemorySegmentSize() + 1);
+		// hack around the impossibility (in the current netty version) to set both watermarks at
+		// the same time:
+		final int defaultHighWaterMark = 64 * 1024; // from DefaultChannelConfig (not exposed)
+		final int newLowWaterMark = config.getMemorySegmentSize() + 1;
+		final int newHighWaterMark = 2 * config.getMemorySegmentSize();
+		if (newLowWaterMark > defaultHighWaterMark) {
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, newHighWaterMark);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, newLowWaterMark);
+		} else { // including (newHighWaterMark < defaultLowWaterMark)
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, newLowWaterMark);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, newHighWaterMark);
+		}
 
 		// SSL related configuration
 		try {
