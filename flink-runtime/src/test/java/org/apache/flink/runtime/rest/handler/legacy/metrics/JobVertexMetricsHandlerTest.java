@@ -65,9 +65,9 @@ public class JobVertexMetricsHandlerTest extends TestLogger {
 
 		Map<String, String> metrics = handler.getMapFor(pathParams, store);
 
-		assertEquals("3", metrics.get("8.abc.metric4"));
-
-		assertEquals("4", metrics.get("8.opname.abc.metric5"));
+		assertEquals("4", metrics.get("8.abc.metric5"));
+		assertEquals("5", metrics.get("8.opname.abc.metric6"));
+		assertEquals("6", metrics.get("8.opname.abc.metric7"));
 	}
 
 	@Test
