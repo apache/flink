@@ -364,7 +364,7 @@ class TableSourceTest extends TableTestBase {
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
       .quoteCharacter('"')
-      .fieldDelimiter(",")
+      .fieldDelimiter(',')
       .lineDelimiter("\n")
       .commentPrefix("#")
       .ignoreFirstLine()
@@ -375,7 +375,7 @@ class TableSourceTest extends TableTestBase {
       "/path/to/csv",
       Array("myfield", "myfield2"),
       Array(Types.STRING, Types.INT),
-      ",",
+      ',',
       "\n",
       '"',
       true,

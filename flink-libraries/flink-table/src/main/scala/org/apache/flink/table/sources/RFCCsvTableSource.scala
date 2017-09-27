@@ -48,8 +48,8 @@ class RFCCsvTableSource(
     private val path: String,
     private val fieldNames: Array[String],
     private val fieldTypes: Array[TypeInformation[_]],
-    private val fieldDelim: String = RFCCsvInputFormat.DEFAULT_FIELD_DELIMITER,
-    private val rowDelim: String = RFCCsvInputFormat.DEFAULT_LINE_DELIMITER,
+    private val fieldDelim: Char = RFCCsvInputFormat.DEFAULT_FIELD_DELIMITER,
+    private val rowDelim: String = RFCCsvInputFormat.DEFAULT_RECORD_DELIMITER,
     private val quoteCharacter: Character = null,
     private val ignoreFirstLine: Boolean = false,
     private val ignoreComments: String = null,
@@ -68,7 +68,7 @@ class RFCCsvTableSource(
     */
   def this(path: String, fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]) =
     this(path, fieldNames, fieldTypes, RFCCsvInputFormat.DEFAULT_FIELD_DELIMITER,
-      RFCCsvInputFormat.DEFAULT_LINE_DELIMITER, null, false, null, false)
+      RFCCsvInputFormat.DEFAULT_RECORD_DELIMITER, null, false, null, false)
 
   if (fieldNames.length != fieldTypes.length) {
     throw TableException("Number of field names and field types must be equal.")
@@ -128,13 +128,13 @@ class RFCCsvTableSource(
       fieldDelim,
       selectedFields)
 
-    inputFormat.setSkipFirstLineAsHeader(ignoreFirstLine)
-    inputFormat.setLenient(lenient)
+    inputFormat.enableSkipFirstLine(ignoreFirstLine)
+    inputFormat.enableLenientParsing(lenient)
     if (quoteCharacter != null) {
       inputFormat.enableQuotedStringParsing(quoteCharacter)
     }
     if (ignoreComments != null) {
-      inputFormat.setCommentPrefix(ignoreComments)
+      inputFormat.enableSkipComment(true)
     }
 
     inputFormat
@@ -179,8 +179,8 @@ object RFCCsvTableSource {
       mutable.LinkedHashMap[String, TypeInformation[_]]()
     private var quoteCharacter: Character = _
     private var path: String = _
-    private var fieldDelim: String = RFCCsvInputFormat.DEFAULT_FIELD_DELIMITER
-    private var lineDelim: String = RFCCsvInputFormat.DEFAULT_LINE_DELIMITER
+    private var fieldDelim: Char = RFCCsvInputFormat.DEFAULT_FIELD_DELIMITER
+    private var lineDelim: String = RFCCsvInputFormat.DEFAULT_RECORD_DELIMITER
     private var isIgnoreFirstLine: Boolean = false
     private var commentPrefix: String = _
     private var lenient: Boolean = false
@@ -200,7 +200,7 @@ object RFCCsvTableSource {
       *
       * @param delim the field delimiter
       */
-    def fieldDelimiter(delim: String): Builder = {
+    def fieldDelimiter(delim: Char): Builder = {
       this.fieldDelim = delim
       this
     }

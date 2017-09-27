@@ -18,36 +18,38 @@
 
 package org.apache.flink.table.runtime.batch.io;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.core.fs.Path;
 
 /**
- * Input format that reads csv into tuples.
- * Compliant with RFC 4180 standards.
+ * Input format to reads CSV files into Tuples.
+ * @param <T> type of Tuple
  */
-@Internal
-public class RFCTupleCsvInputFormat<OUT> extends RFCCsvInputFormat<OUT> {
+public class RFCTupleCsvInputFormat<T extends Tuple> extends RFCCsvInputFormat<T> implements ResultTypeQueryable<T> {
 
 	private static final long serialVersionUID = 1L;
 
-	private TupleSerializerBase<OUT> tupleSerializer;
+	private TypeInformation<T> tupleTypeInfo;
+	private TupleSerializerBase<T> tupleSerializer;
 
-	public RFCTupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo);
+	public RFCTupleCsvInputFormat(Path filePath, TupleTypeInfoBase<T> tupleTypeInfo) {
+		this(filePath, DEFAULT_RECORD_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo);
 	}
 
-	public RFCTupleCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TupleTypeInfoBase<OUT> tupleTypeInfo) {
+	public RFCTupleCsvInputFormat(Path filePath, String lineDelimiter, char fieldDelimiter, TupleTypeInfoBase<T> tupleTypeInfo) {
 		this(filePath, lineDelimiter, fieldDelimiter, tupleTypeInfo, createDefaultMask(tupleTypeInfo.getArity()));
 	}
 
-	public RFCTupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, int[] includedFieldsMask) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo, includedFieldsMask);
+	public RFCTupleCsvInputFormat(Path filePath, TupleTypeInfoBase<T> tupleTypeInfo, int[] includedFieldsMask) {
+		this(filePath, DEFAULT_RECORD_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo, includedFieldsMask);
 	}
 
-	public RFCTupleCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TupleTypeInfoBase<OUT> tupleTypeInfo, int[] includedFieldsMask) {
+	public RFCTupleCsvInputFormat(Path filePath, String lineDelimiter, char fieldDelimiter, TupleTypeInfoBase<T> tupleTypeInfo, int[] includedFieldsMask) {
 		super(filePath);
 		boolean[] mask = (includedFieldsMask == null)
 				? createDefaultMask(tupleTypeInfo.getArity())
@@ -55,17 +57,17 @@ public class RFCTupleCsvInputFormat<OUT> extends RFCCsvInputFormat<OUT> {
 		configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, mask);
 	}
 
-	public RFCTupleCsvInputFormat(Path filePath, TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
-		this(filePath, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo, includedFieldsMask);
+	public RFCTupleCsvInputFormat(Path filePath, TupleTypeInfoBase<T> tupleTypeInfo, boolean[] includedFieldsMask) {
+		this(filePath, DEFAULT_RECORD_DELIMITER, DEFAULT_FIELD_DELIMITER, tupleTypeInfo, includedFieldsMask);
 	}
 
-	public RFCTupleCsvInputFormat(Path filePath, String lineDelimiter, String fieldDelimiter, TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
+	public RFCTupleCsvInputFormat(Path filePath, String lineDelimiter, char fieldDelimiter, TupleTypeInfoBase<T> tupleTypeInfo, boolean[] includedFieldsMask) {
 		super(filePath);
 		configure(lineDelimiter, fieldDelimiter, tupleTypeInfo, includedFieldsMask);
 	}
 
-	private void configure(String lineDelimiter, String fieldDelimiter,
-			TupleTypeInfoBase<OUT> tupleTypeInfo, boolean[] includedFieldsMask) {
+	private void configure(String lineDelimiter, char fieldDelimiter,
+			TupleTypeInfoBase<T> tupleTypeInfo, boolean[] includedFieldsMask) {
 
 		if (tupleTypeInfo.getArity() == 0) {
 			throw new IllegalArgumentException("Tuple size must be greater than 0.");
@@ -75,22 +77,27 @@ public class RFCTupleCsvInputFormat<OUT> extends RFCCsvInputFormat<OUT> {
 			includedFieldsMask = createDefaultMask(tupleTypeInfo.getArity());
 		}
 
-		tupleSerializer = (TupleSerializerBase<OUT>) tupleTypeInfo.createSerializer(new ExecutionConfig());
+		tupleSerializer = (TupleSerializerBase<T>) tupleTypeInfo.createSerializer(new ExecutionConfig());
 
-		setDelimiter(lineDelimiter);
+		setRecordDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
 
-		Class<?>[] classes = new Class<?>[tupleTypeInfo.getArity()];
+		TypeInformation[] classes = new TypeInformation[tupleTypeInfo.getArity()];
 
 		for (int i = 0; i < tupleTypeInfo.getArity(); i++) {
-			classes[i] = tupleTypeInfo.getTypeAt(i).getTypeClass();
+			classes[i] = tupleTypeInfo.getTypeAt(i);
 		}
-
-		setFieldsGeneric(includedFieldsMask, classes);
+		this.tupleTypeInfo = tupleTypeInfo;
+		setOnlySupportedFieldsTypes(includedFieldsMask, classes);
 	}
 
 	@Override
-	public OUT fillRecord(OUT reuse, Object[] parsedValues) {
+	public T fillRecord(T reuse, Object[] parsedValues) {
 		return tupleSerializer.createOrReuseInstance(parsedValues, reuse);
+	}
+
+	@Override
+	public TypeInformation<T> getProducedType() {
+		return tupleTypeInfo;
 	}
 }

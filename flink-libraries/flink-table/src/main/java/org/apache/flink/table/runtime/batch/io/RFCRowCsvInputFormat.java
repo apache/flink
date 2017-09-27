@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.io;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -28,10 +27,8 @@ import org.apache.flink.types.Row;
 import java.util.Arrays;
 
 /**
- * Input format that reads csv into {@link Row}.
- * Compliant with RFC 4180 standards.
+ * InputFormat to read csv files into {@link Row}.
  */
-@PublicEvolving
 public class RFCRowCsvInputFormat extends RFCCsvInputFormat<Row> implements ResultTypeQueryable<Row> {
 
 	private static final long serialVersionUID = 1L;
@@ -39,9 +36,8 @@ public class RFCRowCsvInputFormat extends RFCCsvInputFormat<Row> implements Resu
 	private int arity;
 	private TypeInformation[] fieldTypeInfos;
 	private int[] fieldPosMap;
-	private boolean emptyColumnAsNull;
 
-	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypeInfos, String lineDelimiter, String fieldDelimiter, int[] selectedFields, boolean emptyColumnAsNull) {
+	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypeInfos, String lineDelimiter, char fieldDelimiter, int[] selectedFields) {
 
 		super(filePath);
 		this.arity = fieldTypeInfos.length;
@@ -54,43 +50,32 @@ public class RFCRowCsvInputFormat extends RFCCsvInputFormat<Row> implements Resu
 
 		this.fieldTypeInfos = fieldTypeInfos;
 		this.fieldPosMap = toFieldPosMap(selectedFields);
-		this.emptyColumnAsNull = emptyColumnAsNull;
 
 		boolean[] fieldsMask = toFieldMask(selectedFields);
 
-		setDelimiter(lineDelimiter);
+		setRecordDelimiter(lineDelimiter);
 		setFieldDelimiter(fieldDelimiter);
-		setFieldsGeneric(fieldsMask, extractTypeClasses(fieldTypeInfos));
+		setOnlySupportedFieldsTypes(fieldsMask, fieldTypeInfos);
 	}
 
-	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter, int[] selectedFields) {
-		this(filePath, fieldTypes, lineDelimiter, fieldDelimiter, selectedFields, false);
-	}
-
-	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, String fieldDelimiter) {
+	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, String lineDelimiter, char fieldDelimiter) {
 		this(filePath, fieldTypes, lineDelimiter, fieldDelimiter, sequentialScanOrder(fieldTypes.length));
 	}
 
 	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, int[] selectedFields) {
-		this(filePath, fieldTypes, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, selectedFields);
-	}
-
-	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes, boolean emptyColumnAsNull) {
-		this(filePath, fieldTypes, DEFAULT_LINE_DELIMITER, DEFAULT_FIELD_DELIMITER, sequentialScanOrder(fieldTypes.length), emptyColumnAsNull);
+		this(filePath, fieldTypes, DEFAULT_RECORD_DELIMITER, DEFAULT_FIELD_DELIMITER, selectedFields);
 	}
 
 	public RFCRowCsvInputFormat(Path filePath, TypeInformation[] fieldTypes) {
-		this(filePath, fieldTypes, false);
+		this(filePath, fieldTypes, DEFAULT_RECORD_DELIMITER, DEFAULT_FIELD_DELIMITER, sequentialScanOrder(fieldTypes.length));
 	}
 
-	private static Class<?>[] extractTypeClasses(TypeInformation[] fieldTypes) {
-		Class<?>[] classes = new Class<?>[fieldTypes.length];
-		for (int i = 0; i < fieldTypes.length; i++) {
-			classes[i] = fieldTypes[i].getTypeClass();
-		}
-		return classes;
-	}
 
+	/**
+	 * Select all field indices in sequential order from a row/record to support full projection.
+	 * @param arity total number of fields in a row/record
+	 * @return projected field indices in sequential order
+	 */
 	private static int[] sequentialScanOrder(int arity) {
 		int[] sequentialOrder = new int[arity];
 		for (int i = 0; i < arity; i++) {
@@ -99,6 +84,12 @@ public class RFCRowCsvInputFormat extends RFCCsvInputFormat<Row> implements Resu
 		return sequentialOrder;
 	}
 
+	/**
+	 * Create a boolean mask from field indices selected for projection.
+	 * the size of boolean mask depends upon the max index value of selected fields
+	 * @param selectedFields selected fields indices for projection
+	 * @return projection mask
+	 */
 	private static boolean[] toFieldMask(int[] selectedFields) {
 		int maxField = 0;
 		for (int selectedField : selectedFields) {
@@ -113,6 +104,11 @@ public class RFCRowCsvInputFormat extends RFCCsvInputFormat<Row> implements Resu
 		return mask;
 	}
 
+	/**
+	 * Create a mapping for projection when selected field indices are not in sequential order.
+	 * @param selectedFields selected fields indices for projection
+	 * @return mapping for selected fields
+	 */
 	private static int[] toFieldPosMap(int[] selectedFields) {
 		int[] fieldIdxs = Arrays.copyOf(selectedFields, selectedFields.length);
 		Arrays.sort(fieldIdxs);

@@ -18,7 +18,26 @@
 
 package org.apache.flink.table.runtime.batch.io;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.DoubleCounter;
+import org.apache.flink.api.common.accumulators.Histogram;
+import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.ParseException;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -29,6 +48,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 
@@ -40,7 +60,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.is;
 
@@ -67,8 +90,8 @@ public class RFCCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
-			final RFCCsvInputFormat<Tuple3<String, Integer, Double>> format = new RFCTupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
-			format.setCommentPrefix("#");
+			final RFCCsvInputFormat<Tuple3<String, Integer, Double>> format = new RFCTupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|', typeInfo);
+			format.enableSkipComment(true);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -112,8 +135,8 @@ public class RFCCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, Integer, Double>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class, Double.class);
-			final RFCCsvInputFormat<Tuple3<String, Integer, Double>> format = new RFCTupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", "|", typeInfo);
-			format.setCommentPrefix("//");
+			final RFCCsvInputFormat<Tuple3<String, Integer, Double>> format = new RFCTupleCsvInputFormat<Tuple3<String, Integer, Double>>(PATH, "\n", '|', typeInfo);
+			format.enableSkipComment(true);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -149,7 +172,7 @@ public class RFCCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
-			final RFCCsvInputFormat<Tuple3<String, String, String>> format = new RFCTupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
+			final RFCCsvInputFormat<Tuple3<String, String, String>> format = new RFCTupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", '|', typeInfo);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -192,7 +215,8 @@ public class RFCCsvInputFormatTest {
 			final FileInputSplit split = createTempFile(fileContent);
 
 			final TupleTypeInfo<Tuple3<String, String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class, String.class);
-			final RFCCsvInputFormat<Tuple3<String, String, String>> format = new RFCTupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", "|", typeInfo);
+			final RFCCsvInputFormat<Tuple3<String, String, String>> format = new RFCTupleCsvInputFormat<Tuple3<String, String, String>>(PATH, "\n", '|', typeInfo);
+			format.setRuntimeContext(runtimeContext);
 
 			final Configuration parameters = new Configuration();
 			format.configure(parameters);
@@ -367,11 +391,11 @@ public class RFCCsvInputFormatTest {
 	@Test
 	public void testEmptyFields() throws IOException {
 		try {
-			final String fileContent = "|0|0|0|0|0\n" +
-				"1||1|1|1|1\n" +
-				"2|2||2|2|2\n" +
+			final String fileContent = " |0|0|0|0|0\n" +
+				"1| |1|1|1|1\n" +
+				"2|2| |2|2|2\n" +
 				"3|3|3| |3|3\n" +
-				"4|4|4|4||4\n" +
+				"4|4|4|4| |4\n" +
 				"5|5|5|5|5\n";
 			final FileInputSplit split = createTempFile(fileContent);
 
@@ -646,18 +670,19 @@ public class RFCCsvInputFormatTest {
 				"1999,Chevy,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00\n" +
 				"1996,Jeep,Grand Cherokee,\"MUST SELL! air, moon roof, loaded\",4799.00\n" +
 				"1999,Chevy,\"Venture \"\"Extended Edition, Very Large\"\"\",,5000.00\n" +
-				",,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00";
+				"1999,,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00";
 
 		final FileInputSplit split = createTempFile(fileContent);
 
 		final TupleTypeInfo<Tuple5<Integer, String, String, String, Double>> typeInfo =
 				TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, String.class, String.class, String.class, Double.class);
 		final RFCCsvInputFormat<Tuple5<Integer, String, String, String, Double>> format = new RFCTupleCsvInputFormat<Tuple5<Integer, String, String, String, Double>>(PATH, typeInfo);
+		format.setRuntimeContext(runtimeContext);
 
-		format.setSkipFirstLineAsHeader(true);
+		format.enableSkipFirstLine(true);
 		format.setFieldDelimiter(",");
 		format.enableQuotedStringParsing('\"');
-		format.setLenient(true);
+		format.enableLenientParsing(true);
 
 		format.configure(new Configuration());
 		format.open(split);
@@ -670,7 +695,7 @@ public class RFCCsvInputFormatTest {
 				new Tuple5<Integer, String, String, String, Double>(1999, "Chevy", "Venture \"Extended Edition\"", "", 4900.0),
 				new Tuple5<Integer, String, String, String, Double>(1996, "Jeep", "Grand Cherokee", "MUST SELL! air, moon roof, loaded", 4799.00),
 				new Tuple5<Integer, String, String, String, Double>(1999, "Chevy", "Venture \"Extended Edition, Very Large\"", "", 5000.00),
-				new Tuple5<Integer, String, String, String, Double>(null, "", "Venture \"Extended Edition\"", "", 4900.0)
+				new Tuple5<Integer, String, String, String, Double>(1999, "", "Venture \"Extended Edition\"", "", 4900.0)
 		};
 
 		try {
@@ -694,8 +719,6 @@ public class RFCCsvInputFormatTest {
 		final String fileContent = "\"20:41:52-1-3-2015\"|\"Re: Taskmanager memory error in Eclipse\"|" +
 			"\"Blahblah <blah@blahblah.org>\"|\"blaaa|\"\"blubb\"";
 
-		System.out.println(fileContent);
-
 		final File tempFile = File.createTempFile("CsvReaderQuotedString", "tmp");
 		tempFile.deleteOnExit();
 		tempFile.setWritable(true);
@@ -706,10 +729,11 @@ public class RFCCsvInputFormatTest {
 
 		TupleTypeInfo<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
 		RFCCsvInputFormat<Tuple2<String, String>> inputFormat = new RFCTupleCsvInputFormat<Tuple2<String, String>>(new Path(tempFile.toURI().toString()), typeInfo, new boolean[]{true, false, true});
+		inputFormat.setRuntimeContext(runtimeContext);
 
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter("|");
-		inputFormat.setDelimiter('\n');
+		inputFormat.setRecordDelimiter('\n');
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -737,10 +761,11 @@ public class RFCCsvInputFormatTest {
 
 		TupleTypeInfo<Tuple2<String, String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
 		RFCCsvInputFormat<Tuple2<String, String>> inputFormat = new RFCTupleCsvInputFormat<>(new Path(tempFile.toURI().toString()), typeInfo);
+		inputFormat.setRuntimeContext(runtimeContext);
 
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter("|");
-		inputFormat.setDelimiter('\n');
+		inputFormat.setRecordDelimiter('\n');
 
 		inputFormat.configure(new Configuration());
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -803,7 +828,7 @@ public class RFCCsvInputFormatTest {
 			Configuration parameters = new Configuration();
 			inputFormat.configure(parameters);
 
-			inputFormat.setDelimiter(lineBreakerSetup);
+			inputFormat.setRecordDelimiter(lineBreakerSetup);
 
 			FileInputSplit[] splits = inputFormat.createInputSplits(1);
 
@@ -828,4 +853,130 @@ public class RFCCsvInputFormatTest {
 		}
 	}
 
+	RuntimeContext runtimeContext = new RuntimeContext() {
+		@Override
+		public String getTaskName() {
+			return null;
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return null;
+		}
+
+		@Override
+		public int getNumberOfParallelSubtasks() {
+			return 0;
+		}
+
+		@Override
+		public int getMaxNumberOfParallelSubtasks() {
+			return 0;
+		}
+
+		@Override
+		public int getIndexOfThisSubtask() {
+			return 0;
+		}
+
+		@Override
+		public int getAttemptNumber() {
+			return 0;
+		}
+
+		@Override
+		public String getTaskNameWithSubtasks() {
+			return null;
+		}
+
+		@Override
+		public ExecutionConfig getExecutionConfig() {
+			return null;
+		}
+
+		@Override
+		public ClassLoader getUserCodeClassLoader() {
+			return null;
+		}
+
+		@Override
+		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
+
+		}
+
+		@Override
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+			return null;
+		}
+
+		@Override
+		public Map<String, Accumulator<?, ?>> getAllAccumulators() {
+			return null;
+		}
+
+		@Override
+		public IntCounter getIntCounter(String name) {
+			return null;
+		}
+
+		@Override
+		public LongCounter getLongCounter(String name) {
+			return null;
+		}
+
+		@Override
+		public DoubleCounter getDoubleCounter(String name) {
+			return null;
+		}
+
+		@Override
+		public Histogram getHistogram(String name) {
+			return null;
+		}
+
+		@Override
+		public boolean hasBroadcastVariable(String name) {
+			return false;
+		}
+
+		@Override
+		public <RT> List<RT> getBroadcastVariable(String name) {
+			return null;
+		}
+
+		@Override
+		public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
+			return null;
+		}
+
+		@Override
+		public DistributedCache getDistributedCache() {
+			return null;
+		}
+
+		@Override
+		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+			return null;
+		}
+	};
 }

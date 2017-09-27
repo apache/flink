@@ -18,7 +18,26 @@
 
 package org.apache.flink.table.runtime.batch.io;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.accumulators.DoubleCounter;
+import org.apache.flink.api.common.accumulators.Histogram;
+import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.io.ParseException;
+import org.apache.flink.api.common.state.FoldingState;
+import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -26,6 +45,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
@@ -38,11 +58,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -70,8 +92,8 @@ public class RFCRowCsvInputFormatTest {
 
 		TypeInformation[] fieldTypes = new TypeInformation[]{BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
-		format.setLenient(false);
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
+		format.enableLenientParsing(false);
 		Configuration parameters = new Configuration();
 		format.configure(new Configuration());
 		format.open(split);
@@ -117,17 +139,11 @@ public class RFCRowCsvInputFormatTest {
 		Assert.assertNull(result);
 
 		// re-open with lenient = true
-		format.setLenient(true);
+		format.enableLenientParsing(true);
 		format.configure(parameters);
 		format.open(split);
 
 		result = new Row(3);
-
-		result = format.nextRecord(result);
-		Assert.assertNotNull(result);
-		Assert.assertEquals("header1", result.getField(0));
-		Assert.assertNull(result.getField(1));
-		Assert.assertNull(result.getField(2));
 
 		result = format.nextRecord(result);
 		Assert.assertNotNull(result);
@@ -166,8 +182,8 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
-		format.setCommentPrefix("#");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
+		format.enableSkipComment(true);
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -207,8 +223,8 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
-		format.setCommentPrefix("//");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
+		format.enableSkipComment(true);
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -240,7 +256,7 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -286,7 +302,8 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
+		format.setRuntimeContext(runtimeContext);
 		format.configure(new Configuration());
 		format.enableQuotedStringParsing('@');
 		format.open(split);
@@ -327,8 +344,8 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
-		format.setFieldDelimiter("|-");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
+		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -373,7 +390,7 @@ public class RFCRowCsvInputFormatTest {
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
 		format.open(split);
@@ -429,7 +446,7 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.INT_TYPE_INFO,
 			BasicTypeInfo.INT_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", "|");
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, "\n", '|');
 
 		format.setFieldDelimiter("|");
 		format.configure(new Configuration());
@@ -482,9 +499,9 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.SHORT_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO};
 
-		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes, true);
+		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes);
 		format.setFieldDelimiter(",");
-		format.setLenient(true);
+		format.enableLenientParsing(true);
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -724,7 +741,7 @@ public class RFCRowCsvInputFormatTest {
 			"1999,Chevy,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00\n" +
 			"1996,Jeep,Grand Cherokee,\"MUST SELL! air, moon roof, loaded\",4799.00\n" +
 			"1999,Chevy,\"Venture \"\"Extended Edition, Very Large\"\"\",,5000.00\n" +
-			",,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00";
+			"1999,,\"Venture \"\"Extended Edition\"\"\",\"\",4900.00";
 
 		FileInputSplit split = createTempFile(fileContent);
 
@@ -736,10 +753,11 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.DOUBLE_TYPE_INFO};
 
 		RFCRowCsvInputFormat format = new RFCRowCsvInputFormat(PATH, fieldTypes);
-		format.setSkipFirstLineAsHeader(true);
+		format.setRuntimeContext(runtimeContext);
+		format.enableSkipFirstLine(true);
 		format.setFieldDelimiter(",");
 		format.enableQuotedStringParsing('\"');
-		format.setLenient(true);
+		format.enableLenientParsing(true);
 		format.configure(new Configuration());
 		format.open(split);
 
@@ -773,7 +791,7 @@ public class RFCRowCsvInputFormatTest {
 		r4.setField(4, 5000.0);
 
 		Row r5 = new Row(5);
-		r5.setField(0, null);
+		r5.setField(0, 1999);
 		r5.setField(1, "");
 		r5.setField(2, "Venture \"Extended Edition\"");
 		r5.setField(3, "");
@@ -827,9 +845,10 @@ public class RFCRowCsvInputFormatTest {
 			new Path(tempFile.toURI().toString()),
 			fieldTypes,
 			new int[]{0, 2});
+		inputFormat.setRuntimeContext(runtimeContext);
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter("|");
-		inputFormat.setDelimiter('\n');
+		inputFormat.setRecordDelimiter('\n');
 		inputFormat.configure(new Configuration());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -856,9 +875,11 @@ public class RFCRowCsvInputFormatTest {
 			BasicTypeInfo.STRING_TYPE_INFO};
 
 		RFCRowCsvInputFormat inputFormat = new RFCRowCsvInputFormat(new Path(tempFile.toURI().toString()), fieldTypes);
+		inputFormat.setRuntimeContext(runtimeContext);
+
 		inputFormat.enableQuotedStringParsing('"');
 		inputFormat.setFieldDelimiter("|");
-		inputFormat.setDelimiter('\n');
+		inputFormat.setRecordDelimiter('\n');
 		inputFormat.configure(new Configuration());
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
@@ -975,7 +996,7 @@ public class RFCRowCsvInputFormatTest {
 
 		RFCRowCsvInputFormat inputFormat = new RFCRowCsvInputFormat(new Path(tempFile.toURI().toString()), fieldTypes);
 		inputFormat.configure(new Configuration());
-		inputFormat.setDelimiter(lineBreakerSetup);
+		inputFormat.setRecordDelimiter(lineBreakerSetup);
 
 		FileInputSplit[] splits = inputFormat.createInputSplits(1);
 		inputFormat.open(splits[0]);
@@ -988,4 +1009,131 @@ public class RFCRowCsvInputFormatTest {
 		Assert.assertNotNull("Expecting to not return null", result);
 		Assert.assertEquals(SECOND_PART, result.getField(0));
 	}
+
+	RuntimeContext runtimeContext = new RuntimeContext() {
+		@Override
+		public String getTaskName() {
+			return null;
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return null;
+		}
+
+		@Override
+		public int getNumberOfParallelSubtasks() {
+			return 0;
+		}
+
+		@Override
+		public int getMaxNumberOfParallelSubtasks() {
+			return 0;
+		}
+
+		@Override
+		public int getIndexOfThisSubtask() {
+			return 0;
+		}
+
+		@Override
+		public int getAttemptNumber() {
+			return 0;
+		}
+
+		@Override
+		public String getTaskNameWithSubtasks() {
+			return null;
+		}
+
+		@Override
+		public ExecutionConfig getExecutionConfig() {
+			return null;
+		}
+
+		@Override
+		public ClassLoader getUserCodeClassLoader() {
+			return null;
+		}
+
+		@Override
+		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> accumulator) {
+
+		}
+
+		@Override
+		public <V, A extends Serializable> Accumulator<V, A> getAccumulator(String name) {
+			return null;
+		}
+
+		@Override
+		public Map<String, Accumulator<?, ?>> getAllAccumulators() {
+			return null;
+		}
+
+		@Override
+		public IntCounter getIntCounter(String name) {
+			return null;
+		}
+
+		@Override
+		public LongCounter getLongCounter(String name) {
+			return null;
+		}
+
+		@Override
+		public DoubleCounter getDoubleCounter(String name) {
+			return null;
+		}
+
+		@Override
+		public Histogram getHistogram(String name) {
+			return null;
+		}
+
+		@Override
+		public boolean hasBroadcastVariable(String name) {
+			return false;
+		}
+
+		@Override
+		public <RT> List<RT> getBroadcastVariable(String name) {
+			return null;
+		}
+
+		@Override
+		public <T, C> C getBroadcastVariableWithInitializer(String name, BroadcastVariableInitializer<T, C> initializer) {
+			return null;
+		}
+
+		@Override
+		public DistributedCache getDistributedCache() {
+			return null;
+		}
+
+		@Override
+		public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
+			return null;
+		}
+
+		@Override
+		public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
+			return null;
+		}
+	};
 }
