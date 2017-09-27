@@ -41,7 +41,7 @@ abstract class UserDefinedFunction extends Serializable {
   def close(): Unit = {}
 
   /**
-    * @return true if a call to this function is guaranteed to always return
+    * @return true if and only if a call to this function is guaranteed to always return
     *         the same result given the same parameters; true is assumed by default
     *         if user's function is not pure functional, like random(), date(), now()...
     *         isDeterministic must return false
