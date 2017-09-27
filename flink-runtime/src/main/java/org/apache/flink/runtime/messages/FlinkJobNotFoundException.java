@@ -16,31 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler;
+package org.apache.flink.runtime.messages;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.FlinkException;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 /**
- * An exception that is thrown if the failure of a REST operation was detected by a handler.
+ * Exception which is returned if a Flink job could not be found.
  */
-public class RestHandlerException extends FlinkException {
-	private static final long serialVersionUID = -1358206297964070876L;
+public class FlinkJobNotFoundException extends FlinkException {
 
-	private final int responseCode;
+	private static final long serialVersionUID = -7803390762010615384L;
 
-	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus) {
-		super(errorMessage);
-		this.responseCode = httpResponseStatus.code();
-	}
-
-	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus, Throwable cause) {
-		super(errorMessage, cause);
-		this.responseCode = httpResponseStatus.code();
-	}
-
-	public HttpResponseStatus getHttpResponseStatus() {
-		return HttpResponseStatus.valueOf(responseCode);
+	public FlinkJobNotFoundException(JobID jobId) {
+		super("Could not find Flink job (" + jobId + ").");
 	}
 }

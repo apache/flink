@@ -16,26 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * This class wraps netty's {@link HttpMethod}s into an enum, allowing us to use them in switches.
+ * Parameters for job related REST handlers.
+ *
+ * <p>A job related REST handler always requires a {@link JobIDPathParameter}.
  */
-public enum HttpMethodWrapper {
-	GET(HttpMethod.GET),
-	POST(HttpMethod.POST),
-	DELETE(HttpMethod.DELETE),
-	PATCH(HttpMethod.PATCH);
+public class JobMessageParameters extends MessageParameters {
 
-	private HttpMethod nettyHttpMethod;
+	private final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
 
-	HttpMethodWrapper(HttpMethod nettyHttpMethod) {
-		this.nettyHttpMethod = nettyHttpMethod;
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singleton(jobPathParameter);
 	}
 
-	public HttpMethod getNettyHttpMethod() {
-		return nettyHttpMethod;
+	@Override
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptyList();
 	}
 }

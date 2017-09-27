@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -309,6 +310,21 @@ public final class ExceptionUtils {
 	 */
 	public static Throwable stripExecutionException(Throwable throwable) {
 		while (throwable instanceof ExecutionException && throwable.getCause() != null) {
+			throwable = throwable.getCause();
+		}
+
+		return throwable;
+	}
+
+	/**
+	 * Unpacks an {@link CompletionException} and returns its cause. Otherwise the given
+	 * Throwable is returned.
+	 *
+	 * @param throwable to unpack if it is an CompletionException
+	 * @return Cause of CompletionException or given Throwable
+	 */
+	public static Throwable stripCompletionException(Throwable throwable) {
+		while (throwable instanceof CompletionException && throwable.getCause() != null) {
 			throwable = throwable.getCause();
 		}
 

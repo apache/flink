@@ -357,6 +357,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	// RPC methods
 	//----------------------------------------------------------------------------------------------
 
+	@Override
+	public CompletableFuture<Acknowledge> cancel(Time timeout) {
+		executionGraph.cancel();
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
 	/**
 	 * Updates the task execution state for a given task.
 	 *
