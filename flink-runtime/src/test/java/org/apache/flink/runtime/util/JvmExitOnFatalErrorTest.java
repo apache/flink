@@ -53,6 +53,9 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TaskLocalStateStore;
+import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -165,6 +168,15 @@ public class JvmExitOnFatalErrorTest {
 				BlobCacheService blobService =
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
+				final TaskLocalStateStore localStateStore = new TaskLocalStateStore(jid, jobVertexId, 0);
+				final TaskStateManager slotStateManager =
+					new TaskStateManagerImpl(
+						jid,
+						executionAttemptID,
+						localStateStore,
+						null,
+						mock(CheckpointResponder.class));
+
 				Task task = new Task(
 						jobInformation,
 						taskInformation,
@@ -180,6 +192,7 @@ public class JvmExitOnFatalErrorTest {
 						ioManager,
 						networkEnvironment,
 						new BroadcastVariableManager(),
+						slotStateManager,
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
 						new NoOpCheckpointResponder(),

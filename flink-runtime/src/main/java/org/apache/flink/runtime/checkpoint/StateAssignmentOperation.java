@@ -218,7 +218,7 @@ public class StateAssignmentOperation {
 			}
 
 			if (!statelessTask) {
-				TaskRestore taskRestore = new TaskRestore(restoreCheckpointId, taskState);
+				JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(restoreCheckpointId, taskState);
 				currentExecutionAttempt.setInitialState(taskRestore);
 			}
 		}

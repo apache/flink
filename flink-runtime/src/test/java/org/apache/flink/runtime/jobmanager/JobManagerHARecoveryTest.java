@@ -65,6 +65,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -531,6 +532,22 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
+
+			OperatorID operatorID = OperatorID.fromJobVertexID(getEnvironment().getJobVertexId());
+			TaskStateManager taskStateManager = getEnvironment().getTaskStateManager();
+			OperatorSubtaskState subtaskState = taskStateManager.operatorStates(operatorID);
+
+			if(subtaskState != null) {
+				int subtaskIndex = getIndexInSubtaskGroup();
+				if (subtaskIndex < BlockingStatefulInvokable.recoveredStates.length) {
+					OperatorStateHandle operatorStateHandle = subtaskState.getManagedOperatorState().iterator().next();
+					try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
+						BlockingStatefulInvokable.recoveredStates[subtaskIndex] =
+							InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
+					}
+				}
+			}
+
 			while (blocking) {
 				synchronized (lock) {
 					lock.wait();
@@ -553,21 +570,9 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 		private static volatile CountDownLatch completedCheckpointsLatch = new CountDownLatch(1);
 
-		private static volatile long[] recoveredStates = new long[0];
+		static volatile long[] recoveredStates = new long[0];
 
 		private int completedCheckpoints = 0;
-
-		@Override
-		public void setInitialState(
-			TaskStateSnapshot taskStateHandles) throws Exception {
-			int subtaskIndex = getIndexInSubtaskGroup();
-			if (subtaskIndex < recoveredStates.length) {
-				OperatorStateHandle operatorStateHandle = extractSingletonOperatorState(taskStateHandles);
-				try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
-					recoveredStates[subtaskIndex] = InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
-				}
-			}
-		}
 
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 
@@ -143,6 +144,8 @@ public interface Environment {
 	Map<String, Future<Path>> getDistributedCacheEntries();
 
 	BroadcastVariableManager getBroadcastVariableManager();
+
+	TaskStateManager getTaskStateManager();
 
 	/**
 	 * Return the registry for accumulators which are periodically sent to the job manager.

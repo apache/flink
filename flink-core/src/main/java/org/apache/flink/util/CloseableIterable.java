@@ -18,11 +18,35 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.annotation.Internal;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 
 /**
- * Tagging interface for migration related classes.
+ * This interface represents an iterable that is also closeable.
+ *
+ * @param <T> type of the iterated objects.
  */
-@Internal
-public interface Migration {
+public interface CloseableIterable<T> extends Iterable<T>, Closeable {
+
+	class Empty<T> implements CloseableIterable<T> {
+
+		private Empty() {
+		}
+
+		@Override
+		public void close() throws IOException {
+
+		}
+
+		@Override
+		public Iterator<T> iterator() {
+			return Collections.emptyIterator();
+		}
+	}
+
+	static <T> CloseableIterable<T> empty() {
+		return new CloseableIterable.Empty<>();
+	}
 }

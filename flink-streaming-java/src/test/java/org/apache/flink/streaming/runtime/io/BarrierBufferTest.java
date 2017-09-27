@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineSubsumedException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -1481,11 +1480,6 @@ public class BarrierBufferTest {
 
 		long getLastReportedBytesBufferedInAlignment() {
 			return lastReportedBytesBufferedInAlignment;
-		}
-
-		@Override
-		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {
-			throw new UnsupportedOperationException("should never be called");
 		}
 
 		@Override

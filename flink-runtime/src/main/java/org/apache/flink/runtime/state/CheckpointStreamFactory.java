@@ -19,10 +19,11 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 
-public interface CheckpointStreamFactory {
+public interface CheckpointStreamFactory extends Closeable {
 
 	/**
 	 * Creates an new {@link CheckpointStateOutputStream}. When the stream
@@ -43,9 +44,9 @@ public interface CheckpointStreamFactory {
 	 * Closes the stream factory, releasing all internal resources, but does not delete any
 	 * persistent checkpoint data.
 	 *
-	 * @throws Exception Exceptions can be forwarded and will be logged by the system
+	 * @throws IOException Exceptions can be forwarded and will be logged by the system
 	 */
-	void close() throws Exception;
+	void close() throws IOException;
 
 	/**
 	 * A dedicated output stream that produces a {@link StreamStateHandle} when closed.

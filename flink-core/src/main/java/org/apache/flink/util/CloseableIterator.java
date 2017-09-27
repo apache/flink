@@ -16,36 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.util;
 
-import java.io.Serializable;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Iterator;
 
-public class TaskRestore implements Serializable {
+/**
+ * This interface represents an iterator that is also closeable.
+ *
+ * @param <T> type of the iterated objects.
+ */
+public interface CloseableIterator<T> extends Iterator<T>, Closeable {
 
-	private static final long serialVersionUID = 1L;
+	class Empty<T> implements CloseableIterator<T> {
 
-	private final long restoreCheckpointId;
+		private Empty() {
+		}
 
-	private final TaskStateSnapshot taskStateSnapshot;
+		@Override
+		public boolean hasNext() {
+			return false;
+		}
 
-	public TaskRestore(long restoreCheckpointId, TaskStateSnapshot taskStateSnapshot) {
-		this.restoreCheckpointId = restoreCheckpointId;
-		this.taskStateSnapshot = taskStateSnapshot;
+		@Override
+		public T next() {
+			return null;
+		}
+
+		@Override
+		public void close() throws IOException {
+		}
 	}
 
-	public long getRestoreCheckpointId() {
-		return restoreCheckpointId;
-	}
-
-	public TaskStateSnapshot getTaskStateSnapshot() {
-		return taskStateSnapshot;
-	}
-
-	@Override
-	public String toString() {
-		return "TaskRestore{" +
-			"restoreCheckpointId=" + restoreCheckpointId +
-			", taskStateSnapshot=" + taskStateSnapshot +
-			'}';
+	static <T> CloseableIterator<T> empty() {
+		return new Empty<>();
 	}
 }

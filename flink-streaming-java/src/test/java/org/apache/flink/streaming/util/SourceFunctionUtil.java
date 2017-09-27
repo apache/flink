@@ -24,6 +24,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
@@ -49,10 +50,15 @@ public class SourceFunctionUtil {
 			AbstractStreamOperator<?> operator = mock(AbstractStreamOperator.class);
 			when(operator.getExecutionConfig()).thenReturn(new ExecutionConfig());
 
-			RuntimeContext runtimeContext =  new StreamingRuntimeContext(
-					operator,
-					new MockEnvironment("MockTask", 3 * 1024 * 1024, new MockInputSplitProvider(), 1024),
-					new HashMap<String, Accumulator<?, ?>>());
+			RuntimeContext runtimeContext = new StreamingRuntimeContext(
+				operator,
+				new MockEnvironment(
+					"MockTask",
+					3 * 1024 * 1024,
+					new MockInputSplitProvider(),
+					1024,
+					new TestTaskStateManager()),
+				new HashMap<String, Accumulator<?, ?>>());
 
 			((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
 

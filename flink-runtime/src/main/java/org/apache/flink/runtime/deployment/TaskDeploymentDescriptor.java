@@ -21,7 +21,7 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
-import org.apache.flink.runtime.checkpoint.TaskRestore;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -143,7 +143,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	private final int targetSlotNumber;
 
 	/** Information to restore the task. */
-	private final TaskRestore taskRestore;
+	private final JobManagerTaskRestore taskRestore;
 
 	public TaskDeploymentDescriptor(
 			JobID jobId,
@@ -154,7 +154,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			int subtaskIndex,
 			int attemptNumber,
 			int targetSlotNumber,
-			TaskRestore taskRestore,
+			JobManagerTaskRestore taskRestore,
 			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors) {
 
@@ -263,7 +263,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		return inputGates;
 	}
 
-	public TaskRestore getTaskRestore() {
+	public JobManagerTaskRestore getTaskRestore() {
 		return taskRestore;
 	}
 

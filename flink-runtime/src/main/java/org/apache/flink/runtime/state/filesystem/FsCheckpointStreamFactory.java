@@ -106,7 +106,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	}
 
 	@Override
-	public void close() throws Exception {}
+	public void close() throws IOException {}
 
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {

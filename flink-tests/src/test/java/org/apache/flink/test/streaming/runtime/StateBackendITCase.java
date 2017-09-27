@@ -40,7 +40,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -85,8 +84,24 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 			fail();
 		}
 		catch (JobExecutionException e) {
+			boolean success = false;
 			Throwable t = e.getCause();
-			assertTrue("wrong exception", t instanceof SuccessException);
+			while (t != null) {
+				if (t instanceof SuccessException) {
+					success = true;
+					break;
+				} else {
+					if (t != t.getCause()) {
+						t = t.getCause();
+					} else {
+						break;
+					}
+				}
+			}
+
+			if (!success) {
+				fail();
+			}
 		}
 	}
 
@@ -102,7 +117,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		@Override
 		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
 			String operatorIdentifier, String targetLocation) throws IOException {
-			throw new UnsupportedOperationException();
+			throw new SuccessException();
 		}
 
 		@Override
@@ -122,7 +137,7 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 			Environment env,
 			String operatorIdentifier) throws Exception {
 
-			throw new UnsupportedOperationException();
+			throw new SuccessException();
 		}
 	}
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.LambdaUtil;
 
+import java.util.Collection;
 import java.util.concurrent.RunnableFuture;
 
 /**
@@ -68,6 +69,24 @@ public class StateUtil {
 				if (null != stateObject) {
 					stateObject.discardState();
 				}
+			}
+		}
+	}
+
+	/**
+	 * Discards the given state collection future by first trying to cancel it. If this is not possible, then
+	 * the state object contained in the future is calculated and afterwards discarded.
+	 *
+	 * @param stateCollectionFuture to be discarded
+	 * @throws Exception if the discard operation failed
+	 */
+	public static void discardStateCollectionFuture(
+		RunnableFuture<? extends Collection<? extends StateObject>> stateCollectionFuture) throws Exception {
+
+		if (null != stateCollectionFuture) {
+			if (!stateCollectionFuture.cancel(true)) {
+				Collection<? extends StateObject> stateObject = FutureUtil.runIfNotDoneAndGet(stateCollectionFuture);
+				bestEffortDiscardAllStateObjects(stateObject);
 			}
 		}
 	}

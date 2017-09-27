@@ -25,7 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskRestore;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
@@ -146,7 +146,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private volatile Throwable failureCause;          // once assigned, never changes
 
 	/** Information to restore the task onr recovery, such as checkpoint id and task state snapshot */
-	private volatile TaskRestore taskRestore;
+	private volatile JobManagerTaskRestore taskRestore;
 
 	// ------------------------ Accumulators & Metrics ------------------------
 
@@ -310,7 +310,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		return state.isTerminal();
 	}
 
-	public TaskRestore getTaskRestore() {
+	public JobManagerTaskRestore getTaskRestore() {
 		return taskRestore;
 	}
 
@@ -320,7 +320,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param taskRestore information to restore the state
 	 */
-	public void setInitialState(TaskRestore taskRestore) {
+	public void setInitialState(JobManagerTaskRestore taskRestore) {
 		checkState(state == CREATED, "Can only assign operator state when execution attempt is in CREATED");
 		this.taskRestore = taskRestore;
 	}

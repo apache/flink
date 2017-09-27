@@ -33,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManagerSuccessful;
@@ -1534,10 +1533,6 @@ public class JobManagerTest extends TestLogger {
 		@Override
 		public void invoke() throws Exception {
 			new CountDownLatch(1).await();
-		}
-
-		@Override
-		public void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception {
 		}
 
 		@Override
