@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.util.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -64,7 +62,7 @@ class LocalBufferPool implements BufferPool {
 	 * Buffer availability listeners, which need to be notified when a Buffer becomes available.
 	 * Listeners can only be registered at a time/state where no Buffer instance was available.
 	 */
-	private final Queue<EventListener<Buffer>> registeredListeners = new ArrayDeque<EventListener<Buffer>>();
+	private final ArrayDeque<BufferListener> registeredListeners = new ArrayDeque<>();
 
 	/** Maximum number of network buffers to allocate. */
 	private final int maxNumberOfMemorySegments;
@@ -239,7 +237,7 @@ class LocalBufferPool implements BufferPool {
 				returnMemorySegment(segment);
 			}
 			else {
-				EventListener<Buffer> listener = registeredListeners.poll();
+				BufferListener listener = registeredListeners.poll();
 
 				if (listener == null) {
 					availableMemorySegments.add(segment);
@@ -247,7 +245,10 @@ class LocalBufferPool implements BufferPool {
 				}
 				else {
 					try {
-						listener.onEvent(new Buffer(segment, this));
+						boolean needMoreBuffers = listener.notifyBufferAvailable(new Buffer(segment, this));
+						if (needMoreBuffers) {
+							registeredListeners.add(listener);
+						}
 					}
 					catch (Throwable ignored) {
 						availableMemorySegments.add(segment);
@@ -270,9 +271,9 @@ class LocalBufferPool implements BufferPool {
 					returnMemorySegment(segment);
 				}
 
-				EventListener<Buffer> listener;
+				BufferListener listener;
 				while ((listener = registeredListeners.poll()) != null) {
-					listener.onEvent(null);
+					listener.notifyBufferDestroyed();
 				}
 
 				isDestroyed = true;
@@ -283,7 +284,7 @@ class LocalBufferPool implements BufferPool {
 	}
 
 	@Override
-	public boolean addListener(EventListener<Buffer> listener) {
+	public boolean addBufferListener(BufferListener listener) {
 		synchronized (availableMemorySegments) {
 			if (!availableMemorySegments.isEmpty() || isDestroyed) {
 				return false;
