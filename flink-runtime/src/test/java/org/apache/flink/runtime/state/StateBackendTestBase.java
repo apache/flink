@@ -195,7 +195,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testGetKeys() throws Exception {
 		final int elementsToTest = 1000;
-		String fieldName = "get-keys-while-modifying-test";
+		String fieldName = "get-keys-test";
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 		try {
 			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
@@ -220,7 +220,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 		}
 		finally {
-			org.apache.commons.io.IOUtils.closeQuietly(backend);
+			IOUtils.closeQuietly(backend);
 			backend.dispose();
 		}
 	}
