@@ -16,26 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
+import org.apache.flink.runtime.rest.handler.legacy.JobCancellationHandler;
 
 /**
- * This class wraps netty's {@link HttpMethod}s into an enum, allowing us to use them in switches.
+ * Termination mode for the {@link JobCancellationHandler}.
  */
-public enum HttpMethodWrapper {
-	GET(HttpMethod.GET),
-	POST(HttpMethod.POST),
-	DELETE(HttpMethod.DELETE),
-	PATCH(HttpMethod.PATCH);
+public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
-	private HttpMethod nettyHttpMethod;
+	private static final String key = "mode";
 
-	HttpMethodWrapper(HttpMethod nettyHttpMethod) {
-		this.nettyHttpMethod = nettyHttpMethod;
+	public TerminationModeQueryParameter() {
+		super(key, MessageParameterRequisiteness.OPTIONAL);
 	}
 
-	public HttpMethod getNettyHttpMethod() {
-		return nettyHttpMethod;
+	@Override
+	public TerminationMode convertValueFromString(String value) {
+		return TerminationMode.valueOf(value.toUpperCase());
+	}
+
+	@Override
+	public String convertStringToValue(TerminationMode value) {
+		return value.name().toLowerCase();
+	}
+
+	/**
+	 * Supported termination modes.
+	 */
+	public enum TerminationMode {
+		CANCEL,
+		STOP
 	}
 }

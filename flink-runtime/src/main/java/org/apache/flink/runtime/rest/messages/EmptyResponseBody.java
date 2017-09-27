@@ -16,26 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
+package org.apache.flink.runtime.rest.messages;
 
 /**
- * This class wraps netty's {@link HttpMethod}s into an enum, allowing us to use them in switches.
+ * Empty {@link ResponseBody} implementation.
  */
-public enum HttpMethodWrapper {
-	GET(HttpMethod.GET),
-	POST(HttpMethod.POST),
-	DELETE(HttpMethod.DELETE),
-	PATCH(HttpMethod.PATCH);
+public class EmptyResponseBody implements ResponseBody {
 
-	private HttpMethod nettyHttpMethod;
+	private static final EmptyResponseBody INSTANCE = new EmptyResponseBody();
 
-	HttpMethodWrapper(HttpMethod nettyHttpMethod) {
-		this.nettyHttpMethod = nettyHttpMethod;
+	private EmptyResponseBody() {}
+
+	private Object readResolve() {
+		return INSTANCE;
 	}
 
-	public HttpMethod getNettyHttpMethod() {
-		return nettyHttpMethod;
+	public static EmptyResponseBody getInstance() {
+		return INSTANCE;
 	}
 }

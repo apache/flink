@@ -55,6 +55,22 @@ import java.util.concurrent.CompletableFuture;
 public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRpcGateway<JobMasterId> {
 
 	/**
+	 * Cancels the currently executed job.
+	 *
+	 * @param timeout of this operation
+	 * @return Future acknowledge of the operation
+	 */
+	CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
+
+	/**
+	 * Cancel the currently executed job.
+	 *
+	 * @param timeout of this operation
+	 * @return Future acknowledge if the cancellation was successful
+	 */
+	CompletableFuture<Acknowledge> stop(@RpcTimeout Time timeout);
+
+	/**
 	 * Updates the task execution state for a given task.
 	 *
 	 * @param taskExecutionState New task execution state for a given task
@@ -64,8 +80,9 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			final TaskExecutionState taskExecutionState);
 
 	/**
-	 * Requesting next input split for the {@link ExecutionJobVertex}. The next input split is sent back to the sender
-	 * as a {@link SerializedInputSplit} message.
+	 * Requests the next input split for the {@link ExecutionJobVertex}.
+	 * The next input split is sent back to the sender as a
+	 * {@link SerializedInputSplit} message.
 	 *
 	 * @param vertexID         The job vertex id
 	 * @param executionAttempt The execution attempt id
@@ -76,8 +93,8 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			final ExecutionAttemptID executionAttempt);
 
 	/**
-	 * Requests the current state of the partition.
-	 * The state of a partition is currently bound to the state of the producing execution.
+	 * Requests the current state of the partition. The state of a
+	 * partition is currently bound to the state of the producing execution.
 	 *
 	 * @param intermediateResultId The execution attempt ID of the task requesting the partition state.
 	 * @param partitionId          The partition ID of the partition to request the state of.
@@ -89,12 +106,12 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 
 	/**
 	 * Notifies the JobManager about available data for a produced partition.
-	 * <p>
-	 * There is a call to this method for each {@link ExecutionVertex} instance once per produced
+	 *
+	 * <p>There is a call to this method for each {@link ExecutionVertex} instance once per produced
 	 * {@link ResultPartition} instance, either when first producing data (for pipelined executions)
 	 * or when all data has been produced (for staged executions).
-	 * <p>
-	 * The JobManager then can decide when to schedule the partition consumers of the given session.
+	 *
+	 * <p>The JobManager then can decide when to schedule the partition consumers of the given session.
 	 *
 	 * @param partitionID     The partition which has already produced data
 	 * @param timeout         before the rpc call fails
@@ -132,6 +149,8 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	CompletableFuture<KvStateLocation> lookupKvStateLocation(final String registrationName);
 
 	/**
+	 * Notifies that queryable state has been registered.
+	 *
 	 * @param jobVertexId          JobVertexID the KvState instance belongs to.
 	 * @param keyGroupRange        Key group range the KvState instance belongs to.
 	 * @param registrationName     Name under which the KvState has been registered.
@@ -146,6 +165,8 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			final KvStateServerAddress kvStateServerAddress);
 
 	/**
+	 * Notifies that queryable state has been unregistered.
+	 *
 	 * @param jobVertexId      JobVertexID the KvState instance belongs to.
 	 * @param keyGroupRange    Key group index the KvState instance belongs to.
 	 * @param registrationName Name under which the KvState has been registered.
@@ -161,7 +182,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	CompletableFuture<ClassloadingProps> requestClassloadingProps();
 
 	/**
-	 * Offer the given slots to the job manager. The response contains the set of accepted slots.
+	 * Offers the given slots to the job manager. The response contains the set of accepted slots.
 	 *
 	 * @param taskManagerId identifying the task manager
 	 * @param slots         to offer to the job manager
@@ -174,7 +195,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			@RpcTimeout final Time timeout);
 
 	/**
-	 * Fail the slot with the given allocation id and cause.
+	 * Fails the slot with the given allocation id and cause.
 	 *
 	 * @param taskManagerId identifying the task manager
 	 * @param allocationId  identifying the slot to fail
@@ -185,7 +206,7 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			final Exception cause);
 
 	/**
-	 * Register the task manager at the job manager.
+	 * Registers the task manager at the job manager.
 	 *
 	 * @param taskManagerRpcAddress the rpc address of the task manager
 	 * @param taskManagerLocation   location of the task manager
@@ -198,14 +219,14 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 			@RpcTimeout final Time timeout);
 
 	/**
-	 * Send the heartbeat to job manager from task manager
+	 * Sends the heartbeat to job manager from task manager
 	 *
 	 * @param resourceID unique id of the task manager
 	 */
 	void heartbeatFromTaskManager(final ResourceID resourceID);
 
 	/**
-	 * Heartbeat request from the resource manager
+	 * Sends heartbeat request from the resource manager
 	 *
 	 * @param resourceID unique id of the resource manager
 	 */

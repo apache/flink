@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -356,6 +357,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	//----------------------------------------------------------------------------------------------
 	// RPC methods
 	//----------------------------------------------------------------------------------------------
+
+	@Override
+	public CompletableFuture<Acknowledge> cancel(Time timeout) {
+		executionGraph.cancel();
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> stop(Time timeout) {
+		try {
+			executionGraph.stop();
+		} catch (StoppingException e) {
+			return FutureUtils.completedExceptionally(e);
+		}
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
 
 	/**
 	 * Updates the task execution state for a given task.
