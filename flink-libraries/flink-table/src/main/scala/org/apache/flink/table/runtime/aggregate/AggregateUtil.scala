@@ -27,8 +27,7 @@ import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
@@ -981,7 +980,7 @@ object AggregateUtil {
       numAggregates: Int,
       finalRowArity: Int,
       properties: Seq[NamedWindowProperty]):
-    WindowFunction[Row, CRow, Tuple, DataStreamWindow] = {
+    WindowFunction[Row, CRow, Row, DataStreamWindow] = {
 
     if (isTimeWindow(window)) {
       val (startPos, endPos, timePos) = computeWindowPropertyPos(properties)
@@ -992,7 +991,7 @@ object AggregateUtil {
         endPos,
         timePos,
         finalRowArity)
-        .asInstanceOf[WindowFunction[Row, CRow, Tuple, DataStreamWindow]]
+        .asInstanceOf[WindowFunction[Row, CRow, Row, DataStreamWindow]]
     } else {
       new IncrementalAggregateWindowFunction(
         numGroupingKeys,
