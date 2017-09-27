@@ -32,6 +32,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, Ta
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
+import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowTimeBoundedStreamInnerJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -225,7 +226,9 @@ class DataStreamWindowJoin(
 
     if (!leftKeys.isEmpty) {
       leftDataStream.connect(rightDataStream)
-        .keyBy(leftKeys, rightKeys)
+        .keyBy(
+          new CRowKeySelector(leftKeys, leftSchema.projectedTypeInfo(leftKeys)),
+          new CRowKeySelector(rightKeys, rightSchema.projectedTypeInfo(rightKeys)))
         .process(procInnerJoinFunc)
         .name(operatorName)
         .returns(returnTypeInfo)
@@ -264,7 +267,9 @@ class DataStreamWindowJoin(
     if (!leftKeys.isEmpty) {
       leftDataStream
         .connect(rightDataStream)
-        .keyBy(leftKeys, rightKeys)
+        .keyBy(
+          new CRowKeySelector(leftKeys, leftSchema.projectedTypeInfo(leftKeys)),
+          new CRowKeySelector(rightKeys, rightSchema.projectedTypeInfo(rightKeys)))
         .transform(
           operatorName,
           returnTypeInfo,

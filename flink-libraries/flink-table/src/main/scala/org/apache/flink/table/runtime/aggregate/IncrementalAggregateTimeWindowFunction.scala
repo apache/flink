@@ -59,7 +59,7 @@ class IncrementalAggregateTimeWindowFunction(
   }
 
   override def apply(
-      key: Tuple,
+      key: Row,
       window: TimeWindow,
       records: Iterable[Row],
       out: Collector[CRow]): Unit = {

@@ -52,7 +52,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       (7L, 7, "Hello World"),
       (8L, 8, "Hello World"),
       (8L, 8, "Hello World"),
-      (20L, 20, "Hello World"))
+      (20L, 20, "Hello World"),
+      (20L, 20, null.asInstanceOf[String]))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
@@ -80,7 +81,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
 
     val expected = Seq(
       "Hello World,1,7,1", "Hello World,2,7,2", "Hello World,3,7,2", "Hello World,4,13,3",
-      "Hello,1,1,1", "Hello,2,1,2", "Hello,3,2,3", "Hello,4,3,4", "Hello,5,3,5", "Hello,6,4,6")
+      "Hello,1,1,1", "Hello,2,1,2", "Hello,3,2,3", "Hello,4,3,4", "Hello,5,3,5", "Hello,6,4,6",
+      "null,1,20,1")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

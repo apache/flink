@@ -25,8 +25,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.junit._
@@ -66,7 +67,9 @@ class JoinITCase extends StreamingWithStateTestBase {
     data2.+=((2, 2L, "HeHe"))
 
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+      .select(('a === 1)?(Null(Types.INT), 'a) as 'a, 'b, 'c, 'proctime) // test null values
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+      .select(('a === 1)?(Null(Types.INT), 'a) as 'a, 'b, 'c, 'proctime) // test null values
 
     tEnv.registerTable("T1", t1)
     tEnv.registerTable("T2", t2)
