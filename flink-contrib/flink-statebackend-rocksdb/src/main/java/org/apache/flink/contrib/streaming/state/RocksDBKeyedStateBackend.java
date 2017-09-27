@@ -1999,7 +1999,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		@Override
 		public K next() {
-			if (!iterator.isValid()) {
+			if (!hasNext()) {
 				throw new NoSuchElementException("Failed to access field [" + field + "]");
 			}
 			try {
