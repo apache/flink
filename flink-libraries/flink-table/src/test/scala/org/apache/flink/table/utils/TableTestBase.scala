@@ -19,7 +19,8 @@
 package org.apache.flink.table.utils
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -31,7 +32,7 @@ import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
-import org.junit.Rule
+import org.junit.{Assert, Rule}
 import org.junit.rules.ExpectedException
 import org.mockito.Mockito.{mock, when}
 
@@ -200,10 +201,30 @@ case class BatchTableTestUtil() extends TableTestUtil {
     printTable(tableEnv.sqlQuery(query))
   }
 
+  def verifyExpressionProjection(fields: Seq[(String, TypeInformation[_])],
+                                 predicateExpression: String,
+                                 assertions: List[Expression] => Unit): Unit = {
+
+    val actualFields = Seq("internal_test_data" -> BasicTypeInfo.STRING_TYPE_INFO) ++ fields
+
+    val typeInfo = new RowTypeInfo(
+      actualFields.map(_._2).toArray,
+      actualFields.map(_._1).toArray
+    )
+
+    val source = new CheckExpressionsTableSource(typeInfo, assertions)
+    tableEnv.registerTableSource("exp_test", source)
+
+    val query = s"select internal_test_data from exp_test where $predicateExpression"
+    val resultTable = tableEnv.sqlQuery(query)
+
+    val relNode = resultTable.getRelNode
+    tableEnv.optimize(relNode)
+  }
+
 }
 
 case class StreamTableTestUtil() extends TableTestUtil {
-
   val javaEnv = mock(classOf[JStreamExecutionEnvironment])
   when(javaEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
   val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)

@@ -17,21 +17,22 @@
  */
 package org.apache.flink.table.expressions
 
-import java.sql.{Date, Time, Timestamp}
-import java.util.{Calendar, TimeZone}
-
 import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rex.RexNode
+import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
 
+import java.sql.{Date, Time, Timestamp}
+import java.util.{Calendar, TimeZone}
+
 object Literal {
-  private[flink] val GMT = TimeZone.getTimeZone("GMT")
+  private[flink] val UTC = TimeZone.getTimeZone("UTC")
 
   private[flink] def apply(l: Any): Literal = l match {
     case i: Int => Literal(i, BasicTypeInfo.INT_TYPE_INFO)
@@ -49,10 +50,51 @@ object Literal {
     case sqlTime: Time => Literal(sqlTime, SqlTimeTypeInfo.TIME)
     case sqlTimestamp: Timestamp => Literal(sqlTimestamp, SqlTimeTypeInfo.TIMESTAMP)
   }
+
+  private[flink] def apply(rexNode: RexLiteral): Literal = {
+    val literalType = FlinkTypeFactory.toTypeInfo(rexNode.getType)
+
+    val literalValue = literalType match {
+      // Chrono use cases.  We're force-adjusting the UTC-based epoch timestamps to a new
+      // timestamp such that we get the same year/month/hour/day field values in the query's
+      // timezone (UTC)
+      case _@SqlTimeTypeInfo.DATE =>
+        val rexValue = rexNode.getValueAs(classOf[DateString])
+        val adjustedCal = adjustCalendar(rexValue.toCalendar, TimeZone.getDefault)
+        new Date(adjustedCal.getTimeInMillis)
+      case _@SqlTimeTypeInfo.TIME =>
+        val rexValue = rexNode.getValueAs(classOf[TimeString])
+        val adjustedCal = adjustCalendar(rexValue.toCalendar, TimeZone.getDefault)
+        new Time(adjustedCal.getTimeInMillis)
+      case _@SqlTimeTypeInfo.TIMESTAMP =>
+        val rexValue = rexNode.getValueAs(classOf[TimestampString])
+        val adjustedCal = adjustCalendar(rexValue.toCalendar, TimeZone.getDefault)
+        new Timestamp(adjustedCal.getTimeInMillis)
+      case _ => rexNode.getValue
+    }
+
+    Literal(literalValue, literalType)
+  }
+
+  /**
+    * Adjusts a calendar so that it has the same fields in a new time zone.
+    * <p>
+    * See {@link #valueAsUtcCalendar} for more information about why we'd want to do this.
+    * @param from The calendar to adjust.
+    * @param toTz The time zone to set the new fields for.
+    * @return The adjusted calendar.
+    */
+  private def adjustCalendar(from: Calendar, toTz: TimeZone): Calendar = {
+    val sourceTimestamp = from.getTimeInMillis
+    val adjustment = from.getTimeZone.getOffset(sourceTimestamp) - toTz.getOffset(sourceTimestamp)
+    val to = Calendar.getInstance(toTz)
+    to.setTimeInMillis(sourceTimestamp + adjustment)
+    to
+  }
 }
 
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
-  override def toString = resultType match {
+  override def toString: String = resultType match {
     case _: BasicTypeInfo[_] => value.toString
     case _@SqlTimeTypeInfo.DATE => value.toString + ".toDate"
     case _@SqlTimeTypeInfo.TIME => value.toString + ".toTime"
@@ -77,11 +119,14 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
 
       // date/time
       case SqlTimeTypeInfo.DATE =>
-        relBuilder.getRexBuilder.makeDateLiteral(dateToCalendar)
+        val datestr = DateString.fromCalendarFields(valueAsUtcCalendar)
+        relBuilder.getRexBuilder.makeDateLiteral(datestr)
       case SqlTimeTypeInfo.TIME =>
-        relBuilder.getRexBuilder.makeTimeLiteral(dateToCalendar, 0)
+        val timestr = TimeString.fromCalendarFields(valueAsUtcCalendar)
+        relBuilder.getRexBuilder.makeTimeLiteral(timestr, 0)
       case SqlTimeTypeInfo.TIMESTAMP =>
-        relBuilder.getRexBuilder.makeTimestampLiteral(dateToCalendar, 3)
+        val timestampstr = TimestampString.fromCalendarFields(valueAsUtcCalendar)
+        relBuilder.getRexBuilder.makeTimestampLiteral(timestampstr, 3)
 
       case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         val interval = java.math.BigDecimal.valueOf(value.asInstanceOf[Int])
@@ -103,13 +148,21 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
     }
   }
 
-  private def dateToCalendar: Calendar = {
+  /**
+    * Convert a date value to a utc calendar.
+    * <p>
+    * We're assuming that when the user passes in a Date its constructed from fields,
+    * such as days and hours, and that they want those fields to be in the same timezone as the
+    * Calcite times, which are UTC.  Since we need to convert a Date to a Calendar, that means we
+    * have to shift the epoch millisecond timestamp to account for the difference between UTC and
+    * local time.
+    * @return Get the Calendar value
+    */
+  private def valueAsUtcCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]
-    val cal = Calendar.getInstance(Literal.GMT)
-    val t = date.getTime
-    // according to Calcite's SqlFunctions.internalToXXX methods
-    cal.setTimeInMillis(t + TimeZone.getDefault.getOffset(t))
-    cal
+    val cal = Calendar.getInstance
+    cal.setTime(date)
+    Literal.adjustCalendar(cal, Literal.UTC)
   }
 }
 

@@ -18,13 +18,17 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.{BinaryComparison, Expression, Literal}
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.junit.{Assert, Test}
+
+import _root_.java.sql.{Date, Time, Timestamp}
 
 class TableSourceTest extends TableTestBase {
 
@@ -355,6 +359,39 @@ class TableSourceTest extends TableTestBase {
       true)
 
     Assert.assertEquals(source1, source2)
+  }
+
+  @Test
+  def testTimeLiteralExpressionPushdown(): Unit = {
+    val util = batchTestUtil()
+
+    val expectedTimestamp = Timestamp.valueOf("2017-09-27 13:00:01.001")
+    val expectedDate = Date.valueOf("2017-09-30")
+    val exprectedTime = Time.valueOf("15:20:01")
+
+
+    val query = "last_updated > TIMESTAMP '2017-09-27 13:00:01.001' AND " +
+      "last_updated_date > DATE '2017-09-30' AND last_updated_time > TIME '15:20:01'"
+    util.verifyExpressionProjection(
+      Seq[(String, TypeInformation[_])](
+        "last_updated" -> SqlTimeTypeInfo.TIMESTAMP,
+        "last_updated_date" -> SqlTimeTypeInfo.DATE,
+        "last_updated_time" -> SqlTimeTypeInfo.TIME
+
+      ),
+      query,
+      (exps: List[Expression]) => {
+        Assert.assertEquals(3, exps.length)
+
+        val extractedLiterals = exps
+          .map(_.asInstanceOf[BinaryComparison])
+          .map(_.right.asInstanceOf[Literal])
+
+        Assert.assertEquals(Literal(expectedTimestamp), extractedLiterals.head)
+        Assert.assertEquals(Literal(expectedDate), extractedLiterals(1))
+        Assert.assertEquals(Literal(exprectedTime), extractedLiterals(2))
+      }
+    )
   }
 
   // utils

@@ -158,7 +158,7 @@ class RexNodeToExpressionConverter(
   }
 
   override def visitLiteral(literal: RexLiteral): Option[Expression] = {
-    Some(Literal(literal.getValue, FlinkTypeFactory.toTypeInfo(literal.getType)))
+    Some(Literal(literal))
   }
 
   override def visitCall(call: RexCall): Option[Expression] = {
