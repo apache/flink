@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
@@ -29,7 +30,6 @@ import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -347,15 +347,15 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	/**
 	 * A buffer availability listener, which subscribes/unsubscribes the NIO
 	 * read event.
-	 * <p>
-	 * If no buffer is available, the channel read event will be unsubscribed
+	 *
+	 * <p>If no buffer is available, the channel read event will be unsubscribed
 	 * until one becomes available again.
-	 * <p>
-	 * After a buffer becomes available again, the buffer is handed over by
-	 * the thread calling {@link #onEvent(Buffer)} to the network I/O
+	 *
+	 * <p>After a buffer becomes available again, the buffer is handed over by
+	 * the thread calling {@link #notifyBufferAvailable(Buffer)} to the network I/O
 	 * thread, which then continues the processing of the staged buffer.
 	 */
-	private class BufferListenerTask implements EventListener<Buffer>, Runnable {
+	private class BufferListenerTask implements BufferListener, Runnable {
 
 		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<Buffer>();
 
@@ -365,7 +365,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 			stagedBufferResponse = bufferResponse;
 
-			if (bufferProvider.addListener(this)) {
+			if (bufferProvider.addBufferListener(this)) {
 				if (ctx.channel().config().isAutoRead()) {
 					ctx.channel().config().setAutoRead(false);
 				}
@@ -383,34 +383,33 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			return stagedBufferResponse != null;
 		}
 
+		public void notifyBufferDestroyed() {
+			// The buffer pool has been destroyed
+			stagedBufferResponse = null;
+
+			if (stagedMessages.isEmpty()) {
+				ctx.channel().config().setAutoRead(true);
+				ctx.channel().read();
+			}
+			else {
+				ctx.channel().eventLoop().execute(stagedMessagesHandler);
+			}
+		}
+
 		// Called by the recycling thread (not network I/O thread)
 		@Override
-		public void onEvent(Buffer buffer) {
+		public boolean notifyBufferAvailable(Buffer buffer) {
 			boolean success = false;
 
 			try {
-				if (buffer != null) {
-					if (availableBuffer.compareAndSet(null, buffer)) {
-						ctx.channel().eventLoop().execute(this);
+				if (availableBuffer.compareAndSet(null, buffer)) {
+					ctx.channel().eventLoop().execute(this);
 
-						success = true;
-					}
-					else {
-						throw new IllegalStateException("Received a buffer notification, " +
-								" but the previous one has not been handled yet.");
-					}
+					success = true;
 				}
 				else {
-					// The buffer pool has been destroyed
-					stagedBufferResponse = null;
-
-					if (stagedMessages.isEmpty()) {
-						ctx.channel().config().setAutoRead(true);
-						ctx.channel().read();
-					}
-					else {
-						ctx.channel().eventLoop().execute(stagedMessagesHandler);
-					}
+					throw new IllegalStateException("Received a buffer notification, " +
+							" but the previous one has not been handled yet.");
 				}
 			}
 			catch (Throwable t) {
@@ -423,12 +422,14 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					}
 				}
 			}
+
+			return false;
 		}
 
 		/**
 		 * Continues the decoding of a staged buffer after a buffer has become available again.
-		 * <p>
-		 * This task is executed by the network I/O thread.
+		 *
+		 * <p>This task is executed by the network I/O thread.
 		 */
 		@Override
 		public void run() {
