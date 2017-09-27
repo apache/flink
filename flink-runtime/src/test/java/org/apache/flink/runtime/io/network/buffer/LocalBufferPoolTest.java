@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -27,7 +26,6 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -46,6 +44,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
@@ -211,10 +210,15 @@ public class LocalBufferPoolTest {
 
 	@Test
 	public void testPendingRequestWithListenerAfterRecycle() throws Exception {
-		EventListener<Buffer> listener = spy(new EventListener<Buffer>() {
+		BufferListener listener = spy(new BufferListener() {
 			@Override
-			public void onEvent(Buffer buffer) {
+			public boolean notifyBufferAvailable(Buffer buffer) {
 				buffer.recycle();
+				return false;
+			}
+
+			@Override
+			public void notifyBufferDestroyed() {
 			}
 		});
 
@@ -225,17 +229,17 @@ public class LocalBufferPoolTest {
 
 		assertNull(unavailable);
 
-		assertTrue(localBufferPool.addListener(listener));
+		assertTrue(localBufferPool.addBufferListener(listener));
 
 		available.recycle();
 
-		verify(listener, times(1)).onEvent(Matchers.any(Buffer.class));
+		verify(listener, times(1)).notifyBufferAvailable(any(Buffer.class));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testCancelPendingRequestsAfterDestroy() throws IOException {
-		EventListener<Buffer> listener = Mockito.mock(EventListener.class);
+		BufferListener listener = Mockito.mock(BufferListener.class);
 
 		localBufferPool.setNumBuffers(1);
 
@@ -244,13 +248,13 @@ public class LocalBufferPoolTest {
 
 		assertNull(unavailable);
 
-		localBufferPool.addListener(listener);
+		localBufferPool.addBufferListener(listener);
 
 		localBufferPool.lazyDestroy();
 
 		available.recycle();
 
-		verify(listener, times(1)).onEvent(null);
+		verify(listener, times(1)).notifyBufferDestroyed();
 	}
 
 	// ------------------------------------------------------------------------

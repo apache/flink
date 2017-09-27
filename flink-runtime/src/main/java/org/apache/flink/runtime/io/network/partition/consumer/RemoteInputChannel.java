@@ -23,6 +23,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
@@ -46,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * An input channel, which requests a remote partition queue.
  */
-public class RemoteInputChannel extends InputChannel implements BufferRecycler {
+public class RemoteInputChannel extends InputChannel implements BufferRecycler, BufferListener {
 
 	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
 	private final InputChannelID id = new InputChannelID();
@@ -86,6 +87,12 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler {
 
 	/** The number of available buffers that have not been announced to the producer yet. */
 	private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
+
+	/** The number of unsent buffers in the producer's sub partition. */
+	private final AtomicInteger senderBacklog = new AtomicInteger(0);
+
+	/** The tag indicates whether this channel is waiting for additional floating buffers from the buffer pool. */
+	private final AtomicBoolean isWaitingFloatingBuffers = new AtomicBoolean(false);
 
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
@@ -310,6 +317,49 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler {
 	public int getNumberOfAvailableBuffers() {
 		synchronized (availableBuffers) {
 			return availableBuffers.size();
+		}
+	}
+
+	/**
+	 * Buffer pool notifies this channel of an available floating buffer. If the channel is released or not
+	 * needing extra buffers currently, the buffer should be recycled to buffer pool. Otherwise, the buffer
+	 * will be added into the available queue and the unannounced credit is increased by one.
+	 *
+	 * @param buffer Buffer that becomes available in buffer pool.
+	 * @return True when this channel is waiting for more floating buffers, otherwise false.
+	 */
+	@Override
+	public boolean notifyBufferAvailable(Buffer buffer) {
+		checkState(isWaitingFloatingBuffers.get(), "This channel should be waiting for floating buffers currently.");
+
+		synchronized (availableBuffers) {
+			// Important: the isReleased check should be inside the synchronized block.
+			if (isReleased.get() || availableBuffers.size() >= senderBacklog.get()) {
+				isWaitingFloatingBuffers.set(false);
+				buffer.recycle();
+
+				return false;
+			}
+
+			availableBuffers.add(buffer);
+
+			if (unannouncedCredit.getAndAdd(1) == 0) {
+				notifyCreditAvailable();
+			}
+
+			if (availableBuffers.size() >= senderBacklog.get()) {
+				isWaitingFloatingBuffers.set(false);
+				return false;
+			} else {
+				return true;
+			}
+		}
+	}
+
+	@Override
+	public void notifyBufferDestroyed() {
+		if (!isWaitingFloatingBuffers.compareAndSet(true, false)) {
+			throw new IllegalStateException("This channel should be waiting for floating buffers currently.");
 		}
 	}
 
