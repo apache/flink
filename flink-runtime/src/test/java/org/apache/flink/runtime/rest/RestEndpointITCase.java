@@ -48,6 +48,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -60,9 +61,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -117,8 +115,12 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that request are handled as individual units which don't interfere with each other.
+	 * This means that request responses can overtake each other.
+	 */
 	@Test
-	public void testEndpoints() throws Exception {
+	public void testRequestInterleaving() throws Exception {
 
 		TestParameters parameters = new TestParameters();
 		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
@@ -145,14 +147,14 @@ public class RestEndpointITCase extends TestLogger {
 			new TestHeaders(),
 			parameters,
 			new TestRequest(2));
-		assertEquals(2, response2.get().id);
+		Assert.assertEquals(2, response2.get().id);
 
 		// wake up blocked handler
 		synchronized (TestHandler.LOCK) {
 			TestHandler.LOCK.notifyAll();
 		}
 		// verify response to first request
-		assertEquals(1, response1.get().id);
+		Assert.assertEquals(1, response1.get().id);
 	}
 
 	/**
@@ -168,7 +170,7 @@ public class RestEndpointITCase extends TestLogger {
 		final FaultyTestParameters parameters = new FaultyTestParameters();
 
 		parameters.faultyJobIDPathParameter.resolve(PATH_JOB_ID);
-		parameters.jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
+		((TestParameters) parameters).jobIDQueryParameter.resolve(Collections.singletonList(QUERY_JOB_ID));
 
 		CompletableFuture<TestResponse> response = clientEndpoint.sendRequest(
 			serverAddress.getHostName(),
@@ -180,15 +182,15 @@ public class RestEndpointITCase extends TestLogger {
 		try {
 			response.get();
 
-			fail("The request should fail with a bad request return code.");
+			Assert.fail("The request should fail with a bad request return code.");
 		} catch (ExecutionException ee) {
 			Throwable t = ExceptionUtils.stripExecutionException(ee);
 
-			assertTrue(t instanceof RestClientException);
+			Assert.assertTrue(t instanceof RestClientException);
 
 			RestClientException rce = (RestClientException) t;
 
-			assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
+			Assert.assertEquals(HttpResponseStatus.BAD_REQUEST, rce.getHttpResponseStatus());
 		}
 	}
 
@@ -225,8 +227,8 @@ public class RestEndpointITCase extends TestLogger {
 
 		@Override
 		protected CompletableFuture<TestResponse> handleRequest(@Nonnull HandlerRequest<TestRequest, TestParameters> request, RestfulGateway gateway) throws RestHandlerException {
-			assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
-			assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
+			Assert.assertEquals(request.getPathParameter(JobIDPathParameter.class), PATH_JOB_ID);
+			Assert.assertEquals(request.getQueryParameter(JobIDQueryParameter.class).get(0), QUERY_JOB_ID);
 
 			if (request.getRequestBody().id == 1) {
 				synchronized (LOCK) {
@@ -300,8 +302,8 @@ public class RestEndpointITCase extends TestLogger {
 	}
 
 	private static class TestParameters extends MessageParameters {
-		protected final JobIDPathParameter jobIDPathParameter = new JobIDPathParameter();
-		protected final JobIDQueryParameter jobIDQueryParameter = new JobIDQueryParameter();
+		private final JobIDPathParameter jobIDPathParameter = new JobIDPathParameter();
+		private final JobIDQueryParameter jobIDQueryParameter = new JobIDQueryParameter();
 
 		@Override
 		public Collection<MessagePathParameter<?>> getPathParameters() {

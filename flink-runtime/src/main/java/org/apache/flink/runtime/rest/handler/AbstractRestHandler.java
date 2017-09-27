@@ -127,7 +127,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				HandlerUtils.sendErrorResponse(
 					ctx,
 					httpRequest,
-					new ErrorResponseBody(String.format("Could not create the handler request: %s", hre.getMessage())),
+					new ErrorResponseBody(String.format("Bad request, could not parse parameters: %s", hre.getMessage())),
 					HttpResponseStatus.BAD_REQUEST);
 				return;
 			}
