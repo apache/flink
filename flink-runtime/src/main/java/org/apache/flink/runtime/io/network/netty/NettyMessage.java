@@ -38,13 +38,16 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.MessageToMessageDecoder;
 
-import org.apache.flink.util.Preconditions;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A simple and generic interface to serialize messages to Netty's buffer space.
@@ -151,7 +154,7 @@ abstract class NettyMessage {
 					decodedMsg = CloseRequest.readFrom(msg);
 					break;
 				default:
-					throw new IllegalStateException("Received unknown message from producer: " + msg);
+					throw new ProtocolException("Received unknown message from producer: " + msg);
 			}
 
 			out.add(decodedMsg);
@@ -166,31 +169,43 @@ abstract class NettyMessage {
 
 		private static final byte ID = 0;
 
+		@Nullable
 		final Buffer buffer;
 
-		InputChannelID receiverId;
+		final InputChannelID receiverId;
 
-		int sequenceNumber;
+		final int sequenceNumber;
 
 		// ---- Deserialization -----------------------------------------------
 
-		boolean isBuffer;
+		final boolean isBuffer;
 
-		int size;
+		final int size;
 
+		@Nullable
 		ByteBuf retainedSlice;
 
-		private BufferResponse() {
+		private BufferResponse(
+				ByteBuf retainedSlice, boolean isBuffer, int sequenceNumber,
+				InputChannelID receiverId) {
 			// When deserializing we first have to request a buffer from the respective buffer
 			// provider (at the handler) and copy the buffer from Netty's space to ours. Only
 			// retainedSlice is set in this case.
-			buffer = null;
+			this.buffer = null;
+			this.retainedSlice = checkNotNull(retainedSlice);
+			this.size = retainedSlice.writerIndex();
+			this.isBuffer = isBuffer;
+			this.sequenceNumber = sequenceNumber;
+			this.receiverId = checkNotNull(receiverId);
 		}
 
 		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId) {
-			this.buffer = buffer;
+			this.buffer = checkNotNull(buffer);
+			this.retainedSlice = null;
+			this.isBuffer = buffer.isBuffer();
+			this.size = buffer.getSize();
 			this.sequenceNumber = sequenceNumber;
-			this.receiverId = receiverId;
+			this.receiverId = checkNotNull(receiverId);
 		}
 
 		boolean isBuffer() {
@@ -218,7 +233,7 @@ abstract class NettyMessage {
 
 		@Override
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
-			Preconditions.checkNotNull(buffer, "No buffer instance to serialize.");
+			checkNotNull(buffer, "No buffer instance to serialize.");
 
 			int length = 16 + 4 + 1 + 4 + buffer.getSize();
 
@@ -247,17 +262,14 @@ abstract class NettyMessage {
 		}
 
 		static BufferResponse readFrom(ByteBuf buffer) {
-			BufferResponse result = new BufferResponse();
+			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+			int sequenceNumber = buffer.readInt();
+			boolean isBuffer = buffer.readBoolean();
+			int size = buffer.readInt();
 
-			result.receiverId = InputChannelID.fromByteBuf(buffer);
-			result.sequenceNumber = buffer.readInt();
-			result.isBuffer = buffer.readBoolean();
-			result.size = buffer.readInt();
+			ByteBuf retainedSlice = buffer.readSlice(size).retain();
 
-			result.retainedSlice = buffer.readSlice(result.size);
-			result.retainedSlice.retain();
-
-			return result;
+			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId);
 		}
 	}
 
@@ -265,16 +277,18 @@ abstract class NettyMessage {
 
 		private static final byte ID = 1;
 
-		Throwable cause;
+		final Throwable cause;
 
-		InputChannelID receiverId;
+		@Nullable
+		final InputChannelID receiverId;
 
 		ErrorResponse(Throwable cause) {
-			this.cause = cause;
+			this.cause = checkNotNull(cause);
+			this.receiverId = null;
 		}
 
 		ErrorResponse(Throwable cause, InputChannelID receiverId) {
-			this.cause = cause;
+			this.cause = checkNotNull(cause);
 			this.receiverId = receiverId;
 		}
 
@@ -319,12 +333,12 @@ abstract class NettyMessage {
 					throw new ClassCastException("Read object expected to be of type Throwable, " +
 							"actual type is " + obj.getClass() + ".");
 				} else {
-					ErrorResponse result = new ErrorResponse((Throwable) obj);
-
 					if (buffer.readBoolean()) {
-						result.receiverId = InputChannelID.fromByteBuf(buffer);
+						InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+						return new ErrorResponse((Throwable) obj, receiverId);
+					} else {
+						return new ErrorResponse((Throwable) obj);
 					}
-					return result;
 				}
 			}
 		}
@@ -336,21 +350,18 @@ abstract class NettyMessage {
 
 	static class PartitionRequest extends NettyMessage {
 
-		final static byte ID = 2;
+		private static final byte ID = 2;
 
-		ResultPartitionID partitionId;
+		final ResultPartitionID partitionId;
 
-		int queueIndex;
+		final int queueIndex;
 
-		InputChannelID receiverId;
-
-		private PartitionRequest() {
-		}
+		final InputChannelID receiverId;
 
 		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId) {
-			this.partitionId = partitionId;
+			this.partitionId = checkNotNull(partitionId);
 			this.queueIndex = queueIndex;
-			this.receiverId = receiverId;
+			this.receiverId = checkNotNull(receiverId);
 		}
 
 		@Override
@@ -377,13 +388,14 @@ abstract class NettyMessage {
 		}
 
 		static PartitionRequest readFrom(ByteBuf buffer) {
-			PartitionRequest result = new PartitionRequest();
+			ResultPartitionID partitionId =
+				new ResultPartitionID(
+					IntermediateResultPartitionID.fromByteBuf(buffer),
+					ExecutionAttemptID.fromByteBuf(buffer));
+			int queueIndex = buffer.readInt();
+			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 
-			result.partitionId = new ResultPartitionID(IntermediateResultPartitionID.fromByteBuf(buffer), ExecutionAttemptID.fromByteBuf(buffer));
-			result.queueIndex = buffer.readInt();
-			result.receiverId = InputChannelID.fromByteBuf(buffer);
-
-			return result;
+			return new PartitionRequest(partitionId, queueIndex, receiverId);
 		}
 
 		@Override
@@ -394,21 +406,18 @@ abstract class NettyMessage {
 
 	static class TaskEventRequest extends NettyMessage {
 
-		final static byte ID = 3;
+		private static final byte ID = 3;
 
-		TaskEvent event;
+		final TaskEvent event;
 
-		InputChannelID receiverId;
+		final InputChannelID receiverId;
 
-		ResultPartitionID partitionId;
-
-		private TaskEventRequest() {
-		}
+		final ResultPartitionID partitionId;
 
 		TaskEventRequest(TaskEvent event, ResultPartitionID partitionId, InputChannelID receiverId) {
-			this.event = event;
-			this.receiverId = receiverId;
-			this.partitionId = partitionId;
+			this.event = checkNotNull(event);
+			this.receiverId = checkNotNull(receiverId);
+			this.partitionId = checkNotNull(partitionId);
 		}
 
 		@Override
@@ -441,8 +450,6 @@ abstract class NettyMessage {
 		}
 
 		static TaskEventRequest readFrom(ByteBuf buffer, ClassLoader classLoader) throws IOException {
-			TaskEventRequest result = new TaskEventRequest();
-
 			// TODO Directly deserialize fromNetty's buffer
 			int length = buffer.readInt();
 			ByteBuffer serializedEvent = ByteBuffer.allocate(length);
@@ -450,13 +457,17 @@ abstract class NettyMessage {
 			buffer.readBytes(serializedEvent);
 			serializedEvent.flip();
 
-			result.event = (TaskEvent) EventSerializer.fromSerializedEvent(serializedEvent, classLoader);
+			TaskEvent event =
+				(TaskEvent) EventSerializer.fromSerializedEvent(serializedEvent, classLoader);
 
-			result.partitionId = new ResultPartitionID(IntermediateResultPartitionID.fromByteBuf(buffer), ExecutionAttemptID.fromByteBuf(buffer));
+			ResultPartitionID partitionId =
+				new ResultPartitionID(
+					IntermediateResultPartitionID.fromByteBuf(buffer),
+					ExecutionAttemptID.fromByteBuf(buffer));
 
-			result.receiverId = InputChannelID.fromByteBuf(buffer);
+			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 
-			return result;
+			return new TaskEventRequest(event, partitionId, receiverId);
 		}
 	}
 
@@ -464,17 +475,17 @@ abstract class NettyMessage {
 	 * Cancels the partition request of the {@link InputChannel} identified by
 	 * {@link InputChannelID}.
 	 *
-	 * <p> There is a 1:1 mapping between the input channel and partition per physical channel.
+	 * <p>There is a 1:1 mapping between the input channel and partition per physical channel.
 	 * Therefore, the {@link InputChannelID} instance is enough to identify which request to cancel.
 	 */
 	static class CancelPartitionRequest extends NettyMessage {
 
-		final static byte ID = 4;
+		private static final byte ID = 4;
 
-		InputChannelID receiverId;
+		final InputChannelID receiverId;
 
 		CancelPartitionRequest(InputChannelID receiverId) {
-			this.receiverId = receiverId;
+			this.receiverId = checkNotNull(receiverId);
 		}
 
 		@Override
