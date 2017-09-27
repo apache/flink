@@ -19,17 +19,17 @@
 package org.apache.flink.table.runtime.batch.table
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.{ExecutionEnvironment => JExecEnv}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment => JExecEnv}
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
+import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, Types}
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.runtime.utils.{CommonTestData, TableProgramsCollectionTestBase}
 import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.utils._
 import org.apache.flink.test.util.TestBaseUtils
@@ -101,7 +101,7 @@ class TableSourceITCase(
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    tableEnv.registerTableSource(tableName, new TestFilterableTableSource)
+    tableEnv.registerTableSource(tableName, TestFilterableTableSource())
     val results = tableEnv
       .scan(tableName)
       .where("amount > 4 && price < 9")
@@ -250,6 +250,37 @@ class TableSourceITCase(
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40").mkString("\n")
+  }
+
+  @Test
+  def testTableSourceWithFilterableDate(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val rowTypeInfo = new RowTypeInfo(
+      Array[TypeInformation[_]](BasicTypeInfo.INT_TYPE_INFO, SqlTimeTypeInfo.DATE),
+      Array("id", "date_val"))
+
+    val rows = Seq(
+      makeRow(23, Date.valueOf("2017-04-23")),
+      makeRow(24, Date.valueOf("2017-04-24")),
+      makeRow(25, Date.valueOf("2017-04-25")),
+      makeRow(26, Date.valueOf("2017-04-26"))
+    )
+
+    val query =
+      """
+        |select id from MyTable
+        |where date_val >= DATE '2017-04-24' and date_val < DATE '2017-04-26'
+      """.stripMargin
+    val tableSource = TestFilterableTableSource(rowTypeInfo, rows, Set("date_val"))
+    tableEnv.registerTableSource(tableName, tableSource)
+    val results = tableEnv
+      .sqlQuery(query)
+      .collect()
+
+    val expected = Seq(24, 25).mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
@@ -473,6 +504,7 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
   def testProjectOnlyProctime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -504,6 +536,7 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
   def testProjectOnlyRowtime(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -643,4 +676,76 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testTableSourceWithFilterableTime(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val rowTypeInfo = new RowTypeInfo(
+      Array[TypeInformation[_]](BasicTypeInfo.INT_TYPE_INFO, SqlTimeTypeInfo.TIME),
+      Array("id", "time_val"))
+
+    val rows = Seq(
+      makeRow(1, Time.valueOf("7:23:19")),
+      makeRow(2, Time.valueOf("11:45:00")),
+      makeRow(3, Time.valueOf("11:45:01")),
+      makeRow(4, Time.valueOf("12:14:23")),
+      makeRow(5, Time.valueOf("13:33:12"))
+    )
+
+    val query =
+      """
+        |select id from MyTable
+        |where time_val >= TIME '11:45:00' and time_val < TIME '12:14:23'
+      """.stripMargin
+    val tableSource = TestFilterableTableSource(rowTypeInfo, rows, Set("time_val"))
+    tableEnv.registerTableSource(tableName, tableSource)
+    val results = tableEnv
+      .sqlQuery(query)
+      .collect()
+
+    val expected = Seq(2, 3).mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testTableSourceWithFilterableTimestamp(): Unit = {
+    val tableName = "MyTable"
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val rowTypeInfo = new RowTypeInfo(
+      Array[TypeInformation[_]](BasicTypeInfo.INT_TYPE_INFO, SqlTimeTypeInfo.TIMESTAMP),
+      Array("id", "ts"))
+
+    val rows = Seq(
+      makeRow(1, Timestamp.valueOf("2017-07-11 7:23:19")),
+      makeRow(2, Timestamp.valueOf("2017-07-12 11:45:00")),
+      makeRow(3, Timestamp.valueOf("2017-07-13 11:45:01")),
+      makeRow(4, Timestamp.valueOf("2017-07-14 12:14:23")),
+      makeRow(5, Timestamp.valueOf("2017-07-13 13:33:12"))
+    )
+
+    val query =
+      """
+        |select id from MyTable
+        |where ts >= TIMESTAMP '2017-07-12 11:45:00' and ts < TIMESTAMP '2017-07-14 12:14:23'
+      """.stripMargin
+    val tableSource = TestFilterableTableSource(rowTypeInfo, rows, Set("ts"))
+    tableEnv.registerTableSource(tableName, tableSource)
+    val results = tableEnv
+      .sqlQuery(query)
+      .collect()
+
+    val expected = Seq(2, 3, 5).mkString("\n")
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  private def makeRow(fields: Any*): Row = {
+    val row = new Row(fields.length)
+    val addField = (value: Any, pos: Int) => row.setField(pos, value)
+    fields.zipWithIndex.foreach(addField.tupled)
+    row
+  }
 }
