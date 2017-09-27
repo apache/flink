@@ -26,9 +26,9 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
@@ -87,10 +87,12 @@ public class DispatcherTest extends TestLogger {
 	@Test
 	public void testJobSubmission() throws Exception {
 		TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
-		HighAvailabilityServices haServices = new StandaloneHaServices(
-			"localhost",
-			"localhost",
-			"localhost");
+
+		TestingLeaderElectionService dispatcherLeaderElectionService = new TestingLeaderElectionService();
+		TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+		haServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
+		haServices.setSubmittedJobGraphStore(new StandaloneSubmittedJobGraphStore());
+
 		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
 		JobManagerRunner jobManagerRunner = mock(JobManagerRunner.class);
 
@@ -112,6 +114,11 @@ public class DispatcherTest extends TestLogger {
 
 		try {
 			dispatcher.start();
+
+			CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
+
+			// wait for the leader to be elected
+			leaderFuture.get();
 
 			DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
