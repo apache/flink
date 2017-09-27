@@ -1627,8 +1627,8 @@ class JobManager(
           val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
 
           future.onSuccess {
-            case archiveOverview: JobsWithIDsOverview =>
-              theSender ! new JobsWithIDsOverview(ourJobs, archiveOverview)
+            case archiveOverview: JobIdsWithStatusesOverview =>
+              theSender ! new JobIdsWithStatusesOverview(ourJobs, archiveOverview)
           }(context.dispatcher)
 
         case _ : RequestStatusOverview =>
@@ -1694,22 +1694,17 @@ class JobManager(
     new JobsOverview(runningOrPending, finished, canceled, failed)
   }
 
-  private def createJobStatusWithIDsOverview() : JobsWithIDsOverview = {
-    val runningOrPending = new java.util.ArrayList[JobID]()
-    val finished = new java.util.ArrayList[JobID]()
-    val canceled = new java.util.ArrayList[JobID]()
-    val failed = new java.util.ArrayList[JobID]()
-    
-    currentJobs.values.foreach { case (graph, _) =>
-      graph.getState() match {
-        case JobStatus.FINISHED => finished.add(graph.getJobID)
-        case JobStatus.CANCELED => canceled.add(graph.getJobID)
-        case JobStatus.FAILED => failed.add(graph.getJobID)
-        case _ => runningOrPending.add(graph.getJobID)
-      }
+  private def createJobStatusWithIDsOverview() : JobIdsWithStatusesOverview = {
+    val jobIdsWithStatuses =
+      new java.util.ArrayList[
+        org.apache.flink.api.java.tuple.Tuple2[JobID, JobStatus]](currentJobs.size)
+
+    currentJobs.values.foreach { job =>
+      jobIdsWithStatuses.add(
+        org.apache.flink.api.java.tuple.Tuple2.of(job._1.getJobID, job._1.getState))
     }
 
-    new JobsWithIDsOverview(runningOrPending, finished, canceled, failed)
+    new JobIdsWithStatusesOverview(jobIdsWithStatuses)
   }
 
   /**
