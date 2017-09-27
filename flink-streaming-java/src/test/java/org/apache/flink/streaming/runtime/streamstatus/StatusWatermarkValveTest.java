@@ -246,7 +246,7 @@ public class StatusWatermarkValveTest {
 
 		// ------------------------------------------------------------------------
 		//  Ensure that after some channel resumes to be ACTIVE, it needs to
-		//  catch up" with the current overall min watermark before it can be
+		//  "catch up" with the current overall min watermark before it can be
 		//  accounted for again when finding the min watermark across channels.
 		//  Also tests that before the resumed channel catches up, the overall
 		//  min watermark can still advance with watermarks of other channels.
@@ -297,7 +297,7 @@ public class StatusWatermarkValveTest {
 
 		// ------------------------------------------------------------------------
 		//  Ensure that once all channels are IDLE, the valve should also
-		//  determine itself to be IDLE output a IDLE stream status
+		//  determine itself to be IDLE and output a IDLE stream status
 		// ------------------------------------------------------------------------
 
 		valve.inputStreamStatus(StreamStatus.IDLE, 0);
@@ -311,13 +311,14 @@ public class StatusWatermarkValveTest {
 		assertTrue(valveOutput.hasNoOutputWatermarks());
 		assertTrue(valveOutput.hasNoOutputStreamStatuses());
 
+		// now let all channels become idle; we should only see the idle marker be emitted, and nothing else
 		valve.inputStreamStatus(StreamStatus.IDLE, 1);
 		assertEquals(StreamStatus.IDLE, valveOutput.popLastOutputStreamStatus());
 		assertTrue(valveOutput.hasNoOutputWatermarks());
 		assertTrue(valveOutput.hasNoOutputStreamStatuses());
 
 		// ------------------------------------------------------------------------
-		//  Ensure that channels gradually become ACTIVE again, the above behaviours
+		//  Ensure that as channels gradually become ACTIVE again, the above behaviours
 		//  still hold. Also ensure that as soon as one of the input channels
 		//  become ACTIVE, the valve is ACTIVE again and outputs an ACTIVE stream status.
 		// ------------------------------------------------------------------------
@@ -352,7 +353,19 @@ public class StatusWatermarkValveTest {
 		assertTrue(valveOutput.hasNoOutputWatermarks());
 		assertTrue(valveOutput.hasNoOutputStreamStatuses());
 
-		// now, channel 1 has caught up with the overall min watermark
+		// temporarily let channel 0 (the only active and aligned input) become idle;
+		// this should not result in any watermark or stream status output,
+		// because channel 1 is still active (therefore no stream status toggle) and
+		// at the same time not aligned (therefore should not produce any new min watermarks)
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		assertTrue(valveOutput.hasNoOutputWatermarks());
+		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
+		assertTrue(valveOutput.hasNoOutputWatermarks());
+		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+
+		// now, let channel 1 catch up with the overall min watermark
 		valve.inputWatermark(new Watermark(38), 1);
 		assertTrue(valveOutput.hasNoOutputWatermarks());
 		assertTrue(valveOutput.hasNoOutputStreamStatuses());
