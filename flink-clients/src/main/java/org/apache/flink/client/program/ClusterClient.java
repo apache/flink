@@ -82,7 +82,7 @@ import scala.concurrent.duration.FiniteDuration;
  */
 public abstract class ClusterClient {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** The optimizer used in the optimization of batch programs. */
 	final Optimizer compiler;

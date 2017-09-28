@@ -30,6 +30,7 @@ import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -146,6 +147,8 @@ public class CliFrontend {
 		} catch (Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnCLI, e);
 		}
+
+		customCommandLines.add(new Flip6DefaultCLI());
 		customCommandLines.add(new DefaultCLI());
 	}
 
@@ -554,6 +557,18 @@ public class CliFrontend {
 			return handleArgException(new CliArgsException("Missing JobID"));
 		}
 
+		// FLIP-6 specific branch
+		try {
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			if (activeCommandLine instanceof  Flip6DefaultCLI) {
+				ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+				client.stop(jobId);
+				return 0;
+			}
+		} catch (Throwable t) {
+			return handleError(t);
+		}
+
 		try {
 			ActorGateway jobManager = getJobManagerGateway(options);
 			Future<Object> response = jobManager.ask(new StopJob(jobId), clientTimeout);
@@ -633,6 +648,18 @@ public class CliFrontend {
 			LOG.error("Missing JobID in the command line arguments.");
 			System.out.println("Error: Specify a Job ID to cancel a job.");
 			return 1;
+		}
+
+		// FLIP-6 specific branch
+		try {
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			if (activeCommandLine instanceof Flip6DefaultCLI) {
+				ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+				client.cancel(jobId);
+				return 0;
+			}
+		} catch (Throwable t) {
+			return handleError(t);
 		}
 
 		try {
@@ -978,7 +1005,11 @@ public class CliFrontend {
 		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
 		final InetSocketAddress jobManagerAddress = client.getJobManagerAddress();
 		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
-		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		try {
+			logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		} catch (UnsupportedOperationException uoe) {
+			logAndSysout("JobManager web interface not active.");
+		}
 		return client;
 	}
 

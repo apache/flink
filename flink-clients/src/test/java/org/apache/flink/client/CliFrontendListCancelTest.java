@@ -19,7 +19,10 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.cli.CancelOptions;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -129,6 +132,14 @@ public class CliFrontendListCancelTest {
 				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
 
 				assertTrue(testFrontend.cancel(parameters) != 0);
+			}
+
+			// test flip6 switch
+			{
+				String[] parameters =
+					{"-flip6", String.valueOf(new JobID())};
+				CancelOptions options = CliFrontendParser.parseCancelCommand(parameters);
+				assertTrue(options.getCommandLine().hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
 			}
 		}
 		catch (Exception e) {
