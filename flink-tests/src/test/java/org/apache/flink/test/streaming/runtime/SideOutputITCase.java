@@ -605,7 +605,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 
 					@Override
 					public void process(Context context, Iterable<Integer> elements, Collector<Integer> out) throws Exception {
-						for(Integer e : elements) {
+						for (Integer e : elements) {
 							out.collect(e);
 							context.output(sideOutputTag, "sideout-" + String.valueOf(e));
 						}
