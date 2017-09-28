@@ -38,19 +38,20 @@ import static org.junit.Assert.assertTrue;
 public class NettyClientServerSslTest {
 
 	/**
-	 * Verify valid ssl configuration and connection
-	 *
+	 * Verify valid ssl configuration and connection.
 	 */
 	@Test
 	public void testValidSslConnection() throws Exception {
-		NettyProtocol protocol = new NettyProtocol() {
+		NettyProtocol protocol = new NettyProtocol(null, null) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
 			}
 
 			@Override
-			public ChannelHandler[] getClientChannelHandlers() { return new ChannelHandler[0]; }
+			public ChannelHandler[] getClientChannelHandlers() {
+				return new ChannelHandler[0];
+			}
 		};
 
 		NettyConfig nettyConfig = new NettyConfig(
@@ -72,19 +73,20 @@ public class NettyClientServerSslTest {
 	}
 
 	/**
-	 * Verify failure on invalid ssl configuration
-	 *
+	 * Verify failure on invalid ssl configuration.
 	 */
 	@Test
 	public void testInvalidSslConfiguration() throws Exception {
-		NettyProtocol protocol = new NettyProtocol() {
+		NettyProtocol protocol = new NettyProtocol(null, null) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
 			}
 
 			@Override
-			public ChannelHandler[] getClientChannelHandlers() { return new ChannelHandler[0]; }
+			public ChannelHandler[] getClientChannelHandlers() {
+				return new ChannelHandler[0];
+			}
 		};
 
 		Configuration config = createSslConfig();
@@ -110,19 +112,20 @@ public class NettyClientServerSslTest {
 	}
 
 	/**
-	 * Verify SSL handshake error when untrusted server certificate is used
-	 *
+	 * Verify SSL handshake error when untrusted server certificate is used.
 	 */
 	@Test
 	public void testSslHandshakeError() throws Exception {
-		NettyProtocol protocol = new NettyProtocol() {
+		NettyProtocol protocol = new NettyProtocol(null, null) {
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
 			}
 
 			@Override
-			public ChannelHandler[] getClientChannelHandlers() { return new ChannelHandler[0]; }
+			public ChannelHandler[] getClientChannelHandlers() {
+				return new ChannelHandler[0];
+			}
 		};
 
 		Configuration config = createSslConfig();

@@ -36,7 +36,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAdapter;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.MessageToMessageDecoder;
 
 import org.apache.flink.util.Preconditions;
 
@@ -44,7 +43,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
-import java.util.List;
 
 /**
  * A simple and generic interface to serialize messages to Netty's buffer space.
@@ -108,22 +106,37 @@ abstract class NettyMessage {
 				ctx.write(msg, promise);
 			}
 		}
-
-		// Create the frame length decoder here as it depends on the encoder
-		//
-		// +------------------+------------------+--------++----------------+
-		// | FRAME LENGTH (4) | MAGIC NUMBER (4) | ID (1) || CUSTOM MESSAGE |
-		// +------------------+------------------+--------++----------------+
-		static LengthFieldBasedFrameDecoder createFrameLengthDecoder() {
-			return new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, -4, 4);
-		}
 	}
 
-	@ChannelHandler.Sharable
-	static class NettyMessageDecoder extends MessageToMessageDecoder<ByteBuf> {
+	/**
+	 * Message decoder based on netty's {@link LengthFieldBasedFrameDecoder} but avoiding the
+	 * additional memory copy inside {@link #extractFrame(ChannelHandlerContext, ByteBuf, int, int)}
+	 * since we completely decode the {@link ByteBuf} inside {@link #decode(ChannelHandlerContext,
+	 * ByteBuf)} and will not re-use it afterwards.
+	 *
+	 * <p>The frame-length encoder will be based on this transmission scheme created by {@link NettyMessage#allocateBuffer(ByteBufAllocator, byte, int)}:
+	 * <pre>
+	 * +------------------+------------------+--------++----------------+
+	 * | FRAME LENGTH (4) | MAGIC NUMBER (4) | ID (1) || CUSTOM MESSAGE |
+	 * +------------------+------------------+--------++----------------+
+	 * </pre>
+	 */
+	static class NettyMessageDecoder extends LengthFieldBasedFrameDecoder {
+
+		/**
+		 * Creates a new message decoded with the required frame properties.
+		 */
+		NettyMessageDecoder() {
+			super(Integer.MAX_VALUE, 0, 4, -4, 4);
+		}
 
 		@Override
-		protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
+		protected Object decode(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+			ByteBuf msg = (ByteBuf) super.decode(ctx, in);
+			if (msg == null) {
+				return null;
+			}
+
 			int magicNumber = msg.readInt();
 
 			if (magicNumber != MAGIC_NUMBER) {
@@ -156,10 +169,13 @@ abstract class NettyMessage {
 				throw new IllegalStateException("Received unknown message from producer: " + msg);
 			}
 
-			if (decodedMsg != null) {
-				decodedMsg.readFrom(msg);
-				out.add(decodedMsg);
-			}
+			decodedMsg.readFrom(msg);
+			return decodedMsg;
+		}
+
+		@Override
+		protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
+			return buffer.slice(index, length);
 		}
 	}
 
