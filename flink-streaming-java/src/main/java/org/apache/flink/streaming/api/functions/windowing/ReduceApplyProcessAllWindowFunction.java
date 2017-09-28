@@ -60,8 +60,7 @@ public class ReduceApplyProcessAllWindowFunction<W extends Window, T, R> extends
 		}
 
 		this.ctx.window = context.window();
-		this.ctx.windowState = context.windowState();
-		this.ctx.globalState = context.globalState();
+		this.ctx.context = context;
 
 		windowFunction.process(ctx, Collections.singletonList(curr), out);
 	}
@@ -69,8 +68,7 @@ public class ReduceApplyProcessAllWindowFunction<W extends Window, T, R> extends
 	@Override
 	public void clear(final Context context) throws Exception {
 		this.ctx.window = context.window();
-		this.ctx.windowState = context.windowState();
-		this.ctx.globalState = context.globalState();
+		this.ctx.context = context;
 
 		windowFunction.clear(ctx);
 	}

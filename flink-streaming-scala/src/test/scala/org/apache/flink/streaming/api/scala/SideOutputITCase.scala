@@ -280,6 +280,51 @@ class SideOutputITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(util.Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
                   sideOutputResultSink.getResult)
   }
+
+  /**
+    * Test ProcessAllWindowFunction side output.
+    */
+  @Test
+  def testProcessAllWindowFunctionSideOutput() {
+    val resultSink = new TestListResultSink[String]
+    val sideOutputResultSink = new TestListResultSink[String]
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
+    val dataStream = env.fromElements(("1", 1), ("2", 2), ("5", 5), ("3", 3), ("4", 4))
+
+
+    val sideOutputTag = OutputTag[String]("side")
+
+    val windowOperator = dataStream
+      .assignTimestampsAndWatermarks(new TestAssigner)
+      .windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+      .process(new ProcessAllWindowFunction[(String, Int), String, TimeWindow] {
+        override def process(
+                              context: Context,
+                              elements: Iterable[(String, Int)],
+                              out: Collector[String]): Unit = {
+          for (in <- elements) {
+            out.collect(in._1)
+            context.output(sideOutputTag, "sideout-" + in._1)
+          }
+        }
+      })
+
+    windowOperator
+      .getSideOutput(sideOutputTag)
+      .addSink(sideOutputResultSink)
+
+    windowOperator.addSink(resultSink)
+
+    env.execute()
+
+    assertEquals(util.Arrays.asList("1", "2", "5"), resultSink.getResult)
+    assertEquals(util.Arrays.asList("sideout-1", "sideout-2", "sideout-5"),
+      sideOutputResultSink.getResult)
+  }
 }
 
 class TestAssigner extends AssignerWithPunctuatedWatermarks[(String, Int)] {
