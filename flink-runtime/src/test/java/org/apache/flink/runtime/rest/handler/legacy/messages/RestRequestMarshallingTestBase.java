@@ -18,47 +18,45 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
-import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Test base for verifying that marshalling / unmarshalling REST {@link ResponseBody}s work properly.
+ * Test base for verifying that marshalling / unmarshalling REST {@link RequestBody}s work properly.
  */
-public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> extends TestLogger {
+public abstract class RestRequestMarshallingTestBase<R extends RequestBody> extends TestLogger {
 
 	/**
 	 * Returns the class of the test response.
 	 *
 	 * @return class of the test response type
 	 */
-	protected abstract Class<R> getTestResponseClass();
+	protected abstract Class<R> getTestRequestClass();
 
 	/**
 	 * Returns an instance of a response to be tested.
 	 *
 	 * @return instance of the expected test response
 	 */
-	protected abstract R getTestResponseInstance() throws Exception;
+	protected abstract R getTestRequestInstance() throws Exception;
 
 	/**
 	 * Tests that we can marshal and unmarshal the response.
 	 */
 	@Test
 	public void testJsonMarshalling() throws Exception {
-		final R expected = getTestResponseInstance();
+		final R expected = getTestRequestInstance();
 
 		ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 		JsonNode json = objectMapper.valueToTree(expected);
 
-		final R unmarshalled = objectMapper.treeToValue(json, getTestResponseClass());
+		final R unmarshalled = objectMapper.treeToValue(json, getTestRequestClass());
 		Assert.assertEquals(expected, unmarshalled);
 	}
 
