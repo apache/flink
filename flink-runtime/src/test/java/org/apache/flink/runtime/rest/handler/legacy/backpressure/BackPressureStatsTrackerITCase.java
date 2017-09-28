@@ -61,6 +61,7 @@ import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.Al
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.ExecutionGraphFound;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.RequestExecutionGraph;
 import static org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.WaitForAllVerticesToBeRunning;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Simple back pressured task test.
@@ -219,6 +220,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 							//
 							for (Buffer buf : buffers) {
 								buf.recycle();
+								assertTrue(buf.isRecycled());
 							}
 
 							// Wait for all buffers to be available. The tasks
@@ -277,10 +279,6 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 
 				highAvailabilityServices.closeAndCleanupAllData();
 
-				for (Buffer buf : buffers) {
-					buf.recycle();
-				}
-
 				testBufferPool.lazyDestroy();
 			}
 		}};
@@ -294,7 +292,7 @@ public class BackPressureStatsTrackerITCase extends TestLogger {
 			ExecutionJobVertex vertex) throws InterruptedException {
 
 		statsTracker.invalidateOperatorStatsCache();
-		Assert.assertTrue("Failed to trigger", statsTracker.triggerStackTraceSample(vertex));
+		assertTrue("Failed to trigger", statsTracker.triggerStackTraceSample(vertex));
 
 		// Sleep minimum duration
 		Thread.sleep(20 * 10);
