@@ -62,7 +62,9 @@ import java.util.Locale;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -165,13 +167,25 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 			}
 		}
 
-		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
+		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
+			LOG.debug("Requested path points outside the root directory.");
+			StaticFileServerHandler.sendError(ctx, FORBIDDEN);
+			return;
+		}
+
+		if (!file.exists() || file.isHidden()) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Could not find file {}.", file.getAbsolutePath());
+			}
 			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
 			return;
 		}
 
-		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
+		if (file.isDirectory() || !file.isFile()) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Requested path {} does not point to a file.", file.getAbsolutePath());
+			}
+			StaticFileServerHandler.sendError(ctx, METHOD_NOT_ALLOWED);
 			return;
 		}
 
@@ -204,6 +218,9 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		try {
 			raf = new RandomAccessFile(file, "r");
 		} catch (FileNotFoundException e) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Could not find file {}.", file.getAbsolutePath());
+			}
 			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
 			return;
 		}

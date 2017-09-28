@@ -77,7 +77,9 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHea
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.LAST_MODIFIED;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -190,13 +192,25 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 			}
 		}
 
-		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			sendError(ctx, NOT_FOUND);
+		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
+			logger.debug("Requested path points outside the root directory.");
+			StaticFileServerHandler.sendError(ctx, FORBIDDEN);
 			return;
 		}
 
-		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			sendError(ctx, NOT_FOUND);
+		if (!file.exists() || file.isHidden()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Could not find file {}.", file.getAbsolutePath());
+			}
+			StaticFileServerHandler.sendError(ctx, NOT_FOUND);
+			return;
+		}
+
+		if (file.isDirectory() || !file.isFile()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} does not point to a file.", file.getAbsolutePath());
+			}
+			StaticFileServerHandler.sendError(ctx, METHOD_NOT_ALLOWED);
 			return;
 		}
 
@@ -230,6 +244,9 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 			raf = new RandomAccessFile(file, "r");
 		}
 		catch (FileNotFoundException e) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Could not find file {}.", file.getAbsolutePath());
+			}
 			sendError(ctx, NOT_FOUND);
 			return;
 		}
