@@ -60,12 +60,13 @@ import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -83,12 +84,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PrimitiveIterator;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -187,6 +190,39 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.restore(state);
 
 		return backend;
+	}
+
+	@Test
+	public void testGetKeys() throws Exception {
+		final int elementsToTest = 1000;
+		String fieldName = "get-keys-test";
+		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+		try {
+			ValueState<Integer> keyedState = backend.getOrCreateKeyedState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
+			((InternalValueState<VoidNamespace, Integer>) keyedState).setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int key = 0; key < elementsToTest; key++) {
+				backend.setCurrentKey(key);
+				keyedState.update(key * 2);
+			}
+
+			try (Stream<Integer> keysStream = backend.getKeys(fieldName, VoidNamespace.INSTANCE).sorted()) {
+				PrimitiveIterator.OfInt actualIterator = keysStream.mapToInt(value -> value.intValue()).iterator();
+
+				for (int expectedKey = 0; expectedKey < elementsToTest; expectedKey++) {
+					assertTrue(actualIterator.hasNext());
+					assertEquals(expectedKey, actualIterator.nextInt());
+				}
+
+				assertFalse(actualIterator.hasNext());
+			}
+		}
+		finally {
+			IOUtils.closeQuietly(backend);
+			backend.dispose();
+		}
 	}
 
 	@Test

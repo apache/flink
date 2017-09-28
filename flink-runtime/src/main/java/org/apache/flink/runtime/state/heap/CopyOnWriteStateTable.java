@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,8 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.TreeSet;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Implementation of Flink's in-memory state tables with copy-on-write support. This map does not support null values
@@ -284,6 +287,13 @@ public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> implemen
 		}
 
 		return null;
+	}
+
+	@Override
+	public Stream<K> getKeys(N namespace) {
+		Iterable<StateEntry<K, N, S>> iterable = () -> iterator();
+		return StreamSupport.stream(iterable.spliterator(), false)
+			.map(entry -> entry.getKey());
 	}
 
 	@Override

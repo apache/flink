@@ -27,8 +27,11 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * This implementation of {@link StateTable} uses nested {@link HashMap} objects. It is also maintaining a partitioning
@@ -164,6 +167,14 @@ public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 	public S get(K key, N namespace) {
 		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(key, keyContext.getNumberOfKeyGroups());
 		return get(key, keyGroup, namespace);
+	}
+
+	@Override
+	public Stream<K> getKeys(N namespace) {
+		return Arrays.stream(state)
+			.filter(namespaces -> namespaces != null)
+			.map(namespaces -> namespaces.getOrDefault(namespace, Collections.emptyMap()))
+			.flatMap(namespaceSate -> namespaceSate.keySet().stream());
 	}
 
 	// ------------------------------------------------------------------------
