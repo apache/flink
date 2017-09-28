@@ -37,6 +37,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -70,9 +71,15 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody> exte
 		CompletableFuture<AccessExecutionGraph> executionGraphFuture = executionGraphCache.getExecutionGraph(jobId, gateway);
 
 		return executionGraphFuture.thenApplyAsync(
-			this::handleRequest,
+			executionGraph -> {
+				try {
+					return handleRequest(executionGraph);
+				} catch (RestHandlerException rhe) {
+					throw new CompletionException(rhe);
+				}
+			},
 			executor);
 	}
 
-	protected abstract R handleRequest(AccessExecutionGraph executionGraph);
+	protected abstract R handleRequest(AccessExecutionGraph executionGraph) throws RestHandlerException;
 }
