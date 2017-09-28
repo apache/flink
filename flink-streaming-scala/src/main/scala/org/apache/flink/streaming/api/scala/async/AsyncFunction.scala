@@ -33,7 +33,7 @@ import org.apache.flink.api.common.functions.Function
   * An error can also be propagate to the async IO operator by
   * [[ResultFuture.completeExceptionally(Throwable)]].
   *
-  * @tparam IN The type of the input element
+  * @tparam IN  The type of the input element
   * @tparam OUT The type of the output elements
   */
 @PublicEvolving
@@ -42,7 +42,7 @@ trait AsyncFunction[IN, OUT] extends Function {
   /**
     * Trigger the async operation for each stream input
     *
-    * @param input element coming from an upstream task
+    * @param input        element coming from an upstream task
     * @param resultFuture to be completed with the result data
     */
   def asyncInvoke(input: IN, resultFuture: ResultFuture[OUT]): Unit
