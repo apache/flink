@@ -20,10 +20,10 @@ package org.apache.flink.table.runtime.aggfunctions
 
 import java.util
 
-import com.google.common.collect.ImmutableMap
-import org.apache.curator
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
+
+import scala.collection.JavaConverters._
 
 /**
   * Test case for built-in collect aggregate functions
@@ -32,7 +32,7 @@ class StringCollectAggFunctionTest
   extends AggFunctionTestBase[util.Map[String, Integer], CollectAccumulator[String]] {
 
   override def inputValueSets: Seq[Seq[_]] = Seq(
-    Seq("a", "a", "b", null, "c", null, "d", "e", null, "f", null),
+    Seq("a", "a", "b", null, "c", null, "d", "e", null, "f"),
     Seq(null, null, null, null, null, null)
   )
 
@@ -44,7 +44,7 @@ class StringCollectAggFunctionTest
     map.put("d", 1)
     map.put("e", 1)
     map.put("f", 1)
-    Seq(map, null)
+    Seq(map, Map[String, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[
@@ -69,7 +69,7 @@ class IntCollectAggFunctionTest
     map.put(3, 1)
     map.put(4, 1)
     map.put(5, 1)
-    Seq(map, null)
+    Seq(map, Map[Int, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[util.Map[Int, Integer], CollectAccumulator[Int]] =
@@ -93,7 +93,7 @@ class ByteCollectAggFunctionTest
     map.put(3, 1)
     map.put(4, 1)
     map.put(5, 1)
-    Seq(map, null)
+    Seq(map, Map[Byte, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[util.Map[Byte, Integer], CollectAccumulator[Byte]] =
@@ -118,7 +118,7 @@ class ShortCollectAggFunctionTest
     map.put(3, 1)
     map.put(4, 1)
     map.put(5, 1)
-    Seq(map, null)
+    Seq(map, Map[Short, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[util.Map[Short, Integer], CollectAccumulator[Short]] =
@@ -142,7 +142,7 @@ class LongCollectAggFunctionTest
     map.put(3, 1)
     map.put(4, 1)
     map.put(5, 1)
-    Seq(map, null)
+    Seq(map, Map[Long, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[util.Map[Long, Integer], CollectAccumulator[Long]] =
@@ -166,7 +166,7 @@ class FloatAggFunctionTest
     map.put(3.2f, 1)
     map.put(4, 1)
     map.put(5, 1)
-    Seq(map, null)
+    Seq(map, Map[Float, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[util.Map[Float, Integer], CollectAccumulator[Float]] =
@@ -190,7 +190,7 @@ class DoubleAggFunctionTest
     map.put(3.2d, 1)
     map.put(4, 1)
     map.put(5, 1)
-    Seq(map, null)
+    Seq(map, Map[Double, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[
@@ -212,7 +212,7 @@ class ObjectCollectAggFunctionTest
     val map = new util.HashMap[Object, Integer]()
     map.put(Tuple2(1, "a"), 2)
     map.put(Tuple2(2, "b"), 1)
-    Seq(map, null)
+    Seq(map, Map[Object, Integer]().asJava)
   }
 
   override def aggregator: AggregateFunction[

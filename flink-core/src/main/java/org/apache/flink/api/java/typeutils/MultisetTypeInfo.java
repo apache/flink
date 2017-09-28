@@ -22,8 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import java.util.Map;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -35,7 +33,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class MultisetTypeInfo<T> extends MapTypeInfo<T, Integer> {
 
 	private static final long serialVersionUID = 1L;
-
 
 	public MultisetTypeInfo(Class<T> elementTypeClass) {
 		super(elementTypeClass, Integer.class);
@@ -55,45 +52,6 @@ public final class MultisetTypeInfo<T> extends MapTypeInfo<T, Integer> {
 	public TypeInformation<T> getElementTypeInfo() {
 		return getKeyTypeInfo();
 	}
-
-	// ------------------------------------------------------------------------
-	//  TypeInformation implementation
-	// ------------------------------------------------------------------------
-
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
-
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
-
-	@Override
-	public int getArity() {
-		return 0;
-	}
-
-	@Override
-	public int getTotalFields() {
-		// similar as arrays, the multiset are "opaque" to the direct field addressing logic
-		// since the multiset's elements are not addressable, we do not expose them
-		return 1;
-	}
-
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<Map<T, Integer>> getTypeClass() {
-		return (Class<Map<T, Integer>>)(Class<?>)Map.class;
-	}
-
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
-
-	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {

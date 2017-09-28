@@ -20,7 +20,6 @@ package org.apache.flink.table.functions.aggfunctions
 
 import java.lang.{Iterable => JIterable}
 import java.util
-import java.util.function.BiFunction
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils._
@@ -28,11 +27,12 @@ import org.apache.flink.table.api.dataview.MapView
 import org.apache.flink.table.dataview.MapViewTypeInfo
 import org.apache.flink.table.functions.AggregateFunction
 
+import scala.collection.JavaConverters._
 
 /** The initial accumulator for Collect aggregate function */
 class CollectAccumulator[E](var f0:MapView[E, Integer]) {
   def this() {
-    this(null)
+      this(null)
   }
 
   def canEqual(a: Any) = a.isInstanceOf[CollectAccumulator[E]]
@@ -55,8 +55,9 @@ abstract class CollectAggFunction[E]
 
   def accumulate(accumulator: CollectAccumulator[E], value: E): Unit = {
     if (value != null) {
-      if (accumulator.f0.contains(value)) {
-        accumulator.f0.put(value, accumulator.f0.get(value) + 1)
+      val currVal = accumulator.f0.get(value)
+      if (currVal != null) {
+        accumulator.f0.put(value, currVal + 1)
       } else {
         accumulator.f0.put(value, 1)
       }
@@ -73,7 +74,7 @@ abstract class CollectAggFunction[E]
       }
       map
     } else {
-      null.asInstanceOf[util.Map[E, Integer]]
+      Map[E, Integer]().asJava
     }
   }
 
