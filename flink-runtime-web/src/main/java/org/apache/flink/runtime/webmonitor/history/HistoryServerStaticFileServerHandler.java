@@ -171,25 +171,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 			}
 		}
 
-		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				Collections.emptyMap());
-			return;
-		}
-
-		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				Collections.emptyMap());
-			return;
-		}
+		StaticFileServerHandler.checkFileValidity(file, rootPath, ctx, request, Collections.emptyMap(), LOG);
 
 		// cache validation
 		final String ifModifiedSince = request.headers().get(IF_MODIFIED_SINCE);
@@ -220,6 +202,9 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 		try {
 			raf = new RandomAccessFile(file, "r");
 		} catch (FileNotFoundException e) {
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Could not find file {}.", file.getAbsolutePath());
+			}
 			HandlerUtils.sendErrorResponse(
 				ctx,
 				request,

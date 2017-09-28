@@ -52,6 +52,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpConten
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 
+import org.slf4j.Logger;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -68,6 +70,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.CACHE_CONTROL;
@@ -77,7 +80,9 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHea
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.EXPIRES;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders.Names.LAST_MODIFIED;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
 import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus.OK;
@@ -194,25 +199,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			}
 		}
 
-		if (!file.exists() || file.isHidden() || file.isDirectory() || !file.isFile()) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				responseHeaders);
-			return;
-		}
-
-		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
-			HandlerUtils.sendErrorResponse(
-				ctx,
-				request,
-				new ErrorResponseBody("File not found."),
-				NOT_FOUND,
-				responseHeaders);
-			return;
-		}
+		checkFileValidity(file, rootPath, ctx, request, responseHeaders, logger);
 
 		// cache validation
 		final String ifModifiedSince = request.headers().get(IF_MODIFIED_SINCE);
@@ -244,6 +231,9 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 			raf = new RandomAccessFile(file, "r");
 		}
 		catch (FileNotFoundException e) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Could not find file {}.", file.getAbsolutePath());
+			}
 			HandlerUtils.sendErrorResponse(
 				ctx,
 				request,
@@ -373,5 +363,47 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 		String mimeType = MimeTypes.getMimeTypeForFileName(file.getName());
 		String mimeFinal = mimeType != null ? mimeType : MimeTypes.getDefaultMimeType();
 		response.headers().set(CONTENT_TYPE, mimeFinal);
+	}
+
+	public static void checkFileValidity(File file, File rootPath, ChannelHandlerContext ctx, HttpRequest request, Map<String, String> responseHeaders, Logger logger) throws IOException {
+		// this check must be done first to prevent probing for arbitrary files
+		if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} points outside the root directory.", file.getAbsolutePath());
+			}
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("Forbidden."),
+				FORBIDDEN,
+				responseHeaders);
+			return;
+		}
+
+		if (!file.exists() || file.isHidden()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} cannot be found.", file.getAbsolutePath());
+			}
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				NOT_FOUND,
+				responseHeaders);
+			return;
+		}
+
+		if (file.isDirectory() || !file.isFile()) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Requested path {} does not point to a file.", file.getAbsolutePath());
+			}
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				request,
+				new ErrorResponseBody("File not found."),
+				METHOD_NOT_ALLOWED,
+				responseHeaders);
+			return;
+		}
 	}
 }
