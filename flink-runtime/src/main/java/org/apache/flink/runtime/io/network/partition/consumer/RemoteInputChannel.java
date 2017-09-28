@@ -92,7 +92,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	private final AtomicInteger senderBacklog = new AtomicInteger(0);
 
 	/** The tag indicates whether this channel is waiting for additional floating buffers from the buffer pool. */
-	private final AtomicBoolean isWaitingFloatingBuffers = new AtomicBoolean(false);
+	private final AtomicBoolean isWaitingForFloatingBuffers = new AtomicBoolean(false);
 
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
@@ -321,21 +321,22 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	}
 
 	/**
-	 * Buffer pool notifies this channel of an available floating buffer. If the channel is released or not
-	 * needing extra buffers currently, the buffer should be recycled to buffer pool. Otherwise, the buffer
-	 * will be added into the available queue and the unannounced credit is increased by one.
+	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
+	 * currently does not need extra buffers, the buffer should be recycled to the buffer pool. Otherwise,
+	 * the buffer will be added into the <tt>availableBuffers</tt> queue and the unannounced credit is
+	 * increased by one.
 	 *
 	 * @param buffer Buffer that becomes available in buffer pool.
 	 * @return True when this channel is waiting for more floating buffers, otherwise false.
 	 */
 	@Override
 	public boolean notifyBufferAvailable(Buffer buffer) {
-		checkState(isWaitingFloatingBuffers.get(), "This channel should be waiting for floating buffers currently.");
+		checkState(isWaitingForFloatingBuffers.get(), "This channel should be waiting for floating buffers.");
 
 		synchronized (availableBuffers) {
 			// Important: the isReleased check should be inside the synchronized block.
 			if (isReleased.get() || availableBuffers.size() >= senderBacklog.get()) {
-				isWaitingFloatingBuffers.set(false);
+				isWaitingForFloatingBuffers.set(false);
 				buffer.recycle();
 
 				return false;
@@ -348,7 +349,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			}
 
 			if (availableBuffers.size() >= senderBacklog.get()) {
-				isWaitingFloatingBuffers.set(false);
+				isWaitingForFloatingBuffers.set(false);
 				return false;
 			} else {
 				return true;
@@ -358,7 +359,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 	@Override
 	public void notifyBufferDestroyed() {
-		if (!isWaitingFloatingBuffers.compareAndSet(true, false)) {
+		if (!isWaitingForFloatingBuffers.compareAndSet(true, false)) {
 			throw new IllegalStateException("This channel should be waiting for floating buffers currently.");
 		}
 	}

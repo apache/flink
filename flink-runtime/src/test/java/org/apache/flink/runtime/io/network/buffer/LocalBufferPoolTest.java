@@ -209,31 +209,30 @@ public class LocalBufferPoolTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testPendingRequestWithListenerAfterRecycle() throws Exception {
-		BufferListener listener = spy(new BufferListener() {
-			@Override
-			public boolean notifyBufferAvailable(Buffer buffer) {
-				buffer.recycle();
-				return false;
-			}
+	public void testPendingRequestWithListenersAfterRecycle() throws Exception {
+		BufferListener twoTimesListener = createBufferListener(2);
+		BufferListener oneTimeListener = createBufferListener(1);
 
-			@Override
-			public void notifyBufferDestroyed() {
-			}
-		});
+		localBufferPool.setNumBuffers(2);
 
-		localBufferPool.setNumBuffers(1);
+		Buffer available1 = localBufferPool.requestBuffer();
+		Buffer available2 = localBufferPool.requestBuffer();
 
-		Buffer available = localBufferPool.requestBuffer();
-		Buffer unavailable = localBufferPool.requestBuffer();
+		assertNull(localBufferPool.requestBuffer());
 
-		assertNull(unavailable);
+		assertTrue(localBufferPool.addBufferListener(twoTimesListener));
+		assertTrue(localBufferPool.addBufferListener(oneTimeListener));
 
-		assertTrue(localBufferPool.addBufferListener(listener));
+		// Recycle the first buffer to notify both of the above listeners and the
+		// <<tt>twoTimesListener</tt> will be added into the <<tt>registeredListeners</tt>
+		// queue of buffer pool again
+		available1.recycle();
 
-		available.recycle();
+		// Recycle the second buffer to only notify the <tt>twoTimesListener</tt>
+		available2.recycle();
 
-		verify(listener, times(1)).notifyBufferAvailable(any(Buffer.class));
+		verify(oneTimeListener, times(1)).notifyBufferAvailable(any(Buffer.class));
+		verify(twoTimesListener, times(2)).notifyBufferAvailable(any(Buffer.class));
 	}
 
 	@Test
@@ -398,6 +397,23 @@ public class LocalBufferPoolTest {
 
 	private int getNumRequestedFromMemorySegmentPool() {
 		return networkBufferPool.getTotalNumberOfMemorySegments() - networkBufferPool.getNumberOfAvailableMemorySegments();
+	}
+
+	private BufferListener createBufferListener(int notificationTimes) {
+		return spy(new BufferListener() {
+			int times = 0;
+
+			@Override
+			public boolean notifyBufferAvailable(Buffer buffer) {
+				times++;
+				buffer.recycle();
+				return times < notificationTimes;
+			}
+
+			@Override
+			public void notifyBufferDestroyed() {
+			}
+		});
 	}
 
 	private static class BufferRequesterTask implements Callable<Boolean> {
