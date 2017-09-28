@@ -330,6 +330,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	/**
+	 * This class would be replaced by CreditBasedClientHandler in the final,
+	 * so we only implement this method in CreditBasedClientHandler.
+	 */
+	void notifyCreditAvailable(RemoteInputChannel inputChannel) {
+	}
+
 	private class AsyncErrorNotificationTask implements Runnable {
 
 		private final Throwable error;
