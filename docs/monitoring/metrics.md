@@ -515,7 +515,7 @@ Thus, in order to infer the metric identifier:
 2. Append the value in the "Infix" column if present, and account for the "metrics.delimiter" setting
 3. Append metric name.
 
-#### CPU:
+### CPU
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -539,7 +539,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### Memory:
+### Memory
 <table class="table table-bordered">                               
   <thead>                                                          
     <tr>                                                           
@@ -603,7 +603,7 @@ Thus, in order to infer the metric identifier:
   </tbody>                                                         
 </table>
 
-#### Threads:
+### Threads
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -623,7 +623,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### GarbageCollection:
+### GarbageCollection
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -647,7 +647,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### ClassLoader:
+### ClassLoader
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -671,7 +671,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### Network:
+### Network
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -731,7 +731,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### Cluster:
+### Cluster
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -761,7 +761,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### Availability:
+### Availability
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -797,7 +797,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### Checkpointing:
+### Checkpointing
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -818,7 +818,7 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>lastCheckpointExternalPath</td>
-      <td>The path where the last checkpoint was stored.</td>
+      <td>The path where the last external checkpoint was stored.</td>
     </tr>
     <tr>
       <td>lastCheckpointRestoreTimestamp</td>
@@ -852,7 +852,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### IO:
+### IO
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -920,9 +920,9 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-#### Connectors:
+### Connectors
 
-##### Kafka Connectors
+#### Kafka Connectors
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -945,7 +945,7 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
-### Latency tracking
+## Latency tracking
 
 Flink allows to track the latency of records traveling through the system. To enable the latency tracking
 a `latencyTrackingInterval` (in milliseconds) has to be set to a positive value in the `ExecutionConfig`.
@@ -968,7 +968,7 @@ latency issues caused by individual machines.
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
-### Dashboard integration
+## Dashboard integration
 
 Metrics that were gathered for each task or operator can also be visualized in the Dashboard. On the main page for a
 job, select the `Metrics` tab. After selecting one of the tasks in the top graph you can select metrics to display using

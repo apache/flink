@@ -264,12 +264,10 @@ public class PartitionRequestClientHandlerTest {
 		// Skip general header bytes
 		serialized.readBytes(NettyMessage.HEADER_LENGTH);
 
-		BufferResponse deserialized = new BufferResponse();
-
 		// Deserialize the bytes again. We have to go this way, because we only partly deserialize
 		// the header of the response and wait for a buffer from the buffer pool to copy the payload
 		// data into.
-		deserialized.readFrom(serialized);
+		BufferResponse deserialized = BufferResponse.readFrom(serialized);
 
 		return deserialized;
 	}

@@ -39,7 +39,6 @@ import akka.pattern.Patterns;
 import akka.util.Timeout;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +51,7 @@ import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -211,7 +211,17 @@ public class TestBaseUtils extends TestLogger {
 			}
 
 			executor.stop();
-			FileSystem.closeAll();
+			try {
+				Class<?> hadoopFileSystemClass = Class.forName(
+					"org.apache.hadoop.fs.FileSystem",
+					true,
+					TestBaseUtils.class.getClassLoader());
+
+				Method closeAllMethod = hadoopFileSystemClass.getMethod("closeAll");
+				closeAllMethod.invoke(null);
+			} catch (Throwable e) {
+				// ignore
+			}
 			System.gc();
 
 			Assert.assertEquals("Not all broadcast variables were released.", 0, numUnreleasedBCVars);

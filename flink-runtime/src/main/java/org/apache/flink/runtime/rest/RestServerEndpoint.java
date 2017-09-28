@@ -256,6 +256,14 @@ public abstract class RestServerEndpoint {
 			case POST:
 				router.POST(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
 				break;
+			case DELETE:
+				router.DELETE(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				break;
+			case PATCH:
+				router.PATCH(specificationHandler.f0.getTargetRestEndpointURL(), specificationHandler.f1);
+				break;
+			default:
+				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
 		}
 	}
 }

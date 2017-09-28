@@ -507,6 +507,18 @@ public class CheckpointStatsTrackerTest {
 		assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue());
 
 		assertEquals(Long.valueOf(restoreTimestamp), latestRestoreTimestamp.getValue());
+
+		// Check Internal Checkpoint Configuration
+		PendingCheckpointStats thirdPending = stats.reportPendingCheckpoint(
+			2,
+			5000,
+			CheckpointProperties.forStandardCheckpoint());
+
+		thirdPending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats);
+		thirdPending.reportCompletedCheckpoint(null);
+
+		// Verify external path is "n/a", because internal checkpoint won't generate external path.
+		assertEquals("n/a", latestCompletedExternalPath.getValue());
 	}
 
 	// ------------------------------------------------------------------------

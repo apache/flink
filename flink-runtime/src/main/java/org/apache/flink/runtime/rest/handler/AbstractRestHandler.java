@@ -29,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufInputStream;
@@ -117,19 +118,40 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				}
 			}
 
-			CompletableFuture<P> response;
+			final HandlerRequest<R, M> handlerRequest;
+
 			try {
-				HandlerRequest<R, M> handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
+				handlerRequest = new HandlerRequest<>(request, messageHeaders.getUnresolvedMessageParameters(), routed.pathParams(), routed.queryParams());
+			} catch (HandlerRequestException hre) {
+				log.error("Could not create the handler request.", hre);
+
+				HandlerUtils.sendErrorResponse(
+					ctx,
+					httpRequest,
+					new ErrorResponseBody(String.format("Bad request, could not parse parameters: %s", hre.getMessage())),
+					HttpResponseStatus.BAD_REQUEST);
+				return;
+			}
+
+			CompletableFuture<P> response;
+
+			try {
 				response = handleRequest(handlerRequest, gateway);
-			} catch (Exception e) {
+			} catch (RestHandlerException e) {
 				response = FutureUtils.completedExceptionally(e);
 			}
 
-			response.whenComplete((P resp, Throwable error) -> {
-				if (error != null) {
+			response.whenComplete((P resp, Throwable throwable) -> {
+				if (throwable != null) {
+
+					Throwable error = ExceptionUtils.stripCompletionException(throwable);
+
 					if (error instanceof RestHandlerException) {
-						RestHandlerException rhe = (RestHandlerException) error;
-						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody(rhe.getErrorMessage()), rhe.getHttpResponseStatus());
+						final RestHandlerException rhe = (RestHandlerException) error;
+
+						log.error("Exception occurred in REST handler.", error);
+
+						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody(rhe.getMessage()), rhe.getHttpResponseStatus());
 					} else {
 						log.error("Implementation error: Unhandled exception.", error);
 						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -138,7 +160,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
 				}
 			});
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			log.error("Request processing failed.", e);
 			HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}

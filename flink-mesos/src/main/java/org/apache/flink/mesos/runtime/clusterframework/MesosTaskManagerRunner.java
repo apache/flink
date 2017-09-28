@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -115,7 +116,7 @@ public class MesosTaskManagerRunner {
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
 		// Run the TM in the security context
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
+		SecurityConfiguration sc = new SecurityConfiguration(configuration);
 		SecurityUtils.install(sc);
 
 		try {

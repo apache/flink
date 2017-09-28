@@ -54,14 +54,6 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- copy the Hadoop uber jar -->
-		<file>
-			<source>../flink-shaded-hadoop/flink-shaded-hadoop2-uber/target/flink-shaded-hadoop2-uber-${project.version}.jar</source>
-			<outputDirectory>lib/</outputDirectory>
-			<destName>flink-shaded-hadoop2-uber-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
 		<!-- copy the config file -->
 		<file>
 			<source>src/main/resources/flink-conf.yaml</source>

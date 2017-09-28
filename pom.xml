@@ -328,6 +328,12 @@ under the License.
 			</dependency>
 
 			<dependency>
+				<groupId>commons-codec</groupId>
+				<artifactId>commons-codec</artifactId>
+				<version>1.10</version>
+			</dependency>
+
+			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-math3</artifactId>
 				<version>3.5</version>
@@ -1460,6 +1466,14 @@ under the License.
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.RichSinkFunction#invoke(java.lang.Object)</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat</exclude>
+								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopInputFormat</exclude>
+								<exclude>org.apache.flink.api.scala.hadoop.mapred.HadoopOutputFormat</exclude>
+								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopInputFormat</exclude>
+								<exclude>org.apache.flink.api.scala.hadoop.mapreduce.HadoopOutputFormat</exclude>
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>

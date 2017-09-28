@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A Sink for publishing data into RabbitMQ.
@@ -117,15 +118,19 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void close() {
-		IOException t = null;
+		Exception t = null;
 		try {
-			channel.close();
-		} catch (IOException e) {
+			if (channel != null) {
+				channel.close();
+			}
+		} catch (IOException | TimeoutException e) {
 			t = e;
 		}
 
 		try {
-			connection.close();
+			if (connection != null) {
+				connection.close();
+			}
 		} catch (IOException e) {
 			if (t != null) {
 				LOG.warn("Both channel and connection closing failed. Logging channel exception and failing with connection exception", t);
