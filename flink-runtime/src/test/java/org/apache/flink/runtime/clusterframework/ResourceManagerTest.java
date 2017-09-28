@@ -529,7 +529,7 @@ public class ResourceManagerTest extends TestLogger {
 			final ResourceManagerGateway rmGateway = resourceManager.getSelfGateway(ResourceManagerGateway.class);
 
 			final UUID rmLeaderSessionId = UUID.randomUUID();
-			rmLeaderElectionService.isLeader(rmLeaderSessionId);
+			rmLeaderElectionService.isLeader(rmLeaderSessionId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final SlotReport slotReport = new SlotReport();
 			// test registration response successful and it will trigger monitor heartbeat target, schedule heartbeat request at interval time
