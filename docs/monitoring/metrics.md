@@ -818,7 +818,7 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>lastCheckpointExternalPath</td>
-      <td>The path where the last checkpoint was stored.</td>
+      <td>The path where the last external checkpoint was stored.</td>
     </tr>
     <tr>
       <td>lastCheckpointRestoreTimestamp</td>
