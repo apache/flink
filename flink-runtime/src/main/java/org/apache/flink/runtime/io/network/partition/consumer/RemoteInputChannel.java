@@ -154,8 +154,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Requests a remote subpartition.
 	 */
+	@VisibleForTesting
 	@Override
-	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
@@ -279,10 +280,15 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Enqueue this input channel in the pipeline for sending unannounced credits to producer.
+	 * Enqueue this input channel in the pipeline for notifying the producer of unannounced credit.
 	 */
 	void notifyCreditAvailable() {
-		//TODO in next PR
+		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
+
+		// We should skip the notification if this channel is already released.
+		if (!isReleased.get()) {
+			partitionRequestClient.notifyCreditAvailable(this);
+		}
 	}
 
 	/**
@@ -320,9 +326,12 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 	}
 
-	@VisibleForTesting
 	public int getNumberOfRequiredBuffers() {
 		return numRequiredBuffers;
+	}
+
+	public int getSenderBacklog() {
+		return numRequiredBuffers - initialCredit;
 	}
 
 	/**
@@ -379,6 +388,29 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Gets the currently unannounced credit.
+	 *
+	 * @return Credit which was not announced to the sender yet.
+	 */
+	public int getUnannouncedCredit() {
+		return unannouncedCredit.get();
+	}
+
+	/**
+	 * Gets the unannounced credit and resets it to <tt>0</tt> atomically.
+	 *
+	 * @return Credit which was not announced to the sender yet.
+	 */
+	public int getAndResetUnannouncedCredit() {
+		return unannouncedCredit.getAndSet(0);
+	}
+
+	/**
+	 * Gets the current number of received buffers which have not been processed yet.
+	 *
+	 * @return Buffers queued for processing.
+	 */
 	public int getNumberOfQueuedBuffers() {
 		synchronized (receivedBuffers) {
 			return receivedBuffers.size();
@@ -426,7 +458,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 *
 	 * @param backlog The number of unsent buffers in the producer's sub partition.
 	 */
-	@VisibleForTesting
 	void onSenderBacklog(int backlog) throws IOException {
 		int numRequestedBuffers = 0;
 

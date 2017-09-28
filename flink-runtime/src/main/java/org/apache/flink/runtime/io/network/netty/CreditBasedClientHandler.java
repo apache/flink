@@ -25,10 +25,14 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -37,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,7 +57,12 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	/** Channels, which already requested partitions from the producers. */
 	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<>();
 
+	/** Channels, which will notify the producers about unannounced credit. */
+	private final ArrayDeque<RemoteInputChannel> inputChannelsWithCredit = new ArrayDeque<>();
+
 	private final AtomicReference<Throwable> channelError = new AtomicReference<>();
+
+	private final ChannelFutureListener writeListener = new WriteAndFlushNextMessageIfPossibleListener();
 
 	/**
 	 * Set of cancelled partition requests. A request is cancelled iff an input channel is cleared
@@ -60,6 +70,10 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	 */
 	private final ConcurrentMap<InputChannelID, InputChannelID> cancelled = new ConcurrentHashMap<>();
 
+	/**
+	 * The channel handler context is initialized in channel active event by netty thread, the context may also
+	 * be accessed by task thread or canceler thread to cancel partition request during releasing resources.
+	 */
 	private volatile ChannelHandlerContext ctx;
 
 	// ------------------------------------------------------------------------
@@ -86,6 +100,22 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		if (cancelled.putIfAbsent(inputChannelId, inputChannelId) == null) {
 			ctx.writeAndFlush(new NettyMessage.CancelPartitionRequest(inputChannelId));
 		}
+	}
+
+	/**
+	 * The credit begins to announce after receiving the sender's backlog from buffer response.
+	 * Than means it should only happen after some interactions with the channel to make sure
+	 * the context will not be null.
+	 *
+	 * @param inputChannel The input channel with unannounced credits.
+	 */
+	void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
+		ctx.executor().execute(new Runnable() {
+			@Override
+			public void run() {
+				ctx.pipeline().fireUserEventTriggered(inputChannel);
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------
@@ -123,7 +153,6 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	 */
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-
 		if (cause instanceof TransportException) {
 			notifyAllChannelsOfErrorAndClose(cause);
 		} else {
@@ -152,6 +181,29 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	@Override
+	public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
+		if (msg instanceof RemoteInputChannel) {
+			// Queue an input channel for available credits announcement.
+			// If the queue is empty, we try to trigger the actual write. Otherwise
+			// this will be handled by the writeAndFlushNextMessageIfPossible calls.
+			boolean triggerWrite = inputChannelsWithCredit.isEmpty();
+
+			inputChannelsWithCredit.add((RemoteInputChannel) msg);
+
+			if (triggerWrite) {
+				writeAndFlushNextMessageIfPossible(ctx.channel());
+			}
+		} else {
+			ctx.fireUserEventTriggered(msg);
+		}
+	}
+
+	@Override
+	public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+		writeAndFlushNextMessageIfPossible(ctx.channel());
+	}
+
 	private void notifyAllChannelsOfErrorAndClose(Throwable cause) {
 		if (channelError.compareAndSet(null, cause)) {
 			try {
@@ -163,6 +215,7 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 				LOG.warn("An Exception was thrown during error notification of a remote input channel.", t);
 			} finally {
 				inputChannels.clear();
+				inputChannelsWithCredit.clear();
 
 				if (ctx != null) {
 					ctx.close();
@@ -272,6 +325,59 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 			}
 		} finally {
 			bufferOrEvent.releaseBuffer();
+		}
+	}
+
+	/**
+	 * Fetches one un-released input channel from the queue and writes the
+	 * unannounced credits immediately. After this is done, we will continue
+	 * with the next input channel via listener's callback.
+	 */
+	private void writeAndFlushNextMessageIfPossible(Channel channel) {
+		if (channelError.get() != null || !channel.isWritable()) {
+			return;
+		}
+
+		while (true) {
+			RemoteInputChannel inputChannel = inputChannelsWithCredit.poll();
+
+			// The input channel may be null because of the write callbacks
+			// that are executed after each write.
+			if (inputChannel == null) {
+				return;
+			}
+
+			//It is no need to notify credit for the released channel.
+			if (!inputChannel.isReleased()) {
+				AddCredit msg = new AddCredit(
+					inputChannel.getPartitionId(),
+					inputChannel.getAndResetUnannouncedCredit(),
+					inputChannel.getInputChannelId());
+
+				// Write and flush and wait until this is done before
+				// trying to continue with the next input channel.
+				channel.writeAndFlush(msg).addListener(writeListener);
+
+				return;
+			}
+		}
+	}
+
+	private class WriteAndFlushNextMessageIfPossibleListener implements ChannelFutureListener {
+
+		@Override
+		public void operationComplete(ChannelFuture future) throws Exception {
+			try {
+				if (future.isSuccess()) {
+					writeAndFlushNextMessageIfPossible(future.channel());
+				} else if (future.cause() != null) {
+					notifyAllChannelsOfErrorAndClose(future.cause());
+				} else {
+					notifyAllChannelsOfErrorAndClose(new IllegalStateException("Sending cancelled by user."));
+				}
+			} catch (Throwable t) {
+				notifyAllChannelsOfErrorAndClose(t);
+			}
 		}
 	}
 }

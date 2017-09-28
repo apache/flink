@@ -198,6 +198,9 @@ public abstract class NettyMessage {
 				case CloseRequest.ID:
 					decodedMsg = CloseRequest.readFrom(msg);
 					break;
+				case AddCredit.ID:
+					decodedMsg = AddCredit.readFrom(msg);
+					break;
 				default:
 					throw new ProtocolException("Received unknown message from producer: " + msg);
 			}
@@ -582,6 +585,67 @@ public abstract class NettyMessage {
 
 		static CloseRequest readFrom(@SuppressWarnings("unused") ByteBuf buffer) throws Exception {
 			return new CloseRequest();
+		}
+	}
+
+	/**
+	 * Incremental credit announcement from the client to the server.
+	 */
+	static class AddCredit extends NettyMessage {
+
+		private static final byte ID = 6;
+
+		final ResultPartitionID partitionId;
+
+		final int credit;
+
+		final InputChannelID receiverId;
+
+		AddCredit(ResultPartitionID partitionId, int credit, InputChannelID receiverId) {
+			checkArgument(credit > 0, "The announced credit should be greater than 0");
+
+			this.partitionId = partitionId;
+			this.credit = credit;
+			this.receiverId = receiverId;
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+			ByteBuf result = null;
+
+			try {
+				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16);
+
+				partitionId.getPartitionId().writeTo(result);
+				partitionId.getProducerId().writeTo(result);
+				result.writeInt(credit);
+				receiverId.writeTo(result);
+
+				return result;
+			}
+			catch (Throwable t) {
+				if (result != null) {
+					result.release();
+				}
+
+				throw new IOException(t);
+			}
+		}
+
+		static AddCredit readFrom(ByteBuf buffer) {
+			ResultPartitionID partitionId =
+				new ResultPartitionID(
+					IntermediateResultPartitionID.fromByteBuf(buffer),
+					ExecutionAttemptID.fromByteBuf(buffer));
+			int credit = buffer.readInt();
+			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+
+			return new AddCredit(partitionId, credit, receiverId);
+		}
+
+		@Override
+		public String toString() {
+			return String.format("AddCredit(%s : %d)", receiverId, credit);
 		}
 	}
 }

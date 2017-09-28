@@ -328,6 +328,7 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputChannel.requestSubpartition(0);
 
 			// Prepare the exclusive and floating buffers to verify recycle logic later
 			final Buffer exclusiveBuffer = inputChannel.requestBuffer();
@@ -449,6 +450,7 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputChannel.requestSubpartition(0);
 
 			// Prepare the exclusive and floating buffers to verify recycle logic later
 			final Buffer exclusiveBuffer = inputChannel.requestBuffer();
@@ -526,6 +528,7 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputChannel.requestSubpartition(0);
 
 			// Prepare the exclusive and floating buffers to verify recycle logic later
 			final Buffer exclusiveBuffer = inputChannel.requestBuffer();
@@ -621,6 +624,9 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			channel1.requestSubpartition(0);
+			channel2.requestSubpartition(0);
+			channel3.requestSubpartition(0);
 
 			// Exhaust all the floating buffers
 			final List<Buffer> floatingBuffers = new ArrayList<>(numFloatingBuffers);
@@ -690,6 +696,7 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> requestBufferTask = new Callable<Void>() {
 				@Override
@@ -758,6 +765,7 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveSegments);
+			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> requestBufferTask = new Callable<Void>() {
 				@Override
@@ -772,9 +780,9 @@ public class RemoteInputChannelTest {
 
 			// Submit tasks and wait to finish
 			submitTasksAndWaitForResults(executor, new Callable[]{
-					recycleExclusiveBufferTask(inputChannel, numExclusiveSegments),
-					recycleFloatingBufferTask(bufferPool, numFloatingBuffers),
-					requestBufferTask});
+				recycleExclusiveBufferTask(inputChannel, numExclusiveSegments),
+				recycleFloatingBufferTask(bufferPool, numFloatingBuffers),
+				requestBufferTask});
 
 			assertEquals("There should be " + inputChannel.getNumberOfRequiredBuffers() +" buffers available in channel.",
 				inputChannel.getNumberOfRequiredBuffers(), inputChannel.getNumberOfAvailableBuffers());
@@ -813,6 +821,7 @@ public class RemoteInputChannelTest {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveSegments);
+			inputChannel.requestSubpartition(0);
 
 			final Callable<Void> releaseTask = new Callable<Void>() {
 				@Override
@@ -825,9 +834,9 @@ public class RemoteInputChannelTest {
 
 			// Submit tasks and wait to finish
 			submitTasksAndWaitForResults(executor, new Callable[]{
-					recycleExclusiveBufferTask(inputChannel, numExclusiveSegments),
-					recycleFloatingBufferTask(bufferPool, numFloatingBuffers),
-					releaseTask});
+				recycleExclusiveBufferTask(inputChannel, numExclusiveSegments),
+				recycleFloatingBufferTask(bufferPool, numFloatingBuffers),
+				releaseTask});
 
 			assertEquals("There should be no buffers available in the channel.",
 				0, inputChannel.getNumberOfAvailableBuffers());
