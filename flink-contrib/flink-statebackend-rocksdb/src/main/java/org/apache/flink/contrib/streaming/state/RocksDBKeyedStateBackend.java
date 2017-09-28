@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -1978,4 +1979,25 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public boolean supportsAsynchronousSnapshots() {
 		return true;
 	}
+
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	@Override
+	public int numStateEntries() {
+		int count = 0;
+
+		for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column : kvStateInformation.values()) {
+			RocksIterator rocksIterator = db.newIterator(column.f0);
+			rocksIterator.seekToFirst();
+
+			while (rocksIterator.isValid()) {
+				count++;
+				rocksIterator.next();
+			}
+			rocksIterator.close();
+		}
+
+		return count;
+	}
+
 }

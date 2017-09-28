@@ -589,6 +589,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	@VisibleForTesting
 	@SuppressWarnings("unchecked")
+	@Override
 	public int numStateEntries() {
 		int sum = 0;
 		for (StateTable<K, ?, ?> stateTable : stateTables.values()) {
