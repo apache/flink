@@ -223,12 +223,15 @@ public class LocalBufferPoolTest {
 		assertTrue(localBufferPool.addBufferListener(twoTimesListener));
 		assertTrue(localBufferPool.addBufferListener(oneTimeListener));
 
-		// Recycle the first buffer to notify both of the above listeners and the
-		// <<tt>twoTimesListener</tt> will be added into the <<tt>registeredListeners</tt>
+		// Recycle the first buffer to notify both of the above listeners once
+		// and the twoTimesListener will be added into the registeredListeners
 		// queue of buffer pool again
 		available1.recycle();
+		
+		verify(oneTimeListener, times(1)).notifyBufferAvailable(any(Buffer.class));
+		verify(twoTimesListener, times(1)).notifyBufferAvailable(any(Buffer.class));
 
-		// Recycle the second buffer to only notify the <tt>twoTimesListener</tt>
+		// Recycle the second buffer to only notify the twoTimesListener
 		available2.recycle();
 
 		verify(oneTimeListener, times(1)).notifyBufferAvailable(any(Buffer.class));
