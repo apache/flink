@@ -158,6 +158,15 @@ public class NettyMessageSerializationTest {
 
 			assertEquals(expected.getClass(), actual.getClass());
 		}
+
+		{
+			NettyMessage.AddCredit expected = new NettyMessage.AddCredit(new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID()), random.nextInt(), new InputChannelID());
+			NettyMessage.AddCredit actual = encodeAndDecode(expected);
+
+			assertEquals(expected.partitionId, actual.partitionId);
+			assertEquals(expected.credit, actual.credit);
+			assertEquals(expected.receiverId, actual.receiverId);
+		}
 	}
 
 	@SuppressWarnings("unchecked")

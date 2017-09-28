@@ -18,31 +18,45 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemoryType;
+import org.apache.flink.runtime.io.network.ConnectionID;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
+import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -122,21 +136,33 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testReceiveBuffer() throws Exception {
-		final Buffer buffer = TestBufferFactory.createBuffer();
-		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
-		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
-		when(inputChannel.requestBuffer()).thenReturn(buffer);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, MemoryType.HEAP);
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
+		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
+		try {
+			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
+			inputGate.setBufferPool(bufferPool);
+			inputGate.assignExclusiveSegments(networkBufferPool, 2);
 
-		final int backlog = 2;
-		final BufferResponse bufferResponse = createBufferResponse(
-			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), backlog);
+			final int backlog = 2;
+			final BufferResponse bufferResponse = createBufferResponse(
+				inputChannel.requestBuffer(), 0, inputChannel.getInputChannelId(), backlog);
 
-		final CreditBasedClientHandler client = new CreditBasedClientHandler();
-		client.addInputChannel(inputChannel);
+			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
+			handler.addInputChannel(inputChannel);
 
-		client.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
+			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-		verify(inputChannel, times(1)).onBuffer(buffer, 0, backlog);
+			verify(inputChannel, times(1)).onBuffer(any(Buffer.class), anyInt(), anyInt());
+			verify(inputChannel, times(1)).onSenderBacklog(backlog);
+		} finally {
+			// Release all the buffer resources
+			inputChannel.releaseAllResources();
+
+			networkBufferPool.destroyAllBufferPools();
+			networkBufferPool.destroy();
+		}
 	}
 
 	/**
@@ -145,19 +171,29 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
-		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
-		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
-		when(inputChannel.requestBuffer()).thenReturn(null);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, MemoryType.HEAP);
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
+		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
+		try {
+			inputGate.assignExclusiveSegments(networkBufferPool, 1);
 
-		final BufferResponse bufferResponse = createBufferResponse(
-			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), 2);
+			final BufferResponse bufferResponse = createBufferResponse(
+				inputChannel.requestBuffer(), 0, inputChannel.getInputChannelId(), 2);
 
-		final CreditBasedClientHandler client = new CreditBasedClientHandler();
-		client.addInputChannel(inputChannel);
+			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
+			handler.addInputChannel(inputChannel);
 
-		client.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
+			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-		verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
+			verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
+		} finally {
+			// Release all the buffer resources
+			inputChannel.releaseAllResources();
+
+			networkBufferPool.destroyAllBufferPools();
+			networkBufferPool.destroy();
+		}
 	}
 
 	/**
@@ -208,7 +244,78 @@ public class PartitionRequestClientHandlerTest {
 		client.cancelRequestFor(inputChannel.getInputChannelId());
 	}
 
+	/**
+	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline, and
+	 * {@link AddCredit} message is sent to the producer.
+	 */
+	@Test
+	public void testNotifyCreditAvailable() throws Exception {
+		final CreditBasedClientHandler handler = new CreditBasedClientHandler();
+		final EmbeddedChannel channel = new EmbeddedChannel(handler);
+
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(mock(SingleInputGate.class));
+
+		// Enqueue the input channel
+		handler.notifyCreditAvailable(inputChannel);
+
+		channel.runPendingTasks();
+
+		// Read the enqueued msg
+		Object msg1 = channel.readOutbound();
+
+		// Should notify credit
+		assertEquals(msg1.getClass(), AddCredit.class);
+	}
+
+	/**
+	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline, but {@link AddCredit}
+	 * message is not sent actually after this input channel is released.
+	 */
+	@Test
+	public void testNotifyCreditAvailableAfterReleased() throws Exception {
+		final CreditBasedClientHandler handler = new CreditBasedClientHandler();
+		final EmbeddedChannel channel = new EmbeddedChannel(handler);
+
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(mock(SingleInputGate.class));
+
+		// Enqueue the input channel then release it
+		handler.notifyCreditAvailable(inputChannel);
+		inputChannel.releaseAllResources();
+
+		channel.runPendingTasks();
+
+		// Read the enqueued msg
+		Object msg2 = channel.readOutbound();
+
+		// No need to notify credit for released input channel
+		assertEquals(msg2, null);
+	}
+
 	// ---------------------------------------------------------------------------------------------
+
+	private SingleInputGate createSingleInputGate() {
+		return new SingleInputGate(
+			"InputGate",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			0,
+			1,
+			mock(TaskActions.class),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+	}
+
+	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) {
+		return new RemoteInputChannel(
+			inputGate,
+			0,
+			new ResultPartitionID(),
+			mock(ConnectionID.class),
+			mock(ConnectionManager.class),
+			0,
+			0,
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.

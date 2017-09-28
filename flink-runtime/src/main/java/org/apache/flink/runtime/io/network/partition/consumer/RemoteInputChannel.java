@@ -230,7 +230,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 * Releases all exclusive and floating buffers, closes the partition request client.
 	 */
 	@Override
-	void releaseAllResources() throws IOException {
+	public void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
 
 			// Gather all exclusive buffers and recycle them to global pool in batch, because
@@ -279,10 +279,13 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Enqueue this input channel in the pipeline for sending unannounced credits to producer.
+	 * Enqueue this input channel in the pipeline for notifying the producer of unannounced credit.
 	 */
 	void notifyCreditAvailable() {
-		//TODO in next PR
+		// We should skip the notification if this channel is already released.
+		if (!isReleased.get() && partitionRequestClient != null) {
+			partitionRequestClient.notifyCreditAvailable(this);
+		}
 	}
 
 	/**
@@ -379,6 +382,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------
 
+	public int getAndResetCredit() {
+		return unannouncedCredit.getAndSet(0);
+	}
+
 	public int getNumberOfQueuedBuffers() {
 		synchronized (receivedBuffers) {
 			return receivedBuffers.size();
@@ -427,7 +434,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 * @param backlog The number of unsent buffers in the producer's sub partition.
 	 */
 	@VisibleForTesting
-	void onSenderBacklog(int backlog) throws IOException {
+	public void onSenderBacklog(int backlog) throws IOException {
 		int numRequestedBuffers = 0;
 
 		synchronized (bufferQueue) {
