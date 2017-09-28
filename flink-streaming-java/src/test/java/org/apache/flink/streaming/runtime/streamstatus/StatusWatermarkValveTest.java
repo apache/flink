@@ -307,6 +307,48 @@ public class StatusWatermarkValveTest {
 		assertEquals(new Watermark(38), valveOutput.popLastSeenOutput());
 	}
 
+	/**
+	 * Tests that when all inputs become idle, the max watermark across all channels
+	 * is correctly "flushed" from the valve, as well as the stream status IDLE marker.
+	 */
+	@Test
+	public void testAllInputsBecomeIdleFlushMaxWatermarkAndStreamStatus() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
+
+		// -------------------------------------------------------------------------------------------
+		// Setup valve for test case:
+		//  channel #1: Watermark 10, ACTIVE
+		//  channel #2: Watermark 5, ACTIVE
+		//  channel #3: Watermark 3, ACTIVE
+		//  Min Watermark across channels = 3 (from channel #3)
+		// -------------------------------------------------------------------------------------------
+
+		valve.inputWatermark(new Watermark(10), 0);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(5), 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(3), 2);
+		assertEquals(new Watermark(3), valveOutput.popLastSeenOutput());
+
+		// -------------------------------------------------------------------------------------------
+		// Order of becoming IDLE:
+		//  channel #1 ----------------> channel #2 ----------------> channel #3
+		//   |-> (nothing emitted)        |-> (nothing emitted)        |-> Emit Watermark(10) & IDLE
+		// -------------------------------------------------------------------------------------------
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		valve.inputStreamStatus(StreamStatus.IDLE, 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		assertEquals(new Watermark(10), valveOutput.popLastSeenOutput());
+		assertEquals(StreamStatus.IDLE, valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
 	private class BufferedValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
 		private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
 

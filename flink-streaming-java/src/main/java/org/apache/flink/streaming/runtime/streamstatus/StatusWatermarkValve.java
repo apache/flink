@@ -130,6 +130,16 @@ public class StatusWatermarkValve {
 			// if all input channels of the valve are now idle, we need to output an idle stream
 			// status from the valve (this also marks the valve as idle)
 			if (!InputChannelStatus.hasActiveChannels(channelStatuses)) {
+
+				// now that all input channels are idle and no channels will continue to advance its watermark,
+				// we should "flush" all watermarks across all channels; effectively, this means emitting
+				// the max watermark across all channels as the new watermark. Also, since we already try to advance
+				// the min watermark as channels individually become IDLE, here we only need to perform the flush
+				// if the watermark of the last active channel that just became idle is the current min watermark.
+				if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
+					findAndOutputMaxWatermarkAcrossAllChannels();
+				}
+
 				lastOutputStreamStatus = StreamStatus.IDLE;
 				outputHandler.handleStreamStatus(lastOutputStreamStatus);
 			} else if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
@@ -173,6 +183,19 @@ public class StatusWatermarkValve {
 		// from some remaining aligned channel, and is also larger than the last output watermark
 		if (hasAlignedChannels && newMinWatermark > lastOutputWatermark) {
 			lastOutputWatermark = newMinWatermark;
+			outputHandler.handleWatermark(new Watermark(lastOutputWatermark));
+		}
+	}
+
+	private void findAndOutputMaxWatermarkAcrossAllChannels() {
+		long maxWatermark = Long.MIN_VALUE;
+
+		for (InputChannelStatus channelStatus : channelStatuses) {
+			maxWatermark = Math.max(channelStatus.watermark, maxWatermark);
+		}
+
+		if (maxWatermark > lastOutputWatermark) {
+			lastOutputWatermark = maxWatermark;
 			outputHandler.handleWatermark(new Watermark(lastOutputWatermark));
 		}
 	}
