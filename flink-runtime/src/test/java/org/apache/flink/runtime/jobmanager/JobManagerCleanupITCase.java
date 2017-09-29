@@ -255,7 +255,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 							}
 						}
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 					}
 				}

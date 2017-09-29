@@ -67,7 +67,7 @@ public class CustomSerializationITCase extends TestLogger {
 
 	@AfterClass
 	public static void shutdownCluster() {
-		cluster.shutdown();
+		cluster.stop();
 		cluster = null;
 	}
 

@@ -70,7 +70,7 @@ public class NotSoMiniClusterIterations {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
+				cluster.stop();
 			}
 		}
 	}

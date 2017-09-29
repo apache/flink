@@ -65,7 +65,7 @@ public class AccumulatorErrorITCase extends TestLogger {
 
 	@AfterClass
 	public static void shutdownCluster() {
-		cluster.shutdown();
+		cluster.stop();
 		cluster = null;
 	}
 

@@ -166,7 +166,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 			assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());
 		} finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}
