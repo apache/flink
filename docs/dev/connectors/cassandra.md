@@ -51,8 +51,7 @@ There are multiple ways to bring up a Cassandra instance on local machine:
 1. Follow the instructions from [Cassandra Getting Started page](http://cassandra.apache.org/doc/latest/getting_started/index.html).
 2. Launch a container running Cassandra from [Official Docker Repository](https://hub.docker.com/_/cassandra/)
 
-## Cassandra Sink
-Flink Cassandra connector currently supports Apache Cassandra as a data sink.
+## Cassandra Sinks
 
 ### Configurations
 
@@ -62,19 +61,19 @@ This method returns a CassandraSinkBuilder, which offers methods to further conf
 The following configuration methods can be used:
 
 1. _setQuery(String query)_
-    * sets the upsert query that is executed for every record the sink receives.
-    * internally treated as CQL prepared statement, in which parameters could be shared or anonymous.
-    * __DO__ set the upsert query for processing __Tuple__ data type
-    * __DO NOT__ set the query for processing __POJO__ data type.
+    * Sets the upsert query that is executed for every record the sink receives.
+    * The query is internally treated as CQL statement.
+    * __DO__ set the upsert query for processing __Tuple__ data type.
+    * __DO NOT__ set the query for processing __POJO__ data types.
 2. _setClusterBuilder()_
-    * sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
+    * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
 3. _setHost(String host[, int port])_
-    * simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
+    * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
 4. _enableWriteAheadLog([CheckpointCommitter committer])_
-    * an __optional__ setting
-    * allows exactly-once processing for non-deterministic algorithms.
+    * An __optional__ setting
+    * Allows exactly-once processing for non-deterministic algorithms.
 5. _build()_
-    * finalizes the configuration and constructs the CassandraSink instance.
+    * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log
 
@@ -90,7 +89,7 @@ checkpoint will be replayed completely.
 
 Furthermore, for non-deterministic programs the write-ahead log has to be enabled. For such a program
 the replayed checkpoint may be completely different than the previous attempt, which may leave the
-database in an inconsitent state since part of the first attempt may already be written.
+database in an inconsistent state since part of the first attempt may already be written.
 The write-ahead log guarantees that the replayed checkpoint is identical to the first attempt.
 Note that that enabling this feature will have an adverse impact on latency.
 
@@ -124,7 +123,7 @@ CREATE TABLE IF NOT EXISTS example.wordcount (
 </div>
 
 ### Cassandra Sink Example for Streaming Tuple Data Type
-While storing the result with Java/Scala Tuple data type to a Cassandra sink, it is required to set a CQL upsert statement (via setQuery('stmt')) to persist each record back to database. With the upsert query cached as `PreparedStatement`, Cassandra connector internally converts each Tuple elements as parameters to the statement.
+While storing the result with Java/Scala Tuple data type to a Cassandra sink, it is required to set a CQL upsert statement (via setQuery('stmt')) to persist each record back to the database. With the upsert query cached as `PreparedStatement`, each Tuple element is converted to parameters of the statement.
 
 For details about `PreparedStatement` and `BoundStatement`, please visit [DataStax Java Driver manual](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)
 
@@ -156,8 +155,7 @@ DataStream<Tuple2<String, Long>> result = text
         })
         .keyBy(0)
         .timeWindow(Time.seconds(5))
-        .sum(1)
-        ;
+        .sum(1);
 
 CassandraSink.addSink(result)
         .setQuery("INSERT INTO example.wordcount(word, count) values (?, ?);")
@@ -197,7 +195,7 @@ result.print().setParallelism(1)
 
 
 ### Cassandra Sink Example for Streaming POJO Data Type
-An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as Cassandra connector internally maps each field of this entity to an associated column of the desginated Table using `com.datastax.driver.mapping.Mapper` class of DataStax Java Driver.
+An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as each field of this entity is mapped to an associated column of the designated table using the DataStax Java Driver `com.datastax.driver.mapping.Mapper` class.
 
 The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
 
