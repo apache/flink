@@ -129,7 +129,7 @@ public class ClassLoaderITCase extends TestLogger {
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (testCluster != null) {
-			testCluster.shutdown();
+			testCluster.stop();
 		}
 
 		TestStreamEnvironment.unsetAsContext();

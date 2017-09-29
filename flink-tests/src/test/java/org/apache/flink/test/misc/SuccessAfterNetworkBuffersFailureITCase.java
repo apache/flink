@@ -97,7 +97,7 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
+				cluster.stop();
 			}
 		}
 	}

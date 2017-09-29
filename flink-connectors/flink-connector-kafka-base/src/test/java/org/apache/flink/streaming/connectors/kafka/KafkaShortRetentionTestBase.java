@@ -119,7 +119,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		TestStreamEnvironment.unsetAsContext();
 
 		if (flink != null) {
-			flink.shutdown();
+			flink.stop();
 		}
 		kafkaServer.shutdown();
 

@@ -306,7 +306,7 @@ public class JobManagerTest extends TestLogger {
 						fail(e.getMessage());
 					} finally {
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 					}
 				}
@@ -397,7 +397,7 @@ public class JobManagerTest extends TestLogger {
 						fail(e.getMessage());
 					} finally {
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 					}
 				}
@@ -493,7 +493,7 @@ public class JobManagerTest extends TestLogger {
 						fail(e.getMessage());
 					} finally {
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 					}
 				}
@@ -545,7 +545,7 @@ public class JobManagerTest extends TestLogger {
 						expectMsgClass(JobResultSuccess.class);
 					} finally {
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 					}
 				}
@@ -599,7 +599,7 @@ public class JobManagerTest extends TestLogger {
 						expectMsgClass(ExecutionGraphFound.class);
 					} finally {
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 					}
 				}
@@ -1025,7 +1025,7 @@ public class JobManagerTest extends TestLogger {
 				fail("Unexpected cancellation response from JobManager: " + cancellationResponse);
 			}
 		} finally {
-			testingCluster.shutdown();
+			testingCluster.stop();
 		}
 	}
 

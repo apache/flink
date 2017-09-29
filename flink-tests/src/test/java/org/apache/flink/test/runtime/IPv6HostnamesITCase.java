@@ -110,7 +110,7 @@ public class IPv6HostnamesITCase extends TestLogger {
 		}
 		finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}

@@ -145,7 +145,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 					jobManager, deadline.timeLeft());
 		}
 		finally {
-			flink.shutdown();
+			flink.stop();
 		}
 
 		// verify that the persisted job data has not been removed from ZooKeeper when the JM has
