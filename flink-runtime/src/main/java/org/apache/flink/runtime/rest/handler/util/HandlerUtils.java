@@ -74,7 +74,7 @@ public class HandlerUtils {
 			sendErrorResponse(channelHandlerContext, httpRequest, new ErrorResponseBody("Internal server error. Could not map response to JSON."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			return;
 		}
-		sendResponse(channelHandlerContext, httpRequest, sw.toString(), statusCode);
+		sendResponse(channelHandlerContext, httpRequest, sw.toString(), statusCode, false);
 	}
 
 	/**
@@ -96,9 +96,9 @@ public class HandlerUtils {
 			mapper.writeValue(sw, errorMessage);
 		} catch (IOException e) {
 			// this should never happen
-			sendResponse(channelHandlerContext, httpRequest, "Internal server error. Could not map error response to JSON.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
+			sendResponse(channelHandlerContext, httpRequest, "Internal server error. Could not map error response to JSON.", HttpResponseStatus.INTERNAL_SERVER_ERROR, true);
 		}
-		sendResponse(channelHandlerContext, httpRequest, sw.toString(), statusCode);
+		sendResponse(channelHandlerContext, httpRequest, sw.toString(), statusCode, isServerError(statusCode));
 	}
 
 	/**
@@ -108,18 +108,24 @@ public class HandlerUtils {
 	 * @param httpRequest originating http request
 	 * @param message which should be sent
 	 * @param statusCode of the message to send
+	 * @param forceClose indicates whether to forcibly close the connection after the response is sent
 	 */
 	public static void sendResponse(
 			@Nonnull ChannelHandlerContext channelHandlerContext,
 			@Nonnull HttpRequest httpRequest,
 			@Nonnull String message,
-			@Nonnull HttpResponseStatus statusCode) {
+			@Nonnull HttpResponseStatus statusCode,
+			boolean forceClose) {
 		HttpResponse response = new DefaultHttpResponse(HTTP_1_1, statusCode);
 
 		response.headers().set(CONTENT_TYPE, "application/json");
 
-		if (HttpHeaders.isKeepAlive(httpRequest)) {
+		boolean keepAlive = !forceClose && HttpHeaders.isKeepAlive(httpRequest);
+		if (keepAlive) {
 			response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+		}
+		else {
+			response.headers().set(CONNECTION, HttpHeaders.Values.CLOSE);
 		}
 
 		byte[] buf = message.getBytes(ConfigConstants.DEFAULT_CHARSET);
@@ -134,8 +140,12 @@ public class HandlerUtils {
 		ChannelFuture lastContentFuture = channelHandlerContext.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
 
 		// close the connection, if no keep-alive is needed
-		if (!HttpHeaders.isKeepAlive(httpRequest)) {
+		if (!keepAlive) {
 			lastContentFuture.addListener(ChannelFutureListener.CLOSE);
 		}
+	}
+
+	private static boolean isServerError(@Nonnull HttpResponseStatus statusCode) {
+		return statusCode.code() >= 500 && statusCode.code() < 600;
 	}
 }
