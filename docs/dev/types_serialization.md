@@ -115,7 +115,7 @@ conditions are fulfilled:
   or have a public getter- and a setter- method that follows the Java beans
   naming conventions for getters and setters.
 
-Note that when a data type can't be recognized as a POJO type, it will be handled as GenericType.
+Note that when a data type can't be recognized as a POJO type, it will be processed as GenericType and serialized with Kryo.
 
 
 #### Creating a TypeInformation or TypeSerializer
