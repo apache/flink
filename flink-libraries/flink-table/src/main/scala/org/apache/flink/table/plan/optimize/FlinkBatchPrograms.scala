@@ -39,7 +39,8 @@ object FlinkBatchPrograms {
     // convert sub-queries before query decorrelation
     programs.addLast(
       SUBQUERY,
-      FlinkHepProgramBuilder.newBuilder
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkRuleSets.TABLE_SUBQUERY_RULES)
         .build())
@@ -47,7 +48,8 @@ object FlinkBatchPrograms {
     // convert table references
     programs.addLast(
       TABLE_REF,
-      FlinkHepProgramBuilder.newBuilder
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkRuleSets.TABLE_REF_RULES)
         .build())
@@ -58,7 +60,8 @@ object FlinkBatchPrograms {
     // normalize the logical plan
     programs.addLast(
       NORMALIZATION,
-      FlinkHepProgramBuilder.newBuilder
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(FlinkRuleSets.DATASET_NORM_RULES)
         .build())

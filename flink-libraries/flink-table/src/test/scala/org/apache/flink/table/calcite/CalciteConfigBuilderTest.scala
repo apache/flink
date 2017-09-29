@@ -38,7 +38,7 @@ class CalciteConfigBuilderTest {
     val builder = new CalciteConfigBuilder()
     val batchPrograms = new FlinkChainedPrograms[BatchOptimizeContext]
     batchPrograms.addLast(FlinkBatchPrograms.NORMALIZATION,
-      new FlinkHepProgramBuilder().add(FlinkRuleSets.DATASET_NORM_RULES).build())
+      new FlinkHepRuleSetProgramBuilder().add(FlinkRuleSets.DATASET_NORM_RULES).build())
     builder.replaceBatchPrograms(batchPrograms)
 
     val streamPrograms = FlinkStreamPrograms.buildPrograms()

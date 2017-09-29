@@ -18,15 +18,17 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.plan.hep.{HepMatchOrder, HepProgramBuilder}
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rel.rules.ReduceExpressionsRule
+import org.apache.calcite.rel.rules.{CalcMergeRule, ProjectToCalcRule, _}
 import org.apache.calcite.tools.RuleSets
+import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.rules.logical.EnumerableToLogicalTableScan
 import org.junit.Assert._
 import org.junit.Test
+import org.mockito.Mockito._
 
 import scala.collection.JavaConverters._
-import org.mockito.Mockito._
 
 /**
   * Tests for [[FlinkChainedPrograms]].
@@ -39,28 +41,49 @@ class FlinkChainedProgramsTest {
     assertTrue(programs.getProgramNames.isEmpty)
     assertTrue(programs.get("o1").isEmpty)
 
-    val program1 = FlinkHepProgramBuilder.newBuilder
-      .add(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
-      .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-      .build()
+    val builder = new HepProgramBuilder()
+    builder
+      .addMatchLimit(10)
+      .addMatchOrder(HepMatchOrder.ARBITRARY)
+      .addRuleInstance(SubQueryRemoveRule.FILTER)
+      .addRuleInstance(SubQueryRemoveRule.PROJECT)
+      .addRuleInstance(SubQueryRemoveRule.JOIN)
+      .addMatchLimit(100)
+      .addMatchOrder(HepMatchOrder.BOTTOM_UP)
+      .addRuleCollection(Array(
+        TableScanRule.INSTANCE,
+        EnumerableToLogicalTableScan.INSTANCE
+      ).toList.asJava)
+    val program1 = FlinkHepProgram(builder.build())
     var result = programs.addFirst("o2", program1)
     assertTrue(result)
     assertEquals(Seq("o2"), programs.getProgramNames.asScala)
     assertTrue(programs.get("o2").isDefined)
     assertTrue(program1 == programs.get("o2").get)
 
-    val program2 = FlinkHepProgramBuilder.newBuilder
-      .add(RuleSets.ofList(ReduceExpressionsRule.CALC_INSTANCE))
-      .build()
+    val program2 = FlinkHepRuleSetProgramBuilder.newBuilder
+      .add(RuleSets.ofList(
+        ReduceExpressionsRule.FILTER_INSTANCE,
+        ReduceExpressionsRule.PROJECT_INSTANCE,
+        ReduceExpressionsRule.CALC_INSTANCE,
+        ReduceExpressionsRule.JOIN_INSTANCE
+      )).build()
     result = programs.addFirst("o1", program2)
     assertTrue(result)
     assertEquals(Seq("o1", "o2"), programs.getProgramNames.asScala)
     assertTrue(programs.get("o1").isDefined)
     assertTrue(program2 == programs.get("o1").get)
 
-    val program3 = FlinkHepProgramBuilder.newBuilder
-      .add(RuleSets.ofList(ReduceExpressionsRule.PROJECT_INSTANCE))
-      .setMatchLimit(100)
+    val program3 = FlinkHepRuleSetProgramBuilder.newBuilder
+      .add(RuleSets.ofList(
+        FilterCalcMergeRule.INSTANCE,
+        ProjectCalcMergeRule.INSTANCE,
+        FilterToCalcRule.INSTANCE,
+        ProjectToCalcRule.INSTANCE,
+        CalcMergeRule.INSTANCE))
+      .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+      .setMatchLimit(10000)
+      .setHepMatchOrder(HepMatchOrder.ARBITRARY)
       .build()
     result = programs.addLast("o4", program3)
     assertTrue(result)
@@ -68,9 +91,11 @@ class FlinkChainedProgramsTest {
     assertTrue(programs.get("o4").isDefined)
     assertTrue(program3 == programs.get("o4").get)
 
-    val program4 = FlinkHepProgramBuilder.newBuilder
-      .add(RuleSets.ofList(ReduceExpressionsRule.JOIN_INSTANCE))
-      .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+    val program4 = FlinkVolcanoProgramBuilder.newBuilder
+      .add(RuleSets.ofList(
+        FilterJoinRule.FILTER_ON_JOIN,
+        FilterJoinRule.JOIN))
+      .setTargetTraits(Array(FlinkConventions.LOGICAL))
       .build()
     result = programs.addBefore("o4", "o3", program4)
     assertTrue(result)
@@ -99,7 +124,7 @@ class FlinkChainedProgramsTest {
     val programs = new FlinkChainedPrograms
     assertTrue(programs.getProgramNames.isEmpty)
 
-    val program1 = FlinkHepProgramBuilder.newBuilder
+    val program1 = FlinkHepRuleSetProgramBuilder.newBuilder
       .add(RuleSets.ofList(ReduceExpressionsRule.FILTER_INSTANCE))
       .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
       .build()

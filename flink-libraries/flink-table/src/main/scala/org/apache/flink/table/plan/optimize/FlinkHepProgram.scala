@@ -19,39 +19,28 @@
 package org.apache.flink.table.plan.optimize
 
 import org.apache.calcite.plan.RelTrait
-import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgramBuilder}
+import org.apache.calcite.plan.hep.{HepPlanner, HepProgram}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.tools.RuleSet
 import org.apache.flink.util.Preconditions
 
 /**
-  * A FlinkRuleSetProgram that runs with [[HepPlanner]].
+  * A FlinkOptimizeProgram that runs with [[HepPlanner]].
+  *
+  * <p>In most case [[FlinkHepRuleSetProgram]] could meet our requirements.
+  * Otherwise we could choose this program for some advanced features,
+  * and use [[org.apache.calcite.plan.hep.HepProgramBuilder]] to create [[HepProgram]].
   *
   * @tparam OC OptimizeContext
   */
-class FlinkHepProgram[OC <: OptimizeContext] extends FlinkRuleSetProgram[OC] {
+class FlinkHepProgram[OC <: OptimizeContext] extends FlinkOptimizeProgram[OC] {
 
-  private var matchOrder: Option[HepMatchOrder] = None
-  private var matchLimit: Option[Int] = None
+  private var hepProgram: HepProgram = _
+  private var targetTraits = Array.empty[RelTrait]
 
   override def optimize(input: RelNode, context: OC): RelNode = {
-    if (rules.isEmpty) {
-      return input
-    }
+    Preconditions.checkNotNull(hepProgram)
 
-    val builder = new HepProgramBuilder
-    if (matchOrder.isDefined) {
-      builder.addMatchOrder(matchOrder.get)
-    }
-
-    if (matchLimit.isDefined) {
-      Preconditions.checkArgument(matchLimit.get > 0)
-      builder.addMatchLimit(matchLimit.get)
-    }
-
-    rules.foreach(builder.addRuleInstance)
-
-    val planner = new HepPlanner(builder.build, context.getContext)
+    val planner = new HepPlanner(hepProgram, context.getContext)
     planner.setRoot(input)
 
     if (targetTraits.nonEmpty) {
@@ -64,43 +53,36 @@ class FlinkHepProgram[OC <: OptimizeContext] extends FlinkRuleSetProgram[OC] {
     planner.findBestExp
   }
 
-  def setHepMatchOrder(matchOrder: HepMatchOrder): Unit = {
-    this.matchOrder = Option(matchOrder)
+  /**
+    * Sets target traits that the optimized relational expression should contain them.
+    */
+  def setTargetTraits(relTraits: Array[RelTrait]): Unit = {
+    if (relTraits != null) {
+      targetTraits = relTraits
+    } else {
+      targetTraits = Array.empty[RelTrait]
+    }
   }
 
-  def setMatchLimit(matchLimit: Int): Unit = {
-    this.matchLimit = Option(matchLimit)
+  /**
+    * Sets hep program instance.
+    */
+  def setHepProgram(hepProgram: HepProgram): Unit = {
+    this.hepProgram = hepProgram
   }
+
 }
 
-class FlinkHepProgramBuilder[OC <: OptimizeContext] {
-  private val hepProgram = new FlinkHepProgram[OC]
+object FlinkHepProgram {
 
-  def setHepMatchOrder(matchOrder: HepMatchOrder): FlinkHepProgramBuilder[OC] = {
-    hepProgram.setHepMatchOrder(matchOrder)
-    this
+  def apply[OC <: OptimizeContext](
+    hepProgram: HepProgram,
+    targetTraits: Array[RelTrait] = Array.empty[RelTrait])
+  : FlinkHepProgram[OC] = {
+
+    val flinkHepProgram = new FlinkHepProgram[OC]()
+    flinkHepProgram.setHepProgram(hepProgram)
+    flinkHepProgram.setTargetTraits(targetTraits)
+    flinkHepProgram
   }
-
-  def setMatchLimit(matchLimit: Int): FlinkHepProgramBuilder[OC] = {
-    hepProgram.setMatchLimit(matchLimit)
-    this
-  }
-
-  def add(ruleSet: RuleSet): FlinkHepProgramBuilder[OC] = {
-    hepProgram.add(ruleSet)
-    this
-  }
-
-  def setTargetTraits(relTraits: Array[RelTrait]): FlinkHepProgramBuilder[OC] = {
-    hepProgram.setTargetTraits(relTraits)
-    this
-  }
-
-  def build(): FlinkHepProgram[OC] = {
-    hepProgram
-  }
-}
-
-object FlinkHepProgramBuilder {
-  def newBuilder[OC <: OptimizeContext] = new FlinkHepProgramBuilder[OC]
 }

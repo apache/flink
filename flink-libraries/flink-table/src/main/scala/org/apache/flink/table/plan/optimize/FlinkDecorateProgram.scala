@@ -23,11 +23,12 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.table.plan.nodes.datastream.UpdateAsRetractionTrait
+import org.apache.flink.table.plan.optimize.HEP_RULES_EXECUTION_TYPE.HEP_RULES_EXECUTION_TYPE
 
 /**
   * A FlinkHepProgram that deals with retraction.
   */
-class FlinkDecorateProgram extends FlinkHepProgram[StreamOptimizeContext] {
+class FlinkDecorateProgram extends FlinkHepRuleSetProgram[StreamOptimizeContext] {
 
   override def optimize(input: RelNode, context: StreamOptimizeContext): RelNode = {
     val output = if (context.updateAsRetraction()) {
@@ -43,6 +44,13 @@ class FlinkDecorateProgram extends FlinkHepProgram[StreamOptimizeContext] {
 
 class FlinkDecorateProgramBuilder {
   private val decorateProgram = new FlinkDecorateProgram
+
+  def setHepRulesExecutionType(
+    executionType: HEP_RULES_EXECUTION_TYPE)
+  : FlinkDecorateProgramBuilder = {
+    decorateProgram.setHepRulesExecutionType(executionType)
+    this
+  }
 
   def setHepMatchOrder(matchOrder: HepMatchOrder): FlinkDecorateProgramBuilder = {
     decorateProgram.setHepMatchOrder(matchOrder)
@@ -64,9 +72,7 @@ class FlinkDecorateProgramBuilder {
     this
   }
 
-  def build(): FlinkDecorateProgram = {
-    decorateProgram
-  }
+  def build(): FlinkDecorateProgram = decorateProgram
 
 }
 

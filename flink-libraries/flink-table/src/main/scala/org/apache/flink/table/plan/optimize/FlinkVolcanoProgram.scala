@@ -84,9 +84,8 @@ class FlinkVolcanoProgramBuilder[OC <: OptimizeContext] {
     this
   }
 
-  def build(): FlinkVolcanoProgram[OC] = {
-    volcanoProgram
-  }
+  def build(): FlinkVolcanoProgram[OC] = volcanoProgram
+
 }
 
 object FlinkVolcanoProgramBuilder {
