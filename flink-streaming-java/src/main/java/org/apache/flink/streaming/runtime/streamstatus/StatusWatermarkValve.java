@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.runtime.streamstatus;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -213,10 +215,11 @@ public class StatusWatermarkValve {
 	 *   caught up to the last output watermark from the valve yet.
 	 * </ul>
 	 */
-	private static class InputChannelStatus {
-		private long watermark;
-		private StreamStatus streamStatus;
-		private boolean isWatermarkAligned;
+	@VisibleForTesting
+	protected static class InputChannelStatus {
+		protected long watermark;
+		protected StreamStatus streamStatus;
+		protected boolean isWatermarkAligned;
 
 		/**
 		 * Utility to check if at least one channel in a given array of input channels is active.
@@ -231,4 +234,12 @@ public class StatusWatermarkValve {
 		}
 	}
 
+	@VisibleForTesting
+	protected InputChannelStatus getInputChannelStatus(int channelIndex) {
+		Preconditions.checkArgument(
+			channelIndex >= 0 && channelIndex < channelStatuses.length,
+			"Invalid channel index. Number of input channels: " + channelStatuses.length);
+
+		return channelStatuses[channelIndex];
+	}
 }
