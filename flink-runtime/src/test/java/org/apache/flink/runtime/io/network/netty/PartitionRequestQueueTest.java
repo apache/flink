@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
@@ -35,16 +36,15 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link PartitionRequestQueue}.
@@ -55,25 +55,18 @@ public class PartitionRequestQueueTest {
 	public void testProducerFailedException() throws Exception {
 		PartitionRequestQueue queue = new PartitionRequestQueue();
 
-		ResultPartitionProvider partitionProvider = mock(ResultPartitionProvider.class);
-		ResultPartitionID rpid = new ResultPartitionID();
+		ResultSubpartitionView view = new ReleasedResultSubpartitionView();
 
-		ResultSubpartitionView view = mock(ResultSubpartitionView.class);
-		when(view.isReleased()).thenReturn(true);
-		when(view.getFailureCause()).thenReturn(new RuntimeException("Expected test exception"));
-
-		when(partitionProvider.createSubpartitionView(
-			eq(rpid),
-			eq(0),
-			any(BufferAvailabilityListener.class))).thenReturn(view);
+		ResultPartitionProvider partitionProvider =
+			(partitionId, index, availabilityListener) -> view;
 
 		EmbeddedChannel ch = new EmbeddedChannel(queue);
 
-		SequenceNumberingViewReader seqView = new SequenceNumberingViewReader(new InputChannelID(), queue);
-		seqView.requestSubpartitionView(partitionProvider, rpid, 0);
+		SequenceNumberingViewReader seqView = new SequenceNumberingViewReader(new InputChannelID(), 2, queue);
+		seqView.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+		// Add available buffer to trigger enqueue the erroneous view
+		seqView.notifyBuffersAvailable(1);
 
-		// Enqueue the erroneous view
-		queue.notifyReaderNonEmpty(seqView);
 		ch.runPendingTasks();
 
 		// Read the enqueued msg
@@ -108,7 +101,7 @@ public class PartitionRequestQueueTest {
 
 		final InputChannelID receiverId = new InputChannelID();
 		final PartitionRequestQueue queue = new PartitionRequestQueue();
-		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, queue);
+		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, 2, queue);
 		final EmbeddedChannel channel = new EmbeddedChannel(queue);
 
 		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
@@ -138,10 +131,11 @@ public class PartitionRequestQueueTest {
 
 		@Nullable
 		@Override
-		public ResultSubpartition.BufferAndBacklog getNextBuffer() {
-			return new ResultSubpartition.BufferAndBacklog(
+		public BufferAndBacklog getNextBuffer() {
+			return new BufferAndBacklog(
 				TestBufferFactory.createBuffer(10),
-				buffersInBacklog);
+				buffersInBacklog,
+				false);
 		}
 	}
 
@@ -155,16 +149,168 @@ public class PartitionRequestQueueTest {
 
 		@Nullable
 		@Override
-		public ResultSubpartition.BufferAndBacklog getNextBuffer() {
-			return new ResultSubpartition.BufferAndBacklog(
+		public BufferAndBacklog getNextBuffer() {
+			return new BufferAndBacklog(
 				TestBufferFactory.createBuffer(10).readOnlySlice(),
-				buffersInBacklog);
+				buffersInBacklog,
+				false);
 		}
+	}
+
+	private static class ReleasedResultSubpartitionView extends NoOpResultSubpartitionView {
+		@Override
+		public boolean isReleased() {
+			return true;
+		}
+
+		@Override
+		public Throwable getFailureCause() {
+			return new RuntimeException("Expected test exception");
+		}
+	}
+
+	/**
+	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(SequenceNumberingViewReader)},
+	 * verifying the reader would be enqueued in the pipeline if the next sending buffer is an event
+	 * even though it has no available credits.
+	 */
+	@Test
+	public void testEnqueueReaderByNotifyingEventBuffer() throws Exception {
+		// setup
+		final ResultSubpartitionView view = new NextIsEventResultSubpartitionView();
+
+		ResultPartitionProvider partitionProvider =
+			(partitionId, index, availabilityListener) -> view;
+
+		final InputChannelID receiverId = new InputChannelID();
+		final PartitionRequestQueue queue = new PartitionRequestQueue();
+		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, 0, queue);
+		final EmbeddedChannel channel = new EmbeddedChannel(queue);
+
+		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+
+		// block the channel so that we see an intermediate state in the test
+		ByteBuf channelBlockingBuffer = blockChannel(channel);
+		assertNull(channel.readOutbound());
+
+		// Notify an available event buffer to trigger enqueue the reader
+		reader.notifyBuffersAvailable(1);
+
+		channel.runPendingTasks();
+
+		// The reader is enqueued in the pipeline because the next buffer is an event, even though no credits are available
+		assertThat(queue.getAvailableReaders(), contains(reader)); // contains only (this) one!
+		assertEquals(0, reader.getNumCreditsAvailable());
+
+		// Flush the buffer to make the channel writable again and see the final results
+		channel.flush();
+		assertSame(channelBlockingBuffer, channel.readOutbound());
+
+		assertEquals(0, queue.getAvailableReaders().size());
+		assertEquals(0, reader.getNumCreditsAvailable());
+		assertNull(channel.readOutbound());
+	}
+
+	private static class NextIsEventResultSubpartitionView extends NoOpResultSubpartitionView {
+		@Override
+		public boolean nextBufferIsEvent() {
+			return true;
+		}
+	}
+
+	/**
+	 * Tests {@link PartitionRequestQueue#enqueueAvailableReader(SequenceNumberingViewReader)},
+	 * verifying the reader would be enqueued in the pipeline iff it has both available credits and buffers.
+	 */
+	@Test
+	public void testEnqueueReaderByNotifyingBufferAndCredit() throws Exception {
+		// setup
+		final ResultSubpartitionView view = new DefaultBufferResultSubpartitionView(2);
+
+		ResultPartitionProvider partitionProvider =
+			(partitionId, index, availabilityListener) -> view;
+
+		final InputChannelID receiverId = new InputChannelID();
+		final PartitionRequestQueue queue = new PartitionRequestQueue();
+		final SequenceNumberingViewReader reader = new SequenceNumberingViewReader(receiverId, 0, queue);
+		final EmbeddedChannel channel = new EmbeddedChannel(queue);
+
+		reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
+		queue.notifyReaderCreated(reader);
+
+		// block the channel so that we see an intermediate state in the test
+		ByteBuf channelBlockingBuffer = blockChannel(channel);
+		assertNull(channel.readOutbound());
+
+		// Notify available buffers to trigger enqueue the reader
+		final int notifyNumBuffers = 5;
+		for (int i = 0; i < notifyNumBuffers; i++) {
+			reader.notifyBuffersAvailable(1);
+		}
+
+		channel.runPendingTasks();
+
+		// the reader is not enqueued in the pipeline because no credits are available
+		// -> it should still have the same number of pending buffers
+		assertEquals(0, queue.getAvailableReaders().size());
+		assertEquals(notifyNumBuffers, reader.getNumBuffersAvailable());
+		assertFalse(reader.isRegisteredAsAvailable());
+		assertEquals(0, reader.getNumCreditsAvailable());
+
+		// Notify available credits to trigger enqueue the reader again
+		final int notifyNumCredits = 3;
+		for (int i = 1; i <= notifyNumCredits; i++) {
+			queue.addCredit(receiverId, 1);
+
+			// the reader is enqueued in the pipeline because it has both available buffers and credits
+			// since the channel is blocked though, we will not process anything and only enqueue the
+			// reader once
+			assertTrue(reader.isRegisteredAsAvailable());
+			assertThat(queue.getAvailableReaders(), contains(reader)); // contains only (this) one!
+			assertEquals(i, reader.getNumCreditsAvailable());
+			assertEquals(notifyNumBuffers, reader.getNumBuffersAvailable());
+		}
+
+		// Flush the buffer to make the channel writable again and see the final results
+		channel.flush();
+		assertSame(channelBlockingBuffer, channel.readOutbound());
+
+		assertEquals(0, queue.getAvailableReaders().size());
+		assertEquals(0, reader.getNumCreditsAvailable());
+		assertEquals(notifyNumBuffers - notifyNumCredits, reader.getNumBuffersAvailable());
+		assertFalse(reader.isRegisteredAsAvailable());
+		for (int i = 1; i <= notifyNumCredits; i++) {
+			assertThat(channel.readOutbound(), instanceOf(NettyMessage.BufferResponse.class));
+		}
+		assertNull(channel.readOutbound());
+	}
+
+	/**
+	 * Blocks the given channel by adding a buffer that is bigger than the high watermark.
+	 *
+	 * <p>The channel may be unblocked with:
+	 * <pre>
+	 * channel.flush();
+	 * assertSame(channelBlockingBuffer, channel.readOutbound());
+	 * </pre>
+	 *
+	 * @param channel the channel to block
+	 * @return the created blocking buffer
+	 */
+	static ByteBuf blockChannel(EmbeddedChannel channel) {
+		final int highWaterMark = channel.config().getWriteBufferHighWaterMark();
+		// Set the writer index to the high water mark to ensure that all bytes are written
+		// to the wire although the buffer is "empty".
+		ByteBuf channelBlockingBuffer = Unpooled.buffer(highWaterMark).writerIndex(highWaterMark);
+		channel.write(channelBlockingBuffer);
+		assertFalse(channel.isWritable());
+
+		return channelBlockingBuffer;
 	}
 
 	private static class NoOpResultSubpartitionView implements ResultSubpartitionView {
 		@Nullable
-		public ResultSubpartition.BufferAndBacklog getNextBuffer() {
+		public BufferAndBacklog getNextBuffer() {
 			return null;
 		}
 
@@ -188,6 +334,11 @@ public class PartitionRequestQueueTest {
 		@Override
 		public Throwable getFailureCause() {
 			return null;
+		}
+
+		@Override
+		public boolean nextBufferIsEvent() {
+			return false;
 		}
 	}
 }
