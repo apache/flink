@@ -266,14 +266,6 @@ public class SingleInputGate implements InputGate {
 	// ------------------------------------------------------------------------
 
 	public void setBufferPool(BufferPool bufferPool) {
-		// Sanity checks
-		if (!getConsumedPartitionType().isCreditBased()) {
-			checkArgument(numberOfInputChannels == bufferPool.getNumberOfRequiredMemorySegments(),
-				"Bug in input gate setup logic: buffer pool has not enough guaranteed buffers " +
-					"for this input gate. Input gates require at least as many buffers as " +
-						"there are input channels.");
-		}
-
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: buffer pool has" +
 			"already been set for this input gate.");
 
@@ -346,11 +338,8 @@ public class SingleInputGate implements InputGate {
 				}
 				else if (partitionLocation.isRemote()) {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
-
-					if (getConsumedPartitionType().isCreditBased()) {
-						((RemoteInputChannel)newChannel).assignExclusiveSegments(
-							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
-					}
+					((RemoteInputChannel)newChannel).assignExclusiveSegments(
+						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
 				}
 				else {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");

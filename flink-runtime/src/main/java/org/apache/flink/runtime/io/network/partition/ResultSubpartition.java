@@ -123,10 +123,12 @@ public abstract class ResultSubpartition {
 
 		private final Buffer buffer;
 		private final int buffersInBacklog;
+		private final boolean nextBufferIsEvent;
 
-		public BufferAndBacklog(Buffer buffer, int buffersInBacklog) {
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog, boolean nextBufferIsEvent) {
 			this.buffer = checkNotNull(buffer);
 			this.buffersInBacklog = buffersInBacklog;
+			this.nextBufferIsEvent = nextBufferIsEvent;
 		}
 
 		public Buffer buffer() {
@@ -135,6 +137,10 @@ public abstract class ResultSubpartition {
 
 		public int buffersInBacklog() {
 			return buffersInBacklog;
+		}
+
+		public boolean nextBufferIsEvent() {
+			return nextBufferIsEvent;
 		}
 	}
 

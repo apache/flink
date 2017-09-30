@@ -865,7 +865,7 @@ public class RemoteInputChannelTest {
 			"InputGate",
 			new JobID(),
 			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			ResultPartitionType.PIPELINED,
 			0,
 			1,
 			mock(TaskActions.class),

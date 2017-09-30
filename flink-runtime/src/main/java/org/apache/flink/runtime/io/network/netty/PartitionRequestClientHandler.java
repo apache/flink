@@ -21,10 +21,9 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferListener;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -32,8 +31,10 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -43,31 +44,38 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayDeque;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Channel handler to read the messages of buffer response or error response from the
+ * producer, to write and flush the unannounced credits for the producer.
+ */
 class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 	private static final Logger LOG = LoggerFactory.getLogger(PartitionRequestClientHandler.class);
 
-	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<InputChannelID, RemoteInputChannel>();
+	/** Channels, which already requested partitions from the producers. */
+	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<>();
 
-	private final AtomicReference<Throwable> channelError = new AtomicReference<Throwable>();
+	/** Channels, which will notify the producers about unannounced credit. */
+	private final ArrayDeque<RemoteInputChannel> inputChannelsWithCredit = new ArrayDeque<>();
 
-	private final BufferListenerTask bufferListener = new BufferListenerTask();
+	private final AtomicReference<Throwable> channelError = new AtomicReference<>();
 
-	private final Queue<Object> stagedMessages = new ArrayDeque<Object>();
-
-	private final StagedMessagesHandlerTask stagedMessagesHandler = new StagedMessagesHandlerTask();
+	private final ChannelFutureListener writeListener = new WriteAndFlushNextMessageIfPossibleListener();
 
 	/**
 	 * Set of cancelled partition requests. A request is cancelled iff an input channel is cleared
 	 * while data is still coming in for this channel.
 	 */
-	private final ConcurrentMap<InputChannelID, InputChannelID> cancelled = Maps.newConcurrentMap();
+	private final ConcurrentMap<InputChannelID, InputChannelID> cancelled = new ConcurrentHashMap<>();
 
+	/**
+	 * The channel handler context is initialized in channel active event by netty thread, the context may also
+	 * be accessed by task thread or canceler thread to cancel partition request during releasing resources.
+	 */
 	private volatile ChannelHandlerContext ctx;
 
 	// ------------------------------------------------------------------------
@@ -96,6 +104,22 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	/**
+	 * The credit begins to announce after receiving the sender's backlog from buffer response.
+	 * Than means it should only happen after some interactions with the channel to make sure
+	 * the context will not be null.
+	 *
+	 * @param inputChannel The input channel with unannounced credits.
+	 */
+	void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
+		ctx.executor().execute(new Runnable() {
+			@Override
+			public void run() {
+				ctx.pipeline().fireUserEventTriggered(inputChannel);
+			}
+		});
+	}
+
 	// ------------------------------------------------------------------------
 	// Network events
 	// ------------------------------------------------------------------------
@@ -117,9 +141,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 			final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
 			notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
-					"Connection unexpectedly closed by remote task manager '" + remoteAddr + "'. "
-							+ "This might indicate that the remote task manager was lost.",
-					remoteAddr));
+				"Connection unexpectedly closed by remote task manager '" + remoteAddr + "'. "
+					+ "This might indicate that the remote task manager was lost.", remoteAddr));
 		}
 
 		super.channelInactive(ctx);
@@ -128,28 +151,22 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	/**
 	 * Called on exceptions in the client handler pipeline.
 	 *
-	 * <p> Remote exceptions are received as regular payload.
+	 * <p>Remote exceptions are received as regular payload.
 	 */
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-
 		if (cause instanceof TransportException) {
 			notifyAllChannelsOfErrorAndClose(cause);
-		}
-		else {
+		} else {
 			final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
 			final TransportException tex;
 
 			// Improve on the connection reset by peer error message
-			if (cause instanceof IOException
-					&& cause.getMessage().equals("Connection reset by peer")) {
-
-				tex = new RemoteTransportException(
-						"Lost connection to task manager '" + remoteAddr + "'. This indicates "
-								+ "that the remote task manager was lost.", remoteAddr, cause);
-			}
-			else {
+			if (cause instanceof IOException && cause.getMessage().equals("Connection reset by peer")) {
+				tex = new RemoteTransportException("Lost connection to task manager '" + remoteAddr + "'. " +
+					"This indicates that the remote task manager was lost.", remoteAddr, cause);
+			} else {
 				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
 			}
 
@@ -160,16 +177,36 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		try {
-			if (!bufferListener.hasStagedBufferOrEvent() && stagedMessages.isEmpty()) {
-				decodeMsg(msg, false);
-			}
-			else {
-				stagedMessages.add(msg);
-			}
-		}
-		catch (Throwable t) {
+			decodeMsg(msg);
+		} catch (Throwable t) {
 			notifyAllChannelsOfErrorAndClose(t);
 		}
+	}
+
+	/**
+	 * Triggered by notifying credit available in the client handler pipeline.
+	 *
+	 * <p>Enqueues the input channel and will trigger write&flush unannounced credits
+	 * for this input channel if it is the first one in the queue.
+	 */
+	@Override
+	public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
+		if (msg instanceof RemoteInputChannel) {
+			boolean triggerWrite = inputChannelsWithCredit.isEmpty();
+
+			inputChannelsWithCredit.add((RemoteInputChannel) msg);
+
+			if (triggerWrite) {
+				writeAndFlushNextMessageIfPossible(ctx.channel());
+			}
+		} else {
+			ctx.fireUserEventTriggered(msg);
+		}
+	}
+
+	@Override
+	public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
+		writeAndFlushNextMessageIfPossible(ctx.channel());
 	}
 
 	private void notifyAllChannelsOfErrorAndClose(Throwable cause) {
@@ -178,14 +215,12 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				for (RemoteInputChannel inputChannel : inputChannels.values()) {
 					inputChannel.onError(cause);
 				}
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				// We can only swallow the Exception at this point. :(
-				LOG.warn("An Exception was thrown during error notification of a "
-						+ "remote input channel.", t);
-			}
-			finally {
+				LOG.warn("An Exception was thrown during error notification of a remote input channel.", t);
+			} finally {
 				inputChannels.clear();
+				inputChannelsWithCredit.clear();
 
 				if (ctx != null) {
 					ctx.close();
@@ -205,19 +240,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		if (t != null) {
 			if (t instanceof IOException) {
 				throw (IOException) t;
-			}
-			else {
+			} else {
 				throw new IOException("There has been an error in the channel.", t);
 			}
 		}
 	}
 
-	@Override
-	public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-		super.channelReadComplete(ctx);
-	}
-
-	private boolean decodeMsg(Object msg, boolean isStagedBuffer) throws Throwable {
+	private void decodeMsg(Object msg) throws Throwable {
 		final Class<?> msgClazz = msg.getClass();
 
 		// ---- Buffer --------------------------------------------------------
@@ -230,90 +259,66 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 
 				cancelRequestFor(bufferOrEvent.receiverId);
 
-				return true;
+				return;
 			}
 
-			return decodeBufferOrEvent(inputChannel, bufferOrEvent, isStagedBuffer);
-		}
-		// ---- Error ---------------------------------------------------------
-		else if (msgClazz == NettyMessage.ErrorResponse.class) {
+			decodeBufferOrEvent(inputChannel, bufferOrEvent);
+
+		} else if (msgClazz == NettyMessage.ErrorResponse.class) {
+			// ---- Error ---------------------------------------------------------
 			NettyMessage.ErrorResponse error = (NettyMessage.ErrorResponse) msg;
 
 			SocketAddress remoteAddr = ctx.channel().remoteAddress();
 
 			if (error.isFatalError()) {
 				notifyAllChannelsOfErrorAndClose(new RemoteTransportException(
-						"Fatal error at remote task manager '" + remoteAddr + "'.",
-						remoteAddr, error.cause));
-			}
-			else {
+					"Fatal error at remote task manager '" + remoteAddr + "'.",
+					remoteAddr,
+					error.cause));
+			} else {
 				RemoteInputChannel inputChannel = inputChannels.get(error.receiverId);
 
 				if (inputChannel != null) {
 					if (error.cause.getClass() == PartitionNotFoundException.class) {
 						inputChannel.onFailedPartitionRequest();
-					}
-					else {
+					} else {
 						inputChannel.onError(new RemoteTransportException(
-								"Error at remote task manager '" + remoteAddr + "'.",
-										remoteAddr, error.cause));
+							"Error at remote task manager '" + remoteAddr + "'.",
+							remoteAddr,
+							error.cause));
 					}
 				}
 			}
-		}
-		else {
+		} else {
 			throw new IllegalStateException("Received unknown message from producer: " + msg.getClass());
 		}
-
-		return true;
 	}
 
-	private boolean decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent, boolean isStagedBuffer) throws Throwable {
-		boolean releaseNettyBuffer = true;
-
+	private void decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
 		try {
 			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
 			final int receivedSize = nettyBuffer.readableBytes();
-
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
 
 				// Early return for empty buffers. Otherwise Netty's readBytes() throws an
 				// IndexOutOfBoundsException.
 				if (receivedSize == 0) {
-					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, -1);
-					return true;
+					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+					return;
 				}
 
-				BufferProvider bufferProvider = inputChannel.getBufferProvider();
+				Buffer buffer = inputChannel.requestBuffer();
+				if (buffer != null) {
+					nettyBuffer.readBytes(buffer.asByteBuf(), receivedSize);
 
-				if (bufferProvider == null) {
-					// receiver has been cancelled/failed
+					inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
+				} else if (inputChannel.isReleased()) {
 					cancelRequestFor(bufferOrEvent.receiverId);
-					return isStagedBuffer;
+				} else {
+					throw new IllegalStateException("No buffer available in credit-based input channel.");
 				}
-
-				while (true) {
-					Buffer buffer = bufferProvider.requestBuffer();
-
-					if (buffer != null) {
-						nettyBuffer.readBytes(buffer.asByteBuf(), receivedSize);
-
-						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
-
-						return true;
-					}
-					else if (bufferListener.waitForBuffer(bufferProvider, bufferOrEvent)) {
-						releaseNettyBuffer = false;
-
-						return false;
-					}
-					else if (bufferProvider.isDestroyed()) {
-						return isStagedBuffer;
-					}
-				}
-			}
-			else {
+			} else {
 				// ---- Event -------------------------------------------------
 				// TODO We can just keep the serialized data in the Netty buffer and release it later at the reader
 				byte[] byteArray = new byte[receivedSize];
@@ -323,191 +328,62 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
 				buffer.setSize(receivedSize);
 
-				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
-
-				return true;
+				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 			}
-		}
-		finally {
-			if (releaseNettyBuffer) {
-				bufferOrEvent.releaseBuffer();
-			}
+		} finally {
+			bufferOrEvent.releaseBuffer();
 		}
 	}
 
 	/**
-	 * This class would be replaced by CreditBasedClientHandler in the final,
-	 * so we only implement this method in CreditBasedClientHandler.
-	 */
-	void notifyCreditAvailable(RemoteInputChannel inputChannel) {
-	}
-
-	private class AsyncErrorNotificationTask implements Runnable {
-
-		private final Throwable error;
-
-		public AsyncErrorNotificationTask(Throwable error) {
-			this.error = error;
-		}
-
-		@Override
-		public void run() {
-			notifyAllChannelsOfErrorAndClose(error);
-		}
-	}
-
-	/**
-	 * A buffer availability listener, which subscribes/unsubscribes the NIO
-	 * read event.
+	 * Tries to write&flush unannounced credits for the next input channel in queue.
 	 *
-	 * <p>If no buffer is available, the channel read event will be unsubscribed
-	 * until one becomes available again.
-	 *
-	 * <p>After a buffer becomes available again, the buffer is handed over by
-	 * the thread calling {@link #notifyBufferAvailable(Buffer)} to the network I/O
-	 * thread, which then continues the processing of the staged buffer.
+	 * <p>This method may be called by the first input channel enqueuing, or the complete
+	 * future's callback in previous input channel, or the channel writability changed event.
 	 */
-	private class BufferListenerTask implements BufferListener, Runnable {
-
-		private final AtomicReference<Buffer> availableBuffer = new AtomicReference<>();
-
-		private NettyMessage.BufferResponse stagedBufferResponse;
-
-		private boolean waitForBuffer(BufferProvider bufferProvider, NettyMessage.BufferResponse bufferResponse) {
-
-			stagedBufferResponse = bufferResponse;
-
-			if (bufferProvider.addBufferListener(this)) {
-				if (ctx.channel().config().isAutoRead()) {
-					ctx.channel().config().setAutoRead(false);
-				}
-
-				return true;
-			}
-			else {
-				stagedBufferResponse = null;
-
-				return false;
-			}
+	private void writeAndFlushNextMessageIfPossible(Channel channel) {
+		if (channelError.get() != null || !channel.isWritable()) {
+			return;
 		}
 
-		private boolean hasStagedBufferOrEvent() {
-			return stagedBufferResponse != null;
-		}
+		while (true) {
+			RemoteInputChannel inputChannel = inputChannelsWithCredit.poll();
 
-		public void notifyBufferDestroyed() {
-			// The buffer pool has been destroyed
-			stagedBufferResponse = null;
-
-			if (stagedMessages.isEmpty()) {
-				ctx.channel().config().setAutoRead(true);
-				ctx.channel().read();
-			}
-			else {
-				ctx.channel().eventLoop().execute(stagedMessagesHandler);
-			}
-		}
-
-		// Called by the recycling thread (not network I/O thread)
-		@Override
-		public boolean notifyBufferAvailable(Buffer buffer) {
-			boolean success = false;
-
-			try {
-				if (availableBuffer.compareAndSet(null, buffer)) {
-					ctx.channel().eventLoop().execute(this);
-
-					success = true;
-				}
-				else {
-					throw new IllegalStateException("Received a buffer notification, " +
-							" but the previous one has not been handled yet.");
-				}
-			}
-			catch (Throwable t) {
-				ctx.channel().eventLoop().execute(new AsyncErrorNotificationTask(t));
-			}
-			finally {
-				if (!success) {
-					if (buffer != null) {
-						buffer.recycleBuffer();
-					}
-				}
+			// The input channel may be null because of the write callbacks
+			// that are executed after each write.
+			if (inputChannel == null) {
+				return;
 			}
 
-			return false;
-		}
+			//It is no need to notify credit for the released channel.
+			if (!inputChannel.isReleased()) {
+				AddCredit msg = new AddCredit(
+					inputChannel.getPartitionId(),
+					inputChannel.getAndResetUnannouncedCredit(),
+					inputChannel.getInputChannelId());
 
-		/**
-		 * Continues the decoding of a staged buffer after a buffer has become available again.
-		 *
-		 * <p>This task is executed by the network I/O thread.
-		 */
-		@Override
-		public void run() {
-			boolean success = false;
+				// Write and flush and wait until this is done before
+				// trying to continue with the next input channel.
+				channel.writeAndFlush(msg).addListener(writeListener);
 
-			Buffer buffer = null;
-
-			try {
-				if ((buffer = availableBuffer.getAndSet(null)) == null) {
-					throw new IllegalStateException("Running buffer availability task w/o a buffer.");
-				}
-
-				ByteBuf nettyBuffer = stagedBufferResponse.getNettyBuffer();
-				nettyBuffer.readBytes(buffer.asByteBuf(), nettyBuffer.readableBytes());
-				stagedBufferResponse.releaseBuffer();
-
-				RemoteInputChannel inputChannel = inputChannels.get(stagedBufferResponse.receiverId);
-
-				if (inputChannel != null) {
-					inputChannel.onBuffer(buffer, stagedBufferResponse.sequenceNumber, -1);
-
-					success = true;
-				}
-				else {
-					cancelRequestFor(stagedBufferResponse.receiverId);
-				}
-
-				stagedBufferResponse = null;
-
-				if (stagedMessages.isEmpty()) {
-					ctx.channel().config().setAutoRead(true);
-					ctx.channel().read();
-				}
-				else {
-					ctx.channel().eventLoop().execute(stagedMessagesHandler);
-				}
-			}
-			catch (Throwable t) {
-				notifyAllChannelsOfErrorAndClose(t);
-			}
-			finally {
-				if (!success) {
-					if (buffer != null) {
-						buffer.recycleBuffer();
-					}
-				}
+				return;
 			}
 		}
 	}
 
-	public class StagedMessagesHandlerTask implements Runnable {
+	private class WriteAndFlushNextMessageIfPossibleListener implements ChannelFutureListener {
 
 		@Override
-		public void run() {
+		public void operationComplete(ChannelFuture future) throws Exception {
 			try {
-				Object msg;
-				while ((msg = stagedMessages.poll()) != null) {
-					if (!decodeMsg(msg, true)) {
-						return;
-					}
+				if (future.isSuccess()) {
+					writeAndFlushNextMessageIfPossible(future.channel());
+				} else if (future.cause() != null) {
+					notifyAllChannelsOfErrorAndClose(future.cause());
+				} else {
+					notifyAllChannelsOfErrorAndClose(new IllegalStateException("Sending cancelled by user."));
 				}
-
-				ctx.channel().config().setAutoRead(true);
-				ctx.channel().read();
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				notifyAllChannelsOfErrorAndClose(t);
 			}
 		}

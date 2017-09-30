@@ -52,4 +52,9 @@ public interface ResultSubpartitionView {
 	boolean isReleased();
 
 	Throwable getFailureCause();
+
+	/**
+	 * Returns whether the next buffer is an event or not.
+	 */
+	boolean nextBufferIsEvent();
 }
