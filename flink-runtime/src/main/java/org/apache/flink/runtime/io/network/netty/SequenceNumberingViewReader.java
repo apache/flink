@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -49,10 +50,27 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 
 	private volatile ResultSubpartitionView subpartitionView;
 
+	/**
+	 * The status indicating whether this reader is already enqueued in the pipeline for transferring
+	 * data or not.
+	 *
+	 * <p>It is mainly used to avoid repeated registrations but should be accessed by a single
+	 * thread only since there is no synchronisation.
+	 */
+	private boolean isRegisteredAsAvailable = false;
+
+	/** The number of available buffers for holding data on the consumer side. */
+	private int numCreditsAvailable;
+
 	private int sequenceNumber = -1;
 
-	SequenceNumberingViewReader(InputChannelID receiverId, PartitionRequestQueue requestQueue) {
+	SequenceNumberingViewReader(
+		InputChannelID receiverId,
+		int initialCredit,
+		PartitionRequestQueue requestQueue) {
+
 		this.receiverId = receiverId;
+		this.numCreditsAvailable = initialCredit;
 		this.requestQueue = requestQueue;
 	}
 
@@ -77,6 +95,57 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 		}
 	}
 
+	/**
+	 * The credits from consumer are added in incremental way.
+	 *
+	 * @param creditDeltas The credit deltas
+	 */
+	public void addCredit(int creditDeltas) {
+		numCreditsAvailable += creditDeltas;
+	}
+
+	/**
+	 * Updates the value to indicate whether the reader is enqueued in the pipeline or not.
+	 *
+	 * @param isRegisteredAvailable True if this reader is already enqueued in the pipeline.
+	 */
+	public void setRegisteredAsAvailable(boolean isRegisteredAvailable) {
+		this.isRegisteredAsAvailable = isRegisteredAvailable;
+	}
+
+	public boolean isRegisteredAsAvailable() {
+		return isRegisteredAsAvailable;
+	}
+
+	/**
+	 * Check whether this reader is available or not.
+	 *
+	 * <p>Returns true only if the next buffer is an event or the reader has both available
+	 * credits and buffers.
+	 */
+	public boolean isAvailable() {
+		// BEWARE: this must be in sync with #isAvailable()!
+		return numBuffersAvailable.get() > 0 &&
+			(numCreditsAvailable > 0 || subpartitionView.nextBufferIsEvent());
+	}
+
+	/**
+	 * Check whether this reader is available or not (internal use, in sync with
+	 * {@link #isAvailable()}, but slightly faster).
+	 *
+	 * <p>Returns true only if the next buffer is an event or the reader has both available
+	 * credits and buffers.
+	 *
+	 * @param bufferAndBacklog
+	 * 		current buffer and backlog including information about the next buffer
+	 * @param remaining
+	 * 		remaining number of queued buffers, i.e. <tt>numBuffersAvailable.get()</tt>
+	 */
+	private boolean isAvailable(BufferAndBacklog bufferAndBacklog, long remaining) {
+		return remaining > 0 &&
+			(numCreditsAvailable > 0 || bufferAndBacklog.nextBufferIsEvent());
+	}
+
 	InputChannelID getReceiverId() {
 		return receiverId;
 	}
@@ -85,17 +154,32 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 		return sequenceNumber;
 	}
 
+	@VisibleForTesting
+	int getNumCreditsAvailable() {
+		return numCreditsAvailable;
+	}
+
+	@VisibleForTesting
+	long getNumBuffersAvailable() {
+		return numBuffersAvailable.get();
+	}
+
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
 		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
 			long remaining = numBuffersAvailable.decrementAndGet();
 			sequenceNumber++;
 
-			if (remaining >= 0) {
-				return new BufferAndAvailability(next.buffer(), remaining > 0, next.buffersInBacklog());
-			} else {
+			if (remaining < 0) {
 				throw new IllegalStateException("no buffer available");
 			}
+
+			if (next.buffer().isBuffer() && --numCreditsAvailable < 0) {
+				throw new IllegalStateException("no credit available");
+			}
+
+			return new BufferAndAvailability(
+				next.buffer(), isAvailable(next, remaining), next.buffersInBacklog());
 		} else {
 			return null;
 		}
@@ -132,6 +216,8 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 			", receiverId=" + receiverId +
 			", numBuffersAvailable=" + numBuffersAvailable.get() +
 			", sequenceNumber=" + sequenceNumber +
+			", numCreditsAvailable=" + numCreditsAvailable +
+			", isRegisteredAsAvailable=" + isRegisteredAsAvailable +
 			'}';
 	}
 }

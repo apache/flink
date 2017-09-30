@@ -41,8 +41,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Partition request client for remote partition requests.
- * <p>
- * This client is shared by all remote input channels, which request a partition
+ *
+ * <p>This client is shared by all remote input channels, which request a partition
  * from the same {@link ConnectionID}.
  */
 public class PartitionRequestClient {
@@ -57,7 +57,7 @@ public class PartitionRequestClient {
 
 	private final PartitionRequestClientFactory clientFactory;
 
-	// If zero, the underlying TCP channel can be safely closed
+	/** If zero, the underlying TCP channel can be safely closed. */
 	private final AtomicDisposableReferenceCounter closeReferenceCounter = new AtomicDisposableReferenceCounter();
 
 	PartitionRequestClient(
@@ -106,7 +106,7 @@ public class PartitionRequestClient {
 		partitionRequestHandler.addInputChannel(inputChannel);
 
 		final PartitionRequest request = new PartitionRequest(
-				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getInitialCredit());
+				partitionId, subpartitionIndex, inputChannel.getInputChannelId(), inputChannel.getAndResetUnannouncedCredit());
 
 		final ChannelFutureListener listener = new ChannelFutureListener() {
 			@Override

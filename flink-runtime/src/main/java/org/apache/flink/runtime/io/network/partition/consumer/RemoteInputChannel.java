@@ -141,6 +141,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 		this.initialCredit = segments.size();
 		this.numRequiredBuffers = segments.size();
+		this.unannouncedCredit.addAndGet(this.initialCredit);
 
 		synchronized (bufferQueue) {
 			for (MemorySegment segment : segments) {
@@ -284,7 +285,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Enqueue this input channel in the pipeline for notifying the producer of unannounced credit.
 	 */
-	void notifyCreditAvailable() {
+	private void notifyCreditAvailable() {
 		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
 
 		// We should skip the notification if this channel is already released.
@@ -425,10 +426,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 
 	public InputChannelID getInputChannelId() {
 		return id;
-	}
-
-	public int getInitialCredit() {
-		return initialCredit;
 	}
 
 	public BufferProvider getBufferProvider() throws IOException {

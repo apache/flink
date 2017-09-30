@@ -157,11 +157,23 @@ class PipelinedSubpartition extends ResultSubpartition {
 			decreaseBuffersInBacklog(buffer);
 
 			if (buffer != null) {
-				return new BufferAndBacklog(buffer, buffersInBacklog);
+				return new BufferAndBacklog(buffer, buffersInBacklog, _nextBufferIsEvent());
 			} else {
 				return null;
 			}
 		}
+	}
+
+	boolean nextBufferIsEvent() {
+		synchronized (buffers) {
+			return _nextBufferIsEvent();
+		}
+	}
+
+	private boolean _nextBufferIsEvent() {
+		assert Thread.holdsLock(buffers);
+
+		return !buffers.isEmpty() && !buffers.peekFirst().isBuffer();
 	}
 
 	@Override
