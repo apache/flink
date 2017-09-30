@@ -268,7 +268,8 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.processElement1(new StreamRecord[CRow](
       CRow(Row.of(1L: JLong, "k1"), true), 0))
 
-    assertEquals(0, testHarness.numEventTimeTimers())
+    // Though (1L, "k1") is actually late, it will also be cached.
+    assertEquals(1, testHarness.numEventTimeTimers())
 
     testHarness.processElement1(new StreamRecord[CRow](
       CRow(Row.of(2L: JLong, "k1"), true), 0))
@@ -321,6 +322,10 @@ class JoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(35L: JLong, "k1", 15L: JLong, "k1"), true), 0))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(40L: JLong, "k2", 39L: JLong, "k2"), true), 0))
+
+    // This result is produced by the late row (1, "k1").
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1L: JLong, "k1", 2L: JLong, "k1"), true), 0))
 
     val result = testHarness.getOutput
     verify(expectedOutput, result, new RowResultSortComparator())

@@ -80,8 +80,12 @@ abstract class TimeBoundedStreamInnerJoin(
   private val leftRelativeSize: Long = -leftLowerBound
   private val rightRelativeSize: Long = leftUpperBound
 
+  private var leftExpirationTime: Long = 0L;
+  private var rightExpirationTime: Long = 0L;
+
   protected var leftOperatorTime: Long = 0L
   protected var rightOperatorTime: Long = 0L
+
 
   // for delayed cleanup
   private val cleanupDelay = (leftRelativeSize + rightRelativeSize) / 2
@@ -150,24 +154,24 @@ abstract class TimeBoundedStreamInnerJoin(
     val timeForLeftRow: Long = getTimeForLeftStream(ctx, leftRow)
     val rightQualifiedLowerBound: Long = timeForLeftRow - rightRelativeSize
     val rightQualifiedUpperBound: Long = timeForLeftRow + leftRelativeSize
-    val rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize)
     cRowWrapper.out = out
 
-    if (!isRowTooLate(timeForLeftRow, leftOperatorTime)) {
-      if (rightOperatorTime < rightQualifiedUpperBound) {
-        // Put the leftRow into the cache for later use.
-        var leftRowList = leftCache.get(timeForLeftRow)
-        if (null == leftRowList) {
-          leftRowList = new ArrayList[Row](1)
-        }
-        leftRowList.add(leftRow)
-        leftCache.put(timeForLeftRow, leftRowList)
-        if (rightTimerState.value == 0) {
-          // Register a timer on the RIGHT stream to remove rows.
-          registerCleanUpTimer(ctx, timeForLeftRow, rightTimerState, leftRow = true)
-        }
+    if (rightOperatorTime < rightQualifiedUpperBound) {
+      // Put the leftRow into the cache for later use.
+      var leftRowList = leftCache.get(timeForLeftRow)
+      if (null == leftRowList) {
+        leftRowList = new ArrayList[Row](1)
       }
-
+      leftRowList.add(leftRow)
+      leftCache.put(timeForLeftRow, leftRowList)
+      if (rightTimerState.value == 0) {
+        // Register a timer on the RIGHT stream to remove rows.
+        registerCleanUpTimer(ctx, timeForLeftRow, rightTimerState, leftRow = true)
+      }
+    }
+    // We'd like to produce as many results as possible.
+    if (rightExpirationTime < rightQualifiedUpperBound) {
+      rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize)
       // Join the leftRow with rows from the right cache.
       val rightIterator = rightCache.iterator()
       while (rightIterator.hasNext) {
@@ -180,7 +184,9 @@ abstract class TimeBoundedStreamInnerJoin(
             joinFunction.join(leftRow, rightRows.get(i), cRowWrapper)
             i += 1
           }
-        } else if (rightTime <= rightExpirationTime) {
+        }
+
+        if (rightTime <= rightExpirationTime) {
           // eager remove
           rightIterator.remove()
         }// We could do the short-cutting optimization here once we get a state with ordered keys.
@@ -200,24 +206,24 @@ abstract class TimeBoundedStreamInnerJoin(
     val timeForRightRow: Long = getTimeForRightStream(ctx, rightRow)
     val leftQualifiedLowerBound: Long = timeForRightRow - leftRelativeSize
     val leftQualifiedUpperBound: Long =  timeForRightRow + rightRelativeSize
-    val leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
     cRowWrapper.out = out
 
-    if (!isRowTooLate(timeForRightRow, rightOperatorTime)) {
-      if (leftOperatorTime < leftQualifiedUpperBound) {
-        // Put the rightRow into the cache for later use.
-        var rightRowList = rightCache.get(timeForRightRow)
-        if (null == rightRowList) {
-          rightRowList = new ArrayList[Row](1)
-        }
-        rightRowList.add(rightRow)
-        rightCache.put(timeForRightRow, rightRowList)
-        if (leftTimerState.value == 0) {
-          // Register a timer on the LEFT stream to remove rows.
-          registerCleanUpTimer(ctx, timeForRightRow, leftTimerState, leftRow = false)
-        }
+    if (leftOperatorTime < leftQualifiedUpperBound) {
+      // Put the rightRow into the cache for later use.
+      var rightRowList = rightCache.get(timeForRightRow)
+      if (null == rightRowList) {
+        rightRowList = new ArrayList[Row](1)
       }
-
+      rightRowList.add(rightRow)
+      rightCache.put(timeForRightRow, rightRowList)
+      if (leftTimerState.value == 0) {
+        // Register a timer on the LEFT stream to remove rows.
+        registerCleanUpTimer(ctx, timeForRightRow, leftTimerState, leftRow = false)
+      }
+    }
+    // We'd like to produce as many results as possible.
+    if (leftExpirationTime < leftQualifiedUpperBound) {
+      leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
       // Join the rightRow with rows from the left cache.
       val leftIterator = leftCache.iterator()
       while (leftIterator.hasNext) {
@@ -230,7 +236,8 @@ abstract class TimeBoundedStreamInnerJoin(
             joinFunction.join(leftRows.get(i), rightRow, cRowWrapper)
             i += 1
           }
-        } else if (leftTime <= leftExpirationTime) {
+        }
+        if (leftTime <= leftExpirationTime) {
           // eager remove
           leftIterator.remove()
         } // We could do the short-cutting optimization here once we get a state with ordered keys.
@@ -256,7 +263,7 @@ abstract class TimeBoundedStreamInnerJoin(
     // registered timer of the faster stream will be delayed, even if the watermarks have
     // already been emitted by the source.
     if (leftTimerState.value == timestamp) {
-      val rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize)
+      rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize)
       removeExpiredRows(
         rightExpirationTime,
         rightCache,
@@ -267,7 +274,7 @@ abstract class TimeBoundedStreamInnerJoin(
     }
 
     if (rightTimerState.value == timestamp) {
-      val leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
+      leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
       removeExpiredRows(
         leftExpirationTime,
         leftCache,
@@ -364,15 +371,6 @@ abstract class TimeBoundedStreamInnerJoin(
       rowCache.clear()
     }
   }
-
-  /**
-    * Check if the row is too late to be processed.
-    *
-    * @param timeForRow time of the row
-    * @param operatorTime  operator time for current stream
-    * @return true if the row is out of date; false otherwise
-    */
-  def isRowTooLate(timeForRow: Long, operatorTime: Long): Boolean
 
   /**
     * Update the operator time of the two streams.

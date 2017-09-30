@@ -45,8 +45,6 @@ final class ProcTimeBoundedStreamInnerJoin(
       leftTimeIdx = -1,
       rightTimeIdx = -1) {
 
-  override def isRowTooLate(timeForRow: Long, watermark: Long): Boolean = false
-
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
     leftOperatorTime = ctx.timerService().currentProcessingTime()
     rightOperatorTime = leftOperatorTime

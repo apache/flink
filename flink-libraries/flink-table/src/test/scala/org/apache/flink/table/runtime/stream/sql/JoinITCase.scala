@@ -20,7 +20,9 @@ package org.apache.flink.table.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
@@ -74,7 +76,7 @@ class JoinITCase extends StreamingWithStateTestBase {
 
   /** test proctime inner join with other condition **/
   @Test
-  def testProcessTimeInnerJoinWithOtherCondition(): Unit = {
+  def testProcessTimeInnerJoinWithOtherConditions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setStateBackend(getStateBackend)
@@ -123,7 +125,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
-    env.setParallelism(3)
+    env.setParallelism(1)
 
     val sqlQuery =
       """
@@ -149,10 +151,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     data2.+=((2, 7000L, "RIGHT7", 7000L))
 
     val t1 = env.fromCollection(data1)
-      .assignAscendingTimestamps(row => row._4)
+      .assignTimestampsAndWatermarks(new Tuple2WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
     val t2 = env.fromCollection(data2)
-      .assignAscendingTimestamps(row => row._4)
+      .assignTimestampsAndWatermarks(new Tuple2WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
 
     tEnv.registerTable("T1", t1)
@@ -173,12 +175,14 @@ class JoinITCase extends StreamingWithStateTestBase {
 
   /** test rowtime inner join with other conditions **/
   @Test
-  def testRowTimeInnerJoinWithOtherCondition(): Unit = {
+  def testRowTimeInnerJoinWithOtherConditions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setStateBackend(getStateBackend)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     StreamITCase.clear
+
+    // different parallelisms lead to different join results
     env.setParallelism(4)
 
     val sqlQuery =
@@ -189,13 +193,14 @@ class JoinITCase extends StreamingWithStateTestBase {
         |  t1.rt > t2.rt - INTERVAL '5' SECOND AND
         |    t1.rt < t2.rt - INTERVAL '1' SECOND AND
         |  t1.b < t2.b AND
-        |  t1.b > 3
+        |  t1.b > 2
         |""".stripMargin
 
     val data1 = new mutable.MutableList[(Int, Long, String, Long)]
     data1.+=((1, 4L, "LEFT1", 1000L))
     // for boundary test
     data1.+=((1, 8L, "LEFT1.1", 1001L))
+    // predicate (t1.b > 2) push down
     data1.+=((1, 2L, "LEFT2", 2000L))
     data1.+=((1, 7L, "LEFT3", 3000L))
     data1.+=((2, 5L, "LEFT4", 4000L))
@@ -203,16 +208,23 @@ class JoinITCase extends StreamingWithStateTestBase {
     data1.+=((1, 4L, "LEFT4.9", 4999L))
     data1.+=((1, 4L, "LEFT5", 5000L))
     data1.+=((1, 10L, "LEFT6", 6000L))
+    // a left late row
+    data1.+=((1, 3L, "LEFT3.5", 3500L))
 
     val data2 = new mutable.MutableList[(Int, Long, String, Long)]
+    // just for watermark
+    data2.+=((1, 1L, "RIGHT1", 1000L))
     data2.+=((1, 9L, "RIGHT6", 6000L))
     data2.+=((2, 14L, "RIGHT7", 7000L))
+    data2.+=((1, 4L, "RIGHT8", 8000L))
+    // a right late row
+    data2.+=((1, 10L, "RIGHT5", 5000L))
 
     val t1 = env.fromCollection(data1)
-      .assignAscendingTimestamps(row => row._4)
+      .assignTimestampsAndWatermarks(new Tuple2WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
     val t2 = env.fromCollection(data2)
-      .assignAscendingTimestamps(row => row._4)
+      .assignTimestampsAndWatermarks(new Tuple2WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
 
     tEnv.registerTable("T1", t1)
@@ -227,6 +239,32 @@ class JoinITCase extends StreamingWithStateTestBase {
     expected.add("1,LEFT1.1,RIGHT6")
     expected.add("2,LEFT4,RIGHT7")
     expected.add("1,LEFT4.9,RIGHT6")
+    // produced by the left late rows
+    expected.add("1,LEFT3.5,RIGHT6")
+    expected.add("1,LEFT3.5,RIGHT8")
+    // produced by the right late rows
+    expected.add("1,LEFT3,RIGHT5")
+    expected.add("1,LEFT3.5,RIGHT5")
+    // these two results will only be produced when parallelism >= 2
+    expected.add("1,LEFT1,RIGHT5")
+    expected.add("1,LEFT1.1,RIGHT5")
+
     StreamITCase.compareWithList(expected)
+  }
+}
+
+private class Tuple2WatermarkExtractor
+  extends AssignerWithPunctuatedWatermarks[(Int, Long, String, Long)] {
+
+  override def checkAndGetNextWatermark(
+      lastElement: (Int, Long, String, Long),
+      extractedTimestamp: Long): Watermark = {
+    new Watermark(extractedTimestamp - 1)
+  }
+
+  override def extractTimestamp(
+      element: (Int, Long, String, Long),
+      previousElementTimestamp: Long): Long = {
+    element._4
   }
 }

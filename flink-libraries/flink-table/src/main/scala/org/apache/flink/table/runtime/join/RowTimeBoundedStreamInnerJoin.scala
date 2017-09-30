@@ -47,10 +47,6 @@ final class RowTimeBoundedStreamInnerJoin(
       leftTimeIdx,
       rightTimeIdx) {
 
-  override def isRowTooLate(timeForRow: Long, watermark: Long): Boolean = {
-    timeForRow <= watermark - allowedLateness
-  }
-
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
     leftOperatorTime =
       if (ctx.timerService().currentWatermark() > 0) ctx.timerService().currentWatermark()
