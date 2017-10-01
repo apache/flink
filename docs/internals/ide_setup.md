@@ -119,3 +119,5 @@ due to deficiencies of the old Eclipse version bundled with Scala IDE 3.0.3 or
 due to version incompatibilities with the bundled Scala version in Scala IDE 4.4.1.
 
 **We recommend to use IntelliJ instead (see [above](#intellij-idea))**
+
+{% top %}
