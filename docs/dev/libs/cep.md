@@ -1639,3 +1639,5 @@ the looping patterns, multiple input events can match a single (looping) pattern
 3. The `followedBy()` in Flink 1.1 and 1.2 implied `non-deterministic relaxed contiguity` (see
 [here](#conditions-on-contiguity)). In Flink 1.3 this has changed and `followedBy()` implies `relaxed contiguity`,
 while `followedByAny()` should be used if `non-deterministic relaxed contiguity` is required.
+
+{% top %}

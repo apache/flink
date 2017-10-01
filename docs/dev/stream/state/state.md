@@ -594,3 +594,5 @@ class CounterSource
 </div>
 
 Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.runtime.state.CheckpointListener` interface.
+
+{% top %}

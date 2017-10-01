@@ -290,3 +290,5 @@ more robust with asks and acknowledgements.
 * The server and client keep track of statistics for queries. These are currently disabled by
 default as they would not be exposed anywhere. As soon as there is better support to publish these
 numbers via the Metrics system, we should enable the stats.
+
+{% top %}

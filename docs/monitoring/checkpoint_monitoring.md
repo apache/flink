@@ -113,3 +113,5 @@ When you click on a *More details* link for a checkpoint, you get a Minumum/Aver
 <center>
   <img src="{{ site.baseurl }}/fig/checkpoint_monitoring-details_subtasks.png" width="700px" alt="Checkpoint Monitoring: Subtasks">
 </center>
+
+{% top %}
