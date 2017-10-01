@@ -332,7 +332,7 @@ The Table API is a language-integrated query API for Scala and Java. In contrast
 
 The API is based on the `Table` class which represents a table (streaming or batch) and offers methods to apply relational operations. These methods return a new `Table` object, which represents the result of applying the relational operation on the input `Table`. Some relational operations are composed of multiple method calls such as `table.groupBy(...).select()`, where `groupBy(...)` specifies a grouping of `table`, and `select(...)` the projection on the grouping of `table`.
 
-The [Table API]({{ site.baseurl }}/dev/table/tableapi.html) document describes all Table API operations that are supported on streaming and batch tables.
+The [Table API]({{ site.baseurl }}/dev/table/tableApi.html) document describes all Table API operations that are supported on streaming and batch tables.
 
 The following example shows a simple Table API aggregation query:
 
