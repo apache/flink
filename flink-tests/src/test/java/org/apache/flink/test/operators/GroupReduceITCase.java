@@ -63,6 +63,11 @@ import scala.math.BigInt;
 @RunWith(Parameterized.class)
 public class GroupReduceITCase extends MultipleProgramsTestBase {
 
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
+
 	public GroupReduceITCase(TestExecutionMode mode){
 		super(mode);
 	}

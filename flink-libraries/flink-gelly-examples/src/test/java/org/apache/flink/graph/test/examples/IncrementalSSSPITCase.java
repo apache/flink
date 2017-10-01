@@ -40,12 +40,18 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Collection;
 
 /**
  * Tests for {@link IncrementalSSSP}.
  */
 @RunWith(Parameterized.class)
 public class IncrementalSSSPITCase extends MultipleProgramsTestBase {
+
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
 
 	private String verticesPath;
 

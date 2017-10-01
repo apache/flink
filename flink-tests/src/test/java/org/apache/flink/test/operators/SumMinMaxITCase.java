@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -38,6 +39,11 @@ import java.util.List;
  */
 @RunWith(Parameterized.class)
 public class SumMinMaxITCase extends MultipleProgramsTestBase {
+
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
 
 	public SumMinMaxITCase(TestExecutionMode mode){
 		super(mode);

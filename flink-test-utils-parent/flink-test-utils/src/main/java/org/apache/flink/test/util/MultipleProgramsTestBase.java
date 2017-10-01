@@ -67,7 +67,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	public enum TestExecutionMode {
 		CLUSTER,
 		CLUSTER_OBJECT_REUSE,
-		CLUSTER_WITH_CODEGENERATION_ENABLED,
+		CLUSTER_SORTER_CODEGEN, // code generation for sorters is enabled
 		COLLECTION
 	}
 
@@ -101,7 +101,7 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 			case CLUSTER_OBJECT_REUSE:
 				new TestEnvironment(cluster, 4, true).setAsContext();
 				break;
-			case CLUSTER_WITH_CODEGENERATION_ENABLED:
+			case CLUSTER_SORTER_CODEGEN:
 				new TestEnvironment(cluster, 4, false, true).setAsContext();
 				SorterFactory.getInstance().forceCodeGeneration = true; // Fail fast if an error occurs with codegen
 				break;
@@ -151,7 +151,16 @@ public class MultipleProgramsTestBase extends TestBaseUtils {
 	public static Collection<Object[]> executionModes() {
 		return Arrays.asList(
 				new Object[] { TestExecutionMode.CLUSTER },
-				new Object[] { TestExecutionMode.CLUSTER_WITH_CODEGENERATION_ENABLED },
+				new Object[] { TestExecutionMode.COLLECTION });
+	}
+
+	// We call this only from some tests, which involve sorting.
+	// Note that tests based on DriverBaseITCase also test TestExecutionMode.CLUSTER_SORTER_CODEGEN,
+	// because even though they don't call this method, they use TestExecutionMode.values().
+	public static Collection<Object[]> executionModesWithSorterCodeGen() {
+		return Arrays.asList(
+				new Object[] { TestExecutionMode.CLUSTER },
+				new Object[] { TestExecutionMode.CLUSTER_SORTER_CODEGEN},
 				new Object[] { TestExecutionMode.COLLECTION });
 	}
 }

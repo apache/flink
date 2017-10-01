@@ -36,6 +36,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -44,6 +45,11 @@ import java.util.Objects;
  */
 @RunWith(Parameterized.class)
 public class ReduceOnEdgesMethodsITCase extends MultipleProgramsTestBase {
+
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
 
 	public ReduceOnEdgesMethodsITCase(TestExecutionMode mode) {
 		super(mode);

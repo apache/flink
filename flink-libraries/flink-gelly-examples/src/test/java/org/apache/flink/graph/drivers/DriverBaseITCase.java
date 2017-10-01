@@ -190,7 +190,7 @@ extends MultipleProgramsTestBase {
 		switch (mode) {
 			case CLUSTER:
 			case COLLECTION:
-			case CLUSTER_WITH_CODEGENERATION_ENABLED:
+			case CLUSTER_SORTER_CODEGEN:
 				args = ArrayUtils.add(args, "--__disable_object_reuse");
 				break;
 

@@ -33,12 +33,18 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Collection;
 
 /**
  * Test for {@link PageRank}.
  */
 @RunWith(Parameterized.class)
 public class PageRankITCase extends MultipleProgramsTestBase {
+
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
 
 	public PageRankITCase(TestExecutionMode mode){
 		super(mode);

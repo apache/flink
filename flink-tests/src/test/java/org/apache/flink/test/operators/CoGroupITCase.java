@@ -58,6 +58,11 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class CoGroupITCase extends MultipleProgramsTestBase {
 
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
+
 	public CoGroupITCase(TestExecutionMode mode){
 		super(mode);
 	}

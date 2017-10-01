@@ -52,6 +52,11 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class ReduceITCase extends MultipleProgramsTestBase {
 
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
+
 	public ReduceITCase(TestExecutionMode mode){
 		super(mode);
 	}

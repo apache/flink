@@ -38,6 +38,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -46,6 +47,11 @@ import java.util.List;
  */
 @RunWith(Parameterized.class)
 public class SortPartitionITCase extends MultipleProgramsTestBase {
+
+	@Parameterized.Parameters(name = "Execution mode = {0}")
+	public static Collection<Object[]> executionModes() {
+		return MultipleProgramsTestBase.executionModesWithSorterCodeGen();
+	}
 
 	public SortPartitionITCase(TestExecutionMode mode){
 		super(mode);

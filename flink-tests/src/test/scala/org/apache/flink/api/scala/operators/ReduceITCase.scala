@@ -17,6 +17,8 @@
  */
 package org.apache.flink.api.scala.operators
 
+import java.util.Collection
+
 import org.apache.flink.api.common.functions.RichReduceFunction
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -24,14 +26,13 @@ import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.{Test, After, Before, Rule}
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
-
 import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
@@ -243,4 +244,10 @@ class ReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
       "1\n" + "5,29,0,P-),2\n" + "5,25,0,P-),3\n"
   }
 
+}
+
+object ReduceITCase {
+
+  @Parameterized.Parameters(name = "Execution mode = {0}")
+  def executionModes: Collection[Array[AnyRef]] = MultipleProgramsTestBase.executionModesWithSorterCodeGen
 }

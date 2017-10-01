@@ -147,6 +147,7 @@ public class SorterFactory {
 				String msg = "Serializer: " + serializer +
 						"[" + serializer + "], comparator: [" + comparator + "], exception: " + e.toString();
 				if (!forceCodeGeneration) {
+					// We log a warning and fall back to a non-generated sorter
 					LOG.warn("An error occurred while trying to create a code-generated sorter. " +
 							"Using non-codegen sorter instead. " + msg);
 					return createNonCodegenSorter(serializer, comparator, memory);
