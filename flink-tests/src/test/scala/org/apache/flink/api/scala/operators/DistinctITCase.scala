@@ -219,5 +219,6 @@ class DistinctITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(m
 object DistinctITCase {
 
   @Parameterized.Parameters(name = "Execution mode = {0}")
-  def executionModes: Collection[Array[AnyRef]] = MultipleProgramsTestBase.executionModesWithSorterCodeGen
+  def executionModes: Collection[Array[AnyRef]] =
+    MultipleProgramsTestBase.executionModesWithSorterCodeGen
 }

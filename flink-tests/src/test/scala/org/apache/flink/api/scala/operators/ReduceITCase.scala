@@ -249,5 +249,6 @@ class ReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
 object ReduceITCase {
 
   @Parameterized.Parameters(name = "Execution mode = {0}")
-  def executionModes: Collection[Array[AnyRef]] = MultipleProgramsTestBase.executionModesWithSorterCodeGen
+  def executionModes: Collection[Array[AnyRef]] =
+    MultipleProgramsTestBase.executionModesWithSorterCodeGen
 }
