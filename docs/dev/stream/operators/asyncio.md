@@ -251,3 +251,4 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
 
   - Blocking/waiting on the future-type objects returned by an aynchronous client inside the `asyncInvoke(...)` method
 
+{% top %}

@@ -83,3 +83,5 @@ The `TwitterExample` class in the `flink-examples-streaming` package shows a ful
 
 By default, the `TwitterSource` uses the `StatusesSampleEndpoint`. This endpoint returns a random sample of Tweets.
 There is a `TwitterSource.EndpointInitializer` interface allowing users to provide a custom endpoint.
+
+{% top %}
