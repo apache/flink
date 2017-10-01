@@ -82,7 +82,7 @@ public class SorterFactory {
 	 * won't keep the user code classloader alive. When the user code classloader of a past job is garbage collected,
 	 * the WeakHashMap will remove any entries that are associated with that classloader.
 	 * Also note that WeakHashMap has weak references only for its keys. Therefore, we have to explicitly wrap the
-	 * values in a WeakReference. Otherwise, the Class objects in tha cache would keep their classloaders alive.
+	 * values in a WeakReference. Otherwise, the Class objects in the cache would keep their classloaders alive.
 	 */
 	private WeakHashMap<Tuple2<ClassLoader, String>, WeakReference<Class>> generatedClassCache;
 
@@ -172,24 +172,17 @@ public class SorterFactory {
 		Class generatedClass = null;
 
 		synchronized (this) {
-			// Note: We couldn't use containsKey() and then get() here, since a WeakHashMap has the unpleasant property
-			// that elements might disappear from it between a containsKey() and a get().
+			// Note: We couldn't use containsKey() and then get() on the generatedClassCache, since a WeakHashMap has
+			// the unpleasant property that elements might disappear from it between a containsKey() and a get().
+			// For a similar reason, we have to call get() on fromCache only once, and save the result to a variable
+			// to keep the object alive after the get().
 			WeakReference<Class> fromCache = generatedClassCache.getOrDefault(cacheKey, null);
-			boolean cacheHit = false;
-			if (fromCache != null) {
-				// Note: we have to do this with using .get() only once and saving its result to a variable,
-				// since the referenced object might be garbage collected between two calls to .get().
-				Class fromCacheGet = fromCache.get();
-				if (fromCacheGet != null) {
-					generatedClass = fromCacheGet;
-					cacheHit = true;
-				}
-			}
-			if (!cacheHit) {
+			generatedClass = fromCache != null ? fromCache.get() : null;
+			if (generatedClass == null) {
 				StringWriter generatedCodeWriter = new StringWriter();
 				template.process(sorterModel.getTemplateVariables(), generatedCodeWriter);
 
-				classCompiler.setParentClassLoader(classLoader);
+				classCompiler.setParentClassLoader(classLoader); // see comment on generatedClassCache
 				classCompiler.cook(generatedCodeWriter.toString());
 
 				generatedClass = classCompiler.getClassLoader().loadClass(sorterModel.getSorterName());
