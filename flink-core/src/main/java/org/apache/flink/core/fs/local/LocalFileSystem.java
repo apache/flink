@@ -258,13 +258,6 @@ public class LocalFileSystem extends FileSystem {
 	}
 
 	@Override
-	public FSDataOutputStream create(
-			Path f, boolean overwrite, int bufferSize, short replication, long blockSize) throws IOException {
-		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
-	}
-
-
-	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
 		final File srcFile = pathToFile(src);
 		final File dstFile = pathToFile(dst);
@@ -288,5 +281,18 @@ public class LocalFileSystem extends FileSystem {
 	@Override
 	public boolean isDistributedFS() {
 		return false;
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the URI that represents the local file system.
+	 * That URI is {@code "file:/"} on Windows platforms and {@code "file:///"} on other
+	 * UNIX family platforms.
+	 * 
+	 * @return The URI that represents the local file system.
+	 */
+	public static URI getLocalFsURI() {
+		return uri;
 	}
 }
