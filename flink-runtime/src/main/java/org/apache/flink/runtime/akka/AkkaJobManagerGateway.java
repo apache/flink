@@ -28,6 +28,7 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -226,7 +227,7 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<Optional<AccessExecutionGraph>> requestJob(JobID jobId, Time timeout) {
+	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		CompletableFuture<JobManagerMessages.JobResponse> jobResponseFuture = FutureUtils.toJava(
 			jobManagerGateway
 				.ask(new JobManagerMessages.RequestJob(jobId), FutureUtils.toFiniteDuration(timeout))
@@ -235,9 +236,9 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 		return jobResponseFuture.thenApply(
 			(JobManagerMessages.JobResponse jobResponse) -> {
 				if (jobResponse instanceof JobManagerMessages.JobFound) {
-					return Optional.of(((JobManagerMessages.JobFound) jobResponse).executionGraph());
+					return ((JobManagerMessages.JobFound) jobResponse).executionGraph();
 				} else {
-					return Optional.empty();
+					throw new CompletionException(new FlinkJobNotFoundException(jobId));
 				}
 			});
 	}

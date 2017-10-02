@@ -179,7 +179,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 					jobManagerRetrievers[i],
 					new AkkaQueryServiceRetriever(jobManagerSystem[i], TIMEOUT),
 					TIMEOUT,
-					TestingUtils.defaultExecutor());
+					TestingUtils.defaultScheduledExecutor());
 			}
 
 			ActorRef[] jobManager = new ActorRef[2];
@@ -323,7 +323,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				new AkkaJobManagerRetriever(actorSystem, TIMEOUT, 0, Time.milliseconds(50L)),
 				new AkkaQueryServiceRetriever(actorSystem, TIMEOUT),
 				TIMEOUT,
-				TestingUtils.defaultExecutor());
+				TestingUtils.defaultScheduledExecutor());
 
 			webRuntimeMonitor.start();
 
