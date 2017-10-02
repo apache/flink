@@ -16,16 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
-import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatisticsHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import javax.annotation.Nullable;
 
@@ -33,9 +31,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Response of the {@link CheckpointStatisticsHandler}.
+ * Response of the {@link CheckpointingStatisticsHandler}. This class contains information about
+ * the checkpointing of a given job.
  */
-public class CheckpointStatistics implements ResponseBody {
+public class CheckpointingStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_COUNTS = "counts";
 
@@ -55,14 +54,14 @@ public class CheckpointStatistics implements ResponseBody {
 	private final LatestCheckpoints latestCheckpoints;
 
 	@JsonProperty(FIELD_NAME_HISTORY)
-	private final List<BaseCheckpointStatistics> history;
+	private final List<CheckpointStatistics> history;
 
 	@JsonCreator
-	public CheckpointStatistics(
+	public CheckpointingStatistics(
 			@JsonProperty(FIELD_NAME_COUNTS) Counts counts,
 			@JsonProperty(FIELD_NAME_SUMMARY) Summary summary,
 			@JsonProperty(FIELD_NAME_LATEST_CHECKPOINTS) LatestCheckpoints latestCheckpoints,
-			@JsonProperty(FIELD_NAME_HISTORY) List<BaseCheckpointStatistics> history) {
+			@JsonProperty(FIELD_NAME_HISTORY) List<CheckpointStatistics> history) {
 		this.counts = Preconditions.checkNotNull(counts);
 		this.summary = Preconditions.checkNotNull(summary);
 		this.latestCheckpoints = Preconditions.checkNotNull(latestCheckpoints);
@@ -81,7 +80,7 @@ public class CheckpointStatistics implements ResponseBody {
 		return latestCheckpoints;
 	}
 
-	public List<BaseCheckpointStatistics> getHistory() {
+	public List<CheckpointStatistics> getHistory() {
 		return history;
 	}
 
@@ -93,7 +92,7 @@ public class CheckpointStatistics implements ResponseBody {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		CheckpointStatistics that = (CheckpointStatistics) o;
+		CheckpointingStatistics that = (CheckpointingStatistics) o;
 		return Objects.equals(counts, that.counts) &&
 			Objects.equals(summary, that.summary) &&
 			Objects.equals(latestCheckpoints, that.latestCheckpoints) &&
@@ -334,15 +333,15 @@ public class CheckpointStatistics implements ResponseBody {
 
 		@JsonProperty(FIELD_NAME_COMPLETED)
 		@Nullable
-		private final CompletedCheckpointStatistics completedCheckpointStatistics;
+		private final CheckpointStatistics.CompletedCheckpointStatistics completedCheckpointStatistics;
 
 		@JsonProperty(FIELD_NAME_SAVEPOINT)
 		@Nullable
-		private final CompletedCheckpointStatistics savepointStatistics;
+		private final CheckpointStatistics.CompletedCheckpointStatistics savepointStatistics;
 
 		@JsonProperty(FIELD_NAME_FAILED)
 		@Nullable
-		private final FailedCheckpointStatistics failedCheckpointStatistics;
+		private final CheckpointStatistics.FailedCheckpointStatistics failedCheckpointStatistics;
 
 		@JsonProperty(FIELD_NAME_RESTORED)
 		@Nullable
@@ -350,9 +349,9 @@ public class CheckpointStatistics implements ResponseBody {
 
 		@JsonCreator
 		public LatestCheckpoints(
-				@JsonProperty(FIELD_NAME_COMPLETED) @Nullable CompletedCheckpointStatistics completedCheckpointStatistics,
-				@JsonProperty(FIELD_NAME_SAVEPOINT) @Nullable CompletedCheckpointStatistics savepointStatistics,
-				@JsonProperty(FIELD_NAME_FAILED) @Nullable FailedCheckpointStatistics failedCheckpointStatistics,
+				@JsonProperty(FIELD_NAME_COMPLETED) @Nullable CheckpointStatistics.CompletedCheckpointStatistics completedCheckpointStatistics,
+				@JsonProperty(FIELD_NAME_SAVEPOINT) @Nullable CheckpointStatistics.CompletedCheckpointStatistics savepointStatistics,
+				@JsonProperty(FIELD_NAME_FAILED) @Nullable CheckpointStatistics.FailedCheckpointStatistics failedCheckpointStatistics,
 				@JsonProperty(FIELD_NAME_RESTORED) @Nullable RestoredCheckpointStatistics restoredCheckpointStatistics) {
 			this.completedCheckpointStatistics = completedCheckpointStatistics;
 			this.savepointStatistics = savepointStatistics;
@@ -361,17 +360,17 @@ public class CheckpointStatistics implements ResponseBody {
 		}
 
 		@Nullable
-		public CompletedCheckpointStatistics getCompletedCheckpointStatistics() {
+		public CheckpointStatistics.CompletedCheckpointStatistics getCompletedCheckpointStatistics() {
 			return completedCheckpointStatistics;
 		}
 
 		@Nullable
-		public CompletedCheckpointStatistics getSavepointStatistics() {
+		public CheckpointStatistics.CompletedCheckpointStatistics getSavepointStatistics() {
 			return savepointStatistics;
 		}
 
 		@Nullable
-		public FailedCheckpointStatistics getFailedCheckpointStatistics() {
+		public CheckpointStatistics.FailedCheckpointStatistics getFailedCheckpointStatistics() {
 			return failedCheckpointStatistics;
 		}
 
@@ -398,290 +397,6 @@ public class CheckpointStatistics implements ResponseBody {
 		@Override
 		public int hashCode() {
 			return Objects.hash(completedCheckpointStatistics, savepointStatistics, failedCheckpointStatistics, restoredCheckpointStatistics);
-		}
-	}
-
-	/**
-	 * Statistics for a checkpoint.
-	 */
-	@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@class")
-	@JsonSubTypes({
-		@JsonSubTypes.Type(value = CompletedCheckpointStatistics.class, name = "completed"),
-		@JsonSubTypes.Type(value = FailedCheckpointStatistics.class, name = "failed")})
-	public static class BaseCheckpointStatistics {
-
-		public static final String FIELD_NAME_ID = "id";
-
-		public static final String FIELD_NAME_STATUS = "status";
-
-		public static final String FIELD_NAME_IS_SAVEPOINT = "is_savepoint";
-
-		public static final String FIELD_NAME_TRIGGER_TIMESTAMP = "trigger_timestamp";
-
-		public static final String FIELD_NAME_LATEST_ACK_TIMESTAMP = "latest_ack_timestamp";
-
-		public static final String FIELD_NAME_STATE_SIZE = "state_size";
-
-		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
-
-		public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "alignment_buffered";
-
-		public static final String FIELD_NAME_NUM_SUBTASKS = "num_subtasks";
-
-		public static final String FIELD_NAME_NUM_ACK_SUBTASKS = "num_acknowledged_subtasks";
-
-		@JsonProperty(FIELD_NAME_ID)
-		private final long id;
-
-		@JsonProperty(FIELD_NAME_STATUS)
-		private final CheckpointStatsStatus status;
-
-		@JsonProperty(FIELD_NAME_IS_SAVEPOINT)
-		private final boolean savepoint;
-
-		@JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP)
-		private final long triggerTimestamp;
-
-		@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP)
-		private final long latestAckTimestamp;
-
-		@JsonProperty(FIELD_NAME_STATE_SIZE)
-		private final long stateSize;
-
-		@JsonProperty(FIELD_NAME_DURATION)
-		private final long duration;
-
-		@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-		private final long alignmentBuffered;
-
-		@JsonProperty(FIELD_NAME_NUM_SUBTASKS)
-		private final int numSubtasks;
-
-		@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS)
-		private final int numAckSubtasks;
-
-		@JsonCreator
-		protected BaseCheckpointStatistics(
-				@JsonProperty(FIELD_NAME_ID) long id,
-				@JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
-				@JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
-				@JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
-				@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
-				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
-				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
-				@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
-				@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks) {
-			this.id = id;
-			this.status = Preconditions.checkNotNull(status);
-			this.savepoint = savepoint;
-			this.triggerTimestamp = triggerTimestamp;
-			this.latestAckTimestamp = latestAckTimestamp;
-			this.stateSize = stateSize;
-			this.duration = duration;
-			this.alignmentBuffered = alignmentBuffered;
-			this.numSubtasks = numSubtasks;
-			this.numAckSubtasks = numAckSubtasks;
-		}
-
-		public long getId() {
-			return id;
-		}
-
-		public CheckpointStatsStatus getStatus() {
-			return status;
-		}
-
-		public boolean isSavepoint() {
-			return savepoint;
-		}
-
-		public long getTriggerTimestamp() {
-			return triggerTimestamp;
-		}
-
-		public long getLatestAckTimestamp() {
-			return latestAckTimestamp;
-		}
-
-		public long getStateSize() {
-			return stateSize;
-		}
-
-		public long getDuration() {
-			return duration;
-		}
-
-		public long getAlignmentBuffered() {
-			return alignmentBuffered;
-		}
-
-		public int getNumSubtasks() {
-			return numSubtasks;
-		}
-
-		public int getNumAckSubtasks() {
-			return numAckSubtasks;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			BaseCheckpointStatistics that = (BaseCheckpointStatistics) o;
-			return id == that.id &&
-				savepoint == that.savepoint &&
-				triggerTimestamp == that.triggerTimestamp &&
-				latestAckTimestamp == that.latestAckTimestamp &&
-				stateSize == that.stateSize &&
-				duration == that.duration &&
-				alignmentBuffered == that.alignmentBuffered &&
-				numSubtasks == that.numSubtasks &&
-				numAckSubtasks == that.numAckSubtasks &&
-				status == that.status;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(id, status, savepoint, triggerTimestamp, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks);
-		}
-	}
-
-	/**
-	 * Statistics for a completed checkpoint.
-	 */
-	public static final class CompletedCheckpointStatistics extends BaseCheckpointStatistics {
-
-		public static final String FIELD_NAME_EXTERNAL_PATH = "external_path";
-
-		public static final String FIELD_NAME_DISCARDED = "discarded";
-
-		@JsonProperty(FIELD_NAME_EXTERNAL_PATH)
-		@Nullable
-		private final String externalPath;
-
-		@JsonProperty(FIELD_NAME_DISCARDED)
-		private final boolean discarded;
-
-		@JsonCreator
-		public CompletedCheckpointStatistics(
-				@JsonProperty(FIELD_NAME_ID) long id,
-				@JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
-				@JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
-				@JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
-				@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
-				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
-				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
-				@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
-				@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-				@JsonProperty(FIELD_NAME_EXTERNAL_PATH) @Nullable String externalPath,
-				@JsonProperty(FIELD_NAME_DISCARDED) boolean discarded) {
-			super(id, status, savepoint, triggerTimestamp, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks);
-
-			this.externalPath = externalPath;
-			this.discarded = discarded;
-		}
-
-		@Nullable
-		public String getExternalPath() {
-			return externalPath;
-		}
-
-		public boolean isDiscarded() {
-			return discarded;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			if (!super.equals(o)) {
-				return false;
-			}
-			CompletedCheckpointStatistics that = (CompletedCheckpointStatistics) o;
-			return discarded == that.discarded &&
-				Objects.equals(externalPath, that.externalPath);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(super.hashCode(), externalPath, discarded);
-		}
-	}
-
-	/**
-	 * Statistics for a failed checkpoint.
-	 */
-	public static final class FailedCheckpointStatistics extends BaseCheckpointStatistics {
-
-		public static final String FIELD_NAME_FAILURE_TIMESTAMP = "failure_timestamp";
-
-		public static final String FIELD_NAME_FAILURE_MESSAGE = "failure_message";
-
-		@JsonProperty(FIELD_NAME_FAILURE_TIMESTAMP)
-		private final long failureTimestamp;
-
-		@JsonProperty(FIELD_NAME_FAILURE_MESSAGE)
-		@Nullable
-		private final String failureMessage;
-
-		@JsonCreator
-		public FailedCheckpointStatistics(
-				@JsonProperty(FIELD_NAME_ID) long id,
-				@JsonProperty(FIELD_NAME_STATUS) CheckpointStatsStatus status,
-				@JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
-				@JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
-				@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
-				@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
-				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
-				@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
-				@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-				@JsonProperty(FIELD_NAME_FAILURE_TIMESTAMP) long failureTimestamp,
-				@JsonProperty(FIELD_NAME_FAILURE_MESSAGE) @Nullable String failureMessage) {
-			super(id, status, savepoint, triggerTimestamp, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks);
-
-			this.failureTimestamp = failureTimestamp;
-			this.failureMessage = failureMessage;
-		}
-
-		public long getFailureTimestamp() {
-			return failureTimestamp;
-		}
-
-		@Nullable
-		public String getFailureMessage() {
-			return failureMessage;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			if (!super.equals(o)) {
-				return false;
-			}
-			FailedCheckpointStatistics that = (FailedCheckpointStatistics) o;
-			return failureTimestamp == that.failureTimestamp &&
-				Objects.equals(failureMessage, that.failureMessage);
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(super.hashCode(), failureTimestamp, failureMessage);
 		}
 	}
 

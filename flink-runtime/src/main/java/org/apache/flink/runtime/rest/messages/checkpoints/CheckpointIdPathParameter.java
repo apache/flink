@@ -16,25 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.rest.messages.ConversionException;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
 /**
- * Message parameters which require a job path parameter.
+ * Path parameter for the checkpoint id of type {@link Long}.
  */
-public class JobMessageParameters extends MessageParameters {
+public class CheckpointIdPathParameter extends MessagePathParameter<Long> {
 
-	protected final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	public static final String KEY = "checkpointid";
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
+	protected CheckpointIdPathParameter() {
+		super(KEY);
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
+	protected Long convertFromString(String value) throws ConversionException {
+		try {
+			return Long.parseLong(value);
+		} catch (NumberFormatException nfe) {
+			throw new ConversionException("Could not parse long from " + value + '.', nfe);
+		}
+	}
+
+	@Override
+	protected String convertToString(Long value) {
+		return value.toString();
 	}
 }
