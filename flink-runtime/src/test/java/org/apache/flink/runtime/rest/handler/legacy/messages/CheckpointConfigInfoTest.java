@@ -16,25 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy;
+package org.apache.flink.runtime.rest.handler.legacy.messages;
 
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
-import org.junit.Test;
-
-import static org.mockito.Mockito.mock;
+import org.apache.flink.runtime.rest.messages.CheckpointConfigInfo;
 
 /**
- * Tests for the SubtaskCurrentAttemptDetailsHandler.
+ * Tests for the {@link CheckpointConfigInfo}.
  */
-public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
-	@Test
-	public void testGetPaths() {
-		SubtaskCurrentAttemptDetailsHandler handler = new SubtaskCurrentAttemptDetailsHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), null);
-		String[] paths = handler.getPaths();
-		Assert.assertEquals(1, paths.length);
-		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", paths[0]);
+public class CheckpointConfigInfoTest extends RestResponseMarshallingTestBase<CheckpointConfigInfo> {
+	@Override
+	protected Class<CheckpointConfigInfo> getTestResponseClass() {
+		return CheckpointConfigInfo.class;
+	}
+
+	@Override
+	protected CheckpointConfigInfo getTestResponseInstance() {
+		final CheckpointConfigInfo.ExternalizedCheckpointInfo externalizedCheckpointInfo = new CheckpointConfigInfo.ExternalizedCheckpointInfo(true, false);
+
+		return new CheckpointConfigInfo(
+			CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
+			1L,
+			2L,
+			3L,
+			4,
+			externalizedCheckpointInfo);
+
 	}
 }

@@ -60,7 +60,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphRequestHandler {
 
 	private final MetricFetcher fetcher;
 
-	public JobDetailsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor, MetricFetcher fetcher) {
+	public JobDetailsHandler(ExecutionGraphCache executionGraphHolder, Executor executor, MetricFetcher fetcher) {
 		super(executionGraphHolder, executor);
 		this.fetcher = fetcher;
 	}

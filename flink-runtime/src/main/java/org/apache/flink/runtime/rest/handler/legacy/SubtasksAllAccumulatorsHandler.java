@@ -46,7 +46,7 @@ public class SubtasksAllAccumulatorsHandler extends AbstractJobVertexRequestHand
 
 	private static final String SUBTASKS_ALL_ACCUMULATORS_REST_PATH = 	"/jobs/:jobid/vertices/:vertexid/subtasks/accumulators";
 
-	public SubtasksAllAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public SubtasksAllAccumulatorsHandler(ExecutionGraphCache executionGraphHolder, Executor executor) {
 		super(executionGraphHolder, executor);
 	}
 

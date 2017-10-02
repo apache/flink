@@ -24,6 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -71,6 +72,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 	 * The exception that caused the job to fail. This is set to the first root exception
 	 * that was not recoverable and triggered job failure
 	 */
+	@Nullable
 	private final ErrorInfo failureCause;
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
@@ -93,7 +95,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			List<ArchivedExecutionJobVertex> verticesInCreationOrder,
 			long[] stateTimestamps,
 			JobStatus state,
-			ErrorInfo failureCause,
+			@Nullable ErrorInfo failureCause,
 			String jsonPlan,
 			StringifiedAccumulatorResult[] archivedUserAccumulators,
 			Map<String, SerializedValue<Object>> serializedUserAccumulators,
@@ -102,17 +104,17 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 			@Nullable CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 			@Nullable CheckpointStatsSnapshot checkpointStatsSnapshot) {
 
-		this.jobID = jobID;
-		this.jobName = jobName;
-		this.tasks = tasks;
-		this.verticesInCreationOrder = verticesInCreationOrder;
-		this.stateTimestamps = stateTimestamps;
-		this.state = state;
+		this.jobID = Preconditions.checkNotNull(jobID);
+		this.jobName = Preconditions.checkNotNull(jobName);
+		this.tasks = Preconditions.checkNotNull(tasks);
+		this.verticesInCreationOrder = Preconditions.checkNotNull(verticesInCreationOrder);
+		this.stateTimestamps = Preconditions.checkNotNull(stateTimestamps);
+		this.state = Preconditions.checkNotNull(state);
 		this.failureCause = failureCause;
-		this.jsonPlan = jsonPlan;
-		this.archivedUserAccumulators = archivedUserAccumulators;
-		this.serializedUserAccumulators = serializedUserAccumulators;
-		this.archivedExecutionConfig = executionConfig;
+		this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
+		this.archivedUserAccumulators = Preconditions.checkNotNull(archivedUserAccumulators);
+		this.serializedUserAccumulators = Preconditions.checkNotNull(serializedUserAccumulators);
+		this.archivedExecutionConfig = Preconditions.checkNotNull(executionConfig);
 		this.isStoppable = isStoppable;
 		this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
 		this.checkpointStatsSnapshot = checkpointStatsSnapshot;

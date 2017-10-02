@@ -29,7 +29,7 @@ import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractExecutionGraphRequestHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -55,7 +55,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 
 	private static final String CHECKPOINT_STATS_REST_PATH = "/jobs/:jobid/checkpoints";
 
-	public CheckpointStatsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public CheckpointStatsHandler(ExecutionGraphCache executionGraphHolder, Executor executor) {
 		super(executionGraphHolder, executor);
 	}
 

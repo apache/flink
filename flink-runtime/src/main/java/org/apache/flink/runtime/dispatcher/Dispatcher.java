@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
@@ -284,7 +285,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<MultipleJobsDetails> requestJobDetails(Time timeout) {
+	public CompletableFuture<MultipleJobsDetails> requestJobDetails(boolean includeRunning, boolean includeFinished, Time timeout) {
 		final int numberJobsRunning = jobManagerRunners.size();
 
 		ArrayList<CompletableFuture<JobDetails>> individualJobDetails = new ArrayList<>(numberJobsRunning);
@@ -298,6 +299,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return combinedJobDetails.thenApply(
 			(Collection<JobDetails> jobDetails) ->
 				new MultipleJobsDetails(jobDetails, null));
+	}
+
+	@Override
+	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
+		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
+
+		if (jobManagerRunner == null) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		} else {
+			return jobManagerRunner.getJobManagerGateway().requestArchivedExecutionGraph(timeout);
+		}
 	}
 
 	/**

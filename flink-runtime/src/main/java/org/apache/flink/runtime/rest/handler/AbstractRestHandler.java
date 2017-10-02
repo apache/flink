@@ -68,7 +68,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 
 	protected AbstractRestHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			MessageHeaders<R, P, M> messageHeaders) {
 		super(localRestAddress, leaderRetriever, timeout);

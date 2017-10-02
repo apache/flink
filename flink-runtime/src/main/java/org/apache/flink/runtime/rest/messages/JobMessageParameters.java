@@ -16,25 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
-import org.junit.Test;
-
-import static org.mockito.Mockito.mock;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Tests for the SubtaskCurrentAttemptDetailsHandler.
+ * Message parameters which require a job path parameter.
  */
-public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
-	@Test
-	public void testGetPaths() {
-		SubtaskCurrentAttemptDetailsHandler handler = new SubtaskCurrentAttemptDetailsHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), null);
-		String[] paths = handler.getPaths();
-		Assert.assertEquals(1, paths.length);
-		Assert.assertEquals("/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum", paths[0]);
+public class JobMessageParameters extends MessageParameters {
+
+	private final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singleton(jobPathParameter);
+	}
+
+	@Override
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptySet();
 	}
 }
