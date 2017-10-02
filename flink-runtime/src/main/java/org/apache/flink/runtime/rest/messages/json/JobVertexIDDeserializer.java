@@ -16,25 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.json;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.KeyDeserializer;
+
+import java.io.IOException;
 
 /**
- * Message parameters which require a job path parameter.
+ * Jackson deserializer for {@link JobVertexID}.
  */
-public class JobMessageParameters extends MessageParameters {
-
-	protected final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+public class JobVertexIDDeserializer extends KeyDeserializer {
 
 	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
-	}
-
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
+	public Object deserializeKey(String key, DeserializationContext ctxt) throws IOException {
+		return JobVertexID.fromHexString(key);
 	}
 }

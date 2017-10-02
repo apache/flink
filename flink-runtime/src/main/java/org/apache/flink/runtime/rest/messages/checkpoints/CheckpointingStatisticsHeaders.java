@@ -16,23 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointConfigHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for the {@link CheckpointConfigHandler}.
+ * Message headers for the {@link CheckpointingStatisticsHandler}.
  */
-public class CheckpointConfigHeaders implements MessageHeaders<EmptyRequestBody, CheckpointConfigInfo, JobMessageParameters> {
+public class CheckpointingStatisticsHeaders implements MessageHeaders<EmptyRequestBody, CheckpointingStatistics, JobMessageParameters> {
 
-	private static final CheckpointConfigHeaders INSTANCE = new CheckpointConfigHeaders();
+	private static final CheckpointingStatisticsHeaders INSTANCE = new CheckpointingStatisticsHeaders();
 
-	public static final String URL = "/jobs/:jobid/checkpoints/config";
-
-	private CheckpointConfigHeaders() {}
+	public static final String URL = "/jobs/:jobid/checkpoints";
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -40,8 +41,8 @@ public class CheckpointConfigHeaders implements MessageHeaders<EmptyRequestBody,
 	}
 
 	@Override
-	public Class<CheckpointConfigInfo> getResponseClass() {
-		return CheckpointConfigInfo.class;
+	public Class<CheckpointingStatistics> getResponseClass() {
+		return CheckpointingStatistics.class;
 	}
 
 	@Override
@@ -64,7 +65,7 @@ public class CheckpointConfigHeaders implements MessageHeaders<EmptyRequestBody,
 		return URL;
 	}
 
-	public static CheckpointConfigHeaders getInstance() {
+	public static CheckpointingStatisticsHeaders getInstance() {
 		return INSTANCE;
 	}
 }
