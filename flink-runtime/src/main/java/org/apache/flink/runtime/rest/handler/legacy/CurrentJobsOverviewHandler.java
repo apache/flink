@@ -75,7 +75,7 @@ public class CurrentJobsOverviewHandler extends AbstractJsonRequestHandler imple
 
 	@Override
 	public CompletableFuture<MultipleJobsDetails> handleRequest(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, DispatcherGateway gateway) {
-		return gateway.requestJobDetails(timeout);
+		return gateway.requestJobDetails(true, true, timeout);
 	}
 
 	@Override
