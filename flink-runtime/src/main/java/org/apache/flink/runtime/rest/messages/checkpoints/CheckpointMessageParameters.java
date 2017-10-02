@@ -16,25 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
+import org.apache.flink.runtime.rest.messages.JobMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /**
- * Message parameters which require a job path parameter.
+ * Message parameters for checkpoint related messages.
  */
-public class JobMessageParameters extends MessageParameters {
+public class CheckpointMessageParameters extends JobMessageParameters {
 
-	protected final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	protected final CheckpointIdPathParameter checkpointIdPathParameter = new CheckpointIdPathParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
-	}
-
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
+		return Arrays.asList(jobPathParameter, checkpointIdPathParameter);
 	}
 }

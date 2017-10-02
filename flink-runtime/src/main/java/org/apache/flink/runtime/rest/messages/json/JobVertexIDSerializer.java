@@ -16,25 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.json;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+
+import java.io.IOException;
 
 /**
- * Message parameters which require a job path parameter.
+ * Jackson serializer for {@link JobVertexID}.
  */
-public class JobMessageParameters extends MessageParameters {
+public class JobVertexIDSerializer extends StdSerializer<JobVertexID> {
 
-	protected final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	private static final long serialVersionUID = 2970050507628933522L;
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
+	public JobVertexIDSerializer() {
+		super(JobVertexID.class);
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
+	public void serialize(JobVertexID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+		gen.writeFieldName(value.toString());
 	}
 }

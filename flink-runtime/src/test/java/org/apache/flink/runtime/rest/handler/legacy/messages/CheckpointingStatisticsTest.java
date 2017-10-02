@@ -19,27 +19,54 @@
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
-import org.apache.flink.runtime.rest.messages.CheckpointStatistics;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistics;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Tests for {@link CheckpointStatistics}.
+ * Tests for {@link CheckpointingStatistics}.
  */
-public class CheckpointStatisticsTest extends RestResponseMarshallingTestBase<CheckpointStatistics> {
+public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase<CheckpointingStatistics> {
 	@Override
-	protected Class<CheckpointStatistics> getTestResponseClass() {
-		return CheckpointStatistics.class;
+	protected Class<CheckpointingStatistics> getTestResponseClass() {
+		return CheckpointingStatistics.class;
 	}
 
 	@Override
-	protected CheckpointStatistics getTestResponseInstance() throws Exception {
+	protected CheckpointingStatistics getTestResponseInstance() throws Exception {
 
-		final CheckpointStatistics.Counts counts = new CheckpointStatistics.Counts(1, 2, 3, 4, 5);
-		final CheckpointStatistics.Summary summary = new CheckpointStatistics.Summary(
-			new CheckpointStatistics.MinMaxAvgStatistics(1L, 1L, 1L),
-			new CheckpointStatistics.MinMaxAvgStatistics(2L, 2L, 2L),
-			new CheckpointStatistics.MinMaxAvgStatistics(3L, 3L, 3L));
+		final CheckpointingStatistics.Counts counts = new CheckpointingStatistics.Counts(1, 2, 3, 4, 5);
+		final CheckpointingStatistics.Summary summary = new CheckpointingStatistics.Summary(
+			new CheckpointingStatistics.MinMaxAvgStatistics(1L, 1L, 1L),
+			new CheckpointingStatistics.MinMaxAvgStatistics(2L, 2L, 2L),
+			new CheckpointingStatistics.MinMaxAvgStatistics(3L, 3L, 3L));
+
+		final Map<JobVertexID, CheckpointStatistics.TaskCheckpointStatistics> checkpointStatisticsPerTask = new HashMap<>(2);
+
+		checkpointStatisticsPerTask.put(
+			new JobVertexID(),
+			new CheckpointStatistics.TaskCheckpointStatistics(
+				1L,
+				2L,
+				3L,
+				4L,
+				5,
+				6));
+
+		checkpointStatisticsPerTask.put(
+			new JobVertexID(),
+			new CheckpointStatistics.TaskCheckpointStatistics(
+				2L,
+				3L,
+				4L,
+				5L,
+				6,
+				7));
 
 		final CheckpointStatistics.CompletedCheckpointStatistics completed = new CheckpointStatistics.CompletedCheckpointStatistics(
 			1L,
@@ -52,6 +79,7 @@ public class CheckpointStatisticsTest extends RestResponseMarshallingTestBase<Ch
 			0L,
 			10,
 			10,
+			Collections.emptyMap(),
 			null,
 			false);
 
@@ -66,6 +94,7 @@ public class CheckpointStatisticsTest extends RestResponseMarshallingTestBase<Ch
 			0L,
 			9,
 			9,
+			checkpointStatisticsPerTask,
 			"externalPath",
 			false);
 
@@ -80,22 +109,23 @@ public class CheckpointStatisticsTest extends RestResponseMarshallingTestBase<Ch
 			0L,
 			11,
 			9,
+			Collections.emptyMap(),
 			100L,
 			"Test failure");
 
-		CheckpointStatistics.RestoredCheckpointStatistics restored = new CheckpointStatistics.RestoredCheckpointStatistics(
+		CheckpointingStatistics.RestoredCheckpointStatistics restored = new CheckpointingStatistics.RestoredCheckpointStatistics(
 			4L,
 			1445L,
 			true,
 			"foobar");
 
-		final CheckpointStatistics.LatestCheckpoints latestCheckpoints = new CheckpointStatistics.LatestCheckpoints(
+		final CheckpointingStatistics.LatestCheckpoints latestCheckpoints = new CheckpointingStatistics.LatestCheckpoints(
 			completed,
 			savepoint,
 			failed,
 			restored);
 
-		return new CheckpointStatistics(
+		return new CheckpointingStatistics(
 			counts,
 			summary,
 			latestCheckpoints,
