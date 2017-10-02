@@ -29,13 +29,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.fs.factories.HadoopFileSystemFactoryLoader;
+import org.apache.flink.core.fs.factories.MapRFsFactory;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.core.fs.factories.LocalFileSystemFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -194,19 +197,9 @@ public abstract class FileSystem {
 	}
 
 	// ------------------------------------------------------------------------
-	//  File System Implementation Classes
-	// ------------------------------------------------------------------------
-
-	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
-
-	private static final String MAPR_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.maprfs.MapRFileSystem";
-
-	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
-
-	// ------------------------------------------------------------------------
 
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
-	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races */
+	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races. */
 	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
 
 	/** Object used to protect calls to specific methods.*/
@@ -215,58 +208,67 @@ public abstract class FileSystem {
 	/** Cache for file systems, by scheme + authority. */
 	private static final Map<FSKey, FileSystem> CACHE = new HashMap<>();
 
-	/** Mapping of file system schemes to  the corresponding implementations */
-	private static final Map<String, String> FSDIRECTORY = new HashMap<>();
+	/** Mapping of file system schemes to  the corresponding implementation factories. */
+	private static final Map<String, FileSystemFactory> FS_FACTORIES = new HashMap<>();
 
-	/** The local file system. Needs to be lazily initialized to avoid that some JVMs deadlock
-	 * on static subclass initialization. */
-	private static LocalFileSystem LOCAL_FS;
+	/** The default factory that is used when no scheme matches. */
+	private static final FileSystemFactory FALLBACK_FACTORY = HadoopFileSystemFactoryLoader.loadFactory();
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
-	 * This value defaults to the local file systems scheme {@code 'file:///'} or
-	 * {@code 'file:/'}. */
-	private static URI defaultScheme;
+	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
+	private static URI DEFAULT_SCHEME;
 
 	// ------------------------------------------------------------------------
 	//  Initialization
 	// ------------------------------------------------------------------------
 
 	static {
-		FSDIRECTORY.put("hdfs", HADOOP_WRAPPER_FILESYSTEM_CLASS);
-		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
-		FSDIRECTORY.put("file", LocalFileSystem.class.getName());
+		FS_FACTORIES.put("file", new LocalFileSystemFactory());
+		FS_FACTORIES.put("maprfs", new MapRFsFactory());
 	}
 
 	/**
-	 * <p>
-	 * Sets the default filesystem scheme based on the user-specified configuration parameter
-	 * <code>fs.default-scheme</code>. By default this is set to <code>file:///</code>
-	 * (see {@link ConfigConstants#FILESYSTEM_SCHEME} and
-	 * {@link ConfigConstants#DEFAULT_FILESYSTEM_SCHEME}),
-	 * and the local filesystem is used.
-	 * <p>
-	 * As an example, if set to <code>hdfs://localhost:9000/</code>, then an HDFS deployment
-	 * with the namenode being on the local node and listening to port 9000 is going to be used.
-	 * In this case, a file path specified as <code>/user/USERNAME/in.txt</code>
-	 * is going to be transformed into <code>hdfs://localhost:9000/user/USERNAME/in.txt</code>. By
-	 * default this is set to <code>file:///</code> which points to the local filesystem.
+	 * Initializes the shared file system settings. 
+	 *
+	 * <p>The given configuration is passed to each file system factory to initialize the respective
+	 * file systems. Because the configuration of file systems may be different subsequent to the call
+	 * of this method, this method clears the file system instance cache.
+	 *
+	 * <p>This method also reads the default file system URI from the configuration key
+	 * {@link ConfigConstants#FILESYSTEM_SCHEME}. All calls to {@link FileSystem#get(URI)} where
+	 * the URI has no scheme will be interpreted as relative to that URI.
+	 * As an example, assume the default file system URI is set to {@code 'hdfs://localhost:9000/'}.
+	 * A file path of {@code '/user/USERNAME/in.txt'} is interpreted as
+	 * {@code 'hdfs://localhost:9000/user/USERNAME/in.txt'}.
+	 *
 	 * @param config the configuration from where to fetch the parameter.
 	 */
-	public static void setDefaultScheme(Configuration config) throws IOException {
+	public static void initialize(Configuration config) throws IOException, IllegalConfigurationException {
 		LOCK.lock();
 		try {
-			if (defaultScheme == null) {
-				final String stringifiedUri = config.getString(ConfigConstants.FILESYSTEM_SCHEME, null);
-				if (stringifiedUri == null) {
-					defaultScheme = LocalFileSystem.getLocalFsURI();
+			// make sure file systems are re-instantiated after re-configuration
+			CACHE.clear();
+
+			// configure all file system factories
+			for (FileSystemFactory factory : FS_FACTORIES.values()) {
+				factory.configure(config);
+			}
+
+			// configure the default (fallback) factory
+			FALLBACK_FACTORY.configure(config);
+
+			// also read the default file system scheme
+			final String stringifiedUri = config.getString(ConfigConstants.FILESYSTEM_SCHEME, null);
+			if (stringifiedUri == null) {
+				DEFAULT_SCHEME = null;
+			}
+			else {
+				try {
+					DEFAULT_SCHEME = new URI(stringifiedUri);
 				}
-				else {
-					try {
-						defaultScheme = new URI(stringifiedUri);
-					} catch (URISyntaxException e) {
-						throw new IOException("The URI used to set the default filesystem " +
-								"scheme ('" + stringifiedUri + "') is not valid.");
-					}
+				catch (URISyntaxException e) {
+					throw new IllegalConfigurationException("The default file system scheme ('" +
+							ConfigConstants.FILESYSTEM_SCHEME + "') is invalid: " + stringifiedUri, e);
 				}
 			}
 		}
@@ -285,110 +287,7 @@ public abstract class FileSystem {
 	 * @return a reference to the {@link FileSystem} instance for accessing the local file system.
 	 */
 	public static FileSystem getLocalFileSystem() {
-		LOCK.lock();
-		try {
-			if (LOCAL_FS == null) {
-				LOCAL_FS = new LocalFileSystem();
-			}
-			return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(LOCAL_FS);
-		} finally {
-			LOCK.unlock();
-		}
-	}
-
-	@Internal
-	public static FileSystem getUnguardedFileSystem(URI uri) throws IOException {
-		final URI asked = uri;
-
-		LOCK.lock();
-		try {
-
-			if (uri.getScheme() == null) {
-				try {
-					if (defaultScheme == null) {
-						defaultScheme = new URI(ConfigConstants.DEFAULT_FILESYSTEM_SCHEME);
-					}
-
-					uri = new URI(defaultScheme.getScheme(), null, defaultScheme.getHost(),
-							defaultScheme.getPort(), uri.getPath(), null, null);
-
-				} catch (URISyntaxException e) {
-					try {
-						if (defaultScheme.getScheme().equals("file")) {
-							uri = new URI("file", null,
-									new Path(new File(uri.getPath()).getAbsolutePath()).toUri().getPath(), null);
-						}
-					} catch (URISyntaxException ex) {
-						// we tried to repair it, but could not. report the scheme error
-						throw new IOException("The URI '" + uri.toString() + "' is not valid.");
-					}
-				}
-			}
-
-			if(uri.getScheme() == null) {
-				throw new IOException("The URI '" + uri + "' is invalid.\n" +
-						"The fs.default-scheme = " + defaultScheme + ", the requested URI = " + asked +
-						", and the final URI = " + uri + ".");
-			}
-
-			if (uri.getScheme().equals("file") && uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
-				String supposedUri = "file:///" + uri.getAuthority() + uri.getPath();
-
-				throw new IOException("Found local file path with authority '" + uri.getAuthority() + "' in path '"
-						+ uri.toString() + "'. Hint: Did you forget a slash? (correct path would be '" + supposedUri + "')");
-			}
-
-			final FSKey key = new FSKey(uri.getScheme(), uri.getAuthority());
-
-			// See if there is a file system object in the cache
-			if (CACHE.containsKey(key)) {
-				return CACHE.get(key);
-			}
-
-			// Try to create a new file system
-			final FileSystem fs;
-
-			if (!isFlinkSupportedScheme(uri.getScheme())) {
-				// no build in support for this file system. Falling back to Hadoop's FileSystem impl.
-				Class<?> wrapperClass = getHadoopWrapperClassNameForFileSystem(uri.getScheme());
-				if (wrapperClass != null) {
-					// hadoop has support for the FileSystem
-					FSKey wrappedKey = new FSKey(HADOOP_WRAPPER_SCHEME + "+" + uri.getScheme(), uri.getAuthority());
-					if (CACHE.containsKey(wrappedKey)) {
-						return CACHE.get(wrappedKey);
-					}
-					// cache didn't contain the file system. instantiate it:
-
-					// by now we know that the HadoopFileSystem wrapper can wrap the file system.
-					fs = instantiateHadoopFileSystemWrapper(wrapperClass);
-					fs.initialize(uri);
-					CACHE.put(wrappedKey, fs);
-
-				} else {
-					// we can not read from this file system.
-					throw new IOException("No file system found with scheme " + uri.getScheme()
-							+ ", referenced in file URI '" + uri.toString() + "'.");
-				}
-			} else {
-				// we end up here if we have a file system with build-in flink support.
-				String fsClass = FSDIRECTORY.get(uri.getScheme());
-				if (fsClass.equals(HADOOP_WRAPPER_FILESYSTEM_CLASS)) {
-					fs = instantiateHadoopFileSystemWrapper(null);
-				} else {
-					fs = instantiateFileSystem(fsClass);
-				}
-				// Initialize new file system object
-				fs.initialize(uri);
-
-				// Add new file system object to cache
-				CACHE.put(key, fs);
-			}
-
-			return fs;
-		}
-		finally {
-			LOCK.unlock();
-		}
+		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(LocalFileSystem.getSharedInstance());
 	}
 
 	/**
@@ -406,43 +305,108 @@ public abstract class FileSystem {
 		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
 	}
 
-	//Class must implement Hadoop FileSystem interface. The class is not avaiable in 'flink-core'.
-	private static FileSystem instantiateHadoopFileSystemWrapper(Class<?> wrappedFileSystem) throws IOException {
+	@Internal
+	public static FileSystem getUnguardedFileSystem(final URI fsUri) throws IOException {
+		checkNotNull(fsUri, "file system URI");
+
+		LOCK.lock();
 		try {
-			Class<? extends FileSystem> fsClass = getFileSystemByName(HADOOP_WRAPPER_FILESYSTEM_CLASS);
-			Constructor<? extends FileSystem> fsClassCtor = fsClass.getConstructor(Class.class);
-			return fsClassCtor.newInstance(wrappedFileSystem);
-		} catch (Throwable e) {
-			throw new IOException("Error loading Hadoop FS wrapper", e);
-		}
-	}
+			final URI uri;
 
-	private static FileSystem instantiateFileSystem(String className) throws IOException {
-		try {
-			Class<? extends FileSystem> fsClass = getFileSystemByName(className);
-			return fsClass.newInstance();
-		}
-		catch (ClassNotFoundException e) {
-			throw new IOException("Could not load file system class '" + className + '\'', e);
-		}
-		catch (InstantiationException | IllegalAccessException e) {
-			throw new IOException("Could not instantiate file system class: " + e.getMessage(), e);
-		}
-	}
-
-	private static HadoopFileSystemWrapper hadoopWrapper;
-
-	private static Class<?> getHadoopWrapperClassNameForFileSystem(String scheme) {
-		if (hadoopWrapper == null) {
-			try {
-				hadoopWrapper = (HadoopFileSystemWrapper) instantiateHadoopFileSystemWrapper(null);
-			} catch (IOException e) {
-				throw new RuntimeException("Error creating new Hadoop wrapper", e);
+			if (fsUri.getScheme() != null) {
+				uri = fsUri;
 			}
+			else {
+				// Apply the default fs scheme
+				final URI defaultUri = getDefaultFsUri();
+				URI rewrittenUri = null;
+
+				try {
+					rewrittenUri = new URI(defaultUri.getScheme(), null, defaultUri.getHost(),
+							defaultUri.getPort(), fsUri.getPath(), null, null);
+				}
+				catch (URISyntaxException e) {
+					// for local URIs, we make one more try to repair the path by making it absolute
+					if (defaultUri.getScheme().equals("file")) {
+						try {
+							rewrittenUri = new URI(
+									"file", null,
+									new Path(new File(fsUri.getPath()).getAbsolutePath()).toUri().getPath(),
+									null);
+						} catch (URISyntaxException ignored) {
+							// could not help it...
+						}
+					}
+				}
+
+				if (rewrittenUri != null) {
+					uri = rewrittenUri;
+				}
+				else {
+					throw new IOException("The file system URI '" + fsUri +
+							"' declares no scheme and cannot be interpreted relative to the default file system URI ("
+							+ defaultUri + ").");
+				}
+			}
+
+			// print a helpful pointer for malformed local URIs (happens a lot to new users) 
+			if (uri.getScheme().equals("file") && uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+				String supposedUri = "file:///" + uri.getAuthority() + uri.getPath();
+
+				throw new IOException("Found local file path with authority '" + uri.getAuthority() + "' in path '"
+						+ uri.toString() + "'. Hint: Did you forget a slash? (correct path would be '" + supposedUri + "')");
+			}
+
+			final FSKey key = new FSKey(uri.getScheme(), uri.getAuthority());
+
+			// See if there is a file system object in the cache
+			{
+				FileSystem cached = CACHE.get(key);
+				if (cached != null) {
+					return cached;
+				}
+			}
+
+			// Try to create a new file system
+			final FileSystem fs;
+			final FileSystemFactory factory = FS_FACTORIES.get(uri.getScheme());
+
+			if (factory != null) {
+				fs = factory.create(uri);
+			}
+			else {
+				try {
+					fs = FALLBACK_FACTORY.create(uri);
+				}
+				catch (UnsupportedFileSystemSchemeException e) {
+					throw new UnsupportedFileSystemSchemeException(
+							"Could not find a file system implementation for scheme '" + uri.getScheme() + 
+									"'. The scheme is not directly supported by Flink and no Hadoop file " +
+									"system to support this scheme could be loaded.", e);
+				}
+			}
+
+			CACHE.put(key, fs);
+			return fs;
 		}
-		return hadoopWrapper.getHadoopWrapperClassNameForFileSystem(scheme);
+		finally {
+			LOCK.unlock();
+		}
 	}
 
+	/**
+	 * Gets the default file system URI that is used for paths and file systems
+	 * that do not specify and explicit scheme.
+	 *
+	 * <p>As an example, assume the default file system URI is set to {@code 'hdfs://someserver:9000/'}.
+	 * A file path of {@code '/user/USERNAME/in.txt'} is interpreted as
+	 * {@code 'hdfs://someserver:9000/user/USERNAME/in.txt'}.
+	 *
+	 * @return The default file system URI
+	 */
+	public static URI getDefaultFsUri() {
+		return DEFAULT_SCHEME != null ? DEFAULT_SCHEME : LocalFileSystem.getLocalFsURI();
+	}
 
 	// ------------------------------------------------------------------------
 	//  File System Methods
@@ -468,14 +432,6 @@ public abstract class FileSystem {
 	 * @return a URI whose scheme and authority identify this file system
 	 */
 	public abstract URI getUri();
-
-	/**
-	 * Called after a new FileSystem instance is constructed.
-	 *
-	 * @param name
-	 *        a {@link URI} whose authority section names the host, port, etc. for this file system
-	 */
-	public abstract void initialize(URI name) throws IOException;
 
 	/**
 	 * Return a file status object that represents the path.
@@ -936,14 +892,6 @@ public abstract class FileSystem {
 		}
 	}
 
-	// ------------------------------------------------------------------------
-	//  utilities
-	// ------------------------------------------------------------------------
-
-	private static Class<? extends FileSystem> getFileSystemByName(String className) throws ClassNotFoundException {
-		return Class.forName(className, true, FileSystem.class.getClassLoader()).asSubclass(FileSystem.class);
-	}
-
 	/**
 	 * An identifier of a file system, via its scheme and its authority.
 	 */
@@ -991,7 +939,7 @@ public abstract class FileSystem {
 
 		@Override
 		public String toString() {
-			return scheme + "://" + authority;
+			return scheme + "://" + (authority != null ? authority : "");
 		}
 	}
 }

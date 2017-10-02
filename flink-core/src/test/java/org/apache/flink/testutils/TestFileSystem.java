@@ -23,9 +23,11 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Map;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileStatus;
 import org.apache.flink.core.fs.local.LocalFileSystem;
@@ -69,21 +71,34 @@ public class TestFileSystem extends LocalFileSystem {
 		}
 		return newStati;
 	}
-	
-	public static void registerTestFileSysten() throws Exception {
-		Class<FileSystem> fsClass = FileSystem.class;
-		Field dirField = fsClass.getDeclaredField("FSDIRECTORY");
-		
-		dirField.setAccessible(true);
-		@SuppressWarnings("unchecked")
-		Map<String, String> map = (Map<String, String>) dirField.get(null);
-		dirField.setAccessible(false);
-		
-		map.put("test", TestFileSystem.class.getName());
-	}
 
 	@Override
 	public URI getUri() {
 		return URI.create("test:///");
+	}
+
+	public static void registerTestFileSysten() throws Exception {
+		Class<FileSystem> fsClass = FileSystem.class;
+		Field dirField = fsClass.getDeclaredField("FS_FACTORIES");
+
+		dirField.setAccessible(true);
+		@SuppressWarnings("unchecked")
+		Map<String, FileSystemFactory> map = (Map<String, FileSystemFactory>) dirField.get(null);
+		dirField.setAccessible(false);
+
+		map.put("test", new TestFileSystemFactory());
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static final class TestFileSystemFactory implements FileSystemFactory {
+
+		@Override
+		public void configure(Configuration config) {}
+
+		@Override
+		public FileSystem create(URI fsUri) throws IOException {
+			return new TestFileSystem();
+		}
 	}
 }
