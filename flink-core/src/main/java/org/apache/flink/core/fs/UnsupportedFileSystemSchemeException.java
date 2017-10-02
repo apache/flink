@@ -15,18 +15,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.core.fs;
 
-import org.apache.flink.annotation.PublicEvolving;
+import java.io.IOException;
 
-@PublicEvolving
-public interface HadoopFileSystemWrapper {
+/**
+ * An exception to indicate that a specific file system scheme is not supported.
+ */
+public class UnsupportedFileSystemSchemeException extends IOException {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Test whether the HadoopWrapper can wrap the given file system scheme.
-	 * 
-	 * @param scheme The scheme of the file system.
-	 * @return The class implementing the file system.
+	 * Creates a new exception with the given message.
+	 *
+	 * @param message The exception message
 	 */
-	public Class<?> getHadoopWrapperClassNameForFileSystem(String scheme);
+	public UnsupportedFileSystemSchemeException(String message) {
+		super(message);
+	}
+
+	/**
+	 * Creates a new exception with the given message and cause.
+	 *
+	 * @param message The exception message
+	 * @param cause The exception cause
+	 */
+	public UnsupportedFileSystemSchemeException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

@@ -156,12 +156,11 @@ public class MesosApplicationMasterRunner {
 			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 			final Configuration config = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
-			// configure the default filesystem
+			// configure the filesystems
 			try {
-				FileSystem.setDefaultScheme(config);
+				FileSystem.initialize(config);
 			} catch (IOException e) {
-				throw new IOException("Error while setting the default " +
-					"filesystem scheme from configuration.", e);
+				throw new IOException("Error while configuring the filesystems.", e);
 			}
 
 			// configure security

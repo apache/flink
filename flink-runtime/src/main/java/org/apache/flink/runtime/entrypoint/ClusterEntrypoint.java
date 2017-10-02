@@ -103,7 +103,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		LOG.info("Starting {}.", getClass().getSimpleName());
 
 		try {
-			installDefaultFileSystem(configuration);
+			configureFileSystems(configuration);
 
 			SecurityContext securityContext = installSecurityContext(configuration);
 
@@ -128,11 +128,11 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		}
 	}
 
-	protected void installDefaultFileSystem(Configuration configuration) throws Exception {
+	protected void configureFileSystems(Configuration configuration) throws Exception {
 		LOG.info("Install default filesystem.");
 
 		try {
-			FileSystem.setDefaultScheme(configuration);
+			FileSystem.initialize(configuration);
 		} catch (IOException e) {
 			throw new IOException("Error while setting the default " +
 				"filesystem scheme from configuration.", e);

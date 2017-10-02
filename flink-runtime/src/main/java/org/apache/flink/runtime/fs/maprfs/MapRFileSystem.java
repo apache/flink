@@ -37,9 +37,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Concrete implementation of the {@link FileSystem} base class for the MapR
@@ -47,6 +50,7 @@ import java.util.List;
  * connection to the file system. Apart from that, we code mainly reuses the
  * existing HDFS wrapper code.
  */
+@SuppressWarnings("unused") // is only instantiated via reflection
 public final class MapRFileSystem extends FileSystem {
 
 	/**
@@ -77,21 +81,12 @@ public final class MapRFileSystem extends FileSystem {
 	 */
 	private static final String MAPR_CLUSTER_CONF_FILE = "/conf/mapr-clusters.conf";
 
-	/**
-	 * A Hadoop configuration object used during the file system initialization.
-	 */
-	private final org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-
-	/**
-	 * The MapR class containing the implementation of the Hadoop HDFS
-	 * interface.
-	 */
-	private final Class<? extends org.apache.hadoop.fs.FileSystem> fsClass;
+	// ------------------------------------------------------------------------
 
 	/**
 	 * The MapR implementation of the Hadoop HDFS interface.
 	 */
-	private org.apache.hadoop.fs.FileSystem fs;
+	private final org.apache.hadoop.fs.FileSystem fs;
 
 	/**
 	 * Creates a new MapRFileSystem object to access the MapR file system.
@@ -99,59 +94,36 @@ public final class MapRFileSystem extends FileSystem {
 	 * @throws IOException
 	 *             throw if the required MapR classes cannot be found
 	 */
-	@SuppressWarnings("unchecked")
-	public MapRFileSystem() throws IOException {
+	public MapRFileSystem(URI fsURI) throws IOException {
+		checkNotNull(fsURI, "fsURI");
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(String.format(
-					"Trying to load class %s to access the MapR file system",
-					MAPR_FS_IMPL_CLASS));
-		}
+		LOG.debug("Trying to load class {} to access the MapR file system", MAPR_FS_IMPL_CLASS);
 
+		final Class<? extends org.apache.hadoop.fs.FileSystem> fsClass;
 		try {
-			this.fsClass = (Class<? extends org.apache.hadoop.fs.FileSystem>) Class
-					.forName(MAPR_FS_IMPL_CLASS);
-		} catch (Exception e) {
+			fsClass = Class.forName(MAPR_FS_IMPL_CLASS).asSubclass(org.apache.hadoop.fs.FileSystem.class);
+		}
+		catch (Exception e) {
 			throw new IOException(
-					String.format(
-							"Cannot find class %s, probably the runtime was not compiled against the MapR Hadoop libraries",
+					String.format("Cannot load MapR File System class '%s'. " +
+							"Please check that the MapR Hadoop libraries are in the classpath.",
 							MAPR_FS_IMPL_CLASS), e);
 		}
-	}
 
-	@Override
-	public Path getWorkingDirectory() {
+		LOG.info("Initializing MapR file system for URI {}", fsURI);
 
-		return new Path(this.fs.getWorkingDirectory().toUri());
-	}
+		final org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+		final org.apache.hadoop.fs.FileSystem fs;
 
-	public Path getHomeDirectory() {
-		return new Path(this.fs.getHomeDirectory().toUri());
-	}
-
-	@Override
-	public URI getUri() {
-
-		return this.fs.getUri();
-	}
-
-	@Override
-	public void initialize(final URI path) throws IOException {
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info(String.format("Initializing MapR file system for path %s",
-					path.toString()));
-		}
-
-		final String authority = path.getAuthority();
+		final String authority = fsURI.getAuthority();
 		if (authority == null || authority.isEmpty()) {
 
-			// Use the default constructor to instantiate MapR file system
-			// object
+			// Use the default constructor to instantiate MapR file system object
 
 			try {
-				this.fs = this.fsClass.newInstance();
-			} catch (Exception e) {
+				fs = fsClass.newInstance();
+			}
+			catch (Exception e) {
 				throw new IOException(e);
 			}
 		} else {
@@ -161,110 +133,47 @@ public final class MapRFileSystem extends FileSystem {
 			final String[] cldbLocations = getCLDBLocations(authority);
 
 			// Find the appropriate constructor
-			final Constructor<? extends org.apache.hadoop.fs.FileSystem> constructor;
 			try {
-				constructor = this.fsClass.getConstructor(String.class,
-						String[].class);
-			} catch (NoSuchMethodException e) {
-				throw new IOException(e);
-			}
+				final Constructor<? extends org.apache.hadoop.fs.FileSystem> constructor =
+						fsClass.getConstructor(String.class, String[].class);
 
-			// Instantiate the file system object
-			try {
-				this.fs = constructor.newInstance(authority, cldbLocations);
-			} catch (Exception e) {
+				fs = constructor.newInstance(authority, cldbLocations);
+			}
+			catch (InvocationTargetException e) {
+				if (e.getTargetException() instanceof IOException) {
+					throw (IOException) e.getTargetException();
+				} else {
+					throw new IOException(e.getTargetException());
+				}
+			}
+			catch (Exception e) {
 				throw new IOException(e);
 			}
 		}
 
-		this.fs.initialize(path, this.conf);
+		// now initialize the Hadoop File System object
+		fs.initialize(fsURI, conf);
+
+		// all good as it seems
+		this.fs = fs;
 	}
 
-	/**
-	 * Retrieves the CLDB locations for the given MapR cluster name.
-	 *
-	 * @param authority
-	 *            the name of the MapR cluster
-	 * @return a list of CLDB locations
-	 * @throws IOException
-	 *             thrown if the CLDB locations for the given MapR cluster name
-	 *             cannot be determined
-	 */
-	private static String[] getCLDBLocations(final String authority)
-			throws IOException {
+	// ------------------------------------------------------------------------
+	//  file system methods
+	// ------------------------------------------------------------------------
 
-		// Determine the MapR home
-		String maprHome = System.getenv(MAPR_HOME_ENV);
-		if (maprHome == null) {
-			maprHome = DEFAULT_MAPR_HOME;
-		}
+	@Override
+	public Path getWorkingDirectory() {
+		return new Path(this.fs.getWorkingDirectory().toUri());
+	}
 
-		final File maprClusterConf = new File(maprHome, MAPR_CLUSTER_CONF_FILE);
+	public Path getHomeDirectory() {
+		return new Path(this.fs.getHomeDirectory().toUri());
+	}
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug(String.format(
-					"Trying to retrieve MapR cluster configuration from %s",
-					maprClusterConf));
-		}
-
-		// Read the cluster configuration file, format is specified at
-		// http://doc.mapr.com/display/MapR/mapr-clusters.conf
-		BufferedReader br = null;
-		try {
-			br = new BufferedReader(new FileReader(maprClusterConf));
-
-			String line;
-			while ((line = br.readLine()) != null) {
-
-				// Normalize the string
-				line = line.trim();
-				line = line.replace('\t', ' ');
-
-				final String[] fields = line.split(" ");
-				if (fields == null) {
-					continue;
-				}
-
-				if (fields.length < 1) {
-					continue;
-				}
-
-				final String clusterName = fields[0];
-
-				if (!clusterName.equals(authority)) {
-					continue;
-				}
-
-				final List<String> cldbLocations = new ArrayList<String>();
-
-				for (int i = 1; i < fields.length; ++i) {
-
-					// Make sure this is not a key-value pair MapR recently
-					// introduced in the file format along with their security
-					// features.
-					if (!fields[i].isEmpty() && !fields[i].contains("=")) {
-						cldbLocations.add(fields[i]);
-					}
-				}
-
-				if (cldbLocations.isEmpty()) {
-					throw new IOException(
-							String.format(
-									"%s contains entry for cluster %s but no CLDB locations.",
-									maprClusterConf, authority));
-				}
-
-				return cldbLocations.toArray(new String[0]);
-			}
-
-		} finally {
-			if (br != null) {
-				br.close();
-			}
-		}
-
-		throw new IOException(String.format(
-				"Unable to find CLDB locations for cluster %s", authority));
+	@Override
+	public URI getUri() {
+		return this.fs.getUri();
 	}
 
 	@Override
@@ -315,6 +224,7 @@ public final class MapRFileSystem extends FileSystem {
 		return new HadoopDataInputStream(fdis);
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public FSDataOutputStream create(final Path f, final boolean overwrite,
 			final int bufferSize, final short replication, final long blockSize)
@@ -376,13 +286,92 @@ public final class MapRFileSystem extends FileSystem {
 	@SuppressWarnings("deprecation")
 	@Override
 	public long getDefaultBlockSize() {
-
 		return this.fs.getDefaultBlockSize();
 	}
 
 	@Override
 	public boolean isDistributedFS() {
-
 		return true;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Retrieves the CLDB locations for the given MapR cluster name.
+	 *
+	 * @param authority
+	 *            the name of the MapR cluster
+	 * @return a list of CLDB locations
+	 * @throws IOException
+	 *             thrown if the CLDB locations for the given MapR cluster name
+	 *             cannot be determined
+	 */
+	private static String[] getCLDBLocations(final String authority) throws IOException {
+
+		// Determine the MapR home
+		String maprHome = System.getenv(MAPR_HOME_ENV);
+		if (maprHome == null) {
+			maprHome = DEFAULT_MAPR_HOME;
+		}
+
+		final File maprClusterConf = new File(maprHome, MAPR_CLUSTER_CONF_FILE);
+
+		if (LOG.isDebugEnabled()) {
+			LOG.debug(String.format(
+					"Trying to retrieve MapR cluster configuration from %s",
+					maprClusterConf));
+		}
+
+		// Read the cluster configuration file, format is specified at
+		// http://doc.mapr.com/display/MapR/mapr-clusters.conf
+
+		try (BufferedReader br = new BufferedReader(new FileReader(maprClusterConf))) {
+
+			String line;
+			while ((line = br.readLine()) != null) {
+
+				// Normalize the string
+				line = line.trim();
+				line = line.replace('\t', ' ');
+
+				final String[] fields = line.split(" ");
+				if (fields.length < 1) {
+					continue;
+				}
+
+				final String clusterName = fields[0];
+
+				if (!clusterName.equals(authority)) {
+					continue;
+				}
+
+				final List<String> cldbLocations = new ArrayList<>();
+
+				for (int i = 1; i < fields.length; ++i) {
+
+					// Make sure this is not a key-value pair MapR recently
+					// introduced in the file format along with their security
+					// features.
+					if (!fields[i].isEmpty() && !fields[i].contains("=")) {
+						cldbLocations.add(fields[i]);
+					}
+				}
+
+				if (cldbLocations.isEmpty()) {
+					throw new IOException(
+							String.format(
+									"%s contains entry for cluster %s but no CLDB locations.",
+									maprClusterConf, authority));
+				}
+
+				return cldbLocations.toArray(new String[cldbLocations.size()]);
+			}
+
+		}
+
+		throw new IOException(String.format(
+				"Unable to find CLDB locations for cluster %s", authority));
 	}
 }

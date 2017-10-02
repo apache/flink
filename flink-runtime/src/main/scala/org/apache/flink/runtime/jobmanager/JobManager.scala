@@ -2386,7 +2386,7 @@ object JobManager {
     val configuration = GlobalConfiguration.loadConfiguration(configDir)
 
     try {
-      FileSystem.setDefaultScheme(configuration)
+      FileSystem.initialize(configuration)
     }
     catch {
       case e: IOException => {

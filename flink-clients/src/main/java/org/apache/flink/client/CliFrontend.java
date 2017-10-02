@@ -179,7 +179,7 @@ public class CliFrontend {
 		this.config = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		try {
-			FileSystem.setDefaultScheme(config);
+			FileSystem.initialize(config);
 		} catch (IOException e) {
 			throw new Exception("Error while setting the default " +
 				"filesystem scheme from configuration.", e);

@@ -611,10 +611,10 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			YarnClientApplication yarnApplication,
 			ClusterSpecification clusterSpecification) throws Exception {
 
-		// ------------------ Set default file system scheme -------------------------
+		// ------------------ Initialize the file systems -------------------------
 
 		try {
-			org.apache.flink.core.fs.FileSystem.setDefaultScheme(flinkConfiguration);
+			org.apache.flink.core.fs.FileSystem.initialize(flinkConfiguration);
 		} catch (IOException e) {
 			throw new IOException("Error while setting the default " +
 					"filesystem scheme from configuration.", e);
