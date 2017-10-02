@@ -406,17 +406,6 @@ public abstract class FileSystem {
 		return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(getUnguardedFileSystem(uri));
 	}
 
-	/**
-	 * Returns a boolean indicating whether a scheme has built-in Flink support.
-	 *
-	 * @param scheme
-	 *        a file system scheme
-	 * @return a boolean indicating whether the provided scheme has built-in Flink support
-	 */
-	public static boolean isFlinkSupportedScheme(String scheme) {
-		return FSDIRECTORY.containsKey(scheme);
-	}
-
 	//Class must implement Hadoop FileSystem interface. The class is not avaiable in 'flink-core'.
 	private static FileSystem instantiateHadoopFileSystemWrapper(Class<?> wrappedFileSystem) throws IOException {
 		try {
