@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.json.JobVertexIDSerializer;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -51,6 +52,7 @@ import java.util.Objects;
 @JsonSubTypes({
 	@JsonSubTypes.Type(value = CheckpointStatistics.CompletedCheckpointStatistics.class, name = "completed"),
 	@JsonSubTypes.Type(value = CheckpointStatistics.FailedCheckpointStatistics.class, name = "failed")})
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class CheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_ID = "id";
