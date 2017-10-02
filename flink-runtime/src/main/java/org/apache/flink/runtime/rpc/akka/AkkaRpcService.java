@@ -40,6 +40,7 @@ import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.Identify;
+import akka.actor.Kill;
 import akka.actor.Props;
 import akka.dispatch.Futures;
 import akka.dispatch.Mapper;
@@ -47,18 +48,24 @@ import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import scala.Option;
@@ -83,7 +90,10 @@ public class AkkaRpcService implements RpcService {
 
 	private final ActorSystem actorSystem;
 	private final Time timeout;
-	private final Set<ActorRef> actors = new HashSet<>(4);
+
+	@GuardedBy("lock")
+	private final Map<ActorRef, RpcEndpoint> actors = new HashMap<>(4);
+
 	private final long maximumFramesize;
 
 	private final String address;
@@ -119,6 +129,8 @@ public class AkkaRpcService implements RpcService {
 		}
 
 		internalScheduledExecutor = new ActorSystemScheduledExecutorAdapter(actorSystem);
+
+		stopped = false;
 	}
 
 	@Override
@@ -149,6 +161,7 @@ public class AkkaRpcService implements RpcService {
 					actorRef,
 					timeout,
 					maximumFramesize,
+					null,
 					null);
 			});
 	}
@@ -169,6 +182,7 @@ public class AkkaRpcService implements RpcService {
 					timeout,
 					maximumFramesize,
 					null,
+					null,
 					() -> fencingToken);
 			});
 	}
@@ -177,13 +191,14 @@ public class AkkaRpcService implements RpcService {
 	public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
 		checkNotNull(rpcEndpoint, "rpc endpoint");
 
-		CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
+		CompletableFuture<Boolean> terminationFuture = new CompletableFuture<>();
+		CompletableFuture<Void> internalTerminationFuture = new CompletableFuture<>();
 		final Props akkaRpcActorProps;
 
 		if (rpcEndpoint instanceof FencedRpcEndpoint) {
-			akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, terminationFuture);
+			akkaRpcActorProps = Props.create(FencedAkkaRpcActor.class, rpcEndpoint, internalTerminationFuture);
 		} else {
-			akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, terminationFuture);
+			akkaRpcActorProps = Props.create(AkkaRpcActor.class, rpcEndpoint, internalTerminationFuture);
 		}
 
 		ActorRef actorRef;
@@ -191,12 +206,12 @@ public class AkkaRpcService implements RpcService {
 		synchronized (lock) {
 			checkState(!stopped, "RpcService is stopped");
 			actorRef = actorSystem.actorOf(akkaRpcActorProps, rpcEndpoint.getEndpointId());
-			actors.add(actorRef);
+			actors.put(actorRef, rpcEndpoint);
 		}
 
 		LOG.info("Starting RPC endpoint for {} at {} .", rpcEndpoint.getClass().getName(), actorRef.path());
 
-		final String address = AkkaUtils.getAkkaURL(actorSystem, actorRef);
+		final String akkaAddress = AkkaUtils.getAkkaURL(actorSystem, actorRef);
 		final String hostname;
 		Option<String> host = actorRef.path().address().host();
 		if (host.isEmpty()) {
@@ -208,30 +223,32 @@ public class AkkaRpcService implements RpcService {
 		Set<Class<?>> implementedRpcGateways = new HashSet<>(RpcUtils.extractImplementedRpcGateways(rpcEndpoint.getClass()));
 
 		implementedRpcGateways.add(RpcServer.class);
-		implementedRpcGateways.add(AkkaGateway.class);
+		implementedRpcGateways.add(AkkaBasedEndpoint.class);
 
 		final InvocationHandler akkaInvocationHandler;
 
 		if (rpcEndpoint instanceof FencedRpcEndpoint) {
 			// a FencedRpcEndpoint needs a FencedAkkaInvocationHandler
 			akkaInvocationHandler = new FencedAkkaInvocationHandler<>(
-				address,
+				akkaAddress,
 				hostname,
 				actorRef,
 				timeout,
 				maximumFramesize,
 				terminationFuture,
+				internalTerminationFuture,
 				((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken);
 
 			implementedRpcGateways.add(FencedMainThreadExecutable.class);
 		} else {
 			akkaInvocationHandler = new AkkaInvocationHandler(
-				address,
+				akkaAddress,
 				hostname,
 				actorRef,
 				timeout,
 				maximumFramesize,
-				terminationFuture);
+				terminationFuture,
+				internalTerminationFuture);
 		}
 
 		// Rather than using the System ClassLoader directly, we derive the ClassLoader
@@ -250,14 +267,15 @@ public class AkkaRpcService implements RpcService {
 
 	@Override
 	public <F extends Serializable> RpcServer fenceRpcServer(RpcServer rpcServer, F fencingToken) {
-		if (rpcServer instanceof AkkaGateway) {
+		if (rpcServer instanceof AkkaBasedEndpoint) {
 
 			InvocationHandler fencedInvocationHandler = new FencedAkkaInvocationHandler<>(
 				rpcServer.getAddress(),
 				rpcServer.getHostname(),
-				((AkkaGateway) rpcServer).getRpcEndpoint(),
+				((AkkaBasedEndpoint) rpcServer).getActorRef(),
 				timeout,
 				maximumFramesize,
+				null,
 				null,
 				() -> fencingToken);
 
@@ -268,7 +286,7 @@ public class AkkaRpcService implements RpcService {
 
 			return (RpcServer) Proxy.newProxyInstance(
 				classLoader,
-				new Class<?>[]{RpcServer.class, AkkaGateway.class},
+				new Class<?>[]{RpcServer.class, AkkaBasedEndpoint.class},
 				fencedInvocationHandler);
 		} else {
 			throw new RuntimeException("The given RpcServer must implement the AkkaGateway in order to fence it.");
@@ -277,24 +295,45 @@ public class AkkaRpcService implements RpcService {
 
 	@Override
 	public void stopServer(RpcServer selfGateway) {
-		if (selfGateway instanceof AkkaGateway) {
-			AkkaGateway akkaClient = (AkkaGateway) selfGateway;
+		if (selfGateway instanceof AkkaBasedEndpoint) {
+			AkkaBasedEndpoint akkaClient = (AkkaBasedEndpoint) selfGateway;
 
 			boolean fromThisService;
 			synchronized (lock) {
 				if (stopped) {
 					return;
 				} else {
-					fromThisService = actors.remove(akkaClient.getRpcEndpoint());
+					fromThisService = actors.remove(akkaClient.getActorRef()) != null;
 				}
 			}
 
 			if (fromThisService) {
-				ActorRef selfActorRef = akkaClient.getRpcEndpoint();
+				ActorRef selfActorRef = akkaClient.getActorRef();
 				LOG.info("Trigger shut down of RPC endpoint {}.", selfActorRef.path());
-				actorSystem.stop(selfActorRef);
+
+				CompletableFuture<Boolean> akkaTerminationFuture = FutureUtils.toJava(
+					Patterns.gracefulStop(
+						selfActorRef,
+						FutureUtils.toFiniteDuration(timeout),
+						Kill.getInstance()));
+
+				akkaTerminationFuture
+					.thenCombine(
+						akkaClient.getInternalTerminationFuture(),
+						(Boolean terminated, Void ignored) -> true)
+					.whenComplete(
+						(Boolean terminated, Throwable throwable) -> {
+							if (throwable != null) {
+								LOG.debug("Graceful RPC endpoint shutdown failed.", throwable);
+
+								actorSystem.stop(selfActorRef);
+								selfGateway.getTerminationFuture().completeExceptionally(throwable);
+							} else {
+								selfGateway.getTerminationFuture().complete(null);
+							}
+						});
 			} else {
-				LOG.debug("RPC endpoint {} already stopped or from different RPC service");
+				LOG.debug("RPC endpoint {} already stopped or from different RPC service", selfGateway.getAddress());
 			}
 		}
 	}
@@ -302,6 +341,8 @@ public class AkkaRpcService implements RpcService {
 	@Override
 	public void stopService() {
 		LOG.info("Stopping Akka RPC service.");
+
+		final List<RpcEndpoint> actorsToTerminate;
 
 		synchronized (lock) {
 			if (stopped) {
@@ -311,10 +352,35 @@ public class AkkaRpcService implements RpcService {
 			stopped = true;
 
 			actorSystem.shutdown();
+
+			actorsToTerminate = new ArrayList<>(actors.values());
+
 			actors.clear();
 		}
 
 		actorSystem.awaitTermination();
+
+		// complete the termination futures of all actors
+		for (RpcEndpoint rpcEndpoint : actorsToTerminate) {
+			final CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+
+			AkkaBasedEndpoint akkaBasedEndpoint = rpcEndpoint.getSelfGateway(AkkaBasedEndpoint.class);
+
+			CompletableFuture<Void> internalTerminationFuture = akkaBasedEndpoint.getInternalTerminationFuture();
+
+			internalTerminationFuture.whenComplete(
+				(Void ignored, Throwable throwable) -> {
+					if (throwable != null) {
+						terminationFuture.completeExceptionally(throwable);
+					} else {
+						terminationFuture.complete(true);
+					}
+				});
+
+			// make sure that if the internal termination futures haven't completed yet, then they time out
+			internalTerminationFuture.completeExceptionally(
+				new TimeoutException("The RpcEndpoint " + rpcEndpoint.getAddress() + " did not terminate in time."));
+		}
 
 		LOG.info("Stopped Akka RPC service.");
 	}
@@ -331,6 +397,7 @@ public class AkkaRpcService implements RpcService {
 		return actorSystem.dispatcher();
 	}
 
+	@Override
 	public ScheduledExecutor getScheduledExecutor() {
 		return internalScheduledExecutor;
 	}

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -35,6 +36,7 @@ import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -174,7 +176,7 @@ public class AkkaRpcActorTest extends TestLogger {
 		final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
+		CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
 
 		assertFalse(terminationFuture.isDone());
 
@@ -235,7 +237,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		rpcEndpoint.shutDown();
 
-		CompletableFuture<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
+		CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
 
 		try {
 			terminationFuture.get();
@@ -254,11 +256,35 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		simpleRpcEndpoint.shutDown();
 
-		CompletableFuture<Void> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+		CompletableFuture<Boolean> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
 
 		// check that we executed the postStop method in the main thread, otherwise an exception
 		// would be thrown here.
 		terminationFuture.get();
+	}
+
+	/**
+	 * Tests that actors are properly terminated when the AkkaRpcService is shut down.
+	 */
+	@Test
+	public void testActorTerminationWhenServiceShutdown() throws Exception {
+		final ActorSystem rpcActorSystem = AkkaUtils.createDefaultActorSystem();
+		final RpcService rpcService = new AkkaRpcService(rpcActorSystem, timeout);
+
+		try {
+			SimpleRpcEndpoint rpcEndpoint = new SimpleRpcEndpoint(rpcService, SimpleRpcEndpoint.class.getSimpleName());
+
+			rpcEndpoint.start();
+
+			CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+
+			rpcService.stopService();
+
+			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		} finally {
+			rpcActorSystem.shutdown();
+			rpcActorSystem.awaitTermination(FutureUtils.toFiniteDuration(timeout));
+		}
 	}
 
 	// ------------------------------------------------------------------------
