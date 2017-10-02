@@ -373,6 +373,36 @@ public class StatusWatermarkValveTest {
 		assertEquals(null, valveOutput.popLastSeenOutput());
 	}
 
+	/**
+	 * Verify that we don't see any state changes/watermarks when all ACTIVE channels are unaligned.
+	 * Earlier versions of the valve had a bug that would cause it to emit a {@code Long.MAX_VALUE}
+	 * watermark in that case.
+	 */
+	@Test
+	public void testNoOutputWhenAllActiveChannelsAreUnaligned() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
+
+		valve.inputWatermark(new Watermark(10), 0);
+		valve.inputWatermark(new Watermark(7), 1);
+
+		// make channel 2 ACTIVE, it is now in "catch up" mode (unaligned watermark)
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		assertEquals(new Watermark(7), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// make channel 2 ACTIVE again, it is still unaligned
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 2);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// make channel 0 and 1 IDLE, now channel 2 is the only ACTIVE channel but it's unaligned
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		valve.inputStreamStatus(StreamStatus.IDLE, 1);
+
+		// we should not see any output
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
 	private class BufferedValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
 		private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
 
