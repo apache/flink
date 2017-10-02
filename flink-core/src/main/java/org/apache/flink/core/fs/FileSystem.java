@@ -30,7 +30,6 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.util.OperatingSystem;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -195,6 +194,8 @@ public abstract class FileSystem {
 	}
 
 	// ------------------------------------------------------------------------
+	//  File System Implementation Classes
+	// ------------------------------------------------------------------------
 
 	private static final String HADOOP_WRAPPER_FILESYSTEM_CLASS = "org.apache.flink.runtime.fs.hdfs.HadoopFileSystem";
 
@@ -202,56 +203,39 @@ public abstract class FileSystem {
 
 	private static final String HADOOP_WRAPPER_SCHEME = "hdwrapper";
 
+	// ------------------------------------------------------------------------
+
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
 	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races */
 	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
 
-	// ------------------------------------------------------------------------
-
 	/** Object used to protect calls to specific methods.*/
-	private static final Object SYNCHRONIZATION_OBJECT = new Object();
+	private static final ReentrantLock LOCK = new ReentrantLock(true);
 
-	/**
-	 * Data structure mapping file system keys (scheme + authority) to cached file system objects.
-	 */
-	private static final Map<FSKey, FileSystem> CACHE = new HashMap<FSKey, FileSystem>();
+	/** Cache for file systems, by scheme + authority. */
+	private static final Map<FSKey, FileSystem> CACHE = new HashMap<>();
 
-	/**
-	 * Data structure mapping file system schemes to the corresponding implementations
-	 */
-	private static final Map<String, String> FSDIRECTORY = new HashMap<String, String>();
+	/** Mapping of file system schemes to  the corresponding implementations */
+	private static final Map<String, String> FSDIRECTORY = new HashMap<>();
+
+	/** The local file system. Needs to be lazily initialized to avoid that some JVMs deadlock
+	 * on static subclass initialization. */
+	private static LocalFileSystem LOCAL_FS;
+
+	/** The default filesystem scheme to be used, configured during process-wide initialization.
+	 * This value defaults to the local file systems scheme {@code 'file:///'} or
+	 * {@code 'file:/'}. */
+	private static URI defaultScheme;
+
+	// ------------------------------------------------------------------------
+	//  Initialization
+	// ------------------------------------------------------------------------
 
 	static {
 		FSDIRECTORY.put("hdfs", HADOOP_WRAPPER_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("maprfs", MAPR_FILESYSTEM_CLASS);
 		FSDIRECTORY.put("file", LocalFileSystem.class.getName());
 	}
-
-	/**
-	 * Returns a reference to the {@link FileSystem} instance for accessing the
-	 * local file system.
-	 *
-	 * @return a reference to the {@link FileSystem} instance for accessing the
-	 *         local file system.
-	 */
-	public static FileSystem getLocalFileSystem() {
-		// this should really never fail.
-		try {
-			URI localUri = OperatingSystem.isWindows() ? new URI("file:/") : new URI("file:///");
-			return get(localUri);
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Cannot create URI for local file system");
-		}
-	}
-
-	/**
-	 * The default filesystem scheme to be used. This can be specified by the parameter
-	 * <code>fs.default-scheme</code> in <code>flink-conf.yaml</code>. By default this is
-	 * set to <code>file:///</code> (see {@link ConfigConstants#FILESYSTEM_SCHEME}
-	 * and {@link ConfigConstants#DEFAULT_FILESYSTEM_SCHEME}), and uses the local filesystem.
-	 */
-	private static URI defaultScheme;
 
 	/**
 	 * <p>
@@ -269,26 +253,55 @@ public abstract class FileSystem {
 	 * @param config the configuration from where to fetch the parameter.
 	 */
 	public static void setDefaultScheme(Configuration config) throws IOException {
-		synchronized (SYNCHRONIZATION_OBJECT) {
+		LOCK.lock();
+		try {
 			if (defaultScheme == null) {
-				String stringifiedUri = config.getString(ConfigConstants.FILESYSTEM_SCHEME,
-					ConfigConstants.DEFAULT_FILESYSTEM_SCHEME);
-				try {
-					defaultScheme = new URI(stringifiedUri);
-				} catch (URISyntaxException e) {
-					throw new IOException("The URI used to set the default filesystem " +
-						"scheme ('" + stringifiedUri + "') is not valid.");
+				final String stringifiedUri = config.getString(ConfigConstants.FILESYSTEM_SCHEME, null);
+				if (stringifiedUri == null) {
+					defaultScheme = LocalFileSystem.getLocalFsURI();
+				}
+				else {
+					try {
+						defaultScheme = new URI(stringifiedUri);
+					} catch (URISyntaxException e) {
+						throw new IOException("The URI used to set the default filesystem " +
+								"scheme ('" + stringifiedUri + "') is not valid.");
+					}
 				}
 			}
+		}
+		finally {
+			LOCK.unlock();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Obtaining File System Instances
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns a reference to the {@link FileSystem} instance for accessing the local file system.
+	 *
+	 * @return a reference to the {@link FileSystem} instance for accessing the local file system.
+	 */
+	public static FileSystem getLocalFileSystem() {
+		LOCK.lock();
+		try {
+			if (LOCAL_FS == null) {
+				LOCAL_FS = new LocalFileSystem();
+			}
+			return FileSystemSafetyNet.wrapWithSafetyNetWhenActivated(LOCAL_FS);
+		} finally {
+			LOCK.unlock();
 		}
 	}
 
 	@Internal
 	public static FileSystem getUnguardedFileSystem(URI uri) throws IOException {
-		FileSystem fs;
+		final URI asked = uri;
 
-		URI asked = uri;
-		synchronized (SYNCHRONIZATION_OBJECT) {
+		LOCK.lock();
+		try {
 
 			if (uri.getScheme() == null) {
 				try {
@@ -333,6 +346,7 @@ public abstract class FileSystem {
 			}
 
 			// Try to create a new file system
+			final FileSystem fs;
 
 			if (!isFlinkSupportedScheme(uri.getScheme())) {
 				// no build in support for this file system. Falling back to Hadoop's FileSystem impl.
@@ -369,9 +383,12 @@ public abstract class FileSystem {
 				// Add new file system object to cache
 				CACHE.put(key, fs);
 			}
-		}
 
-		return fs;
+			return fs;
+		}
+		finally {
+			LOCK.unlock();
+		}
 	}
 
 	/**
@@ -515,7 +532,10 @@ public abstract class FileSystem {
 	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
 	 *
 	 * @return the number of bytes that large input files should be optimally be split into to minimize I/O time
+	 * 
+	 * @deprecated This value is no longer used and is meaningless.
 	 */
+	@Deprecated
 	public long getDefaultBlockSize() {
 		return 32 * 1024 * 1024; // 32 MB;
 	}
@@ -598,8 +618,15 @@ public abstract class FileSystem {
 	 *             Control the behavior of specific file systems via configurations instead. 
 	 */
 	@Deprecated
-	public abstract FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication,
-			long blockSize) throws IOException;
+	public FSDataOutputStream create(
+			Path f,
+			boolean overwrite,
+			int bufferSize,
+			short replication,
+			long blockSize) throws IOException {
+
+		return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
+	}
 
 	/**
 	 * Opens an FSDataOutputStream at the indicated Path.
