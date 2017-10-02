@@ -47,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
@@ -213,7 +214,7 @@ public class ExecutionGraphBuilder {
 			CheckpointStatsTracker checkpointStatsTracker = new CheckpointStatsTracker(
 					historySize,
 					ackVertices,
-					snapshotSettings,
+					snapshotSettings.getCheckpointCoordinatorConfiguration(),
 					metrics);
 
 			// The default directory for externalized checkpoints
@@ -274,21 +275,23 @@ public class ExecutionGraphBuilder {
 				}
 			}
 
+			final CheckpointCoordinatorConfiguration chkConfig = snapshotSettings.getCheckpointCoordinatorConfiguration();
+
 			executionGraph.enableCheckpointing(
-					snapshotSettings.getCheckpointInterval(),
-					snapshotSettings.getCheckpointTimeout(),
-					snapshotSettings.getMinPauseBetweenCheckpoints(),
-					snapshotSettings.getMaxConcurrentCheckpoints(),
-					snapshotSettings.getExternalizedCheckpointSettings(),
-					triggerVertices,
-					ackVertices,
-					confirmVertices,
-					hooks,
-					checkpointIdCounter,
-					completedCheckpoints,
-					externalizedCheckpointsDir,
-					metadataBackend,
-					checkpointStatsTracker);
+				chkConfig.getCheckpointInterval(),
+				chkConfig.getCheckpointTimeout(),
+				chkConfig.getMinPauseBetweenCheckpoints(),
+				chkConfig.getMaxConcurrentCheckpoints(),
+				chkConfig.getExternalizedCheckpointSettings(),
+				triggerVertices,
+				ackVertices,
+				confirmVertices,
+				hooks,
+				checkpointIdCounter,
+				completedCheckpoints,
+				externalizedCheckpointsDir,
+				metadataBackend,
+				checkpointStatsTracker);
 		}
 
 		// create all the metrics for the Execution Graph

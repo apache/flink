@@ -23,9 +23,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import org.apache.flink.runtime.rest.NotFoundException;
@@ -158,9 +158,9 @@ public class JobCancellationWithSavepointHandlers {
 							() -> new CompletionException(
 								new NotFoundException("Could not find ExecutionGraph with jobId " + jobId + '.')));
 
-						CheckpointCoordinator coord = graph.getCheckpointCoordinator();
-						if (coord == null) {
-							throw new CompletionException(new FlinkException("Cannot find CheckpointCoordinator for job."));
+						CheckpointCoordinatorConfiguration jobCheckpointingConfiguration = graph.getCheckpointCoordinatorConfiguration();
+						if (jobCheckpointingConfiguration == null) {
+							throw new CompletionException(new FlinkException("Cannot find checkpoint coordinator configuration for job."));
 						}
 
 						String targetDirectory = pathParams.get("targetDirectory");
@@ -176,7 +176,7 @@ public class JobCancellationWithSavepointHandlers {
 						}
 
 						try {
-							return handleNewRequest(jobManagerGateway, jobId, targetDirectory, coord.getCheckpointTimeout());
+							return handleNewRequest(jobManagerGateway, jobId, targetDirectory, jobCheckpointingConfiguration.getCheckpointTimeout());
 						} catch (IOException e) {
 							throw new CompletionException(new FlinkException("Could not cancel job with savepoint.", e));
 						}

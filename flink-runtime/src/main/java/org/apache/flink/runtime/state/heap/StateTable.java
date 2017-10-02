@@ -24,6 +24,8 @@ import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.util.Preconditions;
 
+import java.util.stream.Stream;
+
 /**
  * Base class for state tables. Accesses to state are typically scoped by the currently active key, as provided
  * through the {@link InternalKeyContext}.
@@ -157,6 +159,8 @@ public abstract class StateTable<K, N, S> {
 	 * if no mapping for the specified key is found.
 	 */
 	public abstract S get(K key, N namespace);
+
+	public abstract Stream<K> getKeys(N namespace);
 
 	// Meta data setter / getter and toString -----------------------------------------------------
 

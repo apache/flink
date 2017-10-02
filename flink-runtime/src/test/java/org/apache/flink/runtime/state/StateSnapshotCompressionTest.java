@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
-import org.apache.flink.runtime.state.heap.HeapReducingStateTest;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.util.TestLogger;
@@ -49,7 +48,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		AbstractKeyedStateBackend<String> stateBackend = new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			StringSerializer.INSTANCE,
-			HeapReducingStateTest.class.getClassLoader(),
+			StateSnapshotCompressionTest.class.getClassLoader(),
 			16,
 			new KeyGroupRange(0, 15),
 			true,
@@ -70,7 +69,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		stateBackend = new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			StringSerializer.INSTANCE,
-			HeapReducingStateTest.class.getClassLoader(),
+			StateSnapshotCompressionTest.class.getClassLoader(),
 			16,
 			new KeyGroupRange(0, 15),
 			true,
@@ -109,7 +108,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		AbstractKeyedStateBackend<String> stateBackend = new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			StringSerializer.INSTANCE,
-			HeapReducingStateTest.class.getClassLoader(),
+			StateSnapshotCompressionTest.class.getClassLoader(),
 			16,
 			new KeyGroupRange(0, 15),
 			true,
@@ -150,7 +149,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 		stateBackend = new HeapKeyedStateBackend<>(
 			mock(TaskKvStateRegistry.class),
 			StringSerializer.INSTANCE,
-			HeapReducingStateTest.class.getClassLoader(),
+			StateSnapshotCompressionTest.class.getClassLoader(),
 			16,
 			new KeyGroupRange(0, 15),
 			true,

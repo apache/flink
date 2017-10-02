@@ -57,18 +57,18 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
 
@@ -478,7 +478,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	@Override
 	public CheckpointCoordinator getCheckpointCoordinator() {
 		return checkpointCoordinator;
 	}
@@ -491,9 +490,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return restartStrategy;
 	}
 
-	public JobCheckpointingSettings getJobCheckpointingSettings() {
+	@Override
+	public CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration() {
 		if (checkpointStatsTracker != null) {
-			return checkpointStatsTracker.getSnapshottingSettings();
+			return checkpointStatsTracker.getJobCheckpointingConfiguration();
 		} else {
 			return null;
 		}
@@ -731,9 +731,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 		Map<String, Accumulator<?, ?>> accumulatorMap = aggregateUserAccumulators();
 
-		Map<String, SerializedValue<Object>> result = new HashMap<>();
+		Map<String, SerializedValue<Object>> result = new HashMap<>(accumulatorMap.size());
 		for (Map.Entry<String, Accumulator<?, ?>> entry : accumulatorMap.entrySet()) {
-			result.put(entry.getKey(), new SerializedValue<Object>(entry.getValue().getLocalValue()));
+			result.put(entry.getKey(), new SerializedValue<>(entry.getValue().getLocalValue()));
 		}
 
 		return result;
@@ -1685,8 +1685,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	@Override
 	public ArchivedExecutionGraph archive() {
-		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>();
-		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>();
+		Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>(verticesInCreationOrder.size());
+		List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>(verticesInCreationOrder.size());
+
 		for (ExecutionJobVertex task : verticesInCreationOrder) {
 			ArchivedExecutionJobVertex archivedTask = task.archive();
 			archivedVerticesInCreationOrder.add(archivedTask);
@@ -1714,7 +1715,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			serializedUserAccumulators,
 			getArchivedExecutionConfig(),
 			isStoppable(),
-			getJobCheckpointingSettings(),
+			getCheckpointCoordinatorConfiguration(),
 			getCheckpointStatsSnapshot());
 	}
 }

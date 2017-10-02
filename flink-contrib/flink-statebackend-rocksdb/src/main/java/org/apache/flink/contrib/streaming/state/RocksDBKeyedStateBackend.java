@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
@@ -38,6 +39,7 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -72,6 +74,7 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.util.SerializableObject;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -100,8 +103,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -111,6 +116,8 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * A {@link AbstractKeyedStateBackend} that stores its state in {@code RocksDB} and will serialize state to
@@ -250,6 +257,21 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.materializedSstFiles = new TreeMap<>();
 		this.backendUID = UUID.randomUUID();
 		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
+	}
+
+	@Override
+	public <N> Stream<K> getKeys(String state, N namespace) {
+		Tuple2<ColumnFamilyHandle, ?> columnInfo = kvStateInformation.get(state);
+		if (columnInfo == null) {
+			return Stream.empty();
+		}
+
+		RocksIterator iterator = db.newIterator(columnInfo.f0);
+		iterator.seekToFirst();
+
+		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes);
+		Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
+		return targetStream.onClose(iterator::close);
 	}
 
 	/**
@@ -1977,5 +1999,65 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public boolean supportsAsynchronousSnapshots() {
 		return true;
+	}
+
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	@Override
+	public int numStateEntries() {
+		int count = 0;
+
+		for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column : kvStateInformation.values()) {
+			try (RocksIterator rocksIterator = db.newIterator(column.f0)) {
+				rocksIterator.seekToFirst();
+
+				while (rocksIterator.isValid()) {
+					count++;
+					rocksIterator.next();
+				}
+			}
+		}
+
+		return count;
+	}
+
+	private static class RocksIteratorWrapper<K> implements Iterator<K> {
+		private final RocksIterator iterator;
+		private final String state;
+		private final TypeSerializer<K> keySerializer;
+		private final int keyGroupPrefixBytes;
+
+		public RocksIteratorWrapper(
+				RocksIterator iterator,
+				String state,
+				TypeSerializer<K> keySerializer,
+				int keyGroupPrefixBytes) {
+			this.iterator = Preconditions.checkNotNull(iterator);
+			this.state = Preconditions.checkNotNull(state);
+			this.keySerializer = Preconditions.checkNotNull(keySerializer);
+			this.keyGroupPrefixBytes = Preconditions.checkNotNull(keyGroupPrefixBytes);
+		}
+
+		@Override
+		public boolean hasNext() {
+			return iterator.isValid();
+		}
+
+		@Override
+		public K next() {
+			if (!hasNext()) {
+				throw new NoSuchElementException("Failed to access state [" + state + "]");
+			}
+			try {
+				byte[] key = iterator.key();
+					DataInputViewStreamWrapper dataInput = new DataInputViewStreamWrapper(
+					new ByteArrayInputStreamWithPos(key, keyGroupPrefixBytes, key.length - keyGroupPrefixBytes));
+				K value = keySerializer.deserialize(dataInput);
+				iterator.next();
+				return value;
+			} catch (IOException e) {
+				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
+			}
+		}
 	}
 }
