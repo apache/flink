@@ -215,46 +215,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	}
 
 	@Test
-	public void testRunningSnapshotAfterBackendClosed() throws Exception {
-		setupRocksKeyedStateBackend();
-		RunnableFuture<KeyedStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory,
-			CheckpointOptions.forFullCheckpoint());
-
-		RocksDB spyDB = keyedStateBackend.db;
-
-		if (!enableIncrementalCheckpointing) {
-			verify(spyDB, times(1)).getSnapshot();
-			verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
-		}
-
-		this.keyedStateBackend.dispose();
-		verify(spyDB, times(1)).close();
-		assertEquals(null, keyedStateBackend.db);
-
-		//Ensure every RocksObjects not closed yet
-		for (RocksObject rocksCloseable : allCreatedCloseables) {
-			verify(rocksCloseable, times(0)).close();
-		}
-
-		Thread asyncSnapshotThread = new Thread(snapshot);
-		asyncSnapshotThread.start();
-		try {
-			snapshot.get();
-			fail();
-		} catch (Exception ignored) {
-
-		}
-
-		asyncSnapshotThread.join();
-
-		//Ensure every RocksObject was closed exactly once
-		for (RocksObject rocksCloseable : allCreatedCloseables) {
-			verify(rocksCloseable, times(1)).close();
-		}
-
-	}
-
-	@Test
 	public void testCorrectMergeOperatorSet() throws IOException {
 
 		final ColumnFamilyOptions columnFamilyOptions = spy(new ColumnFamilyOptions());
@@ -289,8 +249,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		setupRocksKeyedStateBackend();
 
 		try {
-			RunnableFuture<KeyedStateHandle> snapshot = keyedStateBackend.snapshot(0L, 0L, testStreamFactory,
-				CheckpointOptions.forFullCheckpoint());
+			RunnableFuture<KeyedStateHandle> snapshot =
+				keyedStateBackend.snapshot(0L, 0L, testStreamFactory, CheckpointOptions.forFullCheckpoint());
 
 			RocksDB spyDB = keyedStateBackend.db;
 
@@ -299,10 +259,6 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				verify(spyDB, times(0)).releaseSnapshot(any(Snapshot.class));
 			}
 
-			this.keyedStateBackend.dispose();
-			verify(spyDB, times(1)).close();
-			assertEquals(null, keyedStateBackend.db);
-
 			//Ensure every RocksObjects not closed yet
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
 				verify(rocksCloseable, times(0)).close();
@@ -310,10 +266,16 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 
 			snapshot.cancel(true);
 
+			this.keyedStateBackend.dispose();
+
+			verify(spyDB, times(1)).close();
+			assertEquals(null, keyedStateBackend.db);
+
 			//Ensure every RocksObjects was closed exactly once
 			for (RocksObject rocksCloseable : allCreatedCloseables) {
 				verify(rocksCloseable, times(1)).close();
 			}
+
 		} finally {
 			keyedStateBackend.dispose();
 			keyedStateBackend = null;

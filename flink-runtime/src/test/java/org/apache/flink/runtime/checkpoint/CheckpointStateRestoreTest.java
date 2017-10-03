@@ -33,7 +33,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.util.SerializableObject;
+import org.apache.flink.util.SerializableObject;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;

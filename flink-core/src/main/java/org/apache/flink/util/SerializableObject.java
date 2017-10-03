@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
 /**
  * A simple object that only implements {@link java.io.Serializable}, so it can be used

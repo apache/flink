@@ -233,19 +233,25 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 				@Override
 				protected void acquireResources() throws Exception {
-					out = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
-					closeStreamOnCancelRegistry.registerCloseable(out);
+					openOutStream();
 				}
 
 				@Override
 				protected void releaseResources() throws Exception {
-					if (closeStreamOnCancelRegistry.unregisterCloseable(out)) {
-						IOUtils.closeQuietly(out);
-					}
+					closeOutStream();
 				}
 
 				@Override
 				protected void stopOperation() throws Exception {
+					closeOutStream();
+				}
+
+				private void openOutStream() throws Exception {
+					out = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+					closeStreamOnCancelRegistry.registerCloseable(out);
+				}
+
+				private void closeOutStream() {
 					if (closeStreamOnCancelRegistry.unregisterCloseable(out)) {
 						IOUtils.closeQuietly(out);
 					}

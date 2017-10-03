@@ -66,13 +66,12 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -2911,6 +2910,74 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		@Override
 		public String reduce(String value1, String value2) throws Exception {
 			return value1 + "," + value2;
+		}
+	}
+
+	/**
+	 * The purpose of this test is to check that parallel snapshots are possible, and work even if a previous snapshot
+	 * is still running and blocking.
+	 */
+	@Test
+	public void testParallelAsyncSnapshots() throws Exception {
+		OneShotLatch blocker = new OneShotLatch();
+		OneShotLatch waiter = new OneShotLatch();
+		BlockerCheckpointStreamFactory streamFactory = new BlockerCheckpointStreamFactory(1024 * 1024);
+		streamFactory.setWaiterLatch(waiter);
+		streamFactory.setBlockerLatch(blocker);
+		streamFactory.setAfterNumberInvocations(10);
+
+		final AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
+
+		try {
+
+			if (!backend.supportsAsynchronousSnapshots()) {
+				return;
+			}
+
+			// insert some data to the backend.
+			InternalValueState<VoidNamespace, Integer> valueState = backend.createValueState(
+				VoidNamespaceSerializer.INSTANCE,
+				new ValueStateDescriptor<>("test", IntSerializer.INSTANCE));
+
+			valueState.setCurrentNamespace(VoidNamespace.INSTANCE);
+
+			for (int i = 0; i < 10; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i);
+			}
+
+			RunnableFuture<KeyedStateHandle> snapshot1 =
+				backend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forFullCheckpoint());
+
+			Thread runner1 = new Thread(snapshot1, "snapshot-1-runner");
+			runner1.start();
+			// after this call returns, we have a running snapshot-1 that is blocked in IO.
+			waiter.await();
+
+			// do some updates in between the snapshots.
+			for (int i = 5; i < 15; ++i) {
+				backend.setCurrentKey(i);
+				valueState.update(i + 1);
+			}
+
+			// we don't want to block the second snapshot.
+			streamFactory.setWaiterLatch(null);
+			streamFactory.setBlockerLatch(null);
+
+			RunnableFuture<KeyedStateHandle> snapshot2 =
+				backend.snapshot(1L, 1L, streamFactory, CheckpointOptions.forFullCheckpoint());
+
+			Thread runner2 = new Thread(snapshot2,"snapshot-2-runner");
+			runner2.start();
+			// snapshot-2 should run and succeed, while snapshot-1 is still running and blocked in IO.
+			snapshot2.get();
+
+			// we release the blocking IO so that snapshot-1 can also finish and succeed.
+			blocker.trigger();
+			snapshot1.get();
+
+		} finally {
+			backend.dispose();
 		}
 	}
 
