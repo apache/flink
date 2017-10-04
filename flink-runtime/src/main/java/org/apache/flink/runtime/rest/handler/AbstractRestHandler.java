@@ -71,7 +71,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 
 	protected AbstractRestHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			MessageHeaders<R, P, M> messageHeaders) {
 		super(localRestAddress, leaderRetriever, timeout);
@@ -106,8 +106,8 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				try {
 					request = mapper.readValue("{}", messageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
-					log.error("Implementation error: Get request bodies must have a no-argument constructor.", je);
-					HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+					log.error("Request did not conform to expected format.", je);
+					HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST);
 					return;
 				}
 			} else {

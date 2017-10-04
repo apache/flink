@@ -18,20 +18,22 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
-import javax.annotation.Nullable;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+
+import javax.annotation.Nullable;
+
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Tracker for checkpoint statistics.
@@ -67,7 +69,7 @@ public class CheckpointStatsTracker {
 	private final int totalSubtaskCount;
 
 	/** Snapshotting settings created from the CheckpointConfig. */
-	private final JobCheckpointingSettings jobCheckpointingSettings;
+	private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
 	/** Checkpoint counts. */
 	private final CheckpointStatsCounts counts = new CheckpointStatsCounts();
@@ -104,19 +106,19 @@ public class CheckpointStatsTracker {
 	 *
 	 * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in progress ones.
 	 * @param jobVertices Job vertices involved in the checkpoints.
-	 * @param jobCheckpointingSettings Snapshotting settings created from the CheckpointConfig.
+	 * @param jobCheckpointingConfiguration Checkpointing configuration.
 	 * @param metricGroup Metric group for exposed metrics
 	 */
 	public CheckpointStatsTracker(
 		int numRememberedCheckpoints,
 		List<ExecutionJobVertex> jobVertices,
-		JobCheckpointingSettings jobCheckpointingSettings,
+		CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
 		MetricGroup metricGroup) {
 
 		checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
 		this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
 		this.jobVertices = checkNotNull(jobVertices, "JobVertices");
-		this.jobCheckpointingSettings = checkNotNull(jobCheckpointingSettings);
+		this.jobCheckpointingConfiguration = checkNotNull(jobCheckpointingConfiguration);
 
 		// Compute the total subtask count. We do this here in order to only
 		// do it once.
@@ -138,13 +140,13 @@ public class CheckpointStatsTracker {
 	}
 
 	/**
-	 * Returns the job's snapshotting settings which are derived from the
+	 * Returns the job's checkpointing configuration which is derived from the
 	 * CheckpointConfig.
 	 *
-	 * @return The job's snapshotting settings.
+	 * @return The job's checkpointing configuration.
 	 */
-	public JobCheckpointingSettings getSnapshottingSettings() {
-		return jobCheckpointingSettings;
+	public CheckpointCoordinatorConfiguration getJobCheckpointingConfiguration() {
+		return jobCheckpointingConfiguration;
 	}
 
 	/**

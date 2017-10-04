@@ -55,7 +55,7 @@ public class JobVertexTaskManagersHandler extends AbstractJobVertexRequestHandle
 
 	private final MetricFetcher fetcher;
 
-	public JobVertexTaskManagersHandler(ExecutionGraphHolder executionGraphHolder, Executor executor, MetricFetcher fetcher) {
+	public JobVertexTaskManagersHandler(ExecutionGraphCache executionGraphHolder, Executor executor, MetricFetcher fetcher) {
 		super(executionGraphHolder, executor);
 		this.fetcher = fetcher;
 	}

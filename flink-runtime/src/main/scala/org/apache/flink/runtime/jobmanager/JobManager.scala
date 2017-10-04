@@ -46,7 +46,7 @@ import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{FutureUtils, Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter, Executors => FlinkExecutors}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
@@ -2232,7 +2232,7 @@ object JobManager {
           new AkkaJobManagerRetriever(jobManagerSystem, timeout, 10, Time.milliseconds(50L)),
           new AkkaQueryServiceRetriever(jobManagerSystem, timeout),
           timeout,
-          futureExecutor)
+          new ScheduledExecutorServiceAdapter(futureExecutor))
 
         Option(webServer)
       }

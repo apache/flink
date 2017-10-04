@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractExecutionGraphRequestHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -54,7 +54,7 @@ public class CheckpointStatsDetailsHandler extends AbstractExecutionGraphRequest
 
 	private final CheckpointStatsCache cache;
 
-	public CheckpointStatsDetailsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor, CheckpointStatsCache cache) {
+	public CheckpointStatsDetailsHandler(ExecutionGraphCache executionGraphHolder, Executor executor, CheckpointStatsCache cache) {
 		super(executionGraphHolder, executor);
 		this.cache = cache;
 	}

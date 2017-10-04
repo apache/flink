@@ -122,7 +122,8 @@ public class MemorySize implements java.io.Serializable {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj == this || obj.getClass() == this.getClass() && ((MemorySize) obj).bytes == this.bytes;
+		return obj == this || 
+				(obj != null && obj.getClass() == this.getClass() && ((MemorySize) obj).bytes == this.bytes);
 	}
 
 	@Override
