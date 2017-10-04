@@ -229,15 +229,16 @@ public class RestEndpointITCase extends TestLogger {
 		TestWebSocketOperation.WsParameters parameters = new TestWebSocketOperation.WsParameters();
 		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
 
-		final LinkedBlockingQueue<ResponseBody> messageQueue = new LinkedBlockingQueue<>();
+		final LinkedBlockingQueue<TestMessage> messageQueue = new LinkedBlockingQueue<>();
 		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
 
 		// open a websocket connection with a listener that simply enqueues incoming messages
-		CompletableFuture<WebSocket> response = clientEndpoint.sendWebSocketRequest(
+		CompletableFuture<WebSocket<TestMessage, TestMessage>> response = clientEndpoint.sendWebSocketRequest(
 			serverAddress.getHostName(),
 			serverAddress.getPort(),
 			new TestWebSocketOperation.WsHeaders(),
 			parameters,
+			TestMessage.class,
 			TestMessage.class,
 			(event) -> {
 				try {
@@ -249,7 +250,7 @@ public class RestEndpointITCase extends TestLogger {
 			});
 
 		// wait for the connection to be established
-		WebSocket webSocket = response.get();
+		WebSocket<TestMessage, TestMessage> webSocket = response.get();
 		try {
 			// wait for the server to register the channel (happens asynchronously after handshake complete)
 			TestWebSocketOperation.WsMessageHandler.LATCH.await();
@@ -257,7 +258,7 @@ public class RestEndpointITCase extends TestLogger {
 			// send a server-side event and then wait for the message to be received
 			TestMessage sent = new TestMessage(42);
 			eventProvider.write(PATH_JOB_ID, sent);
-			TestMessage received = (TestMessage) messageQueue.take();
+			TestMessage received = messageQueue.take();
 			Assert.assertEquals(sent, received);
 		}
 		finally {
@@ -422,7 +423,7 @@ public class RestEndpointITCase extends TestLogger {
 			}
 		}
 
-		static class WsHeaders implements MessageHeaders<EmptyRequestBody, WebSocketUpgradeResponseBody, WsParameters> {
+		static class WsHeaders implements MessageHeaders<EmptyRequestBody, WebSocketUpgradeResponseBody<TestMessage, TestMessage>, WsParameters> {
 
 			@Override
 			public HttpMethodWrapper getHttpMethod() {
@@ -440,8 +441,9 @@ public class RestEndpointITCase extends TestLogger {
 			}
 
 			@Override
-			public Class<WebSocketUpgradeResponseBody> getResponseClass() {
-				return WebSocketUpgradeResponseBody.class;
+			@SuppressWarnings("unchecked")
+			public Class<WebSocketUpgradeResponseBody<TestMessage, TestMessage>> getResponseClass() {
+				return (Class<WebSocketUpgradeResponseBody<TestMessage, TestMessage>>) (Class<?>) WebSocketUpgradeResponseBody.class;
 			}
 
 			@Override
@@ -455,7 +457,7 @@ public class RestEndpointITCase extends TestLogger {
 			}
 		}
 
-		static class WsRestHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, WebSocketUpgradeResponseBody, WsParameters> {
+		static class WsRestHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, WebSocketUpgradeResponseBody<TestMessage, TestMessage>, WsParameters> {
 
 			private final TestEventProvider eventProvider;
 
@@ -469,11 +471,11 @@ public class RestEndpointITCase extends TestLogger {
 			}
 
 			@Override
-			protected CompletableFuture<WebSocketUpgradeResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, WsParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+			protected CompletableFuture<WebSocketUpgradeResponseBody<TestMessage, TestMessage>> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, WsParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
 				JobID jobID = request.getPathParameter(JobIDPathParameter.class);
 				Assert.assertEquals(PATH_JOB_ID, jobID);
 				ChannelHandler messageHandler = new WsMessageHandler(eventProvider, jobID);
-				WebSocketUpgradeResponseBody responseBody = new WebSocketUpgradeResponseBody(messageHandler);
+				WebSocketUpgradeResponseBody<TestMessage, TestMessage> responseBody = new WebSocketUpgradeResponseBody<>(messageHandler);
 				return CompletableFuture.completedFuture(responseBody);
 			}
 		}
@@ -547,7 +549,7 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
-	static class TestMessage implements ResponseBody {
+	static class TestMessage implements ResponseBody, RequestBody {
 		public final int sequenceNumber;
 
 		@JsonCreator

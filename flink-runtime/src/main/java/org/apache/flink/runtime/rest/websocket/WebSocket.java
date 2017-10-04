@@ -18,24 +18,28 @@
 
 package org.apache.flink.runtime.rest.websocket;
 
+import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 
 /**
  * A WebSocket for sending and receiving messages.
+ *
+ * @param <I> type of the server-to-client messages.
+ * @param <O> type of the client-to-server messages.
  */
-public interface WebSocket {
+public interface WebSocket<I extends ResponseBody, O extends RequestBody> {
 
 	/**
 	 * Adds a listener for websocket messages.
 	 */
-	void addListener(WebSocketListener listener);
+	void addListener(WebSocketListener<I> listener);
 
 	/**
 	 * Sends a message.
 	 */
-	ChannelFuture send(ResponseBody message);
+	ChannelFuture send(O message);
 
 	/**
 	 * Closes the websocket.

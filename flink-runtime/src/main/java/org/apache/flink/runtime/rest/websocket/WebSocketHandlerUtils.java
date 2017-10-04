@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.websocket;
 
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
+import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -88,9 +89,9 @@ public class WebSocketHandlerUtils {
 		return channelHandlerContext.writeAndFlush(frame);
 	}
 
-	public static TextWebSocketFrame encodeMessage(ResponseBody message) throws IOException {
+	public static <T extends RequestBody> TextWebSocketFrame encodeMessage(T message, Class<T> clazz) throws IOException {
 		StringWriter sw = new StringWriter();
-		mapper.writeValue(sw, message);
+		mapper.writerFor(clazz).writeValue(sw, message);
 		return new TextWebSocketFrame(sw.toString());
 	}
 

@@ -160,8 +160,8 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 					}
 				} else {
-					if (resp instanceof WebSocketUpgradeResponseBody) {
-						upgradeToWebSocket(ctx, routed, (WebSocketUpgradeResponseBody) resp);
+					if (resp instanceof WebSocketUpgradeResponseBody<?, ?>) {
+						upgradeToWebSocket(ctx, routed, (WebSocketUpgradeResponseBody<?, ?>) resp);
 					}
 					else {
 						HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
@@ -174,7 +174,7 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 		}
 	}
 
-	private void upgradeToWebSocket(final ChannelHandlerContext ctx, Routed routed, WebSocketUpgradeResponseBody upgrade) {
+	private void upgradeToWebSocket(final ChannelHandlerContext ctx, Routed routed, WebSocketUpgradeResponseBody<?, ?> upgrade) {
 		// inject the websocket protocol handler into this channel, to be active
 		// until the channel is closed.  note that the handshake may or may not complete synchronously.
 		ctx.pipeline().addAfter(ctx.name(), WebSocketServerProtocolHandler.class.getName(),

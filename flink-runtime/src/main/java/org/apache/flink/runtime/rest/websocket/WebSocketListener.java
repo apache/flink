@@ -23,5 +23,7 @@ import org.apache.flink.runtime.util.event.EventListener;
 
 /**
  * A listener for WebSocket messages.
+ *
+ * @param <T> type of the server-to-client messages.
  */
-public interface WebSocketListener extends EventListener<ResponseBody> { }
+public interface WebSocketListener<T extends ResponseBody> extends EventListener<T> { }

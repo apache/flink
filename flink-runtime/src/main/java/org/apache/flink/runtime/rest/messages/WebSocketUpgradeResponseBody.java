@@ -30,8 +30,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This response type is not actually sent to the client, rather it triggers an
  * actual WebSocket handshake response, and then registers the contained channel handler
  * for subsequent message processing.
+ *
+ * @param <I> type of the server-to-client messages.
+ * @param <O> type of the client-to-server messages.
  */
-public class WebSocketUpgradeResponseBody implements ResponseBody {
+public class WebSocketUpgradeResponseBody<I extends ResponseBody, O extends RequestBody> implements ResponseBody {
 
 	private final ChannelHandler channelHandler;
 

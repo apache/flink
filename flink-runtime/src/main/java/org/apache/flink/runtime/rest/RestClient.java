@@ -326,12 +326,15 @@ public class RestClient {
 		}
 	}
 
-	public <M extends MessageHeaders<EmptyRequestBody, WebSocketUpgradeResponseBody, U>, U extends MessageParameters, R extends ResponseBody> CompletableFuture<WebSocket> sendWebSocketRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters, Class<R> messageClazz, WebSocketListener... listeners) throws IOException {
+	@SuppressWarnings("unchecked")
+	public <M extends MessageHeaders<EmptyRequestBody, WebSocketUpgradeResponseBody<I, O>, U>, U extends MessageParameters, I extends ResponseBody, O extends RequestBody> CompletableFuture<WebSocket<I, O>> sendWebSocketRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters, Class<I> inboundType, Class<O> outboundType, WebSocketListener<I>... listeners) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
 		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
 		Preconditions.checkNotNull(messageHeaders);
 		Preconditions.checkNotNull(messageParameters);
 		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
+		Preconditions.checkNotNull(inboundType);
+		Preconditions.checkNotNull(outboundType);
 
 		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
 		URI webSocketURL = URI.create("ws://" + targetAddress + ":" + targetPort).resolve(targetUrl);
@@ -346,7 +349,7 @@ public class RestClient {
 				super.initChannel(channel);
 				channel.pipeline()
 					.addLast(new WebSocketClientProtocolHandler(webSocketURL, WebSocketVersion.V13, null, false, headers, 65535))
-					.addLast(new WsResponseHandler(channel, messageClazz, listeners));
+					.addLast(new WsResponseHandler<I, O>(channel, inboundType, outboundType, listeners));
 			}
 		});
 
@@ -360,26 +363,28 @@ public class RestClient {
 			})
 			.thenApply((ChannelFuture::channel))
 			.thenCompose(channel -> {
-				WsResponseHandler handler = channel.pipeline().get(WsResponseHandler.class);
+				WsResponseHandler<I, O> handler = channel.pipeline().get(WsResponseHandler.class);
 				return handler.getWebSocketFuture();
 			});
 	}
 
-	private static class WsResponseHandler extends SimpleChannelInboundHandler<Object> implements WebSocket {
+	private static class WsResponseHandler<I extends ResponseBody, O extends RequestBody> extends SimpleChannelInboundHandler<Object> implements WebSocket<I, O> {
 
 		private final Channel channel;
-		private final Class<? extends ResponseBody> messageClazz;
-		private final List<WebSocketListener> listeners = new CopyOnWriteArrayList<>();
+		private final Class<I> inboundClass;
+		private final Class<O> outboundClass;
+		private final List<WebSocketListener<I>> listeners = new CopyOnWriteArrayList<>();
 
-		private final CompletableFuture<WebSocket> webSocketFuture = new CompletableFuture<>();
+		private final CompletableFuture<WebSocket<I, O>> webSocketFuture = new CompletableFuture<>();
 
-		CompletableFuture<WebSocket> getWebSocketFuture() {
+		CompletableFuture<WebSocket<I, O>> getWebSocketFuture() {
 			return webSocketFuture;
 		}
 
-		public WsResponseHandler(Channel channel, Class<? extends ResponseBody> messageClazz, WebSocketListener[] listeners) {
+		public WsResponseHandler(Channel channel, Class<I> inboundClass, Class<O> outboundClass, WebSocketListener<I>[] listeners) {
 			this.channel = channel;
-			this.messageClazz = messageClazz;
+			this.inboundClass = inboundClass;
+			this.outboundClass = outboundClass;
 			this.listeners.addAll(Arrays.asList(listeners));
 		}
 
@@ -393,7 +398,7 @@ public class RestClient {
 		public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 			if (evt instanceof WebSocketClientProtocolHandler.ClientHandshakeStateEvent) {
 				WebSocketClientProtocolHandler.ClientHandshakeStateEvent wsevt = (WebSocketClientProtocolHandler.ClientHandshakeStateEvent) evt;
-				switch(wsevt) {
+				switch (wsevt) {
 					case HANDSHAKE_ISSUED:
 						LOG.debug("WebSocket handshake initiated");
 						break;
@@ -411,22 +416,22 @@ public class RestClient {
 		@Override
 		protected void channelRead0(ChannelHandlerContext channelHandlerContext, Object o) throws Exception {
 			if (o instanceof TextWebSocketFrame) {
-				ResponseBody message = WebSocketHandlerUtils.decodeMessage((TextWebSocketFrame) o, messageClazz);
-				for (WebSocketListener listener : listeners) {
+				I message = WebSocketHandlerUtils.decodeMessage((TextWebSocketFrame) o, inboundClass);
+				for (WebSocketListener<I> listener : listeners) {
 					listener.onEvent(message);
 				}
 			}
 		}
 
 		@Override
-		public void addListener(WebSocketListener listener) {
+		public void addListener(WebSocketListener<I> listener) {
 			listeners.add(listener);
 		}
 
 		@Override
-		public ChannelFuture send(ResponseBody message) {
+		public ChannelFuture send(O message) {
 			try {
-				TextWebSocketFrame frame = WebSocketHandlerUtils.encodeMessage(message);
+				TextWebSocketFrame frame = WebSocketHandlerUtils.encodeMessage(message, outboundClass);
 				return channel.writeAndFlush(frame);
 			}
 			catch (IOException e) {
