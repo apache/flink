@@ -18,15 +18,29 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * Marker interface for all responses of the REST API. This class represents the body of an HTTP response or WebSocket message.
+ * Special {@link ResponseBody} implementation for a WebSocket upgrade response.
  *
- * <p>Subclass instances are converted to JSON using jackson-databind. Subclasses must have a constructor that accepts
- * all fields of the JSON response, that should be annotated with {@code @JsonCreator}.
- *
- * <p>All fields that should part of the JSON response must be accessible either by being public or having a getter.
- *
- * <p>When adding methods that are prefixed with {@code get} make sure to annotate them with {@code @JsonIgnore}.
+ * <p>This response type is not actually sent to the client, rather it triggers an
+ * actual WebSocket handshake response, and then registers the contained channel handler
+ * for subsequent message processing.
  */
-public interface ResponseBody {
+public class WebSocketUpgradeResponseBody implements ResponseBody {
+
+	private final ChannelHandler channelHandler;
+
+	public WebSocketUpgradeResponseBody(ChannelHandler channelHandler) {
+		this.channelHandler = checkNotNull(channelHandler);
+	}
+
+	@JsonIgnore
+	public ChannelHandler getChannelHandler() {
+		return channelHandler;
+	}
 }
