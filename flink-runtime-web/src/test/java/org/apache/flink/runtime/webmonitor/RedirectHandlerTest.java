@@ -148,6 +148,7 @@ public class RedirectHandlerTest extends TestLogger {
 
 		@Override
 		protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, RestfulGateway gateway) throws Exception {
+			Assert.assertTrue(channelHandlerContext.channel().eventLoop().inEventLoop());
 			HttpResponse response = HandlerRedirectUtils.getResponse(HttpResponseStatus.OK, RESPONSE_MESSAGE);
 			KeepAliveWrite.flush(channelHandlerContext.channel(), routed.request(), response);
 		}
