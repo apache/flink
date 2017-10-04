@@ -543,6 +543,18 @@ public abstract class AbstractFetcher<T, KPH> {
 	// ------------------------- Metrics ----------------------------------
 
 	/**
+	 * Register offset metrics.
+	 */
+	protected MetricGroup registerOffsetMetrics(MetricGroup metricGroup) {
+		if (useMetrics) {
+			MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
+			addOffsetStateGauge(kafkaMetricGroup);
+			return kafkaMetricGroup;
+		}
+		return null;
+	}
+
+	/**
 	 * Add current and committed offsets to metric group.
 	 *
 	 * @param metricGroup The metric group to use
