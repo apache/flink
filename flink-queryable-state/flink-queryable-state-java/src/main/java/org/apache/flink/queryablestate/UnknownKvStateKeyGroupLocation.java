@@ -16,40 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
+package org.apache.flink.queryablestate;
 
-import org.apache.flink.runtime.query.KvStateServer;
+import org.apache.flink.runtime.query.KvStateLocation;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * Exception thrown if there is no location information available for the given
+ * key group in a {@link KvStateLocation} instance.
  */
-public interface KvStateRequestStats {
+public class UnknownKvStateKeyGroupLocation extends Exception {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
-
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
+	private static final long serialVersionUID = 1L;
 
 }

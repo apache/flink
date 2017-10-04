@@ -16,40 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
-
-import org.apache.flink.runtime.query.KvStateServer;
+package org.apache.flink.runtime.query;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * An interface for the Queryable State Server running on each Task Manager in the cluster.
+ * This server is responsible for serving requests coming from the Queryable State Client and
+ * requesting <b>locally</b> stored state.
  */
-public interface KvStateRequestStats {
+public interface KvStateServer {
 
 	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
-
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
+	 * Returns the address of this server.
 	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
+	 * @return Server address
 	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
+	KvStateServerAddress getAddress();
+
+
+	/** Starts the proxy. */
+	void start() throws InterruptedException;
 
 	/**
-	 * Reports a failure during a request.
+	 * Shuts down the server and all related thread pools.
 	 */
-	void reportFailedRequest();
-
+	void shutDown();
 }

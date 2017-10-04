@@ -16,40 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
-
-import org.apache.flink.runtime.query.KvStateServer;
+package org.apache.flink.queryablestate;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * Thrown if the KvState does not hold any state for the given key or namespace.
  */
-public interface KvStateRequestStats {
+public class UnknownKeyOrNamespace extends IllegalStateException {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+	public UnknownKeyOrNamespace() {
+		super("KvState does not hold any state for key/namespace.");
+	}
 }

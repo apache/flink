@@ -16,40 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
+package org.apache.flink.queryablestate.client;
 
-import org.apache.flink.runtime.query.KvStateServer;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.query.KvStateLocation;
+
+import scala.concurrent.Future;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * {@link KvStateLocation} lookup service.
  */
-public interface KvStateRequestStats {
+public interface KvStateLocationLookupService {
 
 	/**
-	 * Reports an active connection.
+	 * Starts the lookup service.
 	 */
-	void reportActiveConnection();
+	void start();
 
 	/**
-	 * Reports an inactive connection.
+	 * Shuts down the lookup service.
 	 */
-	void reportInactiveConnection();
+	void shutDown();
 
 	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
+	 * Returns a future holding the {@link KvStateLocation} for the given job
+	 * and KvState registration name.
 	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
+	 * @param jobId            JobID the KvState instance belongs to
+	 * @param registrationName Name under which the KvState has been registered
+	 * @return Future holding the {@link KvStateLocation}
 	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
+	Future<KvStateLocation> getKvStateLookupInfo(JobID jobId, String registrationName);
 
 }

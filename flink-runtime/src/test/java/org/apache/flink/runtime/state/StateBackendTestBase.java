@@ -56,7 +56,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateSerializer;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
 import org.apache.flink.runtime.state.heap.StateTable;
@@ -3070,7 +3070,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<V> valueSerializer) throws Exception {
 
-		byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+		byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
 				key, keySerializer, namespace, namespaceSerializer);
 
 		byte[] serializedValue = kvState.getSerializedValue(serializedKeyAndNamespace);
@@ -3078,7 +3078,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		if (serializedValue == null) {
 			return null;
 		} else {
-			return KvStateRequestSerializer.deserializeValue(serializedValue, valueSerializer);
+			return KvStateSerializer.deserializeValue(serializedValue, valueSerializer);
 		}
 	}
 
@@ -3094,7 +3094,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			TypeSerializer<N> namespaceSerializer,
 			TypeSerializer<V> valueSerializer) throws Exception {
 
-		byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+		byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
 				key, keySerializer, namespace, namespaceSerializer);
 
 		byte[] serializedValue = kvState.getSerializedValue(serializedKeyAndNamespace);
@@ -3102,7 +3102,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		if (serializedValue == null) {
 			return null;
 		} else {
-			return KvStateRequestSerializer.deserializeList(serializedValue, valueSerializer);
+			return KvStateSerializer.deserializeList(serializedValue, valueSerializer);
 		}
 	}
 
@@ -3120,7 +3120,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			TypeSerializer<UV> userValueSerializer
 	) throws Exception {
 
-		byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+		byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
 				key, keySerializer, namespace, namespaceSerializer);
 
 		byte[] serializedValue = kvState.getSerializedValue(serializedKeyAndNamespace);
@@ -3128,7 +3128,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		if (serializedValue == null) {
 			return null;
 		} else {
-			return KvStateRequestSerializer.deserializeMap(serializedValue, userKeySerializer, userValueSerializer);
+			return KvStateSerializer.deserializeMap(serializedValue, userKeySerializer, userValueSerializer);
 		}
 	}
 

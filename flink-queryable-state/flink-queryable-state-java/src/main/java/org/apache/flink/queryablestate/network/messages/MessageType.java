@@ -16,40 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
-
-import org.apache.flink.runtime.query.KvStateServer;
+package org.apache.flink.queryablestate.network.messages;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * Expected message types during the communication between
+ * {@link org.apache.flink.queryablestate.client.KvStateClient state client} and
+ * {@link org.apache.flink.queryablestate.server.KvStateServerImpl state server}.
  */
-public interface KvStateRequestStats {
+public enum MessageType {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
+	/** The message is a request. */
+	REQUEST,
 
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
+	/** The message is a successful response. */
+	REQUEST_RESULT,
 
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
+	/** The message indicates a protocol-related failure. */
+	REQUEST_FAILURE,
 
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+	/** The message indicates a server failure. */
+	SERVER_FAILURE
 }

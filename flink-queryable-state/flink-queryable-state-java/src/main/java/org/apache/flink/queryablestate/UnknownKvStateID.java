@@ -16,40 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
+package org.apache.flink.queryablestate;
 
-import org.apache.flink.runtime.query.KvStateServer;
+import org.apache.flink.runtime.query.KvStateID;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * Thrown if no KvState with the given ID cannot found by the server handler.
  */
-public interface KvStateRequestStats {
+public class UnknownKvStateID extends IllegalStateException {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+	public UnknownKvStateID(KvStateID kvStateId) {
+		super("No KvState registered with ID " + Preconditions.checkNotNull(kvStateId, "KvStateID") +
+				" at TaskManager.");
+	}
 }
