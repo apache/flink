@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.query;
 
-import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -87,5 +86,10 @@ public class KvStateServerAddress implements Serializable {
 		int result = hostAddress.hashCode();
 		result = 31 * result + port;
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return hostAddress.getHostName() + ':' + port;
 	}
 }

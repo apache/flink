@@ -81,6 +81,7 @@ under the License.
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
+		<module>flink-queryable-state</module>
 	</modules>
 
 	<properties>

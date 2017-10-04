@@ -16,40 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
+package org.apache.flink.queryablestate.itcases;
 
-import org.apache.flink.runtime.query.KvStateServer;
+import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * Several integration tests for queryable state using the {@link FsStateBackend}.
  */
-public interface KvStateRequestStats {
+public class NonHAQueryableStateITCaseFsBackend extends NonHAAbstractQueryableStateITCase {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+	@Override
+	protected AbstractStateBackend createStateBackend() throws Exception {
+		return new FsStateBackend(temporaryFolder.newFolder().toURI().toString());
+	}
 }
