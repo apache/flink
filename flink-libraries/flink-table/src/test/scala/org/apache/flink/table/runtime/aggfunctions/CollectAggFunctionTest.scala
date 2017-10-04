@@ -20,6 +20,8 @@ package org.apache.flink.table.runtime.aggfunctions
 
 import java.util
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
 
@@ -49,7 +51,7 @@ class StringCollectAggFunctionTest
 
   override def aggregator: AggregateFunction[
     util.Map[String, Integer], CollectAccumulator[String]] =
-    new StringCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.STRING_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -73,7 +75,7 @@ class IntCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Int, Integer], CollectAccumulator[Int]] =
-    new IntCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.INT_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -97,7 +99,7 @@ class ByteCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Byte, Integer], CollectAccumulator[Byte]] =
-    new ByteCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.BYTE_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -122,7 +124,7 @@ class ShortCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Short, Integer], CollectAccumulator[Short]] =
-    new ShortCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.SHORT_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -146,7 +148,7 @@ class LongCollectAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Long, Integer], CollectAccumulator[Long]] =
-    new LongCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.LONG_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -170,7 +172,7 @@ class FloatAggFunctionTest
   }
 
   override def aggregator: AggregateFunction[util.Map[Float, Integer], CollectAccumulator[Float]] =
-    new FloatCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.FLOAT_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -195,7 +197,7 @@ class DoubleAggFunctionTest
 
   override def aggregator: AggregateFunction[
     util.Map[Double, Integer], CollectAccumulator[Double]] =
-    new DoubleCollectAggFunction()
+    new CollectAggFunction(BasicTypeInfo.DOUBLE_TYPE_INFO)
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
@@ -217,7 +219,7 @@ class ObjectCollectAggFunctionTest
 
   override def aggregator: AggregateFunction[
     util.Map[Object, Integer], CollectAccumulator[Object]] =
-    new ObjectCollectAggFunction()
+    new CollectAggFunction(new GenericTypeInfo[Object](classOf[Object]))
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }

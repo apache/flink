@@ -97,6 +97,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
     StreamITCase.clear
 
     val sqlQuery = "SELECT b, COLLECT(a) FROM MyTable GROUP BY b"
@@ -123,6 +124,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
     StreamITCase.clear
 
     val sqlQuery = "SELECT b, COLLECT(c) FROM MyTable GROUP BY b"

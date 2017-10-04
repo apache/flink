@@ -44,12 +44,12 @@ class CollectAccumulator[E](var f0:MapView[E, Integer]) {
     }
 }
 
-abstract class CollectAggFunction[E]
+class CollectAggFunction[E](valueTypeInfo: TypeInformation[_])
   extends AggregateFunction[util.Map[E, Integer], CollectAccumulator[E]] {
 
   override def createAccumulator(): CollectAccumulator[E] = {
     val acc = new CollectAccumulator[E](new MapView[E, Integer](
-      getValueTypeInfo.asInstanceOf[TypeInformation[E]], BasicTypeInfo.INT_TYPE_INFO))
+      valueTypeInfo.asInstanceOf[TypeInformation[E]], BasicTypeInfo.INT_TYPE_INFO))
     acc
   }
 
@@ -87,7 +87,7 @@ abstract class CollectAggFunction[E]
     val pojoFields = new util.ArrayList[PojoField]
     pojoFields.add(new PojoField(clazz.getDeclaredField("f0"),
       new MapViewTypeInfo[E, Integer](
-        getValueTypeInfo.asInstanceOf[TypeInformation[E]], BasicTypeInfo.INT_TYPE_INFO)))
+        valueTypeInfo.asInstanceOf[TypeInformation[E]], BasicTypeInfo.INT_TYPE_INFO)))
     new PojoTypeInfo[CollectAccumulator[E]](clazz, pojoFields)
   }
 
@@ -118,42 +118,4 @@ abstract class CollectAggFunction[E]
       }
     }
   }
-
-  def getValueTypeInfo: TypeInformation[_]
-}
-
-class IntCollectAggFunction extends CollectAggFunction[Int] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.INT_TYPE_INFO
-}
-
-class LongCollectAggFunction extends CollectAggFunction[Long] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.LONG_TYPE_INFO
-}
-
-class StringCollectAggFunction extends CollectAggFunction[String] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
-}
-
-class ByteCollectAggFunction extends CollectAggFunction[Byte] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.BYTE_TYPE_INFO
-}
-
-class ShortCollectAggFunction extends CollectAggFunction[Short] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.SHORT_TYPE_INFO
-}
-
-class FloatCollectAggFunction extends CollectAggFunction[Float] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.FLOAT_TYPE_INFO
-}
-
-class DoubleCollectAggFunction extends CollectAggFunction[Double] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.DOUBLE_TYPE_INFO
-}
-
-class BooleanCollectAggFunction extends CollectAggFunction[Boolean] {
-  override def getValueTypeInfo: TypeInformation[_] = BasicTypeInfo.BOOLEAN_TYPE_INFO
-}
-
-class ObjectCollectAggFunction extends CollectAggFunction[Object] {
-  override def getValueTypeInfo: TypeInformation[_] = new GenericTypeInfo[Object](classOf[Object])
 }
