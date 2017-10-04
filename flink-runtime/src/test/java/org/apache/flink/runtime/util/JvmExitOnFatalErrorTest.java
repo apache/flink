@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -163,12 +163,8 @@ public class JvmExitOnFatalErrorTest {
 
 				final Executor executor = Executors.newCachedThreadPool();
 
-				BlobCache blobCache = mock(BlobCache.class);
-				PermanentBlobCache permanentBlobCache = mock(PermanentBlobCache.class);
-				TransientBlobCache transientBlobCache = mock(TransientBlobCache.class);
-
-				when(blobCache.getPermanentBlobService()).thenReturn(permanentBlobCache);
-				when(blobCache.getTransientBlobService()).thenReturn(transientBlobCache);
+				BlobCacheService blobService =
+					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				Task task = new Task(
 						jobInformation,
@@ -188,7 +184,7 @@ public class JvmExitOnFatalErrorTest {
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
 						new NoOpCheckpointResponder(),
-						blobCache,
+					blobService,
 						new FallbackLibraryCacheManager(),
 						new FileCache(tmInfo.getTmpDirectories()),
 						tmInfo,

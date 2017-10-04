@@ -128,8 +128,8 @@ public class BlobCacheCleanupTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that {@link BlobCache} sets the expected reference counts and cleanup timeouts when
-	 * registering, releasing, and re-registering jobs.
+	 * Tests that {@link PermanentBlobCache} sets the expected reference counts and cleanup timeouts
+	 * when registering, releasing, and re-registering jobs.
 	 */
 	@Test
 	public void testJobReferences() throws IOException, InterruptedException {

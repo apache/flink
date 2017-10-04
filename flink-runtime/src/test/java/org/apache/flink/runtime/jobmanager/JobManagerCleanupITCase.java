@@ -276,7 +276,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 	 *
 	 * @param blobDir
 	 * 		directory of a {@link org.apache.flink.runtime.blob.BlobServer} or {@link
-	 * 		org.apache.flink.runtime.blob.BlobCache}
+	 * 		org.apache.flink.runtime.blob.BlobCacheService}
 	 * @param remaining
 	 * 		remaining time for this test
 	 *

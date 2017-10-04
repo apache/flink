@@ -84,7 +84,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 	 * Helper to test that the {@link BlobServer} recovery from its HA store works.
 	 *
 	 * <p>Uploads two BLOBs to one {@link BlobServer} and expects a second one to be able to retrieve
-	 * them via a shared HA store upon request of a {@link BlobCache}.
+	 * them via a shared HA store upon request of a {@link BlobCacheService}.
 	 *
 	 * @param config
 	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
@@ -104,7 +104,7 @@ public class BlobServerRecoveryTest extends TestLogger {
 			BlobServer server0 = new BlobServer(config, blobStore);
 			BlobServer server1 = new BlobServer(config, blobStore);
 			// use VoidBlobStore as the HA store to force download from server[1]'s HA store
-			BlobCache cache1 = new BlobCache(
+			BlobCacheService cache1 = new BlobCacheService(
 				new InetSocketAddress("localhost", server1.getPort()), config,
 				new VoidBlobStore())) {
 

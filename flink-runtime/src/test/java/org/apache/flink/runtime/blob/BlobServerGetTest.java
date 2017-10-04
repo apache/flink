@@ -433,8 +433,8 @@ public class BlobServerGetTest extends TestLogger {
 	/**
 	 * Retrieves the given blob.
 	 *
-	 * <p>Note that if a {@link BlobCache} is used, it may try to access the {@link BlobServer} to
-	 * retrieve the blob.
+	 * <p>Note that if a {@link BlobCacheService} is used, it may try to access the {@link
+	 * BlobServer} to retrieve the blob.
 	 *
 	 * @param service
 	 * 		BLOB client to use for connecting to the BLOB service
@@ -456,8 +456,8 @@ public class BlobServerGetTest extends TestLogger {
 	/**
 	 * Checks that the given blob does not exist anymore by trying to access it.
 	 *
-	 * <p>Note that if a {@link BlobCache} is used, it may try to access the {@link BlobServer} to
-	 * retrieve the blob.
+	 * <p>Note that if a {@link BlobCacheService} is used, it may try to access the {@link
+	 * BlobServer} to retrieve the blob.
 	 *
 	 * @param service
 	 * 		BLOB client to use for connecting to the BLOB service

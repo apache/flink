@@ -94,7 +94,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 	/**
 	 * Uploads a (different) byte array for each of the given jobs and verifies that deleting one of
-	 * them (via the {@link BlobCache}) does not influence the other.
+	 * them (via the {@link BlobCacheService}) does not influence the other.
 	 *
 	 * @param jobId1
 	 * 		first job id
@@ -112,7 +112,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -178,7 +178,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 	/**
 	 * Uploads a byte array for the given job and verifies that deleting it (via the {@link
-	 * BlobCache}) does not fail independent of whether the file exists.
+	 * BlobCacheService}) does not fail independent of whether the file exists.
 	 *
 	 * @param jobId
 	 * 		job id
@@ -190,7 +190,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -227,8 +227,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 	/**
 	 * Uploads a byte array for the given job and verifies that a delete operation (via the {@link
-	 * BlobCache}) does not fail even if the file is not deletable locally, e.g. via restricting
-	 * the permissions.
+	 * BlobCacheService}) does not fail even if the file is not deletable locally, e.g. via
+	 * restricting the permissions.
 	 *
 	 * @param jobId
 	 * 		job id
@@ -243,7 +243,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 		File directory = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -328,7 +328,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();

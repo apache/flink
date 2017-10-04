@@ -118,7 +118,9 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(this.key) + this.type.hashCode();
+		int result = Arrays.hashCode(this.key);
+		result = 37 * result + this.type.hashCode();
+		return result;
 	}
 
 	@Override

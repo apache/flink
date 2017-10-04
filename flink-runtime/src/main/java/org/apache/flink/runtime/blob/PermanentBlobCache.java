@@ -148,7 +148,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 			RefCount ref = jobRefCounters.get(jobId);
 
 			if (ref == null || ref.references == 0) {
-				LOG.warn("improper use of releaseJob() without a matching number of registerJob() calls for jobId " + jobId);
+				log.warn("improper use of releaseJob() without a matching number of registerJob() calls for jobId " + jobId);
 				return;
 			}
 
@@ -198,7 +198,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 	@Override
 	public File getPermanentFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
-		return getTransientFileInternal(jobId, key);
+		return getFileInternal(jobId, key);
 	}
 
 	/**
@@ -267,7 +267,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 							FileUtils.deleteDirectory(localFile);
 							success = true;
 						} catch (Throwable t) {
-							LOG.warn("Failed to locally delete job directory " + localFile.getAbsolutePath(), t);
+							log.warn("Failed to locally delete job directory " + localFile.getAbsolutePath(), t);
 						} finally {
 							readWriteLock.writeLock().unlock();
 						}

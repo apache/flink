@@ -49,7 +49,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests how GET requests react to corrupt files when downloaded via a {@link BlobCache}.
+ * Tests how GET requests react to corrupt files when downloaded via a {@link BlobCacheService}.
  *
  * <p>Successful GET requests are tested in conjunction wit the PUT requests.
  */
@@ -147,7 +147,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, blobStore);
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, corruptOnHAStore ? blobStore : new VoidBlobStore())) {
 
 			server.start();

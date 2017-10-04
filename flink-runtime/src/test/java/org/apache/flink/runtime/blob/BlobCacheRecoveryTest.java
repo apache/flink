@@ -48,7 +48,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for the recovery of files of a {@link BlobCache} from a HA store.
+ * Tests for the recovery of files of a {@link BlobCacheService} from a HA store.
  */
 public class BlobCacheRecoveryTest extends TestLogger {
 
@@ -82,9 +82,9 @@ public class BlobCacheRecoveryTest extends TestLogger {
 	/**
 	 * Helper to test that the {@link BlobServer} recovery from its HA store works.
 	 *
-	 * <p>Uploads two BLOBs to one {@link BlobServer} via a {@link BlobCache} and expects a second
-	 * {@link BlobCache} to be able to retrieve them from a second {@link BlobServer} that is
-	 * configured with the same HA store.
+	 * <p>Uploads two BLOBs to one {@link BlobServer} via a {@link BlobCacheService} and expects a
+	 * second {@link BlobCacheService} to be able to retrieve them from a second {@link BlobServer}
+	 * that is configured with the same HA store.
 	 *
 	 * @param config
 	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
@@ -106,10 +106,10 @@ public class BlobCacheRecoveryTest extends TestLogger {
 			BlobServer server0 = new BlobServer(config, blobStore);
 			BlobServer server1 = new BlobServer(config, blobStore);
 			// use VoidBlobStore as the HA store to force download from each server's HA store
-			BlobCache cache0 = new BlobCache(
+			BlobCacheService cache0 = new BlobCacheService(
 				new InetSocketAddress("localhost", server0.getPort()), config,
 				new VoidBlobStore());
-			BlobCache cache1 = new BlobCache(
+			BlobCacheService cache1 = new BlobCacheService(
 				new InetSocketAddress("localhost", server1.getPort()), config,
 				new VoidBlobStore())) {
 

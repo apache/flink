@@ -242,8 +242,8 @@ public class BlobCachePutTest extends TestLogger {
 	}
 
 	/**
-	 * Uploads two byte arrays for different jobs into the server via the {@link BlobCache}. File
-	 * transfers should be successful.
+	 * Uploads two byte arrays for different jobs into the server via the {@link BlobCacheService}.
+	 * File transfers should be successful.
 	 *
 	 * @param jobId1
 	 * 		first job id
@@ -261,7 +261,7 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -349,8 +349,8 @@ public class BlobCachePutTest extends TestLogger {
 	}
 
 	/**
-	 * Uploads two file streams for different jobs into the server via the {@link BlobCache}. File
-	 * transfers should be successful.
+	 * Uploads two file streams for different jobs into the server via the {@link BlobCacheService}.
+	 * File transfers should be successful.
 	 *
 	 * <p>Note that high-availability uploads of streams is currently only possible at the {@link
 	 * BlobServer}.
@@ -368,7 +368,7 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -453,7 +453,7 @@ public class BlobCachePutTest extends TestLogger {
 
 	/**
 	 * Uploads two chunked file streams for different jobs into the server via the {@link
-	 * BlobCache}. File transfers should be successful.
+	 * BlobCacheService}. File transfers should be successful.
 	 *
 	 * <p>Note that high-availability uploads of streams is currently only possible at the {@link
 	 * BlobServer}.
@@ -472,7 +472,7 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -547,8 +547,8 @@ public class BlobCachePutTest extends TestLogger {
 	}
 
 	/**
-	 * Uploads a byte array to a server which cannot create any files via the {@link BlobCache}.
-	 * File transfers should fail.
+	 * Uploads a byte array to a server which cannot create any files via the {@link
+	 * BlobCacheService}. File transfers should fail.
 	 *
 	 * @param jobId
 	 * 		job id
@@ -565,7 +565,7 @@ public class BlobCachePutTest extends TestLogger {
 		File tempFileDir = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -611,7 +611,7 @@ public class BlobCachePutTest extends TestLogger {
 
 	/**
 	 * Uploads a byte array to a server which cannot create incoming files via the {@link
-	 * BlobCache}. File transfers should fail.
+	 * BlobCacheService}. File transfers should fail.
 	 *
 	 * @param jobId
 	 * 		job id
@@ -628,7 +628,7 @@ public class BlobCachePutTest extends TestLogger {
 		File tempFileDir = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -678,8 +678,8 @@ public class BlobCachePutTest extends TestLogger {
 	}
 
 	/**
-	 * Uploads a byte array to a server which cannot create files via the {@link BlobCache}. File
-	 * transfers should fail.
+	 * Uploads a byte array to a server which cannot create files via the {@link BlobCacheService}.
+	 * File transfers should fail.
 	 *
 	 * @param jobId
 	 * 		job id
@@ -696,7 +696,7 @@ public class BlobCachePutTest extends TestLogger {
 		File jobStoreDir = null;
 		try (
 			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, new VoidBlobStore())) {
 
 			server.start();
@@ -790,7 +790,7 @@ public class BlobCachePutTest extends TestLogger {
 
 		try (
 			final BlobServer server = new BlobServer(config, blobStoreServer);
-			final BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+			final BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 				config, blobStoreCache)) {
 
 			server.start();

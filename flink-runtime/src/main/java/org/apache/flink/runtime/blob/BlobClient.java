@@ -148,9 +148,12 @@ public final class BlobClient implements Closeable {
 	 * 		if an I/O error occurs during the download
 	 */
 	static void downloadFromBlobServer(
-			@Nullable JobID jobId, BlobKey blobKey, File localJarFile,
-			InetSocketAddress serverAddress, Configuration blobClientConfig, int numFetchRetries)
-			throws IOException {
+			@Nullable JobID jobId,
+			BlobKey blobKey,
+			File localJarFile,
+			InetSocketAddress serverAddress,
+			Configuration blobClientConfig,
+			int numFetchRetries) throws IOException {
 
 		final byte[] buf = new byte[BUFFER_SIZE];
 		LOG.info("Downloading {}/{} from {}", jobId, blobKey, serverAddress);
@@ -178,7 +181,7 @@ public final class BlobClient implements Closeable {
 					" and store it under " + localJarFile.getAbsolutePath();
 				if (attempt < numFetchRetries) {
 					if (LOG.isDebugEnabled()) {
-						LOG.debug(message + " Retrying...", t);
+						LOG.error(message + " Retrying...", t);
 					} else {
 						LOG.error(message + " Retrying...");
 					}

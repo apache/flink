@@ -47,7 +47,7 @@ public abstract class AbstractBlobCache implements Closeable {
 	/**
 	 * The log object used for debugging.
 	 */
-	protected final Logger LOG;
+	protected final Logger log;
 
 	/**
 	 * Counter to generate unique names for temporary files.
@@ -95,30 +95,30 @@ public abstract class AbstractBlobCache implements Closeable {
 			final BlobView blobView,
 			final Logger logger) throws IOException {
 
-		this.LOG = logger;
+		this.log = checkNotNull(logger);
 
 		this.serverAddress = checkNotNull(serverAddress);
 		this.blobClientConfig = checkNotNull(blobClientConfig);
-		this.blobView = checkNotNull(blobView, "blobStore");
+		this.blobView = checkNotNull(blobView);
 		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
 		String storageDirectory = blobClientConfig.getString(BlobServerOptions.STORAGE_DIRECTORY);
 		this.storageDir = BlobUtils.initLocalStorageDirectory(storageDirectory);
-		LOG.info("Created BLOB cache storage directory " + storageDir);
+		log.info("Created BLOB cache storage directory " + storageDir);
 
 		// configure the number of fetch retries
 		final int fetchRetries = blobClientConfig.getInteger(BlobServerOptions.FETCH_RETRIES);
 		if (fetchRetries >= 0) {
 			this.numFetchRetries = fetchRetries;
 		} else {
-			LOG.warn("Invalid value for {}. System will attempt no retries on failed fetch operations of BLOBs.",
+			log.warn("Invalid value for {}. System will attempt no retries on failed fetch operations of BLOBs.",
 				BlobServerOptions.FETCH_RETRIES.key());
 			this.numFetchRetries = 0;
 		}
 
 		// Add shutdown hook to delete storage directory
-		shutdownHook = BlobUtils.addShutdownHook(this, LOG);
+		shutdownHook = BlobUtils.addShutdownHook(this, log);
 	}
 
 	/**
@@ -138,7 +138,7 @@ public abstract class AbstractBlobCache implements Closeable {
 	 * @throws IOException
 	 * 		Thrown if an I/O error occurs while downloading the BLOBs from the BLOB server.
 	 */
-	protected File getTransientFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
+	protected File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
 		checkArgument(blobKey != null, "BLOB key cannot be null.");
 
 		final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
@@ -160,12 +160,12 @@ public abstract class AbstractBlobCache implements Closeable {
 				if (blobView.get(jobId, blobKey, incomingFile)) {
 					// now move the temp file to our local cache atomically
 					BlobUtils.moveTempFileToStore(
-						incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+						incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), log, null);
 
 					return localFile;
 				}
 			} catch (Exception e) {
-				LOG.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
+				log.info("Failed to copy from blob store. Downloading from BLOB server instead.", e);
 			}
 
 			// fallback: download from the BlobServer
@@ -173,13 +173,13 @@ public abstract class AbstractBlobCache implements Closeable {
 				jobId, blobKey, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
 
 			BlobUtils.moveTempFileToStore(
-				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), LOG, null);
+				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), log, null);
 
 			return localFile;
 		} finally {
 			// delete incomingFile from a failed download
 			if (!incomingFile.delete() && incomingFile.exists()) {
-				LOG.warn("Could not delete the staging file {} for blob key {} and job {}.",
+				log.warn("Could not delete the staging file {} for blob key {} and job {}.",
 					incomingFile, blobKey, jobId);
 			}
 		}
@@ -212,7 +212,7 @@ public abstract class AbstractBlobCache implements Closeable {
 		cancelCleanupTask();
 
 		if (shutdownRequested.compareAndSet(false, true)) {
-			LOG.info("Shutting down BLOB cache");
+			log.info("Shutting down BLOB cache");
 
 			// Clean up the storage directory
 			try {
@@ -225,7 +225,7 @@ public abstract class AbstractBlobCache implements Closeable {
 					} catch (IllegalStateException e) {
 						// race, JVM is in shutdown already, we can safely ignore this
 					} catch (Throwable t) {
-						LOG.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
+						log.warn("Exception while unregistering BLOB cache's cleanup shutdown hook.");
 					}
 				}
 			}

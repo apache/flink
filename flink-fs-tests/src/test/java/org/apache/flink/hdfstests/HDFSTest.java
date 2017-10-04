@@ -292,7 +292,7 @@ public class HDFSTest {
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
-	 * participating BlobServer when uploaded via a {@link org.apache.flink.runtime.blob.BlobCache}.
+	 * participating BlobServer when uploaded via a BLOB cache.
 	 */
 	@Test
 	public void testBlobCacheRecovery() throws Exception {
@@ -314,7 +314,7 @@ public class HDFSTest {
 
 	/**
 	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed corrupted JARs are
-	 * recognised during the download via a {@link org.apache.flink.runtime.blob.BlobCache}.
+	 * recognised during the download via a BLOB cache.
 	 */
 	@Test
 	public void testBlobCacheCorruptedFile() throws Exception {

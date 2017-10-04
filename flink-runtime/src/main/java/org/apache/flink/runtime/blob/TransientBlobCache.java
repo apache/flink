@@ -63,13 +63,13 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 
 	@Override
 	public File getTransientFile(BlobKey key) throws IOException {
-		return getTransientFileInternal(null, key);
+		return getFileInternal(null, key);
 	}
 
 	@Override
 	public File getTransientFile(JobID jobId, BlobKey key) throws IOException {
 		checkNotNull(jobId);
-		return getTransientFileInternal(jobId, key);
+		return getFileInternal(jobId, key);
 	}
 
 	@Override
@@ -131,7 +131,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 		readWriteLock.writeLock().lock();
 		try {
 			if (!localFile.delete() && localFile.exists()) {
-				LOG.warn("Failed to delete locally cached BLOB {} at {}", key,
+				log.warn("Failed to delete locally cached BLOB {} at {}", key,
 					localFile.getAbsolutePath());
 				return false;
 			}

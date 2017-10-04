@@ -40,7 +40,7 @@ import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 
 /**
- * This class contains unit tests for the {@link BlobCache}.
+ * This class contains unit tests for the {@link BlobCacheService}.
  */
 public class BlobCacheSuccessTest extends TestLogger {
 
@@ -124,7 +124,7 @@ public class BlobCacheSuccessTest extends TestLogger {
 
 	/**
 	 * Uploads two different BLOBs to the {@link BlobServer} via a {@link BlobClient} and verifies
-	 * we can access the files from a {@link BlobCache}.
+	 * we can access the files from a {@link BlobCacheService}.
 	 *
 	 * @param config
 	 * 		configuration to use for the server and cache (the final cache's configuration will
@@ -164,7 +164,7 @@ public class BlobCacheSuccessTest extends TestLogger {
 			blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
 			try (
 				BlobServer server = new BlobServer(config, blobStoreService);
-				BlobCache cache = new BlobCache(new InetSocketAddress("localhost", server.getPort()),
+				BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
 					cacheConfig, blobStoreService)) {
 
 				server.start();
