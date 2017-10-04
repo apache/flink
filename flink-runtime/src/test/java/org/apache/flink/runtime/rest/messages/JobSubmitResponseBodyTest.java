@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.legacy.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 
 /**

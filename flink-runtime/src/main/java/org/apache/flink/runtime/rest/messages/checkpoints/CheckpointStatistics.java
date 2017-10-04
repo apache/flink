@@ -225,6 +225,8 @@ public class CheckpointStatistics implements ResponseBody {
 				checkpointStatisticsPerTask.put(
 					taskStateStat.getJobVertexId(),
 					new TaskCheckpointStatistics(
+							checkpointStats.getCheckpointId(),
+							checkpointStats.getStatus(),
 						taskStateStat.getLatestAckTimestamp(),
 						taskStateStat.getStateSize(),
 						taskStateStat.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
@@ -278,104 +280,6 @@ public class CheckpointStatistics implements ResponseBody {
 	// ---------------------------------------------------------------------
 	// Static inner classes
 	// ---------------------------------------------------------------------
-
-	/**
-	 * Checkpoint statistics for a single task.
-	 */
-	public static final class TaskCheckpointStatistics {
-
-		public static final String FIELD_NAME_LATEST_ACK_TIMESTAMP = "latest_ack_timestamp";
-
-		public static final String FIELD_NAME_STATE_SIZE = "state_size";
-
-		public static final String FIELD_NAME_DURATION = "end_to_end_duration";
-
-		public static final String FIELD_NAME_ALIGNMENT_BUFFERED = "alignment_buffered";
-
-		public static final String FIELD_NAME_NUM_SUBTASKS = "num_subtasks";
-
-		public static final String FIELD_NAME_NUM_ACK_SUBTASKS = "num_acknowledged_subtasks";
-
-		@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP)
-		private final long latestAckTimestamp;
-
-		@JsonProperty(FIELD_NAME_STATE_SIZE)
-		private final long stateSize;
-
-		@JsonProperty(FIELD_NAME_DURATION)
-		private final long duration;
-
-		@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED)
-		private final long alignmentBuffered;
-
-		@JsonProperty(FIELD_NAME_NUM_SUBTASKS)
-		private final int numSubtasks;
-
-		@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS)
-		private final int numAckSubtasks;
-
-		@JsonCreator
-		public TaskCheckpointStatistics(
-			@JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
-			@JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
-			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
-			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
-			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks) {
-			this.latestAckTimestamp = latestAckTimestamp;
-			this.stateSize = stateSize;
-			this.duration = duration;
-			this.alignmentBuffered = alignmentBuffered;
-			this.numSubtasks = numSubtasks;
-			this.numAckSubtasks = numAckSubtasks;
-		}
-
-		public long getLatestAckTimestamp() {
-			return latestAckTimestamp;
-		}
-
-		public long getStateSize() {
-			return stateSize;
-		}
-
-		public long getDuration() {
-			return duration;
-		}
-
-		public long getAlignmentBuffered() {
-			return alignmentBuffered;
-		}
-
-		public int getNumSubtasks() {
-			return numSubtasks;
-		}
-
-		public int getNumAckSubtasks() {
-			return numAckSubtasks;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			TaskCheckpointStatistics that = (TaskCheckpointStatistics) o;
-			return latestAckTimestamp == that.latestAckTimestamp &&
-				stateSize == that.stateSize &&
-				duration == that.duration &&
-				alignmentBuffered == that.alignmentBuffered &&
-				numSubtasks == that.numSubtasks &&
-				numAckSubtasks == that.numAckSubtasks;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks);
-		}
-	}
 
 	/**
 	 * Statistics for a completed checkpoint.

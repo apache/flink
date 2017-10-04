@@ -45,7 +45,7 @@ import java.util.concurrent.Executor;
  *
  * @param <R> type of the response
  */
-public abstract class AbstractCheckpointHandler<R extends ResponseBody> extends AbstractExecutionGraphHandler<R, CheckpointMessageParameters> {
+public abstract class AbstractCheckpointHandler<R extends ResponseBody, M extends CheckpointMessageParameters> extends AbstractExecutionGraphHandler<R, M> {
 
 	private final CheckpointStatsCache checkpointStatsCache;
 
@@ -53,7 +53,7 @@ public abstract class AbstractCheckpointHandler<R extends ResponseBody> extends 
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
-			MessageHeaders<EmptyRequestBody, R, CheckpointMessageParameters> messageHeaders,
+			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
 			CheckpointStatsCache checkpointStatsCache) {
@@ -63,7 +63,7 @@ public abstract class AbstractCheckpointHandler<R extends ResponseBody> extends 
 	}
 
 	@Override
-	protected R handleRequest(HandlerRequest<EmptyRequestBody, CheckpointMessageParameters> request, AccessExecutionGraph executionGraph) throws RestHandlerException {
+	protected R handleRequest(HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph) throws RestHandlerException {
 		final long checkpointId = request.getPathParameter(CheckpointIdPathParameter.class);
 
 		final CheckpointStatsSnapshot checkpointStatsSnapshot = executionGraph.getCheckpointStatsSnapshot();
@@ -78,7 +78,7 @@ public abstract class AbstractCheckpointHandler<R extends ResponseBody> extends 
 			}
 
 			if (checkpointStats != null) {
-				return handleCheckpointRequest(checkpointStats);
+				return handleCheckpointRequest(request, checkpointStats);
 			} else {
 				throw new RestHandlerException("Could not find checkpointing statistics for checkpoint " + checkpointId + '.', HttpResponseStatus.NOT_FOUND);
 			}
@@ -87,5 +87,13 @@ public abstract class AbstractCheckpointHandler<R extends ResponseBody> extends 
 		}
 	}
 
-	protected abstract R handleCheckpointRequest(AbstractCheckpointStats checkpointStats);
+	/**
+	 * Called for each request with the corresponding {@link AbstractCheckpointStats} instance.
+	 *
+	 * @param request for further information
+	 * @param checkpointStats for which the handler is called
+	 * @return Response
+	 * @throws RestHandlerException if the handler could not handle the request
+	 */
+	protected abstract R handleCheckpointRequest(HandlerRequest<EmptyRequestBody, M> request, AbstractCheckpointStats checkpointStats) throws RestHandlerException;
 }
