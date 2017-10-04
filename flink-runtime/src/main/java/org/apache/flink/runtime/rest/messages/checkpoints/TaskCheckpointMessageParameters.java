@@ -16,25 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
+import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 
-import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
- * Tests for the {@link JobSubmitRequestBody}.
+ * Message parameters for subtask related checkpoint message.
+ *
+ * <p>The message requires a JobID, checkpoint ID and a JobVertexID to be specified.
  */
-public class JobSubmitRequestBodyTest extends RestRequestMarshallingTestBase<JobSubmitRequestBody> {
+public class TaskCheckpointMessageParameters extends CheckpointMessageParameters {
+
+	protected final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
 
 	@Override
-	protected Class<JobSubmitRequestBody> getTestRequestClass() {
-		return JobSubmitRequestBody.class;
-	}
-
-	@Override
-	protected JobSubmitRequestBody getTestRequestInstance() throws IOException {
-		return new JobSubmitRequestBody(new JobGraph("job"));
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Arrays.asList(jobPathParameter, checkpointIdPathParameter, jobVertexIdPathParameter);
 	}
 }

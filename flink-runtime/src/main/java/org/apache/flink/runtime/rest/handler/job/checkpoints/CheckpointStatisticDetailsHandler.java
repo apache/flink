@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
+import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -34,7 +35,7 @@ import java.util.concurrent.Executor;
 /**
  * REST handler which returns the details for a checkpoint.
  */
-public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler<CheckpointStatistics> {
+public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler<CheckpointStatistics, CheckpointMessageParameters> {
 
 	public CheckpointStatisticDetailsHandler(
 			CompletableFuture<String> localRestAddress,
@@ -48,7 +49,7 @@ public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler
 	}
 
 	@Override
-	protected CheckpointStatistics handleCheckpointRequest(AbstractCheckpointStats checkpointStats) {
+	protected CheckpointStatistics handleCheckpointRequest(HandlerRequest<EmptyRequestBody, CheckpointMessageParameters> ignored, AbstractCheckpointStats checkpointStats) {
 		return CheckpointStatistics.generateCheckpointStatistics(checkpointStats, true);
 	}
 }

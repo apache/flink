@@ -36,6 +36,7 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistics;
+import org.apache.flink.runtime.rest.messages.checkpoints.MinMaxAvgStatistics;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -84,15 +85,15 @@ public class CheckpointingStatisticsHandler extends AbstractExecutionGraphHandle
 			final MinMaxAvgStats alignment = checkpointStatsSummary.getAlignmentBufferedStats();
 
 			final CheckpointingStatistics.Summary summary = new CheckpointingStatistics.Summary(
-				new CheckpointingStatistics.MinMaxAvgStatistics(
+				new MinMaxAvgStatistics(
 					stateSize.getMinimum(),
 					stateSize.getMaximum(),
 					stateSize.getAverage()),
-				new CheckpointingStatistics.MinMaxAvgStatistics(
+				new MinMaxAvgStatistics(
 					duration.getMinimum(),
 					duration.getMaximum(),
 					duration.getAverage()),
-				new CheckpointingStatistics.MinMaxAvgStatistics(
+				new MinMaxAvgStatistics(
 					alignment.getMinimum(),
 					alignment.getMaximum(),
 					alignment.getAverage()));

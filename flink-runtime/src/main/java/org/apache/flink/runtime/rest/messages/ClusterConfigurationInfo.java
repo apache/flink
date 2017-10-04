@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
+package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
-import org.apache.flink.runtime.rest.messages.ResponseBody;
 
 import java.util.ArrayList;
 
