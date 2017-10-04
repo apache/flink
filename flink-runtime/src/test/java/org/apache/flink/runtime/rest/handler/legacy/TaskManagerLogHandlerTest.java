@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.instance.Instance;
@@ -96,7 +96,7 @@ public class TaskManagerLogHandlerTest {
 		when(taskManager.getId()).thenReturn(tmID);
 		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 		when(taskManager.getTaskManagerGateway()).thenReturn(taskManagerGateway);
-		CompletableFuture<BlobKey> future = new CompletableFuture<>();
+		CompletableFuture<TransientBlobKey> future = new CompletableFuture<>();
 		future.completeExceptionally(new IOException("failure"));
 		when(taskManagerGateway.requestTaskManagerLog(any(Time.class))).thenReturn(future);
 

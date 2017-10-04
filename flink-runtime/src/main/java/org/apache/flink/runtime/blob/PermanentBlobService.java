@@ -49,6 +49,6 @@ public interface PermanentBlobService extends Closeable {
 	 * @throws IOException
 	 * 		if any other error occurs when retrieving the file
 	 */
-	File getPermanentFile(JobID jobId, BlobKey key) throws IOException;
+	File getFile(JobID jobId, PermanentBlobKey key) throws IOException;
 
 }

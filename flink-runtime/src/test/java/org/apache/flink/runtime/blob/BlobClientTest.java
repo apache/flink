@@ -45,8 +45,8 @@ import java.util.List;
 import java.util.Random;
 
 import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -121,7 +121,7 @@ public class BlobClientTest extends TestLogger {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while writing to the test file
 	 */
-	private static BlobKey prepareTestFile(File file, BlobType blobType) throws IOException {
+	private static BlobKey prepareTestFile(File file, BlobKey.BlobType blobType) throws IOException {
 
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -145,7 +145,7 @@ public class BlobClientTest extends TestLogger {
 			}
 		}
 
-		return new BlobKey(blobType, md.digest());
+		return BlobKey.createKey(blobType, md.digest());
 	}
 
 	/**
@@ -246,7 +246,7 @@ public class BlobClientTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testContentAddressableBuffer(BlobType blobType)
+	private void testContentAddressableBuffer(BlobKey.BlobType blobType)
 			throws IOException, InterruptedException {
 		BlobClient client = null;
 
@@ -254,7 +254,7 @@ public class BlobClientTest extends TestLogger {
 			byte[] testBuffer = createTestBuffer();
 			MessageDigest md = BlobUtils.createMessageDigest();
 			md.update(testBuffer);
-			BlobKey origKey = new BlobKey(blobType, md.digest());
+			BlobKey origKey = BlobKey.createKey(blobType, md.digest());
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
 			client = new BlobClient(serverAddress, getBlobClientConfig());
@@ -286,7 +286,7 @@ public class BlobClientTest extends TestLogger {
 			}
 
 			// Check reaction to invalid keys for job-unrelated blobs
-			try (InputStream ignored = client.getInternal(null, new BlobKey(blobType))) {
+			try (InputStream ignored = client.getInternal(null, BlobKey.createKey(blobType))) {
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -296,7 +296,7 @@ public class BlobClientTest extends TestLogger {
 			// Check reaction to invalid keys for job-related blobs
 			// new client needed (closed from failure above)
 			client = new BlobClient(serverAddress, getBlobClientConfig());
-			try (InputStream ignored = client.getInternal(jobId, new BlobKey(blobType))) {
+			try (InputStream ignored = client.getInternal(jobId, BlobKey.createKey(blobType))) {
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -338,7 +338,7 @@ public class BlobClientTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testContentAddressableStream(BlobType blobType)
+	private void testContentAddressableStream(BlobKey.BlobType blobType)
 			throws IOException, InterruptedException {
 
 		File testFile = temporaryFolder.newFile();
@@ -410,7 +410,7 @@ public class BlobClientTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testGetFailsDuringStreaming(@Nullable final JobID jobId, BlobType blobType)
+	private void testGetFailsDuringStreaming(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 
 		try (BlobClient client = new BlobClient(
@@ -475,7 +475,7 @@ public class BlobClientTest extends TestLogger {
 			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
 			final File testFile) throws IOException {
 		JobID jobId = new JobID();
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
+		List<PermanentBlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
 			jobId, Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());

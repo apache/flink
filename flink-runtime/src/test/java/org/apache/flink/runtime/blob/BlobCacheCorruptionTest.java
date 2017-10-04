@@ -31,6 +31,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -38,10 +40,10 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.hasProperty;
@@ -94,7 +96,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
 	 * 		<tt>highAvailability</tt> to be set) or on the {@link BlobServer}'s local store
 	 * 		(<tt>false</tt>)
 	 */
-	private void testGetFailsFromCorruptFile(final JobID jobId, BlobType blobType,
+	private void testGetFailsFromCorruptFile(final JobID jobId, BlobKey.BlobType blobType,
 			boolean corruptOnHAStore) throws IOException {
 
 		final Configuration config = new Configuration();
@@ -117,6 +119,29 @@ public class BlobCacheCorruptionTest extends TestLogger {
 	}
 
 	/**
+	 * Checks the GET operation fails when the downloaded file (from HA store)
+	 * is corrupt, i.e. its content's hash does not match the {@link BlobKey}'s hash, using a
+	 * permanent BLOB.
+	 *
+	 * @param jobId
+	 * 		job ID
+	 * @param config
+	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
+	 * 		and {@link HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
+	 * @param blobStore
+	 * 		shared HA blob store to use
+	 * @param expectedException
+	 * 		expected exception rule to use
+	 */
+	public static void testGetFailsFromCorruptFile(
+			JobID jobId, Configuration config, BlobStore blobStore,
+			ExpectedException expectedException) throws IOException {
+
+		testGetFailsFromCorruptFile(jobId, PERMANENT_BLOB, true, config, blobStore,
+			expectedException);
+	}
+
+	/**
 	 * Checks the GET operation fails when the downloaded file (from {@link BlobServer} or HA store)
 	 * is corrupt, i.e. its content's hash does not match the {@link BlobKey}'s hash.
 	 *
@@ -136,9 +161,10 @@ public class BlobCacheCorruptionTest extends TestLogger {
 	 * @param expectedException
 	 * 		expected exception rule to use
 	 */
-	public static void testGetFailsFromCorruptFile(
-			JobID jobId, BlobType blobType, boolean corruptOnHAStore, Configuration config,
-			BlobStore blobStore, ExpectedException expectedException) throws IOException {
+	private static void testGetFailsFromCorruptFile(
+			@Nullable JobID jobId, BlobKey.BlobType blobType, boolean corruptOnHAStore,
+			Configuration config, BlobStore blobStore, ExpectedException expectedException)
+			throws IOException {
 
 		assertTrue("corrupt HA file requires a HA setup",
 			!corruptOnHAStore || blobType == PERMANENT_BLOB);

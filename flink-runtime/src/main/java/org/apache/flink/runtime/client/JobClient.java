@@ -32,8 +32,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -226,15 +226,15 @@ public class JobClient {
 					e);
 			}
 
-			final Collection<BlobKey> requiredJarFiles = props.requiredJarFiles();
+			final Collection<PermanentBlobKey> requiredJarFiles = props.requiredJarFiles();
 			final Collection<URL> requiredClasspaths = props.requiredClasspaths();
 
 			final URL[] allURLs = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 
 			int pos = 0;
-			for (BlobKey blobKey : props.requiredJarFiles()) {
+			for (PermanentBlobKey blobKey : props.requiredJarFiles()) {
 				try {
-					allURLs[pos++] = permanentBlobCache.getPermanentFile(jobID, blobKey).toURI().toURL();
+					allURLs[pos++] = permanentBlobCache.getFile(jobID, blobKey).toURI().toURL();
 				} catch (Exception e) {
 					try {
 						permanentBlobCache.close();

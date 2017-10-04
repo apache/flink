@@ -56,9 +56,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -116,7 +116,7 @@ public class BlobServerGetTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testGetFailsDuringLookup(
-			@Nullable final JobID jobId1, @Nullable final JobID jobId2, BlobType blobType)
+			@Nullable final JobID jobId1, @Nullable final JobID jobId2, BlobKey.BlobType blobType)
 			throws IOException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -361,7 +361,7 @@ public class BlobServerGetTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testConcurrentGetOperations(
-			@Nullable final JobID jobId, final BlobType blobType)
+			@Nullable final JobID jobId, final BlobKey.BlobType blobType)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -376,7 +376,7 @@ public class BlobServerGetTest extends TestLogger {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
 		// create the correct blob key by hashing our input data
-		final BlobKey blobKey = new BlobKey(blobType, md.digest(data));
+		final BlobKey blobKey = BlobKey.createKey(blobType, md.digest(data));
 
 		doAnswer(
 			new Answer() {
@@ -444,12 +444,12 @@ public class BlobServerGetTest extends TestLogger {
 	 * 		key identifying the BLOB to request
 	 */
 	static File get(BlobService service, @Nullable JobID jobId, BlobKey key) throws IOException {
-		if (key.getType() == PERMANENT_BLOB) {
-			return service.getPermanentBlobService().getPermanentFile(jobId, key);
+		if (key instanceof PermanentBlobKey) {
+			return service.getPermanentBlobService().getFile(jobId, (PermanentBlobKey) key);
 		} else if (jobId == null) {
-			return service.getTransientBlobService().getTransientFile(key);
+			return service.getTransientBlobService().getFile((TransientBlobKey) key);
 		} else {
-			return service.getTransientBlobService().getTransientFile(jobId, key);
+			return service.getTransientBlobService().getFile(jobId, (TransientBlobKey) key);
 		}
 	}
 

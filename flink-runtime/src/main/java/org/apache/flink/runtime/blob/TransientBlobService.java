@@ -57,7 +57,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		if any other error occurs when retrieving the file
 	 */
-	File getTransientFile(BlobKey key) throws IOException;
+	File getFile(TransientBlobKey key) throws IOException;
 
 	/**
 	 * Returns the path to a local copy of the file associated with the provided job ID and blob
@@ -75,7 +75,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		if any other error occurs when retrieving the file
 	 */
-	File getTransientFile(JobID jobId, BlobKey key) throws IOException;
+	File getFile(JobID jobId, TransientBlobKey key) throws IOException;
 
 	// --------------------------------------------------------------------------------------------
 	//  PUT
@@ -92,7 +92,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	BlobKey putTransient(byte[] value) throws IOException;
+	TransientBlobKey putTransient(byte[] value) throws IOException;
 
 	/**
 	 * Uploads the data of the given byte array for the given job to the BLOB server.
@@ -107,7 +107,7 @@ public interface TransientBlobService extends Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	BlobKey putTransient(JobID jobId, byte[] value) throws IOException;
+	TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException;
 
 	/**
 	 * Uploads the (job-unrelated) data from the given input stream to the BLOB server.
@@ -121,7 +121,7 @@ public interface TransientBlobService extends Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	BlobKey putTransient(InputStream inputStream) throws IOException;
+	TransientBlobKey putTransient(InputStream inputStream) throws IOException;
 
 	/**
 	 * Uploads the data from the given input stream for the given job to the BLOB server.
@@ -137,7 +137,7 @@ public interface TransientBlobService extends Closeable {
 	 * 		thrown if an I/O error occurs while reading the data from the input stream or uploading the
 	 * 		data to the BLOB server
 	 */
-	BlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException;
+	TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException;
 
 	// --------------------------------------------------------------------------------------------
 	//  DELETE
@@ -152,7 +152,7 @@ public interface TransientBlobService extends Closeable {
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	boolean deleteTransientFromCache(BlobKey key);
+	boolean deleteFromCache(TransientBlobKey key);
 
 	/**
 	 * Deletes the file associated with the provided job ID and blob key from the local cache.
@@ -165,6 +165,6 @@ public interface TransientBlobService extends Closeable {
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	boolean deleteTransientFromCache(JobID jobId, BlobKey key);
+	boolean deleteFromCache(JobID jobId, TransientBlobKey key);
 
 }

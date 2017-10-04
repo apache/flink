@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.StringUtils;
 
 import java.io.EOFException;
@@ -28,14 +29,14 @@ import java.io.Serializable;
 import java.security.MessageDigest;
 import java.util.Arrays;
 
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A BLOB key uniquely identifies a BLOB.
  */
-public final class BlobKey implements Serializable, Comparable<BlobKey> {
+abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	private static final long serialVersionUID = 3847117712521785209L;
 
@@ -45,7 +46,26 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	/** The byte buffer storing the actual key data. */
 	private final byte[] key;
 
+	/**
+	 * (Internal) BLOB type - to be reflected by the inheriting sub-class.
+	 */
 	private final BlobType type;
+
+	/**
+	 * BLOB type, i.e. permanent or transient.
+	 */
+	enum BlobType {
+		/**
+		 * Indicates a permanent BLOB whose lifecycle is that of a job and which is made highly
+		 * available.
+		 */
+		PERMANENT_BLOB,
+		/**
+		 * Indicates a transient BLOB whose lifecycle is managed by the user and which is not made
+		 * highly available.
+		 */
+		TRANSIENT_BLOB
+	}
 
 	/**
 	 * Constructs a new BLOB key.
@@ -53,7 +73,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 * @param type
 	 * 		whether the referenced BLOB is permanent or transient
 	 */
-	public BlobKey(BlobType type) {
+	protected BlobKey(BlobType type) {
 		this.type = checkNotNull(type);
 		this.key = new byte[SIZE];
 	}
@@ -66,7 +86,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	 * @param key
 	 *        the actual key data
 	 */
-	BlobKey(BlobType type, byte[] key) {
+	protected BlobKey(BlobType type, byte[] key) {
 		this.type = checkNotNull(type);
 
 		if (key == null || key.length != SIZE) {
@@ -77,21 +97,47 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 	}
 
 	/**
+	 * Returns the right {@link BlobKey} subclass for the given parameters.
+	 *
+	 * @param type
+	 * 		whether the referenced BLOB is permanent or transient
+	 *
+	 * @return BlobKey subclass
+	 */
+	@VisibleForTesting
+	static BlobKey createKey(BlobType type) {
+		if (type == PERMANENT_BLOB) {
+            return new PermanentBlobKey();
+        } else {
+			return new TransientBlobKey();
+        }
+	}
+
+	/**
+	 * Returns the right {@link BlobKey} subclass for the given parameters.
+	 *
+	 * @param type
+	 * 		whether the referenced BLOB is permanent or transient
+	 * @param key
+	 *        the actual key data
+	 *
+	 * @return BlobKey subclass
+	 */
+	static BlobKey createKey(BlobType type, byte[] key) {
+		if (type == PERMANENT_BLOB) {
+            return new PermanentBlobKey(key);
+        } else {
+			return new TransientBlobKey(key);
+        }
+	}
+
+	/**
 	 * Returns the hash component of this key.
 	 *
 	 * @return a 20 bit hash of the contents the key refers to
 	 */
 	byte[] getHash() {
 		return key;
-	}
-
-	/**
-	 * Returns the referenced BLOB's type.
-	 *
-	 * @return whether the BLOB is permanent or transient
-	 */
-	public BlobType getType() {
-		return type;
 	}
 
 	/**
@@ -202,7 +248,7 @@ public final class BlobKey implements Serializable, Comparable<BlobKey> {
 			}
 		}
 
-		return new BlobKey(blobType, key);
+		return createKey(blobType, key);
 	}
 
 	/**

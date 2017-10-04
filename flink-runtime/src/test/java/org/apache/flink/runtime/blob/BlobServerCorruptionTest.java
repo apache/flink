@@ -36,9 +36,9 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Random;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 

@@ -24,7 +24,7 @@ import java.util.UUID
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.blob.BlobKey
+import org.apache.flink.runtime.blob.{PermanentBlobKey}
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
 import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
@@ -235,7 +235,7 @@ object JobManagerMessages {
     * @param requiredClasspaths The urls of the required classpaths
     */
   case class ClassloadingProps(blobManagerPort: Integer,
-                               requiredJarFiles: java.util.Collection[BlobKey],
+                               requiredJarFiles: java.util.Collection[PermanentBlobKey],
                                requiredClasspaths: java.util.Collection[URL])
 
   /**

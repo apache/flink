@@ -33,10 +33,10 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.fail;
 
 /**
@@ -111,7 +111,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 */
 	private static void testBlobFetchRetries(
 			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
-			BlobType blobType) throws IOException {
+			BlobKey.BlobType blobType) throws IOException {
 
 		final byte[] data = new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
 
@@ -194,7 +194,7 @@ public class BlobCacheRetriesTest extends TestLogger {
 	 */
 	private static void testBlobFetchWithTooManyFailures(
 			final Configuration config, final BlobStore blobStore, @Nullable final JobID jobId,
-			BlobType blobType) throws IOException {
+			BlobKey.BlobType blobType) throws IOException {
 
 		final byte[] data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
 

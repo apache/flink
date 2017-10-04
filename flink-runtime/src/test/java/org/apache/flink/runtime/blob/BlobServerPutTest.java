@@ -60,9 +60,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -136,8 +136,8 @@ public class BlobServerPutTest extends TestLogger {
 
 			server.start();
 
-			BlobKey key1 = new BlobKey(TRANSIENT_BLOB);
-			BlobKey key2 = new BlobKey(PERMANENT_BLOB);
+			BlobKey key1 = new TransientBlobKey();
+			BlobKey key2 = new PermanentBlobKey();
 			CheckedThread[] threads = new CheckedThread[] {
 				new ContentAddressableGetStorageLocation(server, jobId, key1),
 				new ContentAddressableGetStorageLocation(server, jobId, key1),
@@ -209,7 +209,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testPutBufferSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
+			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobKey.BlobType blobType)
 			throws IOException {
 
 		final Configuration config = new Configuration();
@@ -294,7 +294,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testPutStreamSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
+			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobKey.BlobType blobType)
 			throws IOException {
 
 		final Configuration config = new Configuration();
@@ -379,7 +379,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testPutChunkedStreamSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
+			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobKey.BlobType blobType)
 			throws IOException {
 
 		final Configuration config = new Configuration();
@@ -451,7 +451,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFails(@Nullable final JobID jobId, BlobType blobType)
+	private void testPutBufferFails(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -511,7 +511,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFailsIncoming(@Nullable final JobID jobId, BlobType blobType)
+	private void testPutBufferFailsIncoming(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -576,7 +576,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFailsStore(@Nullable final JobID jobId, BlobType blobType)
+	private void testPutBufferFailsStore(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -590,7 +590,7 @@ public class BlobServerPutTest extends TestLogger {
 
 			// make sure the blob server cannot create any files in its storage dir
 			jobStoreDir = server.getStorageLocation(jobId,
-				new BlobKey(blobType)).getParentFile();
+				BlobKey.createKey(blobType)).getParentFile();
 			assertTrue(jobStoreDir.setExecutable(true, false));
 			assertTrue(jobStoreDir.setReadable(true, false));
 			assertTrue(jobStoreDir.setWritable(false, false));
@@ -646,7 +646,7 @@ public class BlobServerPutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testConcurrentPutOperations(
-			@Nullable final JobID jobId, final BlobType blobType)
+			@Nullable final JobID jobId, final BlobKey.BlobType blobType)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -729,7 +729,7 @@ public class BlobServerPutTest extends TestLogger {
 	 *
 	 * @return blob key for the uploaded data
 	 */
-	static BlobKey put(BlobService service, @Nullable JobID jobId, InputStream data, BlobType blobType)
+	static BlobKey put(BlobService service, @Nullable JobID jobId, InputStream data, BlobKey.BlobType blobType)
 			throws IOException {
 		if (blobType == PERMANENT_BLOB) {
 			if (service instanceof BlobServer) {
@@ -752,7 +752,7 @@ public class BlobServerPutTest extends TestLogger {
 	 *
 	 * @return blob key for the uploaded data
 	 */
-	static BlobKey put(BlobService service, @Nullable JobID jobId, byte[] data, BlobType blobType)
+	static BlobKey put(BlobService service, @Nullable JobID jobId, byte[] data, BlobKey.BlobType blobType)
 			throws IOException {
 		if (blobType == PERMANENT_BLOB) {
 			if (service instanceof BlobServer) {
@@ -766,7 +766,7 @@ public class BlobServerPutTest extends TestLogger {
 					// uploading HA BLOBs works on BlobServer only (and, for now, via the BlobClient)
 					Configuration clientConfig = new Configuration();
 					List<Path> jars = Collections.singletonList(new Path(tmpFile.getAbsolutePath()));
-					List<BlobKey> keys = BlobClient.uploadJarFiles(serverAddress, clientConfig, jobId, jars);
+					List<PermanentBlobKey> keys = BlobClient.uploadJarFiles(serverAddress, clientConfig, jobId, jars);
 					assertEquals(1, keys.size());
 					return keys.get(0);
 				} finally {

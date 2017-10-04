@@ -29,7 +29,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -59,7 +59,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -189,7 +188,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 
 						// upload a blob
 						tempBlob = File.createTempFile("Required", ".jar");
-						List<BlobKey> keys =
+						List<PermanentBlobKey> keys =
 							BlobClient.uploadJarFiles(new InetSocketAddress("localhost", blobPort),
 								config, jid,
 								Collections.singletonList(new Path(tempBlob.getAbsolutePath())));
@@ -198,7 +197,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 
 						if (testCase == TestCase.JOB_SUBMISSION_FAILS) {
 							// add an invalid key so that the submission fails
-							jobGraph.addBlob(new BlobKey(PERMANENT_BLOB));
+							jobGraph.addBlob(new PermanentBlobKey());
 						}
 
 						// Submit the job and wait for all vertices to be running

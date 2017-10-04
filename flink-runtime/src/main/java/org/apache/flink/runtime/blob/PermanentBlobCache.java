@@ -109,7 +109,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 	/**
 	 * Registers use of job-related BLOBs.
 	 *
-	 * <p>Using any other method to access BLOBs, e.g. {@link #getPermanentFile}, is only valid within
+	 * <p>Using any other method to access BLOBs, e.g. {@link #getFile}, is only valid within
 	 * calls to <tt>registerJob(JobID)</tt> and {@link #releaseJob(JobID)}.
 	 *
 	 * @param jobId
@@ -196,7 +196,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 	 * 		if any other error occurs when retrieving the file
 	 */
 	@Override
-	public File getPermanentFile(JobID jobId, BlobKey key) throws IOException {
+	public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
 	}

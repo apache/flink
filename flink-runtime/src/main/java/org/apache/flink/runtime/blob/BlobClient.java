@@ -57,8 +57,7 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CON
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
@@ -271,7 +270,7 @@ public final class BlobClient implements Closeable {
 			OutputStream outputStream, @Nullable JobID jobId, BlobKey blobKey)
 			throws IOException {
 		checkNotNull(blobKey);
-		checkArgument(jobId != null || blobKey.getType() == TRANSIENT_BLOB,
+		checkArgument(jobId != null || blobKey instanceof TransientBlobKey,
 			"permanent BLOBs must be job-related");
 
 		// Signal type of operation
@@ -335,7 +334,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
 	BlobKey putBuffer(
-			@Nullable JobID jobId, byte[] value, int offset, int len, BlobType blobType)
+			@Nullable JobID jobId, byte[] value, int offset, int len, BlobKey.BlobType blobType)
 			throws IOException {
 
 		if (this.socket.isClosed()) {
@@ -400,7 +399,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while uploading the data to the BLOB server
 	 */
-	BlobKey putInputStream(@Nullable JobID jobId, InputStream inputStream, BlobType blobType)
+	BlobKey putInputStream(@Nullable JobID jobId, InputStream inputStream, BlobKey.BlobType blobType)
 			throws IOException {
 
 		if (this.socket.isClosed()) {
@@ -460,7 +459,7 @@ public final class BlobClient implements Closeable {
 	 * 		thrown if an I/O error occurs while writing the header data to the output stream
 	 */
 	private static void sendPutHeader(
-			OutputStream outputStream, @Nullable JobID jobId, BlobType blobType)
+			OutputStream outputStream, @Nullable JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		// Signal type of operation
 		outputStream.write(PUT_OPERATION);
@@ -488,7 +487,7 @@ public final class BlobClient implements Closeable {
 	 * 		failed
 	 */
 	private static BlobKey receiveAndCheckPutResponse(
-			InputStream is, MessageDigest md, BlobType blobType)
+			InputStream is, MessageDigest md, BlobKey.BlobType blobType)
 			throws IOException {
 		int response = is.read();
 		if (response < 0) {
@@ -497,7 +496,7 @@ public final class BlobClient implements Closeable {
 		else if (response == RETURN_OKAY) {
 
 			BlobKey remoteKey = BlobKey.readFromInputStream(is);
-			BlobKey localKey = new BlobKey(blobType, md.digest());
+			BlobKey localKey = BlobKey.createKey(blobType, md.digest());
 
 			if (!localKey.equals(remoteKey)) {
 				throw new IOException("Detected data corruption during transfer");
@@ -530,7 +529,7 @@ public final class BlobClient implements Closeable {
 	 * @throws IOException
 	 * 		if the upload fails
 	 */
-	public static List<BlobKey> uploadJarFiles(
+	public static List<PermanentBlobKey> uploadJarFiles(
 			InetSocketAddress serverAddress, Configuration clientConfig, JobID jobId, List<Path> jars)
 			throws IOException {
 
@@ -539,7 +538,7 @@ public final class BlobClient implements Closeable {
 		if (jars.isEmpty()) {
 			return Collections.emptyList();
 		} else {
-			List<BlobKey> blobKeys = new ArrayList<>();
+			List<PermanentBlobKey> blobKeys = new ArrayList<>();
 
 			try (BlobClient blobClient = new BlobClient(serverAddress, clientConfig)) {
 				for (final Path jar : jars) {
@@ -547,7 +546,8 @@ public final class BlobClient implements Closeable {
 					FSDataInputStream is = null;
 					try {
 						is = fs.open(jar);
-						final BlobKey key = blobClient.putInputStream(jobId, is, PERMANENT_BLOB);
+						final PermanentBlobKey key =
+							(PermanentBlobKey) blobClient.putInputStream(jobId, is, PERMANENT_BLOB);
 						blobKeys.add(key);
 					} finally {
 						if (is != null) {

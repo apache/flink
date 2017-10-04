@@ -29,8 +29,8 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.TransientBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -96,8 +96,8 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 	private static final String TASKMANAGER_OUT_REST_PATH = "/taskmanagers/:taskmanagerid/stdout";
 
 	/** Keep track of last transmitted log, to clean up old ones. */
-	private final HashMap<String, BlobKey> lastSubmittedLog = new HashMap<>();
-	private final HashMap<String, BlobKey> lastSubmittedStdout = new HashMap<>();
+	private final HashMap<String, TransientBlobKey> lastSubmittedLog = new HashMap<>();
+	private final HashMap<String, TransientBlobKey> lastSubmittedStdout = new HashMap<>();
 
 	/** Keep track of request status, prevents multiple log requests for a single TM running concurrently. */
 	private final ConcurrentHashMap<String, Boolean> lastRequestPending = new ConcurrentHashMap<>();
@@ -169,7 +169,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 				InstanceID instanceID = new InstanceID(StringUtils.hexStringToByte(taskManagerID));
 				CompletableFuture<Optional<Instance>> taskManagerFuture = jobManagerGateway.requestTaskManagerInstance(instanceID, timeout);
 
-				CompletableFuture<BlobKey> blobKeyFuture = taskManagerFuture.thenCompose(
+				CompletableFuture<TransientBlobKey> blobKeyFuture = taskManagerFuture.thenCompose(
 					(Optional<Instance> optTMInstance) -> {
 						Instance taskManagerInstance = optTMInstance.orElseThrow(
 							() -> new CompletionException(new FlinkException("Could not find instance with " + instanceID + '.')));
@@ -188,10 +188,10 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 						cache,
 						(blobKey, blobCache) -> {
 							//delete previous log file, if it is different than the current one
-							HashMap<String, BlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
+							HashMap<String, TransientBlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
 								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
-									if (!blobCache.deleteTransientFromCache(lastSubmittedFile.get(taskManagerID))) {
+									if (!blobCache.deleteFromCache(lastSubmittedFile.get(taskManagerID))) {
 										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.'));
 									}
 									lastSubmittedFile.put(taskManagerID, blobKey);
@@ -200,7 +200,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 								lastSubmittedFile.put(taskManagerID, blobKey);
 							}
 							try {
-								return blobCache.getTransientFile(blobKey).getAbsolutePath();
+								return blobCache.getFile(blobKey).getAbsolutePath();
 							} catch (IOException e) {
 								throw new CompletionException(new FlinkException("Could not retrieve blob for " + blobKey + '.', e));
 							}

@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -56,7 +56,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -133,7 +132,7 @@ public class JobSubmitTest {
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
 			// add a reference to some non-existing BLOB to the job graph as a dependency
-			jg.addBlob(new BlobKey(PERMANENT_BLOB));
+			jg.addBlob(new PermanentBlobKey());
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

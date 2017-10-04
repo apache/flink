@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -62,53 +62,53 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	}
 
 	@Override
-	public File getTransientFile(BlobKey key) throws IOException {
+	public File getFile(TransientBlobKey key) throws IOException {
 		return getFileInternal(null, key);
 	}
 
 	@Override
-	public File getTransientFile(JobID jobId, BlobKey key) throws IOException {
+	public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
 	}
 
 	@Override
-	public BlobKey putTransient(byte[] value) throws IOException {
+	public TransientBlobKey putTransient(byte[] value) throws IOException {
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putBuffer(null, value, 0, value.length, TRANSIENT_BLOB);
+			return (TransientBlobKey) bc.putBuffer(null, value, 0, value.length, TRANSIENT_BLOB);
 		}
 	}
 
 	@Override
-	public BlobKey putTransient(JobID jobId, byte[] value) throws IOException {
+	public TransientBlobKey putTransient(JobID jobId, byte[] value) throws IOException {
 		checkNotNull(jobId);
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putBuffer(jobId, value, 0, value.length, TRANSIENT_BLOB);
+			return (TransientBlobKey) bc.putBuffer(jobId, value, 0, value.length, TRANSIENT_BLOB);
 		}
 	}
 
 	@Override
-	public BlobKey putTransient(InputStream inputStream) throws IOException {
+	public TransientBlobKey putTransient(InputStream inputStream) throws IOException {
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putInputStream(null, inputStream, TRANSIENT_BLOB);
+			return (TransientBlobKey) bc.putInputStream(null, inputStream, TRANSIENT_BLOB);
 		}
 	}
 
 	@Override
-	public BlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
+	public TransientBlobKey putTransient(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		try (BlobClient bc = new BlobClient(serverAddress, blobClientConfig)) {
-			return bc.putInputStream(jobId, inputStream, TRANSIENT_BLOB);
+			return (TransientBlobKey) bc.putInputStream(jobId, inputStream, TRANSIENT_BLOB);
 		}
 	}
 
 	@Override
-	public boolean deleteTransientFromCache(BlobKey key) {
+	public boolean deleteFromCache(TransientBlobKey key) {
 		return deleteInternal(null, key);
 	}
 
 	@Override
-	public boolean deleteTransientFromCache(JobID jobId, BlobKey key) {
+	public boolean deleteFromCache(JobID jobId, TransientBlobKey key) {
 		checkNotNull(jobId);
 		return deleteInternal(jobId, key);
 	}
@@ -124,7 +124,7 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	 * @return  <tt>true</tt> if the given blob is successfully deleted or non-existing;
 	 *          <tt>false</tt> otherwise
 	 */
-	private boolean deleteInternal(@Nullable JobID jobId, BlobKey key) {
+	private boolean deleteInternal(@Nullable JobID jobId, TransientBlobKey key) {
 		final File localFile =
 			new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
 

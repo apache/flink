@@ -34,10 +34,10 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 
 /**
  * This class contains unit tests for the {@link BlobCacheService}.
@@ -140,7 +140,7 @@ public class BlobCacheSuccessTest extends TestLogger {
 	 */
 	private void uploadFileGetTest(
 			final Configuration config, @Nullable JobID jobId, boolean shutdownServerAfterUpload,
-			boolean cacheHasAccessToFs, BlobType blobType) throws IOException {
+			boolean cacheHasAccessToFs, BlobKey.BlobType blobType) throws IOException {
 
 		final Configuration cacheConfig = new Configuration(config);
 		cacheConfig.setString(BlobServerOptions.STORAGE_DIRECTORY,

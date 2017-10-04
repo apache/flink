@@ -63,7 +63,6 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.UUID;
 
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -329,8 +328,7 @@ public class HDFSTest {
 
 		try {
 			BlobCacheCorruptionTest
-				.testGetFailsFromCorruptFile(new JobID(), PERMANENT_BLOB, true, config,
-					blobStoreService, exception);
+				.testGetFailsFromCorruptFile(new JobID(), config, blobStoreService, exception);
 		} finally {
 			blobStoreService.closeAndCleanupAllData();
 		}

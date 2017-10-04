@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -70,7 +69,6 @@ import scala.concurrent.duration.FiniteDuration;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -987,8 +985,8 @@ public class TaskTest extends TestLogger {
 			"Test Job",
 			serializedExecutionConfig,
 			new Configuration(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 
 		TaskInformation taskInformation = new TaskInformation(
 			jobVertexId,

@@ -45,11 +45,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -112,14 +112,14 @@ public class BlobServerDeleteTest extends TestLogger {
 			data2[0] ^= 1;
 
 			// put first BLOB
-			BlobKey key1 = put(server, jobId1, data, TRANSIENT_BLOB);
+			TransientBlobKey key1 = (TransientBlobKey) put(server, jobId1, data, TRANSIENT_BLOB);
 			assertNotNull(key1);
 
 			// put two more BLOBs (same key, other key) for another job ID
-			BlobKey key2a = put(server, jobId2, data, TRANSIENT_BLOB);
+			TransientBlobKey key2a = (TransientBlobKey) put(server, jobId2, data, TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1, key2a);
-			BlobKey key2b = put(server, jobId2, data2, TRANSIENT_BLOB);
+			TransientBlobKey key2b = (TransientBlobKey) put(server, jobId2, data2, TRANSIENT_BLOB);
 			assertNotNull(key2b);
 
 			// issue a DELETE request
@@ -173,7 +173,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// put BLOB
-			BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
+			TransientBlobKey key = (TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 			assertNotNull(key);
 
 			File blobFile = server.getStorageLocation(jobId, key);
@@ -225,7 +225,7 @@ public class BlobServerDeleteTest extends TestLogger {
 				rnd.nextBytes(data);
 
 				// put BLOB
-				BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
+				TransientBlobKey key = (TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 				assertNotNull(key);
 
 				blobFile = server.getStorageLocation(jobId, key);
@@ -266,7 +266,7 @@ public class BlobServerDeleteTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testJobCleanup(BlobType blobType) throws IOException {
+	private void testJobCleanup(BlobKey.BlobType blobType) throws IOException {
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();
 
@@ -317,19 +317,13 @@ public class BlobServerDeleteTest extends TestLogger {
 	@Test
 	public void testConcurrentDeleteOperationsNoJobTransient()
 			throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(null, TRANSIENT_BLOB);
+		testConcurrentDeleteOperations(null);
 	}
 
 	@Test
 	public void testConcurrentDeleteOperationsForJobTransient()
 			throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(new JobID(), TRANSIENT_BLOB);
-	}
-
-	@Test
-	public void testConcurrentDeleteOperationsForJobPermanent()
-			throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(new JobID(), PERMANENT_BLOB);
+		testConcurrentDeleteOperations(new JobID());
 	}
 
 	/**
@@ -342,10 +336,8 @@ public class BlobServerDeleteTest extends TestLogger {
 	 *
 	 * @param jobId
 	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
-	 * @param blobType
-	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testConcurrentDeleteOperations(@Nullable final JobID jobId, BlobType blobType)
+	private void testConcurrentDeleteOperations(@Nullable final JobID jobId)
 			throws IOException, InterruptedException, ExecutionException {
 
 		final Configuration config = new Configuration();
@@ -362,7 +354,8 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			server.start();
 
-			final BlobKey blobKey = put(server, jobId, data, blobType);
+			final TransientBlobKey blobKey =
+				(TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 
 			assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 
@@ -408,11 +401,11 @@ public class BlobServerDeleteTest extends TestLogger {
 	 *
 	 * @return delete success
 	 */
-	static boolean delete(BlobService service, @Nullable JobID jobId, BlobKey key) {
+	static boolean delete(BlobService service, @Nullable JobID jobId, TransientBlobKey key) {
 		if (jobId == null) {
-			return service.getTransientBlobService().deleteTransientFromCache(key);
+			return service.getTransientBlobService().deleteFromCache(key);
 		} else {
-			return service.getTransientBlobService().deleteTransientFromCache(jobId, key);
+			return service.getTransientBlobService().deleteFromCache(jobId, key);
 		}
 	}
 }

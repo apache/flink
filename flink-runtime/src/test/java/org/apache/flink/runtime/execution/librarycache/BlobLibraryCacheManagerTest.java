@@ -21,9 +21,9 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.OperatingSystem;
@@ -44,7 +44,6 @@ import java.util.List;
 
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -69,8 +68,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 		JobID jobId1 = new JobID();
 		JobID jobId2 = new JobID();
-		List<BlobKey> keys1 = new ArrayList<>();
-		List<BlobKey> keys2 = new ArrayList<>();
+		List<PermanentBlobKey> keys1 = new ArrayList<>();
+		List<PermanentBlobKey> keys2 = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
@@ -201,7 +200,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 		JobID jobId = new JobID();
 		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
 		ExecutionAttemptID attempt2 = new ExecutionAttemptID();
-		List<BlobKey> keys = new ArrayList<>();
+		List<PermanentBlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
@@ -246,8 +245,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 			try {
 				libCache.registerTask(
-					jobId, new ExecutionAttemptID(), Collections.<BlobKey>emptyList(),
-					Collections.<URL>emptyList());
+					jobId, new ExecutionAttemptID(), Collections.emptyList(),
+					Collections.emptyList());
 				fail("Should fail with an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -313,7 +312,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 		JobID jobId = new JobID();
 		ExecutionAttemptID attempt1 = new ExecutionAttemptID();
-		List<BlobKey> keys = new ArrayList<>();
+		List<PermanentBlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 		BlobLibraryCacheManager libCache = null;
@@ -358,8 +357,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 			try {
 				libCache.registerTask(
-					jobId, new ExecutionAttemptID(), Collections.<BlobKey>emptyList(),
-					Collections.<URL>emptyList());
+					jobId, new ExecutionAttemptID(), Collections.emptyList(),
+					Collections.emptyList());
 				fail("Should fail with an IllegalStateException");
 			}
 			catch (IllegalStateException e) {
@@ -438,8 +437,8 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			cache = new PermanentBlobCache(serverAddress, config, new VoidBlobStore());
 
 			// upload some meaningless data to the server
-			BlobKey dataKey1 = server.putPermanent(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
-			BlobKey dataKey2 = server.putPermanent(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
+			PermanentBlobKey dataKey1 = server.putPermanent(jobId, new byte[]{1, 2, 3, 4, 5, 6, 7, 8});
+			PermanentBlobKey dataKey2 = server.putPermanent(jobId, new byte[]{11, 12, 13, 14, 15, 16, 17, 18});
 
 			libCache = new BlobLibraryCacheManager(cache, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			assertEquals(0, libCache.getNumberOfManagedJobs());
@@ -458,7 +457,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
 			// register some BLOBs as libraries
 			{
-				Collection<BlobKey> keys = Collections.singleton(dataKey1);
+				Collection<PermanentBlobKey> keys = Collections.singleton(dataKey1);
 
 				cache.registerJob(jobId);
 				ExecutionAttemptID executionId = new ExecutionAttemptID();
@@ -515,7 +514,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 			}
 
 			// see BlobUtils for the directory layout
-			cacheDir = cache.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB)).getParentFile();
+			cacheDir = cache.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
 			assertTrue(cacheDir.exists());
 
 			// make sure no further blobs can be downloaded by removing the write

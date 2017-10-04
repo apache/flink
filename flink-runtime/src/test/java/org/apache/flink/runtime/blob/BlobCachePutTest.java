@@ -56,13 +56,14 @@ import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyType;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.BlockingInputStream;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.ChunkedInputStream;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -158,7 +159,7 @@ public class BlobCachePutTest extends TestLogger {
 
 			server.start();
 
-			BlobKey key = new BlobKey(TRANSIENT_BLOB);
+			BlobKey key = new TransientBlobKey();
 			CheckedThread[] threads = new CheckedThread[] {
 				new TransientBlobCacheGetStorageLocation(cache, jobId, key),
 				new TransientBlobCacheGetStorageLocation(cache, jobId, key),
@@ -184,7 +185,7 @@ public class BlobCachePutTest extends TestLogger {
 
 			server.start();
 
-			BlobKey key = new BlobKey(PERMANENT_BLOB);
+			BlobKey key = new PermanentBlobKey();
 			CheckedThread[] threads = new CheckedThread[] {
 				new PermanentBlobCacheGetStorageLocation(cache, jobId, key),
 				new PermanentBlobCacheGetStorageLocation(cache, jobId, key),
@@ -253,7 +254,7 @@ public class BlobCachePutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testPutBufferSuccessfulGet(
-			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
+			@Nullable JobID jobId1, @Nullable JobID jobId2, BlobKey.BlobType blobType)
 			throws IOException, InterruptedException {
 
 		final Configuration config = new Configuration();
@@ -273,11 +274,11 @@ public class BlobCachePutTest extends TestLogger {
 			// put data for jobId1 and verify
 			BlobKey key1a = put(cache, jobId1, data, blobType);
 			assertNotNull(key1a);
-			assertEquals(blobType, key1a.getType());
+			verifyType(blobType, key1a);
 
 			BlobKey key1b = put(cache, jobId1, data2, blobType);
 			assertNotNull(key1b);
-			assertEquals(blobType, key1b.getType());
+			verifyType(blobType, key1b);
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
@@ -378,24 +379,24 @@ public class BlobCachePutTest extends TestLogger {
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
 			// put data for jobId1 and verify
-			BlobKey key1a = put(cache, jobId1, new ByteArrayInputStream(data), TRANSIENT_BLOB);
+			TransientBlobKey key1a =
+				(TransientBlobKey) put(cache, jobId1, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key1a);
-			assertEquals(TRANSIENT_BLOB, key1a.getType());
 
-			BlobKey key1b = put(cache, jobId1, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
+			TransientBlobKey key1b = (TransientBlobKey) put(cache, jobId1, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key1b);
-			assertEquals(TRANSIENT_BLOB, key1b.getType());
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
 			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
-			BlobKey key2a = put(cache, jobId2, new ByteArrayInputStream(data), TRANSIENT_BLOB);
+			TransientBlobKey key2a =
+				(TransientBlobKey) put(cache, jobId2, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1a, key2a);
 
-			BlobKey key2b = put(cache, jobId2, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
+			TransientBlobKey key2b = (TransientBlobKey) put(cache, jobId2, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key2b);
 			assertEquals(key1b, key2b);
 
@@ -482,24 +483,26 @@ public class BlobCachePutTest extends TestLogger {
 			byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
 			// put data for jobId1 and verify
-			BlobKey key1a = put(cache, jobId1, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
+			TransientBlobKey key1a =
+				(TransientBlobKey) put(cache, jobId1, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key1a);
-			assertEquals(TRANSIENT_BLOB, key1a.getType());
 
-			BlobKey key1b = put(cache, jobId1, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
+			TransientBlobKey key1b =
+				(TransientBlobKey) put(cache, jobId1, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
 			assertNotNull(key1b);
-			assertEquals(TRANSIENT_BLOB, key1b.getType());
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
 			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
-			BlobKey key2a = put(cache, jobId2, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
+			TransientBlobKey key2a =
+				(TransientBlobKey) put(cache, jobId2, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1a, key2a);
 
-			BlobKey key2b = put(cache, jobId2, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
+			TransientBlobKey key2b =
+				(TransientBlobKey) put(cache, jobId2, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
 			assertNotNull(key2b);
 			assertEquals(key1b, key2b);
 
@@ -555,7 +558,7 @@ public class BlobCachePutTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFails(@Nullable final JobID jobId, BlobType blobType)
+	private void testPutBufferFails(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -618,7 +621,7 @@ public class BlobCachePutTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFailsIncoming(@Nullable final JobID jobId, BlobType blobType)
+	private void testPutBufferFailsIncoming(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -686,7 +689,7 @@ public class BlobCachePutTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testPutBufferFailsStore(@Nullable final JobID jobId, BlobType blobType)
+	private void testPutBufferFailsStore(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -703,7 +706,7 @@ public class BlobCachePutTest extends TestLogger {
 
 			// make sure the blob server cannot create any files in its storage dir
 			jobStoreDir = server.getStorageLocation(jobId,
-				new BlobKey(blobType)).getParentFile();
+				BlobKey.createKey(blobType)).getParentFile();
 			assertTrue(jobStoreDir.setExecutable(true, false));
 			assertTrue(jobStoreDir.setReadable(true, false));
 			assertTrue(jobStoreDir.setWritable(false, false));
@@ -760,7 +763,7 @@ public class BlobCachePutTest extends TestLogger {
 	 * 		whether the BLOB should become permanent or transient
 	 */
 	private void testConcurrentPutOperations(
-			@Nullable final JobID jobId, final BlobType blobType)
+			@Nullable final JobID jobId, final BlobKey.BlobType blobType)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -807,7 +810,7 @@ public class BlobCachePutTest extends TestLogger {
 					callable =
 						() -> {
 							try {
-								List<BlobKey> keys =
+								List<PermanentBlobKey> keys =
 									BlobClient.uploadJarFiles(serverAddress, config, jobId, jars);
 								assertEquals(1, keys.size());
 								BlobKey uploadedKey = keys.get(0);

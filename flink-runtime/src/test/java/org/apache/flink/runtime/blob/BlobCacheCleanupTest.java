@@ -36,7 +36,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -56,7 +55,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 	public void testJobCleanup() throws IOException, InterruptedException {
 
 		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<>();
+		List<PermanentBlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 
@@ -87,14 +86,14 @@ public class BlobCacheCleanupTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 
-			for (BlobKey key : keys) {
-				cache.getPermanentFile(jobId, key);
+			for (PermanentBlobKey key : keys) {
+				cache.getFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
-			for (BlobKey key : keys) {
-				cache.getPermanentFile(jobId, key);
+			for (PermanentBlobKey key : keys) {
+				cache.getFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
@@ -195,7 +194,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 		long cleanupInterval = 5L;
 
 		JobID jobId = new JobID();
-		List<BlobKey> keys = new ArrayList<BlobKey>();
+		List<PermanentBlobKey> keys = new ArrayList<>();
 		BlobServer server = null;
 		PermanentBlobCache cache = null;
 
@@ -226,14 +225,14 @@ public class BlobCacheCleanupTest extends TestLogger {
 			checkFileCountForJob(2, jobId, server);
 			checkFileCountForJob(0, jobId, cache);
 
-			for (BlobKey key : keys) {
-				cache.getPermanentFile(jobId, key);
+			for (PermanentBlobKey key : keys) {
+				cache.getFile(jobId, key);
 			}
 
 			// register again (let's say, from another thread or so)
 			cache.registerJob(jobId);
-			for (BlobKey key : keys) {
-				cache.getPermanentFile(jobId, key);
+			for (PermanentBlobKey key : keys) {
+				cache.getFile(jobId, key);
 			}
 
 			assertEquals(2, checkFilesExist(jobId, keys, cache, true));
@@ -291,7 +290,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 	 * @param keys
 	 * 		keys identifying BLOBs which were previously registered for the <tt>jobId</tt>
 	 */
-	static void verifyJobCleanup(PermanentBlobCache cache, JobID jobId, List<BlobKey> keys)
+	static void verifyJobCleanup(PermanentBlobCache cache, JobID jobId, List<? extends BlobKey> keys)
 		throws InterruptedException, IOException {
 		// because we cannot guarantee that there are not thread races in the build system, we
 		// loop for a certain while until the references disappear
@@ -325,7 +324,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 	 * {@link PermanentBlobCache#getStorageLocation(JobID, BlobKey)}, respectively
 	 */
 	public static int checkFilesExist(
-			JobID jobId, Collection<BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
+			JobID jobId, Collection<? extends BlobKey> keys, PermanentBlobService blobService, boolean doThrow)
 			throws IOException {
 
 		int numFiles = 0;
@@ -366,10 +365,10 @@ public class BlobCacheCleanupTest extends TestLogger {
 		final File jobDir;
 		if (blobService instanceof BlobServer) {
 			BlobServer server = (BlobServer) blobService;
-			jobDir = server.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB)).getParentFile();
+			jobDir = server.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
 		} else {
 			PermanentBlobCache cache = (PermanentBlobCache) blobService;
-			jobDir = cache.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB)).getParentFile();
+			jobDir = cache.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
 		}
 		File[] blobsForJob = jobDir.listFiles();
 		if (blobsForJob == null) {

@@ -44,8 +44,8 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CON
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.closeSilently;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
@@ -196,7 +196,7 @@ class BlobServerConnection extends Thread {
 			}
 			blobKey = BlobKey.readFromInputStream(inputStream);
 
-			checkArgument(blobKey.getType() != PERMANENT_BLOB || jobId != null,
+			checkArgument(blobKey instanceof TransientBlobKey || jobId != null,
 				"Invalid BLOB addressing for permanent BLOBs");
 
 			if (LOG.isDebugEnabled()) {
@@ -273,9 +273,9 @@ class BlobServerConnection extends Thread {
 			int result = inputStream.read();
 			if (result < 0) {
 				throw new EOFException("Premature end of GET request");
-			} else if (blobKey.getType() == TRANSIENT_BLOB && result == RETURN_OKAY) {
+			} else if (blobKey instanceof TransientBlobKey && result == RETURN_OKAY) {
 				// ignore the result from the operation
-				if (!blobServer.deleteInternal(jobId, blobKey)) {
+				if (!blobServer.deleteInternal(jobId, (TransientBlobKey) blobKey)) {
 					LOG.warn("DELETE operation failed for BLOB {}/{} from {}.", jobId,
 						blobKey, clientSocket.getInetAddress());
 				}
@@ -325,7 +325,7 @@ class BlobServerConnection extends Thread {
 				throw new IOException("Unknown type of BLOB addressing.");
 			}
 
-			final BlobType blobType;
+			final BlobKey.BlobType blobType;
 			{
 				final int read = inputStream.read();
 				if (read < 0) {
@@ -396,7 +396,7 @@ class BlobServerConnection extends Thread {
 	 * 		thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
 	private static BlobKey readFileFully(
-			final InputStream inputStream, final File incomingFile, final byte[] buf, BlobType blobType)
+			final InputStream inputStream, final File incomingFile, final byte[] buf, BlobKey.BlobType blobType)
 			throws IOException {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -417,7 +417,7 @@ class BlobServerConnection extends Thread {
 
 				md.update(buf, 0, bytesExpected);
 			}
-			return new BlobKey(blobType, md.digest());
+			return BlobKey.createKey(blobType, md.digest());
 		}
 	}
 

@@ -18,18 +18,28 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 /**
- * BLOB type, i.e. permanent or transient.
+ * BLOB key referencing permanent BLOB files.
  */
-public enum BlobType {
+public final class PermanentBlobKey extends BlobKey {
+
 	/**
-	 * Indicates a permanent BLOB whose lifecycle is that of a job and which is made highly
-	 * available.
+	 * Constructs a new BLOB key.
 	 */
-	PERMANENT_BLOB,
+	@VisibleForTesting
+	public PermanentBlobKey() {
+		super(BlobType.PERMANENT_BLOB);
+	}
+
 	/**
-	 * Indicates a transient BLOB whose lifecycle is managed by the user and which is not made
-	 * highly available.
+	 * Constructs a new BLOB key from the given byte array.
+	 *
+	 * @param key
+	 *        the actual key data
 	 */
-	TRANSIENT_BLOB
+	PermanentBlobKey(byte[] key) {
+		super(BlobType.PERMANENT_BLOB, key);
+	}
 }

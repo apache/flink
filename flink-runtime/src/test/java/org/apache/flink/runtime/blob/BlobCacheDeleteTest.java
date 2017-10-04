@@ -45,12 +45,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -69,41 +68,34 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 	@Test
 	public void testDeleteTransient1() throws IOException {
-		testDelete(null, new JobID(), TRANSIENT_BLOB);
+		testDelete(null, new JobID());
 	}
 
 	@Test
 	public void testDeleteTransient2() throws IOException {
-		testDelete(new JobID(), null, TRANSIENT_BLOB);
+		testDelete(new JobID(), null);
 	}
 
 	@Test
 	public void testDeleteTransient3() throws IOException {
-		testDelete(null, null, TRANSIENT_BLOB);
+		testDelete(null, null);
 	}
 
 	@Test
 	public void testDeleteTransient4() throws IOException {
-		testDelete(new JobID(), new JobID(), TRANSIENT_BLOB);
-	}
-
-	@Test
-	public void testDeletePermanent() throws IOException {
-		testDelete(new JobID(), new JobID(), PERMANENT_BLOB);
+		testDelete(new JobID(), new JobID());
 	}
 
 	/**
 	 * Uploads a (different) byte array for each of the given jobs and verifies that deleting one of
 	 * them (via the {@link BlobCacheService}) does not influence the other.
 	 *
-	 * @param jobId1
+	 *  @param jobId1
 	 * 		first job id
 	 * @param jobId2
 	 * 		second job id
-	 * @param blobType
-	 * 		whether the BLOBs should become permanent or transient
 	 */
-	private void testDelete(@Nullable JobID jobId1, @Nullable JobID jobId2, BlobType blobType)
+	private void testDelete(@Nullable JobID jobId1, @Nullable JobID jobId2)
 			throws IOException {
 		final boolean sameJobId = (jobId1 == jobId2) || (jobId1 != null && jobId1.equals(jobId2));
 
@@ -123,14 +115,14 @@ public class BlobCacheDeleteTest extends TestLogger {
 			data2[0] ^= 1;
 
 			// put first BLOB
-			BlobKey key1 = put(server, jobId1, data, blobType);
+			TransientBlobKey key1 = (TransientBlobKey) put(server, jobId1, data, TRANSIENT_BLOB);
 			assertNotNull(key1);
 
 			// put two more BLOBs (same key, other key) for another job ID
-			BlobKey key2a = put(server, jobId2, data, blobType);
+			TransientBlobKey key2a = (TransientBlobKey) put(server, jobId2, data, TRANSIENT_BLOB);
 			assertNotNull(key2a);
 			assertEquals(key1, key2a);
-			BlobKey key2b = put(server, jobId2, data2, blobType);
+			TransientBlobKey key2b = (TransientBlobKey) put(server, jobId2, data2, TRANSIENT_BLOB);
 			assertNotNull(key2b);
 
 			// issue a DELETE request
@@ -199,7 +191,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 			rnd.nextBytes(data);
 
 			// put BLOB
-			BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
+			TransientBlobKey key = (TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 			assertNotNull(key);
 
 			File blobFile = server.getStorageLocation(jobId, key);
@@ -253,7 +245,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 				rnd.nextBytes(data);
 
 				// put BLOB
-				BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
+				TransientBlobKey key = (TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 				assertNotNull(key);
 
 				// access from cache once to have it available there
@@ -285,19 +277,13 @@ public class BlobCacheDeleteTest extends TestLogger {
 	@Test
 	public void testConcurrentDeleteOperationsNoJobTransient()
 			throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(null, TRANSIENT_BLOB);
+		testConcurrentDeleteOperations(null);
 	}
 
 	@Test
 	public void testConcurrentDeleteOperationsForJobTransient()
 			throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(new JobID(), TRANSIENT_BLOB);
-	}
-
-	@Test
-	public void testConcurrentDeleteOperationsForJobPermanent()
-			throws IOException, ExecutionException, InterruptedException {
-		testConcurrentDeleteOperations(new JobID(), PERMANENT_BLOB);
+		testConcurrentDeleteOperations(new JobID());
 	}
 
 	/**
@@ -307,13 +293,11 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 * blob file exist and then one of them fails deleting it. Without the introduced lock, this
 	 * situation should rarely happen and make this test fail. Thus, if this test should become
 	 * "unstable", then the delete atomicity is most likely broken.
-	 *
-	 * @param jobId
+	 *  @param jobId
 	 * 		job ID to use (or <tt>null</tt> if job-unrelated)
-	 * @param blobType
-	 * 		whether the BLOB should become permanent or transient
+	 *
 	 */
-	private void testConcurrentDeleteOperations(@Nullable final JobID jobId, BlobType blobType)
+	private void testConcurrentDeleteOperations(@Nullable final JobID jobId)
 			throws IOException, InterruptedException, ExecutionException {
 
 		final Configuration config = new Configuration();
@@ -333,7 +317,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 			server.start();
 
-			final BlobKey blobKey = put(server, jobId, data, blobType);
+			final TransientBlobKey blobKey =
+				(TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 
 			assertTrue(server.getStorageLocation(jobId, blobKey).exists());
 

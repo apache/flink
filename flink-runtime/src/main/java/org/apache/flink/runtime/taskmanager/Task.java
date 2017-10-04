@@ -30,8 +30,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.SafetyNetCloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -161,7 +161,7 @@ public class Task implements Runnable, TaskActions {
 	private final Configuration taskConfiguration;
 
 	/** The jar files used by this task */
-	private final Collection<BlobKey> requiredJarFiles;
+	private final Collection<PermanentBlobKey> requiredJarFiles;
 
 	/** The classpaths used by this task */
 	private final Collection<URL> requiredClasspaths;

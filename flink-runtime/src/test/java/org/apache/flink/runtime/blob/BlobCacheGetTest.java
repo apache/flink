@@ -44,7 +44,6 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -54,16 +53,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.verifyJobCleanup;
 import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
 import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyType;
 import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.apache.flink.runtime.blob.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
 import static org.apache.flink.runtime.blob.BlobUtils.NO_JOB_DIR_PREFIX;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -96,119 +95,6 @@ public class BlobCacheGetTest extends TestLogger {
 	@Rule
 	public final ExpectedException exception = ExpectedException.none();
 
-	/**
-	 * Checks the correct handling when retrieving transient BLOBs from the {@link
-	 * PermanentBlobCache}.
-	 */
-	@Test
-	public void testGetTransientBlobForJobFromPermanentCache() throws IOException, InterruptedException {
-		final JobID jobId = new JobID();
-		final Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
-
-		try (
-			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
-
-			server.start();
-
-			byte[] data = new byte[2000000];
-			rnd.nextBytes(data);
-
-			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
-			assertNotNull(key);
-			assertEquals(TRANSIENT_BLOB, key.getType());
-
-			// retrieve the transient BLOB from the PermanentBlobService
-			PermanentBlobCache permanentBlobService = cache.getPermanentBlobService();
-			permanentBlobService.registerJob(jobId);
-			File file = permanentBlobService.getPermanentFile(jobId, key);
-			validateGetAndClose(new FileInputStream(file), data);
-
-			// irrespective of the BlobCache, transient BLOBs should be deleted from the server, eventually
-			verifyDeletedEventually(server, jobId, key);
-
-			permanentBlobService.releaseJob(jobId);
-			verifyJobCleanup(permanentBlobService, jobId, Collections.singletonList(key));
-		}
-	}
-
-	/**
-	 * Checks the correct handling when retrieving transient BLOBs from the {@link
-	 * PermanentBlobCache}.
-	 */
-	@Test(expected = NullPointerException.class)
-	public void testGetTransientBlobNoJobFromPermanentCache() throws IOException, InterruptedException {
-		final JobID jobId = null;
-		final Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
-
-		try (
-			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
-
-			server.start();
-
-			byte[] data = new byte[2000000];
-			rnd.nextBytes(data);
-
-			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
-			assertNotNull(key);
-			assertEquals(TRANSIENT_BLOB, key.getType());
-
-			// retrieve the transient BLOB from the PermanentBlobService
-			PermanentBlobCache permanentBlobService = cache.getPermanentBlobService();
-			// should crash due to jobId being null
-			permanentBlobService.getPermanentFile(jobId, key);
-		}
-	}
-
-	/**
-	 * Checks the correct handling when retrieving permanent BLOBs from the {@link
-	 * TransientBlobCache}.
-	 */
-	@Test
-	public void testGetPermanentBlobFromTransientCache() throws IOException, InterruptedException {
-		final JobID jobId = new JobID();
-		final Configuration config = new Configuration();
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
-
-		try (
-			BlobServer server = new BlobServer(config, new VoidBlobStore());
-			BlobCacheService cache = new BlobCacheService(new InetSocketAddress("localhost", server.getPort()),
-				config, new VoidBlobStore())) {
-
-			server.start();
-
-			byte[] data = new byte[2000000];
-			rnd.nextBytes(data);
-
-			// put content addressable (like libraries)
-			BlobKey key = put(server, jobId, data, PERMANENT_BLOB);
-			assertNotNull(key);
-			assertEquals(PERMANENT_BLOB, key.getType());
-
-			// retrieve the transient BLOB from the PermanentBlobService
-			TransientBlobCache transientBlobService = cache.getTransientBlobService();
-			File file = transientBlobService.getTransientFile(jobId, key);
-			validateGetAndClose(new FileInputStream(file), data);
-
-			// wait a bit and ensure that the BLOB is still available on the server
-			// (we don't know when the delete happens as it may be delayed - this makes it more
-			// probable that it already has, if executed at all)
-			Thread.sleep(100);
-			verifyContents(server, jobId, key, data);
-			verifyContents(cache, jobId, key, data); // accessed via permanent cache
-		}
-	}
-
 	@Test
 	public void testGetTransientFailsDuringLookup1() throws IOException, InterruptedException {
 		testGetFailsDuringLookup(null, new JobID(), TRANSIENT_BLOB);
@@ -237,7 +123,7 @@ public class BlobCacheGetTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testGetFailsDuringLookup(final JobID jobId1, final JobID jobId2, BlobType blobType)
+	private void testGetFailsDuringLookup(final JobID jobId1, final JobID jobId2, BlobKey.BlobType blobType)
 			throws IOException, InterruptedException {
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -255,7 +141,7 @@ public class BlobCacheGetTest extends TestLogger {
 			// put content addressable (like libraries)
 			BlobKey key = put(server, jobId1, data, blobType);
 			assertNotNull(key);
-			assertEquals(blobType, key.getType());
+			verifyType(blobType, key);
 
 			// delete file to make sure that GET requests fail
 			File blobFile = server.getStorageLocation(jobId1, key);
@@ -325,7 +211,7 @@ public class BlobCacheGetTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testGetFailsIncoming(@Nullable final JobID jobId, BlobType blobType)
+	private void testGetFailsIncoming(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -344,7 +230,7 @@ public class BlobCacheGetTest extends TestLogger {
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			BlobKey blobKey = put(server, jobId, data, blobType);
-			assertEquals(blobType, blobKey.getType());
+			verifyType(blobType, blobKey);
 
 			// make sure the blob cache cannot create any files in its storage dir
 			if (blobType == PERMANENT_BLOB) {
@@ -427,7 +313,7 @@ public class BlobCacheGetTest extends TestLogger {
 	 * @param blobType
 	 * 		whether the BLOB should become permanent or transient
 	 */
-	private void testGetFailsStore(@Nullable final JobID jobId, BlobType blobType)
+	private void testGetFailsStore(@Nullable final JobID jobId, BlobKey.BlobType blobType)
 			throws IOException, InterruptedException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
@@ -446,16 +332,16 @@ public class BlobCacheGetTest extends TestLogger {
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
 			BlobKey blobKey = put(server, jobId, data, blobType);
-			assertEquals(blobType, blobKey.getType());
+			verifyType(blobType, blobKey);
 
 			// make sure the blob cache cannot create any files in its storage dir
 			if (blobType == PERMANENT_BLOB) {
 				jobStoreDir = cache.getPermanentBlobService()
-					.getStorageLocation(jobId, new BlobKey(PERMANENT_BLOB))
+					.getStorageLocation(jobId, new PermanentBlobKey())
 					.getParentFile();
 			} else {
 				jobStoreDir = cache.getTransientBlobService()
-					.getStorageLocation(jobId, new BlobKey(TRANSIENT_BLOB))
+					.getStorageLocation(jobId, new TransientBlobKey())
 					.getParentFile();
 			}
 			assertTrue(jobStoreDir.setExecutable(true, false));
@@ -513,8 +399,7 @@ public class BlobCacheGetTest extends TestLogger {
 			// store the data on the server (and blobStore), remove from local server store
 			byte[] data = new byte[2000000];
 			rnd.nextBytes(data);
-			BlobKey blobKey = put(server, jobId, data, PERMANENT_BLOB);
-			assertEquals(PERMANENT_BLOB, blobKey.getType());
+			PermanentBlobKey blobKey = (PermanentBlobKey) put(server, jobId, data, PERMANENT_BLOB);
 			assertTrue(server.getStorageLocation(jobId, blobKey).delete());
 
 			File tempFileDir = server.createTemporaryFilename().getParentFile();
@@ -582,9 +467,8 @@ public class BlobCacheGetTest extends TestLogger {
 				rnd.nextBytes(data);
 
 				// put BLOB
-				BlobKey key = put(server, jobId, data, TRANSIENT_BLOB);
+				TransientBlobKey key = (TransientBlobKey) put(server, jobId, data, TRANSIENT_BLOB);
 				assertNotNull(key);
-				assertEquals(TRANSIENT_BLOB, key.getType());
 
 				blobFile = server.getStorageLocation(jobId, key);
 				directory = blobFile.getParentFile();
@@ -650,7 +534,7 @@ public class BlobCacheGetTest extends TestLogger {
 	 * @param cacheAccessesHAStore
 	 * 		whether the cache has access to the {@link BlobServer}'s HA store or not
 	 */
-	private void testConcurrentGetOperations(final JobID jobId, final BlobType blobType,
+	private void testConcurrentGetOperations(final JobID jobId, final BlobKey.BlobType blobType,
 			final boolean cacheAccessesHAStore)
 			throws IOException, InterruptedException, ExecutionException {
 		final Configuration config = new Configuration();
@@ -667,7 +551,7 @@ public class BlobCacheGetTest extends TestLogger {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
 		// create the correct blob key by hashing our input data
-		final BlobKey blobKey = new BlobKey(blobType, md.digest(data));
+		final BlobKey blobKey = BlobKey.createKey(blobType, md.digest(data));
 
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 

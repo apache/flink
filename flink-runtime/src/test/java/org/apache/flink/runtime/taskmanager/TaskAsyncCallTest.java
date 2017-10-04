@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -59,7 +58,6 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 
@@ -172,8 +170,8 @@ public class TaskAsyncCallTest {
 			"Job Name",
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 
 		TaskInformation taskInformation = new TaskInformation(
 			new JobVertexID(),
