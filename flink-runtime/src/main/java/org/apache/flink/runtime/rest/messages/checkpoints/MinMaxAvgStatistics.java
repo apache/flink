@@ -16,9 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
-
-import org.apache.flink.util.Preconditions;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -26,33 +24,45 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
- * A single key-value pair entry in the {@link ClusterConfigurationInfo} response.
+ * Minimum, maximum and average statistics.
  */
-public class ClusterConfigurationInfoEntry {
+public final class MinMaxAvgStatistics {
 
-	public static final String FIELD_NAME_CONFIG_KEY = "key";
-	public static final String FIELD_NAME_CONFIG_VALUE = "value";
+	public static final String FIELD_NAME_MINIMUM = "min";
 
-	@JsonProperty(FIELD_NAME_CONFIG_KEY)
-	private final String key;
+	public static final String FIELD_NAME_MAXIMUM = "max";
 
-	@JsonProperty(FIELD_NAME_CONFIG_VALUE)
-	private final String value;
+	public static final String FIELD_NAME_AVERAGE = "avg";
+
+	@JsonProperty(FIELD_NAME_MINIMUM)
+	private final long minimum;
+
+	@JsonProperty(FIELD_NAME_MAXIMUM)
+	private final long maximum;
+
+	@JsonProperty(FIELD_NAME_AVERAGE)
+	private final long average;
 
 	@JsonCreator
-	public ClusterConfigurationInfoEntry(
-			@JsonProperty(FIELD_NAME_CONFIG_KEY) String key,
-			@JsonProperty(FIELD_NAME_CONFIG_VALUE) String value) {
-		this.key = Preconditions.checkNotNull(key);
-		this.value = Preconditions.checkNotNull(value);
+	public MinMaxAvgStatistics(
+		@JsonProperty(FIELD_NAME_MINIMUM) long minimum,
+		@JsonProperty(FIELD_NAME_MAXIMUM) long maximum,
+		@JsonProperty(FIELD_NAME_AVERAGE) long average) {
+		this.minimum = minimum;
+		this.maximum = maximum;
+		this.average = average;
 	}
 
-	public String getKey() {
-		return key;
+	public long getMinimum() {
+		return minimum;
 	}
 
-	public String getValue() {
-		return value;
+	public long getMaximum() {
+		return maximum;
+	}
+
+	public long getAverage() {
+		return average;
 	}
 
 	@Override
@@ -60,22 +70,17 @@ public class ClusterConfigurationInfoEntry {
 		if (this == o) {
 			return true;
 		}
-
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-
-		ClusterConfigurationInfoEntry that = (ClusterConfigurationInfoEntry) o;
-		return key.equals(that.key) && value.equals(that.value);
+		MinMaxAvgStatistics that = (MinMaxAvgStatistics) o;
+		return minimum == that.minimum &&
+			maximum == that.maximum &&
+			average == that.average;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(key, value);
-	}
-
-	@Override
-	public String toString() {
-		return "(" + key + "," + value + ")";
+		return Objects.hash(minimum, maximum, average);
 	}
 }

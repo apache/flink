@@ -16,24 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
+
+import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 /**
- * Tests for the {@link ClusterConfigurationInfo}.
+ * Tests for the {@link CheckpointConfigInfo}.
  */
-public class ClusterConfigurationInfoTest extends RestResponseMarshallingTestBase<ClusterConfigurationInfo> {
-
+public class CheckpointConfigInfoTest extends RestResponseMarshallingTestBase<CheckpointConfigInfo> {
 	@Override
-	protected Class<ClusterConfigurationInfo> getTestResponseClass() {
-		return ClusterConfigurationInfo.class;
+	protected Class<CheckpointConfigInfo> getTestResponseClass() {
+		return CheckpointConfigInfo.class;
 	}
 
 	@Override
-	protected ClusterConfigurationInfo getTestResponseInstance() {
-		final ClusterConfigurationInfo expected = new ClusterConfigurationInfo(2);
-		expected.add(new ClusterConfigurationInfoEntry("key1", "value1"));
-		expected.add(new ClusterConfigurationInfoEntry("key2", "value2"));
+	protected CheckpointConfigInfo getTestResponseInstance() {
+		final CheckpointConfigInfo.ExternalizedCheckpointInfo externalizedCheckpointInfo = new CheckpointConfigInfo.ExternalizedCheckpointInfo(true, false);
 
-		return expected;
+		return new CheckpointConfigInfo(
+			CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
+			1L,
+			2L,
+			3L,
+			4,
+			externalizedCheckpointInfo);
+
 	}
 }

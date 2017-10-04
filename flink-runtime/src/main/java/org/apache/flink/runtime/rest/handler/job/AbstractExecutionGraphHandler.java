@@ -81,5 +81,14 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody, M ex
 			executor);
 	}
 
+	/**
+	 * Called for each request after the corresponding {@link AccessExecutionGraph} has been retrieved from the
+	 * {@link ExecutionGraphCache}.
+	 *
+	 * @param request for further information
+	 * @param executionGraph for which the handler was called
+	 * @return Response
+	 * @throws RestHandlerException if the handler could not process the request
+	 */
 	protected abstract R handleRequest(HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph) throws RestHandlerException;
 }

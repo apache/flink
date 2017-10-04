@@ -16,29 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
+package org.apache.flink.runtime.rest.messages;
+
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 /**
- * Tests for the {@link StatusOverviewWithVersion}.
+ * Path parameter specifying a {@link JobVertexID}.
  */
-public class StatusOverviewWithVersionTest extends RestResponseMarshallingTestBase<StatusOverviewWithVersion> {
+public class JobVertexIdPathParameter extends MessagePathParameter<JobVertexID> {
 
-	@Override
-	protected Class<StatusOverviewWithVersion> getTestResponseClass() {
-		return StatusOverviewWithVersion.class;
+	private static final String KEY = "vertexid";
+
+	public JobVertexIdPathParameter() {
+		super(KEY);
 	}
 
 	@Override
-	protected StatusOverviewWithVersion getTestResponseInstance() {
-		return new StatusOverviewWithVersion(
-			1,
-			3,
-			3,
-			7,
-			4,
-			2,
-			0,
-			"version",
-			"commit");
+	protected JobVertexID convertFromString(String value) throws ConversionException {
+		return JobVertexID.fromHexString(value);
+	}
+
+	@Override
+	protected String convertToString(JobVertexID value) {
+		return value.toString();
 	}
 }

@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
-import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistics;
+import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,15 +41,17 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 
 		final CheckpointingStatistics.Counts counts = new CheckpointingStatistics.Counts(1, 2, 3, 4, 5);
 		final CheckpointingStatistics.Summary summary = new CheckpointingStatistics.Summary(
-			new CheckpointingStatistics.MinMaxAvgStatistics(1L, 1L, 1L),
-			new CheckpointingStatistics.MinMaxAvgStatistics(2L, 2L, 2L),
-			new CheckpointingStatistics.MinMaxAvgStatistics(3L, 3L, 3L));
+			new MinMaxAvgStatistics(1L, 1L, 1L),
+			new MinMaxAvgStatistics(2L, 2L, 2L),
+			new MinMaxAvgStatistics(3L, 3L, 3L));
 
-		final Map<JobVertexID, CheckpointStatistics.TaskCheckpointStatistics> checkpointStatisticsPerTask = new HashMap<>(2);
+		final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask = new HashMap<>(2);
 
 		checkpointStatisticsPerTask.put(
 			new JobVertexID(),
-			new CheckpointStatistics.TaskCheckpointStatistics(
+			new TaskCheckpointStatistics(
+				1L,
+				CheckpointStatsStatus.COMPLETED,
 				1L,
 				2L,
 				3L,
@@ -60,7 +61,9 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 
 		checkpointStatisticsPerTask.put(
 			new JobVertexID(),
-			new CheckpointStatistics.TaskCheckpointStatistics(
+			new TaskCheckpointStatistics(
+				1L,
+				CheckpointStatsStatus.COMPLETED,
 				2L,
 				3L,
 				4L,
