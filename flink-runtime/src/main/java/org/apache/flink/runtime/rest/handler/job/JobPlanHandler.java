@@ -17,12 +17,10 @@ package org.apache.flink.runtime.rest.handler.job;
  * limitations under the License.
  */
 
-import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.JobConfigInfo;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -33,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Handler serving the job plan.
+ * Handler serving the job execution plan.
  */
 public class JobPlanHandler extends AbstractExecutionGraphHandler<JobPlanInfo> {
 
