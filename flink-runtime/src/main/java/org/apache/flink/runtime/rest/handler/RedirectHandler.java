@@ -109,7 +109,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 						// retain the message for the asynchronous handler
 						ReferenceCountUtil.retain(routed);
 
-						optRedirectAddressFuture.whenComplete(
+						optRedirectAddressFuture.whenCompleteAsync(
 							(Optional<String> optRedirectAddress, Throwable throwable) -> {
 								HttpResponse response;
 								try {
@@ -144,7 +144,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 									ReferenceCountUtil.release(routed);
 								}
 							}
-						);
+						, channelHandlerContext.executor());
 					}
 				).ifNotPresent(
 					() ->
