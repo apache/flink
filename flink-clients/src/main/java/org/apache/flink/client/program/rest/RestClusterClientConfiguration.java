@@ -23,6 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A configuration object for {@link RestClusterClient}s.
@@ -42,9 +43,9 @@ public final class RestClusterClientConfiguration {
 			RestClientConfiguration endpointConfiguration,
 			String restServerAddress,
 			int restServerPort) {
-		this.blobServerAddress = blobServerAddress;
-		this.restEndpointConfiguration = endpointConfiguration;
-		this.restServerAddress = restServerAddress;
+		this.blobServerAddress = Preconditions.checkNotNull(blobServerAddress);
+		this.restEndpointConfiguration = Preconditions.checkNotNull(endpointConfiguration);
+		this.restServerAddress = Preconditions.checkNotNull(restServerAddress);
 		this.restServerPort = restServerPort;
 	}
 
@@ -65,13 +66,13 @@ public final class RestClusterClientConfiguration {
 	}
 
 	public static RestClusterClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
-		String address = config.getString(JobManagerOptions.ADDRESS);
+		String blobServerAddress = config.getString(JobManagerOptions.ADDRESS);
 
 		String serverAddress = config.getString(RestOptions.REST_ADDRESS);
 		int serverPort = config.getInteger(RestOptions.REST_PORT);
 
-		RestClientConfiguration endpointConfiguration = RestClientConfiguration.fromConfiguration(config);
+		RestClientConfiguration restClientConfiguration = RestClientConfiguration.fromConfiguration(config);
 
-		return new RestClusterClientConfiguration(address, endpointConfiguration, serverAddress, serverPort);
+		return new RestClusterClientConfiguration(blobServerAddress, restClientConfiguration, serverAddress, serverPort);
 	}
 }

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -44,7 +45,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link JobSubmitHandler}.
  */
-public class JobSubmitHandlerTest {
+public class JobSubmitHandlerTest extends TestLogger {
 
 	@Test
 	public void testSerializationFailureHandling() throws Exception {
@@ -85,6 +86,7 @@ public class JobSubmitHandlerTest {
 		JobGraph job = new JobGraph("testjob");
 		JobSubmitRequestBody request = new JobSubmitRequestBody(job);
 
-		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway).get();
+		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway)
+			.get();
 	}
 }

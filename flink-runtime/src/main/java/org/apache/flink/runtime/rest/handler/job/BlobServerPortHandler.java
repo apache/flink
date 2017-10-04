@@ -36,6 +36,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * This handler can be used to retrieve the port that the blob server runs on.
@@ -49,15 +50,13 @@ public final class BlobServerPortHandler extends AbstractRestHandler<DispatcherG
 	@Override
 	protected CompletableFuture<BlobServerPortResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
 		return gateway
-			.getBlobServerPort(Time.seconds(5))
-			.handleAsync((Integer port, Throwable error) -> {
-				if (error != null) {
-					log.error("Failed to retrieve blob server port.", ExceptionUtils.stripCompletionException(error));
-					return FutureUtils.<BlobServerPortResponseBody>completedExceptionally(new RestHandlerException("Failed to retrieve blob server port.", HttpResponseStatus.INTERNAL_SERVER_ERROR));
-				} else {
-					return CompletableFuture.completedFuture(new BlobServerPortResponseBody(port));
-				}
-			})
-			.thenCompose(future -> future);
+			.getBlobServerPort(timeout)
+			.thenApply(BlobServerPortResponseBody::new)
+			.exceptionally(error -> {
+				throw new CompletionException(new RestHandlerException(
+					"Failed to retrieve blob server port.",
+					HttpResponseStatus.INTERNAL_SERVER_ERROR,
+					ExceptionUtils.stripCompletionException(error)));
+			});
 	}
 }

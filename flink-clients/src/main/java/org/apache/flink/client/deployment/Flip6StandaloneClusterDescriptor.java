@@ -22,6 +22,8 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 
 /**
  * A deployment descriptor for an existing cluster.
@@ -31,7 +33,7 @@ public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<RestC
 	private final Configuration config;
 
 	public Flip6StandaloneClusterDescriptor(Configuration config) {
-		this.config = config;
+		this.config = Preconditions.checkNotNull(config);
 	}
 
 	@Override
@@ -46,17 +48,17 @@ public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<RestC
 		try {
 			return new RestClusterClient(config);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve standalone cluster", e);
+			throw new RuntimeException("Couldn't retrieve FLIP-6 standalone cluster", e);
 		}
 	}
 
 	@Override
 	public RestClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
-		throw new UnsupportedOperationException("Can't deploy a standalone cluster.");
+		throw new UnsupportedOperationException("Can't deploy a FLIP-6 standalone cluster.");
 	}
 
 	@Override
 	public RestClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
-		throw new UnsupportedOperationException("Can't deploy a standalone per-job cluster.");
+		throw new UnsupportedOperationException("Can't deploy a standalone FLIP-6 per-job cluster.");
 	}
 }

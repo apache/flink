@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -52,7 +53,7 @@ public final class JobSubmitRequestBody implements RequestBody {
 	public JobSubmitRequestBody(
 		@JsonProperty(FIELD_NAME_SERIALIZED_JOB_GRAPH) byte[] serializedJobGraph) {
 
-		this.serializedJobGraph = serializedJobGraph;
+		this.serializedJobGraph = Preconditions.checkNotNull(serializedJobGraph);
 	}
 
 	@Override
@@ -70,11 +71,12 @@ public final class JobSubmitRequestBody implements RequestBody {
 	}
 
 	private static byte[] serializeJobGraph(JobGraph jobGraph) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
-		ObjectOutputStream out = new ObjectOutputStream(baos);
+		try (ByteArrayOutputStream baos = new ByteArrayOutputStream(64 * 1024)) {
+			ObjectOutputStream out = new ObjectOutputStream(baos);
 
-		out.writeObject(jobGraph);
+			out.writeObject(jobGraph);
 
-		return baos.toByteArray();
+			return baos.toByteArray();
+		}
 	}
 }

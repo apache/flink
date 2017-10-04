@@ -41,11 +41,14 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 
+import javax.annotation.Nullable;
+
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
@@ -53,8 +56,9 @@ import java.util.concurrent.Executors;
  */
 public class RestClusterClient extends ClusterClient {
 
-	private RestClusterClientConfiguration configuration;
-	private final RestClient restEndpoint;
+	private final RestClusterClientConfiguration restClusterClientConfiguration;
+	private final RestClient restClient;
+	private final ExecutorService executorService = Executors.newFixedThreadPool(4);
 
 	public RestClusterClient(Configuration config) throws Exception {
 		this(config, RestClusterClientConfiguration.fromConfiguration(config));
@@ -62,24 +66,31 @@ public class RestClusterClient extends ClusterClient {
 
 	public RestClusterClient(Configuration config, RestClusterClientConfiguration configuration) throws Exception {
 		super(config);
-		this.configuration = configuration;
-		this.restEndpoint = new RestClient(configuration.getRestEndpointConfiguration(), Executors.newFixedThreadPool(4));
+		this.restClusterClientConfiguration = configuration;
+		this.restClient = new RestClient(configuration.getRestEndpointConfiguration(), executorService);
 	}
 
 	@Override
 	public void shutdown() {
-		this.restEndpoint.shutdown(Time.seconds(5));
+		try {
+			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
+			super.shutdown();
+		} catch (Exception e) {
+			log.error("An error occurred during the client shutdown.", e);
+		}
+		this.restClient.shutdown(Time.seconds(5));
+		this.executorService.shutdown();
 	}
 
 	@Override
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		log.info("Submitting job.");
 		try {
-			// temporary hack for FLIP-6
+			// temporary hack for FLIP-6 since slot-sharing isn't implemented yet
 			jobGraph.setAllowQueuedScheduling(true);
 			submitJob(jobGraph);
 		} catch (JobSubmissionException e) {
-			throw new RuntimeException(e);
+			throw new ProgramInvocationException(e);
 		}
 		// don't return just a JobSubmissionResult here, the signature is lying
 		// The CliFrontend expects this to be a JobExecutionResult
@@ -92,9 +103,9 @@ public class RestClusterClient extends ClusterClient {
 		log.info("Requesting blob server port.");
 		int blobServerPort;
 		try {
-			CompletableFuture<BlobServerPortResponseBody> portFuture = restEndpoint.sendRequest(
-				configuration.getRestServerAddress(),
-				configuration.getRestServerPort(),
+			CompletableFuture<BlobServerPortResponseBody> portFuture = restClient.sendRequest(
+				restClusterClientConfiguration.getRestServerAddress(),
+				restClusterClientConfiguration.getRestServerPort(),
 				BlobServerPortHeaders.getInstance());
 			blobServerPort = portFuture.get().port;
 		} catch (Exception e) {
@@ -103,8 +114,8 @@ public class RestClusterClient extends ClusterClient {
 
 		log.info("Uploading jar files.");
 		try {
-			InetSocketAddress address = new InetSocketAddress(configuration.getBlobServerAddress(), blobServerPort);
-			List<BlobKey> keys = BlobClient.uploadJarFiles(address, new Configuration(), jobGraph.getJobID(), jobGraph.getUserJars());
+			InetSocketAddress address = new InetSocketAddress(restClusterClientConfiguration.getBlobServerAddress(), blobServerPort);
+			List<BlobKey> keys = BlobClient.uploadJarFiles(address, this.flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
 			for (BlobKey key : keys) {
 				jobGraph.addBlob(key);
 			}
@@ -114,13 +125,12 @@ public class RestClusterClient extends ClusterClient {
 
 		log.info("Submitting job graph.");
 		try {
-			CompletableFuture<JobSubmitResponseBody> responseFuture = restEndpoint.sendRequest(
-				configuration.getRestServerAddress(),
-				configuration.getRestServerPort(),
+			CompletableFuture<JobSubmitResponseBody> responseFuture = restClient.sendRequest(
+				restClusterClientConfiguration.getRestServerAddress(),
+				restClusterClientConfiguration.getRestServerPort(),
 				JobSubmitHeaders.getInstance(),
 				new JobSubmitRequestBody(jobGraph));
-			JobSubmitResponseBody response = responseFuture.get();
-			System.out.println(response.jobUrl);
+			responseFuture.get();
 		} catch (Exception e) {
 			throw new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", e);
 		}
@@ -128,32 +138,35 @@ public class RestClusterClient extends ClusterClient {
 
 	@Override
 	public void stop(JobID jobID) throws Exception {
-		JobTerminationMessageParameters param = new JobTerminationMessageParameters();
-		param.jobPathParameter.resolve(jobID);
-		param.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.STOP));
-		CompletableFuture<EmptyResponseBody> responseFuture = restEndpoint.sendRequest(
-			configuration.getRestServerAddress(),
-			configuration.getRestServerPort(),
+		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
+		params.jobPathParameter.resolve(jobID);
+		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.STOP));
+		CompletableFuture<EmptyResponseBody> responseFuture = restClient.sendRequest(
+			restClusterClientConfiguration.getRestServerAddress(),
+			restClusterClientConfiguration.getRestServerPort(),
 			JobTerminationHeaders.getInstance(),
-			param
+			params
 		);
 		responseFuture.get();
-		System.out.println("Job stopping initiated.");
 	}
 
 	@Override
 	public void cancel(JobID jobID) throws Exception {
-		JobTerminationMessageParameters param = new JobTerminationMessageParameters();
-		param.jobPathParameter.resolve(jobID);
-		param.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
-		CompletableFuture<EmptyResponseBody> responseFuture = restEndpoint.sendRequest(
-			configuration.getRestServerAddress(),
-			configuration.getRestServerPort(),
+		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
+		params.jobPathParameter.resolve(jobID);
+		params.terminationModeQueryParameter.resolve(Collections.singletonList(TerminationModeQueryParameter.TerminationMode.CANCEL));
+		CompletableFuture<EmptyResponseBody> responseFuture = restClient.sendRequest(
+			restClusterClientConfiguration.getRestServerAddress(),
+			restClusterClientConfiguration.getRestServerPort(),
 			JobTerminationHeaders.getInstance(),
-			param
+			params
 		);
 		responseFuture.get();
-		System.out.println("Job canceling initiated.");
+	}
+
+	@Override
+	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+		throw new UnsupportedOperationException();
 	}
 
 	// ======================================
@@ -162,7 +175,7 @@ public class RestClusterClient extends ClusterClient {
 
 	@Override
 	public String getClusterIdentifier() {
-		return "Flip-6 Standalone cluster with dispatcher at " + configuration.getRestServerAddress();
+		return "Flip-6 Standalone cluster with dispatcher at " + restClusterClientConfiguration.getRestServerAddress() + '.';
 	}
 
 	@Override

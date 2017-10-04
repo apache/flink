@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -55,12 +56,13 @@ public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGatewa
 			ObjectInputStream objectIn = new ObjectInputStream(new ByteArrayInputStream(request.getRequestBody().serializedJobGraph));
 			jobGraph = (JobGraph) objectIn.readObject();
 		} catch (Exception e) {
-			log.error("Failed to deserialize JobGraph.", e);
-			return FutureUtils.completedExceptionally(new RestHandlerException("Failed to deserialize JobGraph.", HttpResponseStatus.BAD_REQUEST));
+			return FutureUtils.completedExceptionally(new RestHandlerException(
+				"Failed to deserialize JobGraph.",
+				HttpResponseStatus.BAD_REQUEST,
+				e));
 		}
 
-		gateway.submitJob(jobGraph, Time.seconds(5));
-
-		return CompletableFuture.completedFuture(new JobSubmitResponseBody("Submitted job with ID " + jobGraph.getJobID() + "."));
+		return gateway.submitJob(jobGraph, timeout)
+			.thenApply(ack -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
 	}
 }

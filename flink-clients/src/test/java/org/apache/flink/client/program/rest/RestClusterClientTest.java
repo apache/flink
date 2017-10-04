@@ -45,6 +45,7 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 
@@ -65,7 +66,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link RestClusterClient}.
  */
-public class RestClusterClientTest {
+public class RestClusterClientTest extends TestLogger {
 
 	private static final String restAddress = "http://localhost:1234";
 	private static final Dispatcher mockRestfulGateway = mock(Dispatcher.class);
@@ -164,8 +165,8 @@ public class RestClusterClientTest {
 	}
 
 	private static class TestJobTerminationHandler extends AbstractRestHandler<DispatcherGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
-		private boolean jobCanceled = false;
-		private boolean jobStopped = false;
+		private volatile boolean jobCanceled = false;
+		private volatile boolean jobStopped = false;
 
 		private TestJobTerminationHandler() {
 			super(

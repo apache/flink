@@ -557,29 +557,14 @@ public class CliFrontend {
 			return handleArgException(new CliArgsException("Missing JobID"));
 		}
 
-		// FLIP-6 specific branch
 		try {
 			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
-			if (activeCommandLine instanceof  Flip6DefaultCLI) {
-				ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
-				client.stop(jobId);
-				return 0;
-			}
-		} catch (Throwable t) {
-			return handleError(t);
-		}
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 
-		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new StopJob(jobId), clientTimeout);
-
-			final Object rc = Await.result(response, clientTimeout);
-
-			if (rc instanceof StoppingFailure) {
-				throw new Exception("Stopping the job with ID " + jobId + " failed.",
-						((StoppingFailure) rc).cause());
-			}
-
+			logAndSysout("Stopping job " + jobId + '.');
+			client.stop(jobId);
+			logAndSysout("Stopped job " + jobId + '.');
+			
 			return 0;
 		}
 		catch (Throwable t) {
@@ -650,50 +635,21 @@ public class CliFrontend {
 			return 1;
 		}
 
-		// FLIP-6 specific branch
 		try {
 			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
-			if (activeCommandLine instanceof Flip6DefaultCLI) {
-				ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
-				client.cancel(jobId);
-				return 0;
-			}
-		} catch (Throwable t) {
-			return handleError(t);
-		}
-
-		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-
-			Object cancelMsg;
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			if (withSavepoint) {
 				if (targetDirectory == null) {
 					logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
 				} else {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + ".");
+					logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + '.');
 				}
-				cancelMsg = new CancelJobWithSavepoint(jobId, targetDirectory);
+				String savepointPath = client.cancelWithSavepoint(jobId, targetDirectory);
+				logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + '.');
 			} else {
-				logAndSysout("Cancelling job " + jobId + ".");
-				cancelMsg = new CancelJob(jobId);
-			}
-
-			Future<Object> response = jobManager.ask(cancelMsg, clientTimeout);
-			final Object rc = Await.result(response, clientTimeout);
-
-			if (rc instanceof CancellationSuccess) {
-				if (withSavepoint) {
-					CancellationSuccess success = (CancellationSuccess) rc;
-					String savepointPath = success.savepointPath();
-					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + ".");
-				} else {
-					logAndSysout("Cancelled job " + jobId + ".");
-				}
-			} else if (rc instanceof CancellationFailure) {
-				throw new Exception("Canceling the job with ID " + jobId + " failed.",
-						((CancellationFailure) rc).cause());
-			} else {
-				throw new IllegalStateException("Unexpected response: " + rc);
+				logAndSysout("Cancelling job " + jobId + '.');
+				client.cancel(jobId);
+				logAndSysout("Cancelled job " + jobId + '.');
 			}
 
 			return 0;
