@@ -58,7 +58,7 @@ public class JobExceptionsHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		JobExceptionsHandler handler = new JobExceptionsHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor());
+		JobExceptionsHandler handler = new JobExceptionsHandler(mock(ExecutionGraphCache.class), Executors.directExecutor());
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/exceptions", paths[0]);

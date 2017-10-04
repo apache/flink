@@ -41,10 +41,11 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -64,7 +65,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class ArchivedExecutionGraphTest {
+public class ArchivedExecutionGraphTest extends TestLogger {
 	private static JobVertexID v1ID = new JobVertexID();
 	private static JobVertexID v2ID = new JobVertexID();
 
@@ -141,6 +142,8 @@ public class ArchivedExecutionGraphTest {
 		userAccumulators.put("userAcc", new LongCounter(64));
 
 		Execution executionWithAccumulators = runtimeGraph.getJobVertex(v1ID).getTaskVertices()[0].getCurrentExecutionAttempt();
+
+		runtimeGraph.setJsonPlan("{}");
 
 		runtimeGraph.getJobVertex(v2ID).getTaskVertices()[0].getCurrentExecutionAttempt().fail(new RuntimeException("This exception was thrown on purpose."));
 	}

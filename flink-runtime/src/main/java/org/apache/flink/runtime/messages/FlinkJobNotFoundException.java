@@ -22,13 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.FlinkException;
 
 /**
- * Exception which is returned if a Flink job could not be found.
+ * Exception indicating that we could not find a Flink job with the given job ID.
  */
 public class FlinkJobNotFoundException extends FlinkException {
 
-	private static final long serialVersionUID = -7803390762010615384L;
+	private static final long serialVersionUID = 2294698055059659025L;
 
 	public FlinkJobNotFoundException(JobID jobId) {
-		super("Could not find Flink job (" + jobId + ").");
+		super("Could not find Flink job (" + jobId + ')');
 	}
 }

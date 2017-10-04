@@ -27,21 +27,28 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.LegacyRestHandlerAdapter;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointConfigHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatisticsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationInfo;
 import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
+import org.apache.flink.runtime.rest.messages.CheckpointConfigHeaders;
+import org.apache.flink.runtime.rest.messages.CheckpointStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.CurrentJobsOverviewHandlerHeaders;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -68,6 +75,8 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 	private final RestHandlerConfiguration restConfiguration;
 	private final Executor executor;
 
+	private final ExecutionGraphCache executionGraphCache;
+
 	public DispatcherRestEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
@@ -79,6 +88,10 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		this.clusterConfiguration = Preconditions.checkNotNull(clusterConfiguration);
 		this.restConfiguration = Preconditions.checkNotNull(restConfiguration);
 		this.executor = Preconditions.checkNotNull(executor);
+
+		this.executionGraphCache = new ExecutionGraphCache(
+			restConfiguration.getTimeout(),
+			Time.milliseconds(restConfiguration.getRefreshInterval()));
 	}
 
 	@Override
@@ -131,6 +144,30 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			timeout,
 			JobTerminationHeaders.getInstance());
 
+		JobConfigHandler jobConfigHandler = new JobConfigHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			JobConfigHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
+		CheckpointConfigHandler checkpointConfigHandler = new CheckpointConfigHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			CheckpointConfigHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
+		CheckpointStatisticsHandler checkpointStatisticsHandler = new CheckpointStatisticsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			CheckpointStatisticsHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
 		final File tmpDir = restConfiguration.getTmpDir();
 
 		Optional<StaticFileServerHandler<DispatcherGateway>> optWebContent;
@@ -151,6 +188,9 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		handlers.add(Tuple2.of(DashboardConfigurationHeaders.getInstance(), dashboardConfigurationHandler));
 		handlers.add(Tuple2.of(CurrentJobsOverviewHandlerHeaders.getInstance(), currentJobsOverviewHandler));
 		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
+		handlers.add(Tuple2.of(JobConfigHeaders.getInstance(), jobConfigHandler));
+		handlers.add(Tuple2.of(CheckpointConfigHeaders.getInstance(), checkpointConfigHandler));
+		handlers.add(Tuple2.of(CheckpointStatisticsHeaders.getInstance(), checkpointStatisticsHandler));
 
 		// This handler MUST be added last, as it otherwise masks all subsequent GET handlers
 		optWebContent.ifPresent(
@@ -162,6 +202,8 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 	@Override
 	public void shutdown(Time timeout) {
 		super.shutdown(timeout);
+
+		executionGraphCache.close();
 
 		final File tmpDir = restConfiguration.getTmpDir();
 
