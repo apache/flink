@@ -24,7 +24,6 @@ import org.apache.flink.util.Preconditions;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -40,8 +39,6 @@ import java.util.Objects;
 @JsonSerialize(using = JobPlanInfo.Serializer.class)
 @JsonDeserialize(using = JobPlanInfo.Deserializer.class)
 public class JobPlanInfo implements ResponseBody {
-
-	public static final String FIELD_NAME_JSON_PLAN = "json-plan";
 
 	private final String jsonPlan;
 
