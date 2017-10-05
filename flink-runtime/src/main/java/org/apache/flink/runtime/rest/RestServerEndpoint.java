@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class RestServerEndpoint {
 
-	public static final long MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
+	public static final int MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Object lock = new Object();
