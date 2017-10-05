@@ -39,7 +39,7 @@ import org.apache.flink.runtime.blob.{BlobClient, BlobService, BlobCacheService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.Executors
+import org.apache.flink.runtime.concurrent.{Executors, FutureUtils}
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
@@ -47,7 +47,7 @@ import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInf
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
-import org.apache.flink.runtime.instance.{AkkaActorGateway, HardwareDescription, InstanceID}
+import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway, HardwareDescription, InstanceID}
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker
@@ -951,7 +951,7 @@ class TaskManager(
       kvStateRegistry.registerListener(
         new ActorGatewayKvStateRegistryListener(
           jobManagerGateway,
-          kvStateServer.getAddress))
+          kvStateServer.getServerAddress))
     }
 
     // start a blob service, if a blob server is specified
@@ -1423,6 +1423,28 @@ class TaskManager(
   }
 
   override def notifyLeaderAddress(leaderAddress: String, leaderSessionID: UUID): Unit = {
+    val proxy = network.getKvStateProxy
+    if (proxy != null) {
+
+      val askTimeoutString = config.getConfiguration.getString(AkkaOptions.ASK_TIMEOUT)
+
+      val timeout = Duration(askTimeoutString)
+
+      if (!timeout.isFinite) {
+        throw new IllegalConfigurationException(AkkaOptions.ASK_TIMEOUT.key +
+          " is not a finite timeout ('" + askTimeoutString + "')")
+      }
+
+      if (leaderAddress != null) {
+        val actorGwFuture: Future[ActorGateway] =
+          AkkaUtils.getActorRefFuture(
+            leaderAddress, context.system, timeout.asInstanceOf[FiniteDuration]
+          ).map(actor => new AkkaActorGateway(actor, leaderSessionID))(context.system.dispatcher)
+
+        proxy.updateJobManager(FutureUtils.toJava(actorGwFuture))
+      }
+    }
+
     self ! JobManagerLeaderAddress(leaderAddress, leaderSessionID)
   }
 

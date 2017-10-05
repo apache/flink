@@ -16,40 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
+package org.apache.flink.queryablestate.network.messages;
+
+import org.apache.flink.annotation.Internal;
 
 /**
- * Simple statistics for
- * {@link org.apache.flink.runtime.query.KvStateServer} and
- * {@link org.apache.flink.runtime.query.KvStateClientProxy} monitoring.
+ * The base class for every message exchanged during the communication between
+ * {@link org.apache.flink.queryablestate.network.Client client} and
+ * {@link org.apache.flink.queryablestate.network.AbstractServerBase server}.
+ *
+ * <p>Every such message should also have a {@link MessageDeserializer}.
  */
-public interface KvStateRequestStats {
+@Internal
+public abstract class MessageBody {
 
 	/**
-	 * Reports an active connection.
+	 * Serializes the message into a byte array.
+	 * @return A byte array with the serialized content of the message.
 	 */
-	void reportActiveConnection();
-
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+	public abstract byte[] serialize();
 }

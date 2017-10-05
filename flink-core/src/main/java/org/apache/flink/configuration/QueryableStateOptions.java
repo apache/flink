@@ -40,7 +40,7 @@ public class QueryableStateOptions {
 	/** Port to bind KvState server to (0 => pick random available port). */
 	public static final ConfigOption<Integer> SERVER_PORT =
 			key("query.server.port")
-			.defaultValue(0);
+			.defaultValue(9069);
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =

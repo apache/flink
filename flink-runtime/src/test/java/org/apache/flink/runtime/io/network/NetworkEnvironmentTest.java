@@ -69,6 +69,7 @@ public class NetworkEnvironmentTest {
 			new TaskEventDispatcher(),
 			new KvStateRegistry(),
 			null,
+			null,
 			IOManager.IOMode.SYNC,
 			0,
 			0,

@@ -18,8 +18,8 @@
 
 package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.queryablestate.client.KvStateClientHandler;
-import org.apache.flink.queryablestate.client.KvStateClientHandlerCallback;
+import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
+import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests for {@link KvStateClientHandler}.
+ * Tests for {@link ClientHandler}.
  */
 public class KvStateClientHandlerTest {
 
@@ -47,28 +47,30 @@ public class KvStateClientHandlerTest {
 	 */
 	@Test
 	public void testReadCallbacksAndBufferRecycling() throws Exception {
-		KvStateClientHandlerCallback callback = mock(KvStateClientHandlerCallback.class);
+		final ClientHandlerCallback<KvStateResponse> callback = mock(ClientHandlerCallback.class);
 
-		EmbeddedChannel channel = new EmbeddedChannel(new KvStateClientHandler(callback));
+		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+		final EmbeddedChannel channel = new EmbeddedChannel(new ClientHandler<>("Test Client", serializer, callback));
+
+		final byte[] content = new byte[0];
+		final KvStateResponse response = new KvStateResponse(content);
 
 		//
 		// Request success
 		//
-		ByteBuf buf = MessageSerializer.serializeKvStateRequestResult(
-				channel.alloc(),
-				1222112277,
-				new byte[0]);
+		ByteBuf buf = MessageSerializer.serializeResponse(channel.alloc(), 1222112277L, response);
 		buf.skipBytes(4); // skip frame length
 
 		// Verify callback
 		channel.writeInbound(buf);
-		verify(callback, times(1)).onRequestResult(eq(1222112277L), any(byte[].class));
+		verify(callback, times(1)).onRequestResult(eq(1222112277L), any(KvStateResponse.class));
 		assertEquals("Buffer not recycled", 0, buf.refCnt());
 
 		//
 		// Request failure
 		//
-		buf = MessageSerializer.serializeKvStateRequestFailure(
+		buf = MessageSerializer.serializeRequestFailure(
 				channel.alloc(),
 				1222112278,
 				new RuntimeException("Expected test Exception"));

@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 
@@ -37,7 +36,7 @@ import static org.junit.Assert.fail;
  */
 public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryableStateITCase {
 
-	private static final int NUM_TMS = 2;
+	private static final int NUM_TMS = 1;
 	private static final int NUM_SLOTS_PER_TM = 4;
 
 	@BeforeClass
@@ -48,13 +47,12 @@ public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryabl
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
+			config.setInteger(QueryableStateOptions.SERVER_PORT, 9069);
 			config.setBoolean(QueryableStateOptions.SERVER_ENABLE, true);
 			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
 
 			cluster = new TestingCluster(config, false);
 			cluster.start(true);
-
-			testActorSystem = AkkaUtils.createDefaultActorSystem();
 
 			// verify that we are not in HA mode
 			Assert.assertTrue(cluster.haMode() == HighAvailabilityMode.NONE);
@@ -72,10 +70,6 @@ public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryabl
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-
-		if (testActorSystem != null) {
-			testActorSystem.shutdown();
 		}
 	}
 }

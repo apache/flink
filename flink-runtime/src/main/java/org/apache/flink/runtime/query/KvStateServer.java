@@ -20,24 +20,21 @@ package org.apache.flink.runtime.query;
 
 /**
  * An interface for the Queryable State Server running on each Task Manager in the cluster.
- * This server is responsible for serving requests coming from the Queryable State Client and
- * requesting <b>locally</b> stored state.
+ * This server is responsible for serving requests coming from the {@link KvStateClientProxy
+ * Queryable State Proxy} and requesting <b>locally</b> stored state.
  */
 public interface KvStateServer {
 
 	/**
-	 * Returns the address of this server.
-	 *
-	 * @return Server address
+	 * Returns the {@link KvStateServerAddress address} the server is listening to.
+	 * @return Server address.
 	 */
-	KvStateServerAddress getAddress();
+	KvStateServerAddress getServerAddress();
 
 
-	/** Starts the proxy. */
+	/** Starts the server. */
 	void start() throws InterruptedException;
 
-	/**
-	 * Shuts down the server and all related thread pools.
-	 */
-	void shutDown();
+	/** Shuts down the server and all related thread pools. */
+	void shutdown();
 }

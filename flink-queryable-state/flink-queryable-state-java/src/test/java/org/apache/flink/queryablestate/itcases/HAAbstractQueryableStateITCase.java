@@ -22,7 +22,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.QueryableStateOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 
@@ -40,7 +39,7 @@ import static org.junit.Assert.fail;
 public abstract class HAAbstractQueryableStateITCase extends AbstractQueryableStateITCase {
 
 	private static final int NUM_JMS = 2;
-	private static final int NUM_TMS = 4;
+	private static final int NUM_TMS = 1;
 	private static final int NUM_SLOTS_PER_TM = 4;
 
 	private static TestingServer zkServer;
@@ -67,8 +66,6 @@ public abstract class HAAbstractQueryableStateITCase extends AbstractQueryableSt
 			cluster = new TestingCluster(config, false);
 			cluster.start();
 
-			testActorSystem = AkkaUtils.createDefaultActorSystem();
-
 			// verify that we are in HA mode
 			Assert.assertTrue(cluster.haMode() == HighAvailabilityMode.ZOOKEEPER);
 
@@ -84,9 +81,6 @@ public abstract class HAAbstractQueryableStateITCase extends AbstractQueryableSt
 			cluster.stop();
 			cluster.awaitTermination();
 		}
-
-		testActorSystem.shutdown();
-		testActorSystem.awaitTermination();
 
 		try {
 			zkServer.stop();

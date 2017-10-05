@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.client;
+package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.queryablestate.messages.KvStateRequestFailure;
-import org.apache.flink.queryablestate.messages.KvStateRequestResult;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.messages.MessageType;
-import org.apache.flink.queryablestate.server.KvStateServerHandler;
+import org.apache.flink.queryablestate.network.messages.RequestFailure;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -35,24 +36,37 @@ import org.slf4j.LoggerFactory;
 import java.nio.channels.ClosedChannelException;
 
 /**
- * This handler expects responses from {@link KvStateServerHandler}.
+ * The handler used by a {@link Client} to handling incoming messages.
  *
- * <p>It deserializes the response and calls the registered callback, which is
- * responsible for actually handling the result (see {@link KvStateClient.EstablishedConnection}).
+ * @param <REQ> the type of request the client will send.
+ * @param <RESP> the type of response the client expects to receive.
  */
-public class KvStateClientHandler extends ChannelInboundHandlerAdapter {
+@Internal
+public class ClientHandler<REQ extends MessageBody, RESP extends MessageBody> extends ChannelInboundHandlerAdapter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KvStateClientHandler.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClientHandler.class);
 
-	private final KvStateClientHandlerCallback callback;
+	private final String clientName;
+
+	private final MessageSerializer<REQ, RESP> serializer;
+
+	private final ClientHandlerCallback<RESP> callback;
 
 	/**
-	 * Creates a {@link KvStateClientHandler} with the callback.
+	 * Creates a handler with the callback.
 	 *
+	 * @param clientName the name of the client.
+	 * @param serializer the serializer used to (de-)serialize messages.
 	 * @param callback Callback for responses.
 	 */
-	public KvStateClientHandler(KvStateClientHandlerCallback callback) {
-		this.callback = callback;
+	public ClientHandler(
+			final String clientName,
+			final MessageSerializer<REQ, RESP> serializer,
+			final ClientHandlerCallback<RESP> callback) {
+
+		this.clientName = Preconditions.checkNotNull(clientName);
+		this.serializer = Preconditions.checkNotNull(serializer);
+		this.callback = Preconditions.checkNotNull(callback);
 	}
 
 	@Override
@@ -62,10 +76,11 @@ public class KvStateClientHandler extends ChannelInboundHandlerAdapter {
 			MessageType msgType = MessageSerializer.deserializeHeader(buf);
 
 			if (msgType == MessageType.REQUEST_RESULT) {
-				KvStateRequestResult result = MessageSerializer.deserializeKvStateRequestResult(buf);
-				callback.onRequestResult(result.getRequestId(), result.getSerializedResult());
+				long requestId = MessageSerializer.getRequestId(buf);
+				RESP result = serializer.deserializeResponse(buf);
+				callback.onRequestResult(requestId, result);
 			} else if (msgType == MessageType.REQUEST_FAILURE) {
-				KvStateRequestFailure failure = MessageSerializer.deserializeKvStateRequestFailure(buf);
+				RequestFailure failure = MessageSerializer.deserializeRequestFailure(buf);
 				callback.onRequestFailure(failure.getRequestId(), failure.getCause());
 			} else if (msgType == MessageType.SERVER_FAILURE) {
 				throw MessageSerializer.deserializeServerFailure(buf);

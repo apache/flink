@@ -150,7 +150,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 				((int)  this.upperPart) ^
 				((int) (this.upperPart >>> 32));
 	}
-	
+
 	@Override
 	public String toString() {
 		if (this.toString == null) {
@@ -163,7 +163,7 @@ public class AbstractID implements Comparable<AbstractID>, java.io.Serializable 
 
 		return this.toString;
 	}
-	
+
 	@Override
 	public int compareTo(AbstractID o) {
 		int diff1 = (this.upperPart < o.upperPart) ? -1 : ((this.upperPart == o.upperPart) ? 0 : 1);

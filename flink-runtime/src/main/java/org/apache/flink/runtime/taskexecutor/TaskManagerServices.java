@@ -38,10 +38,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.query.QueryableStateUtils;
 import org.apache.flink.runtime.query.netty.DisabledKvStateRequestStats;
-import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
@@ -66,7 +67,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 public class TaskManagerServices {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
 
-	/** TaskManager services */
+	/** TaskManager services. */
 	private final TaskManagerLocation taskManagerLocation;
 	private final MemoryManager memoryManager;
 	private final IOManager ioManager;
@@ -356,6 +357,7 @@ public class TaskManagerServices {
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
 		KvStateRegistry kvStateRegistry = new KvStateRegistry();
+		KvStateClientProxy kvClientProxy = null;
 		KvStateServer kvStateServer = null;
 
 		if (taskManagerServicesConfiguration.getQueryableStateConfig().enabled()) {
@@ -367,9 +369,16 @@ public class TaskManagerServices {
 			int numQueryThreads = qsConfig.numQueryThreads() == 0 ?
 					taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numQueryThreads();
 
-			kvStateServer = QueryableStateUtils.createKvStateServer(
+			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
 					taskManagerServicesConfiguration.getTaskManagerAddress(),
 					qsConfig.port(),
+					numNetworkThreads,
+					numQueryThreads,
+					new DisabledKvStateRequestStats());
+
+			kvStateServer = QueryableStateUtils.createKvStateServer(
+					taskManagerServicesConfiguration.getTaskManagerAddress(),
+					0,
 					numNetworkThreads,
 					numQueryThreads,
 					kvStateRegistry,
@@ -384,6 +393,7 @@ public class TaskManagerServices {
 			taskEventDispatcher,
 			kvStateRegistry,
 			kvStateServer,
+			kvClientProxy,
 			networkEnvironmentConfiguration.ioMode(),
 			networkEnvironmentConfiguration.partitionRequestInitialBackoff(),
 			networkEnvironmentConfiguration.partitionRequestMaxBackoff(),

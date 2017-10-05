@@ -18,72 +18,124 @@
 
 package org.apache.flink.queryablestate.messages;
 
-import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.network.messages.MessageBody;
+import org.apache.flink.queryablestate.network.messages.MessageDeserializer;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+
 /**
- * A {@link InternalKvState} instance request for a specific key and namespace.
+ * The request to be sent by the {@link org.apache.flink.queryablestate.client.QueryableStateClient
+ * Queryable State Client} to the {@link org.apache.flink.runtime.query.KvStateClientProxy Client Proxy}
+ * requesting a given state.
  */
-public final class KvStateRequest {
+@Internal
+public class KvStateRequest extends MessageBody {
 
-	/** ID for this request. */
-	private final long requestId;
-
-	/** ID of the requested KvState instance. */
-	private final KvStateID kvStateId;
-
-	/** Serialized key and namespace to request from the KvState instance. */
+	private final JobID jobId;
+	private final String stateName;
+	private final int keyHashCode;
 	private final byte[] serializedKeyAndNamespace;
 
-	/**
-	 * Creates a KvState instance request.
-	 *
-	 * @param requestId                 ID for this request
-	 * @param kvStateId                 ID of the requested KvState instance
-	 * @param serializedKeyAndNamespace Serialized key and namespace to request from the KvState
-	 *                                  instance
-	 */
-	public KvStateRequest(long requestId, KvStateID kvStateId, byte[] serializedKeyAndNamespace) {
-		this.requestId = requestId;
-		this.kvStateId = Preconditions.checkNotNull(kvStateId, "KvStateID");
-		this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
+	public KvStateRequest(
+			final JobID jobId,
+			final String stateName,
+			final int keyHashCode,
+			final byte[] serializedKeyAndNamespace) {
+
+		this.jobId = Preconditions.checkNotNull(jobId);
+		this.stateName = Preconditions.checkNotNull(stateName);
+		this.keyHashCode = keyHashCode;
+		this.serializedKeyAndNamespace = Preconditions.checkNotNull(serializedKeyAndNamespace);
 	}
 
-	/**
-	 * Returns the request ID.
-	 *
-	 * @return Request ID
-	 */
-	public long getRequestId() {
-		return requestId;
+	public JobID getJobId() {
+		return jobId;
 	}
 
-	/**
-	 * Returns the ID of the requested KvState instance.
-	 *
-	 * @return ID of the requested KvState instance
-	 */
-	public KvStateID getKvStateId() {
-		return kvStateId;
+	public String getStateName() {
+		return stateName;
 	}
 
-	/**
-	 * Returns the serialized key and namespace to request from the KvState
-	 * instance.
-	 *
-	 * @return Serialized key and namespace to request from the KvState instance
-	 */
+	public int getKeyHashCode() {
+		return keyHashCode;
+	}
+
 	public byte[] getSerializedKeyAndNamespace() {
 		return serializedKeyAndNamespace;
 	}
 
 	@Override
+	public byte[] serialize() {
+
+		byte[] serializedStateName = stateName.getBytes();
+
+		// JobID + stateName + sizeOf(stateName) + hashCode + keyAndNamespace + sizeOf(keyAndNamespace)
+		final int size =
+				JobID.SIZE +
+				serializedStateName.length + Integer.BYTES +
+				Integer.BYTES +
+				serializedKeyAndNamespace.length + Integer.BYTES;
+
+		return ByteBuffer.allocate(size)
+				.putLong(jobId.getLowerPart())
+				.putLong(jobId.getUpperPart())
+				.putInt(serializedStateName.length)
+				.put(serializedStateName)
+				.putInt(keyHashCode)
+				.putInt(serializedKeyAndNamespace.length)
+				.put(serializedKeyAndNamespace)
+				.array();
+	}
+
+	@Override
 	public String toString() {
 		return "KvStateRequest{" +
-				"requestId=" + requestId +
-				", kvStateId=" + kvStateId +
-				", serializedKeyAndNamespace.length=" + serializedKeyAndNamespace.length +
+				"jobId=" + jobId +
+				", stateName='" + stateName + '\'' +
+				", keyHashCode=" + keyHashCode +
+				", serializedKeyAndNamespace=" + Arrays.toString(serializedKeyAndNamespace) +
 				'}';
+	}
+
+	/**
+	 * A {@link MessageDeserializer deserializer} for {@link KvStateRequest}.
+	 */
+	public static class KvStateRequestDeserializer implements MessageDeserializer<KvStateRequest> {
+
+		@Override
+		public KvStateRequest deserializeMessage(ByteBuf buf) {
+			JobID jobId = new JobID(buf.readLong(), buf.readLong());
+
+			int statenameLength = buf.readInt();
+			Preconditions.checkArgument(statenameLength >= 0,
+					"Negative length for state name. " +
+							"This indicates a serialization error.");
+
+			String stateName = "";
+			if (statenameLength > 0) {
+				byte[] name = new byte[statenameLength];
+				buf.readBytes(name);
+				stateName = new String(name);
+			}
+
+			int keyHashCode = buf.readInt();
+
+			int knamespaceLength = buf.readInt();
+			Preconditions.checkArgument(knamespaceLength >= 0,
+					"Negative length for key and namespace. " +
+							"This indicates a serialization error.");
+
+			byte[] serializedKeyAndNamespace = new byte[knamespaceLength];
+			if (knamespaceLength > 0) {
+				buf.readBytes(serializedKeyAndNamespace);
+			}
+			return new KvStateRequest(jobId, stateName, keyHashCode, serializedKeyAndNamespace);
+		}
 	}
 }

@@ -189,8 +189,8 @@ public class TaskManagerServicesConfiguration {
 			remoteAddress,
 			slots);
 
-		final QueryableStateConfiguration queryableStateConfig = localCommunication ?
-				QueryableStateConfiguration.disabled() :
+		// @Ufuk todo why was it like this before ???
+		final QueryableStateConfiguration queryableStateConfig =
 				parseQueryableStateConfiguration(configuration);
 
 		// extract memory settings

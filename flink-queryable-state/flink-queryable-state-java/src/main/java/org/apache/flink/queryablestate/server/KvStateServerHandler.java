@@ -18,31 +18,25 @@
 
 package org.apache.flink.queryablestate.server;
 
-import org.apache.flink.queryablestate.UnknownKeyOrNamespace;
-import org.apache.flink.queryablestate.UnknownKvStateID;
-import org.apache.flink.queryablestate.messages.KvStateRequest;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.queryablestate.UnknownKeyOrNamespaceException;
+import org.apache.flink.queryablestate.UnknownKvStateIdException;
+import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
+import org.apache.flink.queryablestate.messages.KvStateResponse;
+import org.apache.flink.queryablestate.network.AbstractServerHandler;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
-import org.apache.flink.queryablestate.network.messages.MessageType;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.netty.KvStateRequestStats;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
-import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * This handler dispatches asynchronous tasks, which query {@link InternalKvState}
@@ -52,257 +46,62 @@ import java.util.concurrent.TimeUnit;
  * query task. The actual query is handled in a separate thread as it might
  * otherwise block the network threads (file I/O etc.).
  */
+@Internal
 @ChannelHandler.Sharable
-public class KvStateServerHandler extends ChannelInboundHandlerAdapter {
+public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalRequest, KvStateResponse> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KvStateServerHandler.class);
 
 	/** KvState registry holding references to the KvState instances. */
 	private final KvStateRegistry registry;
 
-	/** Thread pool for query execution. */
-	private final ExecutorService queryExecutor;
-
-	/** Exposed server statistics. */
-	private final KvStateRequestStats stats;
-
 	/**
-	 * Create the handler.
+	 * Create the handler used by the {@link KvStateServerImpl}.
 	 *
-	 * @param kvStateRegistry Registry to query.
-	 * @param queryExecutor   Thread pool for query execution.
-	 * @param stats           Exposed server statistics.
+	 * @param server the {@link KvStateServerImpl} using the handler.
+	 * @param kvStateRegistry registry to query.
+	 * @param serializer the {@link MessageSerializer} used to (de-) serialize the different messages.
+	 * @param stats server statistics collector.
 	 */
 	public KvStateServerHandler(
-			KvStateRegistry kvStateRegistry,
-			ExecutorService queryExecutor,
-			KvStateRequestStats stats) {
+			final KvStateServerImpl server,
+			final KvStateRegistry kvStateRegistry,
+			final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer,
+			final KvStateRequestStats stats) {
 
-		this.registry = Objects.requireNonNull(kvStateRegistry, "KvStateRegistry");
-		this.queryExecutor = Objects.requireNonNull(queryExecutor, "Query thread pool");
-		this.stats = Objects.requireNonNull(stats, "KvStateRequestStats");
+		super(server, serializer, stats);
+		this.registry = Preconditions.checkNotNull(kvStateRegistry);
 	}
 
 	@Override
-	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		stats.reportActiveConnection();
-	}
-
-	@Override
-	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		stats.reportInactiveConnection();
-	}
-
-	@Override
-	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		KvStateRequest request = null;
+	public CompletableFuture<KvStateResponse> handleRequest(final long requestId, final KvStateInternalRequest request) {
+		final CompletableFuture<KvStateResponse> responseFuture = new CompletableFuture<>();
 
 		try {
-			ByteBuf buf = (ByteBuf) msg;
-			MessageType msgType = MessageSerializer.deserializeHeader(buf);
+			final InternalKvState<?> kvState = registry.getKvState(request.getKvStateId());
+			if (kvState == null) {
+				responseFuture.completeExceptionally(new UnknownKvStateIdException(getServerName(), request.getKvStateId()));
+			} else {
+				byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
 
-			if (msgType == MessageType.REQUEST) {
-				// ------------------------------------------------------------
-				// Request
-				// ------------------------------------------------------------
-				request = MessageSerializer.deserializeKvStateRequest(buf);
-
-				stats.reportRequest();
-
-				InternalKvState<?> kvState = registry.getKvState(request.getKvStateId());
-
-				if (kvState != null) {
-					// Execute actual query async, because it is possibly
-					// blocking (e.g. file I/O).
-					//
-					// A submission failure is not treated as fatal.
-					queryExecutor.submit(new AsyncKvStateQueryTask(ctx, request, kvState, stats));
+				byte[] serializedResult = kvState.getSerializedValue(serializedKeyAndNamespace);
+				if (serializedResult != null) {
+					responseFuture.complete(new KvStateResponse(serializedResult));
 				} else {
-					ByteBuf unknown = MessageSerializer.serializeKvStateRequestFailure(
-							ctx.alloc(),
-							request.getRequestId(),
-							new UnknownKvStateID(request.getKvStateId()));
-
-					ctx.writeAndFlush(unknown);
-
-					stats.reportFailedRequest();
+					responseFuture.completeExceptionally(new UnknownKeyOrNamespaceException(getServerName()));
 				}
-			} else {
-				// ------------------------------------------------------------
-				// Unexpected
-				// ------------------------------------------------------------
-				ByteBuf failure = MessageSerializer.serializeServerFailure(
-						ctx.alloc(),
-						new IllegalArgumentException("Unexpected message type " + msgType
-								+ ". KvStateServerHandler expects "
-								+ MessageType.REQUEST + " messages."));
-
-				ctx.writeAndFlush(failure);
 			}
+			return responseFuture;
 		} catch (Throwable t) {
-			String stringifiedCause = ExceptionUtils.stringifyException(t);
-
-			ByteBuf err;
-			if (request != null) {
-				String errMsg = "Failed to handle incoming request with ID " +
-						request.getRequestId() + ". Caused by: " + stringifiedCause;
-				err = MessageSerializer.serializeKvStateRequestFailure(
-						ctx.alloc(),
-						request.getRequestId(),
-						new RuntimeException(errMsg));
-
-				stats.reportFailedRequest();
-			} else {
-				String errMsg = "Failed to handle incoming message. Caused by: " + stringifiedCause;
-				err = MessageSerializer.serializeServerFailure(
-						ctx.alloc(),
-						new RuntimeException(errMsg));
-			}
-
-			ctx.writeAndFlush(err);
-		} finally {
-			// IMPORTANT: We have to always recycle the incoming buffer.
-			// Otherwise we will leak memory out of Netty's buffer pool.
-			//
-			// If any operation ever holds on to the buffer, it is the
-			// responsibility of that operation to retain the buffer and
-			// release it later.
-			ReferenceCountUtil.release(msg);
+			String errMsg = "Error while processing request with ID " + requestId +
+					". Caused by: " + ExceptionUtils.stringifyException(t);
+			responseFuture.completeExceptionally(new RuntimeException(errMsg));
+			return responseFuture;
 		}
 	}
 
 	@Override
-	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		String stringifiedCause = ExceptionUtils.stringifyException(cause);
-		String msg = "Exception in server pipeline. Caused by: " + stringifiedCause;
-
-		ByteBuf err = MessageSerializer.serializeServerFailure(
-				ctx.alloc(),
-				new RuntimeException(msg));
-
-		ctx.writeAndFlush(err).addListener(ChannelFutureListener.CLOSE);
-	}
-
-	/**
-	 * Task to execute the actual query against the {@link InternalKvState} instance.
-	 */
-	private static class AsyncKvStateQueryTask implements Runnable {
-
-		private final ChannelHandlerContext ctx;
-
-		private final KvStateRequest request;
-
-		private final InternalKvState<?> kvState;
-
-		private final KvStateRequestStats stats;
-
-		private final long creationNanos;
-
-		public AsyncKvStateQueryTask(
-				ChannelHandlerContext ctx,
-				KvStateRequest request,
-				InternalKvState<?> kvState,
-				KvStateRequestStats stats) {
-
-			this.ctx = Objects.requireNonNull(ctx, "Channel handler context");
-			this.request = Objects.requireNonNull(request, "State query");
-			this.kvState = Objects.requireNonNull(kvState, "KvState");
-			this.stats = Objects.requireNonNull(stats, "State query stats");
-			this.creationNanos = System.nanoTime();
-		}
-
-		@Override
-		public void run() {
-			boolean success = false;
-
-			try {
-				if (!ctx.channel().isActive()) {
-					return;
-				}
-
-				// Query the KvState instance
-				byte[] serializedKeyAndNamespace = request.getSerializedKeyAndNamespace();
-				byte[] serializedResult = kvState.getSerializedValue(serializedKeyAndNamespace);
-
-				if (serializedResult != null) {
-					// We found some data, success!
-					ByteBuf buf = MessageSerializer.serializeKvStateRequestResult(
-							ctx.alloc(),
-							request.getRequestId(),
-							serializedResult);
-
-					int highWatermark = ctx.channel().config().getWriteBufferHighWaterMark();
-
-					ChannelFuture write;
-					if (buf.readableBytes() <= highWatermark) {
-						write = ctx.writeAndFlush(buf);
-					} else {
-						write = ctx.writeAndFlush(new ChunkedByteBuf(buf, highWatermark));
-					}
-
-					write.addListener(new QueryResultWriteListener());
-
-					success = true;
-				} else {
-					// No data for the key/namespace. This is considered to be
-					// a failure.
-					ByteBuf unknownKey = MessageSerializer.serializeKvStateRequestFailure(
-							ctx.alloc(),
-							request.getRequestId(),
-							new UnknownKeyOrNamespace());
-
-					ctx.writeAndFlush(unknownKey);
-				}
-			} catch (Throwable t) {
-				try {
-					String stringifiedCause = ExceptionUtils.stringifyException(t);
-					String errMsg = "Failed to query state backend for query " +
-							request.getRequestId() + ". Caused by: " + stringifiedCause;
-
-					ByteBuf err = MessageSerializer.serializeKvStateRequestFailure(
-							ctx.alloc(), request.getRequestId(), new RuntimeException(errMsg));
-
-					ctx.writeAndFlush(err);
-				} catch (IOException e) {
-					LOG.error("Failed to respond with the error after failed to query state backend", e);
-				}
-			} finally {
-				if (!success) {
-					stats.reportFailedRequest();
-				}
-			}
-		}
-
-		@Override
-		public String toString() {
-			return "AsyncKvStateQueryTask{" +
-					", request=" + request +
-					", creationNanos=" + creationNanos +
-					'}';
-		}
-
-		/**
-		 * Callback after query result has been written.
-		 *
-		 * <p>Gathers stats and logs errors.
-		 */
-		private class QueryResultWriteListener implements ChannelFutureListener {
-
-			@Override
-			public void operationComplete(ChannelFuture future) throws Exception {
-				long durationNanos = System.nanoTime() - creationNanos;
-				long durationMillis = TimeUnit.MILLISECONDS.convert(durationNanos, TimeUnit.NANOSECONDS);
-
-				if (future.isSuccess()) {
-					stats.reportSuccessfulRequest(durationMillis);
-				} else {
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Query " + request + " failed after " + durationMillis + " ms", future.cause());
-					}
-
-					stats.reportFailedRequest();
-				}
-			}
-		}
+	public void shutdown() {
+		// do nothing
 	}
 }
