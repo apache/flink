@@ -21,8 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.instance.Instance;
@@ -68,8 +67,7 @@ public class TaskManagerLogHandlerTest {
 			CompletableFuture.completedFuture("/jm/address"),
 			TestingUtils.TIMEOUT(),
 			TaskManagerLogHandler.FileMode.LOG,
-			new Configuration(),
-			new VoidBlobStore());
+			new Configuration());
 		String[] pathsLog = handlerLog.getPaths();
 		Assert.assertEquals(1, pathsLog.length);
 		Assert.assertEquals("/taskmanagers/:taskmanagerid/log", pathsLog[0]);
@@ -80,8 +78,7 @@ public class TaskManagerLogHandlerTest {
 			CompletableFuture.completedFuture("/jm/address"),
 			TestingUtils.TIMEOUT(),
 			TaskManagerLogHandler.FileMode.STDOUT,
-			new Configuration(),
-			new VoidBlobStore());
+			new Configuration());
 		String[] pathsOut = handlerOut.getPaths();
 		Assert.assertEquals(1, pathsOut.length);
 		Assert.assertEquals("/taskmanagers/:taskmanagerid/stdout", pathsOut[0]);
@@ -99,7 +96,7 @@ public class TaskManagerLogHandlerTest {
 		when(taskManager.getId()).thenReturn(tmID);
 		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 		when(taskManager.getTaskManagerGateway()).thenReturn(taskManagerGateway);
-		CompletableFuture<BlobKey> future = new CompletableFuture<>();
+		CompletableFuture<TransientBlobKey> future = new CompletableFuture<>();
 		future.completeExceptionally(new IOException("failure"));
 		when(taskManagerGateway.requestTaskManagerLog(any(Time.class))).thenReturn(future);
 
@@ -121,8 +118,7 @@ public class TaskManagerLogHandlerTest {
 			CompletableFuture.completedFuture("/jm/address"),
 			TestingUtils.TIMEOUT(),
 			TaskManagerLogHandler.FileMode.LOG,
-			new Configuration(),
-			new VoidBlobStore());
+			new Configuration());
 
 		final AtomicReference<String> exception = new AtomicReference<>();
 

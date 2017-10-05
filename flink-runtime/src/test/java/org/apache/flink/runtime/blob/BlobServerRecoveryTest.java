@@ -21,27 +21,37 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
+import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class BlobRecoveryITCase extends TestLogger {
+/**
+ * Tests for the recovery of files of a {@link BlobServer} from a HA store.
+ */
+public class BlobServerRecoveryTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -54,7 +64,6 @@ public class BlobRecoveryITCase extends TestLogger {
 	public void testBlobServerRecovery() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
@@ -71,118 +80,81 @@ public class BlobRecoveryITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Helper to test that the {@link BlobServer} recovery from its HA store works.
+	 *
+	 * <p>Uploads two BLOBs to one {@link BlobServer} and expects a second one to be able to retrieve
+	 * them via a shared HA store upon request of a {@link BlobCacheService}.
+	 *
+	 * @param config
+	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
+	 * 		and {@link HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
+	 * @param blobStore
+	 * 		shared HA blob store to use
+	 *
+	 * @throws IOException
+	 * 		in case of failures
+	 */
 	public static void testBlobServerRecovery(final Configuration config, final BlobStore blobStore) throws IOException {
 		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
 		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
 		Random rand = new Random();
 
-		BlobServer[] server = new BlobServer[2];
-		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
-		BlobClient client = null;
+		try (
+			BlobServer server0 = new BlobServer(config, blobStore);
+			BlobServer server1 = new BlobServer(config, blobStore);
+			// use VoidBlobStore as the HA store to force download from server[1]'s HA store
+			BlobCacheService cache1 = new BlobCacheService(
+				new InetSocketAddress("localhost", server1.getPort()), config,
+				new VoidBlobStore())) {
 
-		try {
-			for (int i = 0; i < server.length; i++) {
-				server[i] = new BlobServer(config, blobStore);
-				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
-			}
-
-			client = new BlobClient(serverAddress[0], config);
+			server0.start();
+			server1.start();
 
 			// Random data
 			byte[] expected = new byte[1024];
 			rand.nextBytes(expected);
+			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
 
 			BlobKey[] keys = new BlobKey[2];
+			BlobKey nonHAKey;
 
-			// Put job-unrelated data
-			keys[0] = client.put(null, expected); // Request 1
-			keys[1] = client.put(null, expected, 32, 256); // Request 2
-
-			// Put job-related data, verify that the checksums match
+			// Put job-related HA data
 			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
-			BlobKey key;
-			key = client.put(jobId[0], expected); // Request 3
-			assertEquals(keys[0], key);
-			key = client.put(jobId[1], expected, 32, 256); // Request 4
-			assertEquals(keys[1], key);
+			keys[0] = put(server0, jobId[0], expected, PERMANENT_BLOB); // Request 1
+			keys[1] = put(server0, jobId[1], expected2, PERMANENT_BLOB); // Request 2
+
+			// put non-HA data
+			nonHAKey = put(server0, jobId[0], expected2, TRANSIENT_BLOB);
+			assertNotEquals(keys[1], nonHAKey);
+			assertThat(keys[1].getHash(), equalTo(nonHAKey.getHash()));
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
 			FileSystem fs = blobServerPath.getFileSystem();
 			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
 
-			// Close the client and connect to the other server
-			client.close();
-			client = new BlobClient(serverAddress[1], config);
+			// Verify HA requests from cache1 (connected to server1) with no immediate access to the file
+			verifyContents(cache1, jobId[0], keys[0], expected);
+			verifyContents(cache1, jobId[1], keys[1], expected2);
 
-			// Verify request 1
-			try (InputStream is = client.get(keys[0])) {
-				byte[] actual = new byte[expected.length];
-
-				BlobUtils.readFully(is, actual, 0, expected.length, null);
-
-				for (int i = 0; i < expected.length; i++) {
-					assertEquals(expected[i], actual[i]);
-				}
-			}
-
-			// Verify request 2
-			try (InputStream is = client.get(keys[1])) {
-				byte[] actual = new byte[256];
-				BlobUtils.readFully(is, actual, 0, 256, null);
-
-				for (int i = 32, j = 0; i < 256; i++, j++) {
-					assertEquals(expected[i], actual[j]);
-				}
-			}
-
-			// Verify request 3
-			try (InputStream is = client.get(jobId[0], keys[0])) {
-				byte[] actual = new byte[expected.length];
-				BlobUtils.readFully(is, actual, 0, expected.length, null);
-
-				for (int i = 0; i < expected.length; i++) {
-					assertEquals(expected[i], actual[i]);
-				}
-			}
-
-			// Verify request 4
-			try (InputStream is = client.get(jobId[1], keys[1])) {
-				byte[] actual = new byte[256];
-				BlobUtils.readFully(is, actual, 0, 256, null);
-
-				for (int i = 32, j = 0; i < 256; i++, j++) {
-					assertEquals(expected[i], actual[j]);
-				}
-			}
+			// Verify non-HA file is not accessible from server1
+			verifyDeleted(cache1, jobId[0], nonHAKey);
 
 			// Remove again
-			client.delete(keys[0]);
-			client.delete(keys[1]);
-			client.delete(jobId[0], keys[0]);
-			client.delete(jobId[1], keys[1]);
+			server1.cleanupJob(jobId[0]);
+			server1.cleanupJob(jobId[1]);
 
 			// Verify everything is clean
 			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
 			if (fs.exists(blobServerPath)) {
 				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
 					fs.listStatus(blobServerPath);
-				ArrayList<String> filenames = new ArrayList<String>(recoveryFiles.length);
+				ArrayList<String> filenames = new ArrayList<>(recoveryFiles.length);
 				for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
 					filenames.add(file.toString());
 				}
 				fail("Unclean state backend: " + filenames);
-			}
-		}
-		finally {
-			for (BlobServer s : server) {
-				if (s != null) {
-					s.close();
-				}
-			}
-
-			if (client != null) {
-				client.close();
 			}
 		}
 	}

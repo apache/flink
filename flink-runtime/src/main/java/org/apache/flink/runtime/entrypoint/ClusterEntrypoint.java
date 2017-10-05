@@ -177,6 +177,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		commonRpcService = createRpcService(configuration, bindAddress, portRange);
 		haServices = createHaServices(configuration, commonRpcService.getExecutor());
 		blobServer = new BlobServer(configuration, haServices.createBlobStore());
+		blobServer.start();
 		heartbeatServices = createHeartbeatServices(configuration);
 		metricRegistry = createMetricRegistry(configuration);
 	}

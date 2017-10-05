@@ -24,7 +24,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.SerializedValue;
 
@@ -99,7 +99,7 @@ public class JobGraph implements Serializable {
 	private final List<Path> userJars = new ArrayList<Path>();
 
 	/** Set of blob keys identifying the JAR files required to run this job. */
-	private final List<BlobKey> userJarBlobKeys = new ArrayList<BlobKey>();
+	private final List<PermanentBlobKey> userJarBlobKeys = new ArrayList<>();
 
 	/** List of classpaths required to run this job. */
 	private List<URL> classpaths = Collections.emptyList();
@@ -494,7 +494,7 @@ public class JobGraph implements Serializable {
 	 * @param key
 	 *        path of the JAR file required to run the job on a task manager
 	 */
-	public void addBlob(BlobKey key) {
+	public void addBlob(PermanentBlobKey key) {
 		if (key == null) {
 			throw new IllegalArgumentException();
 		}
@@ -518,7 +518,7 @@ public class JobGraph implements Serializable {
 	 *
 	 * @return set of BLOB keys referring to the JAR files required to run this job
 	 */
-	public List<BlobKey> getUserJarBlobKeys() {
+	public List<PermanentBlobKey> getUserJarBlobKeys() {
 		return this.userJarBlobKeys;
 	}
 
@@ -535,10 +535,10 @@ public class JobGraph implements Serializable {
 			InetSocketAddress blobServerAddress,
 			Configuration blobClientConfig) throws IOException {
 		if (!userJars.isEmpty()) {
-			// TODO: make use of job-related BLOBs after adapting the BlobLibraryCacheManager
-			List<BlobKey> blobKeys = BlobClient.uploadJarFiles(blobServerAddress, blobClientConfig, jobID, userJars);
+			List<PermanentBlobKey> blobKeys = BlobClient.uploadJarFiles(
+				blobServerAddress, blobClientConfig, jobID, userJars);
 
-			for (BlobKey blobKey : blobKeys) {
+			for (PermanentBlobKey blobKey : blobKeys) {
 				if (!userJarBlobKeys.contains(blobKey)) {
 					userJarBlobKeys.add(blobKey);
 				}

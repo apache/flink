@@ -22,7 +22,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -148,7 +147,6 @@ public final class WebMonitorUtils {
 			Constructor<? extends WebMonitor> constructor = clazz.getConstructor(
 				Configuration.class,
 				LeaderRetrievalService.class,
-				BlobView.class,
 				LeaderGatewayRetriever.class,
 				MetricQueryServiceRetriever.class,
 				Time.class,
@@ -156,7 +154,6 @@ public final class WebMonitorUtils {
 			return constructor.newInstance(
 				config,
 				highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-				highAvailabilityServices.createBlobStore(),
 				jobManagerRetriever,
 				queryServiceRetriever,
 				timeout,
