@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -34,8 +35,12 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.queryablestate.UnknownKeyOrNamespace;
+import org.apache.flink.configuration.QueryableStateOptions;
+import org.apache.flink.queryablestate.UnknownKeyOrNamespaceException;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -53,25 +58,27 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.dispatch.Futures;
-import akka.dispatch.OnSuccess;
-import akka.dispatch.Recover;
-import akka.pattern.Patterns;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.function.Supplier;
 
 import scala.concurrent.Await;
-import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
@@ -84,10 +91,12 @@ import static org.junit.Assert.assertTrue;
  */
 public abstract class AbstractQueryableStateITCase extends TestLogger {
 
-	protected static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10000, TimeUnit.SECONDS);
-	private static final FiniteDuration QUERY_RETRY_DELAY = new FiniteDuration(100, TimeUnit.MILLISECONDS);
+	private static final int NO_OF_RETRIES = 100;
+	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10000L, TimeUnit.SECONDS);
+	private static final Time QUERY_RETRY_DELAY = Time.milliseconds(100L);
 
-	protected static ActorSystem testActorSystem;
+	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
+	private final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
 
 	/**
 	 * State backend to use.
@@ -136,7 +145,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 
@@ -150,7 +161,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestKeyRangeSource(numKeys));
@@ -163,15 +174,14 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			final String queryName = "hakuna-matata";
 
-			final QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = 7143749578983540352L;
+			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+				private static final long serialVersionUID = 7143749578983540352L;
 
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState(queryName, reducingState);
+				@Override
+				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					return value.f0;
+				}
+			}).asQueryableState(queryName, reducingState);
 
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -188,19 +198,19 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			while (!allNonZero && deadline.hasTimeLeft()) {
 				allNonZero = true;
 
-				final List<Future<Tuple2<Integer, Long>>> futures = new ArrayList<>(numKeys);
+				final List<CompletableFuture<Tuple2<Integer, Long>>> futures = new ArrayList<>(numKeys);
 
 				for (int i = 0; i < numKeys; i++) {
 					final int key = i;
 
-					if (counts.get(key) > 0) {
+					if (counts.get(key) > 0L) {
 						// Skip this one
 						continue;
 					} else {
 						allNonZero = false;
 					}
 
-					Future<Tuple2<Integer, Long>> result = getKvStateWithRetries(
+					CompletableFuture<Tuple2<Integer, Long>> result = getKvStateWithRetries(
 							client,
 							jobId,
 							queryName,
@@ -208,24 +218,21 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							BasicTypeInfo.INT_TYPE_INFO,
 							reducingState,
 							QUERY_RETRY_DELAY,
-							false);
+							false,
+							executor);
 
-					result.onSuccess(new OnSuccess<Tuple2<Integer, Long>>() {
-						@Override
-						public void onSuccess(Tuple2<Integer, Long> result) throws Throwable {
-							counts.set(key, result.f1);
-							assertEquals("Key mismatch", key, result.f0.intValue());
-						}
-					}, testActorSystem.dispatcher());
+					result.thenAccept(res -> {
+						counts.set(key, res.f1);
+						assertEquals("Key mismatch", key, res.f0.intValue());
+					});
 
 					futures.add(result);
 				}
 
-				Future<Iterable<Tuple2<Integer, Long>>> futureSequence = Futures.sequence(
-						futures,
-						testActorSystem.dispatcher());
-
-				Await.ready(futureSequence, deadline.timeLeft());
+				// wait for all the futures to complete
+				CompletableFuture
+						.allOf(futures.toArray(new CompletableFuture<?>[futures.size()]))
+						.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
 			assertTrue("Not all keys are non-zero", allNonZero);
@@ -238,15 +245,15 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
 						.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
 	}
 
@@ -274,7 +281,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestKeyRangeSource(numKeys));
@@ -311,22 +318,23 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
 
-			Future<TestingJobManagerMessages.JobStatusIs> failedFuture = cluster
-					.getLeaderGateway(deadline.timeLeft())
-					.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, JobStatus.FAILED), deadline.timeLeft())
-					.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class));
+			CompletableFuture<TestingJobManagerMessages.JobStatusIs> failedFuture = FutureUtils.toJava(
+					cluster.getLeaderGateway(deadline.timeLeft())
+							.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, JobStatus.FAILED), deadline.timeLeft())
+							.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
 
 			cluster.submitJobDetached(jobGraph);
 
-			TestingJobManagerMessages.JobStatusIs jobStatus = Await.result(failedFuture, deadline.timeLeft());
+			TestingJobManagerMessages.JobStatusIs jobStatus =
+					failedFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			assertEquals(JobStatus.FAILED, jobStatus.state());
 
 			// Get the job and check the cause
-			JobManagerMessages.JobFound jobFound = Await.result(
+			JobManagerMessages.JobFound jobFound = FutureUtils.toJava(
 					cluster.getLeaderGateway(deadline.timeLeft())
 							.ask(new JobManagerMessages.RequestJob(jobId), deadline.timeLeft())
-							.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)),
-					deadline.timeLeft());
+							.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)))
+					.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 			String failureCause = jobFound.executionGraph().getFailureCause().getExceptionAsString();
 
@@ -338,10 +346,10 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
+				scala.concurrent.Future<CancellationSuccess> cancellation = cluster
 						.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<JobManagerMessages.CancellationSuccess>apply(JobManagerMessages.CancellationSuccess.class));
 
 				Await.ready(cancellation, deadline.timeLeft());
 			}
@@ -359,9 +367,11 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
-		final int numElements = 1024;
+		final long numElements = 1024L;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 		try {
@@ -371,7 +381,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestAscendingValueSource(numElements));
@@ -381,15 +391,14 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 					"any",
 					source.getType());
 
-			QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = 7662520075515707428L;
+			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+				private static final long serialVersionUID = 7662520075515707428L;
 
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState("hakuna", valueState);
+				@Override
+				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					return value.f0;
+				}
+			}).asQueryableState("hakuna", valueState);
 
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -397,22 +406,19 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Now query
-			long expected = numElements;
-
-			executeQuery(deadline, client, jobId, "hakuna", valueState, expected);
+			executeQuery(deadline, client, jobId, "hakuna", valueState, numElements);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
 						.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
 	}
 
@@ -425,9 +431,11 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
-		final int numElements = 1024;
+		final long numElements = 1024L;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 		try {
@@ -437,7 +445,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 				.addSource(new TestAscendingValueSource(numElements));
@@ -481,15 +489,15 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
-					.getLeaderGateway(deadline.timeLeft())
-					.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-					.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
+						.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
 	}
 
@@ -508,23 +516,25 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		for (int key = 0; key < maxParallelism; key++) {
 			boolean success = false;
 			while (deadline.hasTimeLeft() && !success) {
-				Future<Tuple2<Integer, Long>> future = getKvStateWithRetries(client,
-					jobId,
-					queryableStateName,
-					key,
-					BasicTypeInfo.INT_TYPE_INFO,
-					stateDescriptor,
-					QUERY_RETRY_DELAY,
-					false);
+				CompletableFuture<Tuple2<Integer, Long>> future = getKvStateWithRetries(
+						client,
+						jobId,
+						queryableStateName,
+						key,
+						BasicTypeInfo.INT_TYPE_INFO,
+						stateDescriptor,
+						QUERY_RETRY_DELAY,
+						false,
+						executor);
 
-				Tuple2<Integer, Long> value = Await.result(future, deadline.timeLeft());
+				Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 				assertEquals("Key mismatch", key, value.f0.intValue());
 				if (expected == value.f1) {
 					success = true;
 				} else {
 					// Retry
-					Thread.sleep(50);
+					Thread.sleep(50L);
 				}
 			}
 
@@ -554,16 +564,17 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 						BasicTypeInfo.INT_TYPE_INFO,
 						valueSerializer,
 						QUERY_RETRY_DELAY,
-						false);
+						false,
+						executor);
 
-				Tuple2<Integer, Long> value = Await.result(future, deadline.timeLeft());
+				Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 				assertEquals("Key mismatch", key, value.f0.intValue());
 				if (expected == value.f1) {
 					success = true;
 				} else {
 					// Retry
-					Thread.sleep(50);
+					Thread.sleep(50L);
 				}
 			}
 
@@ -575,20 +586,21 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 * Tests simple value state queryable state instance with a default value
 	 * set. Each source emits (subtaskIndex, 0)..(subtaskIndex, numElements)
 	 * tuples, the key is mapped to 1 but key 0 is queried which should throw
-	 * a {@link UnknownKeyOrNamespace} exception.
+	 * a {@link UnknownKeyOrNamespaceException} exception.
 	 *
-	 * @throws UnknownKeyOrNamespace thrown due querying a non-existent key
+	 * @throws UnknownKeyOrNamespaceException thrown due querying a non-existent key
 	 */
-	@Test(expected = UnknownKeyOrNamespace.class)
-	public void testValueStateDefault() throws
-		Exception, UnknownKeyOrNamespace {
+	@Test(expected = UnknownKeyOrNamespaceException.class)
+	public void testValueStateDefault() throws Throwable {
 
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
-		final int numElements = 1024;
+		final long numElements = 1024L;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 		try {
@@ -600,7 +612,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// don't explicitly check that all slots are available before
 			// submitting.
 			env.setRestartStrategy(RestartStrategies
-				.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+				.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 				.addSource(new TestAscendingValueSource(numElements));
@@ -635,30 +647,37 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			// Now query
 			int key = 0;
-			Future<Tuple2<Integer, Long>> future = getKvStateWithRetries(client,
-				jobId,
-				queryableState.getQueryableStateName(),
-				key,
-				BasicTypeInfo.INT_TYPE_INFO,
-				valueState,
-				QUERY_RETRY_DELAY,
-				true);
+			CompletableFuture<Tuple2<Integer, Long>> future = getKvStateWithRetries(
+					client,
+					jobId,
+					queryableState.getQueryableStateName(),
+					key,
+					BasicTypeInfo.INT_TYPE_INFO,
+					valueState,
+					QUERY_RETRY_DELAY,
+					true,
+					executor);
 
-			Await.result(future, deadline.timeLeft());
+			try {
+				future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			} catch (ExecutionException | CompletionException e) {
+				// get() on a completedExceptionally future wraps the
+				// exception in an ExecutionException.
+				throw e.getCause();
+			}
 		} finally {
+
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
-					.getLeaderGateway(deadline.timeLeft())
-					.ask(new JobManagerMessages.CancelJob(jobId),
-						deadline.timeLeft())
-					.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(
-						CancellationSuccess.class));
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
+						.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
 	}
 
@@ -675,9 +694,11 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
-		final int numElements = 1024;
+		final long numElements = 1024L;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 		try {
@@ -687,7 +708,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestAscendingValueSource(numElements));
@@ -709,23 +730,21 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Now query
-			long expected = numElements;
-
 			executeQuery(deadline, client, jobId, "matata",
-					queryableState.getValueSerializer(), expected);
+					queryableState.getValueSerializer(), numElements);
 		} finally {
+
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(
+						cluster.getLeaderGateway(deadline.timeLeft())
+								.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+								.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
 	}
 
@@ -743,7 +762,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final int numElements = 1024;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 		try {
@@ -788,21 +809,23 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
 				while (deadline.hasTimeLeft() && !success) {
-					Future<String> future = getKvStateWithRetries(client,
+					CompletableFuture<String> future = getKvStateWithRetries(
+							client,
 							jobId,
 							queryableState.getQueryableStateName(),
 							key,
 							BasicTypeInfo.INT_TYPE_INFO,
 							foldingState,
 							QUERY_RETRY_DELAY,
-							false);
+							false,
+							executor);
 
-					String value = Await.result(future, deadline.timeLeft());
+					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 					if (expected.equals(value)) {
 						success = true;
 					} else {
 						// Retry
-						Thread.sleep(50);
+						Thread.sleep(50L);
 					}
 				}
 
@@ -811,15 +834,15 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
 						.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
 	}
 
@@ -834,9 +857,11 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
-		final int numElements = 1024;
+		final long numElements = 1024L;
 
-		final QueryableStateClient client = new QueryableStateClient(cluster.configuration());
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
 
 		JobID jobId = null;
 		try {
@@ -858,15 +883,14 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							new SumReduce(),
 							source.getType());
 
-			QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = 8470749712274833552L;
+			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+				private static final long serialVersionUID = 8470749712274833552L;
 
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState("jungle", reducingState);
+				@Override
+				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					return value.f0;
+				}
+			}).asQueryableState("jungle", reducingState);
 
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
@@ -877,115 +901,22 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Wait until job is running
 
 			// Now query
-			long expected = numElements * (numElements + 1) / 2;
+			long expected = numElements * (numElements + 1L) / 2L;
 
 			executeQuery(deadline, client, jobId, "jungle", reducingState, expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				Future<CancellationSuccess> cancellation = cluster
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
 						.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 
-			client.shutDown();
+			client.shutdown();
 		}
-	}
-
-	private static <K, V> Future<V> getKvStateWithRetries(
-			final QueryableStateClient client,
-			final JobID jobId,
-			final String queryName,
-			final K key,
-			final TypeInformation<K> keyTypeInfo,
-			final TypeSerializer<V> valueTypeSerializer,
-			final FiniteDuration retryDelay,
-			final boolean failForUnknownKeyOrNamespace) {
-
-		return client.getKvState(jobId, queryName, key, VoidNamespace.INSTANCE, keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, valueTypeSerializer)
-				.recoverWith(new Recover<Future<V>>() {
-					@Override
-					public Future<V> recover(Throwable failure) throws Throwable {
-						if (failure instanceof AssertionError) {
-							return Futures.failed(failure);
-						} else if (failForUnknownKeyOrNamespace &&
-								(failure instanceof UnknownKeyOrNamespace)) {
-							return Futures.failed(failure);
-						} else {
-							// At startup some failures are expected
-							// due to races. Make sure that they don't
-							// fail this test.
-							return Patterns.after(
-									retryDelay,
-									testActorSystem.scheduler(),
-									testActorSystem.dispatcher(),
-									new Callable<Future<V>>() {
-										@Override
-										public Future<V> call() throws Exception {
-											return getKvStateWithRetries(
-													client,
-													jobId,
-													queryName,
-													key,
-													keyTypeInfo,
-													valueTypeSerializer,
-													retryDelay,
-													failForUnknownKeyOrNamespace);
-										}
-									});
-						}
-					}
-				}, testActorSystem.dispatcher());
-
-	}
-
-	private static <K, V> Future<V> getKvStateWithRetries(
-			final QueryableStateClient client,
-			final JobID jobId,
-			final String queryName,
-			final K key,
-			final TypeInformation<K> keyTypeInfo,
-			final StateDescriptor<?, V> stateDescriptor,
-			final FiniteDuration retryDelay,
-			final boolean failForUnknownKeyOrNamespace) {
-
-		return client.getKvState(jobId, queryName, key, VoidNamespace.INSTANCE, keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, stateDescriptor)
-				.recoverWith(new Recover<Future<V>>() {
-					@Override
-					public Future<V> recover(Throwable failure) throws Throwable {
-						if (failure instanceof AssertionError) {
-							return Futures.failed(failure);
-						} else if (failForUnknownKeyOrNamespace &&
-								(failure instanceof UnknownKeyOrNamespace)) {
-							return Futures.failed(failure);
-						} else {
-							// At startup some failures are expected
-							// due to races. Make sure that they don't
-							// fail this test.
-							return Patterns.after(
-									retryDelay,
-									testActorSystem.scheduler(),
-									testActorSystem.dispatcher(),
-									new Callable<Future<V>>() {
-										@Override
-										public Future<V> call() throws Exception {
-											return getKvStateWithRetries(
-													client,
-													jobId,
-													queryName,
-													key,
-													keyTypeInfo,
-													stateDescriptor,
-													retryDelay,
-													failForUnknownKeyOrNamespace);
-										}
-									});
-						}
-					}
-				}, testActorSystem.dispatcher());
 	}
 
 	/**
@@ -1030,7 +961,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			while (isRunning) {
 				synchronized (this) {
-					this.wait();
+					wait();
 				}
 			}
 		}
@@ -1040,7 +971,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			isRunning = false;
 
 			synchronized (this) {
-				this.notifyAll();
+				notifyAll();
 			}
 		}
 
@@ -1125,4 +1056,105 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		}
 	}
 
+	/////				General Utility Methods				//////
+
+	private static <K, V> Future<V> getKvStateWithRetries(
+			final QueryableStateClient client,
+			final JobID jobId,
+			final String queryName,
+			final K key,
+			final TypeInformation<K> keyTypeInfo,
+			final TypeSerializer<V> valueTypeSerializer,
+			final Time retryDelay,
+			final boolean failForUnknownKeyOrNamespace,
+			final ScheduledExecutor executor) {
+
+		return retryWithDelay(
+				() -> client.getKvState(jobId, queryName, key, VoidNamespace.INSTANCE, keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, valueTypeSerializer),
+				NO_OF_RETRIES,
+				retryDelay,
+				executor,
+				failForUnknownKeyOrNamespace);
+	}
+
+	private static <K, V> CompletableFuture<V> getKvStateWithRetries(
+			final QueryableStateClient client,
+			final JobID jobId,
+			final String queryName,
+			final K key,
+			final TypeInformation<K> keyTypeInfo,
+			final StateDescriptor<?, V> stateDescriptor,
+			final Time retryDelay,
+			final boolean failForUnknownKeyOrNamespace,
+			final ScheduledExecutor executor) {
+		return retryWithDelay(
+				() -> client.getKvState(jobId, queryName, key, VoidNamespace.INSTANCE, keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, stateDescriptor),
+				NO_OF_RETRIES,
+				retryDelay,
+				executor,
+				failForUnknownKeyOrNamespace);
+	}
+
+	private static <T> CompletableFuture<T> retryWithDelay(
+			final Supplier<CompletableFuture<T>> operation,
+			final int retries,
+			final Time retryDelay,
+			final ScheduledExecutor scheduledExecutor,
+			final boolean failIfUnknownKeyOrNamespace) {
+
+		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+		retryWithDelay(
+				resultFuture,
+				operation,
+				retries,
+				retryDelay,
+				scheduledExecutor,
+				failIfUnknownKeyOrNamespace);
+
+		return resultFuture;
+	}
+
+	public static <T> void retryWithDelay(
+			final CompletableFuture<T> resultFuture,
+			final Supplier<CompletableFuture<T>> operation,
+			final int retries,
+			final Time retryDelay,
+			final ScheduledExecutor scheduledExecutor,
+			final boolean failIfUnknownKeyOrNamespace) {
+
+		if (!resultFuture.isDone()) {
+			final CompletableFuture<T> operationResultFuture = operation.get();
+			operationResultFuture.whenCompleteAsync(
+					(t, throwable) -> {
+						if (throwable != null) {
+							if (throwable.getCause() instanceof CancellationException) {
+								resultFuture.completeExceptionally(new FutureUtils.RetryException("Operation future was cancelled.", throwable.getCause()));
+							} else if (throwable.getCause() instanceof AssertionError ||
+									(failIfUnknownKeyOrNamespace && throwable.getCause() instanceof UnknownKeyOrNamespaceException)) {
+								resultFuture.completeExceptionally(throwable.getCause());
+							} else {
+								if (retries > 0) {
+									final ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
+											() -> retryWithDelay(resultFuture, operation, retries - 1, retryDelay, scheduledExecutor, failIfUnknownKeyOrNamespace),
+											retryDelay.toMilliseconds(),
+											TimeUnit.MILLISECONDS);
+
+									resultFuture.whenComplete(
+											(innerT, innerThrowable) -> scheduledFuture.cancel(false));
+								} else {
+									resultFuture.completeExceptionally(new FutureUtils.RetryException("Could not complete the operation. Number of retries " +
+											"has been exhausted.", throwable));
+								}
+							}
+						} else {
+							resultFuture.complete(t);
+						}
+					},
+					scheduledExecutor);
+
+			resultFuture.whenComplete(
+					(t, throwable) -> operationResultFuture.cancel(false));
+		}
+	}
 }

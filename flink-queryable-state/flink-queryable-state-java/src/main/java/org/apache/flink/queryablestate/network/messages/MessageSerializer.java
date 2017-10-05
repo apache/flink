@@ -18,11 +18,7 @@
 
 package org.apache.flink.queryablestate.network.messages;
 
-import org.apache.flink.queryablestate.messages.KvStateRequest;
-import org.apache.flink.queryablestate.messages.KvStateRequestFailure;
-import org.apache.flink.queryablestate.messages.KvStateRequestResult;
-import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.util.AbstractID;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -37,8 +33,8 @@ import java.io.ObjectOutputStream;
 
 /**
  * Serialization and deserialization of messages exchanged between
- * {@link org.apache.flink.queryablestate.client.KvStateClient client} and
- * {@link org.apache.flink.queryablestate.server.KvStateServerImpl server}.
+ * {@link org.apache.flink.queryablestate.network.Client client} and
+ * {@link org.apache.flink.queryablestate.network.AbstractServerBase server}.
  *
  * <p>The binary messages have the following format:
  *
@@ -52,8 +48,12 @@ import java.io.ObjectOutputStream;
  * </pre>
  *
  * <p>The concrete content of a message depends on the {@link MessageType}.
+ *
+ * @param <REQ>		Type of the requests of the protocol.
+ * @param <RESP>	Type of the responses of the protocol.
  */
-public final class MessageSerializer {
+@Internal
+public final class MessageSerializer<REQ extends MessageBody, RESP extends MessageBody> {
 
 	/** The serialization version ID. */
 	private static final int VERSION = 0x79a1b710;
@@ -64,78 +64,58 @@ public final class MessageSerializer {
 	/** Byte length of the request id. */
 	private static final int REQUEST_ID_SIZE = Long.BYTES;
 
+	/** The constructor of the {@link MessageBody client requests}. Used for deserialization. */
+	private final MessageDeserializer<REQ> requestDeserializer;
+
+	/** The constructor of the {@link MessageBody server responses}. Used for deserialization. */
+	private final MessageDeserializer<RESP> responseDeserializer;
+
+	public MessageSerializer(MessageDeserializer<REQ> requestDeser, MessageDeserializer<RESP> responseDeser) {
+		requestDeserializer = Preconditions.checkNotNull(requestDeser);
+		responseDeserializer = Preconditions.checkNotNull(responseDeser);
+	}
+
 	// ------------------------------------------------------------------------
 	// Serialization
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Allocates a buffer and serializes the KvState request into it.
+	 * Serializes the request sent to the
+	 * {@link org.apache.flink.queryablestate.network.AbstractServerBase}.
 	 *
-	 * @param alloc                     ByteBuf allocator for the buffer to
-	 *                                  serialize message into
-	 * @param requestId                 ID for this request
-	 * @param kvStateId                 ID of the requested KvState instance
-	 * @param serializedKeyAndNamespace Serialized key and namespace to request
-	 *                                  from the KvState instance.
-	 * @return Serialized KvState request message
+	 * @param alloc			The {@link ByteBufAllocator} used to allocate the buffer to serialize the message into.
+	 * @param requestId		The id of the request to which the message refers to.
+	 * @param request		The request to be serialized.
+	 * @return A {@link ByteBuf} containing the serialized message.
 	 */
-	public static ByteBuf serializeKvStateRequest(
-			ByteBufAllocator alloc,
-			long requestId,
-			KvStateID kvStateId,
-			byte[] serializedKeyAndNamespace) {
-
-		// Header + request ID + KvState ID + Serialized namespace
-		int frameLength = HEADER_LENGTH + REQUEST_ID_SIZE + AbstractID.SIZE + (Integer.BYTES + serializedKeyAndNamespace.length);
-		ByteBuf buf = alloc.ioBuffer(frameLength + 4); // +4 for frame length
-
-		buf.writeInt(frameLength);
-
-		writeHeader(buf, MessageType.REQUEST);
-
-		buf.writeLong(requestId);
-		buf.writeLong(kvStateId.getLowerPart());
-		buf.writeLong(kvStateId.getUpperPart());
-		buf.writeInt(serializedKeyAndNamespace.length);
-		buf.writeBytes(serializedKeyAndNamespace);
-
-		return buf;
+	public static <REQ extends MessageBody> ByteBuf serializeRequest(
+			final ByteBufAllocator alloc,
+			final long requestId,
+			final REQ request) {
+		Preconditions.checkNotNull(request);
+		return writePayload(alloc, requestId, MessageType.REQUEST, request.serialize());
 	}
 
 	/**
-	 * Allocates a buffer and serializes the KvState request result into it.
+	 * Serializes the response sent to the
+	 * {@link org.apache.flink.queryablestate.network.Client}.
 	 *
-	 * @param alloc             ByteBuf allocator for the buffer to serialize message into
-	 * @param requestId         ID for this request
-	 * @param serializedResult  Serialized Result
-	 * @return Serialized KvState request result message
+	 * @param alloc			The {@link ByteBufAllocator} used to allocate the buffer to serialize the message into.
+	 * @param requestId		The id of the request to which the message refers to.
+	 * @param response		The response to be serialized.
+	 * @return A {@link ByteBuf} containing the serialized message.
 	 */
-	public static ByteBuf serializeKvStateRequestResult(
-			ByteBufAllocator alloc,
-			long requestId,
-			byte[] serializedResult) {
-
-		Preconditions.checkNotNull(serializedResult, "Serialized result");
-
-		// Header + request ID + serialized result
-		int frameLength = HEADER_LENGTH + REQUEST_ID_SIZE + 4 + serializedResult.length;
-
-		// TODO: 10/5/17 there was a bug all this time?
-		ByteBuf buf = alloc.ioBuffer(frameLength + 4);
-
-		buf.writeInt(frameLength);
-		writeHeader(buf, MessageType.REQUEST_RESULT);
-		buf.writeLong(requestId);
-
-		buf.writeInt(serializedResult.length);
-		buf.writeBytes(serializedResult);
-
-		return buf;
+	public static <RESP extends MessageBody> ByteBuf serializeResponse(
+			final ByteBufAllocator alloc,
+			final long requestId,
+			final RESP response) {
+		Preconditions.checkNotNull(response);
+		return writePayload(alloc, requestId, MessageType.REQUEST_RESULT, response.serialize());
 	}
 
 	/**
 	 * Serializes the exception containing the failure message sent to the
-	 * {@link org.apache.flink.queryablestate.client.KvStateClient} in case of
+	 * {@link org.apache.flink.queryablestate.network.Client} in case of
 	 * protocol related errors.
 	 *
 	 * @param alloc			The {@link ByteBufAllocator} used to allocate the buffer to serialize the message into.
@@ -143,7 +123,7 @@ public final class MessageSerializer {
 	 * @param cause			The exception thrown at the server.
 	 * @return A {@link ByteBuf} containing the serialized message.
 	 */
-	public static ByteBuf serializeKvStateRequestFailure(
+	public static ByteBuf serializeRequestFailure(
 			final ByteBufAllocator alloc,
 			final long requestId,
 			final Throwable cause) throws IOException {
@@ -168,7 +148,7 @@ public final class MessageSerializer {
 
 	/**
 	 * Serializes the failure message sent to the
-	 * {@link org.apache.flink.queryablestate.client.KvStateClient} in case of
+	 * {@link org.apache.flink.queryablestate.network.Client} in case of
 	 * server related errors.
 	 *
 	 * @param alloc			The {@link ByteBufAllocator} used to allocate the buffer to serialize the message into.
@@ -207,6 +187,31 @@ public final class MessageSerializer {
 		buf.writeInt(messageType.ordinal());
 	}
 
+	/**
+	 * Helper for serializing the messages.
+	 *
+	 * @param alloc			The {@link ByteBufAllocator} used to allocate the buffer to serialize the message into.
+	 * @param requestId		The id of the request to which the message refers to.
+	 * @param messageType	The {@link MessageType type of the message}.
+	 * @param payload		The serialized version of the message.
+	 * @return A {@link ByteBuf} containing the serialized message.
+	 */
+	private static ByteBuf writePayload(
+			final ByteBufAllocator alloc,
+			final long requestId,
+			final MessageType messageType,
+			final byte[] payload) {
+
+		final int frameLength = HEADER_LENGTH + REQUEST_ID_SIZE + payload.length;
+		final ByteBuf buf = alloc.ioBuffer(frameLength + Integer.BYTES);
+
+		buf.writeInt(frameLength);
+		writeHeader(buf, messageType);
+		buf.writeLong(requestId);
+		buf.writeBytes(payload);
+		return buf;
+	}
+
 	// ------------------------------------------------------------------------
 	// Deserialization
 	// ------------------------------------------------------------------------
@@ -230,71 +235,54 @@ public final class MessageSerializer {
 		// fetching the message type
 		int msgType = buf.readInt();
 		MessageType[] values = MessageType.values();
-		Preconditions.checkState(msgType >= 0 && msgType <= values.length,
+		Preconditions.checkState(msgType >= 0 && msgType < values.length,
 				"Illegal message type with index " + msgType + '.');
 		return values[msgType];
 	}
 
 	/**
-	 * Deserializes the KvState request message.
-	 *
-	 * <p><strong>Important</strong>: the returned buffer is sliced from the
-	 * incoming ByteBuf stream and retained. Therefore, it needs to be recycled
-	 * by the consumer.
-	 *
-	 * @param buf Buffer to deserialize (expected to be positioned after header)
-	 * @return Deserialized KvStateRequest
+	 * De-serializes the header and returns the {@link MessageType}.
+	 * <pre>
+	 *  <b>The buffer is expected to be at the request id position.</b>
+	 * </pre>
+	 * @param buf	The {@link ByteBuf} containing the serialized request id.
+	 * @return		The request id.
 	 */
-	public static KvStateRequest deserializeKvStateRequest(ByteBuf buf) {
-		long requestId = buf.readLong();
-		KvStateID kvStateId = new KvStateID(buf.readLong(), buf.readLong());
-
-		// Serialized key and namespace
-		int length = buf.readInt();
-
-		if (length < 0) {
-			throw new IllegalArgumentException("Negative length for serialized key and namespace. " +
-					"This indicates a serialization error.");
-		}
-
-		// Copy the buffer in order to be able to safely recycle the ByteBuf
-		byte[] serializedKeyAndNamespace = new byte[length];
-		if (length > 0) {
-			buf.readBytes(serializedKeyAndNamespace);
-		}
-
-		return new KvStateRequest(requestId, kvStateId, serializedKeyAndNamespace);
+	public static long getRequestId(final ByteBuf buf) {
+		return buf.readLong();
 	}
 
 	/**
-	 * Deserializes the KvState request result.
-	 *
-	 * @param buf Buffer to deserialize (expected to be positioned after header)
-	 * @return Deserialized KvStateRequestResult
+	 * De-serializes the request sent to the
+	 * {@link org.apache.flink.queryablestate.network.AbstractServerBase}.
+	 * <pre>
+	 *  <b>The buffer is expected to be at the request position.</b>
+	 * </pre>
+	 * @param buf	The {@link ByteBuf} containing the serialized request.
+	 * @return		The request.
 	 */
-	public static KvStateRequestResult deserializeKvStateRequestResult(ByteBuf buf) {
-		long requestId = buf.readLong();
-
-		// Serialized KvState
-		int length = buf.readInt();
-
-		if (length < 0) {
-			throw new IllegalArgumentException("Negative length for serialized result. " +
-					"This indicates a serialization error.");
-		}
-
-		byte[] serializedValue = new byte[length];
-
-		if (length > 0) {
-			buf.readBytes(serializedValue);
-		}
-
-		return new KvStateRequestResult(requestId, serializedValue);
+	public REQ deserializeRequest(final ByteBuf buf) {
+		Preconditions.checkNotNull(buf);
+		return requestDeserializer.deserializeMessage(buf);
 	}
 
 	/**
-	 * De-serializes the {@link KvStateRequestFailure} sent to the
-	 * {@link org.apache.flink.queryablestate.client.KvStateClient} in case of
+	 * De-serializes the response sent to the
+	 * {@link org.apache.flink.queryablestate.network.Client}.
+	 * <pre>
+	 *  <b>The buffer is expected to be at the response position.</b>
+	 * </pre>
+	 * @param buf	The {@link ByteBuf} containing the serialized response.
+	 * @return		The response.
+	 */
+	public RESP deserializeResponse(final ByteBuf buf) {
+		Preconditions.checkNotNull(buf);
+		return responseDeserializer.deserializeMessage(buf);
+	}
+
+	/**
+	 * De-serializes the {@link RequestFailure} sent to the
+	 * {@link org.apache.flink.queryablestate.network.Client} in case of
 	 * protocol related errors.
 	 * <pre>
 	 *  <b>The buffer is expected to be at the correct position.</b>
@@ -302,7 +290,7 @@ public final class MessageSerializer {
 	 * @param buf	The {@link ByteBuf} containing the serialized failure message.
 	 * @return		The failure message.
 	 */
-	public static KvStateRequestFailure deserializeKvStateRequestFailure(final ByteBuf buf) throws IOException, ClassNotFoundException {
+	public static RequestFailure deserializeRequestFailure(final ByteBuf buf) throws IOException, ClassNotFoundException {
 		long requestId = buf.readLong();
 
 		Throwable cause;
@@ -310,12 +298,12 @@ public final class MessageSerializer {
 				ObjectInputStream in = new ObjectInputStream(bis)) {
 			cause = (Throwable) in.readObject();
 		}
-		return new KvStateRequestFailure(requestId, cause);
+		return new RequestFailure(requestId, cause);
 	}
 
 	/**
 	 * De-serializes the failure message sent to the
-	 * {@link org.apache.flink.queryablestate.client.KvStateClient} in case of
+	 * {@link org.apache.flink.queryablestate.network.Client} in case of
 	 * server related errors.
 	 * <pre>
 	 *  <b>The buffer is expected to be at the correct position.</b>

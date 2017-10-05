@@ -145,6 +145,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				new TaskEventDispatcher(),
 				new KvStateRegistry(),
 				null,
+				null,
 				netConf.ioMode(),
 				netConf.partitionRequestInitialBackoff(),
 				netConf.partitionRequestMaxBackoff(),

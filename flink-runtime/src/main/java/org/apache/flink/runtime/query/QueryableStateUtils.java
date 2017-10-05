@@ -36,8 +36,56 @@ public final class QueryableStateUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(QueryableStateUtils.class);
 
 	/**
+	 * Initializes the {@link KvStateClientProxy client proxy} responsible for
+	 * receiving requests from the external (to the cluster) client and forwarding them internally.
+	 *
+	 * @param address the address to bind to.
+	 * @param port the port to listen to.
+	 * @param eventLoopThreads the number of threads to be used to process incoming requests.
+	 * @param queryThreads the number of threads to be used to send the actual state.
+	 * @param stats statistics to be gathered about the incoming requests.
+	 * @return the {@link KvStateClientProxy client proxy}.
+	 */
+	public static KvStateClientProxy createKvStateClientProxy(
+			final InetAddress address,
+			final int port,
+			final int eventLoopThreads,
+			final int queryThreads,
+			final KvStateRequestStats stats) {
+
+		Preconditions.checkNotNull(address, "address");
+		Preconditions.checkNotNull(stats, "stats");
+
+		Preconditions.checkArgument(eventLoopThreads >= 1);
+		Preconditions.checkArgument(queryThreads >= 1);
+
+		try {
+			String classname = "org.apache.flink.queryablestate.client.proxy.KvStateClientProxyImpl";
+			Class<? extends KvStateClientProxy> clazz = Class.forName(classname).asSubclass(KvStateClientProxy.class);
+			Constructor<? extends KvStateClientProxy> constructor = clazz.getConstructor(
+					InetAddress.class,
+					Integer.class,
+					Integer.class,
+					Integer.class,
+					KvStateRequestStats.class);
+			return constructor.newInstance(address, port, eventLoopThreads, queryThreads, stats);
+		} catch (ClassNotFoundException e) {
+			LOG.warn("Could not load Queryable State Client Proxy. " +
+					"Probable reason: flink-queryable-state is not in the classpath");
+			LOG.debug("Caught exception", e);
+			return null;
+		} catch (InvocationTargetException e) {
+			LOG.error("Queryable State Client Proxy could not be created: ", e.getTargetException());
+			return null;
+		} catch (Throwable t) {
+			LOG.error("Failed to instantiate the Queryable State Client Proxy.", t);
+			return null;
+		}
+	}
+
+	/**
 	 * Initializes the {@link KvStateServer server} responsible for sending the
-	 * requested internal state to the Queryable State Client.
+	 * requested internal state to the {@link KvStateClientProxy client proxy}.
 	 *
 	 * @param address the address to bind to.
 	 * @param port the port to listen to.
@@ -74,12 +122,12 @@ public final class QueryableStateUtils {
 					KvStateRequestStats.class);
 			return constructor.newInstance(address, port, eventLoopThreads, queryThreads, kvStateRegistry, stats);
 		} catch (ClassNotFoundException e) {
-			LOG.info("Could not load Queryable State Server. " +
+			LOG.warn("Could not load Queryable State Server. " +
 					"Probable reason: flink-queryable-state is not in the classpath");
 			LOG.debug("Caught exception", e);
 			return null;
 		} catch (InvocationTargetException e) {
-			LOG.error("Queryable State Server could not be created", e.getTargetException());
+			LOG.error("Queryable State Server could not be created: ", e.getTargetException());
 			return null;
 		} catch (Throwable t) {
 			LOG.error("Failed to instantiate the Queryable State Server.", t);

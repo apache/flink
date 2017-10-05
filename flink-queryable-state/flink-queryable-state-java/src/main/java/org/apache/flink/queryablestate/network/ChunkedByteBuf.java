@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.server;
+package org.apache.flink.queryablestate.network;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -31,6 +32,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandle
  *
  * @see <a href="http://normanmaurer.me/presentations/2014-facebook-eng-netty/slides.html#10.0">Low/High Watermarks</a>
  */
+@Internal
 public class ChunkedByteBuf implements ChunkedInput<ByteBuf> {
 
 	/** The buffer to chunk. */

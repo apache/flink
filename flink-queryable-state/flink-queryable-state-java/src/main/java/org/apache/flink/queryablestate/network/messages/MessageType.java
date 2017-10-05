@@ -18,11 +18,14 @@
 
 package org.apache.flink.queryablestate.network.messages;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Expected message types during the communication between
- * {@link org.apache.flink.queryablestate.client.KvStateClient state client} and
- * {@link org.apache.flink.queryablestate.server.KvStateServerImpl state server}.
+ * {@link org.apache.flink.queryablestate.network.Client client} and
+ * {@link org.apache.flink.queryablestate.network.AbstractServerBase server}.
  */
+@Internal
 public enum MessageType {
 
 	/** The message is a request. */

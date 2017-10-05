@@ -16,36 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.client;
+package org.apache.flink.queryablestate;
 
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.queryablestate.network.BadRequestException;
 import org.apache.flink.runtime.query.KvStateLocation;
 
-import scala.concurrent.Future;
-
 /**
- * {@link KvStateLocation} lookup service.
+ * Exception thrown if there is no location information available for the given
+ * key group in a {@link KvStateLocation} instance.
  */
-public interface KvStateLocationLookupService {
+@Internal
+public class UnknownKvStateKeyGroupLocationException extends BadRequestException {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Starts the lookup service.
+	 * Creates the exception.
+	 * @param serverName the name of the server that threw the exception.
 	 */
-	void start();
-
-	/**
-	 * Shuts down the lookup service.
-	 */
-	void shutDown();
-
-	/**
-	 * Returns a future holding the {@link KvStateLocation} for the given job
-	 * and KvState registration name.
-	 *
-	 * @param jobId            JobID the KvState instance belongs to
-	 * @param registrationName Name under which the KvState has been registered
-	 * @return Future holding the {@link KvStateLocation}
-	 */
-	Future<KvStateLocation> getKvStateLookupInfo(JobID jobId, String registrationName);
-
+	public UnknownKvStateKeyGroupLocationException(String serverName) {
+		super(serverName, "Unknown key-group location.");
+	}
 }

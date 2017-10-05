@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate;
+package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.queryablestate.client.KvStateLocationLookupService;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Exception to fail Future with if no JobManager is currently registered at
- * the {@link KvStateLocationLookupService}.
+ * Base class for exceptions thrown during querying Flink's managed state.
  */
-public class UnknownJobManager extends Exception {
+@Internal
+public class BadRequestException extends Exception {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 3458743952407632903L;
 
-	public UnknownJobManager() {
-		super("Unknown JobManager. Either the JobManager has not registered yet " +
-				"or has lost leadership.");
+	public BadRequestException(String serverName, String message) {
+		super(Preconditions.checkNotNull(serverName) + " : " + message);
 	}
 }

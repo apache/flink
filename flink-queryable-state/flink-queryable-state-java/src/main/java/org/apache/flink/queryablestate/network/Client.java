@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.client;
+package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.queryablestate.UnknownKeyOrNamespace;
-import org.apache.flink.queryablestate.UnknownKvStateID;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
-import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.netty.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
@@ -31,6 +30,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -43,11 +43,10 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChann
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
-import akka.dispatch.Futures;
-
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayDeque;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -55,42 +54,33 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
-
 /**
- * Netty-based client querying {@link KvStateServer} instances.
+ * The base class for every client in the queryable state module.
+ * It is using pure netty to send and receive messages of type {@link MessageBody}.
  *
- * <p>This client can be used by multiple threads concurrently. Operations are
- * executed asynchronously and return Futures to their result.
- *
- * <p>The incoming pipeline looks as follows:
- * <pre>
- * Socket.read() -> LengthFieldBasedFrameDecoder -> KvStateServerHandler
- * </pre>
- *
- * <p>Received binary messages are expected to contain a frame length field. Netty's
- * {@link LengthFieldBasedFrameDecoder} is used to fully receive the frame before
- * giving it to our {@link KvStateClientHandler}.
- *
- * <p>Connections are established and closed by the client. The server only
- * closes the connection on a fatal failure that cannot be recovered.
+ * @param <REQ> the type of request the client will send.
+ * @param <RESP> the type of response the client expects to receive.
  */
-public class KvStateClient {
+@Internal
+public class Client<REQ extends MessageBody, RESP extends MessageBody> {
+
+	/** The name of the client. Used for logging and stack traces.*/
+	private final String clientName;
 
 	/** Netty's Bootstrap. */
 	private final Bootstrap bootstrap;
+
+	/** The serializer to be used for (de-)serializing messages. */
+	private final MessageSerializer<REQ, RESP> messageSerializer;
 
 	/** Statistics tracker. */
 	private final KvStateRequestStats stats;
 
 	/** Established connections. */
-	private final ConcurrentHashMap<KvStateServerAddress, EstablishedConnection> establishedConnections =
-			new ConcurrentHashMap<>();
+	private final Map<KvStateServerAddress, EstablishedConnection> establishedConnections = new ConcurrentHashMap<>();
 
 	/** Pending connections. */
-	private final ConcurrentHashMap<KvStateServerAddress, PendingConnection> pendingConnections =
-			new ConcurrentHashMap<>();
+	private final Map<KvStateServerAddress, PendingConnection> pendingConnections = new ConcurrentHashMap<>();
 
 	/** Atomic shut down flag. */
 	private final AtomicBoolean shutDown = new AtomicBoolean();
@@ -98,18 +88,31 @@ public class KvStateClient {
 	/**
 	 * Creates a client with the specified number of event loop threads.
 	 *
-	 * @param numEventLoopThreads Number of event loop threads (minimum 1).
+	 * @param clientName the name of the client.
+	 * @param numEventLoopThreads number of event loop threads (minimum 1).
+	 * @param serializer the serializer used to (de-)serialize messages.
+	 * @param stats the statistics collector.
 	 */
-	public KvStateClient(int numEventLoopThreads, KvStateRequestStats stats) {
-		Preconditions.checkArgument(numEventLoopThreads >= 1, "Non-positive number of event loop threads.");
-		NettyBufferPool bufferPool = new NettyBufferPool(numEventLoopThreads);
+	public Client(
+			final String clientName,
+			final int numEventLoopThreads,
+			final MessageSerializer<REQ, RESP> serializer,
+			final KvStateRequestStats stats) {
 
-		ThreadFactory threadFactory = new ThreadFactoryBuilder()
+		Preconditions.checkArgument(numEventLoopThreads >= 1,
+				"Non-positive number of event loop threads.");
+
+		this.clientName = Preconditions.checkNotNull(clientName);
+		this.messageSerializer = Preconditions.checkNotNull(serializer);
+		this.stats = Preconditions.checkNotNull(stats);
+
+		final ThreadFactory threadFactory = new ThreadFactoryBuilder()
 				.setDaemon(true)
-				.setNameFormat("Flink KvStateClient Event Loop Thread %d")
+				.setNameFormat("Flink " + clientName + " Event Loop Thread %d")
 				.build();
 
-		NioEventLoopGroup nioGroup = new NioEventLoopGroup(numEventLoopThreads, threadFactory);
+		final EventLoopGroup nioGroup = new NioEventLoopGroup(numEventLoopThreads, threadFactory);
+		final ByteBufAllocator bufferPool = new NettyBufferPool(numEventLoopThreads);
 
 		this.bootstrap = new Bootstrap()
 				.group(nioGroup)
@@ -117,65 +120,43 @@ public class KvStateClient {
 				.option(ChannelOption.ALLOCATOR, bufferPool)
 				.handler(new ChannelInitializer<SocketChannel>() {
 					@Override
-					protected void initChannel(SocketChannel ch) throws Exception {
-						ch.pipeline()
+					protected void initChannel(SocketChannel channel) throws Exception {
+						channel.pipeline()
 								.addLast(new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4))
-								// ChunkedWriteHandler respects Channel writability
 								.addLast(new ChunkedWriteHandler());
 					}
 				});
-
-		this.stats = Preconditions.checkNotNull(stats, "Statistics tracker");
 	}
 
-	/**
-	 * Returns a future holding the serialized request result.
-	 *
-	 * <p>If the server does not serve a KvState instance with the given ID,
-	 * the Future will be failed with a {@link UnknownKvStateID}.
-	 *
-	 * <p>If the KvState instance does not hold any data for the given key
-	 * and namespace, the Future will be failed with a {@link UnknownKeyOrNamespace}.
-	 *
-	 * <p>All other failures are forwarded to the Future.
-	 *
-	 * @param serverAddress Address of the server to query
-	 * @param kvStateId ID of the KvState instance to query
-	 * @param serializedKeyAndNamespace Serialized key and namespace to query KvState instance with
-	 * @return Future holding the serialized result
-	 */
-	public Future<byte[]> getKvState(
-			KvStateServerAddress serverAddress,
-			KvStateID kvStateId,
-			byte[] serializedKeyAndNamespace) {
+	public String getClientName() {
+		return clientName;
+	}
 
+	public CompletableFuture<RESP> sendRequest(final KvStateServerAddress serverAddress, final REQ request) {
 		if (shutDown.get()) {
-			return Futures.failed(new IllegalStateException("Shut down"));
+			return FutureUtils.getFailedFuture(new IllegalStateException("Shut down"));
 		}
 
 		EstablishedConnection connection = establishedConnections.get(serverAddress);
-
 		if (connection != null) {
-			return connection.getKvState(kvStateId, serializedKeyAndNamespace);
+			return connection.sendRequest(request);
 		} else {
 			PendingConnection pendingConnection = pendingConnections.get(serverAddress);
 			if (pendingConnection != null) {
 				// There was a race, use the existing pending connection.
-				return pendingConnection.getKvState(kvStateId, serializedKeyAndNamespace);
+				return pendingConnection.sendRequest(request);
 			} else {
 				// We try to connect to the server.
-				PendingConnection pending = new PendingConnection(serverAddress);
+				PendingConnection pending = new PendingConnection(serverAddress, messageSerializer);
 				PendingConnection previous = pendingConnections.putIfAbsent(serverAddress, pending);
 
 				if (previous == null) {
 					// OK, we are responsible to connect.
-					bootstrap.connect(serverAddress.getHost(), serverAddress.getPort())
-							.addListener(pending);
-
-					return pending.getKvState(kvStateId, serializedKeyAndNamespace);
+					bootstrap.connect(serverAddress.getHost(), serverAddress.getPort()).addListener(pending);
+					return pending.sendRequest(request);
 				} else {
 					// There was a race, use the existing pending connection.
-					return previous.getKvState(kvStateId, serializedKeyAndNamespace);
+					return previous.sendRequest(request);
 				}
 			}
 		}
@@ -186,7 +167,7 @@ public class KvStateClient {
 	 *
 	 * <p>After a call to this method, all returned futures will be failed.
 	 */
-	public void shutDown() {
+	public void shutdown() {
 		if (shutDown.compareAndSet(false, true)) {
 			for (Map.Entry<KvStateServerAddress, EstablishedConnection> conn : establishedConnections.entrySet()) {
 				if (establishedConnections.remove(conn.getKey(), conn.getValue())) {
@@ -203,28 +184,9 @@ public class KvStateClient {
 			if (bootstrap != null) {
 				EventLoopGroup group = bootstrap.group();
 				if (group != null) {
-					group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+					group.shutdownGracefully(0L, 10L, TimeUnit.SECONDS);
 				}
 			}
-		}
-	}
-
-	/**
-	 * Closes the connection to the given server address if it exists.
-	 *
-	 * <p>If there is a request to the server a new connection will be established.
-	 *
-	 * @param serverAddress Target address of the connection to close
-	 */
-	public void closeConnection(KvStateServerAddress serverAddress) {
-		PendingConnection pending = pendingConnections.get(serverAddress);
-		if (pending != null) {
-			pending.close();
-		}
-
-		EstablishedConnection established = establishedConnections.remove(serverAddress);
-		if (established != null) {
-			established.close();
 		}
 	}
 
@@ -238,6 +200,8 @@ public class KvStateClient {
 
 		/** Address of the server we are connecting to. */
 		private final KvStateServerAddress serverAddress;
+
+		private final MessageSerializer<REQ, RESP> serializer;
 
 		/** Queue of requests while connecting. */
 		private final ArrayDeque<PendingRequest> queuedRequests = new ArrayDeque<>();
@@ -256,13 +220,15 @@ public class KvStateClient {
 		 *
 		 * @param serverAddress Address of the server to connect to.
 		 */
-		private PendingConnection(KvStateServerAddress serverAddress) {
+		private PendingConnection(
+				final KvStateServerAddress serverAddress,
+				final MessageSerializer<REQ, RESP> serializer) {
 			this.serverAddress = serverAddress;
+			this.serializer = serializer;
 		}
 
 		@Override
 		public void operationComplete(ChannelFuture future) throws Exception {
-			// Callback from the Bootstrap's connect call.
 			if (future.isSuccess()) {
 				handInChannel(future.channel());
 			} else {
@@ -277,25 +243,23 @@ public class KvStateClient {
 		 * established channel, otherwise queue it for when the channel is
 		 * handed in.
 		 *
-		 * @param kvStateId                 ID of the KvState instance to query
-		 * @param serializedKeyAndNamespace Serialized key and namespace to query KvState instance
-		 *                                  with
+		 * @param request the request to be sent.
 		 * @return Future holding the serialized result
 		 */
-		public Future<byte[]> getKvState(KvStateID kvStateId, byte[] serializedKeyAndNamespace) {
+		public CompletableFuture<RESP> sendRequest(REQ request) {
 			synchronized (connectLock) {
 				if (failureCause != null) {
-					return Futures.failed(failureCause);
+					return FutureUtils.getFailedFuture(failureCause);
 				} else if (closed) {
-					return Futures.failed(new ClosedChannelException());
+					return FutureUtils.getFailedFuture(new ClosedChannelException());
 				} else {
 					if (established != null) {
-						return established.getKvState(kvStateId, serializedKeyAndNamespace);
+						return established.sendRequest(request);
 					} else {
 						// Queue this and handle when connected
-						PendingRequest pending = new PendingRequest(kvStateId, serializedKeyAndNamespace);
+						final PendingRequest pending = new PendingRequest(request);
 						queuedRequests.add(pending);
-						return pending.promise.future();
+						return pending;
 					}
 				}
 			}
@@ -314,15 +278,17 @@ public class KvStateClient {
 					// new ones can be enqueued.
 					channel.close();
 				} else {
-					established = new EstablishedConnection(serverAddress, channel);
+					established = new EstablishedConnection(serverAddress, serializer, channel);
 
-					PendingRequest pending;
-					while ((pending = queuedRequests.poll()) != null) {
-						Future<byte[]> resultFuture = established.getKvState(
-								pending.kvStateId,
-								pending.serializedKeyAndNamespace);
+					while (!queuedRequests.isEmpty()) {
+						final PendingRequest pending = queuedRequests.poll();
 
-						pending.promise.completeWith(resultFuture);
+						established.sendRequest(pending.request)
+								.thenAccept(resp -> pending.complete(resp))
+								.exceptionally(throwable -> {
+									pending.completeExceptionally(throwable);
+									return null;
+						});
 					}
 
 					// Publish the channel for the general public
@@ -349,8 +315,8 @@ public class KvStateClient {
 		}
 
 		/**
-		 * Close the connecting channel with an Exception (can be
-		 * <code>null</code>) or forward to the established channel.
+		 * Close the connecting channel with an Exception (can be {@code null})
+		 * or forward to the established channel.
 		 */
 		private void close(Throwable cause) {
 			synchronized (connectLock) {
@@ -364,28 +330,11 @@ public class KvStateClient {
 					} else {
 						PendingRequest pending;
 						while ((pending = queuedRequests.poll()) != null) {
-							pending.promise.tryFailure(cause);
+							pending.completeExceptionally(cause);
 						}
 					}
-
 					closed = true;
 				}
-			}
-		}
-
-		/**
-		 * A pending request queued while the channel is connecting.
-		 */
-		private final class PendingRequest {
-
-			private final KvStateID kvStateId;
-			private final byte[] serializedKeyAndNamespace;
-			private final Promise<byte[]> promise;
-
-			private PendingRequest(KvStateID kvStateId, byte[] serializedKeyAndNamespace) {
-				this.kvStateId = kvStateId;
-				this.serializedKeyAndNamespace = serializedKeyAndNamespace;
-				this.promise = Futures.promise();
 			}
 		}
 
@@ -400,13 +349,25 @@ public class KvStateClient {
 						'}';
 			}
 		}
+
+		/**
+		 * A pending request queued while the channel is connecting.
+		 */
+		private final class PendingRequest extends CompletableFuture<RESP> {
+
+			private final REQ request;
+
+			private PendingRequest(REQ request) {
+				this.request = request;
+			}
+		}
 	}
 
 	/**
 	 * An established connection that wraps the actual channel instance and is
-	 * registered at the {@link KvStateClientHandler} for callbacks.
+	 * registered at the {@link ClientHandler} for callbacks.
 	 */
-	private class EstablishedConnection implements KvStateClientHandlerCallback {
+	private class EstablishedConnection implements ClientHandlerCallback<RESP> {
 
 		/** Address of the server we are connected to. */
 		private final KvStateServerAddress serverAddress;
@@ -415,7 +376,7 @@ public class KvStateClient {
 		private final Channel channel;
 
 		/** Pending requests keyed by request ID. */
-		private final ConcurrentHashMap<Long, PromiseAndTimestamp> pendingRequests = new ConcurrentHashMap<>();
+		private final ConcurrentHashMap<Long, TimestampedCompletableFuture> pendingRequests = new ConcurrentHashMap<>();
 
 		/** Current request number used to assign unique request IDs. */
 		private final AtomicLong requestCount = new AtomicLong();
@@ -429,12 +390,19 @@ public class KvStateClient {
 		 * @param serverAddress Address of the server connected to
 		 * @param channel The actual TCP channel
 		 */
-		EstablishedConnection(KvStateServerAddress serverAddress, Channel channel) {
-			this.serverAddress = Preconditions.checkNotNull(serverAddress, "KvStateServerAddress");
-			this.channel = Preconditions.checkNotNull(channel, "Channel");
+		EstablishedConnection(
+				final KvStateServerAddress serverAddress,
+				final MessageSerializer<REQ, RESP> serializer,
+				final Channel channel) {
+
+			this.serverAddress = Preconditions.checkNotNull(serverAddress);
+			this.channel = Preconditions.checkNotNull(channel);
 
 			// Add the client handler with the callback
-			channel.pipeline().addLast("KvStateClientHandler", new KvStateClientHandler(this));
+			channel.pipeline().addLast(
+					getClientName() + " Handler",
+					new ClientHandler<>(clientName, serializer, this)
+			);
 
 			stats.reportActiveConnection();
 		}
@@ -458,52 +426,38 @@ public class KvStateClient {
 				stats.reportInactiveConnection();
 
 				for (long requestId : pendingRequests.keySet()) {
-					PromiseAndTimestamp pending = pendingRequests.remove(requestId);
-					if (pending != null && pending.promise.tryFailure(cause)) {
+					TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
+					if (pending != null && pending.completeExceptionally(cause)) {
 						stats.reportFailedRequest();
 					}
 				}
-
 				return true;
 			}
-
 			return false;
 		}
 
 		/**
 		 * Returns a future holding the serialized request result.
-		 *
-		 * @param kvStateId                 ID of the KvState instance to query
-		 * @param serializedKeyAndNamespace Serialized key and namespace to query KvState instance
-		 *                                  with
+		 * @param request the request to be sent.
 		 * @return Future holding the serialized result
 		 */
-		Future<byte[]> getKvState(KvStateID kvStateId, byte[] serializedKeyAndNamespace) {
-			PromiseAndTimestamp requestPromiseTs = new PromiseAndTimestamp(
-					Futures.<byte[]>promise(),
-					System.nanoTime());
-
+		CompletableFuture<RESP> sendRequest(REQ request) {
+			TimestampedCompletableFuture requestPromiseTs =
+					new TimestampedCompletableFuture(System.nanoTime());
 			try {
 				final long requestId = requestCount.getAndIncrement();
 				pendingRequests.put(requestId, requestPromiseTs);
 
 				stats.reportRequest();
 
-				ByteBuf buf = MessageSerializer.serializeKvStateRequest(
-						channel.alloc(),
-						requestId,
-						kvStateId,
-						serializedKeyAndNamespace);
+				ByteBuf buf = MessageSerializer.serializeRequest(channel.alloc(), requestId, request);
 
-				channel.writeAndFlush(buf).addListener(new ChannelFutureListener() {
-					@Override
-					public void operationComplete(ChannelFuture future) throws Exception {
-						if (!future.isSuccess()) {
-							// Fail promise if not failed to write
-							PromiseAndTimestamp pending = pendingRequests.remove(requestId);
-							if (pending != null && pending.promise.tryFailure(future.cause())) {
-								stats.reportFailedRequest();
-							}
+				channel.writeAndFlush(buf).addListener((ChannelFutureListener) future -> {
+					if (!future.isSuccess()) {
+						// Fail promise if not failed to write
+						TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
+						if (pending != null && pending.completeExceptionally(future.cause())) {
+							stats.reportFailedRequest();
 						}
 					}
 				});
@@ -515,31 +469,31 @@ public class KvStateClient {
 				if (failure != null) {
 					// Remove from pending requests to guard against concurrent
 					// removal and to make sure that we only count it once as failed.
-					PromiseAndTimestamp p = pendingRequests.remove(requestId);
-					if (p != null && p.promise.tryFailure(failure)) {
+					TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
+					if (pending != null && pending.completeExceptionally(failure)) {
 						stats.reportFailedRequest();
 					}
 				}
 			} catch (Throwable t) {
-				requestPromiseTs.promise.tryFailure(t);
+				requestPromiseTs.completeExceptionally(t);
 			}
 
-			return requestPromiseTs.promise.future();
+			return requestPromiseTs;
 		}
 
 		@Override
-		public void onRequestResult(long requestId, byte[] serializedValue) {
-			PromiseAndTimestamp pending = pendingRequests.remove(requestId);
-			if (pending != null && pending.promise.trySuccess(serializedValue)) {
-				long durationMillis = (System.nanoTime() - pending.timestamp) / 1_000_000;
+		public void onRequestResult(long requestId, RESP response) {
+			TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
+			if (pending != null && pending.complete(response)) {
+				long durationMillis = (System.nanoTime() - pending.getTimestamp()) / 1_000_000L;
 				stats.reportSuccessfulRequest(durationMillis);
 			}
 		}
 
 		@Override
 		public void onRequestFailure(long requestId, Throwable cause) {
-			PromiseAndTimestamp pending = pendingRequests.remove(requestId);
-			if (pending != null && pending.promise.tryFailure(cause)) {
+			TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
+			if (pending != null && pending.completeExceptionally(cause)) {
 				stats.reportFailedRequest();
 			}
 		}
@@ -567,17 +521,17 @@ public class KvStateClient {
 		/**
 		 * Pair of promise and a timestamp.
 		 */
-		private class PromiseAndTimestamp {
+		private class TimestampedCompletableFuture extends CompletableFuture<RESP> {
 
-			private final Promise<byte[]> promise;
-			private final long timestamp;
+			private final long timestampInNanos;
 
-			public PromiseAndTimestamp(Promise<byte[]> promise, long timestamp) {
-				this.promise = promise;
-				this.timestamp = timestamp;
+			TimestampedCompletableFuture(long timestampInNanos) {
+				this.timestampInNanos = timestampInNanos;
+			}
+
+			public long getTimestamp() {
+				return timestampInNanos;
 			}
 		}
-
 	}
-
 }

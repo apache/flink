@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.queryablestate.client.KvStateClient;
-import org.apache.flink.queryablestate.messages.KvStateRequest;
+import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
+import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.messages.MessageType;
 import org.apache.flink.queryablestate.server.KvStateServerImpl;
@@ -31,7 +31,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.netty.AtomicKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.message.KvStateSerializer;
@@ -70,17 +69,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import scala.concurrent.Await;
-import scala.concurrent.Future;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -91,16 +90,16 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link KvStateClient}.
+ * Tests for {@link Client}.
  */
-public class KvStateClientTest {
+public class ClientTest {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KvStateClientTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ClientTest.class);
 
 	// Thread pool for client bootstrap (shared between tests)
 	private static final NioEventLoopGroup NIO_GROUP = new NioEventLoopGroup();
 
-	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(100, TimeUnit.SECONDS);
+	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10L, TimeUnit.SECONDS);
 
 	@AfterClass
 	public static void tearDown() throws Exception {
@@ -117,11 +116,14 @@ public class KvStateClientTest {
 		Deadline deadline = TEST_TIMEOUT.fromNow();
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
-		KvStateClient client = null;
+		MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+
+		Client<KvStateInternalRequest, KvStateResponse> client = null;
 		Channel serverChannel = null;
 
 		try {
-			client = new KvStateClient(1, stats);
+			client = new Client<>("Test Client", 1, serializer, stats);
 
 			// Random result
 			final byte[] expected = new byte[1024];
@@ -144,18 +146,18 @@ public class KvStateClientTest {
 
 			KvStateServerAddress serverAddress = getKvStateServerAddress(serverChannel);
 
-			List<Future<byte[]>> futures = new ArrayList<>();
+			long numQueries = 1024L;
 
-			int numQueries = 1024;
-
-			for (int i = 0; i < numQueries; i++) {
-				futures.add(client.getKvState(serverAddress, new KvStateID(), new byte[0]));
+			List<CompletableFuture<KvStateResponse>> futures = new ArrayList<>();
+			for (long i = 0L; i < numQueries; i++) {
+				KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+				futures.add(client.sendRequest(serverAddress, request));
 			}
 
 			// Respond to messages
 			Exception testException = new RuntimeException("Expected test Exception");
 
-			for (int i = 0; i < numQueries; i++) {
+			for (long i = 0L; i < numQueries; i++) {
 				ByteBuf buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 				assertNotNull("Receive timed out", buf);
 
@@ -163,62 +165,68 @@ public class KvStateClientTest {
 				assertNotNull("Channel not active", ch);
 
 				assertEquals(MessageType.REQUEST, MessageSerializer.deserializeHeader(buf));
-				KvStateRequest request = MessageSerializer.deserializeKvStateRequest(buf);
+				long requestId = MessageSerializer.getRequestId(buf);
+				KvStateInternalRequest deserRequest = serializer.deserializeRequest(buf);
 
 				buf.release();
 
-				if (i % 2 == 0) {
-					ByteBuf response = MessageSerializer.serializeKvStateRequestResult(
+				if (i % 2L == 0L) {
+					ByteBuf response = MessageSerializer.serializeResponse(
 							serverChannel.alloc(),
-							request.getRequestId(),
-							expected);
+							requestId,
+							new KvStateResponse(expected));
 
 					ch.writeAndFlush(response);
 				} else {
-					ByteBuf response = MessageSerializer.serializeKvStateRequestFailure(
+					ByteBuf response = MessageSerializer.serializeRequestFailure(
 							serverChannel.alloc(),
-							request.getRequestId(),
+							requestId,
 							testException);
 
 					ch.writeAndFlush(response);
 				}
 			}
 
-			for (int i = 0; i < numQueries; i++) {
-				if (i % 2 == 0) {
-					byte[] serializedResult = Await.result(futures.get(i), deadline.timeLeft());
-					assertArrayEquals(expected, serializedResult);
+			for (long i = 0L; i < numQueries; i++) {
+
+				if (i % 2L == 0L) {
+					KvStateResponse serializedResult = futures.get((int) i).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+					assertArrayEquals(expected, serializedResult.getContent());
 				} else {
 					try {
-						Await.result(futures.get(i), deadline.timeLeft());
+						futures.get((int) i).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 						fail("Did not throw expected Exception");
-					} catch (RuntimeException ignored) {
-						// Expected
+					} catch (ExecutionException e) {
+
+						if (!(e.getCause() instanceof RuntimeException)) {
+							fail("Did not throw expected Exception");
+						}
+						// else expected
 					}
 				}
 			}
 
 			assertEquals(numQueries, stats.getNumRequests());
-			int expectedRequests = numQueries / 2;
+			long expectedRequests = numQueries / 2L;
 
 			// Counts can take some time to propagate
 			while (deadline.hasTimeLeft() && (stats.getNumSuccessful() != expectedRequests ||
 					stats.getNumFailed() != expectedRequests)) {
-				Thread.sleep(100);
+				Thread.sleep(100L);
 			}
 
 			assertEquals(expectedRequests, stats.getNumSuccessful());
 			assertEquals(expectedRequests, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutDown();
+				client.shutdown();
 			}
 
 			if (serverChannel != null) {
 				serverChannel.close();
 			}
 
-			assertEquals("Channel leak", 0, stats.getNumConnections());
+			assertEquals("Channel leak", 0L, stats.getNumConnections());
 		}
 	}
 
@@ -229,10 +237,14 @@ public class KvStateClientTest {
 	public void testRequestUnavailableHost() throws Exception {
 		Deadline deadline = TEST_TIMEOUT.fromNow();
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
-		KvStateClient client = null;
+
+		MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+
+		Client<KvStateInternalRequest, KvStateResponse> client = null;
 
 		try {
-			client = new KvStateClient(1, stats);
+			client = new Client<>("Test Client", 1, serializer, stats);
 
 			int availablePort = NetUtils.getAvailablePort();
 
@@ -240,20 +252,24 @@ public class KvStateClientTest {
 					InetAddress.getLocalHost(),
 					availablePort);
 
-			Future<byte[]> future = client.getKvState(serverAddress, new KvStateID(), new byte[0]);
+			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+			CompletableFuture<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
 			try {
-				Await.result(future, deadline.timeLeft());
+				future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 				fail("Did not throw expected ConnectException");
-			} catch (ConnectException ignored) {
-				// Expected
+			} catch (ExecutionException e) {
+				if (!(e.getCause() instanceof ConnectException)) {
+					fail("Did not throw expected ConnectException");
+				}
+				// else expected
 			}
 		} finally {
 			if (client != null) {
-				client.shutDown();
+				client.shutdown();
 			}
 
-			assertEquals("Channel leak", 0, stats.getNumConnections());
+			assertEquals("Channel leak", 0L, stats.getNumConnections());
 		}
 	}
 
@@ -265,8 +281,11 @@ public class KvStateClientTest {
 		Deadline deadline = TEST_TIMEOUT.fromNow();
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
+		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+
 		ExecutorService executor = null;
-		KvStateClient client = null;
+		Client<KvStateInternalRequest, KvStateResponse> client = null;
 		Channel serverChannel = null;
 
 		final byte[] serializedResult = new byte[1024];
@@ -278,57 +297,54 @@ public class KvStateClientTest {
 
 			executor = Executors.newFixedThreadPool(numQueryTasks);
 
-			client = new KvStateClient(1, stats);
+			client = new Client<>("Test Client", 1, serializer, stats);
 
 			serverChannel = createServerChannel(new ChannelInboundHandlerAdapter() {
 				@Override
 				public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 					ByteBuf buf = (ByteBuf) msg;
 					assertEquals(MessageType.REQUEST, MessageSerializer.deserializeHeader(buf));
-					KvStateRequest request = MessageSerializer.deserializeKvStateRequest(buf);
+					long requestId = MessageSerializer.getRequestId(buf);
+					KvStateInternalRequest request = serializer.deserializeRequest(buf);
 
 					buf.release();
 
-					ByteBuf response = MessageSerializer.serializeKvStateRequestResult(
+					KvStateResponse response = new KvStateResponse(serializedResult);
+					ByteBuf serResponse = MessageSerializer.serializeResponse(
 							ctx.alloc(),
-							request.getRequestId(),
-							serializedResult);
+							requestId,
+							response);
 
-					ctx.channel().writeAndFlush(response);
+					ctx.channel().writeAndFlush(serResponse);
 				}
 			});
 
 			final KvStateServerAddress serverAddress = getKvStateServerAddress(serverChannel);
 
-			final KvStateClient finalClient = client;
-			Callable<List<Future<byte[]>>> queryTask = new Callable<List<Future<byte[]>>>() {
-				@Override
-				public List<Future<byte[]>> call() throws Exception {
-					List<Future<byte[]>> results = new ArrayList<>(numQueriesPerTask);
+			final Client<KvStateInternalRequest, KvStateResponse> finalClient = client;
+			Callable<List<CompletableFuture<KvStateResponse>>> queryTask = () -> {
+				List<CompletableFuture<KvStateResponse>> results = new ArrayList<>(numQueriesPerTask);
 
-					for (int i = 0; i < numQueriesPerTask; i++) {
-						results.add(finalClient.getKvState(
-								serverAddress,
-								new KvStateID(),
-								new byte[0]));
-					}
-
-					return results;
+				for (int i = 0; i < numQueriesPerTask; i++) {
+					KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+					results.add(finalClient.sendRequest(serverAddress, request));
 				}
+
+				return results;
 			};
 
 			// Submit query tasks
-			List<java.util.concurrent.Future<List<Future<byte[]>>>> futures = new ArrayList<>();
+			List<Future<List<CompletableFuture<KvStateResponse>>>> futures = new ArrayList<>();
 			for (int i = 0; i < numQueryTasks; i++) {
 				futures.add(executor.submit(queryTask));
 			}
 
 			// Verify results
-			for (java.util.concurrent.Future<List<Future<byte[]>>> future : futures) {
-				List<Future<byte[]>> results = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-				for (Future<byte[]> result : results) {
-					byte[] actual = Await.result(result, deadline.timeLeft());
-					assertArrayEquals(serializedResult, actual);
+			for (Future<List<CompletableFuture<KvStateResponse>>> future : futures) {
+				List<CompletableFuture<KvStateResponse>> results = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				for (CompletableFuture<KvStateResponse> result : results) {
+					KvStateResponse actual = result.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+					assertArrayEquals(serializedResult, actual.getContent());
 				}
 			}
 
@@ -336,7 +352,7 @@ public class KvStateClientTest {
 
 			// Counts can take some time to propagate
 			while (deadline.hasTimeLeft() && stats.getNumSuccessful() != totalQueries) {
-				Thread.sleep(100);
+				Thread.sleep(100L);
 			}
 
 			assertEquals(totalQueries, stats.getNumRequests());
@@ -351,10 +367,10 @@ public class KvStateClientTest {
 			}
 
 			if (client != null) {
-				client.shutDown();
+				client.shutdown();
 			}
 
-			assertEquals("Channel leak", 0, stats.getNumConnections());
+			assertEquals("Channel leak", 0L, stats.getNumConnections());
 		}
 	}
 
@@ -367,11 +383,14 @@ public class KvStateClientTest {
 		Deadline deadline = TEST_TIMEOUT.fromNow();
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
-		KvStateClient client = null;
+		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+
+		Client<KvStateInternalRequest, KvStateResponse> client = null;
 		Channel serverChannel = null;
 
 		try {
-			client = new KvStateClient(1, stats);
+			client = new Client<>("Test Client", 1, serializer, stats);
 
 			final LinkedBlockingQueue<ByteBuf> received = new LinkedBlockingQueue<>();
 			final AtomicReference<Channel> channel = new AtomicReference<>();
@@ -391,9 +410,11 @@ public class KvStateClientTest {
 			KvStateServerAddress serverAddress = getKvStateServerAddress(serverChannel);
 
 			// Requests
-			List<Future<byte[]>> futures = new ArrayList<>();
-			futures.add(client.getKvState(serverAddress, new KvStateID(), new byte[0]));
-			futures.add(client.getKvState(serverAddress, new KvStateID(), new byte[0]));
+			List<Future<KvStateResponse>> futures = new ArrayList<>();
+			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+
+			futures.add(client.sendRequest(serverAddress, request));
+			futures.add(client.sendRequest(serverAddress, request));
 
 			ByteBuf buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			assertNotNull("Receive timed out", buf);
@@ -403,7 +424,7 @@ public class KvStateClientTest {
 			assertNotNull("Receive timed out", buf);
 			buf.release();
 
-			assertEquals(1, stats.getNumConnections());
+			assertEquals(1L, stats.getNumConnections());
 
 			Channel ch = channel.get();
 			assertNotNull("Channel not active", ch);
@@ -414,40 +435,47 @@ public class KvStateClientTest {
 					new RuntimeException("Expected test server failure")));
 
 			try {
-				Await.result(futures.remove(0), deadline.timeLeft());
+				futures.remove(0).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 				fail("Did not throw expected server failure");
-			} catch (RuntimeException ignored) {
+			} catch (ExecutionException e) {
+
+				if (!(e.getCause() instanceof RuntimeException)) {
+					fail("Did not throw expected Exception");
+				}
 				// Expected
 			}
 
 			try {
-				Await.result(futures.remove(0), deadline.timeLeft());
+				futures.remove(0).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 				fail("Did not throw expected server failure");
-			} catch (RuntimeException ignored) {
+			} catch (ExecutionException e) {
+
+				if (!(e.getCause() instanceof RuntimeException)) {
+					fail("Did not throw expected Exception");
+				}
 				// Expected
 			}
 
-			assertEquals(0, stats.getNumConnections());
+			assertEquals(0L, stats.getNumConnections());
 
 			// Counts can take some time to propagate
-			while (deadline.hasTimeLeft() && (stats.getNumSuccessful() != 0 ||
-					stats.getNumFailed() != 2)) {
-				Thread.sleep(100);
+			while (deadline.hasTimeLeft() && (stats.getNumSuccessful() != 0L || stats.getNumFailed() != 2L)) {
+				Thread.sleep(100L);
 			}
 
-			assertEquals(2, stats.getNumRequests());
-			assertEquals(0, stats.getNumSuccessful());
-			assertEquals(2, stats.getNumFailed());
+			assertEquals(2L, stats.getNumRequests());
+			assertEquals(0L, stats.getNumSuccessful());
+			assertEquals(2L, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutDown();
+				client.shutdown();
 			}
 
 			if (serverChannel != null) {
 				serverChannel.close();
 			}
 
-			assertEquals("Channel leak", 0, stats.getNumConnections());
+			assertEquals("Channel leak", 0L, stats.getNumConnections());
 		}
 	}
 
@@ -460,11 +488,14 @@ public class KvStateClientTest {
 		Deadline deadline = TEST_TIMEOUT.fromNow();
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
-		KvStateClient client = null;
+		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+
+		Client<KvStateInternalRequest, KvStateResponse> client = null;
 		Channel serverChannel = null;
 
 		try {
-			client = new KvStateClient(1, stats);
+			client = new Client<>("Test Client", 1, serializer, stats);
 
 			final AtomicBoolean received = new AtomicBoolean();
 			final AtomicReference<Channel> channel = new AtomicReference<>();
@@ -484,10 +515,11 @@ public class KvStateClientTest {
 			KvStateServerAddress serverAddress = getKvStateServerAddress(serverChannel);
 
 			// Requests
-			Future<byte[]> future = client.getKvState(serverAddress, new KvStateID(), new byte[0]);
+			KvStateInternalRequest request = new KvStateInternalRequest(new KvStateID(), new byte[0]);
+			Future<KvStateResponse> future = client.sendRequest(serverAddress, request);
 
 			while (!received.get() && deadline.hasTimeLeft()) {
-				Thread.sleep(50);
+				Thread.sleep(50L);
 			}
 			assertTrue("Receive timed out", received.get());
 
@@ -496,33 +528,35 @@ public class KvStateClientTest {
 			channel.get().close().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
 			try {
-				Await.result(future, deadline.timeLeft());
+				future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 				fail("Did not throw expected server failure");
-			} catch (ClosedChannelException ignored) {
+			} catch (ExecutionException e) {
+				if (!(e.getCause() instanceof ClosedChannelException)) {
+					fail("Did not throw expected Exception");
+				}
 				// Expected
 			}
 
-			assertEquals(0, stats.getNumConnections());
+			assertEquals(0L, stats.getNumConnections());
 
 			// Counts can take some time to propagate
-			while (deadline.hasTimeLeft() && (stats.getNumSuccessful() != 0 ||
-					stats.getNumFailed() != 1)) {
-				Thread.sleep(100);
+			while (deadline.hasTimeLeft() && (stats.getNumSuccessful() != 0L || stats.getNumFailed() != 1L)) {
+				Thread.sleep(100L);
 			}
 
-			assertEquals(1, stats.getNumRequests());
-			assertEquals(0, stats.getNumSuccessful());
-			assertEquals(1, stats.getNumFailed());
+			assertEquals(1L, stats.getNumRequests());
+			assertEquals(0L, stats.getNumSuccessful());
+			assertEquals(1L, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutDown();
+				client.shutdown();
 			}
 
 			if (serverChannel != null) {
 				serverChannel.close();
 			}
 
-			assertEquals("Channel leak", 0, stats.getNumConnections());
+			assertEquals("Channel leak", 0L, stats.getNumConnections());
 		}
 	}
 
@@ -563,12 +597,15 @@ public class KvStateClientTest {
 
 		AtomicKvStateRequestStats clientStats = new AtomicKvStateRequestStats();
 
-		KvStateClient client = null;
+		final MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
+				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
+
+		Client<KvStateInternalRequest, KvStateResponse> client = null;
 		ExecutorService clientTaskExecutor = null;
-		final KvStateServer[] server = new KvStateServer[numServers];
+		final KvStateServerImpl[] server = new KvStateServerImpl[numServers];
 
 		try {
-			client = new KvStateClient(numClientEventLoopThreads, clientStats);
+			client = new Client<>("Test Client", numClientEventLoopThreads, serializer, clientStats);
 			clientTaskExecutor = Executors.newFixedThreadPool(numClientsTasks);
 
 			// Create state
@@ -609,75 +646,70 @@ public class KvStateClientTest {
 				ids[i] = registry[i].registerKvState(new JobID(), new JobVertexID(), new KeyGroupRange(0, 0), "any", kvState);
 			}
 
-			final KvStateClient finalClient = client;
-			Callable<Void> queryTask = new Callable<Void>() {
-				@Override
-				public Void call() throws Exception {
-					while (true) {
-						if (Thread.interrupted()) {
-							throw new InterruptedException();
-						}
+			final Client<KvStateInternalRequest, KvStateResponse> finalClient = client;
+			Callable<Void> queryTask = () -> {
+				while (true) {
+					if (Thread.interrupted()) {
+						throw new InterruptedException();
+					}
 
-						// Random server permutation
-						List<Integer> random = new ArrayList<>();
-						for (int j = 0; j < batchSize; j++) {
-							random.add(j);
-						}
-						Collections.shuffle(random);
+					// Random server permutation
+					List<Integer> random = new ArrayList<>();
+					for (int j = 0; j < batchSize; j++) {
+						random.add(j);
+					}
+					Collections.shuffle(random);
 
-						// Dispatch queries
-						List<Future<byte[]>> futures = new ArrayList<>(batchSize);
+					// Dispatch queries
+					List<Future<KvStateResponse>> futures = new ArrayList<>(batchSize);
 
-						for (int j = 0; j < batchSize; j++) {
-							int targetServer = random.get(j) % numServers;
+					for (int j = 0; j < batchSize; j++) {
+						int targetServer = random.get(j) % numServers;
 
-							byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
-									1010 + targetServer,
-									IntSerializer.INSTANCE,
-									VoidNamespace.INSTANCE,
-									VoidNamespaceSerializer.INSTANCE);
+						byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
+								1010 + targetServer,
+								IntSerializer.INSTANCE,
+								VoidNamespace.INSTANCE,
+								VoidNamespaceSerializer.INSTANCE);
 
-							futures.add(finalClient.getKvState(
-									server[targetServer].getAddress(),
-									ids[targetServer],
-									serializedKeyAndNamespace));
-						}
+						KvStateInternalRequest request = new KvStateInternalRequest(ids[targetServer], serializedKeyAndNamespace);
+						futures.add(finalClient.sendRequest(server[targetServer].getServerAddress(), request));
+					}
 
-						// Verify results
-						for (int j = 0; j < batchSize; j++) {
-							int targetServer = random.get(j) % numServers;
+					// Verify results
+					for (int j = 0; j < batchSize; j++) {
+						int targetServer = random.get(j) % numServers;
 
-							Future<byte[]> future = futures.get(j);
-							byte[] buf = Await.result(future, timeout);
-							int value = KvStateSerializer.deserializeValue(buf, IntSerializer.INSTANCE);
-							assertEquals(201 + targetServer, value);
-						}
+						Future<KvStateResponse> future = futures.get(j);
+						byte[] buf = future.get(timeout.toMillis(), TimeUnit.MILLISECONDS).getContent();
+						int value = KvStateSerializer.deserializeValue(buf, IntSerializer.INSTANCE);
+						assertEquals(201L + targetServer, value);
 					}
 				}
 			};
 
 			// Submit tasks
-			List<java.util.concurrent.Future<Void>> taskFutures = new ArrayList<>();
+			List<Future<Void>> taskFutures = new ArrayList<>();
 			for (int i = 0; i < numClientsTasks; i++) {
 				taskFutures.add(clientTaskExecutor.submit(queryTask));
 			}
 
 			long numRequests;
-			while ((numRequests = clientStats.getNumRequests()) < 100_000) {
-				Thread.sleep(100);
+			while ((numRequests = clientStats.getNumRequests()) < 100_000L) {
+				Thread.sleep(100L);
 				LOG.info("Number of requests {}/100_000", numRequests);
 			}
 
 			// Shut down
-			client.shutDown();
+			client.shutdown();
 
-			for (java.util.concurrent.Future<Void> future : taskFutures) {
+			for (Future<Void> future : taskFutures) {
 				try {
 					future.get();
 					fail("Did not throw expected Exception after shut down");
 				} catch (ExecutionException t) {
-					if (t.getCause() instanceof ClosedChannelException ||
-							t.getCause() instanceof IllegalStateException) {
+					if (t.getCause().getCause() instanceof ClosedChannelException ||
+							t.getCause().getCause() instanceof IllegalStateException) {
 						// Expected
 					} else {
 						t.printStackTrace();
@@ -686,18 +718,18 @@ public class KvStateClientTest {
 				}
 			}
 
-			assertEquals("Connection leak (client)", 0, clientStats.getNumConnections());
+			assertEquals("Connection leak (client)", 0L, clientStats.getNumConnections());
 			for (int i = 0; i < numServers; i++) {
 				boolean success = false;
 				int numRetries = 0;
 				while (!success) {
 					try {
-						assertEquals("Connection leak (server)", 0, serverStats[i].getNumConnections());
+						assertEquals("Connection leak (server)", 0L, serverStats[i].getNumConnections());
 						success = true;
 					} catch (Throwable t) {
 						if (numRetries < 10) {
 							LOG.info("Retrying connection leak check (server)");
-							Thread.sleep((numRetries + 1) * 50);
+							Thread.sleep((numRetries + 1) * 50L);
 							numRetries++;
 						} else {
 							throw t;
@@ -707,12 +739,12 @@ public class KvStateClientTest {
 			}
 		} finally {
 			if (client != null) {
-				client.shutDown();
+				client.shutdown();
 			}
 
 			for (int i = 0; i < numServers; i++) {
 				if (server[i] != null) {
-					server[i].shutDown();
+					server[i].shutdown();
 				}
 			}
 

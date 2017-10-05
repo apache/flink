@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.messages;
+package org.apache.flink.queryablestate.network.messages;
+
+import org.apache.flink.annotation.Internal;
 
 /**
- * A failure response to a {@link KvStateRequest}.
+ * A message indicating a protocol-related error.
  */
-public final class KvStateRequestFailure {
+@Internal
+public class RequestFailure {
 
 	/** ID of the request responding to. */
 	private final long requestId;
@@ -30,12 +33,12 @@ public final class KvStateRequestFailure {
 	private final Throwable cause;
 
 	/**
-	 * Creates a failure response to a {@link KvStateRequest}.
+	 * Creates a failure response to a {@link MessageBody}.
 	 *
 	 * @param requestId ID for the request responding to
 	 * @param cause     Failure cause (not allowed to be a user type)
 	 */
-	public KvStateRequestFailure(long requestId, Throwable cause) {
+	public RequestFailure(long requestId, Throwable cause) {
 		this.requestId = requestId;
 		this.cause = cause;
 	}
@@ -60,7 +63,7 @@ public final class KvStateRequestFailure {
 
 	@Override
 	public String toString() {
-		return "KvStateRequestFailure{" +
+		return "RequestFailure{" +
 				"requestId=" + requestId +
 				", cause=" + cause +
 				'}';

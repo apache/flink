@@ -445,4 +445,20 @@ public class FutureUtils {
 
 		return result;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Future Completed with an exception.
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Returns a {@link CompletableFuture} that has failed with the exception
+	 * provided as argument.
+	 * @param throwable the exception to fail the future with.
+	 * @return The failed future.
+	 */
+	public static <T> CompletableFuture<T> getFailedFuture(Throwable throwable) {
+		CompletableFuture<T> failedAttempt = new CompletableFuture<>();
+		failedAttempt.completeExceptionally(throwable);
+		return failedAttempt;
+	}
 }

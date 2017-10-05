@@ -31,7 +31,7 @@ import java.util.Arrays;
  * Location information for all key groups of a {@link InternalKvState} instance.
  *
  * <p>This is populated by the {@link KvStateLocationRegistry} and used by the
- * Queryable State Client to target queries.
+ * queryable state to target queries.
  */
 public class KvStateLocation implements Serializable {
 
@@ -183,10 +183,6 @@ public class KvStateLocation implements Serializable {
 		}
 	}
 
-	public static long getSerialVersionUID() {
-		return serialVersionUID;
-	}
-
 	/**
 	 * Registers a KvState instance for the given key group index.
 	 *
@@ -194,7 +190,7 @@ public class KvStateLocation implements Serializable {
 	 * @throws IndexOutOfBoundsException If key group range start < 0 or key group range end >= Number of key groups
 	 * @throws IllegalArgumentException  If no location information registered for a key group index in the range.
 	 */
-	public void unregisterKvState(KeyGroupRange keyGroupRange) {
+	void unregisterKvState(KeyGroupRange keyGroupRange) {
 		if (keyGroupRange.getStartKeyGroup() < 0 || keyGroupRange.getEndKeyGroup() >= numKeyGroups) {
 			throw new IndexOutOfBoundsException("Key group index");
 		}

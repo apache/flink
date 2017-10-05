@@ -16,20 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate;
+package org.apache.flink.queryablestate.network.messages;
 
-import org.apache.flink.runtime.query.KvStateID;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.annotation.Internal;
+
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 /**
- * Thrown if no KvState with the given ID cannot found by the server handler.
+ * A utility used to deserialize a {@link MessageBody message}.
+ * @param <M> The type of the message to be deserialized.
+ *           It has to extend {@link MessageBody}
  */
-public class UnknownKvStateID extends IllegalStateException {
+@Internal
+public interface MessageDeserializer<M extends MessageBody> {
 
-	private static final long serialVersionUID = 1L;
-
-	public UnknownKvStateID(KvStateID kvStateId) {
-		super("No KvState registered with ID " + Preconditions.checkNotNull(kvStateId, "KvStateID") +
-				" at TaskManager.");
-	}
+	/**
+	 * Deserializes a message contained in a byte buffer.
+	 * @param buf the buffer containing the message.
+	 * @return The deserialized message.
+	 */
+	M deserializeMessage(ByteBuf buf);
 }

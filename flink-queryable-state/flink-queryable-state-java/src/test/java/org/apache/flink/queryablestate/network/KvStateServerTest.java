@@ -22,14 +22,14 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.queryablestate.messages.KvStateRequestResult;
+import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
+import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.messages.MessageType;
 import org.apache.flink.queryablestate.server.KvStateServerImpl;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
-import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.netty.AtomicKvStateRequestStats;
 import org.apache.flink.runtime.query.netty.KvStateRequestStats;
@@ -66,7 +66,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link KvStateServer}.
+ * Tests for {@link KvStateServerImpl}.
  */
 public class KvStateServerTest {
 
@@ -87,7 +87,7 @@ public class KvStateServerTest {
 	 */
 	@Test
 	public void testSimpleRequest() throws Exception {
-		KvStateServer server = null;
+		KvStateServerImpl server = null;
 		Bootstrap bootstrap = null;
 		try {
 			KvStateRegistry registry = new KvStateRegistry();
@@ -96,7 +96,7 @@ public class KvStateServerTest {
 			server = new KvStateServerImpl(InetAddress.getLocalHost(), 0, 1, 1, registry, stats);
 			server.start();
 
-			KvStateServerAddress serverAddress = server.getAddress();
+			KvStateServerAddress serverAddress = server.getServerAddress();
 			int numKeyGroups = 1;
 			AbstractStateBackend abstractBackend = new MemoryStateBackend();
 			DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
@@ -155,25 +155,29 @@ public class KvStateServerTest {
 			long requestId = Integer.MAX_VALUE + 182828L;
 
 			assertTrue(registryListener.registrationName.equals("vanilla"));
-			ByteBuf request = MessageSerializer.serializeKvStateRequest(
-					channel.alloc(),
-					requestId,
+
+			final KvStateInternalRequest request = new KvStateInternalRequest(
 					registryListener.kvStateId,
 					serializedKeyAndNamespace);
 
-			channel.writeAndFlush(request);
+			ByteBuf serializeRequest = MessageSerializer.serializeRequest(
+					channel.alloc(),
+					requestId,
+					request);
+
+			channel.writeAndFlush(serializeRequest);
 
 			ByteBuf buf = responses.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 
 			assertEquals(MessageType.REQUEST_RESULT, MessageSerializer.deserializeHeader(buf));
-			KvStateRequestResult response = MessageSerializer.deserializeKvStateRequestResult(buf);
+			assertEquals(requestId, MessageSerializer.getRequestId(buf));
+			KvStateResponse response = server.getSerializer().deserializeResponse(buf);
 
-			assertEquals(requestId, response.getRequestId());
-			int actualValue = KvStateSerializer.deserializeValue(response.getSerializedResult(), IntSerializer.INSTANCE);
+			int actualValue = KvStateSerializer.deserializeValue(response.getContent(), IntSerializer.INSTANCE);
 			assertEquals(expectedValue, actualValue);
 		} finally {
 			if (server != null) {
-				server.shutDown();
+				server.shutdown();
 			}
 
 			if (bootstrap != null) {

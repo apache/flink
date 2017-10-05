@@ -16,25 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.client;
+package org.apache.flink.queryablestate.network;
 
-import org.apache.flink.queryablestate.messages.KvStateRequest;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.queryablestate.network.messages.MessageBody;
 
 /**
- * Callback for {@link KvStateClientHandler}.
+ * Callback for {@link ClientHandler}.
  */
-public interface KvStateClientHandlerCallback {
+@Internal
+public interface ClientHandlerCallback<RESP extends MessageBody> {
 
 	/**
-	 * Called on a successful {@link KvStateRequest}.
+	 * Called on a successful request.
 	 *
-	 * @param requestId       ID of the request
-	 * @param serializedValue Serialized value for the request
+	 * @param requestId			ID of the request
+	 * @param response			The received response
 	 */
-	void onRequestResult(long requestId, byte[] serializedValue);
+	void onRequestResult(long requestId, RESP response);
 
 	/**
-	 * Called on a failed {@link KvStateRequest}.
+	 * Called on a failed request.
 	 *
 	 * @param requestId ID of the request
 	 * @param cause     Cause of the request failure

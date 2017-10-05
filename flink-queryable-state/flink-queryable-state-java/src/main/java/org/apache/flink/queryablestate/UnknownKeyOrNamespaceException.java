@@ -18,14 +18,22 @@
 
 package org.apache.flink.queryablestate;
 
-import org.apache.flink.runtime.query.KvStateLocation;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.queryablestate.network.BadRequestException;
 
 /**
- * Exception thrown if there is no location information available for the given
- * key group in a {@link KvStateLocation} instance.
+ * Thrown if the KvState does not hold any state for the given key or namespace.
  */
-public class UnknownKvStateKeyGroupLocation extends Exception {
+@Internal
+public class UnknownKeyOrNamespaceException extends BadRequestException {
 
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * Creates the exception.
+	 * @param serverName the name of the server that threw the exception.
+	 */
+	public UnknownKeyOrNamespaceException(String serverName) {
+		super(serverName, "No state for the specified key/namespace.");
+	}
 }

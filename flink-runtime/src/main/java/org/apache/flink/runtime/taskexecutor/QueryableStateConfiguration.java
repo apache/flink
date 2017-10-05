@@ -82,6 +82,7 @@ public class QueryableStateConfiguration {
 	public String toString() {
 		return "QueryableStateConfiguration {" +
 				"enabled=" + enabled +
+				", port=" + port +
 				", numServerThreads=" + numServerThreads +
 				", numQueryThreads=" + numQueryThreads +
 				'}';

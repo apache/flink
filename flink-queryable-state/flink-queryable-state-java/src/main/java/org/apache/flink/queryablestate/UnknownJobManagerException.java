@@ -16,40 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.query.netty;
+package org.apache.flink.queryablestate;
+
+import org.apache.flink.annotation.Internal;
 
 /**
- * Simple statistics for
- * {@link org.apache.flink.runtime.query.KvStateServer} and
- * {@link org.apache.flink.runtime.query.KvStateClientProxy} monitoring.
+ * Exception to fail Future if the Task Manager on which the
+ * {@link org.apache.flink.runtime.query.KvStateClientProxy}
+ * is running on, does not know the active Job Manager.
  */
-public interface KvStateRequestStats {
+@Internal
+public class UnknownJobManagerException extends Exception {
 
-	/**
-	 * Reports an active connection.
-	 */
-	void reportActiveConnection();
+	private static final long serialVersionUID = 9092442511708951209L;
 
-	/**
-	 * Reports an inactive connection.
-	 */
-	void reportInactiveConnection();
-
-	/**
-	 * Reports an incoming request.
-	 */
-	void reportRequest();
-
-	/**
-	 * Reports a successfully handled request.
-	 *
-	 * @param durationTotalMillis Duration of the request (in milliseconds).
-	 */
-	void reportSuccessfulRequest(long durationTotalMillis);
-
-	/**
-	 * Reports a failure during a request.
-	 */
-	void reportFailedRequest();
-
+	public UnknownJobManagerException() {
+		super("Unknown JobManager. Either the JobManager has not registered yet or has lost leadership.");
+	}
 }
