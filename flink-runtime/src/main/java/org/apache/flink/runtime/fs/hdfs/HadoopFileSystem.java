@@ -18,12 +18,10 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.util.HadoopUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -116,6 +114,7 @@ public final class HadoopFileSystem extends FileSystem {
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public HadoopDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
 			final short replication, final long blockSize) throws IOException {
 		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs.create(
@@ -168,28 +167,5 @@ public final class HadoopFileSystem extends FileSystem {
 	@Override
 	public boolean isDistributedFS() {
 		return true;
-	}
-
-	// ------------------------------------------------------------------------
-	//  Miscellaneous Utilities
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Returns a new Hadoop Configuration object using the path to the hadoop conf configured
-	 * in the main configuration (flink-conf.yaml).
-	 * This method is public because its being used in the HadoopDataSource.
-	 *
-	 * @deprecated This method should not be used, because it dynamically (and possibly incorrectly)
-	 *             re-loads the Flink configuration.
-	 *             Use {@link HadoopUtils#getHadoopConfiguration(org.apache.flink.configuration.Configuration)}
-	 *             instead.
-	 */
-	@Deprecated
-	public static org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
-
-		org.apache.flink.configuration.Configuration flinkConfiguration =
-				GlobalConfiguration.loadConfiguration();
-
-		return HadoopUtils.getHadoopConfiguration(flinkConfiguration);
 	}
 }
