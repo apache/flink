@@ -34,14 +34,13 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.calls.FunctionGenerator
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
@@ -246,40 +245,31 @@ abstract class CodeGenerator(
     */
   def generateConverterResultExpression(
       returnType: TypeInformation[_ <: Any],
-      resultFieldNames: Seq[String])
+      resultFieldNames: Seq[String],
+      rowtimeExpression: Option[RexNode] = None)
     : GeneratedExpression = {
 
     val input1AccessExprs = input1Mapping.map {
-      case TimeIndicatorTypeInfo.ROWTIME_MARKER =>
-        // attribute is a rowtime indicator. Access event-time timestamp in StreamRecord.
-        generateRowtimeAccess()
-      case TimeIndicatorTypeInfo.PROCTIME_MARKER =>
+      case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER |
+           TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
+        // attribute is a rowtime indicator.
+        if (rowtimeExpression.isDefined) {
+          // generate rowtime attribute from expression
+          generateExpression(rowtimeExpression.get)
+        } else {
+          // fetch rowtime attribute from StreamRecord timestamp field
+          generateRowtimeAccess()
+        }
+      case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
         // attribute is proctime indicator.
         // we use a null literal and generate a timestamp when we need it.
         generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
+      case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
+        // attribute is proctime field in a batch query.
+        // it is initialized with the current time.
+        generateCurrentTimestamp()
       case idx =>
-        // get type of result field
-        val outIdx = input1Mapping.indexOf(idx)
-        val outType = returnType match {
-          case pt: PojoTypeInfo[_] => pt.getTypeAt(resultFieldNames(outIdx))
-          case ct: CompositeType[_] => ct.getTypeAt(outIdx)
-          case t: TypeInformation[_] => t
-        }
-        val inputAccess = generateInputAccess(input1, input1Term, idx)
-        // Change output type to rowtime indicator
-        if (FlinkTypeFactory.isRowtimeIndicatorType(outType) &&
-          (inputAccess.resultType == Types.LONG || inputAccess.resultType == Types.SQL_TIMESTAMP)) {
-          // This case is required for TableSources that implement DefinedRowtimeAttribute.
-          // Hard cast possible because LONG, TIMESTAMP, and ROWTIME_INDICATOR are internally
-          // represented as Long.
-          GeneratedExpression(
-            inputAccess.resultTerm,
-            inputAccess.nullTerm,
-            inputAccess.code,
-            TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
-        } else {
-          inputAccess
-        }
+        generateInputAccess(input1, input1Term, idx)
     }
 
     val input2AccessExprs = input2 match {
@@ -1330,6 +1320,11 @@ abstract class CodeGenerator(
         |long $resultTerm = $contextTerm.timerService().currentProcessingTime();
         |""".stripMargin
     GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
+  }
+
+  private[flink] def generateCurrentTimestamp(): GeneratedExpression = {
+    val rexBuilder = new RexBuilder(new FlinkTypeFactory(new FlinkTypeSystem))
+    generateExpression(rexBuilder.makeCall(CURRENT_TIMESTAMP))
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -131,7 +131,9 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchSourceTableNode(tableName, Array("first")),
+      s"BatchTableSourceScan(table=[[$tableName]], " +
+        s"fields=[], " +
+        s"source=[CsvTableSource(read fields: first)])",
       term("select", "1 AS _c0")
     )
 
@@ -153,9 +155,7 @@ class TableSourceTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetCalc",
-      batchSourceTableNode(
-        tableName,
-        Array("name", "id", "amount", "price")),
+      "BatchTableSourceScan(table=[[filterableTable]], fields=[price, id, amount])",
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
     )
@@ -180,7 +180,7 @@ class TableSourceTest extends TableTestBase {
       "DataSetCalc",
       batchFilterableSourceTableNode(
         tableName,
-        Array("name", "id", "amount", "price"),
+        Array("price", "name", "amount"),
         "'amount > 2"),
       term("select", "price", "LOWER(name) AS _c1", "amount"),
       term("where", "<(*(price, 2), 32)")
@@ -201,14 +201,10 @@ class TableSourceTest extends TableTestBase {
         .select('price, 'id, 'amount)
         .where("amount > 2 && amount < 32")
 
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchFilterableSourceTableNode(
-        tableName,
-        Array("name", "id", "amount", "price"),
-        "'amount > 2 && 'amount < 32"),
-      term("select", "price", "id", "amount")
-    )
+    val expected = batchFilterableSourceTableNode(
+      tableName,
+      Array("price", "id", "amount"),
+      "'amount > 2 && 'amount < 32")
     util.verifyTable(result, expected)
   }
 
@@ -229,7 +225,7 @@ class TableSourceTest extends TableTestBase {
       "DataSetCalc",
       batchFilterableSourceTableNode(
         tableName,
-        Array("name", "id", "amount", "price"),
+        Array("price", "id", "amount"),
         "'amount > 2"),
       term("select", "price", "id", "amount"),
       term("where", "OR(<(amount, 32), >(CAST(amount), 10))")
@@ -256,7 +252,7 @@ class TableSourceTest extends TableTestBase {
       "DataSetCalc",
       batchFilterableSourceTableNode(
         tableName,
-        Array("name", "id", "amount", "price"),
+        Array("price", "id", "amount"),
         "'amount > 2"),
       term("select", "price", "id", "amount"),
       term("where", s"<(${Func0.getClass.getSimpleName}(amount), 32)")
@@ -339,7 +335,7 @@ class TableSourceTest extends TableTestBase {
       "DataStreamCalc",
       streamFilterableSourceTableNode(
         tableName,
-        Array("name", "id", "amount", "price"),
+        Array("price", "id", "amount"),
         "'amount > 2"),
       term("select", "price", "id", "amount"),
       term("where", "<(*(price, 2), 32)")
@@ -392,11 +388,15 @@ class TableSourceTest extends TableTestBase {
   }
 
   def batchSourceTableNode(sourceName: String, fields: Array[String]): String = {
-    s"BatchTableSourceScan(table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+    s"BatchTableSourceScan(table=[[$sourceName]], " +
+      s"fields=[${fields.mkString(", ")}], " +
+      s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
   def streamSourceTableNode(sourceName: String, fields: Array[String] ): String = {
-    s"StreamTableSourceScan(table=[[$sourceName]], fields=[${fields.mkString(", ")}])"
+    s"StreamTableSourceScan(table=[[$sourceName]], " +
+      s"fields=[${fields.mkString(", ")}], " +
+      s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
   def batchFilterableSourceTableNode(

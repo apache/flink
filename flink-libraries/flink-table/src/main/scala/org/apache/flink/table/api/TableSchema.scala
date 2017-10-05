@@ -50,6 +50,11 @@ class TableSchema(
 
   val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap
 
+  /** Returns a copy of the TableSchema */
+  def copy: TableSchema = {
+    new TableSchema(columnNames.clone(), columnTypes.clone())
+  }
+
   /**
     * Returns all type information as an array.
     */
@@ -99,7 +104,7 @@ class TableSchema(
     }
   }
 
-  override def toString = {
+  override def toString: String = {
     val builder = new StringBuilder
     builder.append("root\n")
     columnNames.zip(columnTypes).foreach{ case (name, typeInfo) =>
@@ -107,5 +112,16 @@ class TableSchema(
     }
     builder.toString()
   }
+
+  override def equals(other: Any): Boolean = {
+    other match {
+      case that: TableSchema if that.canEqual(this) =>
+        this.columnNames.deep == that.columnNames.deep &&
+        this.columnTypes.deep == that.columnTypes.deep
+      case _ => false
+    }
+  }
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[TableSchema]
 
 }

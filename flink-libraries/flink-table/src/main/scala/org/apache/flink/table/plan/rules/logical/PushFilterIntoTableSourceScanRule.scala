@@ -99,7 +99,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
     // check whether we still need a RexProgram. An RexProgram is needed when either
     // projection or filter exists.
-    val newScan = scan.copy(scan.getTraitSet, newTableSource)
+    val newScan = scan.copy(scan.getTraitSet, newTableSource, scan.selectedFields)
     val newRexProgram = {
       if (remainingCondition != null || !program.projectsOnlyIdentity) {
         val expandedProjectList = program.getProjectList.asScala

@@ -16,20 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sources
+package org.apache.flink.table.plan.schema
 
-/**
-  * Trait that defines custom field names and their indices in the underlying
-  * data type.
-  *
-  * Should be extended together with [[TableSource]] trait.
-  */
-trait DefinedFieldNames {
+import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceUtil}
 
-  /** Returns the names of the table fields. */
-  def getFieldNames: Array[String]
+/** Table which defines an external table via a [[TableSource]] */
+class BatchTableSourceTable[T](
+    tableSource: BatchTableSource[T],
+    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends TableSourceTable[T](
+    tableSource,
+    TableSourceUtil.computeIndexMapping(tableSource, isStreamTable = false, None),
+    tableSource.getTableSchema.getColumnNames,
+    statistic) {
 
-  /** Returns the indices of the table fields. */
-  def getFieldIndices: Array[Int]
+  TableSourceUtil.validateTimeAttributes(tableSource)
 
 }
+
