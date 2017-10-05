@@ -40,9 +40,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Provides a cache for permanent BLOB files including a per-job ref-counting and a staged cleanup.
  *
- * <p>When requesting BLOBs via {@link #getPermanentFile(JobID, BlobKey)}, the cache will first attempt to
- * serve the file from its local cache. Only if the local cache does not contain the desired BLOB,
- * it will try to download it from a distributed HA file system (if available) or the BLOB server.
+ * <p>When requesting BLOBs via {@link #getFile(JobID, PermanentBlobKey)}, the cache will first
+ * attempt to serve the file from its local cache. Only if the local cache does not contain the
+ * desired BLOB, it will try to download it from a distributed HA file system (if available) or the
+ * BLOB server.
  *
  * <p>If files for a job are not needed any more, they will enter a staged, i.e. deferred, cleanup.
  * Files may thus still be be accessible upon recovery and do not need to be re-downloaded.
@@ -76,6 +77,9 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 	 */
 	private final long cleanupInterval;
 
+	/**
+	 * Timer task to execute the cleanup at regular intervals.
+	 */
 	private final Timer cleanupTimer;
 
 	/**

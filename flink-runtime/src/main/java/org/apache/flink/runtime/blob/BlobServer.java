@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.SSLUtils;
@@ -46,14 +47,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -102,6 +106,23 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 */
 	private final Thread shutdownHook;
 
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Map to store the TTL of each element stored in the local storage, i.e. via one of the {@link
+	 * #getFile} methods.
+	 **/
+	private final ConcurrentHashMap<Tuple2<JobID, TransientBlobKey>, Long> blobExpiryTimes =
+		new ConcurrentHashMap<>();
+
+	/** Time interval (ms) to run the cleanup task; also used as the default TTL. */
+	private final long cleanupInterval;
+
+	/**
+	 * Timer task to execute the cleanup at regular intervals.
+	 */
+	private final Timer cleanupTimer;
+
 	/**
 	 * Instantiates a new BLOB server and binds it to a free network port.
 	 *
@@ -140,6 +161,14 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 					backlog, BlobServerOptions.FETCH_BACKLOG.defaultValue());
 			backlog = BlobServerOptions.FETCH_BACKLOG.defaultValue();
 		}
+
+		// Initializing the clean up task
+		this.cleanupTimer = new Timer(true);
+
+		this.cleanupInterval = config.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
+		this.cleanupTimer
+			.schedule(new TransientBlobCleanupTask(blobExpiryTimes, readWriteLock.writeLock(),
+				storageDir, LOG), cleanupInterval, cleanupInterval);
 
 		this.shutdownHook = BlobUtils.addShutdownHook(this, LOG);
 
@@ -273,6 +302,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 */
 	@Override
 	public void close() throws IOException {
+		cleanupTimer.cancel();
+
 		if (shutdownRequested.compareAndSet(false, true)) {
 			Exception exception = null;
 
@@ -462,6 +493,15 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 		// assume readWriteLock.readLock() was already locked (cannot really check that)
 
 		if (localFile.exists()) {
+			// update TTL for transient BLOBs:
+			if (blobKey instanceof TransientBlobKey) {
+				// regarding concurrent operations, it is not really important which timestamp makes
+				// it into the map as they are close to each other anyway, also we can simply
+				// overwrite old values as long as we are in the read (or write) lock
+				blobExpiryTimes
+					.put(Tuple2.of(jobId, (TransientBlobKey) blobKey),
+						System.currentTimeMillis() + cleanupInterval);
+			}
 			return;
 		} else if (blobKey instanceof PermanentBlobKey) {
 			// Try the HA blob store
@@ -695,6 +735,13 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 					BlobUtils.moveTempFileToStore(
 						incomingFile, jobId, blobKey, storageFile, LOG,
 						blobKey instanceof PermanentBlobKey ? blobStore : null);
+					// add TTL for transient BLOBs:
+					if (blobKey instanceof TransientBlobKey) {
+						// must be inside read or write lock to add a TTL
+						blobExpiryTimes
+							.put(Tuple2.of(jobId, (TransientBlobKey) blobKey),
+								System.currentTimeMillis() + cleanupInterval);
+					}
 					return blobKey;
 				}
 			} finally {
@@ -769,6 +816,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 				LOG.warn("Failed to locally delete BLOB " + key + " at " + localFile.getAbsolutePath());
 				return false;
 			}
+			// this needs to happen inside the write lock in case of concurrent getFile() calls
+			blobExpiryTimes.remove(Tuple2.of(jobId, key));
 			return true;
 		} finally {
 			readWriteLock.writeLock().unlock();
@@ -797,6 +846,12 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 			boolean deletedLocally = false;
 			try {
 				FileUtils.deleteDirectory(jobDir);
+
+				// NOTE: Instead of going through blobExpiryTimes, keep lingering entries - they
+				//       will be cleaned up by the timer task which tolerates non-existing files
+				//       If inserted again with the same IDs (via put()), the TTL will be updated
+				//       again.
+
 				deletedLocally = true;
 			} catch (IOException e) {
 				LOG.warn("Failed to locally delete BLOB storage directory at " +
@@ -830,6 +885,16 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	@Override
 	public int getPort() {
 		return this.serverSocket.getLocalPort();
+	}
+
+	/**
+	 * Returns the blob expiry times - for testing purposes only!
+	 *
+	 * @return blob expiry times (internal state!)
+	 */
+	@VisibleForTesting
+	ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> getBlobExpiryTimes() {
+		return blobExpiryTimes;
 	}
 
 	/**

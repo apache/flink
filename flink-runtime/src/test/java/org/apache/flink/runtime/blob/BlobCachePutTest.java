@@ -55,11 +55,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
-import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyType;
+import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFilesExist;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.BlockingInputStream;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.ChunkedInputStream;
@@ -909,19 +909,21 @@ public class BlobCachePutTest extends TestLogger {
 	 * 		BLOB server
 	 * @param jobId
 	 * 		job ID or <tt>null</tt> if job-unrelated
-	 * @param key
-	 * 		key identifying the BLOB to request
+	 * @param keys
+	 * 		key(s) identifying the BLOB to request
 	 */
-	static void verifyDeletedEventually(BlobServer server, @Nullable JobID jobId, BlobKey key)
+	static void verifyDeletedEventually(BlobServer server, @Nullable JobID jobId, BlobKey... keys)
 			throws IOException, InterruptedException {
 
 		long deadline = System.currentTimeMillis() + 30_000L;
 		do {
 			Thread.sleep(10);
 		}
-		while (checkFilesExist(jobId, Collections.singletonList(key), server, false) != 0 &&
+		while (checkFilesExist(jobId, Arrays.asList(keys), server, false) != 0 &&
 			System.currentTimeMillis() < deadline);
 
-		verifyDeleted(server, jobId, key);
+		for (BlobKey key : keys) {
+			verifyDeleted(server, jobId, key);
+		}
 	}
 }
