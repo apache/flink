@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
+package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 

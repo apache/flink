@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
-import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
-import org.apache.flink.runtime.checkpoint.TaskStateStats;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
@@ -32,10 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
 
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -481,73 +473,6 @@ public class CheckpointingStatistics implements ResponseBody {
 		@Override
 		public int hashCode() {
 			return Objects.hash(id, restoreTimestamp, savepoint, externalPath);
-		}
-	}
-
-	public static CheckpointStatistics generateCheckpointStatistics(AbstractCheckpointStats checkpointStats, boolean includeTaskCheckpointingStatistics) {
-		if (checkpointStats != null) {
-
-			Map<JobVertexID, CheckpointStatistics.TaskCheckpointStatistics> checkpointingStatisticsPerTask;
-
-			if (includeTaskCheckpointingStatistics) {
-				Collection<TaskStateStats> taskStateStatistics = checkpointStats.getAllTaskStateStats();
-
-				checkpointingStatisticsPerTask = new HashMap<>(taskStateStatistics.size());
-
-				for (TaskStateStats taskStateStatistic : taskStateStatistics) {
-					checkpointingStatisticsPerTask.put(
-						taskStateStatistic.getJobVertexId(),
-						new CheckpointStatistics.TaskCheckpointStatistics(
-							taskStateStatistic.getLatestAckTimestamp(),
-							taskStateStatistic.getStateSize(),
-							taskStateStatistic.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-							taskStateStatistic.getAlignmentBuffered(),
-							taskStateStatistic.getNumberOfSubtasks(),
-							taskStateStatistic.getNumberOfAcknowledgedSubtasks()));
-				}
-			} else {
-				checkpointingStatisticsPerTask = null;
-			}
-
-			if (checkpointStats instanceof CompletedCheckpointStats) {
-				final CompletedCheckpointStats completedCheckpointStats = ((CompletedCheckpointStats) checkpointStats);
-
-				return new CheckpointStatistics.CompletedCheckpointStatistics(
-					completedCheckpointStats.getCheckpointId(),
-					completedCheckpointStats.getStatus(),
-					completedCheckpointStats.getProperties().isSavepoint(),
-					completedCheckpointStats.getTriggerTimestamp(),
-					completedCheckpointStats.getLatestAckTimestamp(),
-					completedCheckpointStats.getStateSize(),
-					completedCheckpointStats.getEndToEndDuration(),
-					completedCheckpointStats.getAlignmentBuffered(),
-					completedCheckpointStats.getNumberOfSubtasks(),
-					completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-					checkpointingStatisticsPerTask,
-					completedCheckpointStats.getExternalPath(),
-					completedCheckpointStats.isDiscarded());
-			} else if (checkpointStats instanceof FailedCheckpointStats) {
-				final FailedCheckpointStats failedCheckpointStats = ((FailedCheckpointStats) checkpointStats);
-
-				return new CheckpointStatistics.FailedCheckpointStatistics(
-					failedCheckpointStats.getCheckpointId(),
-					failedCheckpointStats.getStatus(),
-					failedCheckpointStats.getProperties().isSavepoint(),
-					failedCheckpointStats.getTriggerTimestamp(),
-					failedCheckpointStats.getLatestAckTimestamp(),
-					failedCheckpointStats.getStateSize(),
-					failedCheckpointStats.getEndToEndDuration(),
-					failedCheckpointStats.getAlignmentBuffered(),
-					failedCheckpointStats.getNumberOfSubtasks(),
-					failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-					checkpointingStatisticsPerTask,
-					failedCheckpointStats.getFailureTimestamp(),
-					failedCheckpointStats.getFailureMessage());
-			} else {
-				throw new IllegalArgumentException("Given checkpoint stats object of type " + checkpointStats.getClass().getName() + " cannot be converted.");
-			}
-		} else {
-			return null;
 		}
 	}
 }

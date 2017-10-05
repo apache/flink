@@ -40,7 +40,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -109,6 +108,7 @@ public class CheckpointStatistics implements ResponseBody {
 
 	@JsonProperty(FIELD_NAME_TASKS)
 	@JsonSerialize(keyUsing = JobVertexIDSerializer.class)
+	@Nullable
 	private final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask;
 
 	@JsonCreator
@@ -123,7 +123,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
+			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) @Nullable Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
 		this.id = id;
 		this.status = Preconditions.checkNotNull(status);
 		this.savepoint = savepoint;
@@ -134,7 +134,7 @@ public class CheckpointStatistics implements ResponseBody {
 		this.alignmentBuffered = alignmentBuffered;
 		this.numSubtasks = numSubtasks;
 		this.numAckSubtasks = numAckSubtasks;
-		this.checkpointStatisticsPerTask = Preconditions.checkNotNull(checkpointStatisticsPerTask);
+		this.checkpointStatisticsPerTask = checkpointStatisticsPerTask;
 	}
 
 	public long getId() {
@@ -177,6 +177,7 @@ public class CheckpointStatistics implements ResponseBody {
 		return numAckSubtasks;
 	}
 
+	@Nullable
 	public Map<JobVertexID, TaskCheckpointStatistics> getCheckpointStatisticsPerTask() {
 		return checkpointStatisticsPerTask;
 	}
@@ -230,7 +231,7 @@ public class CheckpointStatistics implements ResponseBody {
 							taskStateStat.getNumberOfAcknowledgedSubtasks()));
 				}
 			} else {
-				checkpointStatisticsPerTask = Collections.emptyMap();
+				checkpointStatisticsPerTask = null;
 			}
 
 			if (checkpointStats instanceof CompletedCheckpointStats) {
@@ -401,7 +402,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
+			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) @Nullable Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
 			@JsonProperty(FIELD_NAME_EXTERNAL_PATH) @Nullable String externalPath,
 			@JsonProperty(FIELD_NAME_DISCARDED) boolean discarded) {
 			super(
@@ -480,7 +481,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
+			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) @Nullable Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
 			@JsonProperty(FIELD_NAME_FAILURE_TIMESTAMP) long failureTimestamp,
 			@JsonProperty(FIELD_NAME_FAILURE_MESSAGE) @Nullable String failureMessage) {
 			super(
