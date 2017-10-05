@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit;
  * An abstract class for netty-based REST server endpoints.
  */
 public abstract class RestServerEndpoint {
-	
+
 	public static final long MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
