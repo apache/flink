@@ -47,10 +47,11 @@ import java.util.concurrent.Executors;
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -86,6 +87,12 @@ public class BlobServerDeleteTest extends TestLogger {
 		testDeleteTransient(new JobID(), new JobID());
 	}
 
+	@Test
+	public void testDeleteTransient5() throws IOException {
+		JobID jobId = new JobID();
+		testDeleteTransient(jobId, jobId);
+	}
+
 	/**
 	 * Uploads a (different) byte array for each of the given jobs and verifies that deleting one of
 	 * them (via the {@link BlobServer}) does not influence the other.
@@ -97,7 +104,6 @@ public class BlobServerDeleteTest extends TestLogger {
 	 */
 	private void testDeleteTransient(@Nullable JobID jobId1, @Nullable JobID jobId2)
 			throws IOException {
-		final boolean sameJobId = (jobId1 == jobId2) || (jobId1 != null && jobId1.equals(jobId2));
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -118,7 +124,7 @@ public class BlobServerDeleteTest extends TestLogger {
 			// put two more BLOBs (same key, other key) for another job ID
 			TransientBlobKey key2a = (TransientBlobKey) put(server, jobId2, data, TRANSIENT_BLOB);
 			assertNotNull(key2a);
-			assertEquals(key1, key2a);
+			verifyKeyDifferentHashEquals(key1, key2a);
 			TransientBlobKey key2b = (TransientBlobKey) put(server, jobId2, data2, TRANSIENT_BLOB);
 			assertNotNull(key2b);
 
@@ -126,10 +132,9 @@ public class BlobServerDeleteTest extends TestLogger {
 			assertTrue(delete(server, jobId1, key1));
 
 			verifyDeleted(server, jobId1, key1);
-			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
-			if (!sameJobId) {
-				verifyContents(server, jobId2, key2a, data);
-			}
+			// deleting a one BLOB should not affect another BLOB with a different key
+			// (and keys are always different now)
+			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
 
 			// delete first file of second job
@@ -284,7 +289,7 @@ public class BlobServerDeleteTest extends TestLogger {
 
 			BlobKey key1a = put(server, jobId1, data, blobType);
 			BlobKey key2 = put(server, jobId2, data, blobType);
-			assertEquals(key1a, key2);
+			assertArrayEquals(key1a.getHash(), key2.getHash());
 
 			BlobKey key1b = put(server, jobId1, data2, blobType);
 
