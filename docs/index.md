@@ -44,7 +44,7 @@ Before putting your Flink job into production, read the [Production Readiness Ch
 ## Migration Guide
 
 For users of earlier versions of Apache Flink, we recommend the [API migration guide](dev/migration.html).
-While all parts of the API marked as public and stable are still supported (the public API is backwards compatible), we suggest migrating applications to the newer interfaces where applicable.
+While all parts of the API that were marked as public and stable are still supported (the public API is backwards compatible), we suggest migrating applications to the newer interfaces where applicable.
 
 For users that plan to upgrade a Flink system in production, we recommend reading the guide on [upgrading Apache Flink](ops/upgrading.html).
 
