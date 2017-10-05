@@ -26,7 +26,7 @@ import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.configuration.{AkkaOptions, Configuration, SecurityOptions}
+import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
 import org.jboss.netty.channel.ChannelException
@@ -257,6 +257,20 @@ object AkkaUtils {
     ConfigFactory.parseString(config)
   }
 
+  private def validateHeartbeat(pauseParamName: String,
+                                pauseValue: String,
+                                intervalParamName: String,
+                                intervalValue: String) = {
+    if (Duration.apply(pauseValue).lteq(Duration.apply(intervalValue))) {
+      throw new IllegalConfigurationException(
+        "%s [%s] must greater then %s [%s]",
+        pauseParamName,
+        pauseValue,
+        intervalParamName,
+        intervalValue)
+    }
+  }
+
   /**
    * Creates a Akka config for a remote actor system listening on port on the network interface
    * identified by bindAddress.
@@ -289,12 +303,24 @@ object AkkaUtils {
     val transportHeartbeatPause = configuration.getString(
       AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE)
 
+    validateHeartbeat(
+      AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE.key(),
+      transportHeartbeatPause,
+      AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL.key(),
+      transportHeartbeatInterval)
+
     val transportThreshold = configuration.getDouble(AkkaOptions.TRANSPORT_THRESHOLD)
 
     val watchHeartbeatInterval = configuration.getString(
       AkkaOptions.WATCH_HEARTBEAT_INTERVAL)
 
     val watchHeartbeatPause = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_PAUSE)
+
+    validateHeartbeat(
+      AkkaOptions.WATCH_HEARTBEAT_PAUSE.key(),
+      watchHeartbeatPause,
+      AkkaOptions.WATCH_HEARTBEAT_INTERVAL.key(),
+      watchHeartbeatInterval)
 
     val watchThreshold = configuration.getInteger(AkkaOptions.WATCH_THRESHOLD)
 
