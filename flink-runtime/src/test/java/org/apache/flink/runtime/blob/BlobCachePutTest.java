@@ -58,6 +58,7 @@ import java.util.function.Supplier;
 import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyType;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.BlockingInputStream;
@@ -275,6 +276,11 @@ public class BlobCachePutTest extends TestLogger {
 			BlobKey key1a = put(cache, jobId1, data, blobType);
 			assertNotNull(key1a);
 			verifyType(blobType, key1a);
+			// second upload of same data should yield a different BlobKey
+			BlobKey key1a2 = put(cache, jobId1, data, blobType);
+			assertNotNull(key1a2);
+			verifyType(blobType, key1a2);
+			verifyKeyDifferentHashEquals(key1a, key1a2);
 
 			BlobKey key1b = put(cache, jobId1, data2, blobType);
 			assertNotNull(key1b);
@@ -282,19 +288,23 @@ public class BlobCachePutTest extends TestLogger {
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1a2, data);
 			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
 			BlobKey key2a = put(cache, jobId2, data, blobType);
 			assertNotNull(key2a);
-			assertEquals(key1a, key2a);
+			verifyType(blobType, key2a);
+			verifyKeyDifferentHashEquals(key1a, key2a);
 
 			BlobKey key2b = put(cache, jobId2, data2, blobType);
 			assertNotNull(key2b);
-			assertEquals(key1b, key2b);
+			verifyType(blobType, key2b);
+			verifyKeyDifferentHashEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
 			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1a2, data);
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
@@ -382,26 +392,32 @@ public class BlobCachePutTest extends TestLogger {
 			TransientBlobKey key1a =
 				(TransientBlobKey) put(cache, jobId1, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key1a);
+			// second upload of same data should yield a different BlobKey
+			BlobKey key1a2 = put(cache, jobId1, new ByteArrayInputStream(data), TRANSIENT_BLOB);
+			assertNotNull(key1a2);
+			verifyKeyDifferentHashEquals(key1a, key1a2);
 
 			TransientBlobKey key1b = (TransientBlobKey) put(cache, jobId1, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key1b);
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1a2, data);
 			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
 			TransientBlobKey key2a =
 				(TransientBlobKey) put(cache, jobId2, new ByteArrayInputStream(data), TRANSIENT_BLOB);
 			assertNotNull(key2a);
-			assertEquals(key1a, key2a);
+			verifyKeyDifferentHashEquals(key1a, key2a);
 
 			TransientBlobKey key2b = (TransientBlobKey) put(cache, jobId2, new ByteArrayInputStream(data2), TRANSIENT_BLOB);
 			assertNotNull(key2b);
-			assertEquals(key1b, key2b);
+			verifyKeyDifferentHashEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
 			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1a2, data);
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
@@ -486,6 +502,10 @@ public class BlobCachePutTest extends TestLogger {
 			TransientBlobKey key1a =
 				(TransientBlobKey) put(cache, jobId1, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key1a);
+			// second upload of same data should yield a different BlobKey
+			BlobKey key1a2 = put(cache, jobId1, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
+			assertNotNull(key1a2);
+			verifyKeyDifferentHashEquals(key1a, key1a2);
 
 			TransientBlobKey key1b =
 				(TransientBlobKey) put(cache, jobId1, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
@@ -493,21 +513,23 @@ public class BlobCachePutTest extends TestLogger {
 
 			// files should be available on the server
 			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1a2, data);
 			verifyContents(server, jobId1, key1b, data2);
 
 			// now put data for jobId2 and verify that both are ok
 			TransientBlobKey key2a =
 				(TransientBlobKey) put(cache, jobId2, new ChunkedInputStream(data, 19), TRANSIENT_BLOB);
 			assertNotNull(key2a);
-			assertEquals(key1a, key2a);
+			verifyKeyDifferentHashEquals(key1a, key2a);
 
 			TransientBlobKey key2b =
 				(TransientBlobKey) put(cache, jobId2, new ChunkedInputStream(data2, 19), TRANSIENT_BLOB);
 			assertNotNull(key2b);
-			assertEquals(key1b, key2b);
+			verifyKeyDifferentHashEquals(key1b, key2b);
 
 			// verify the accessibility and the BLOB contents
 			verifyContents(server, jobId1, key1a, data);
+			verifyContents(server, jobId1, key1a2, data);
 			verifyContents(server, jobId1, key1b, data2);
 			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
@@ -858,7 +880,8 @@ public class BlobCachePutTest extends TestLogger {
 
 			// make sure that all blob keys are the same
 			while (blobKeyIterator.hasNext()) {
-				assertEquals(blobKey, blobKeyIterator.next());
+				// check for unique BlobKey, but should have same hash
+				verifyKeyDifferentHashEquals(blobKey, blobKeyIterator.next());
 			}
 
 			// check the uploaded file's contents

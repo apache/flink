@@ -40,7 +40,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.AccessDeniedException;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -57,6 +56,7 @@ import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventu
 import static org.apache.flink.runtime.blob.BlobClientTest.validateGetAndClose;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyType;
 import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
@@ -152,37 +152,37 @@ public class BlobCacheGetTest extends TestLogger {
 
 			// add the same data under a second jobId
 			BlobKey key2 = put(server, jobId2, data, blobType);
-			assertNotNull(key);
-			assertEquals(key, key2);
+			assertNotNull(key2);
+			verifyKeyDifferentHashEquals(key, key2);
 
 			// request for jobId2 should succeed
-			get(cache, jobId2, key);
+			get(cache, jobId2, key2);
 			// request for jobId1 should still fail
 			verifyDeleted(cache, jobId1, key);
 
 			if (blobType == PERMANENT_BLOB) {
 				// still existing on server
-				assertTrue(server.getStorageLocation(jobId2, key).exists());
+				assertTrue(server.getStorageLocation(jobId2, key2).exists());
 				// delete jobId2 on cache
-				blobFile = cache.getPermanentBlobService().getStorageLocation(jobId2, key);
+				blobFile = cache.getPermanentBlobService().getStorageLocation(jobId2, key2);
 				assertTrue(blobFile.delete());
 				// try to retrieve again
-				get(cache, jobId2, key);
+				get(cache, jobId2, key2);
 
 				// delete on cache and server, verify that it is not accessible anymore
-				blobFile = cache.getPermanentBlobService().getStorageLocation(jobId2, key);
+				blobFile = cache.getPermanentBlobService().getStorageLocation(jobId2, key2);
 				assertTrue(blobFile.delete());
-				blobFile = server.getStorageLocation(jobId2, key);
+				blobFile = server.getStorageLocation(jobId2, key2);
 				assertTrue(blobFile.delete());
-				verifyDeleted(cache, jobId2, key);
+				verifyDeleted(cache, jobId2, key2);
 			} else {
 				// deleted eventually on the server by the GET request above
-				verifyDeletedEventually(server, jobId2, key);
+				verifyDeletedEventually(server, jobId2, key2);
 				// delete jobId2 on cache
-				blobFile = cache.getTransientBlobService().getStorageLocation(jobId2, key);
+				blobFile = cache.getTransientBlobService().getStorageLocation(jobId2, key2);
 				assertTrue(blobFile.delete());
 				// verify that it is not accessible anymore
-				verifyDeleted(cache, jobId2, key);
+				verifyDeleted(cache, jobId2, key2);
 			}
 		}
 	}
@@ -548,11 +548,6 @@ public class BlobCacheGetTest extends TestLogger {
 
 		final byte[] data = {1, 2, 3, 4, 99, 42};
 
-		MessageDigest md = BlobUtils.createMessageDigest();
-
-		// create the correct blob key by hashing our input data
-		final BlobKey blobKey = BlobKey.createKey(blobType, md.digest(data));
-
 		final ExecutorService executor = Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
 		try (
@@ -563,7 +558,7 @@ public class BlobCacheGetTest extends TestLogger {
 			server.start();
 
 			// upload data first
-			assertEquals(blobKey, put(server, jobId, data, blobType));
+			final BlobKey blobKey = put(server, jobId, data, blobType);
 
 			// now try accessing it concurrently (only HA mode will be able to retrieve it from HA store!)
 			for (int i = 0; i < numberConcurrentGetOperations; i++) {

@@ -42,4 +42,16 @@ public final class TransientBlobKey extends BlobKey {
 	TransientBlobKey(byte[] key) {
 		super(BlobType.TRANSIENT_BLOB, key);
 	}
+
+	/**
+	 * Constructs a new BLOB key from the given byte array.
+	 *
+	 * @param key
+	 *        the actual key data
+	 * @param random
+	 *        the random component of the key
+	 */
+	TransientBlobKey(byte[] key, byte[] random) {
+		super(BlobType.TRANSIENT_BLOB, key, random);
+	}
 }
