@@ -34,6 +34,11 @@ import java.net.URI;
 public interface FileSystemFactory {
 
 	/**
+	 * Gets the scheme of the file system created by this factory.
+	 */
+	String getScheme();
+
+	/**
 	 * Applies the given configuration to this factory. All future file system
 	 * instantiations via {@link #create(URI)} should take the configuration into
 	 * account.
