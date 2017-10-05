@@ -30,10 +30,12 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.factories.HadoopFileSystemFactoryLoader;
-import org.apache.flink.core.fs.factories.MapRFsFactory;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.core.fs.factories.LocalFileSystemFactory;
+import org.apache.flink.core.fs.local.LocalFileSystemFactory;
+import org.apache.flink.util.ExceptionUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.File;
@@ -42,7 +44,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.Iterator;
+import java.util.ServiceLoader;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -198,6 +201,9 @@ public abstract class FileSystem {
 
 	// ------------------------------------------------------------------------
 
+	/** Logger for all FileSystem work */
+	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
+
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
 	 * {@link #initOutPathDistFS(Path, WriteMode, boolean)} which are otherwise susceptible to races. */
 	private static final ReentrantLock OUTPUT_DIRECTORY_INIT_LOCK = new ReentrantLock(true);
@@ -206,26 +212,22 @@ public abstract class FileSystem {
 	private static final ReentrantLock LOCK = new ReentrantLock(true);
 
 	/** Cache for file systems, by scheme + authority. */
-	private static final Map<FSKey, FileSystem> CACHE = new HashMap<>();
+	private static final HashMap<FSKey, FileSystem> CACHE = new HashMap<>();
 
 	/** Mapping of file system schemes to  the corresponding implementation factories. */
-	private static final Map<String, FileSystemFactory> FS_FACTORIES = new HashMap<>();
+	private static final HashMap<String, FileSystemFactory> FS_FACTORIES = loadFileSystems();
 
 	/** The default factory that is used when no scheme matches. */
-	private static final FileSystemFactory FALLBACK_FACTORY = HadoopFileSystemFactoryLoader.loadFactory();
+	private static final FileSystemFactory FALLBACK_FACTORY = loadHadoopFsFactory();
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
 	private static URI DEFAULT_SCHEME;
+	
 
 	// ------------------------------------------------------------------------
 	//  Initialization
 	// ------------------------------------------------------------------------
-
-	static {
-		FS_FACTORIES.put("file", new LocalFileSystemFactory());
-		FS_FACTORIES.put("maprfs", new MapRFsFactory());
-	}
 
 	/**
 	 * Initializes the shared file system settings. 
@@ -891,6 +893,105 @@ public abstract class FileSystem {
 			OUTPUT_DIRECTORY_INIT_LOCK.unlock();
 		}
 	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Loads the factories for the file systems directly supported by Flink.
+	 * Aside from the {@link LocalFileSystem}, these file systems are loaded
+	 * via Java's service framework.
+	 *
+	 * @return A map from the file system scheme to corresponding file system factory. 
+	 */
+	private static HashMap<String, FileSystemFactory> loadFileSystems() {
+		final HashMap<String, FileSystemFactory> map = new HashMap<>();
+
+		// by default, we always have the the local file system factory
+		map.put("file", new LocalFileSystemFactory());
+
+		LOG.debug("Loading extension file systems via services");
+
+		try {
+			ServiceLoader<FileSystemFactory> serviceLoader = ServiceLoader.load(FileSystemFactory.class);
+			Iterator<FileSystemFactory> iter = serviceLoader.iterator();
+
+			// we explicitly use an iterator here (rather than for-each) because that way
+			// we can catch errors in individual service instantiations
+
+			//noinspection WhileLoopReplaceableByForEach
+			while (iter.hasNext()) {
+				try {
+					FileSystemFactory factory = iter.next();
+					String scheme = factory.getScheme();
+					map.put(scheme, factory);
+					LOG.debug("Added file system {}:{}", scheme, factory.getClass().getName());
+				}
+				catch (Throwable t) {
+					// catching Throwable here to handle various forms of class loading
+					// and initialization errors
+					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+					LOG.error("Failed to load a file systems via services", t);
+				}
+			}
+		}
+		catch (Throwable t) {
+			// catching Throwable here to handle various forms of class loading
+			// and initialization errors
+			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+			LOG.error("Failed to load additional file systems via services", t);
+		}
+
+		return map;
+	}
+	
+	/**
+	 * Utility loader for the Hadoop file system factory.
+	 * We treat the Hadoop FS factory in a special way, because we use it as a catch
+	 * all for file systems schemes not supported directly in Flink.
+	 *
+	 * <p>This method does a set of eager checks for availability of certain classes, to
+	 * be able to give better error messages.
+	 */
+	private static FileSystemFactory loadHadoopFsFactory() {
+		final ClassLoader cl = FileSystem.class.getClassLoader();
+
+		// first, see if the Flink runtime classes are available
+		final Class<? extends FileSystemFactory> factoryClass;
+		try {
+			factoryClass = Class.forName("org.apache.flink.runtime.fs.hdfs.HadoopFsFactory", false, cl).asSubclass(FileSystemFactory.class);
+		}
+		catch (ClassNotFoundException e) {
+			LOG.info("No Flink runtime dependency present. " + 
+					"The extended set of supported File Systems via Hadoop is not available.");
+			return new UnsupportedSchemeFactory("Flink runtime classes missing in classpath/dependencies.");
+		}
+		catch (Exception | LinkageError e) {
+			LOG.warn("Flink's Hadoop file system factory could not be loaded", e);
+			return new UnsupportedSchemeFactory("Flink's Hadoop file system factory could not be loaded", e);
+		}
+
+		// check (for eager and better exception messages) if the Hadoop classes are available here
+		try {
+			Class.forName("org.apache.hadoop.conf.Configuration", false, cl);
+			Class.forName("org.apache.hadoop.fs.FileSystem", false, cl);
+		}
+		catch (ClassNotFoundException e) {
+			LOG.info("Hadoop is not in the classpath/dependencies. " +
+					"The extended set of supported File Systems via Hadoop is not available.");
+			return new UnsupportedSchemeFactory("Hadoop is not in the classpath/dependencies.");
+		}
+
+		// Create the factory.
+		try {
+			return factoryClass.newInstance();
+		}
+		catch (Exception | LinkageError e) {
+			LOG.warn("Flink's Hadoop file system factory could not be created", e);
+			return new UnsupportedSchemeFactory("Flink's Hadoop file system factory could not be created", e);
+		}
+	}
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * An identifier of a file system, via its scheme and its authority.

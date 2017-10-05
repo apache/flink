@@ -59,6 +59,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-java8</module>
 		<module>flink-scala</module>
+		<module>flink-filesystems</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>

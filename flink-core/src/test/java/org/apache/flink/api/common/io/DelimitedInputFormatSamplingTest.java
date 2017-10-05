@@ -76,12 +76,6 @@ public class DelimitedInputFormatSamplingTest {
 	@BeforeClass
 	public static void initialize() {
 		try {
-			TestFileSystem.registerTestFileSysten();
-		} catch (Throwable t) {
-			Assert.fail("Could not setup the mock test filesystem.");
-		}
-		
-		try {
 			// make sure we do 4 samples
 			CONFIG = TestConfigUtils.loadGlobalConf(
 				new String[] { ConfigConstants.DELIMITED_FORMAT_MIN_LINE_SAMPLES_KEY,
