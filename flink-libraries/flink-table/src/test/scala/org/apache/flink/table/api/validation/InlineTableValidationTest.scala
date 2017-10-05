@@ -15,21 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.api.validation
 
-package org.apache.flink.table.sources
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.utils.TableTestBase
+import org.junit.Test
 
-/**
-  * Trait that defines custom field names and their indices in the underlying
-  * data type.
-  *
-  * Should be extended together with [[TableSource]] trait.
-  */
-trait DefinedFieldNames {
+class InlineTableValidationTest extends TableTestBase {
 
-  /** Returns the names of the table fields. */
-  def getFieldNames: Array[String]
+  @Test
+  def testFieldNamesDuplicate() {
 
-  /** Returns the indices of the table fields. */
-  def getFieldIndices: Array[Int]
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Field names must be unique.\n" +
+      "List of duplicate fields: [a].\n" +
+      "List of all fields: [a, a, b].")
 
+    val util = batchTestUtil()
+    util.addTable[(Int, Int, String)]("MyTable", 'a, 'a, 'b)
+  }
 }

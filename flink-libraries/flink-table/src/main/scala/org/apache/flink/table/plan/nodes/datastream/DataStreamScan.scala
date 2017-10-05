@@ -60,7 +60,8 @@ class DataStreamScan(
 
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
-    convertToInternalRow(schema, inputDataStream, dataStreamTable, config)
+    val fieldIdxs = dataStreamTable.fieldIndexes
+    convertToInternalRow(schema, inputDataStream, fieldIdxs, config, None)
   }
 
 }

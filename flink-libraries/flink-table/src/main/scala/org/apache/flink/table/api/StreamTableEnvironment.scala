@@ -48,7 +48,7 @@ import org.apache.flink.table.plan.schema.{DataStreamTable, RowSchema, StreamTab
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{CRowMapRunner, OutputRowtimeProcessFunction}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{DefinedRowtimeAttribute, StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceUtil}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
 import _root_.scala.collection.JavaConverters._
@@ -109,23 +109,19 @@ abstract class StreamTableEnvironment(
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
     checkValidTableName(name)
 
-    // check if event-time is enabled
-    tableSource match {
-      case dra: DefinedRowtimeAttribute if dra.getRowtimeAttribute != null &&
-          execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime =>
-
-        throw TableException(
-          s"A rowtime attribute requires an EventTime time characteristic in stream environment. " +
-            s"But is: ${execEnv.getStreamTimeCharacteristic}")
-      case _ => // ok
-    }
-
     tableSource match {
       case streamTableSource: StreamTableSource[_] =>
+        // check that event-time is enabled if table source includes rowtime attributes
+        if (TableSourceUtil.hasRowtimeAttribute(streamTableSource) &&
+          execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
+            throw TableException(
+              s"A rowtime attribute requires an EventTime time characteristic in stream " +
+                s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
+        }
         registerTableInternal(name, new StreamTableSourceTable(streamTableSource))
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
-            "StreamTableEnvironment")
+          "StreamTableEnvironment")
     }
   }
 
@@ -554,14 +550,18 @@ abstract class StreamTableEnvironment(
 
     // inject rowtime field
     val withRowtime = rowtime match {
-      case Some(rt) => fieldIndexes.patch(rt._1, Seq(TimeIndicatorTypeInfo.ROWTIME_MARKER), 0)
-      case _ => fieldIndexes
+      case Some(rt) =>
+        fieldIndexes.patch(rt._1, Seq(TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER), 0)
+      case _ =>
+        fieldIndexes
     }
 
     // inject proctime field
     val withProctime = proctime match {
-      case Some(pt) => withRowtime.patch(pt._1, Seq(TimeIndicatorTypeInfo.PROCTIME_MARKER), 0)
-      case _ => withRowtime
+      case Some(pt) =>
+        withRowtime.patch(pt._1, Seq(TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER), 0)
+      case _ =>
+        withRowtime
     }
 
     withProctime

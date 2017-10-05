@@ -23,12 +23,12 @@ import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
-abstract class FlinkTable[T](
+abstract class InlineTable[T](
     val typeInfo: TypeInformation[T],
     val fieldIndexes: Array[Int],
     val fieldNames: Array[String],
@@ -67,15 +67,37 @@ abstract class FlinkTable[T](
             "must not be greater than number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map {
-          case TimeIndicatorTypeInfo.ROWTIME_MARKER => TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-          case TimeIndicatorTypeInfo.PROCTIME_MARKER => TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+          case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
+            TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+          case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
+            TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+          case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
+            Types.SQL_TIMESTAMP
+          case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
+            Types.SQL_TIMESTAMP
           case i => cType.getTypeAt(i).asInstanceOf[TypeInformation[_]]}
       case aType: AtomicType[_] =>
-        if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
+        var cnt = 0
+        val types = fieldIndexes.map {
+          case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
+            TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+          case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
+            TimeIndicatorTypeInfo.PROCTIME_INDICATOR
+          case TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
+            Types.SQL_TIMESTAMP
+          case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
+            Types.SQL_TIMESTAMP
+          case _ =>
+            cnt += 1
+            aType.asInstanceOf[TypeInformation[_]]
+        }
+        // ensure that the atomic type is matched at most once.
+        if (cnt > 1) {
           throw new TableException(
             "Non-composite input type may have only a single field and its index must be 0.")
+        } else {
+          types
         }
-        Array(aType)
     }
 
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {

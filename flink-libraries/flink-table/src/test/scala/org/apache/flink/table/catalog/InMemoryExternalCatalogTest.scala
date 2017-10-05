@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.junit.{Before, Test}
 import org.junit.Assert._
@@ -68,7 +68,7 @@ class InMemoryExternalCatalogTest {
     val table = createTableInstance()
     catalog.createTable(tableName, table, ignoreIfExists = false)
     assertEquals(catalog.getTable(tableName), table)
-    val newTable = createTableInstance()
+    val newTable = createTableInstance(Array("number"), Array(Types.INT))
     catalog.alterTable(tableName, newTable, ignoreIfNotExists = false)
     val currentTable = catalog.getTable(tableName)
     // validate the table is really replaced after alter table
@@ -140,6 +140,13 @@ class InMemoryExternalCatalogTest {
         BasicTypeInfo.INT_TYPE_INFO
       )
     )
+    ExternalCatalogTable("csv", schema)
+  }
+
+  private def createTableInstance(
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): ExternalCatalogTable = {
+    val schema = new TableSchema(fieldNames, fieldTypes)
     ExternalCatalogTable("csv", schema)
   }
 }

@@ -160,6 +160,8 @@ object CommonTestData {
       override def getReturnType: TypeInformation[Person] = {
         TypeExtractor.getForClass(classOf[Person])
       }
+
+      override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(getReturnType)
     }
   }
 
