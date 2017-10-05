@@ -78,7 +78,7 @@ public class RestClusterClientTest extends TestLogger {
 	}
 
 	@Test
-	public void testABC() throws Exception {
+	public void testJobSubmitCancelStop() throws Exception {
 
 		Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
@@ -129,7 +129,7 @@ public class RestClusterClientTest extends TestLogger {
 	}
 
 	private static class TestBlobServerPortHandler extends AbstractRestHandler<DispatcherGateway, EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
-		private boolean portRetrieved = false;
+		private volatile boolean portRetrieved = false;
 
 		private TestBlobServerPortHandler() {
 			super(
@@ -147,7 +147,7 @@ public class RestClusterClientTest extends TestLogger {
 	}
 
 	private static class TestJobSubmitHandler extends AbstractRestHandler<DispatcherGateway, JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
-		private boolean jobSubmitted = false;
+		private volatile boolean jobSubmitted = false;
 
 		private TestJobSubmitHandler() {
 			super(

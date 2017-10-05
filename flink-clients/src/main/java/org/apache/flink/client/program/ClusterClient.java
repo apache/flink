@@ -639,9 +639,13 @@ public abstract class ClusterClient {
 
 		final Object rc = Await.result(response, timeout);
 
-		if (rc instanceof JobManagerMessages.StoppingFailure) {
+		if (rc instanceof JobManagerMessages.StoppingSuccess) {
+			// no further action required
+		} else if (rc instanceof JobManagerMessages.StoppingFailure) {
 			throw new Exception("Stopping the job with ID " + jobId + " failed.",
 				((JobManagerMessages.StoppingFailure) rc).cause());
+		} else {
+			throw new IllegalStateException("Unexpected response: " + rc);
 		}
 	}
 

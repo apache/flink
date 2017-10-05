@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.util.Preconditions;
 
@@ -53,6 +54,11 @@ public final class JobSubmitRequestBody implements RequestBody {
 	public JobSubmitRequestBody(
 		@JsonProperty(FIELD_NAME_SERIALIZED_JOB_GRAPH) byte[] serializedJobGraph) {
 
+		// check that job graph can be read completely by the HttpObjectAggregator on the server
+		// we subtract 1024 bytes to account for http headers and such.
+		if (serializedJobGraph.length > RestServerEndpoint.MAX_REQUEST_SIZE_BYTES - 1024) {
+			throw new IllegalArgumentException("Serialized job graph exceeded max request size.");
+		}
 		this.serializedJobGraph = Preconditions.checkNotNull(serializedJobGraph);
 	}
 

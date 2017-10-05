@@ -50,6 +50,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
@@ -58,7 +61,7 @@ public class RestClusterClient extends ClusterClient {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 	private final RestClient restClient;
-	private final ExecutorService executorService = Executors.newFixedThreadPool(4);
+	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new RestClusterClientThreadFactory());
 
 	public RestClusterClient(Configuration config) throws Exception {
 		this(config, RestClusterClientConfiguration.fromConfiguration(config));
@@ -67,7 +70,7 @@ public class RestClusterClient extends ClusterClient {
 	public RestClusterClient(Configuration config, RestClusterClientConfiguration configuration) throws Exception {
 		super(config);
 		this.restClusterClientConfiguration = configuration;
-		this.restClient = new RestClient(configuration.getRestEndpointConfiguration(), executorService);
+		this.restClient = new RestClient(configuration.getRestClientConfiguration(), executorService);
 	}
 
 	@Override
@@ -79,7 +82,7 @@ public class RestClusterClient extends ClusterClient {
 			log.error("An error occurred during the client shutdown.", e);
 		}
 		this.restClient.shutdown(Time.seconds(5));
-		this.executorService.shutdown();
+		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 	}
 
 	@Override
@@ -107,7 +110,7 @@ public class RestClusterClient extends ClusterClient {
 				restClusterClientConfiguration.getRestServerAddress(),
 				restClusterClientConfiguration.getRestServerPort(),
 				BlobServerPortHeaders.getInstance());
-			blobServerPort = portFuture.get().port;
+			blobServerPort = portFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS).port;
 		} catch (Exception e) {
 			throw new JobSubmissionException(jobGraph.getJobID(), "Failed to retrieve blob server port.", e);
 		}
@@ -130,7 +133,7 @@ public class RestClusterClient extends ClusterClient {
 				restClusterClientConfiguration.getRestServerPort(),
 				JobSubmitHeaders.getInstance(),
 				new JobSubmitRequestBody(jobGraph));
-			responseFuture.get();
+			responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			throw new JobSubmissionException(jobGraph.getJobID(), "Failed to submit JobGraph.", e);
 		}
@@ -147,7 +150,7 @@ public class RestClusterClient extends ClusterClient {
 			JobTerminationHeaders.getInstance(),
 			params
 		);
-		responseFuture.get();
+		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Override
@@ -161,7 +164,7 @@ public class RestClusterClient extends ClusterClient {
 			JobTerminationHeaders.getInstance(),
 			params
 		);
-		responseFuture.get();
+		responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Override
@@ -215,5 +218,26 @@ public class RestClusterClient extends ClusterClient {
 	@Override
 	public int getMaxSlots() {
 		return 0;
+	}
+
+	private static final class RestClusterClientThreadFactory implements ThreadFactory {
+		private final ThreadGroup group;
+		private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+		RestClusterClientThreadFactory() {
+			SecurityManager s = System.getSecurityManager();
+			group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+		}
+
+		public Thread newThread(Runnable r) {
+			Thread t = new Thread(group, r, "Flink-RestClusterClient-IOThread-" + threadNumber.getAndIncrement(), 0);
+			if (t.isDaemon()) {
+				t.setDaemon(false);
+			}
+			if (t.getPriority() != Thread.NORM_PRIORITY) {
+				t.setPriority(Thread.NORM_PRIORITY);
+			}
+			return t;
+		}
 	}
 }

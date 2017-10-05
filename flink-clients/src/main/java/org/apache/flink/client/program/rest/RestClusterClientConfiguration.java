@@ -32,7 +32,7 @@ public final class RestClusterClientConfiguration {
 
 	private final String blobServerAddress;
 
-	private final RestClientConfiguration restEndpointConfiguration;
+	private final RestClientConfiguration restClientConfiguration;
 
 	private final String restServerAddress;
 
@@ -44,7 +44,7 @@ public final class RestClusterClientConfiguration {
 			String restServerAddress,
 			int restServerPort) {
 		this.blobServerAddress = Preconditions.checkNotNull(blobServerAddress);
-		this.restEndpointConfiguration = Preconditions.checkNotNull(endpointConfiguration);
+		this.restClientConfiguration = Preconditions.checkNotNull(endpointConfiguration);
 		this.restServerAddress = Preconditions.checkNotNull(restServerAddress);
 		this.restServerPort = restServerPort;
 	}
@@ -61,8 +61,8 @@ public final class RestClusterClientConfiguration {
 		return restServerPort;
 	}
 
-	public RestClientConfiguration getRestEndpointConfiguration() {
-		return restEndpointConfiguration;
+	public RestClientConfiguration getRestClientConfiguration() {
+		return restClientConfiguration;
 	}
 
 	public static RestClusterClientConfiguration fromConfiguration(Configuration config) throws ConfigurationException {
