@@ -22,8 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -381,7 +381,7 @@ public class CassandraSink<IN> {
 	}
 
 	/**
-	 * Builder for a {@link CassandraPojoSink}.
+	 * Builder for a {@link CassandraRowSink}.
 	 */
 	public static class CassandraRowSinkBuilder extends CassandraSinkBuilder<Row> {
 		public CassandraRowSinkBuilder(DataStream<Row> input, TypeInformation<Row> typeInfo, TypeSerializer<Row> serializer) {
@@ -408,6 +408,10 @@ public class CassandraSink<IN> {
 		}
 	}
 
+	/**
+	 * Builder for a {@link CassandraPojoSink}.
+	 * @param <IN>
+	 */
 	public static class CassandraPojoSinkBuilder<IN> extends CassandraSinkBuilder<IN> {
 		public CassandraPojoSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
 			super(input, typeInfo, serializer);

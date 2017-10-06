@@ -18,12 +18,6 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Session;
-import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.InputFormat;
@@ -47,6 +41,13 @@ import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.StreamTableEnvironment;
 import org.apache.flink.types.Row;
+
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.QueryOptions;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Session;
+import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -54,8 +55,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.JavaConverters;
-import scala.collection.Seq;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -69,6 +68,9 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.UUID;
+
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import static org.junit.Assert.assertTrue;
 
