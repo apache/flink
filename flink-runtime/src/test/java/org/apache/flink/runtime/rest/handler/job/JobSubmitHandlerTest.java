@@ -36,7 +36,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -60,14 +59,10 @@ public class JobSubmitHandlerTest extends TestLogger {
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(new byte[0]);
 
-		handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway);
-
 		try {
-			handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway).get();
+			handler.handleRequest(new HandlerRequest<>(request, EmptyMessageParameters.getInstance()), mockGateway);
 			Assert.fail();
-		} catch (ExecutionException ee) {
-			RestHandlerException rhe = (RestHandlerException) ee.getCause();
-
+		} catch (RestHandlerException rhe) {
 			Assert.assertEquals(HttpResponseStatus.BAD_REQUEST, rhe.getHttpResponseStatus());
 		}
 	}
