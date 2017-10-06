@@ -26,9 +26,8 @@ import org.apache.flink.types.Row;
 /**
  * Flink Sink to save data into a Cassandra cluster.
  *
- * @param <IN> Type of the elements emitted by this sink, it must extend {@link Row}
  */
-public class CassandraRowSink<IN extends Row> extends CassandraSinkBase<IN, ResultSet> {
+public class CassandraRowSink extends CassandraSinkBase<Row, ResultSet> {
 	private final String insertQuery;
 	private transient PreparedStatement ps;
 
@@ -44,12 +43,12 @@ public class CassandraRowSink<IN extends Row> extends CassandraSinkBase<IN, Resu
 	}
 
 	@Override
-	public ListenableFuture<ResultSet> send(IN value) {
+	public ListenableFuture<ResultSet> send(Row value) {
 		Object[] fields = extract(value);
 		return session.executeAsync(ps.bind(fields));
 	}
 
-	private Object[] extract(IN record) {
+	private Object[] extract(Row record) {
 		Object[] al = new Object[record.getArity()];
 		for (int i = 0; i < record.getArity(); i++) {
 			al[i] = record.getField(i);

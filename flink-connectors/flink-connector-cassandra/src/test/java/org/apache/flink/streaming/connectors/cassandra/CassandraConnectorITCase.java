@@ -18,6 +18,12 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.QueryOptions;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Session;
+import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.InputFormat;
@@ -40,16 +46,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.StreamTableEnvironment;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.types.Row;
-
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Session;
-import org.apache.cassandra.service.CassandraDaemon;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -397,7 +394,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 	@Test
 	public void testCassandraRowAtLeastOnceSink() throws Exception {
-		CassandraRowSink<Row> sink = new CassandraRowSink<>(injectTableName(INSERT_DATA_QUERY), builder);
+		CassandraRowSink sink = new CassandraRowSink(injectTableName(INSERT_DATA_QUERY), builder);
 
 		sink.open(new Configuration());
 
@@ -435,12 +432,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		env.setParallelism(1);
 
 		DataStreamSource<Row> source = env.fromCollection(rowCollection);
-		CassandraTableSink cassandraTableSink = new CassandraTableSink(new ClusterBuilder() {
-			@Override
-			protected Cluster buildCluster(Cluster.Builder builder) {
-				return builder.addContactPointsWithPorts(new InetSocketAddress(HOST, PORT)).build();
-			}
-		}, injectTableName(INSERT_DATA_QUERY), new Properties());
+		CassandraTableSink cassandraTableSink = new CassandraTableSink(builder, injectTableName(INSERT_DATA_QUERY), new Properties());
 		CassandraTableSink newCassandrTableSink = cassandraTableSink.configure(FIELD_NAMES, FIELD_TYPES);
 
 		newCassandrTableSink.emitDataStream(source);

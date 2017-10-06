@@ -215,7 +215,7 @@ public class CassandraSink<IN> {
 		}
 		if (typeInfo instanceof RowTypeInfo) {
 			DataStream<Row> rowInput = (DataStream<Row>) input;
-			return (CassandraSinkBuilder<IN>) new CassandraRowSinkBuilder<>(rowInput, rowInput.getType(), rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()));
+			return (CassandraSinkBuilder<IN>) new CassandraRowSinkBuilder(rowInput, rowInput.getType(), rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()));
 		}
 		if (typeInfo instanceof PojoTypeInfo) {
 			return new CassandraPojoSinkBuilder<>(input, input.getType(), input.getType().createSerializer(input.getExecutionEnvironment().getConfig()));
@@ -382,10 +382,9 @@ public class CassandraSink<IN> {
 
 	/**
 	 * Builder for a {@link CassandraPojoSink}.
-	 * @param <IN>
 	 */
-	public static class CassandraRowSinkBuilder<IN extends Row> extends CassandraSinkBuilder<IN> {
-		public CassandraRowSinkBuilder(DataStream<IN> input, TypeInformation<IN> typeInfo, TypeSerializer<IN> serializer) {
+	public static class CassandraRowSinkBuilder extends CassandraSinkBuilder<Row> {
+		public CassandraRowSinkBuilder(DataStream<Row> input, TypeInformation<Row> typeInfo, TypeSerializer<Row> serializer) {
 			super(input, typeInfo, serializer);
 		}
 
@@ -398,13 +397,13 @@ public class CassandraSink<IN> {
 		}
 
 		@Override
-		protected CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraRowSink<IN>(query, builder)).name("Cassandra Sink"));
+		protected CassandraSink<Row> createSink() throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraRowSink(query, builder)).name("Cassandra Sink"));
 
 		}
 
 		@Override
-		protected CassandraSink<IN> createWriteAheadSink() throws Exception {
+		protected CassandraSink<Row> createWriteAheadSink() throws Exception {
 			throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
 		}
 	}
