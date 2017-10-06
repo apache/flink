@@ -26,7 +26,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -40,6 +40,7 @@ import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
 import javax.annotation.Nullable;
 
@@ -61,7 +62,7 @@ public class RestClusterClient extends ClusterClient {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 	private final RestClient restClient;
-	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new RestClusterClientThreadFactory());
+	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("RestClusterClient-IO"));
 
 	public RestClusterClient(Configuration config) throws Exception {
 		this(config, RestClusterClientConfiguration.fromConfiguration(config));
@@ -118,8 +119,8 @@ public class RestClusterClient extends ClusterClient {
 		log.info("Uploading jar files.");
 		try {
 			InetSocketAddress address = new InetSocketAddress(restClusterClientConfiguration.getBlobServerAddress(), blobServerPort);
-			List<BlobKey> keys = BlobClient.uploadJarFiles(address, this.flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
-			for (BlobKey key : keys) {
+			List<PermanentBlobKey> keys = BlobClient.uploadJarFiles(address, this.flinkConfig, jobGraph.getJobID(), jobGraph.getUserJars());
+			for (PermanentBlobKey key : keys) {
 				jobGraph.addBlob(key);
 			}
 		} catch (Exception e) {
@@ -218,26 +219,5 @@ public class RestClusterClient extends ClusterClient {
 	@Override
 	public int getMaxSlots() {
 		return 0;
-	}
-
-	private static final class RestClusterClientThreadFactory implements ThreadFactory {
-		private final ThreadGroup group;
-		private final AtomicInteger threadNumber = new AtomicInteger(1);
-
-		RestClusterClientThreadFactory() {
-			SecurityManager s = System.getSecurityManager();
-			group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
-		}
-
-		public Thread newThread(Runnable r) {
-			Thread t = new Thread(group, r, "Flink-RestClusterClient-IOThread-" + threadNumber.getAndIncrement(), 0);
-			if (t.isDaemon()) {
-				t.setDaemon(false);
-			}
-			if (t.getPriority() != Thread.NORM_PRIORITY) {
-				t.setPriority(Thread.NORM_PRIORITY);
-			}
-			return t;
-		}
 	}
 }
