@@ -554,12 +554,16 @@ public class CliFrontend {
 		try {
 			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
 			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+			try {
+				logAndSysout("Stopping job " + jobId + '.');
+				client.stop(jobId);
+				logAndSysout("Stopped job " + jobId + '.');
 
-			logAndSysout("Stopping job " + jobId + '.');
-			client.stop(jobId);
-			logAndSysout("Stopped job " + jobId + '.');
+				return 0;
+			} finally {
+				client.shutdown();
+			}
 
-			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -632,21 +636,25 @@ public class CliFrontend {
 		try {
 			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
 			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
-			if (withSavepoint) {
-				if (targetDirectory == null) {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
+			try {
+				if (withSavepoint) {
+					if (targetDirectory == null) {
+						logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
+					} else {
+						logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + '.');
+					}
+					String savepointPath = client.cancelWithSavepoint(jobId, targetDirectory);
+					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + '.');
 				} else {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + '.');
+					logAndSysout("Cancelling job " + jobId + '.');
+					client.cancel(jobId);
+					logAndSysout("Cancelled job " + jobId + '.');
 				}
-				String savepointPath = client.cancelWithSavepoint(jobId, targetDirectory);
-				logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + '.');
-			} else {
-				logAndSysout("Cancelling job " + jobId + '.');
-				client.cancel(jobId);
-				logAndSysout("Cancelled job " + jobId + '.');
-			}
 
-			return 0;
+				return 0;
+			} finally {
+				client.shutdown();
+			}
 		}
 		catch (Throwable t) {
 			return handleError(t);
