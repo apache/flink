@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.HadoopBlockLocation;
 import org.apache.flink.runtime.fs.hdfs.HadoopDataInputStream;
@@ -382,7 +383,11 @@ public final class MapRFileSystem extends FileSystem {
 
 	@Override
 	public boolean isDistributedFS() {
-
 		return true;
+	}
+
+	@Override
+	public FileSystemKind getKind() {
+		return FileSystemKind.CONSISTENT_FILESYSTEM;
 	}
 }

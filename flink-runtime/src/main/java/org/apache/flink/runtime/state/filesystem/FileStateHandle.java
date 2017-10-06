@@ -77,14 +77,15 @@ public class FileStateHandle implements StreamStateHandle {
 	 */
 	@Override
 	public void discardState() throws Exception {
-
 		FileSystem fs = getFileSystem();
 
 		fs.delete(filePath, false);
 
-		try {
-			FileUtils.deletePathIfEmpty(fs, filePath.getParent());
-		} catch (Exception ignored) {}
+		if (fs.getKind().supportsRealDirectories()) {
+			try {
+				FileUtils.deletePathIfEmpty(fs, filePath.getParent());
+			} catch (Exception ignored) {}
+		}
 	}
 
 	/**
