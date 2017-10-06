@@ -41,7 +41,7 @@ class CorrelateTest extends TableTestBase {
         streamTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a,b,c,s"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -61,8 +61,8 @@ class CorrelateTest extends TableTestBase {
         "DataStreamCorrelate",
         streamTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c,'$$'))"),
-        term("select", "a,b,c,s"),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -88,7 +88,7 @@ class CorrelateTest extends TableTestBase {
         streamTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a,b,c,s"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "LEFT")
@@ -116,7 +116,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation",
              s"${function.functionIdentifier}(${scalarFunc.functionIdentifier}($$2))"),
         term("correlate", s"table(${function.getClass.getSimpleName}(Func13(c)))"),
-        term("select", "a,b,c,name,len"),
+        term("select", "a", "b", "c", "name", "len"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
            "VARCHAR(65536) name, INTEGER len)"),
@@ -141,7 +141,7 @@ class CorrelateTest extends TableTestBase {
       streamTableNode(0),
       term("invocation", s"${function.functionIdentifier}($$2)"),
       term("correlate", "table(HierarchyTableFunction(c))"),
-      term("select", "a,b,c,name,adult,len"),
+      term("select", "a", "b", "c", "name", "adult", "len"),
       term("rowType",
         "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c," +
         " VARCHAR(65536) name, BOOLEAN adult, INTEGER len)"),
@@ -164,7 +164,7 @@ class CorrelateTest extends TableTestBase {
       streamTableNode(0),
       term("invocation", s"${function.functionIdentifier}($$2)"),
       term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-      term("select", "a,b,c,age,name"),
+      term("select", "a", "b", "c", "age", "name"),
       term("rowType",
         "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
          "INTEGER age, VARCHAR(65536) name)"),
@@ -192,7 +192,7 @@ class CorrelateTest extends TableTestBase {
         streamTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a,b,c,name,len"),
+        term("select", "a", "b", "c", "name", "len"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, " +
           "VARCHAR(65536) name, INTEGER len)"),
@@ -219,7 +219,7 @@ class CorrelateTest extends TableTestBase {
         term("invocation",  s"${function.functionIdentifier}(SUBSTRING($$2, 2, CHAR_LENGTH($$2)))"),
         term("correlate",
              s"table(${function.getClass.getSimpleName}(SUBSTRING(c, 2, CHAR_LENGTH(c))))"),
-        term("select", "a,b,c,s"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")

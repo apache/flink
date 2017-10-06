@@ -41,7 +41,7 @@ class CorrelateTest extends TableTestBase {
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a,b,c,s"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -61,8 +61,8 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
-        term("correlate", s"table(${function.getClass.getSimpleName}(c,'$$'))"),
-        term("select", "a,b,c,s"),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
              "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -88,7 +88,7 @@ class CorrelateTest extends TableTestBase {
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
         term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
-        term("select", "a,b,c,s"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
           "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "LEFT")

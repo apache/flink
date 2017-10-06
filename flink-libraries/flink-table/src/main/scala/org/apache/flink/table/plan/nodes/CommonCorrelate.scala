@@ -179,7 +179,7 @@ trait CommonCorrelate {
   }
 
   private[flink] def selectToString(rowType: RelDataType): String = {
-    rowType.getFieldNames.asScala.mkString(",")
+    rowType.getFieldNames.asScala.mkString(", ")
   }
 
   private[flink] def correlateOpName(
@@ -201,7 +201,7 @@ trait CommonCorrelate {
       expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
     val inFields = inputType.getFieldNames.asScala.toList
     val udtfName = sqlFunction.toString
-    val operands = rexCall.getOperands.asScala.map(expression(_, inFields, None)).mkString(",")
+    val operands = rexCall.getOperands.asScala.map(expression(_, inFields, None)).mkString(", ")
     s"table($udtfName($operands))"
   }
 
