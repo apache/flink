@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
@@ -208,12 +209,12 @@ public class BlobCacheDeleteTest extends TestLogger {
 	}
 
 	@Test
-	public void testDeleteTransientLocalFailsNoJob() throws IOException {
+	public void testDeleteTransientLocalFailsNoJob() throws IOException, InterruptedException {
 		testDeleteTransientLocalFails(null);
 	}
 
 	@Test
-	public void testDeleteTransientLocalFailsForJob() throws IOException {
+	public void testDeleteTransientLocalFailsForJob() throws IOException, InterruptedException {
 		testDeleteTransientLocalFails(new JobID());
 	}
 
@@ -225,7 +226,8 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 * @param jobId
 	 * 		job id
 	 */
-	private void testDeleteTransientLocalFails(@Nullable final JobID jobId) throws IOException {
+	private void testDeleteTransientLocalFails(@Nullable final JobID jobId)
+		throws IOException, InterruptedException {
 		assumeTrue(!OperatingSystem.isWindows()); //setWritable doesn't work on Windows.
 
 		final Configuration config = new Configuration();
@@ -259,10 +261,11 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 				// issue a DELETE request
 				assertFalse(delete(cache, jobId, key));
-				verifyDeleted(server, jobId, key);
 
-				// the file should still be there on both cache and server
+				// the file should still be there on the cache
 				verifyContents(cache, jobId, key, data);
+				// the server should have started the delete call after the cache accessed the (transient!) BLOB
+				verifyDeletedEventually(server, jobId, key);
 			} finally {
 				if (blobFile != null && directory != null) {
 					//noinspection ResultOfMethodCallIgnored
