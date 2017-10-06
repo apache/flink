@@ -62,7 +62,7 @@ public class RestClusterClient extends ClusterClient {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 	private final RestClient restClient;
-	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("RestClusterClient-IO"));
+	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("Flink-RestClusterClient-IO"));
 
 	public RestClusterClient(Configuration config) throws Exception {
 		this(config, RestClusterClientConfiguration.fromConfiguration(config));
