@@ -115,19 +115,7 @@ The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/g
 
 Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-lang.org). Users of the Scala API and libraries may have to match the Scala version of Flink with the Scala version of their projects (because Scala is not strictly backwards compatible).
 
-**By default, Flink is built with the Scala 2.11**. To build Flink with Scala *2.10*, you can change the default Scala *binary version* by using *scala-2.10* build profile:
-
-~~~bash
-# Build with Scala version 2.10
-mvn clean install -DskipTests -Pscala-2.10
-~~~
-
-To build against custom Scala versions, you need to define new custom build profile that will override *scala.version* and *scala.binary.version* values.
-
-Flink is developed against Scala *2.11* and tested additionally against Scala *2.10*. These two versions are known to be compatible. Earlier versions (like Scala *2.9*) are *not* compatible.
-
-Newer versions may be compatible, depending on breaking changes in the language features used by Flink, and the availability of Flink's dependencies in those Scala versions. The dependencies written in Scala include for example *Kafka*, *Akka*, *Scalatest*, and *scopt*.
-
+**By default, Flink is built with the Scala 2.11**.
 {% top %}
 
 ## Encrypted File Systems

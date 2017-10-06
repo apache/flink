@@ -43,9 +43,3 @@ echo "Deploying to repository.apache.org"
 echo "Deploying Scala 2.11 version"
 $MVN clean deploy -Prelease,docs-and-source,scala-2.11 -DskipTests -DretryFailedDeploymentCount=10
 
-# It is important to first deploy scala 2.11 and then scala 2.10 so that the quickstarts (which are independent of the scala version)
-# are depending on scala 2.10.
-
-echo "Deploying Scala 2.10 version"
-$MVN clean deploy -Prelease,docs-and-source,scala-2.10 -DskipTests -DretryFailedDeploymentCount=10
-

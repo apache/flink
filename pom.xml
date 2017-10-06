@@ -528,20 +528,6 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
-		
-		<!-- Profile to switch to Scala Version 2.10 -->
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<name>scala-2.10</name>
-				</property>
-			</activation>
-			<properties>
-				<scala.version>2.10.6</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-		</profile>
 
 		<profile>
 			<id>spotbugs</id>
