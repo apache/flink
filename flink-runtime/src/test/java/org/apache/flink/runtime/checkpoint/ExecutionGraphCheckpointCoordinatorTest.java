@@ -93,7 +93,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			Collections.emptyList(),
 			Collections.emptyList(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
-			ClassLoader.getSystemClassLoader());
+			ClassLoader.getSystemClassLoader(),
+			null);
 
 		executionGraph.enableCheckpointing(
 				100,

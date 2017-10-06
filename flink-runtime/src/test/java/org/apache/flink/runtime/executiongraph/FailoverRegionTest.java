@@ -141,7 +141,8 @@ public class FailoverRegionTest extends TestLogger {
 				Collections.emptyList(),
 				Collections.emptyList(),
 				slotProvider,
-				ExecutionGraph.class.getClassLoader());
+				ExecutionGraph.class.getClassLoader(),
+				null);
 
 		eg.attachJobGraph(ordered);
 
@@ -268,7 +269,8 @@ public class FailoverRegionTest extends TestLogger {
 				Collections.emptyList(),
 				Collections.emptyList(),
 				scheduler,
-				ExecutionGraph.class.getClassLoader());
+				ExecutionGraph.class.getClassLoader(),
+				null);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -345,7 +347,8 @@ public class FailoverRegionTest extends TestLogger {
 				Collections.emptyList(),
 				Collections.emptyList(),
 				scheduler,
-				ExecutionGraph.class.getClassLoader());
+				ExecutionGraph.class.getClassLoader(),
+				null);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -458,7 +461,8 @@ public class FailoverRegionTest extends TestLogger {
 				Collections.emptyList(),
 				Collections.emptyList(),
 				scheduler,
-				ExecutionGraph.class.getClassLoader());
+				ExecutionGraph.class.getClassLoader(),
+				null);
 		try {
 			eg.attachJobGraph(ordered);
 		}

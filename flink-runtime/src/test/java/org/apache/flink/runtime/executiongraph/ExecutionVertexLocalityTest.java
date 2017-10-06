@@ -220,6 +220,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 			new FixedDelayRestartStrategy(10, 0L),
 			new UnregisteredMetricsGroup(),
 			1,
+			null,
 			log);
 	}
 

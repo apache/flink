@@ -139,4 +139,5 @@ public class AkkaOptions {
 	public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR = ConfigOptions
 		.key("akka.jvm-exit-on-fatal-error")
 		.defaultValue(true);
+
 }

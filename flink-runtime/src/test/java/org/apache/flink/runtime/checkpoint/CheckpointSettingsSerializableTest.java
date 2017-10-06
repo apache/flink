@@ -107,6 +107,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 				new NoRestartStrategy(),
 				new UnregisteredMetricsGroup(),
 				10,
+				null,
 				log);
 
 		assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
