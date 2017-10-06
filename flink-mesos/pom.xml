@@ -62,14 +62,14 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-actor_${scala.binary.version}</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-remote_${scala.binary.version}</artifactId>
 			<scope>provided</scope>
 			<exclusions>
 				<!-- exclude the lower/wrong version of Protobuf here -->
@@ -81,8 +81,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
@@ -138,8 +138,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 

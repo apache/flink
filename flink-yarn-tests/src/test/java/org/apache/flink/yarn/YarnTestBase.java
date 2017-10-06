@@ -110,8 +110,10 @@ public abstract class YarnTestBase extends TestLogger {
 	protected static final String[] WHITELISTED_STRINGS = {
 			"akka.remote.RemoteTransportExceptionNoStackTrace",
 			// workaround for annoying InterruptedException logging:
-		    // https://issues.apache.org/jira/browse/YARN-1022
-			"java.lang.InterruptedException"
+			// https://issues.apache.org/jira/browse/YARN-1022
+			"java.lang.InterruptedException",
+			// very specific on purpose
+			"Remote connection to [null] failed with java.net.ConnectException: Connection refused"
 	};
 
 	// Temp directory which is deleted after the unit test.

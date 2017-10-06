@@ -561,13 +561,9 @@ public class SavepointITCase extends TestLogger {
 
 			((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
-
+		} finally {
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
-			flink.shutdown();
-			flink.awaitTermination();
-
-		} finally {
 			flink.shutdown();
 			flink.awaitTermination();
 		}
