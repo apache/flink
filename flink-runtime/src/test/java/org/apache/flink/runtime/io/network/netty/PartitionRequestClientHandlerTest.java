@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
@@ -239,7 +239,7 @@ public class PartitionRequestClientHandlerTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private static Buffer createBuffer(boolean fill) {
-		MemorySegment segment = HeapMemorySegment.FACTORY.allocateUnpooledSegment(1024, null);
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024, null);
 		if (fill) {
 			for (int i = 0; i < 1024; i++) {
 				segment.put(i, (byte) i);
