@@ -87,4 +87,10 @@ public class BlobServerOptions {
 		key("blob.service.cleanup.interval")
 			.defaultValue(3_600L) // once per hour
 			.withDeprecatedKeys("library-cache-manager.cleanup.interval");
+
+	/**
+	 * The minimum size for messages to be offloaded to the BlobServer.
+	 */
+	public static final ConfigOption<Integer> OFFLOAD_MINSIZE = key("blob.offload.minsize")
+		.defaultValue(1_024 * 1_024); // 1MiB by default
 }

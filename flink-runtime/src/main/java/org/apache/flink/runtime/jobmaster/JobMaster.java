@@ -288,6 +288,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			restartStrategy,
 			jobMetricGroup,
 			-1,
+			blobServer,
 			log);
 
 		// register self as job status change listener

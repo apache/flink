@@ -321,7 +321,8 @@ public class PipelinedRegionFailoverConcurrencyTest {
 				Collections.emptyList(),
 				Collections.emptyList(),
 				slotProvider,
-				getClass().getClassLoader());
+				getClass().getClassLoader(),
+				null);
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

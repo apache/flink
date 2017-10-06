@@ -76,8 +76,9 @@ public class TaskDeploymentDescriptorTest {
 			final TaskStateSnapshot taskStateHandles = new TaskStateSnapshot();
 
 			final TaskDeploymentDescriptor orig = new TaskDeploymentDescriptor(
-				serializedJobInformation,
-				serializedJobVertexInformation,
+				jobID,
+				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
+				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobVertexInformation),
 				execId,
 				allocationId,
 				indexInSubtaskGroup,
