@@ -36,7 +36,7 @@ import static org.junit.Assert.fail;
  */
 public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryableStateITCase {
 
-	private static final int NUM_TMS = 1;
+	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 4;
 
 	@BeforeClass
@@ -47,9 +47,9 @@ public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryabl
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
-			config.setInteger(QueryableStateOptions.SERVER_PORT, 9069);
 			config.setBoolean(QueryableStateOptions.SERVER_ENABLE, true);
 			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
+			config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069-" + (9069 + NUM_TMS));
 
 			cluster = new TestingCluster(config, false);
 			cluster.start(true);

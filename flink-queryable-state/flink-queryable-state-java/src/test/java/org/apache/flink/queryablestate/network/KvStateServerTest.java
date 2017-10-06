@@ -86,7 +86,7 @@ public class KvStateServerTest {
 	 * Tests a simple successful query via a SocketChannel.
 	 */
 	@Test
-	public void testSimpleRequest() throws Exception {
+	public void testSimpleRequest() throws Throwable {
 		KvStateServerImpl server = null;
 		Bootstrap bootstrap = null;
 		try {

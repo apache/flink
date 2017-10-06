@@ -566,7 +566,7 @@ public class ClientTest {
 	 * that all ongoing requests are failed.
 	 */
 	@Test
-	public void testClientServerIntegration() throws Exception {
+	public void testClientServerIntegration() throws Throwable {
 		// Config
 		final int numServers = 2;
 		final int numServerEventLoopThreads = 2;

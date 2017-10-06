@@ -33,7 +33,7 @@ public interface KvStateServer {
 
 
 	/** Starts the server. */
-	void start() throws InterruptedException;
+	void start() throws Throwable;
 
 	/** Shuts down the server and all related thread pools. */
 	void shutdown();

@@ -55,7 +55,7 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 *
 	 * <p>The server is instantiated using reflection by the
 	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(InetAddress, int, int, int, KvStateRegistry, KvStateRequestStats)
-	 * QueryableStateUtils.startKvStateServer(InetAddress, int, int, int, KvStateRegistry, KvStateRequestStats)}.
+	 * QueryableStateUtils.createKvStateServer(InetAddress, int, int, int, KvStateRegistry, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
 	 * to the configured bind address.
@@ -94,7 +94,7 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	}
 
 	@Override
-	public void start() throws InterruptedException {
+	public void start() throws Throwable {
 		super.start();
 	}
 

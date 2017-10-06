@@ -147,7 +147,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 
@@ -371,7 +371,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -435,7 +435,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -600,7 +600,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -698,7 +698,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -764,7 +764,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -774,7 +774,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestAscendingValueSource(numElements));
@@ -861,7 +861,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final QueryableStateClient client = new QueryableStateClient(
 				"localhost",
-				cluster.configuration().getInteger(QueryableStateOptions.SERVER_PORT));
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -871,7 +871,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			// Very important, because cluster is shared between tests and we
 			// don't explicitly check that all slots are available before
 			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestAscendingValueSource(numElements));

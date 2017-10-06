@@ -65,10 +65,10 @@ public class NetworkEnvironment {
 	private final TaskEventDispatcher taskEventDispatcher;
 
 	/** Server for {@link InternalKvState} requests. */
-	private final KvStateServer kvStateServer;
+	private KvStateServer kvStateServer;
 
 	/** Proxy for the queryable state client. */
-	private final KvStateClientProxy kvStateProxy;
+	private KvStateClientProxy kvStateProxy;
 
 	/** Registry for {@link InternalKvState} instances. */
 	private final KvStateRegistry kvStateRegistry;
@@ -311,7 +311,9 @@ public class NetworkEnvironment {
 				try {
 					kvStateServer.start();
 					LOG.info("Started Queryable State Data Server @ {}", kvStateServer.getServerAddress());
-				} catch (InterruptedException ie) {
+				} catch (Throwable ie) {
+					kvStateServer.shutdown();
+					kvStateServer = null;
 					throw new IOException("Failed to start the Queryable State Data Server.", ie);
 				}
 			}
@@ -320,7 +322,9 @@ public class NetworkEnvironment {
 				try {
 					kvStateProxy.start();
 					LOG.info("Started the Queryable State Client Proxy @ {}", kvStateProxy.getServerAddress());
-				} catch (InterruptedException ie) {
+				} catch (Throwable ie) {
+					kvStateProxy.shutdown();
+					kvStateProxy = null;
 					throw new IOException("Failed to start the Queryable State Client Proxy.", ie);
 				}
 			}

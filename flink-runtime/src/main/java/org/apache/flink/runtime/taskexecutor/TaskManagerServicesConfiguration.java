@@ -31,6 +31,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.NetUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -189,7 +191,6 @@ public class TaskManagerServicesConfiguration {
 			remoteAddress,
 			slots);
 
-		// @Ufuk todo why was it like this before ???
 		final QueryableStateConfiguration queryableStateConfig =
 				parseQueryableStateConfiguration(configuration);
 
@@ -415,10 +416,11 @@ public class TaskManagerServicesConfiguration {
 		final boolean enabled = config.getBoolean(QueryableStateOptions.SERVER_ENABLE);
 
 		if (enabled) {
-			int port = config.getInteger(QueryableStateOptions.SERVER_PORT);
-			int numNetworkThreads = config.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS);
-			int numQueryThreads = config.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS);
-			return new QueryableStateConfiguration(true, port, numNetworkThreads, numQueryThreads);
+			final Iterator<Integer> ports = NetUtils.getPortRangeFromString(
+					config.getString(QueryableStateOptions.PROXY_PORT_RANGE, "9069"));
+			final int numNetworkThreads = config.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS);
+			final int numQueryThreads = config.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS);
+			return new QueryableStateConfiguration(true, ports, numNetworkThreads, numQueryThreads);
 		}
 		else {
 			return QueryableStateConfiguration.disabled();

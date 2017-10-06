@@ -63,7 +63,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -93,7 +92,8 @@ public class KvStateServerHandlerTest extends TestLogger {
 					1,
 					new KvStateRegistry(),
 					new DisabledKvStateRequestStats());
-		} catch (UnknownHostException e) {
+			testServer.start();
+		} catch (Throwable e) {
 			e.printStackTrace();
 		}
 	}
@@ -376,7 +376,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 	 * Tests the failure response on a rejected execution, because the query executor has been closed.
 	 */
 	@Test
-	public void testQueryExecutorShutDown() throws Exception {
+	public void testQueryExecutorShutDown() throws Throwable {
 		KvStateRegistry registry = new KvStateRegistry();
 		AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
@@ -388,6 +388,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 				new KvStateRegistry(),
 				new DisabledKvStateRequestStats());
 
+		localTestServer.start();
 		localTestServer.shutdown();
 		assertTrue(localTestServer.isExecutorShutdown());
 

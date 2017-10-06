@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import java.util.Iterator;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -27,19 +29,19 @@ public class QueryableStateConfiguration {
 
 	private final boolean enabled;
 
-	private final int port;
+	private final Iterator<Integer> proxyPortRange;
 
 	private final int numServerThreads;
 
 	private final int numQueryThreads;
 
-	public QueryableStateConfiguration(boolean enabled, int port, int numServerThreads, int numQueryThreads) {
-		checkArgument(port >= 0 && port < 65536, "queryable state server port out of range");
+	public QueryableStateConfiguration(boolean enabled, Iterator<Integer> proxyPortRange, int numServerThreads, int numQueryThreads) {
+		checkArgument(!enabled || (proxyPortRange != null && proxyPortRange.hasNext()));
 		checkArgument(numServerThreads >= 0, "queryable state number of server threads must be zero or larger");
 		checkArgument(numQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
 
 		this.enabled = enabled;
-		this.port = port;
+		this.proxyPortRange = proxyPortRange;
 		this.numServerThreads = numServerThreads;
 		this.numQueryThreads = numQueryThreads;
 	}
@@ -49,15 +51,16 @@ public class QueryableStateConfiguration {
 	/**
 	 * Returns whether queryable state is enabled.
 	 */
-	public boolean enabled() {
+	public boolean isEnabled() {
 		return enabled;
 	}
 
 	/**
-	 * Returns the port where the server should listen.
+	 * Returns the port range where the queryable state client proxy can listen.
+	 * See {@link org.apache.flink.configuration.QueryableStateOptions#PROXY_PORT_RANGE QueryableStateOptions.PROXY_PORT_RANGE}.
 	 */
-	public int port() {
-		return port;
+	public Iterator<Integer> ports() {
+		return proxyPortRange;
 	}
 
 	/**
@@ -82,7 +85,6 @@ public class QueryableStateConfiguration {
 	public String toString() {
 		return "QueryableStateConfiguration {" +
 				"enabled=" + enabled +
-				", port=" + port +
 				", numServerThreads=" + numServerThreads +
 				", numQueryThreads=" + numQueryThreads +
 				'}';
@@ -94,6 +96,6 @@ public class QueryableStateConfiguration {
 	 * Gets the configuration describing the queryable state as deactivated.
 	 */
 	public static QueryableStateConfiguration disabled() {
-		return new QueryableStateConfiguration(false, 0, 0, 0);
+		return new QueryableStateConfiguration(false, null, 0, 0);
 	}
 }

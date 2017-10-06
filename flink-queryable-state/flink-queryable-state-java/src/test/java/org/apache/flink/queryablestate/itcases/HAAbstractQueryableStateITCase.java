@@ -39,7 +39,7 @@ import static org.junit.Assert.fail;
 public abstract class HAAbstractQueryableStateITCase extends AbstractQueryableStateITCase {
 
 	private static final int NUM_JMS = 2;
-	private static final int NUM_TMS = 1;
+	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 4;
 
 	private static TestingServer zkServer;
@@ -59,6 +59,7 @@ public abstract class HAAbstractQueryableStateITCase extends AbstractQueryableSt
 			config.setBoolean(QueryableStateOptions.SERVER_ENABLE, true);
 			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 2);
 			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 2);
+			config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069-" + (9069 + NUM_TMS));
 			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().toString());
 			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
 			config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");

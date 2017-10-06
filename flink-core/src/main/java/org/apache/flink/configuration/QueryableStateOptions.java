@@ -37,10 +37,27 @@ public class QueryableStateOptions {
 			key("query.server.enable")
 			.defaultValue(true);
 
-	/** Port to bind KvState server to (0 => pick random available port). */
-	public static final ConfigOption<Integer> SERVER_PORT =
+	/**
+	 * The config parameter defining the server port range of the queryable state proxy.
+	 *
+	 * <p>A proxy runs on each Task Manager, so many proxies may run on the same
+	 * machine.
+	 *
+	 * <p>Given this, and to avoid port clashes, the user can specify a port range and
+	 * the proxy is going to bind to the first free port in that range.
+	 *
+	 * <p>The specified range can be:
+	 * <ol>
+	 *     <li>a port: "9123",
+	 *     <li>a range of ports: "50100-50200", or
+	 *     <li>a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 * </ol>
+	 *
+	 * <p><b>The default port is 9069.</b>
+	 */
+	public static final ConfigOption<String> PROXY_PORT_RANGE =
 			key("query.server.port")
-			.defaultValue(9069);
+			.defaultValue("9069");
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =
@@ -73,7 +90,7 @@ public class QueryableStateOptions {
 
 	// ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated */
+	/** Not intended to be instantiated. */
 	private QueryableStateOptions() {
 	}
 }

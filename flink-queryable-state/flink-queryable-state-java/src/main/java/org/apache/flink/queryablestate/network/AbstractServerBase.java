@@ -23,11 +23,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 import org.apache.flink.runtime.query.KvStateServerAddress;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
-import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
@@ -40,8 +41,12 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandle
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -65,13 +70,26 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	/** AbstractServerBase config: high water mark. */
 	private static final int HIGH_WATER_MARK = 32 * 1024;
 
+	/** The name of the server, useful for debugging. */
 	private final String serverName;
 
+	/** The {@link InetAddress address} to listen to. */
+	private final InetAddress bindAddress;
+
+	/** A port range on which to try to connect. */
+	private final Set<Integer> bindPortRange;
+
+	/** The number of threads to be allocated to the event loop. */
+	private final int numEventLoopThreads;
+
+	/** The number of threads to be used for query serving. */
+	private final int numQueryThreads;
+
 	/** Netty's ServerBootstrap. */
-	private final ServerBootstrap bootstrap;
+	private ServerBootstrap bootstrap;
 
 	/** Query executor thread pool. */
-	private final ExecutorService queryExecutor;
+	private ExecutorService queryExecutor;
 
 	/** Address of this server. */
 	private KvStateServerAddress serverAddress;
@@ -82,12 +100,11 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	/**
 	 * Creates the {@link AbstractServerBase}.
 	 *
-	 * <p>The server needs to be started via {@link #start()} in order to bind
-	 * to the configured bind address.
+	 * <p>The server needs to be started via {@link #start()}.
 	 *
 	 * @param serverName the name of the server
 	 * @param bindAddress address to bind to
-	 * @param bindPort port to bind to (random port if 0)
+	 * @param bindPort port to bind to
 	 * @param numEventLoopThreads number of event loop threads
 	 */
 	protected AbstractServerBase(
@@ -96,80 +113,82 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 			final Integer bindPort,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads) {
+		this(
+				serverName,
+				bindAddress,
+				Collections.singleton(bindPort).iterator(),
+				numEventLoopThreads,
+				numQueryThreads
+		);
+	}
 
-		Preconditions.checkNotNull(bindAddress);
-		Preconditions.checkArgument(bindPort >= 0 && bindPort <= 65536, "Port " + bindPort + " out of valid range (0-65536).");
+	/**
+	 * Creates the {@link AbstractServerBase}.
+	 *
+	 * <p>The server needs to be started via {@link #start()}.
+	 *
+	 * @param serverName the name of the server
+	 * @param bindAddress address to bind to
+	 * @param bindPortIterator port to bind to
+	 * @param numEventLoopThreads number of event loop threads
+	 */
+	protected AbstractServerBase(
+			final String serverName,
+			final InetAddress bindAddress,
+			final Iterator<Integer> bindPortIterator,
+			final Integer numEventLoopThreads,
+			final Integer numQueryThreads) {
+
+		Preconditions.checkNotNull(bindPortIterator);
 		Preconditions.checkArgument(numEventLoopThreads >= 1, "Non-positive number of event loop threads.");
 		Preconditions.checkArgument(numQueryThreads >= 1, "Non-positive number of query threads.");
 
 		this.serverName = Preconditions.checkNotNull(serverName);
-		this.queryExecutor = createQueryExecutor(numQueryThreads);
+		this.bindAddress = Preconditions.checkNotNull(bindAddress);
+		this.numEventLoopThreads = numEventLoopThreads;
+		this.numQueryThreads = numQueryThreads;
 
-		final NettyBufferPool bufferPool = new NettyBufferPool(numEventLoopThreads);
-
-		final ThreadFactory threadFactory = new ThreadFactoryBuilder()
-				.setDaemon(true)
-				.setNameFormat("Flink " + serverName + " EventLoop Thread %d")
-				.build();
-
-		final NioEventLoopGroup nioGroup = new NioEventLoopGroup(numEventLoopThreads, threadFactory);
-
-		bootstrap = new ServerBootstrap()
-				// Bind address and port
-				.localAddress(bindAddress, bindPort)
-				// NIO server channels
-				.group(nioGroup)
-				.channel(NioServerSocketChannel.class)
-				// AbstractServerBase channel Options
-				.option(ChannelOption.ALLOCATOR, bufferPool)
-				// Child channel options
-				.childOption(ChannelOption.ALLOCATOR, bufferPool)
-				.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, HIGH_WATER_MARK)
-				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK);
+		this.bindPortRange = new HashSet<>();
+		while (bindPortIterator.hasNext()) {
+			int port = bindPortIterator.next();
+			Preconditions.checkArgument(port >= 0 && port <= 65535,
+					"Invalid port configuration. Port must be between 0 and 65535, but was " + port + ".");
+			bindPortRange.add(port);
+		}
 	}
 
 	/**
 	 * Creates a thread pool for the query execution.
-	 *
-	 * @param numQueryThreads Number of query threads.
 	 * @return Thread pool for query execution
 	 */
-	private ExecutorService createQueryExecutor(int numQueryThreads) {
+	private ExecutorService createQueryExecutor() {
 		ThreadFactory threadFactory = new ThreadFactoryBuilder()
 				.setDaemon(true)
 				.setNameFormat("Flink " + getServerName() + " Thread %d")
 				.build();
-
 		return Executors.newFixedThreadPool(numQueryThreads, threadFactory);
 	}
 
+	/**
+	 * Returns the thread-pool responsible for processing incoming requests.
+	 */
 	protected ExecutorService getQueryExecutor() {
 		return queryExecutor;
 	}
 
+	/**
+	 * Gets the name of the server. This is useful for debugging.
+	 * @return The name of the server.
+	 */
 	public String getServerName() {
 		return serverName;
 	}
 
-	public abstract AbstractServerHandler<REQ, RESP> initializeHandler();
-
 	/**
-	 * Starts the server by binding to the configured bind address (blocking).
-	 * @throws InterruptedException If interrupted during the bind operation
+	 * Returns the {@link AbstractServerHandler handler} to be used for
+	 * serving the incoming requests.
 	 */
-	public void start() throws InterruptedException {
-		Preconditions.checkState(serverAddress == null,
-				"Server " + serverName + " has already been started @ " + serverAddress + '.');
-
-		this.handler = initializeHandler();
-		bootstrap.childHandler(new ServerChannelInitializer<>(handler));
-
-		Channel channel = bootstrap.bind().sync().channel();
-		InetSocketAddress localAddress = (InetSocketAddress) channel.localAddress();
-		serverAddress = new KvStateServerAddress(localAddress.getAddress(), localAddress.getPort());
-
-		LOG.info("Started server {} @ {}", serverName, serverAddress);
-	}
+	public abstract AbstractServerHandler<REQ, RESP> initializeHandler();
 
 	/**
 	 * Returns the address of this server.
@@ -183,6 +202,80 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	}
 
 	/**
+	 * Starts the server by binding to the configured bind address (blocking).
+	 * @throws Exception If something goes wrong during the bind operation.
+	 */
+	public void start() throws Throwable {
+		Preconditions.checkState(serverAddress == null,
+				"Server " + serverName + " already running @ " + serverAddress + '.');
+
+		Iterator<Integer> portIterator = bindPortRange.iterator();
+		while (portIterator.hasNext() && !attemptToBind(portIterator.next())) {}
+
+		if (serverAddress != null) {
+			LOG.info("Started server {} @ {}.", serverName, serverAddress);
+		} else {
+			LOG.info("Unable to start server {}. All ports in provided range are occupied.", serverName);
+			throw new FlinkRuntimeException("Unable to start server " + serverName + ". All ports in provided range are occupied.");
+		}
+	}
+
+	/**
+	 * Tries to start the server at the provided port.
+	 *
+	 * <p>This, in conjunction with {@link #start()}, try to start the
+	 * server on a free port among the port range provided at the constructor.
+	 *
+	 * @param port the port to try to bind the server to.
+	 * @throws Exception If something goes wrong during the bind operation.
+	 */
+	private boolean attemptToBind(final int port) throws Throwable {
+		LOG.debug("Attempting to start server {} on port {}.", serverName, port);
+
+		this.queryExecutor = createQueryExecutor();
+		this.handler = initializeHandler();
+
+		final NettyBufferPool bufferPool = new NettyBufferPool(numEventLoopThreads);
+
+		final ThreadFactory threadFactory = new ThreadFactoryBuilder()
+				.setDaemon(true)
+				.setNameFormat("Flink " + serverName + " EventLoop Thread %d")
+				.build();
+
+		final NioEventLoopGroup nioGroup = new NioEventLoopGroup(numEventLoopThreads, threadFactory);
+
+		this.bootstrap = new ServerBootstrap()
+				.localAddress(bindAddress, port)
+				.group(nioGroup)
+				.channel(NioServerSocketChannel.class)
+				.option(ChannelOption.ALLOCATOR, bufferPool)
+				.childOption(ChannelOption.ALLOCATOR, bufferPool)
+				.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, HIGH_WATER_MARK)
+				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK)
+				.childHandler(new ServerChannelInitializer<>(handler));
+
+		try {
+			final ChannelFuture future = bootstrap.bind().sync();
+			if (future.isSuccess()) {
+				final InetSocketAddress localAddress = (InetSocketAddress) future.channel().localAddress();
+				serverAddress = new KvStateServerAddress(localAddress.getAddress(), localAddress.getPort());
+				return true;
+			}
+
+			// the following throw is to bypass Netty's "optimization magic"
+			// and catch the bind exception.
+			// the exception is thrown by the sync() call above.
+
+			throw future.cause();
+		} catch (BindException e) {
+			LOG.debug("Failed to start server {} on port {}: {}.", serverName, port, e.getMessage());
+			shutdown();
+		}
+		// any other type of exception we let it bubble up.
+		return false;
+	}
+
+	/**
 	 * Shuts down the server and all related thread pools.
 	 */
 	public void shutdown() {
@@ -190,6 +283,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
 		if (handler != null) {
 			handler.shutdown();
+			handler = null;
 		}
 
 		if (queryExecutor != null) {

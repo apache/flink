@@ -360,7 +360,7 @@ public class TaskManagerServices {
 		KvStateClientProxy kvClientProxy = null;
 		KvStateServer kvStateServer = null;
 
-		if (taskManagerServicesConfiguration.getQueryableStateConfig().enabled()) {
+		if (taskManagerServicesConfiguration.getQueryableStateConfig().isEnabled()) {
 			QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
 
 			int numNetworkThreads = qsConfig.numServerThreads() == 0 ?
@@ -371,7 +371,7 @@ public class TaskManagerServices {
 
 			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
 					taskManagerServicesConfiguration.getTaskManagerAddress(),
-					qsConfig.port(),
+					qsConfig.ports(),
 					numNetworkThreads,
 					numQueryThreads,
 					new DisabledKvStateRequestStats());

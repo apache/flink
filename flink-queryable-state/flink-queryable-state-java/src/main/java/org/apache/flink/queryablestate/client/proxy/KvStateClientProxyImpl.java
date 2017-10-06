@@ -33,6 +33,7 @@ import org.apache.flink.runtime.query.netty.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
 
 import java.net.InetAddress;
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -58,26 +59,26 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	 * Creates the Queryable State Client Proxy.
 	 *
 	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateClientProxy(InetAddress, int, int, int, KvStateRequestStats)
-	 * QueryableStateUtils.startKvStateClientProxy(InetAddress, int, int, int, KvStateRequestStats)}.
+	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats)
+	 * QueryableStateUtils.createKvStateClientProxy(InetAddress, Iterator, int, int, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
 	 * to the configured bind address.
 	 *
 	 * @param bindAddress the address to listen to.
-	 * @param bindPort the port to listen to.
+	 * @param bindPortIterator the port to listen to.
 	 * @param numEventLoopThreads number of event loop threads.
 	 * @param numQueryThreads number of query threads.
 	 * @param stats the statistics collector.
 	 */
 	public KvStateClientProxyImpl(
 			final InetAddress bindAddress,
-			final Integer bindPort,
+			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads,
 			final KvStateRequestStats stats) {
 
-		super("Queryable State Proxy Server", bindAddress, bindPort, numEventLoopThreads, numQueryThreads);
+		super("Queryable State Proxy Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads);
 		Preconditions.checkArgument(numQueryThreads >= 1, "Non-positive number of query threads.");
 		this.queryExecutorThreads = numQueryThreads;
 		this.stats = Preconditions.checkNotNull(stats);
@@ -89,7 +90,7 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	}
 
 	@Override
-	public void start() throws InterruptedException {
+	public void start() throws Throwable {
 		super.start();
 	}
 
