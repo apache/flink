@@ -68,7 +68,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 	private int[] typesArray;
 
-	private Meter greaterThanBatchIntervMeter;
+	private Meter batchLimitReachedMeter;
 	private Meter flushMeter;
 	private Histogram flushDurationMsHisto;
 	private Histogram flushBatchCountHisto;
@@ -101,7 +101,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
 			.meter(FLUSH_RATE_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
-		this.greaterThanBatchIntervMeter = getRuntimeContext()
+		this.batchLimitReachedMeter = getRuntimeContext()
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
 			.meter(BATCH_LIMIT_REACHED_RATE_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
@@ -238,7 +238,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 
 		if (batchCount >= batchInterval) {
 			// execute batch
-			greaterThanBatchIntervMeter.markEvent();
+			batchLimitReachedMeter.markEvent();
 			flush();
 		}
 	}

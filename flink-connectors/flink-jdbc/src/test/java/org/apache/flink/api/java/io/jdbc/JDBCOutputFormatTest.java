@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.dropwizard.metrics.DropwizardHistogramWrapper;
 import org.apache.flink.dropwizard.metrics.DropwizardMeterWrapper;
 import org.apache.flink.metrics.MetricGroup;
@@ -43,7 +43,6 @@ import java.sql.Types;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -256,27 +255,40 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 	}
 
 	@Test
-	public void testMetricsSetup() throws IOException {
+	public void testMetrics() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 			.setDrivername(DRIVER_CLASS)
 			.setDBUrl(DB_URL)
-			.setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_2))
+			.setBatchInterval(3)
 			.finish();
-		Tuple5<RuntimeContext, MetricGroup, MetricGroup, Meter, Histogram> mocks = createMocks();
+		Tuple6<RuntimeContext, MetricGroup, MetricGroup, Meter, Meter, Histogram> mocks = createMocks();
 		RuntimeContext ctxMock = mocks.f0;
 		MetricGroup mgrMock1 = mocks.f1;
 		MetricGroup mgrMock2 = mocks.f2;
-		Meter meterMock = mocks.f3;
-		Histogram histoMock = mocks.f4;
-		jdbcOutputFormat.setRuntimeContext(ctxMock);
-		jdbcOutputFormat.open(0, 1);
+		Meter flushRateMeterMock = mocks.f3;
+		Meter batchLimitReachedMeterMock = mocks.f4;
+		Histogram batchCountHistoMock = mocks.f5;
+		try {
+			jdbcOutputFormat.setRuntimeContext(ctxMock);
+			jdbcOutputFormat.open(0, 1);
+			for (int i = 3; i < 6; ++i) {
+				jdbcOutputFormat.writeRecord(toRow(TEST_DATA[i]));
+			}
+		} finally {
+			jdbcOutputFormat.close();
+		}
 		verify(ctxMock, times(4)).getMetricGroup();
 		verify(mgrMock1, times(4)).addGroup(JDBCOutputFormat.FLUSH_SCOPE);
 		verify(mgrMock2).meter(eq(JDBCOutputFormat.FLUSH_RATE_METER_NAME), any(DropwizardMeterWrapper.class));
 		verify(mgrMock2).meter(eq(JDBCOutputFormat.BATCH_LIMIT_REACHED_RATE_METER_NAME), any(DropwizardMeterWrapper.class));
+		verify(flushRateMeterMock, times(2)).mark(); // One for actual flush; Second for close().
+		verify(batchLimitReachedMeterMock, times(1)).mark();
+		verify(batchCountHistoMock, times(1)).update(3L); // Actual flush.
+		verify(batchCountHistoMock, times(1)).update(0L); // close().
 		verify(mgrMock2).histogram(eq(JDBCOutputFormat.FLUSH_DURATION_HISTO_NAME), any(DropwizardHistogramWrapper.class));
 		verify(mgrMock2).histogram(eq(JDBCOutputFormat.FLUSH_BATCH_COUNT_HISTO_NAME), any(DropwizardHistogramWrapper.class));
-		verifyZeroInteractions(ctxMock, mgrMock1, mgrMock2, meterMock, histoMock);
+		verifyZeroInteractions(ctxMock, mgrMock1, mgrMock2, flushRateMeterMock, batchLimitReachedMeterMock, batchCountHistoMock);
 	}
 
 	@After
@@ -302,19 +314,24 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		return row;
 	}
 
-	private Tuple5<RuntimeContext, MetricGroup, MetricGroup, Meter, Histogram> createMocks() {
+	private Tuple6<RuntimeContext, MetricGroup, MetricGroup, Meter, Meter, Histogram> createMocks() {
 		RuntimeContext ctxMock = mock(RuntimeContext.class);
 		MetricGroup mgrMock1 = mock(MetricGroup.class);
 		MetricGroup mgrMock2 = mock(MetricGroup.class);
-		Meter meterMock = mock(Meter.class);
-		DropwizardMeterWrapper meterWrapperMock = new DropwizardMeterWrapper(meterMock);
-		Histogram histoMock = mock(Histogram.class);
-		DropwizardHistogramWrapper histoWrapeprMock = new DropwizardHistogramWrapper(histoMock);
+		Meter flushRateMeterMock = mock(Meter.class);
+		Meter batchLimitReachedMeterMock = mock(Meter.class);
+		Histogram batchCountHistoMock = mock(Histogram.class);
 		when(ctxMock.getMetricGroup()).thenReturn(mgrMock1);
-		when(mgrMock1.addGroup(anyString())).thenReturn(mgrMock2);
-		when(mgrMock2.meter(anyString(), any(DropwizardMeterWrapper.class))).thenReturn(meterWrapperMock);
-		when(mgrMock2.histogram(anyString(), any(DropwizardHistogramWrapper.class))).thenReturn(histoWrapeprMock);
-		return Tuple5.of(ctxMock, mgrMock1, mgrMock2, meterMock, histoMock);
+		when(mgrMock1.addGroup(eq(JDBCOutputFormat.FLUSH_SCOPE))).thenReturn(mgrMock2);
+		when(mgrMock2.meter(eq(JDBCOutputFormat.FLUSH_RATE_METER_NAME), any(DropwizardMeterWrapper.class)))
+			.thenReturn(new DropwizardMeterWrapper(flushRateMeterMock));
+		when(mgrMock2.meter(eq(JDBCOutputFormat.BATCH_LIMIT_REACHED_RATE_METER_NAME), any(DropwizardMeterWrapper.class)))
+			.thenReturn(new DropwizardMeterWrapper(batchLimitReachedMeterMock));
+		when(mgrMock2.histogram(eq(JDBCOutputFormat.FLUSH_BATCH_COUNT_HISTO_NAME), any(DropwizardHistogramWrapper.class)))
+			.thenReturn(new DropwizardHistogramWrapper(batchCountHistoMock));
+		when(mgrMock2.histogram(eq(JDBCOutputFormat.FLUSH_DURATION_HISTO_NAME), any(DropwizardHistogramWrapper.class)))
+			.thenReturn(new DropwizardHistogramWrapper(mock(Histogram.class)));
+		return Tuple6.of(ctxMock, mgrMock1, mgrMock2, flushRateMeterMock, batchLimitReachedMeterMock, batchCountHistoMock);
 	}
 
 	private RuntimeContext createMockRuntimeContext() {
