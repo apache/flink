@@ -273,7 +273,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		verify(ctxMock, times(4)).getMetricGroup();
 		verify(mgrMock1, times(4)).addGroup(JDBCOutputFormat.FLUSH_SCOPE);
 		verify(mgrMock2).meter(eq(JDBCOutputFormat.FLUSH_RATE_METER_NAME), any(DropwizardMeterWrapper.class));
-		verify(mgrMock2).meter(eq(JDBCOutputFormat.FLUSH_RATE_GR_BATCH_INT_METER_NAME), any(DropwizardMeterWrapper.class));
+		verify(mgrMock2).meter(eq(JDBCOutputFormat.BATCH_LIMIT_REACHED_RATE_METER_NAME), any(DropwizardMeterWrapper.class));
 		verify(mgrMock2).histogram(eq(JDBCOutputFormat.FLUSH_DURATION_HISTO_NAME), any(DropwizardHistogramWrapper.class));
 		verify(mgrMock2).histogram(eq(JDBCOutputFormat.FLUSH_BATCH_COUNT_HISTO_NAME), any(DropwizardHistogramWrapper.class));
 		verifyZeroInteractions(ctxMock, mgrMock1, mgrMock2, meterMock, histoMock);

@@ -48,7 +48,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 	static final int DEFAULT_BATCH_INTERVAL = 5000;
 	static final String FLUSH_SCOPE = "flush";
 	static final String FLUSH_RATE_METER_NAME = "rate";
-	static final String FLUSH_RATE_GR_BATCH_INT_METER_NAME = "rateGreaterThanBatchInterval";
+	static final String BATCH_LIMIT_REACHED_RATE_METER_NAME = "batchLimitReachedRate";
 	static final String FLUSH_DURATION_HISTO_NAME = "durationMs";
 	static final String FLUSH_BATCH_COUNT_HISTO_NAME = "batchCount";
 
@@ -104,7 +104,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 		this.greaterThanBatchIntervMeter = getRuntimeContext()
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
-			.meter(FLUSH_RATE_GR_BATCH_INT_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
+			.meter(BATCH_LIMIT_REACHED_RATE_METER_NAME, new DropwizardMeterWrapper(new com.codahale.metrics.Meter()));
 		this.flushDurationMsHisto = getRuntimeContext()
 			.getMetricGroup()
 			.addGroup(FLUSH_SCOPE)
