@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -98,12 +99,11 @@ public class MesosTaskManagerRunner {
 			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
 		}
 
-		// configure the default filesystem
+		// configure the filesystems
 		try {
-			FileSystem.setDefaultScheme(configuration);
+			FileSystem.initialize(configuration);
 		} catch (IOException e) {
-			throw new IOException("Error while setting the default " +
-				"filesystem scheme from configuration.", e);
+			throw new IOException("Error while confoguring the filesystems.", e);
 		}
 
 		// tell akka to die in case of an error
@@ -115,7 +115,7 @@ public class MesosTaskManagerRunner {
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
 		// Run the TM in the security context
-		SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(configuration);
+		SecurityConfiguration sc = new SecurityConfiguration(configuration);
 		SecurityUtils.install(sc);
 
 		try {

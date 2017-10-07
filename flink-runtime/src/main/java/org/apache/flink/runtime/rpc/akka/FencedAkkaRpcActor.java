@@ -38,8 +38,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpoint<F> & RpcGateway> extends AkkaRpcActor<T> {
 
-	public FencedAkkaRpcActor(T rpcEndpoint, CompletableFuture<Void> terminationFuture) {
-		super(rpcEndpoint, terminationFuture);
+	public FencedAkkaRpcActor(T rpcEndpoint, CompletableFuture<Void> internalTerminationFuture) {
+		super(rpcEndpoint, internalTerminationFuture);
 	}
 
 	@Override

@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -41,7 +42,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 
 	private static final String JOB_ACCUMULATORS_REST_PATH = "/jobs/:jobid/accumulators";
 
-	public JobAccumulatorsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public JobAccumulatorsHandler(ExecutionGraphCache executionGraphHolder, Executor executor) {
 		super(executionGraphHolder, executor);
 	}
 
@@ -57,7 +58,7 @@ public class JobAccumulatorsHandler extends AbstractExecutionGraphRequestHandler
 				try {
 					return createJobAccumulatorsJson(graph);
 				} catch (IOException e) {
-					throw new FlinkFutureException("Could not create job accumulators json.", e);
+					throw new CompletionException(new FlinkException("Could not create job accumulators json.", e));
 				}
 			},
 			executor);

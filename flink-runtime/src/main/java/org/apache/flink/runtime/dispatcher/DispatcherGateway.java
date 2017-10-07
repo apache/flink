@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -47,7 +46,7 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Lists the current set of submitted jobs.
+	 * List the current set of submitted jobs.
 	 *
 	 * @param timeout RPC timeout
 	 * @return A future collection of currently submitted jobs
@@ -55,5 +54,21 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	CompletableFuture<Collection<JobID>> listJobs(
 		@RpcTimeout Time timeout);
 
-	CompletableFuture<StatusOverview> requestStatusOverview(@RpcTimeout Time timeout);
+	/**
+	 * Cancel the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the cancellation succeeded
+	 */
+	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Stop the given job.
+	 *
+	 * @param jobId identifying the job to stop
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the stopping succeeded
+	 */
+	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
 }

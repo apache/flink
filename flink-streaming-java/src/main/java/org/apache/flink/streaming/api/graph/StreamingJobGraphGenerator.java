@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -682,13 +683,18 @@ public class StreamingJobGraphGenerator {
 		//  --- done, put it all together ---
 
 		JobCheckpointingSettings settings = new JobCheckpointingSettings(
-				triggerVertices, ackVertices, commitVertices, interval,
-				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
+			triggerVertices,
+			ackVertices,
+			commitVertices,
+			new CheckpointCoordinatorConfiguration(
+				interval,
+				cfg.getCheckpointTimeout(),
+				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings,
-				serializedStateBackend,
-				serializedHooks,
-				isExactlyOnce);
+				isExactlyOnce),
+			serializedStateBackend,
+			serializedHooks);
 
 		jobGraph.setSnapshotSettings(settings);
 	}

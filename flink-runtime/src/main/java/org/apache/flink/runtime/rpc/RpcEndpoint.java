@@ -223,11 +223,12 @@ public abstract class RpcEndpoint implements RpcGateway {
 	}
 
 	/**
-	 * Return a future which is completed when the rpc endpoint has been terminated.
+	 * Return a future which is completed with true when the rpc endpoint has been terminated.
+	 * In case of a failure, this future is completed with the occurring exception.
 	 *
 	 * @return Future which is completed when the rpc endpoint has been terminated.
 	 */
-	public CompletableFuture<Void> getTerminationFuture() {
+	public CompletableFuture<Boolean> getTerminationFuture() {
 		return rpcServer.getTerminationFuture();
 	}
 

@@ -619,7 +619,7 @@ import org.apache.flink.contrib.streaming.DataStreamUtils
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.getJavaStream).asScala
+val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStream).asScala
 {% endhighlight %}
 </div>
 </div>

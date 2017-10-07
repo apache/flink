@@ -173,7 +173,7 @@ class CorrelateValidationTest extends TableTestBase {
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
-      "No match found for function signature func2(<CHARACTER>, <CHARACTER>)")
+      "Given parameters of function 'func2' do not match any signature.")
   }
 
   // ----------------------------------------------------------------------------------------------

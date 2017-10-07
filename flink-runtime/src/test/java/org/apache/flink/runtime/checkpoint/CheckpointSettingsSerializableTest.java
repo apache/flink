@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -76,14 +77,15 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
-				1000L,
-				10000L,
-				0L,
-				1,
-				ExternalizedCheckpointSettings.none(),
+				new CheckpointCoordinatorConfiguration(
+					1000L,
+					10000L,
+					0L,
+					1,
+					ExternalizedCheckpointSettings.none(),
+					true),
 				new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
-				serHooks,
-				true);
+				serHooks);
 
 		final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
 		jobGraph.setSnapshotSettings(checkpointingSettings);
@@ -134,6 +136,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
 	private static final class CustomStateBackend implements StateBackend {
 
+		private static final long serialVersionUID = -6107964383429395816L;
 		/**
 		 * Simulate a custom option that is not in the normal classpath.
 		 */

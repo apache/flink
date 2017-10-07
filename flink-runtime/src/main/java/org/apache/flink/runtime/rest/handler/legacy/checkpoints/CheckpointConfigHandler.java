@@ -18,15 +18,16 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractExecutionGraphRequestHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.runtime.rest.messages.CheckpointConfigInfo;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -36,6 +37,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -45,7 +47,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 
 	private static final String CHECKPOINT_CONFIG_REST_PATH = "/jobs/:jobid/checkpoints/config";
 
-	public CheckpointConfigHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public CheckpointConfigHandler(ExecutionGraphCache executionGraphHolder, Executor executor) {
 		super(executionGraphHolder, executor);
 	}
 
@@ -61,7 +63,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 				try {
 					return createCheckpointConfigJson(graph);
 				} catch (IOException e) {
-					throw new FlinkFutureException("Could not create checkpoint config json.", e);
+					throw new CompletionException(new FlinkException("Could not create checkpoint config json.", e));
 				}
 			},
 			executor);
@@ -84,28 +86,28 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphRequestHandle
 	private static String createCheckpointConfigJson(AccessExecutionGraph graph) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-		JobCheckpointingSettings settings = graph.getJobCheckpointingSettings();
+		CheckpointCoordinatorConfiguration jobCheckpointingConfiguration = graph.getCheckpointCoordinatorConfiguration();
 
-		if (settings == null) {
+		if (jobCheckpointingConfiguration == null) {
 			return "{}";
 		}
 
 		gen.writeStartObject();
 		{
-			gen.writeStringField("mode", settings.isExactlyOnce() ? "exactly_once" : "at_least_once");
-			gen.writeNumberField("interval", settings.getCheckpointInterval());
-			gen.writeNumberField("timeout", settings.getCheckpointTimeout());
-			gen.writeNumberField("min_pause", settings.getMinPauseBetweenCheckpoints());
-			gen.writeNumberField("max_concurrent", settings.getMaxConcurrentCheckpoints());
+			gen.writeStringField(CheckpointConfigInfo.FIELD_NAME_PROCESSING_MODE, jobCheckpointingConfiguration.isExactlyOnce() ? "exactly_once" : "at_least_once");
+			gen.writeNumberField(CheckpointConfigInfo.FIELD_NAME_CHECKPOINT_INTERVAL, jobCheckpointingConfiguration.getCheckpointInterval());
+			gen.writeNumberField(CheckpointConfigInfo.FIELD_NAME_CHECKPOINT_TIMEOUT, jobCheckpointingConfiguration.getCheckpointTimeout());
+			gen.writeNumberField(CheckpointConfigInfo.FIELD_NAME_CHECKPOINT_MIN_PAUSE, jobCheckpointingConfiguration.getMinPauseBetweenCheckpoints());
+			gen.writeNumberField(CheckpointConfigInfo.FIELD_NAME_CHECKPOINT_MAX_CONCURRENT, jobCheckpointingConfiguration.getMaxConcurrentCheckpoints());
 
-			ExternalizedCheckpointSettings externalization = settings.getExternalizedCheckpointSettings();
-			gen.writeObjectFieldStart("externalization");
+			ExternalizedCheckpointSettings externalization = jobCheckpointingConfiguration.getExternalizedCheckpointSettings();
+			gen.writeObjectFieldStart(CheckpointConfigInfo.FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG);
 			{
 				if (externalization.externalizeCheckpoints()) {
-					gen.writeBooleanField("enabled", true);
-					gen.writeBooleanField("delete_on_cancellation", externalization.deleteOnCancellation());
+					gen.writeBooleanField(CheckpointConfigInfo.ExternalizedCheckpointInfo.FIELD_NAME_ENABLED, true);
+					gen.writeBooleanField(CheckpointConfigInfo.ExternalizedCheckpointInfo.FIELD_NAME_DELETE_ON_CANCELLATION, externalization.deleteOnCancellation());
 				} else {
-					gen.writeBooleanField("enabled", false);
+					gen.writeBooleanField(CheckpointConfigInfo.ExternalizedCheckpointInfo.FIELD_NAME_ENABLED, false);
 				}
 			}
 			gen.writeEndObject();

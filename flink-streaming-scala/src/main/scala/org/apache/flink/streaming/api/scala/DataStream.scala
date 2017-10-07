@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
 import org.apache.flink.streaming.util.serialization.SerializationSchema
-import org.apache.flink.util.{Collector, OutputTag}
+import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 

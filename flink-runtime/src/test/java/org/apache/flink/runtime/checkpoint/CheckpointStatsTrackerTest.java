@@ -44,6 +44,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.junit.Test;
 
@@ -62,21 +63,23 @@ public class CheckpointStatsTrackerTest {
 			Collections.singletonList(new JobVertexID()),
 			Collections.singletonList(new JobVertexID()),
 			Collections.singletonList(new JobVertexID()),
-			181238123L,
-			19191992L,
-			191929L,
-			123,
-			ExternalizedCheckpointSettings.none(),
-			null,
-			false);
+			new CheckpointCoordinatorConfiguration(
+				181238123L,
+				19191992L,
+				191929L,
+				123,
+				ExternalizedCheckpointSettings.none(),
+				false
+			),
+			null);
 
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			snapshottingSettings,
+			snapshottingSettings.getCheckpointCoordinatorConfiguration(),
 			new UnregisteredMetricsGroup());
 
-		assertEquals(snapshottingSettings, tracker.getSnapshottingSettings());
+		assertEquals(snapshottingSettings.getCheckpointCoordinatorConfiguration(), tracker.getJobCheckpointingConfiguration());
 	}
 
 	/**
@@ -94,7 +97,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 
 		PendingCheckpointStats pending = tracker.reportPendingCheckpoint(
@@ -142,7 +145,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			10,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 
 		// Completed checkpoint
@@ -247,7 +250,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			10,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 
 		CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
@@ -293,7 +296,7 @@ public class CheckpointStatsTrackerTest {
 		new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			metricGroup);
 
 		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC), any(Gauge.class));
@@ -409,7 +412,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker stats = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			metricGroup);
 
 		// Make sure to adjust this test if metrics are added/removed
@@ -507,6 +510,18 @@ public class CheckpointStatsTrackerTest {
 		assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue());
 
 		assertEquals(Long.valueOf(restoreTimestamp), latestRestoreTimestamp.getValue());
+
+		// Check Internal Checkpoint Configuration
+		PendingCheckpointStats thirdPending = stats.reportPendingCheckpoint(
+			2,
+			5000,
+			CheckpointProperties.forStandardCheckpoint());
+
+		thirdPending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats);
+		thirdPending.reportCompletedCheckpoint(null);
+
+		// Verify external path is "n/a", because internal checkpoint won't generate external path.
+		assertEquals("n/a", latestCompletedExternalPath.getValue());
 	}
 
 	// ------------------------------------------------------------------------
@@ -522,7 +537,7 @@ public class CheckpointStatsTrackerTest {
 		return new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 	}
 

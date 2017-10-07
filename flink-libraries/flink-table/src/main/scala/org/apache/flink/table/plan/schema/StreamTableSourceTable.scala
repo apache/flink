@@ -20,10 +20,10 @@ package org.apache.flink.table.plan.schema
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, TableSource}
+import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, StreamTableSource, TableSource}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 class StreamTableSourceTable[T](
@@ -49,42 +49,28 @@ class StreamTableSourceTable[T](
 object StreamTableSourceTable {
 
   private def adjustFieldIndexes(tableSource: TableSource[_]): Array[Int] = {
-    val (rowtime, proctime) = getTimeIndicators(tableSource)
+    val (_, proctime) = getTimeIndicators(tableSource)
 
     val original = TableEnvironment.getFieldIndices(tableSource)
 
-    // append rowtime marker
-    val withRowtime = if (rowtime.isDefined) {
-      original :+ TimeIndicatorTypeInfo.ROWTIME_MARKER
-    } else {
-      original
-    }
-
     // append proctime marker
     if (proctime.isDefined) {
-      withRowtime :+ TimeIndicatorTypeInfo.PROCTIME_MARKER
+      original :+ TimeIndicatorTypeInfo.PROCTIME_MARKER
     } else {
-      withRowtime
+      original
     }
   }
 
   private def adjustFieldNames(tableSource: TableSource[_]): Array[String] = {
-    val (rowtime, proctime) = getTimeIndicators(tableSource)
+    val (_, proctime) = getTimeIndicators(tableSource)
 
     val original = TableEnvironment.getFieldNames(tableSource)
 
-    // append rowtime field
-    val withRowtime = if (rowtime.isDefined) {
-      original :+ rowtime.get
-    } else {
-      original
-    }
-
     // append proctime field
     if (proctime.isDefined) {
-      withRowtime :+ proctime.get
+      original :+ proctime.get
     } else {
-      withRowtime
+      original
     }
   }
 
@@ -93,9 +79,11 @@ object StreamTableSourceTable {
 
     val original = TableEnvironment.getFieldTypes(tableSource.getReturnType)
 
-    // append rowtime type
+    // update rowtime type
     val withRowtime = if (rowtime.isDefined) {
-      original :+ TimeIndicatorTypeInfo.ROWTIME_INDICATOR
+      // replace field type by RowtimeIndicator type
+      val rowtimeIdx = TableEnvironment.getFieldNames(tableSource).indexOf(rowtime.get)
+      original.patch(rowtimeIdx, Seq(TimeIndicatorTypeInfo.ROWTIME_INDICATOR), 1)
     } else {
       original
     }
@@ -112,13 +100,31 @@ object StreamTableSourceTable {
 
   private def getTimeIndicators(tableSource: TableSource[_]): (Option[String], Option[String]) = {
 
+    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
+    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+
     val rowtime: Option[String] = tableSource match {
       case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute == null =>
         None
       case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute.trim.equals("") =>
         throw TableException("The name of the rowtime attribute must not be empty.")
+
       case timeSource: DefinedRowtimeAttribute =>
+        // validate the rowtime field exists and is of type Long or Timestamp
         val rowtimeAttribute = timeSource.getRowtimeAttribute
+        val rowtimeIdx = fieldNames.indexOf(rowtimeAttribute)
+
+        if (rowtimeIdx < 0) {
+          throw TableException(
+            s"Rowtime field '$rowtimeAttribute' is not present in TableSource. " +
+            s"Available fields are ${fieldNames.mkString("[", ", ", "]") }.")
+        }
+        val fieldType = fieldTypes(rowtimeIdx)
+        if (fieldType != Types.LONG && fieldType != Types.SQL_TIMESTAMP) {
+          throw TableException(
+            s"Rowtime field '$rowtimeAttribute' must be of type Long or Timestamp " +
+            s"but of type ${fieldTypes(rowtimeIdx)}.")
+        }
         Some(rowtimeAttribute)
       case _ =>
         None
@@ -137,5 +143,15 @@ object StreamTableSourceTable {
         None
     }
     (rowtime, proctime)
+  }
+
+  def deriveRowTypeOfTableSource(
+    tableSource: StreamTableSource[_],
+    typeFactory: FlinkTypeFactory): RelDataType = {
+
+    val fieldNames = adjustFieldNames(tableSource)
+    val fieldTypes = adjustFieldTypes(tableSource)
+
+    typeFactory.buildLogicalRowType(fieldNames, fieldTypes)
   }
 }

@@ -113,10 +113,10 @@ public class MetricFetcher {
 							LOG.debug("Fetching of JobDetails failed.", throwable);
 						} else {
 							ArrayList<String> toRetain = new ArrayList<>();
-							for (JobDetails job : jobDetails.getRunningJobs()) {
+							for (JobDetails job : jobDetails.getRunning()) {
 								toRetain.add(job.getJobId().toString());
 							}
-							for (JobDetails job : jobDetails.getFinishedJobs()) {
+							for (JobDetails job : jobDetails.getFinished()) {
 								toRetain.add(job.getJobId().toString());
 							}
 							synchronized (metrics) {

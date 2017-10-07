@@ -68,6 +68,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.Preconditions;
@@ -178,7 +179,7 @@ public class CliFrontend {
 		this.config = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		try {
-			FileSystem.setDefaultScheme(config);
+			FileSystem.initialize(config);
 		} catch (IOException e) {
 			throw new Exception("Error while setting the default " +
 				"filesystem scheme from configuration.", e);
@@ -1127,7 +1128,7 @@ public class CliFrontend {
 
 		try {
 			final CliFrontend cli = new CliFrontend();
-			SecurityUtils.install(new SecurityUtils.SecurityConfiguration(cli.config));
+			SecurityUtils.install(new SecurityConfiguration(cli.config));
 			int retCode = SecurityUtils.getInstalledContext()
 					.runSecured(new Callable<Integer>() {
 						@Override

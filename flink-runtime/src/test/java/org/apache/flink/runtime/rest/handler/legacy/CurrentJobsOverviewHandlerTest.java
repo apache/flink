@@ -89,7 +89,8 @@ public class CurrentJobsOverviewHandlerTest {
 		JobDetails expectedDetails = WebMonitorUtils.createDetailsForJob(originalJob);
 		StringWriter writer = new StringWriter();
 		try (JsonGenerator gen = ArchivedJobGenerationUtils.JACKSON_FACTORY.createGenerator(writer)) {
-			CurrentJobsOverviewHandler.writeJobDetailOverviewAsJson(expectedDetails, gen, 0);
+			JobDetails.JobDetailsSerializer serializer = new JobDetails.JobDetailsSerializer();
+			serializer.serialize(expectedDetails, gen, null);
 		}
 		compareJobOverview(expectedDetails, writer.toString());
 	}
@@ -108,14 +109,10 @@ public class CurrentJobsOverviewHandlerTest {
 
 		JsonNode tasks = result.get("tasks");
 		Assert.assertEquals(expectedDetails.getNumTasks(), tasks.get("total").asInt());
-		int[] tasksPerState = expectedDetails.getNumVerticesPerExecutionState();
-		Assert.assertEquals(
-			tasksPerState[ExecutionState.CREATED.ordinal()] + tasksPerState[ExecutionState.SCHEDULED.ordinal()] + tasksPerState[ExecutionState.DEPLOYING.ordinal()],
-			tasks.get("pending").asInt());
-		Assert.assertEquals(tasksPerState[ExecutionState.RUNNING.ordinal()], tasks.get("running").asInt());
-		Assert.assertEquals(tasksPerState[ExecutionState.FINISHED.ordinal()], tasks.get("finished").asInt());
-		Assert.assertEquals(tasksPerState[ExecutionState.CANCELING.ordinal()], tasks.get("canceling").asInt());
-		Assert.assertEquals(tasksPerState[ExecutionState.CANCELED.ordinal()], tasks.get("canceled").asInt());
-		Assert.assertEquals(tasksPerState[ExecutionState.FAILED.ordinal()], tasks.get("failed").asInt());
+		int[] tasksPerState = expectedDetails.getTasksPerState();
+
+		for (ExecutionState executionState : ExecutionState.values()) {
+			Assert.assertEquals(tasksPerState[executionState.ordinal()], tasks.get(executionState.name().toLowerCase()).asInt());
+		}
 	}
 }

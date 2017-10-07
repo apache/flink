@@ -83,7 +83,7 @@ abstract class ScalarFunction extends UserDefinedFunction {
     * more complex, custom, or composite types.
     *
     * @param signature signature of the method the operand types need to be determined
-    * @return [[TypeInformation]] of  operand types
+    * @return [[TypeInformation]] of operand types
     */
   def getParameterTypes(signature: Array[Class[_]]): Array[TypeInformation[_]] = {
     signature.map { c =>

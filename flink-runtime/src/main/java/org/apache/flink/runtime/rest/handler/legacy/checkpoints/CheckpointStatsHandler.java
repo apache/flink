@@ -27,13 +27,14 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStatsSummary;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
 import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractExecutionGraphRequestHandler;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.runtime.rest.messages.CheckpointStatistics;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -45,6 +46,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -54,7 +56,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 
 	private static final String CHECKPOINT_STATS_REST_PATH = "/jobs/:jobid/checkpoints";
 
-	public CheckpointStatsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor) {
+	public CheckpointStatsHandler(ExecutionGraphCache executionGraphHolder, Executor executor) {
 		super(executionGraphHolder, executor);
 	}
 
@@ -70,7 +72,7 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 				try {
 					return createCheckpointStatsJson(graph);
 				} catch (IOException e) {
-					throw new FlinkFutureException("Could not create checkpoint stats json.", e);
+					throw new CompletionException(new FlinkException("Could not create checkpoint stats json.", e));
 				}
 			},
 			executor);
@@ -127,37 +129,37 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 	}
 
 	private static void writeCounts(JsonGenerator gen, CheckpointStatsCounts counts) throws IOException {
-		gen.writeObjectFieldStart("counts");
-		gen.writeNumberField("restored", counts.getNumberOfRestoredCheckpoints());
-		gen.writeNumberField("total", counts.getTotalNumberOfCheckpoints());
-		gen.writeNumberField("in_progress", counts.getNumberOfInProgressCheckpoints());
-		gen.writeNumberField("completed", counts.getNumberOfCompletedCheckpoints());
-		gen.writeNumberField("failed", counts.getNumberOfFailedCheckpoints());
+		gen.writeObjectFieldStart(CheckpointStatistics.FIELD_NAME_COUNTS);
+		gen.writeNumberField(CheckpointStatistics.Counts.FIELD_NAME_RESTORED_CHECKPOINTS, counts.getNumberOfRestoredCheckpoints());
+		gen.writeNumberField(CheckpointStatistics.Counts.FIELD_NAME_TOTAL_CHECKPOINTS, counts.getTotalNumberOfCheckpoints());
+		gen.writeNumberField(CheckpointStatistics.Counts.FIELD_NAME_IN_PROGRESS_CHECKPOINTS, counts.getNumberOfInProgressCheckpoints());
+		gen.writeNumberField(CheckpointStatistics.Counts.FIELD_NAME_COMPLETED_CHECKPOINTS, counts.getNumberOfCompletedCheckpoints());
+		gen.writeNumberField(CheckpointStatistics.Counts.FIELD_NAME_FAILED_CHECKPOINTS, counts.getNumberOfFailedCheckpoints());
 		gen.writeEndObject();
 	}
 
 	private static void writeSummary(
 		JsonGenerator gen,
 		CompletedCheckpointStatsSummary summary) throws IOException {
-		gen.writeObjectFieldStart("summary");
-		gen.writeObjectFieldStart("state_size");
+		gen.writeObjectFieldStart(CheckpointStatistics.FIELD_NAME_SUMMARY);
+		gen.writeObjectFieldStart(CheckpointStatistics.Summary.FIELD_NAME_STATE_SIZE);
 		writeMinMaxAvg(gen, summary.getStateSizeStats());
 		gen.writeEndObject();
 
-		gen.writeObjectFieldStart("end_to_end_duration");
+		gen.writeObjectFieldStart(CheckpointStatistics.Summary.FIELD_NAME_DURATION);
 		writeMinMaxAvg(gen, summary.getEndToEndDurationStats());
 		gen.writeEndObject();
 
-		gen.writeObjectFieldStart("alignment_buffered");
+		gen.writeObjectFieldStart(CheckpointStatistics.Summary.FIELD_NAME_ALIGNMENT_BUFFERED);
 		writeMinMaxAvg(gen, summary.getAlignmentBufferedStats());
 		gen.writeEndObject();
 		gen.writeEndObject();
 	}
 
 	static void writeMinMaxAvg(JsonGenerator gen, MinMaxAvgStats minMaxAvg) throws IOException {
-		gen.writeNumberField("min", minMaxAvg.getMinimum());
-		gen.writeNumberField("max", minMaxAvg.getMaximum());
-		gen.writeNumberField("avg", minMaxAvg.getAverage());
+		gen.writeNumberField(CheckpointStatistics.MinMaxAvgStatistics.FIELD_NAME_MINIMUM, minMaxAvg.getMinimum());
+		gen.writeNumberField(CheckpointStatistics.MinMaxAvgStatistics.FIELD_NAME_MAXIMUM, minMaxAvg.getMaximum());
+		gen.writeNumberField(CheckpointStatistics.MinMaxAvgStatistics.FIELD_NAME_AVERAGE, minMaxAvg.getAverage());
 	}
 
 	private static void writeLatestCheckpoints(
@@ -167,15 +169,15 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 		@Nullable FailedCheckpointStats failed,
 		@Nullable RestoredCheckpointStats restored) throws IOException {
 
-		gen.writeObjectFieldStart("latest");
+		gen.writeObjectFieldStart(CheckpointStatistics.FIELD_NAME_LATEST_CHECKPOINTS);
 		// Completed checkpoint
 		if (completed != null) {
-			gen.writeObjectFieldStart("completed");
+			gen.writeObjectFieldStart(CheckpointStatistics.LatestCheckpoints.FIELD_NAME_COMPLETED);
 			writeCheckpoint(gen, completed);
 
 			String externalPath = completed.getExternalPath();
 			if (externalPath != null) {
-				gen.writeStringField("external_path", completed.getExternalPath());
+				gen.writeStringField(CheckpointStatistics.CompletedCheckpointStatistics.FIELD_NAME_EXTERNAL_PATH, completed.getExternalPath());
 			}
 
 			gen.writeEndObject();
@@ -183,39 +185,39 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 
 		// Completed savepoint
 		if (savepoint != null) {
-			gen.writeObjectFieldStart("savepoint");
+			gen.writeObjectFieldStart(CheckpointStatistics.LatestCheckpoints.FIELD_NAME_SAVEPOINT);
 			writeCheckpoint(gen, savepoint);
 
 			String externalPath = savepoint.getExternalPath();
 			if (externalPath != null) {
-				gen.writeStringField("external_path", savepoint.getExternalPath());
+				gen.writeStringField(CheckpointStatistics.CompletedCheckpointStatistics.FIELD_NAME_EXTERNAL_PATH, savepoint.getExternalPath());
 			}
 			gen.writeEndObject();
 		}
 
 		// Failed checkpoint
 		if (failed != null) {
-			gen.writeObjectFieldStart("failed");
+			gen.writeObjectFieldStart(CheckpointStatistics.LatestCheckpoints.FIELD_NAME_FAILED);
 			writeCheckpoint(gen, failed);
 
-			gen.writeNumberField("failure_timestamp", failed.getFailureTimestamp());
+			gen.writeNumberField(CheckpointStatistics.FailedCheckpointStatistics.FIELD_NAME_FAILURE_TIMESTAMP, failed.getFailureTimestamp());
 			String failureMsg = failed.getFailureMessage();
 			if (failureMsg != null) {
-				gen.writeStringField("failure_message", failureMsg);
+				gen.writeStringField(CheckpointStatistics.FailedCheckpointStatistics.FIELD_NAME_FAILURE_MESSAGE, failureMsg);
 			}
 			gen.writeEndObject();
 		}
 
 		// Restored checkpoint
 		if (restored != null) {
-			gen.writeObjectFieldStart("restored");
-			gen.writeNumberField("id", restored.getCheckpointId());
-			gen.writeNumberField("restore_timestamp", restored.getRestoreTimestamp());
-			gen.writeBooleanField("is_savepoint", restored.getProperties().isSavepoint());
+			gen.writeObjectFieldStart(CheckpointStatistics.LatestCheckpoints.FIELD_NAME_RESTORED);
+			gen.writeNumberField(CheckpointStatistics.RestoredCheckpointStatistics.FIELD_NAME_ID, restored.getCheckpointId());
+			gen.writeNumberField(CheckpointStatistics.RestoredCheckpointStatistics.FIELD_NAME_RESTORE_TIMESTAMP, restored.getRestoreTimestamp());
+			gen.writeBooleanField(CheckpointStatistics.RestoredCheckpointStatistics.FIELD_NAME_IS_SAVEPOINT, restored.getProperties().isSavepoint());
 
 			String externalPath = restored.getExternalPath();
 			if (externalPath != null) {
-				gen.writeStringField("external_path", externalPath);
+				gen.writeStringField(CheckpointStatistics.RestoredCheckpointStatistics.FIELD_NAME_EXTERNAL_PATH, externalPath);
 			}
 			gen.writeEndObject();
 		}
@@ -223,29 +225,29 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 	}
 
 	private static void writeCheckpoint(JsonGenerator gen, AbstractCheckpointStats checkpoint) throws IOException {
-		gen.writeNumberField("id", checkpoint.getCheckpointId());
-		gen.writeNumberField("trigger_timestamp", checkpoint.getTriggerTimestamp());
-		gen.writeNumberField("latest_ack_timestamp", checkpoint.getLatestAckTimestamp());
-		gen.writeNumberField("state_size", checkpoint.getStateSize());
-		gen.writeNumberField("end_to_end_duration", checkpoint.getEndToEndDuration());
-		gen.writeNumberField("alignment_buffered", checkpoint.getAlignmentBuffered());
+		gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_ID, checkpoint.getCheckpointId());
+		gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_TRIGGER_TIMESTAMP, checkpoint.getTriggerTimestamp());
+		gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_LATEST_ACK_TIMESTAMP, checkpoint.getLatestAckTimestamp());
+		gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_STATE_SIZE, checkpoint.getStateSize());
+		gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_DURATION, checkpoint.getEndToEndDuration());
+		gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_ALIGNMENT_BUFFERED, checkpoint.getAlignmentBuffered());
 
 	}
 
 	private static void writeHistory(JsonGenerator gen, CheckpointStatsHistory history) throws IOException {
-		gen.writeArrayFieldStart("history");
+		gen.writeArrayFieldStart(CheckpointStatistics.FIELD_NAME_HISTORY);
 		for (AbstractCheckpointStats checkpoint : history.getCheckpoints()) {
 			gen.writeStartObject();
-			gen.writeNumberField("id", checkpoint.getCheckpointId());
-			gen.writeStringField("status", checkpoint.getStatus().toString());
-			gen.writeBooleanField("is_savepoint", checkpoint.getProperties().isSavepoint());
-			gen.writeNumberField("trigger_timestamp", checkpoint.getTriggerTimestamp());
-			gen.writeNumberField("latest_ack_timestamp", checkpoint.getLatestAckTimestamp());
-			gen.writeNumberField("state_size", checkpoint.getStateSize());
-			gen.writeNumberField("end_to_end_duration", checkpoint.getEndToEndDuration());
-			gen.writeNumberField("alignment_buffered", checkpoint.getAlignmentBuffered());
-			gen.writeNumberField("num_subtasks", checkpoint.getNumberOfSubtasks());
-			gen.writeNumberField("num_acknowledged_subtasks", checkpoint.getNumberOfAcknowledgedSubtasks());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_ID, checkpoint.getCheckpointId());
+			gen.writeStringField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_STATUS, checkpoint.getStatus().toString());
+			gen.writeBooleanField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_IS_SAVEPOINT, checkpoint.getProperties().isSavepoint());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_TRIGGER_TIMESTAMP, checkpoint.getTriggerTimestamp());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_LATEST_ACK_TIMESTAMP, checkpoint.getLatestAckTimestamp());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_STATE_SIZE, checkpoint.getStateSize());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_DURATION, checkpoint.getEndToEndDuration());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_ALIGNMENT_BUFFERED, checkpoint.getAlignmentBuffered());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_NUM_SUBTASKS, checkpoint.getNumberOfSubtasks());
+			gen.writeNumberField(CheckpointStatistics.BaseCheckpointStatistics.FIELD_NAME_NUM_ACK_SUBTASKS, checkpoint.getNumberOfAcknowledgedSubtasks());
 
 			if (checkpoint.getStatus().isCompleted()) {
 				// --- Completed ---
@@ -253,20 +255,20 @@ public class CheckpointStatsHandler extends AbstractExecutionGraphRequestHandler
 
 				String externalPath = completed.getExternalPath();
 				if (externalPath != null) {
-					gen.writeStringField("external_path", externalPath);
+					gen.writeStringField(CheckpointStatistics.CompletedCheckpointStatistics.FIELD_NAME_EXTERNAL_PATH, externalPath);
 				}
 
-				gen.writeBooleanField("discarded", completed.isDiscarded());
+				gen.writeBooleanField(CheckpointStatistics.CompletedCheckpointStatistics.FIELD_NAME_DISCARDED, completed.isDiscarded());
 			}
 			else if (checkpoint.getStatus().isFailed()) {
 				// --- Failed ---
 				FailedCheckpointStats failed = (FailedCheckpointStats) checkpoint;
 
-				gen.writeNumberField("failure_timestamp", failed.getFailureTimestamp());
+				gen.writeNumberField(CheckpointStatistics.FailedCheckpointStatistics.FIELD_NAME_FAILURE_TIMESTAMP, failed.getFailureTimestamp());
 
 				String failureMsg = failed.getFailureMessage();
 				if (failureMsg != null) {
-					gen.writeStringField("failure_message", failureMsg);
+					gen.writeStringField(CheckpointStatistics.FailedCheckpointStatistics.FIELD_NAME_FAILURE_MESSAGE, failureMsg);
 				}
 			}
 

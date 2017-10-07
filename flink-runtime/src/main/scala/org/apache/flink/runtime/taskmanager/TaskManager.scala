@@ -35,7 +35,7 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
-import org.apache.flink.runtime.blob.{BlobCache, BlobClient}
+import org.apache.flink.runtime.blob.{BlobClient, BlobService, BlobCacheService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
@@ -65,8 +65,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
-import org.apache.flink.runtime.security.SecurityUtils
-import org.apache.flink.runtime.security.SecurityUtils.SecurityConfiguration
+import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
@@ -160,7 +159,7 @@ class TaskManager(
     * registered at the job manager */
   private val waitForRegistration = scala.collection.mutable.Set[ActorRef]()
 
-  private var blobCache: Option[BlobCache] = None
+  private var blobCache: Option[BlobCacheService] = None
   private var libraryCacheManager: Option[LibraryCacheManager] = None
 
   /* The current leading JobManager Actor associated with */
@@ -840,8 +839,7 @@ class TaskManager(
         if (file.exists()) {
           val fis = new FileInputStream(file);
           Future {
-            val client: BlobClient = blobCache.get.createClient()
-            client.put(fis);
+            blobCache.get.getTransientBlobService.putTransient(fis)
           }(context.dispatcher)
             .onComplete {
               case scala.util.Success(value) =>
@@ -964,13 +962,14 @@ class TaskManager(
       log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
 
       try {
-        val blobcache = new BlobCache(
+        val blobcache = new BlobCacheService(
           address,
           config.getConfiguration(),
           highAvailabilityServices.createBlobStore())
         blobCache = Option(blobcache)
         libraryCacheManager = Some(
-          new BlobLibraryCacheManager(blobcache, config.getClassLoaderResolveOrder()))
+          new BlobLibraryCacheManager(
+            blobcache.getPermanentBlobService, config.getClassLoaderResolveOrder()))
       }
       catch {
         case e: Exception =>
@@ -1618,7 +1617,7 @@ object TaskManager {
     }
 
     try {
-      FileSystem.setDefaultScheme(conf)
+      FileSystem.initialize(conf)
     }
     catch {
       case e: IOException => {

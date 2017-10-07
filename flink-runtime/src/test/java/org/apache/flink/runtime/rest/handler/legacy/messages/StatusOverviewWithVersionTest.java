@@ -18,27 +18,19 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.messages;
 
-import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-
 /**
  * Tests for the {@link StatusOverviewWithVersion}.
  */
-public class StatusOverviewWithVersionTest extends TestLogger {
+public class StatusOverviewWithVersionTest extends RestResponseMarshallingTestBase<StatusOverviewWithVersion> {
 
-	/**
-	 * Tests that we can marshal and unmarshal StatusOverviewWithVersion.
-	 */
-	@Test
-	public void testJsonMarshalling() throws JsonProcessingException {
-		final StatusOverviewWithVersion expected = new StatusOverviewWithVersion(
+	@Override
+	protected Class<StatusOverviewWithVersion> getTestResponseClass() {
+		return StatusOverviewWithVersion.class;
+	}
+
+	@Override
+	protected StatusOverviewWithVersion getTestResponseInstance() {
+		return new StatusOverviewWithVersion(
 			1,
 			3,
 			3,
@@ -48,13 +40,5 @@ public class StatusOverviewWithVersionTest extends TestLogger {
 			0,
 			"version",
 			"commit");
-
-		ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-
-		JsonNode json = objectMapper.valueToTree(expected);
-
-		final StatusOverviewWithVersion unmarshalled = objectMapper.treeToValue(json, StatusOverviewWithVersion.class);
-
-		assertEquals(expected, unmarshalled);
 	}
 }

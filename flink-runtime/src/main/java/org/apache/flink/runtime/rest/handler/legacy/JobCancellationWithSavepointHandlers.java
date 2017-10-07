@@ -23,13 +23,13 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
 import org.apache.flink.runtime.rest.NotFoundException;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -48,8 +48,8 @@ import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -90,13 +90,13 @@ public class JobCancellationWithSavepointHandlers {
 	private final String defaultSavepointDirectory;
 
 	public JobCancellationWithSavepointHandlers(
-			ExecutionGraphHolder currentGraphs,
+			ExecutionGraphCache currentGraphs,
 			Executor executor) {
 		this(currentGraphs, executor, null);
 	}
 
 	public JobCancellationWithSavepointHandlers(
-			ExecutionGraphHolder currentGraphs,
+			ExecutionGraphCache currentGraphs,
 			Executor executor,
 			@Nullable String defaultSavepointDirectory) {
 
@@ -123,12 +123,12 @@ public class JobCancellationWithSavepointHandlers {
 	class TriggerHandler implements RequestHandler {
 
 		/** Current execution graphs. */
-		private final ExecutionGraphHolder currentGraphs;
+		private final ExecutionGraphCache currentGraphs;
 
 		/** Execution context for futures. */
 		private final Executor executor;
 
-		public TriggerHandler(ExecutionGraphHolder currentGraphs, Executor executor) {
+		public TriggerHandler(ExecutionGraphCache currentGraphs, Executor executor) {
 			this.currentGraphs = checkNotNull(currentGraphs);
 			this.executor = checkNotNull(executor);
 		}
@@ -147,39 +147,40 @@ public class JobCancellationWithSavepointHandlers {
 
 			if (jobManagerGateway != null) {
 				JobID jobId = JobID.fromHexString(pathParams.get("jobid"));
-				final CompletableFuture<Optional<AccessExecutionGraph>> graphFuture;
+				final CompletableFuture<AccessExecutionGraph> graphFuture;
 
 				graphFuture = currentGraphs.getExecutionGraph(jobId, jobManagerGateway);
 
-				return graphFuture.thenApplyAsync(
-					(Optional<AccessExecutionGraph> optGraph) -> {
-						final AccessExecutionGraph graph = optGraph.orElseThrow(
-							() -> new FlinkFutureException(
-								new NotFoundException("Could not find ExecutionGraph with jobId " + jobId + '.')));
+				return graphFuture.handleAsync(
+					(AccessExecutionGraph graph, Throwable throwable) -> {
+						if (throwable != null) {
+							throw new CompletionException(new NotFoundException("Could not find ExecutionGraph with jobId " + jobId + '.'));
+						} else {
+							CheckpointCoordinatorConfiguration jobCheckpointingConfiguration = graph.getCheckpointCoordinatorConfiguration();
+							if (jobCheckpointingConfiguration == null) {
+								throw new CompletionException(new FlinkException("Cannot find checkpoint coordinator configuration for job."));
+							}
 
-						CheckpointCoordinator coord = graph.getCheckpointCoordinator();
-						if (coord == null) {
-							throw new FlinkFutureException(new Exception("Cannot find CheckpointCoordinator for job."));
-						}
+							String targetDirectory = pathParams.get("targetDirectory");
+							if (targetDirectory == null) {
+								if (defaultSavepointDirectory == null) {
+									throw new IllegalStateException("No savepoint directory configured. " +
+										"You can either specify a directory when triggering this savepoint or " +
+										"configure a cluster-wide default via key '" +
+										CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.");
+								} else {
+									targetDirectory = defaultSavepointDirectory;
+								}
+							}
 
-						String targetDirectory = pathParams.get("targetDirectory");
-						if (targetDirectory == null) {
-							if (defaultSavepointDirectory == null) {
-								throw new IllegalStateException("No savepoint directory configured. " +
-									"You can either specify a directory when triggering this savepoint or " +
-									"configure a cluster-wide default via key '" +
-									CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.");
-							} else {
-								targetDirectory = defaultSavepointDirectory;
+							try {
+								return handleNewRequest(jobManagerGateway, jobId, targetDirectory, jobCheckpointingConfiguration.getCheckpointTimeout());
+							} catch (IOException e) {
+								throw new CompletionException(new FlinkException("Could not cancel job with savepoint.", e));
 							}
 						}
-
-						try {
-							return handleNewRequest(jobManagerGateway, jobId, targetDirectory, coord.getCheckpointTimeout());
-						} catch (IOException e) {
-							throw new FlinkFutureException("Could not cancel job with savepoint.", e);
-						}
-					}, executor);
+					},
+					executor);
 			} else {
 				return FutureUtils.completedExceptionally(new Exception("No connection to the leading JobManager."));
 			}
@@ -218,7 +219,9 @@ public class JobCancellationWithSavepointHandlers {
 									completed.put(requestId, path);
 								}
 							} finally {
-								inProgress.remove(jobId);
+								synchronized (lock) {
+									inProgress.remove(jobId);
+								}
 							}
 						}, executor);
 
@@ -342,7 +345,7 @@ public class JobCancellationWithSavepointHandlers {
 							}
 						}
 					} catch (Exception e) {
-						throw new FlinkFutureException("Could not handle in progress request.", e);
+						throw new CompletionException(new FlinkException("Could not handle in progress request.", e));
 					}
 				});
 		}

@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -30,6 +30,7 @@ import java.io.FilenameFilter;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -80,7 +81,7 @@ public class JarDeleteHandler extends AbstractJsonRequestHandler {
 					return writer.toString();
 				}
 				catch (Exception e) {
-					throw new FlinkFutureException("Failed to delete jar id " + pathParams.get("jarid") + '.', e);
+					throw new CompletionException(new FlinkException("Failed to delete jar id " + pathParams.get("jarid") + '.', e));
 				}
 			},
 			executor);

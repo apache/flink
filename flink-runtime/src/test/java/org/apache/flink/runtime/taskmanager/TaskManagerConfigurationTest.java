@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.util.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -38,8 +39,9 @@ import scala.Tuple2;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.reflect.Field;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.URI;
 import java.util.Iterator;
 
 import static org.junit.Assert.*;
@@ -78,10 +80,6 @@ public class TaskManagerConfigurationTest {
 
 			// validate the configured test host name
 			assertEquals(TEST_HOST_NAME, address._1());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		} finally {
 			highAvailabilityServices.closeAndCleanupAllData();
 		}
@@ -164,16 +162,11 @@ public class TaskManagerConfigurationTest {
 			String[] args = new String[] {"--configDir:" + tmpDir};
 			TaskManager.parseArgsAndLoadConfig(args);
 
-			Field f = FileSystem.class.getDeclaredField("defaultScheme");
-			f.setAccessible(true);
-			URI scheme = (URI) f.get(null);
-
-			assertEquals("Default Filesystem Scheme not configured.", scheme, defaultFS);
-		} finally {
-			// reset default FS scheme:
-			Field f = FileSystem.class.getDeclaredField("defaultScheme");
-			f.setAccessible(true);
-			f.set(null, null);
+			assertEquals(defaultFS, FileSystem.getDefaultFsUri());
+		}
+		finally {
+			// reset FS settings
+			FileSystem.initialize(new Configuration());
 		}
 	}
 
@@ -205,18 +198,9 @@ public class TaskManagerConfigurationTest {
 		try {
 			assertNotNull(TaskManager.selectNetworkInterfaceAndPortRange(config, highAvailabilityServices)._1());
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
 		finally {
 			highAvailabilityServices.closeAndCleanupAllData();
-
-			try {
-				server.close();
-			} catch (IOException e) {
-				// ignore shutdown errors
-			}
+			IOUtils.closeQuietly(server);
 		}
 	}
 }

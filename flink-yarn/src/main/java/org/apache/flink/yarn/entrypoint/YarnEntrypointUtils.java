@@ -27,8 +27,10 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityContext;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
@@ -41,6 +43,7 @@ import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -52,21 +55,20 @@ public class YarnEntrypointUtils {
 	public static SecurityContext installSecurityContext(
 			Configuration configuration,
 			String workingDirectory) throws Exception {
-		org.apache.hadoop.conf.Configuration hadoopConfiguration = null;
+
+		SecurityConfiguration sc;
 
 		//To support Yarn Secure Integration Test Scenario
 		File krb5Conf = new File(workingDirectory, Utils.KRB5_FILE_NAME);
 		if (krb5Conf.exists() && krb5Conf.canRead()) {
-			hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
+			org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
 			hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 			hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-		}
 
-		SecurityUtils.SecurityConfiguration sc;
-		if (hadoopConfiguration != null) {
-			sc = new SecurityUtils.SecurityConfiguration(configuration, hadoopConfiguration);
+			sc = new SecurityConfiguration(configuration,
+				Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 		} else {
-			sc = new SecurityUtils.SecurityConfiguration(configuration);
+			sc = new SecurityConfiguration(configuration);
 		}
 
 		SecurityUtils.install(sc);

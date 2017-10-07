@@ -28,7 +28,7 @@ import org.apache.flink.runtime.akka.ListeningBehaviour
 import org.apache.flink.runtime.checkpoint.{CheckpointCoordinator, CompletedCheckpoint}
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType
-import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, JobCheckpointingSettings}
+import org.apache.flink.runtime.jobgraph.tasks.{ExternalizedCheckpointSettings, CheckpointCoordinatorConfiguration, JobCheckpointingSettings}
 import org.apache.flink.runtime.jobgraph.{DistributionPattern, JobGraph, JobVertex, ScheduleMode}
 import org.apache.flink.runtime.jobmanager.Tasks._
 import org.apache.flink.runtime.jobmanager.scheduler.{NoResourceAvailableException, SlotSharingGroup}
@@ -837,13 +837,14 @@ class JobManagerITCase(_system: ActorSystem)
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
-            60000,
-            60000,
-            60000,
-            1,
-            ExternalizedCheckpointSettings.none,
-            null,
-            true))
+            new CheckpointCoordinatorConfiguration(
+              60000,
+              60000,
+              60000,
+              1,
+              ExternalizedCheckpointSettings.none,
+              true),
+            null))
 
           // Submit job...
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
@@ -897,13 +898,14 @@ class JobManagerITCase(_system: ActorSystem)
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
-            60000,
-            60000,
-            60000,
-            1,
-            ExternalizedCheckpointSettings.none,
-            null,
-            true))
+            new CheckpointCoordinatorConfiguration(
+              60000,
+              60000,
+              60000,
+              1,
+              ExternalizedCheckpointSettings.none,
+              true),
+            null))
 
           // Submit job...
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)
@@ -965,13 +967,14 @@ class JobManagerITCase(_system: ActorSystem)
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
             java.util.Collections.emptyList(),
-            60000,
-            60000,
-            60000,
-            1,
-            ExternalizedCheckpointSettings.none,
-            null,
-            true))
+            new CheckpointCoordinatorConfiguration(
+              60000,
+              60000,
+              60000,
+              1,
+              ExternalizedCheckpointSettings.none,
+              true),
+            null))
 
           // Submit job...
           jobManager.tell(SubmitJob(jobGraph, ListeningBehaviour.DETACHED), testActor)

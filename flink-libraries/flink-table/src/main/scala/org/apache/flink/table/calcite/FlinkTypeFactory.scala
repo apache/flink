@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.calcite
 
+import java.util
+
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl
 import org.apache.calcite.rel.`type`._
@@ -243,6 +245,36 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     }
 
     canonize(newType)
+  }
+
+  override def leastRestrictive(types: util.List[RelDataType]): RelDataType = {
+    val type0 = types.get(0)
+    if (type0.getSqlTypeName != null) {
+      val resultType = resolveAny(types)
+      if (resultType != null) {
+        return resultType
+      }
+    }
+    super.leastRestrictive(types)
+  }
+
+  private def resolveAny(types: util.List[RelDataType]): RelDataType = {
+    val allTypes = types.asScala
+    val hasAny = allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)
+    if (hasAny) {
+      val head = allTypes.head
+      // only allow ANY with exactly the same GenericRelDataType for all types
+      if (allTypes.forall(_ == head)) {
+        val nullable = allTypes.exists(
+          sqlType => sqlType.isNullable || sqlType.getSqlTypeName == SqlTypeName.NULL
+        )
+        createTypeWithNullability(head, nullable)
+      } else {
+        throw TableException("Generic ANY types must have a common type information.")
+      }
+    } else {
+      null
+    }
   }
 }
 

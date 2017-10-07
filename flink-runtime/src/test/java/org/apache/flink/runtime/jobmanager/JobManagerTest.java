@@ -59,6 +59,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -865,16 +866,17 @@ public class JobManagerTest extends TestLogger {
 			JobGraph jobGraph = new JobGraph("TestingJob", sourceVertex);
 
 			JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
-					Collections.singletonList(sourceVertex.getID()),
-					Collections.singletonList(sourceVertex.getID()),
-					Collections.singletonList(sourceVertex.getID()),
+				Collections.singletonList(sourceVertex.getID()),
+				Collections.singletonList(sourceVertex.getID()),
+				Collections.singletonList(sourceVertex.getID()),
+				new CheckpointCoordinatorConfiguration(
 					3600000,
 					3600000,
 					0,
 					Integer.MAX_VALUE,
 					ExternalizedCheckpointSettings.none(),
-					null,
-					true);
+					true),
+					null);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -1004,13 +1006,14 @@ public class JobManagerTest extends TestLogger {
 				Collections.singletonList(sourceVertex.getID()),
 				Collections.singletonList(sourceVertex.getID()),
 				Collections.singletonList(sourceVertex.getID()),
-				3600000,
-				3600000,
-				0,
-				Integer.MAX_VALUE,
-				ExternalizedCheckpointSettings.none(),
-				null,
-				true);
+				new CheckpointCoordinatorConfiguration(
+					3600000,
+					3600000,
+					0,
+					Integer.MAX_VALUE,
+					ExternalizedCheckpointSettings.none(),
+					true),
+				null);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -1116,13 +1119,14 @@ public class JobManagerTest extends TestLogger {
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
-					Long.MAX_VALUE, // deactivated checkpointing
-					360000,
-					0,
-					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
-					null,
-					true);
+					new CheckpointCoordinatorConfiguration(
+						Long.MAX_VALUE, // deactivated checkpointing
+						360000,
+						0,
+						Integer.MAX_VALUE,
+						ExternalizedCheckpointSettings.none(),
+						true),
+					null);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -1229,13 +1233,14 @@ public class JobManagerTest extends TestLogger {
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
 					Collections.singletonList(sourceVertex.getID()),
-					Long.MAX_VALUE, // deactivated checkpointing
-					360000,
-					0,
-					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
-					null,
-					true);
+					new CheckpointCoordinatorConfiguration(
+						Long.MAX_VALUE, // deactivated checkpointing
+						360000,
+						0,
+						Integer.MAX_VALUE,
+						ExternalizedCheckpointSettings.none(),
+						true),
+					null);
 
 			jobGraph.setSnapshotSettings(snapshottingSettings);
 
@@ -1276,13 +1281,14 @@ public class JobManagerTest extends TestLogger {
 					Collections.singletonList(newSourceVertex.getID()),
 					Collections.singletonList(newSourceVertex.getID()),
 					Collections.singletonList(newSourceVertex.getID()),
-					Long.MAX_VALUE, // deactivated checkpointing
-					360000,
-					0,
-					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
-					null,
-					true);
+					new CheckpointCoordinatorConfiguration(
+						Long.MAX_VALUE, // deactivated checkpointing
+						360000,
+						0,
+						Integer.MAX_VALUE,
+						ExternalizedCheckpointSettings.none(),
+						true),
+					null);
 
 			newJobGraph.setSnapshotSettings(newSnapshottingSettings);
 

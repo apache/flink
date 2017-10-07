@@ -33,7 +33,6 @@ import org.apache.flink.api.common.operators.OperatorInformation;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.io.CsvReader;
 import org.apache.flink.api.java.io.IteratorInputFormat;
@@ -61,8 +60,6 @@ import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.Visitor;
 
 import com.esotericsoftware.kryo.Serializer;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -580,109 +577,6 @@ public abstract class ExecutionEnvironment {
 		}
 
 		return new DataSource<>(this, inputFormat, producedType, Utils.getCallLocationName());
-	}
-
-	// ----------------------------------- Hadoop Input Format ---------------------------------------
-
-	/**
-	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}.
-	 *
-	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V>, Class<K>, Class<V>, String, JobConf)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath, JobConf job) {
-		DataSource<Tuple2<K, V>> result = createHadoopInput(mapredInputFormat, key, value, job);
-
-		org.apache.hadoop.mapred.FileInputFormat.addInputPath(job, new org.apache.hadoop.fs.Path(inputPath));
-
-		return result;
-	}
-
-	/**
-	 * Creates a {@link DataSet} from {@link org.apache.hadoop.mapred.SequenceFileInputFormat}
-	 * A {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
-	 *
-	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readSequenceFile(Class<K>, Class<V>, String)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> readSequenceFile(Class<K> key, Class<V> value, String inputPath) throws IOException {
-		return readHadoopFile(new org.apache.hadoop.mapred.SequenceFileInputFormat<K, V>(), key, value, inputPath);
-	}
-
-	/**
-	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.FileInputFormat}. A
-	 * {@link org.apache.hadoop.mapred.JobConf} with the given inputPath is created.
-	 *
-	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K,V>, Class<K>, Class<V>, String)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapred.FileInputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, String inputPath) {
-		return readHadoopFile(mapredInputFormat, key, value, inputPath, new JobConf());
-	}
-
-	/**
-	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapred.InputFormat}.
-	 *
-	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#createHadoopInput(org.apache.hadoop.mapred.InputFormat<K,V>, Class<K>, Class<V>, JobConf)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapred.InputFormat<K, V> mapredInputFormat, Class<K> key, Class<V> value, JobConf job) {
-		HadoopInputFormat<K, V> hadoopInputFormat = new HadoopInputFormat<>(mapredInputFormat, key, value, job);
-
-		return this.createInput(hadoopInputFormat);
-	}
-
-	/**
-	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. The
-	 * given inputName is set on the given job.
-	 *
-	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V>, Class<K>, Class<V>, String, Job)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath, Job job) throws IOException {
-		DataSource<Tuple2<K, V>> result = createHadoopInput(mapreduceInputFormat, key, value, job);
-
-		org.apache.hadoop.mapreduce.lib.input.FileInputFormat.addInputPath(job, new org.apache
-				.hadoop.fs.Path(inputPath));
-
-		return result;
-	}
-
-	/**
-	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}. A
-	 * {@link org.apache.hadoop.mapreduce.Job} with the given inputPath is created.
-	 *
-	 * @deprecated Please use {@code  org.apache.flink.hadoopcompatibility.HadoopInputs#readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K,V>, Class<K>, Class<V>, String)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> readHadoopFile(org.apache.hadoop.mapreduce.lib.input.FileInputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, String inputPath) throws IOException {
-		return readHadoopFile(mapreduceInputFormat, key, value, inputPath, Job.getInstance());
-	}
-
-	/**
-	 * Creates a {@link DataSet} from the given {@link org.apache.hadoop.mapreduce.InputFormat}.
-	 *
-	 * @deprecated Please use {@code org.apache.flink.hadoopcompatibility.HadoopInputs#createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K,V>, Class<K>, Class<V>, Job)}
-	 * from the flink-hadoop-compatibility module.
-	 */
-	@Deprecated
-	@PublicEvolving
-	public <K, V> DataSource<Tuple2<K, V>> createHadoopInput(org.apache.hadoop.mapreduce.InputFormat<K, V> mapreduceInputFormat, Class<K> key, Class<V> value, Job job) {
-		org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<K, V> hadoopInputFormat = new org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat<>(mapreduceInputFormat, key, value, job);
-
-		return this.createInput(hadoopInputFormat);
 	}
 
 	// ----------------------------------- Collection ---------------------------------------

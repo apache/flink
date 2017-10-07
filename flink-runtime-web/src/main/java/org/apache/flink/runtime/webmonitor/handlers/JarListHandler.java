@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+import org.apache.flink.util.FlinkException;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
@@ -31,8 +31,10 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -74,6 +76,9 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 							return name.endsWith(".jar");
 						}
 					});
+
+					// last modified ascending order
+					Arrays.sort(list, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
 
 					for (File f : list) {
 						// separate the uuid and the name parts.
@@ -140,7 +145,7 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 					return writer.toString();
 				}
 				catch (Exception e) {
-					throw new FlinkFutureException("Failed to fetch jar list.", e);
+					throw new CompletionException(new FlinkException("Failed to fetch jar list.", e));
 				}
 			},
 			executor);

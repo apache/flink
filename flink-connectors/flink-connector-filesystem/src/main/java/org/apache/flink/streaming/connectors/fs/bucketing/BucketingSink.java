@@ -42,17 +42,22 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.lang3.time.StopWatch;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -287,6 +292,7 @@ public class BucketingSink<T>
 	/**
 	 * User-defined FileSystem parameters.
 	 */
+	@Nullable
 	private Configuration fsConfig;
 
 	/**
@@ -402,19 +408,10 @@ public class BucketingSink<T>
 	 * @throws IOException
 	 */
 	private void initFileSystem() throws IOException {
-		if (fs != null) {
-			return;
+		if (fs == null) {
+			Path path = new Path(basePath);
+			fs = createHadoopFileSystem(path, fsConfig);
 		}
-		org.apache.hadoop.conf.Configuration hadoopConf = HadoopFileSystem.getHadoopConfiguration();
-		if (fsConfig != null) {
-			String disableCacheName = String.format("fs.%s.impl.disable.cache", new Path(basePath).toUri().getScheme());
-			hadoopConf.setBoolean(disableCacheName, true);
-			for (String key : fsConfig.keySet()) {
-				hadoopConf.set(key, fsConfig.getString(key, null));
-			}
-		}
-
-		fs = new Path(basePath).getFileSystem(hadoopConf);
 	}
 
 	@Override
@@ -1111,6 +1108,102 @@ public class BucketingSink<T>
 
 		BucketState(long lastWrittenToTime) {
 			this.lastWrittenToTime = lastWrittenToTime;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	public static FileSystem createHadoopFileSystem(
+			Path path,
+			@Nullable Configuration extraUserConf) throws IOException {
+
+		// try to get the Hadoop File System via the Flink File Systems
+		// that way we get the proper configuration
+
+		final org.apache.flink.core.fs.FileSystem flinkFs = org.apache.flink.core.fs.FileSystem.get(path.toUri());
+		final FileSystem hadoopFs = (flinkFs instanceof HadoopFileSystem) ?
+				((HadoopFileSystem) flinkFs).getHadoopFileSystem() : null;
+
+		// fast path: if the Flink file system wraps Hadoop anyways and we need no extra config,
+		// then we use it directly
+		if (extraUserConf == null && hadoopFs != null) {
+			return hadoopFs;
+		}
+		else {
+			// we need to re-instantiate the Hadoop file system, because we either have
+			// a special config, or the Path gave us a Flink FS that is not backed by
+			// Hadoop (like file://)
+
+			final org.apache.hadoop.conf.Configuration hadoopConf;
+			if (hadoopFs != null) {
+				// have a Hadoop FS but need to apply extra config
+				hadoopConf = hadoopFs.getConf();
+			}
+			else {
+				// the Path gave us a Flink FS that is not backed by Hadoop (like file://)
+				// we need to get access to the Hadoop file system first
+
+				// we access the Hadoop FS in Flink, which carries the proper
+				// Hadoop configuration. we should get rid of this once the bucketing sink is
+				// properly implemented against Flink's FS abstraction
+
+				URI genericHdfsUri = URI.create("hdfs://localhost:12345/");
+				org.apache.flink.core.fs.FileSystem accessor =
+						org.apache.flink.core.fs.FileSystem.getUnguardedFileSystem(genericHdfsUri);
+
+				if (!(accessor instanceof HadoopFileSystem)) {
+					throw new IOException(
+							"Cannot instantiate a Hadoop file system to access the Hadoop configuration. " +
+							"FS for hdfs:// is " + accessor.getClass().getName());
+				}
+
+				hadoopConf = ((HadoopFileSystem) accessor).getHadoopFileSystem().getConf();
+			}
+
+			// finalize the configuration
+
+			final org.apache.hadoop.conf.Configuration finalConf;
+			if (extraUserConf == null) {
+				finalConf = hadoopConf;
+			}
+			else {
+				finalConf = new org.apache.hadoop.conf.Configuration(hadoopConf);
+
+				for (String key : extraUserConf.keySet()) {
+					finalConf.set(key, extraUserConf.getString(key, null));
+				}
+			}
+
+			// we explicitly re-instantiate the file system here in order to make sure
+			// that the configuration is applied.
+
+			URI fsUri = path.toUri();
+			final String scheme = fsUri.getScheme();
+			final String authority = fsUri.getAuthority();
+
+			if (scheme == null && authority == null) {
+				fsUri = FileSystem.getDefaultUri(finalConf);
+			}
+			else if (scheme != null && authority == null) {
+				URI defaultUri = FileSystem.getDefaultUri(finalConf);
+				if (scheme.equals(defaultUri.getScheme()) && defaultUri.getAuthority() != null) {
+					fsUri = defaultUri;
+				}
+			}
+
+			final Class<? extends FileSystem> fsClass = FileSystem.getFileSystemClass(fsUri.getScheme(), finalConf);
+			final FileSystem fs;
+			try {
+				fs = fsClass.newInstance();
+			}
+			catch (Exception e) {
+				throw new IOException("Cannot instantiate the Hadoop file system", e);
+			}
+
+			fs.initialize(fsUri, finalConf);
+			return fs;
 		}
 	}
 }

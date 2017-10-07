@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -62,7 +63,7 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 						? getMetricsValues(pathParams, requestedMetricsList)
 						: getAvailableMetricsList(pathParams);
 				} catch (IOException e) {
-					throw new FlinkFutureException("Could not retrieve metrics.", e);
+					throw new CompletionException(new FlinkException("Could not retrieve metrics.", e));
 				}
 			},
 			executor);

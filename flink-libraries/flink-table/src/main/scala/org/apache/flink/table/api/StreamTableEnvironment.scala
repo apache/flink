@@ -111,7 +111,7 @@ abstract class StreamTableEnvironment(
 
     // check if event-time is enabled
     tableSource match {
-      case dra: DefinedRowtimeAttribute if
+      case dra: DefinedRowtimeAttribute if dra.getRowtimeAttribute != null &&
           execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime =>
 
         throw TableException(

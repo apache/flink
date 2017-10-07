@@ -56,22 +56,16 @@ import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.FutureUtil;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
@@ -96,7 +90,6 @@ import static org.mockito.Mockito.verify;
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({FileSystem.class})
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 @SuppressWarnings("serial")
 public class RocksDBAsyncSnapshotTest {
@@ -110,10 +103,6 @@ public class RocksDBAsyncSnapshotTest {
 	 */
 	@Test
 	public void testFullyAsyncSnapshot() throws Exception {
-
-		LocalFileSystem localFS = new LocalFileSystem();
-		localFS.initialize(new URI("file:///"), new Configuration());
-		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
 
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
@@ -222,10 +211,6 @@ public class RocksDBAsyncSnapshotTest {
 	@Test
 	@Ignore
 	public void testCancelFullyAsyncCheckpoints() throws Exception {
-		LocalFileSystem localFS = new LocalFileSystem();
-		localFS.initialize(new URI("file:///"), new Configuration());
-		PowerMockito.stub(PowerMockito.method(FileSystem.class, "get", URI.class, Configuration.class)).toReturn(localFS);
-
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
 		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<>(task, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
