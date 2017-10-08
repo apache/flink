@@ -25,8 +25,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.ROW
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{ROW, _}
 import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
@@ -38,12 +37,12 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
+import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.joda.time.format.DateTimeFormatter
 
@@ -1773,6 +1772,33 @@ abstract class CodeGenerator(
         |""".stripMargin
     reusableInitStatements.add(init)
 
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable MessageDigest to the member area of the generated [[Function]].
+    *
+    * @return member variable term
+    */
+  def addReusableMessageDigest(algorithm: String): String = {
+    val fieldTerm = newName("messageDigest")
+
+    val field =
+      s"""
+         |final java.security.MessageDigest $fieldTerm;
+         |""".stripMargin
+    reusableMemberStatements.add(field)
+
+    val fieldInit =
+      s"""
+         |try {
+         |  $fieldTerm = java.security.MessageDigest.getInstance("$algorithm");
+         |} catch (java.security.NoSuchAlgorithmException e) {
+         |  throw new RuntimeException("Algorithm for '$algorithm' is not available.", e);
+         |}
+         |""".stripMargin
+
+    reusableInitStatements.add(fieldInit)
     fieldTerm
   }
 }

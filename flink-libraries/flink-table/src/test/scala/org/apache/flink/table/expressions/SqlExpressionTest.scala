@@ -137,6 +137,22 @@ class SqlExpressionTest extends ExpressionTestBase {
   }
 
   @Test
+  def testHashFunctions(): Unit = {
+    testSqlApi("MD5('')", "d41d8cd98f00b204e9800998ecf8427e")
+    testSqlApi("MD5('test')", "098f6bcd4621d373cade4e832627b4f6")
+
+    testSqlApi("SHA1('')", "da39a3ee5e6b4b0d3255bfef95601890afd80709")
+    testSqlApi("SHA1('test')", "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3")
+
+    testSqlApi("SHA256('')", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    testSqlApi("SHA256('test')", "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+
+    testSqlApi("MD5(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA1(CAST(NULL AS VARCHAR))", "null")
+    testSqlApi("SHA256(CAST(NULL AS VARCHAR))", "null")
+  }
+
+  @Test
   def testConditionalFunctions(): Unit = {
     testSqlApi("CASE 2 WHEN 1, 2 THEN 2 ELSE 3 END", "2")
     testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 3 END", "3")

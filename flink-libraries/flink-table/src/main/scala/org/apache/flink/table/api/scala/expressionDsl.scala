@@ -718,6 +718,29 @@ trait ImplicitExpressionOperations {
     * Flink's processing time.
     */
   def proctime = ProctimeAttribute(expr)
+
+  // Hash functions
+
+  /**
+    * Returns the MD5 hash of the string argument; null if string is null.
+    *
+    * @return string of 32 hexadecimal digits or null
+    */
+  def md5() = Md5(expr)
+
+  /**
+    * Returns the SHA-1 hash of the string argument; null if string is null.
+    *
+    * @return string of 40 hexadecimal digits or null
+    */
+  def sha1() = Sha1(expr)
+
+  /**
+    * Returns the SHA-256 hash of the string argument; null if string is null.
+    *
+    * @return string of 64 hexadecimal digits or null
+    */
+  def sha256() = Sha256(expr)
 }
 
 /**

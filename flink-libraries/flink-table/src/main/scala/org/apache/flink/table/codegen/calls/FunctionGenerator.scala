@@ -28,10 +28,9 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.functions.sql.DateTimeSqlFunction
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
-import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
+import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 
 import scala.collection.mutable
 
@@ -498,9 +497,31 @@ object FunctionGenerator {
     new CurrentTimePointCallGen(SqlTimeTypeInfo.TIMESTAMP, local = true))
 
   addSqlFunction(
-    DateTimeSqlFunction.DATE_FORMAT,
+    ScalarSqlFunctions.DATE_FORMAT,
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
     new DateFormatCallGen
+  )
+
+  // ----------------------------------------------------------------------------------------------
+  // Cryptographic Hash functions
+  // ----------------------------------------------------------------------------------------------
+
+  addSqlFunction(
+    ScalarSqlFunctions.MD5,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("MD5")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA1,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-1")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA256,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-256")
   )
 
   // ----------------------------------------------------------------------------------------------

@@ -18,7 +18,7 @@
 package org.apache.flink.table.functions.sql
 
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
-import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlTypeFamily}
+import org.apache.calcite.sql.`type`._
 
 /**
   * All built-in scalar SQL functions.
@@ -58,4 +58,39 @@ object ScalarSqlFunctions {
       OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC)),
     SqlFunctionCategory.NUMERIC)
 
+  val MD5 = new SqlFunction(
+    "MD5",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val SHA1 = new SqlFunction(
+    "SHA1",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val SHA256 = new SqlFunction(
+    "SHA256",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.STRING,
+    SqlFunctionCategory.STRING
+  )
+
+  val DATE_FORMAT = new SqlFunction(
+    "DATE_FORMAT",
+    SqlKind.OTHER_FUNCTION,
+    ReturnTypes.ARG0_NULLABLE,
+    InferTypes.RETURN_TYPE,
+    OperandTypes.sequence("'(TIMESTAMP, FORMAT)'", OperandTypes.DATETIME, OperandTypes.STRING),
+    SqlFunctionCategory.TIMEDATE
+  )
 }

@@ -24,7 +24,7 @@ import org.apache.calcite.sql.util.{ChainedSqlOperatorTable, ListSqlOperatorTabl
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlOperator, SqlOperatorTable}
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.sql.{DateTimeSqlFunction, ScalarSqlFunctions}
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 
@@ -259,7 +259,12 @@ object FunctionCatalog {
 
     // ordering
     "asc" -> classOf[Asc],
-    "desc" -> classOf[Desc]
+    "desc" -> classOf[Desc],
+
+    // crypto hash
+    "md5" -> classOf[Md5],
+    "sha1" -> classOf[Sha1],
+    "sha256" -> classOf[Sha256]
   )
 
   /**
@@ -388,7 +393,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CURRENT_TIME,
     SqlStdOperatorTable.CURRENT_TIMESTAMP,
     SqlStdOperatorTable.CURRENT_DATE,
-    DateTimeSqlFunction.DATE_FORMAT,
+    ScalarSqlFunctions.DATE_FORMAT,
     SqlStdOperatorTable.CAST,
     SqlStdOperatorTable.EXTRACT,
     SqlStdOperatorTable.QUARTER,
@@ -413,7 +418,9 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.CONCAT_WS,
     SqlStdOperatorTable.TIMESTAMP_ADD,
     ScalarSqlFunctions.LOG,
-
+    ScalarSqlFunctions.MD5,
+    ScalarSqlFunctions.SHA1,
+    ScalarSqlFunctions.SHA256,
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
     BasicOperatorTable.HOP,

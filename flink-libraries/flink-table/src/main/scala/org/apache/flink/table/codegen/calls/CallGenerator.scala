@@ -33,16 +33,36 @@ trait CallGenerator {
 
 object CallGenerator {
 
+  /**
+    * Generates a call with a single result statement.
+    */
   def generateCallIfArgsNotNull(
       nullCheck: Boolean,
       returnType: TypeInformation[_],
       operands: Seq[GeneratedExpression])
       (call: (Seq[String]) => String)
     : GeneratedExpression = {
+
+    generateCallWithStmtIfArgsNotNull(nullCheck, returnType, operands) {
+      (terms) => (None, call(terms))
+    }
+  }
+
+  /**
+    * Generates a call with auxiliary statements and result expression.
+    */
+  def generateCallWithStmtIfArgsNotNull(
+      nullCheck: Boolean,
+      returnType: TypeInformation[_],
+      operands: Seq[GeneratedExpression])
+      (call: (Seq[String]) => (Option[String], String))
+    : GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)
     val defaultValue = primitiveDefaultValue(returnType)
+
+    val (auxiliaryStmt, result) = call(operands.map(_.resultTerm))
 
     val resultCode = if (nullCheck && operands.nonEmpty) {
       s"""
@@ -53,20 +73,23 @@ object CallGenerator {
         |  $resultTerm = $defaultValue;
         |}
         |else {
-        |  $resultTerm = ${call(operands.map(_.resultTerm))};
+        |  ${auxiliaryStmt.getOrElse("")}
+        |  $resultTerm = $result;
         |}
         |""".stripMargin
     } else if (nullCheck && operands.isEmpty) {
       s"""
         |${operands.map(_.code).mkString("\n")}
         |boolean $nullTerm = false;
-        |$resultTypeTerm $resultTerm = ${call(operands.map(_.resultTerm))};
+        |${auxiliaryStmt.getOrElse("")}
+        |$resultTypeTerm $resultTerm = $result;
         |""".stripMargin
     } else{
       s"""
         |boolean $nullTerm = false;
         |${operands.map(_.code).mkString("\n")}
-        |$resultTypeTerm $resultTerm = ${call(operands.map(_.resultTerm))};
+        |${auxiliaryStmt.getOrElse("")}
+        |$resultTypeTerm $resultTerm = $result;
         |""".stripMargin
     }
 

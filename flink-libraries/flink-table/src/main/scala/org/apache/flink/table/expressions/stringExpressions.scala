@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.expressions
 
-import scala.collection.JavaConversions._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
@@ -26,6 +25,8 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.TrimMode.TrimMode
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.validate._
+
+import scala.collection.JavaConversions._
 
 /**
   * Returns the length of this `str`.
