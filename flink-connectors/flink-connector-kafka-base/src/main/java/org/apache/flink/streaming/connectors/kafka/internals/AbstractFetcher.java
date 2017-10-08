@@ -55,6 +55,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	protected static final int NO_TIMESTAMPS_WATERMARKS = 0;
 	protected static final int PERIODIC_WATERMARKS = 1;
 	protected static final int PUNCTUATED_WATERMARKS = 2;
+	protected static final Object NULLOBJECT = new Object();
 
 	// ------------------------------------------------------------------------
 
@@ -551,7 +552,7 @@ public abstract class AbstractFetcher<T, KPH> {
 			addOffsetStateGauge(kafkaMetricGroup);
 			return kafkaMetricGroup;
 		}
-		return null;
+		return (MetricGroup) NULLOBJECT;
 	}
 
 	/**
