@@ -20,9 +20,12 @@ package org.apache.flink.table.runtime.stream.sql;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
@@ -36,7 +39,9 @@ import org.apache.flink.types.Row;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Integration tests for streaming SQL.
@@ -162,6 +167,35 @@ public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
 		expected.add("2,2,Hallo Welt");
 		expected.add("2,3,Hallo Welt wie");
 
+		StreamITCase.compareWithList(expected);
+	}
+
+	@Test
+	public void testMd5Hash() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+		StreamITCase.clear();
+
+		List<Tuple2<Integer, Map<String, String>>> rows = new ArrayList<>();
+		rows.add(new Tuple2<>(1, Collections.singletonMap("foo", "bar")));
+		rows.add(new Tuple2<>(2, Collections.singletonMap("foo", "spam")));
+
+		TypeInformation<Tuple2<Integer, Map<String, String>>> ty = new TupleTypeInfo<>(
+			BasicTypeInfo.INT_TYPE_INFO,
+			new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+
+		DataStream<Tuple2<Integer, Map<String, String>>> ds1 = env.fromCollection(rows, ty);
+		tableEnv.registerDataStream("t1", ds1, "a, b");
+
+		String sqlQuery = "SELECT MD5('')";
+		Table result = tableEnv.sql(sqlQuery);
+
+		DataStream<Row> resultSet = tableEnv.toAppendStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink<Row>());
+		env.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("d41d8cd98f00b204e9800998ecf8427e");
 		StreamITCase.compareWithList(expected);
 	}
 }

@@ -24,7 +24,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.expressions.TrimMode.TrimMode
-import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.flink.table.functions.sql.{HashCalcFunctions, ScalarSqlFunctions}
 import org.apache.flink.table.validate._
 
 /**
