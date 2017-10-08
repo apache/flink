@@ -41,9 +41,7 @@ final class ProcTimeBoundedStreamInnerJoin(
       leftType,
       rightType,
       genJoinFuncName,
-      genJoinFuncCode,
-      leftTimeIdx = -1,
-      rightTimeIdx = -1) {
+      genJoinFuncCode) {
 
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
     leftOperatorTime = ctx.timerService().currentProcessingTime()

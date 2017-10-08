@@ -25,6 +25,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.NullByteKeySelector
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
@@ -138,7 +139,7 @@ class DataStreamWindowJoin(
     joinType match {
       case JoinRelType.INNER =>
         if (relativeWindowSize < 0) {
-          LOG.warn(s"The relative window size ${relativeWindowSize} is negative," +
+          LOG.warn(s"The relative window size $relativeWindowSize is negative," +
             " please check the join conditions.")
           createEmptyInnerJoin(leftDataStream, rightDataStream, returnTypeInfo)
         } else {
@@ -179,22 +180,22 @@ class DataStreamWindowJoin(
   def createEmptyInnerJoin(
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
-      returnTypeInfo: TypeInformation[CRow]) = {
+      returnTypeInfo: TypeInformation[CRow]): DataStream[CRow] = {
     leftDataStream.connect(rightDataStream).process(
       new CoProcessFunction[CRow, CRow, CRow] {
         override def processElement1(
           value: CRow,
           ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-          out: Collector[CRow]) = {
+          out: Collector[CRow]): Unit = {
           //Do nothing.
         }
         override def processElement2(
           value: CRow,
           ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-          out: Collector[CRow]) = {
+          out: Collector[CRow]): Unit = {
           //Do nothing.
         }
-      })
+      }).returns(returnTypeInfo)
   }
 
   def createProcTimeInnerJoin(
@@ -257,7 +258,7 @@ class DataStreamWindowJoin(
         .transform(
           "InnerRowtimeWindowJoin",
           returnTypeInfo,
-          new KeyedCoProcessOperatorWithWatermarkDelay[CRow, CRow, CRow, CRow](
+          new KeyedCoProcessOperatorWithWatermarkDelay[Tuple, CRow, CRow, CRow](
             rowTimeInnerJoinFunc,
             rowTimeInnerJoinFunc.getMaxOutputDelay)
         )
@@ -267,7 +268,7 @@ class DataStreamWindowJoin(
         .transform(
           "InnerRowtimeWindowJoin",
           returnTypeInfo,
-          new KeyedCoProcessOperatorWithWatermarkDelay[CRow, CRow, CRow, CRow](
+          new KeyedCoProcessOperatorWithWatermarkDelay[java.lang.Byte, CRow, CRow, CRow](
             rowTimeInnerJoinFunc,
             rowTimeInnerJoinFunc.getMaxOutputDelay)
         )

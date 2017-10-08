@@ -27,6 +27,7 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+import org.hamcrest.CoreMatchers
 import org.junit._
 
 import scala.collection.mutable
@@ -90,8 +91,7 @@ class JoinITCase extends StreamingWithStateTestBase {
        |  t1.a = t2.a AND
        |  t1.proctime BETWEEN t2.proctime - interval '5' SECOND AND
        |    t2.proctime + interval '5' second AND
-       |  t1.b > t2.b AND
-       |  t1.b + t2.b < 14
+       |  t1.b = t2.b
        |""".stripMargin
 
     val data1 = new mutable.MutableList[(String, Long, String)]
@@ -106,6 +106,10 @@ class JoinITCase extends StreamingWithStateTestBase {
     data2.+=(("1", 5L, "HiHi"))
     data2.+=(("2", 2L, "HeHe"))
 
+    // For null key test
+    data1.+=((null.asInstanceOf[String], 20L, "leftNull"))
+    data2.+=((null.asInstanceOf[String], 20L, "rightNull"))
+
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
@@ -115,6 +119,9 @@ class JoinITCase extends StreamingWithStateTestBase {
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
+
+    // Assert there is no result with null keys.
+    Assert.assertFalse(StreamITCase.testResults.toString().contains("null"))
   }
 
   /** test rowtime inner join **/
@@ -183,7 +190,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.clear
 
     // different parallelisms lead to different join results
-    env.setParallelism(4)
+    env.setParallelism(1)
 
     val sqlQuery =
       """
@@ -234,22 +241,36 @@ class JoinITCase extends StreamingWithStateTestBase {
     result.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
-    val expected = new java.util.ArrayList[String]
-    expected.add("1,LEFT3,RIGHT6")
-    expected.add("1,LEFT1.1,RIGHT6")
-    expected.add("2,LEFT4,RIGHT7")
-    expected.add("1,LEFT4.9,RIGHT6")
+    // There may be two expected results according to the process order.
+    val expected1 = new mutable.MutableList[String]
+    expected1+= "1,LEFT3,RIGHT6"
+    expected1+= "1,LEFT1.1,RIGHT6"
+    expected1+= "2,LEFT4,RIGHT7"
+    expected1+= "1,LEFT4.9,RIGHT6"
     // produced by the left late rows
-    expected.add("1,LEFT3.5,RIGHT6")
-    expected.add("1,LEFT3.5,RIGHT8")
+    expected1+= "1,LEFT3.5,RIGHT6"
+    expected1+= "1,LEFT3.5,RIGHT8"
     // produced by the right late rows
-    expected.add("1,LEFT3,RIGHT5")
-    expected.add("1,LEFT3.5,RIGHT5")
-    // these two results will only be produced when parallelism >= 2
-    expected.add("1,LEFT1,RIGHT5")
-    expected.add("1,LEFT1.1,RIGHT5")
+    expected1+= "1,LEFT3,RIGHT5"
+    expected1+= "1,LEFT3.5,RIGHT5"
 
-    StreamITCase.compareWithList(expected)
+    val expected2 = new mutable.MutableList[String]
+    expected2+= "1,LEFT3,RIGHT6"
+    expected2+= "1,LEFT1.1,RIGHT6"
+    expected2+= "2,LEFT4,RIGHT7"
+    expected2+= "1,LEFT4.9,RIGHT6"
+    // produced by the left late rows
+    expected2+= "1,LEFT3.5,RIGHT6"
+    expected2+= "1,LEFT3.5,RIGHT8"
+    // produced by the right late rows
+    expected2+= "1,LEFT3,RIGHT5"
+    expected2+= "1,LEFT1,RIGHT5"
+    expected2+= "1,LEFT1.1,RIGHT5"
+
+    Assert.assertThat(
+      StreamITCase.testResults.sorted,
+      CoreMatchers.either(CoreMatchers.is(expected1.sorted)).
+        or(CoreMatchers.is(expected2.sorted)))
   }
 }
 

@@ -43,17 +43,22 @@ final class RowTimeBoundedStreamInnerJoin(
       leftType,
       rightType,
       genJoinFuncName,
-      genJoinFuncCode,
-      leftTimeIdx,
-      rightTimeIdx) {
+      genJoinFuncCode) {
+
+  /**
+    * Get the maximum interval between receiving a row and emitting it (as part of a joined result).
+    * Only reasonable for row time join.
+    *
+    * @return the maximum delay for the outputs
+    */
+  def getMaxOutputDelay: Long = Math.max(leftRelativeSize, rightRelativeSize) + allowedLateness
 
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
     leftOperatorTime =
       if (ctx.timerService().currentWatermark() > 0) ctx.timerService().currentWatermark()
       else 0L
-    rightOperatorTime =
-      if (ctx.timerService().currentWatermark() > 0) ctx.timerService().currentWatermark()
-      else 0L
+    // We may set different operator times in the future.
+    rightOperatorTime = leftOperatorTime
   }
 
   override def getTimeForLeftStream(

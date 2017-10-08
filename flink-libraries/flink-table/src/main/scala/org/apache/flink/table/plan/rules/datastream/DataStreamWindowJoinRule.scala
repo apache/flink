@@ -40,10 +40,9 @@ class DataStreamWindowJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
-    val joinInfo = join.analyzeCondition
 
     val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
-      joinInfo.getRemaining(join.getCluster.getRexBuilder),
+      join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
@@ -79,13 +78,12 @@ class DataStreamWindowJoinRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
     val convLeft: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASTREAM)
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), FlinkConventions.DATASTREAM)
-    val joinInfo = join.analyzeCondition
     val leftRowSchema = new RowSchema(convLeft.getRowType)
     val rightRowSchema = new RowSchema(convRight.getRowType)
 
     val (windowBounds, remainCondition) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
-        joinInfo.getRemaining(join.getCluster.getRexBuilder),
+        join.getCondition,
         leftRowSchema.arity,
         join.getRowType,
         join.getCluster.getRexBuilder,
