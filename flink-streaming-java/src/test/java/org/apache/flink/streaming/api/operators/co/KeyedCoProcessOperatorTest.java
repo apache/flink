@@ -177,8 +177,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		expectedOutput.add(new StreamRecord<>("INPUT1:17"));
 		expectedOutput.add(new StreamRecord<>("INPUT2:18"));
-		expectedOutput.add(new StreamRecord<>("1777", 5L));
-		expectedOutput.add(new StreamRecord<>("1777", 6L));
+		expectedOutput.add(new StreamRecord<>("1777"));
+		expectedOutput.add(new StreamRecord<>("1777"));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -266,8 +266,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		expectedOutput.add(new StreamRecord<>("INPUT1:17"));
 		expectedOutput.add(new StreamRecord<>("INPUT2:42"));
-		expectedOutput.add(new StreamRecord<>("STATE:17", 6L));
-		expectedOutput.add(new StreamRecord<>("STATE:42", 7L));
+		expectedOutput.add(new StreamRecord<>("STATE:17"));
+		expectedOutput.add(new StreamRecord<>("STATE:42"));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -316,7 +316,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		expectedOutput.add(new StreamRecord<>("PROC:1777", 5L));
+		expectedOutput.add(new StreamRecord<>("PROC:1777"));
 		expectedOutput.add(new StreamRecord<>("EVENT:1777", 6L));
 		expectedOutput.add(new Watermark(6));
 

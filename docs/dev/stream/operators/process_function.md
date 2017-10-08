@@ -236,3 +236,10 @@ class CountWithTimeoutFunction extends ProcessFunction[(String, String), (String
 </div>
 
 {% top %}
+
+
+**NOTE:** Before Flink 1.4.0, when called from a processing-time timer, the `ProcessFunction.onTimer()` method sets
+the current processing time as event-time timestamp. This behavior is very subtle and might not be noticed by users. Well, it's
+harmful because processing-time timestamps are indeterministic and not aligned with watermarks. Besides, user-implemented logic
+depends on this wrong timestamp highly likely is unintendedly faulty. So we've decided to fix it. Upon upgrading to 1.4.0, Flink jobs
+that are using this incorrect event-time timestamp will fail, and users should adapt their jobs to the correct logic.
