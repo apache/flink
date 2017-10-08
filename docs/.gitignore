@@ -1,0 +1,6 @@
+.bundle/
+.jekyll-metadata
+.rubydeps/
+content/
+ruby2/.bundle/
+ruby2/.rubydeps/
