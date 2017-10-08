@@ -21,6 +21,8 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 /**
  * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
  *
@@ -53,6 +55,13 @@ public class ArchivedJson {
 		} else {
 			return false;
 		}
+	}
+
+	public int hashCode() {
+		HashCodeBuilder bldr = new HashCodeBuilder();
+		bldr.append(path);
+		bldr.append(json);
+		return bldr.toHashCode();
 	}
 
 	@Override

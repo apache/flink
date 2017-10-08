@@ -568,7 +568,7 @@ public class MemoryManager {
 	 * @return The number of pages corresponding to the memory fraction.
 	 */
 	public long computeMemorySize(double fraction) {
-		return pageSize * computeNumberOfPages(fraction);
+		return pageSize * (long) computeNumberOfPages(fraction);
 	}
 
 	/**

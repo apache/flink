@@ -139,7 +139,7 @@ public class YarnApplicationMasterRunner {
 			LOG.debug("All environment variables: {}", ENV);
 
 			final String yarnClientUsername = ENV.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
-			require(yarnClientUsername != null, "YARN client user name environment variable {} not set",
+			require(yarnClientUsername != null, "YARN client user name environment variable (%s) not set",
 				YarnConfigKeys.ENV_HADOOP_USER_NAME);
 
 			final String currDir = ENV.get(Environment.PWD.key());

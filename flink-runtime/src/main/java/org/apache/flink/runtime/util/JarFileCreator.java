@@ -190,7 +190,7 @@ public class JarFileCreator {
 			this.outputFile.delete();
 		}
 
-		try ( JarOutputStream jos = new JarOutputStream(new FileOutputStream(this.outputFile), new Manifest())) {
+		try ( FileOutputStream fos = new FileOutputStream(this.outputFile); JarOutputStream jos = new JarOutputStream(fos, new Manifest())) {
 			final Iterator<Class<?>> it = this.classSet.iterator();
 			while (it.hasNext()) {
 

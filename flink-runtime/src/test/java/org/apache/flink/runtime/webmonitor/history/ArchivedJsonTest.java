@@ -38,4 +38,14 @@ public class ArchivedJsonTest {
 		Assert.assertNotEquals(original, identicalPath);
 		Assert.assertNotEquals(original, identicalJson);
 	}
+
+	@Test
+	public void testHashCode() {
+		ArchivedJson original = new ArchivedJson("path", "json");
+		ArchivedJson twin = new ArchivedJson("path", "json");
+
+		Assert.assertEquals(original, original);
+		Assert.assertEquals(original, twin);
+		Assert.assertEquals(original.hashCode(), twin.hashCode());
+	}
 }
