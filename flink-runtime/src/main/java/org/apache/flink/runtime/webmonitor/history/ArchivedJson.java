@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
-import java.util.Objects;
-
-import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.util.Preconditions;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
+
+import java.util.Objects;
 
 /**
  * A simple container for a handler's JSON response and the REST URLs for which the response would've been returned.
