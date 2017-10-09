@@ -61,11 +61,11 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -89,16 +89,15 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -726,35 +725,29 @@ public class CliFrontend {
 	 */
 	private int triggerSavepoint(SavepointOptions options, JobID jobId, String savepointDirectory) {
 		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-
-			logAndSysout("Triggering savepoint for job " + jobId + ".");
-			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
-					new FiniteDuration(1, TimeUnit.HOURS));
-
-			Object result;
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			try {
-				logAndSysout("Waiting for response...");
-				result = Await.result(response, FiniteDuration.Inf());
-			}
-			catch (Exception e) {
-				throw new Exception("Triggering a savepoint for the job " + jobId + " failed.", e);
-			}
+				logAndSysout("Triggering savepoint for job " + jobId + ".");
+				CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobId, savepointDirectory);
 
-			if (result instanceof TriggerSavepointSuccess) {
-				TriggerSavepointSuccess success = (TriggerSavepointSuccess) result;
-				logAndSysout("Savepoint completed. Path: " + success.savepointPath());
+				String savepointPath;
+				try {
+					logAndSysout("Waiting for response...");
+					savepointPath = savepointPathFuture.get();
+				}
+				catch (ExecutionException ee) {
+					Throwable cause = ExceptionUtils.stripExecutionException(ee);
+					throw new FlinkException("Triggering a savepoint for the job " + jobId + " failed.", cause);
+				}
+
+				logAndSysout("Savepoint completed. Path: " + savepointPath);
 				logAndSysout("You can resume your program from this savepoint with the run command.");
 
 				return 0;
 			}
-			else if (result instanceof TriggerSavepointFailure) {
-				TriggerSavepointFailure failure = (TriggerSavepointFailure) result;
-				throw failure.cause();
-			}
-			else {
-				throw new IllegalStateException("Unknown JobManager response of type " +
-						result.getClass());
+			finally {
+				client.shutdown();
 			}
 		}
 		catch (Throwable t) {
