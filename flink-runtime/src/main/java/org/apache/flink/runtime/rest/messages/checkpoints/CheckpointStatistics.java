@@ -30,7 +30,6 @@ import org.apache.flink.runtime.rest.messages.json.JobVertexIDSerializer;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -40,6 +39,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -51,7 +51,6 @@ import java.util.Objects;
 @JsonSubTypes({
 	@JsonSubTypes.Type(value = CheckpointStatistics.CompletedCheckpointStatistics.class, name = "completed"),
 	@JsonSubTypes.Type(value = CheckpointStatistics.FailedCheckpointStatistics.class, name = "failed")})
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class CheckpointStatistics implements ResponseBody {
 
 	public static final String FIELD_NAME_ID = "id";
@@ -108,7 +107,6 @@ public class CheckpointStatistics implements ResponseBody {
 
 	@JsonProperty(FIELD_NAME_TASKS)
 	@JsonSerialize(keyUsing = JobVertexIDSerializer.class)
-	@Nullable
 	private final Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask;
 
 	@JsonCreator
@@ -123,7 +121,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) @Nullable Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
+			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask) {
 		this.id = id;
 		this.status = Preconditions.checkNotNull(status);
 		this.savepoint = savepoint;
@@ -134,7 +132,7 @@ public class CheckpointStatistics implements ResponseBody {
 		this.alignmentBuffered = alignmentBuffered;
 		this.numSubtasks = numSubtasks;
 		this.numAckSubtasks = numAckSubtasks;
-		this.checkpointStatisticsPerTask = checkpointStatisticsPerTask;
+		this.checkpointStatisticsPerTask = Preconditions.checkNotNull(checkpointStatisticsPerTask);
 	}
 
 	public long getId() {
@@ -209,72 +207,77 @@ public class CheckpointStatistics implements ResponseBody {
 		return Objects.hash(id, status, savepoint, triggerTimestamp, latestAckTimestamp, stateSize, duration, alignmentBuffered, numSubtasks, numAckSubtasks, checkpointStatisticsPerTask);
 	}
 
+	// -------------------------------------------------------------------------
+	// Static factory methods
+	// -------------------------------------------------------------------------
+
 	public static CheckpointStatistics generateCheckpointStatistics(AbstractCheckpointStats checkpointStats, boolean includeTaskCheckpointStatistics) {
-		if (checkpointStats != null) {
+		Preconditions.checkNotNull(checkpointStats);
 
-			Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask;
+		Map<JobVertexID, TaskCheckpointStatistics> checkpointStatisticsPerTask;
 
-			if (includeTaskCheckpointStatistics) {
-				Collection<TaskStateStats> taskStateStats = checkpointStats.getAllTaskStateStats();
+		if (includeTaskCheckpointStatistics) {
+			Collection<TaskStateStats> taskStateStats = checkpointStats.getAllTaskStateStats();
 
-				checkpointStatisticsPerTask = new HashMap<>(taskStateStats.size());
+			checkpointStatisticsPerTask = new HashMap<>(taskStateStats.size());
 
-				for (TaskStateStats taskStateStat : taskStateStats) {
-					checkpointStatisticsPerTask.put(
-						taskStateStat.getJobVertexId(),
-						new TaskCheckpointStatistics(
-							taskStateStat.getLatestAckTimestamp(),
-							taskStateStat.getStateSize(),
-							taskStateStat.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
-							taskStateStat.getAlignmentBuffered(),
-							taskStateStat.getNumberOfSubtasks(),
-							taskStateStat.getNumberOfAcknowledgedSubtasks()));
-				}
-			} else {
-				checkpointStatisticsPerTask = null;
-			}
-
-			if (checkpointStats instanceof CompletedCheckpointStats) {
-				final CompletedCheckpointStats completedCheckpointStats = ((CompletedCheckpointStats) checkpointStats);
-
-				return new CheckpointStatistics.CompletedCheckpointStatistics(
-					completedCheckpointStats.getCheckpointId(),
-					completedCheckpointStats.getStatus(),
-					completedCheckpointStats.getProperties().isSavepoint(),
-					completedCheckpointStats.getTriggerTimestamp(),
-					completedCheckpointStats.getLatestAckTimestamp(),
-					completedCheckpointStats.getStateSize(),
-					completedCheckpointStats.getEndToEndDuration(),
-					completedCheckpointStats.getAlignmentBuffered(),
-					completedCheckpointStats.getNumberOfSubtasks(),
-					completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-					checkpointStatisticsPerTask,
-					completedCheckpointStats.getExternalPath(),
-					completedCheckpointStats.isDiscarded());
-			} else if (checkpointStats instanceof FailedCheckpointStats) {
-				final FailedCheckpointStats failedCheckpointStats = ((FailedCheckpointStats) checkpointStats);
-
-				return new CheckpointStatistics.FailedCheckpointStatistics(
-					failedCheckpointStats.getCheckpointId(),
-					failedCheckpointStats.getStatus(),
-					failedCheckpointStats.getProperties().isSavepoint(),
-					failedCheckpointStats.getTriggerTimestamp(),
-					failedCheckpointStats.getLatestAckTimestamp(),
-					failedCheckpointStats.getStateSize(),
-					failedCheckpointStats.getEndToEndDuration(),
-					failedCheckpointStats.getAlignmentBuffered(),
-					failedCheckpointStats.getNumberOfSubtasks(),
-					failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
-					checkpointStatisticsPerTask,
-					failedCheckpointStats.getFailureTimestamp(),
-					failedCheckpointStats.getFailureMessage());
-			} else {
-				throw new IllegalArgumentException("Given checkpoint stats object of type " + checkpointStats.getClass().getName() + " cannot be converted.");
+			for (TaskStateStats taskStateStat : taskStateStats) {
+				checkpointStatisticsPerTask.put(
+					taskStateStat.getJobVertexId(),
+					new TaskCheckpointStatistics(
+						taskStateStat.getLatestAckTimestamp(),
+						taskStateStat.getStateSize(),
+						taskStateStat.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
+						taskStateStat.getAlignmentBuffered(),
+						taskStateStat.getNumberOfSubtasks(),
+						taskStateStat.getNumberOfAcknowledgedSubtasks()));
 			}
 		} else {
-			return null;
+			checkpointStatisticsPerTask = Collections.emptyMap();
+		}
+
+		if (checkpointStats instanceof CompletedCheckpointStats) {
+			final CompletedCheckpointStats completedCheckpointStats = ((CompletedCheckpointStats) checkpointStats);
+
+			return new CheckpointStatistics.CompletedCheckpointStatistics(
+				completedCheckpointStats.getCheckpointId(),
+				completedCheckpointStats.getStatus(),
+				completedCheckpointStats.getProperties().isSavepoint(),
+				completedCheckpointStats.getTriggerTimestamp(),
+				completedCheckpointStats.getLatestAckTimestamp(),
+				completedCheckpointStats.getStateSize(),
+				completedCheckpointStats.getEndToEndDuration(),
+				completedCheckpointStats.getAlignmentBuffered(),
+				completedCheckpointStats.getNumberOfSubtasks(),
+				completedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
+				checkpointStatisticsPerTask,
+				completedCheckpointStats.getExternalPath(),
+				completedCheckpointStats.isDiscarded());
+		} else if (checkpointStats instanceof FailedCheckpointStats) {
+			final FailedCheckpointStats failedCheckpointStats = ((FailedCheckpointStats) checkpointStats);
+
+			return new CheckpointStatistics.FailedCheckpointStatistics(
+				failedCheckpointStats.getCheckpointId(),
+				failedCheckpointStats.getStatus(),
+				failedCheckpointStats.getProperties().isSavepoint(),
+				failedCheckpointStats.getTriggerTimestamp(),
+				failedCheckpointStats.getLatestAckTimestamp(),
+				failedCheckpointStats.getStateSize(),
+				failedCheckpointStats.getEndToEndDuration(),
+				failedCheckpointStats.getAlignmentBuffered(),
+				failedCheckpointStats.getNumberOfSubtasks(),
+				failedCheckpointStats.getNumberOfAcknowledgedSubtasks(),
+				checkpointStatisticsPerTask,
+				failedCheckpointStats.getFailureTimestamp(),
+				failedCheckpointStats.getFailureMessage());
+		} else {
+			throw new IllegalArgumentException("Given checkpoint stats object of type " + checkpointStats.getClass().getName() + " cannot be converted.");
 		}
 	}
+
+	// ---------------------------------------------------------------------
+	// Static inner classes
+	// ---------------------------------------------------------------------
 
 	/**
 	 * Checkpoint statistics for a single task.
@@ -402,7 +405,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) @Nullable Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
+			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
 			@JsonProperty(FIELD_NAME_EXTERNAL_PATH) @Nullable String externalPath,
 			@JsonProperty(FIELD_NAME_DISCARDED) boolean discarded) {
 			super(
@@ -481,7 +484,7 @@ public class CheckpointStatistics implements ResponseBody {
 			@JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
 			@JsonProperty(FIELD_NAME_NUM_SUBTASKS) int numSubtasks,
 			@JsonProperty(FIELD_NAME_NUM_ACK_SUBTASKS) int numAckSubtasks,
-			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) @Nullable Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
+			@JsonDeserialize(keyUsing = JobVertexIDDeserializer.class) @JsonProperty(FIELD_NAME_TASKS) Map<JobVertexID, TaskCheckpointStatistics> checkpointingStatisticsPerTask,
 			@JsonProperty(FIELD_NAME_FAILURE_TIMESTAMP) long failureTimestamp,
 			@JsonProperty(FIELD_NAME_FAILURE_MESSAGE) @Nullable String failureMessage) {
 			super(

@@ -99,15 +99,23 @@ public class CheckpointingStatisticsHandler extends AbstractExecutionGraphHandle
 
 			final CheckpointStatsHistory checkpointStatsHistory = checkpointStatsSnapshot.getHistory();
 
-			final CheckpointStatistics.CompletedCheckpointStatistics completed = (CheckpointStatistics.CompletedCheckpointStatistics) CheckpointStatistics.generateCheckpointStatistics(
-				checkpointStatsHistory.getLatestCompletedCheckpoint(),
-				false);
-			final CheckpointStatistics.CompletedCheckpointStatistics savepoint = (CheckpointStatistics.CompletedCheckpointStatistics) CheckpointStatistics.generateCheckpointStatistics(
-				checkpointStatsHistory.getLatestSavepoint(),
-				false);
-			final CheckpointStatistics.FailedCheckpointStatistics failed = (CheckpointStatistics.FailedCheckpointStatistics) CheckpointStatistics.generateCheckpointStatistics(
-				checkpointStatsHistory.getLatestFailedCheckpoint(),
-				false);
+			final CheckpointStatistics.CompletedCheckpointStatistics completed = checkpointStatsHistory.getLatestCompletedCheckpoint() != null ?
+				(CheckpointStatistics.CompletedCheckpointStatistics) CheckpointStatistics.generateCheckpointStatistics(
+					checkpointStatsHistory.getLatestCompletedCheckpoint(),
+					false) :
+				null;
+
+			final CheckpointStatistics.CompletedCheckpointStatistics savepoint = checkpointStatsHistory.getLatestSavepoint() != null ?
+				(CheckpointStatistics.CompletedCheckpointStatistics) CheckpointStatistics.generateCheckpointStatistics(
+					checkpointStatsHistory.getLatestSavepoint(),
+					false) :
+				null;
+
+			final CheckpointStatistics.FailedCheckpointStatistics failed = checkpointStatsHistory.getLatestFailedCheckpoint() != null ?
+				(CheckpointStatistics.FailedCheckpointStatistics) CheckpointStatistics.generateCheckpointStatistics(
+					checkpointStatsHistory.getLatestFailedCheckpoint(),
+					false) :
+				null;
 
 			final RestoredCheckpointStats restoredCheckpointStats = checkpointStatsSnapshot.getLatestRestoredCheckpoint();
 

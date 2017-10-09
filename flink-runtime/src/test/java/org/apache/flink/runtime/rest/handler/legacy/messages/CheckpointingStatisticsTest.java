@@ -79,7 +79,7 @@ public class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase
 			0L,
 			10,
 			10,
-			null,
+			Collections.emptyMap(),
 			null,
 			false);
 
