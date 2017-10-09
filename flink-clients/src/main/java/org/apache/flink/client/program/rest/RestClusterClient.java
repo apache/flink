@@ -40,6 +40,9 @@ import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 
 import javax.annotation.Nullable;
@@ -168,7 +171,25 @@ public class RestClusterClient extends ClusterClient {
 
 	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException("Not implemented yet.");
+	}
+
+	@Override
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+		SavepointTriggerHeaders headers = SavepointTriggerHeaders.getInstance();
+		SavepointMessageParameters params = headers.getUnresolvedMessageParameters();
+		params.jobID.resolve(jobId);
+		if (savepointDirectory != null) {
+			params.targetDirectory.resolve(Collections.singletonList(savepointDirectory));
+		}
+		CompletableFuture<SavepointTriggerResponseBody> responseFuture = restClient.sendRequest(
+			restClusterClientConfiguration.getRestServerAddress(),
+			restClusterClientConfiguration.getRestServerPort(),
+			headers,
+			params
+		);
+		return responseFuture
+			.thenApply(response -> response.location);
 	}
 
 	// ======================================
