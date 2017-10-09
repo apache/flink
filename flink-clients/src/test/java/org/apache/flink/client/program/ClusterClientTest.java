@@ -30,6 +30,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.concurrent.CompletableFuture;
+
 import scala.concurrent.Future;
 import scala.concurrent.Future$;
 import scala.concurrent.duration.FiniteDuration;
@@ -100,12 +102,33 @@ public class ClusterClientTest extends TestLogger {
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 
 		JobID jobID = new JobID();
+		String savepointDirectory = "/test/directory";
 		String savepointPath = "/test/path";
-		TestCancelWithSavepointActorGateway gateway = new TestCancelWithSavepointActorGateway(jobID, savepointPath);
+		TestCancelWithSavepointActorGateway gateway = new TestCancelWithSavepointActorGateway(jobID, savepointDirectory, savepointPath);
 		ClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
-			clusterClient.cancelWithSavepoint(jobID, savepointPath);
+			String path = clusterClient.cancelWithSavepoint(jobID, savepointDirectory);
 			Assert.assertTrue(gateway.messageArrived);
+			Assert.assertEquals(savepointPath, path);
+		} finally {
+			clusterClient.shutdown();
+		}
+	}
+
+	@Test
+	public void testClusterClientSavepoint() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+
+		JobID jobID = new JobID();
+		String savepointDirectory = "/test/directory";
+		String savepointPath = "/test/path";
+		TestSavepointActorGateway gateway = new TestSavepointActorGateway(jobID, savepointDirectory, savepointPath);
+		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		try {
+			CompletableFuture<String> pathFuture = clusterClient.triggerSavepoint(jobID, savepointDirectory);
+			Assert.assertTrue(gateway.messageArrived);
+			Assert.assertEquals(savepointPath, pathFuture.get());
 		} finally {
 			clusterClient.shutdown();
 		}
@@ -153,18 +176,45 @@ public class ClusterClientTest extends TestLogger {
 
 		private final JobID expectedJobID;
 		private final String expectedTargetDirectory;
+		private final String savepointPathToReturn;
 
-		TestCancelWithSavepointActorGateway(JobID expectedJobID, String expectedTargetDirectory) {
+		TestCancelWithSavepointActorGateway(JobID expectedJobID, String expectedTargetDirectory, String savepointPathToReturn) {
 			super(JobManagerMessages.CancelJobWithSavepoint.class);
 			this.expectedJobID = expectedJobID;
 			this.expectedTargetDirectory = expectedTargetDirectory;
+			this.savepointPathToReturn = savepointPathToReturn;
 		}
 
 		@Override
 		public JobManagerMessages.CancellationSuccess process(JobManagerMessages.CancelJobWithSavepoint message) {
 			Assert.assertEquals(expectedJobID, message.jobID());
 			Assert.assertEquals(expectedTargetDirectory, message.savepointDirectory());
-			return new JobManagerMessages.CancellationSuccess(message.jobID(), null);
+			return new JobManagerMessages.CancellationSuccess(message.jobID(), savepointPathToReturn);
+		}
+	}
+
+	private static class TestSavepointActorGateway extends TestActorGateway<JobManagerMessages.TriggerSavepoint, JobManagerMessages.TriggerSavepointSuccess> {
+
+		private final JobID expectedJobID;
+		private final String expectedTargetDirectory;
+		private final String savepointPathToReturn;
+
+		private TestSavepointActorGateway(JobID expectedJobID, String expectedTargetDirectory, String savepointPathToReturn) {
+			super(JobManagerMessages.TriggerSavepoint.class);
+			this.expectedJobID = expectedJobID;
+			this.expectedTargetDirectory = expectedTargetDirectory;
+			this.savepointPathToReturn = savepointPathToReturn;
+		}
+
+		@Override
+		public JobManagerMessages.TriggerSavepointSuccess process(JobManagerMessages.TriggerSavepoint message) {
+			Assert.assertEquals(expectedJobID, message.jobId());
+			if (expectedTargetDirectory == null) {
+				Assert.assertTrue(message.savepointDirectory().isEmpty());
+			} else {
+				Assert.assertEquals(expectedTargetDirectory, message.savepointDirectory().get());
+			}
+			return new JobManagerMessages.TriggerSavepointSuccess(message.jobId(), 0, savepointPathToReturn, 0);
 		}
 	}
 
