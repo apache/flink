@@ -32,7 +32,7 @@ class JoinTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
   @Test
-  def testProcessingTimeInnerJoinWithOnClause() = {
+  def testProcessingTimeInnerJoinWithOnClause(): Unit = {
 
     val sqlQuery =
       """
@@ -70,7 +70,7 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeInnerJoinWithOnClause() = {
+  def testRowTimeInnerJoinWithOnClause(): Unit = {
 
     val sqlQuery =
       """
@@ -108,7 +108,7 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testProcessingTimeInnerJoinWithWhereClause() = {
+  def testProcessingTimeInnerJoinWithWhereClause(): Unit = {
 
     val sqlQuery =
       """
@@ -146,7 +146,7 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeInnerJoinWithWhereClause() = {
+  def testRowTimeInnerJoinWithWhereClause(): Unit = {
 
     val sqlQuery =
       """
@@ -251,16 +251,17 @@ class JoinTest extends TableTestBase {
       "SELECT t1.a, t2.c FROM MyTable3 as t1 join MyTable4 as t2 on t1.a = t2.a and " +
         "t1.b >= t2.b - interval '10' second and t1.b <= t2.b - interval '5' second and " +
         "t1.c > t2.c"
+    // The equi-join predicate should also be included
     verifyRemainConditionConvert(
       query,
-      ">($2, $6)")
+      "AND(=($0, $4), >($2, $6))")
 
     val query1 =
       "SELECT t1.a, t2.c FROM MyTable3 as t1 join MyTable4 as t2 on t1.a = t2.a and " +
         "t1.b >= t2.b - interval '10' second and t1.b <= t2.b - interval '5' second "
     verifyRemainConditionConvert(
       query1,
-      "")
+      "=($0, $4)")
 
     streamUtil.addTable[(Int, Long, Int)]("MyTable5", 'a, 'b, 'c, 'proctime.proctime)
     streamUtil.addTable[(Int, Long, Int)]("MyTable6", 'a, 'b, 'c, 'proctime.proctime)
@@ -271,7 +272,7 @@ class JoinTest extends TableTestBase {
         "t1.c > t2.c"
     verifyRemainConditionConvert(
       query2,
-      ">($2, $6)")
+      "AND(=($0, $4), >($2, $6))")
   }
 
   private def verifyTimeBoundary(
@@ -285,10 +286,9 @@ class JoinTest extends TableTestBase {
     val resultTable = streamUtil.tableEnv.sql(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val rexNode = joinNode.getCondition
     val (windowBounds, _) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
-        rexNode,
+        joinNode.getCondition,
         4,
         joinNode.getRowType,
         joinNode.getCluster.getRexBuilder,
@@ -309,11 +309,9 @@ class JoinTest extends TableTestBase {
     val resultTable = streamUtil.tableEnv.sql(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val joinInfo = joinNode.analyzeCondition
-    val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
     val (_, remainCondition) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
-        rexNode,
+        joinNode.getCondition,
         4,
         joinNode.getRowType,
         joinNode.getCluster.getRexBuilder,
