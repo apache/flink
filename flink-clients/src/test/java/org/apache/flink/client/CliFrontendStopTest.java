@@ -20,14 +20,11 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.client.cli.StopOptions;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.client.util.MockedCliFrontend;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.commons.cli.CommandLine;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -36,11 +33,8 @@ import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Tests for the STOP command.
@@ -105,23 +99,12 @@ public class CliFrontendStopTest extends TestLogger {
 		}
 	}
 
-	private static final class StopTestCliFrontend extends CliFrontend {
-		private final ClusterClient client;
+	private static final class StopTestCliFrontend extends MockedCliFrontend {
 
 		StopTestCliFrontend(boolean reject) throws Exception {
-			super(CliFrontendTestUtils.getConfigDir());
-			this.client = mock(ClusterClient.class);
 			if (reject) {
 				doThrow(new IllegalArgumentException("Test exception")).when(client).stop(any(JobID.class));
 			}
-		}
-
-		@Override
-		public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
-			CustomCommandLine ccl = mock(CustomCommandLine.class);
-			when(ccl.retrieveCluster(any(CommandLine.class), any(Configuration.class), anyString()))
-				.thenReturn(client);
-			return ccl;
 		}
 	}
 }

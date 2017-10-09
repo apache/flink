@@ -22,10 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
-import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.Flip6DefaultCLI;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.client.util.MockedCliFrontend;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -36,7 +34,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.testkit.JavaTestKit;
-import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -55,8 +52,6 @@ import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Tests for the CANCEL and LIST commands.
@@ -220,24 +215,13 @@ public class CliFrontendListCancelTest {
 		}
 	}
 
-	private static final class CancelTestCliFrontend extends CliFrontend {
-		private final ClusterClient client;
+	private static final class CancelTestCliFrontend extends MockedCliFrontend {
 
 		CancelTestCliFrontend(boolean reject) throws Exception {
-			super(CliFrontendTestUtils.getConfigDir());
-			this.client = mock(ClusterClient.class);
 			if (reject) {
 				doThrow(new IllegalArgumentException("Test exception")).when(client).cancel(any(JobID.class));
 				doThrow(new IllegalArgumentException("Test exception")).when(client).cancelWithSavepoint(any(JobID.class), anyString());
 			}
-		}
-
-		@Override
-		public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
-			CustomCommandLine ccl = mock(CustomCommandLine.class);
-			when(ccl.retrieveCluster(any(CommandLine.class), any(Configuration.class), anyString()))
-				.thenReturn(client);
-			return ccl;
 		}
 	}
 
