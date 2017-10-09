@@ -18,23 +18,27 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.junit.BeforeClass;
+
 /**
- * IT cases for the {@link FlinkKafkaProducer09}.
+ * IT cases for the {@link FlinkKafkaProducer011}.
  */
 @SuppressWarnings("serial")
-public class Kafka09ProducerITCase extends KafkaProducerTestBase {
+public class Kafka011ProducerAtLeastOnceITCase extends KafkaProducerTestBase {
+
+	@BeforeClass
+	public static void prepare() throws ClassNotFoundException {
+		KafkaProducerTestBase.prepare();
+		((KafkaTestEnvironmentImpl) kafkaServer).setProducerSemantic(FlinkKafkaProducer011.Semantic.AT_LEAST_ONCE);
+	}
+
 	@Override
 	public void testExactlyOnceRegularSink() throws Exception {
-		// Kafka08 does not support exactly once semantic
+		// disable test for at least once semantic
 	}
 
 	@Override
 	public void testExactlyOnceCustomOperator() throws Exception {
-		// Kafka08 does not support exactly once semantic
-	}
-
-	@Override
-	public void testOneToOneAtLeastOnceCustomOperator() throws Exception {
-		// Disable this test since FlinkKafka09Producer doesn't support custom operator mode
+		// disable test for at least once semantic
 	}
 }

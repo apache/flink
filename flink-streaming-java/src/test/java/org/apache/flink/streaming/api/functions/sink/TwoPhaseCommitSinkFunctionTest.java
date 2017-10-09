@@ -136,7 +136,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 		}
 
 		@Override
-		protected void invoke(FileTransaction transaction, String value) throws Exception {
+		protected void invoke(FileTransaction transaction, String value, Context context) throws Exception {
 			transaction.writer.write(value);
 		}
 
