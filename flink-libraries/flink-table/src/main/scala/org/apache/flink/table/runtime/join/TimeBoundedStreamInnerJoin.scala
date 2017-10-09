@@ -150,7 +150,7 @@ abstract class TimeBoundedStreamInnerJoin(
     if (rightOperatorTime < rightQualifiedUpperBound) {
       // Operator time of right stream has not exceeded the upper window bound of the current
       // row. Put it into the left cache, since later coming records from the right stream are
-      // expected to join with it.
+      // expected to be joined with it.
       var leftRowList = leftCache.get(timeForLeftRow)
       if (null == leftRowList) {
         leftRowList = new util.ArrayList[Row](1)
@@ -163,6 +163,9 @@ abstract class TimeBoundedStreamInnerJoin(
       }
     }
     // Check if we need to join the current row against cached rows of the right input.
+    // The condition here should be rightMinimumTime < rightQualifiedUpperBound.
+    // I use rightExpirationTime as an approximation of the rightMinimumTime here,
+    // since rightExpirationTime <= rightMinimumTime is always true.
     if (rightExpirationTime < rightQualifiedUpperBound) {
       // Upper bound of current join window has not passed the cache expiration time yet.
       // There might be qualifying rows in the cache that the current row needs to be joined with.
@@ -206,7 +209,7 @@ abstract class TimeBoundedStreamInnerJoin(
     if (leftOperatorTime < leftQualifiedUpperBound) {
       // Operator time of left stream has not exceeded the upper window bound of the current
       // row. Put it into the right cache, since later coming records from the left stream are
-      // expected to join with it.
+      // expected to be joined with it.
       var rightRowList = rightCache.get(timeForRightRow)
       if (null == rightRowList) {
         rightRowList = new util.ArrayList[Row](1)
@@ -219,6 +222,9 @@ abstract class TimeBoundedStreamInnerJoin(
       }
     }
     // Check if we need to join the current row against cached rows of the left input.
+    // The condition here should be leftMinimumTime < leftQualifiedUpperBound.
+    // I use leftExpirationTime as an approximation of the leftMinimumTime here,
+    // since leftExpirationTime <= leftMinimumTime is always true.
     if (leftExpirationTime < leftQualifiedUpperBound) {
       leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
       // Join the rightRow with rows from the left cache.
@@ -293,6 +299,7 @@ abstract class TimeBoundedStreamInnerJoin(
     if (operatorTime < Long.MaxValue) {
       operatorTime - relativeSize - allowedLateness - 1
     } else {
+      // When operatorTime = Long.MaxValue, it means the stream has reached the end.
       Long.MaxValue
     }
   }
