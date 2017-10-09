@@ -23,12 +23,10 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -115,7 +113,7 @@ public final class FileUtils {
 			// empty the directory first
 			final File[] files = file.listFiles();
 			for (File f : files) {
-				if(f != null) {
+				if (f != null) {
 					if (f.isDirectory()) {
 						deleteFileOrDirectory(f);
 					} else {
