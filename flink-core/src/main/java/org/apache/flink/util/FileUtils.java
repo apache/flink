@@ -89,51 +89,55 @@ public final class FileUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Removes the given file or directory recursively.
-	 * 
-	 * <p>If the file or directory does not exist, this does not throw an exception, but simply does nothing.
-	 * It considers the fact that a file-to-be-deleted does not present a success.
-	 * 
+	 * Deletes the given directory recursively.
+	 *
+	 * <p>If the directory does not exist, this does not throw an exception, but simply does nothing.
+	 * It considers the fact that a directory-to-be-deleted is not present a success.
+	 *
 	 * <p>This method is safe against other concurrent deletion attempts.
-	 * 
-	 * @param file The file or directory to delete.
-	 * 
-	 * @throws IOException Thrown if the directory could not be cleaned for some reason, for example
-	 *                     due to missing access/write permissions.
+	 *
+	 * @param directory The directory to be deleted.
+	 * @throws IOException Thrown if the given file is not a directory, or if the directory could not be
+	 *                     deleted for some reason, for example due to missing access/write permissions.
 	 */
-	public static void deleteFileOrDirectory(final File file) throws IOException {
-		checkNotNull(file, "file");
+	public static void deleteDirectory(File directory) throws IOException {
+		checkNotNull(directory, "file");
 
-		if(!file.exists()) {
+		if(!directory.exists()) {
 			// if does not exist, which is okay (as if deleted)
 			return;
 		}
 
-		if (file.isDirectory()) {
+		if (directory.isDirectory()) {
 			// empty the directory first
-			final File[] files = file.listFiles();
-			for (File f : files) {
-				if (f != null) {
-					if (f.isDirectory()) {
-						deleteFileOrDirectory(f);
-					} else {
-						Files.deleteIfExists(f.toPath());
+			final File[] files = directory.listFiles();
+			if (files != null) {
+				for (File f : files) {
+					if (f != null) {
+						if (f.isDirectory()) {
+							deleteDirectory(f);
+						} else {
+							Files.deleteIfExists(f.toPath());
+						}
 					}
 				}
 			}
 
 			// delete the directory. this fails if the directory is not empty, meaning
 			// if new files got concurrently created. we want to fail then.
+			Files.deleteIfExists(directory.toPath());
+		} else {
+			// exists but is file, not directory
+			// either an error from the caller, or concurrently a file got created
+			throw new IOException(directory + " is not a directory");
 		}
-
-		Files.deleteIfExists(file.toPath());
 	}
 
 	/**
 	 * Deletes the given directory recursively, not reporting any I/O exceptions
 	 * that occur.
 	 *
-	 * <p>This method is identical to {@link FileUtils#deleteFileOrDirectory(File)}, except that it
+	 * <p>This method is identical to {@link FileUtils#deleteDirectory(File)}, except that it
 	 * swallows all exceptions and may leave the job quietly incomplete.
 	 *
 	 * @param directory The directory to delete.
@@ -145,7 +149,7 @@ public final class FileUtils {
 
 		// delete and do not report if it fails
 		try {
-			deleteFileOrDirectory(directory);
+			deleteDirectory(directory);
 		} catch (Exception ignored) {}
 	}
 

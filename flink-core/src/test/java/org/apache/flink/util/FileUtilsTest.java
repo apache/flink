@@ -69,6 +69,38 @@ public class FileUtilsTest {
 	}
 
 	@Test
+	public void testDeleteDirectory() throws Exception {
+
+		// deleting a non-existent file should not cause an error
+
+		File doesNotExist = new File(tmp.newFolder(), "abc");
+		FileUtils.deleteDirectory(doesNotExist);
+
+		// deleting a write protected file should throw an error
+
+		File cannotDeleteParent = tmp.newFolder();
+		File cannotDeleteChild = new File(cannotDeleteParent, "child");
+
+		try {
+			assumeTrue(cannotDeleteChild.createNewFile());
+			assumeTrue(cannotDeleteParent.setWritable(false));
+			assumeTrue(cannotDeleteChild.setWritable(false));
+
+			FileUtils.deleteDirectory(cannotDeleteParent);
+			fail("this should fail with an exception");
+		}
+		catch (AccessDeniedException ignored) {
+			// this is expected
+		}
+		finally {
+			//noinspection ResultOfMethodCallIgnored
+			cannotDeleteParent.setWritable(true);
+			//noinspection ResultOfMethodCallIgnored
+			cannotDeleteChild.setWritable(true);
+		}
+	}
+
+	@Test
 	public void testDeleteDirectoryConcurrently() throws Exception {
 		final File parent = tmp.newFolder();
 
@@ -124,7 +156,7 @@ public class FileUtilsTest {
 
 		@Override
 		public void go() throws Exception {
-			FileUtils.deleteFileOrDirectory(target);
+			FileUtils.deleteDirectory(target);
 		}
 	}
 }

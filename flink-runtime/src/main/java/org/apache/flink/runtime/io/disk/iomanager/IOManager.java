@@ -106,7 +106,7 @@ public abstract class IOManager {
 			try {
 				if (path != null) {
 					if (path.exists()) {
-						FileUtils.deleteFileOrDirectory(path);
+						FileUtils.deleteDirectory(path);
 						LOG.info("I/O manager removed spill file directory {}", path.getAbsolutePath());
 					}
 				}
