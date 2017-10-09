@@ -18,26 +18,20 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.runtime.rest.handler.legacy.messages.RestResponseMarshallingTestBase;
 
 /**
- * Parameters for job related REST handlers.
- *
- * <p>A job related REST handler always requires a {@link JobIDPathParameter}.
+ * Tests for {@link BlobServerPortResponseBody}.
  */
-public class JobTerminationMessageParameters extends MessageParameters {
-
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
-	public final TerminationModeQueryParameter terminationModeQueryParameter = new TerminationModeQueryParameter();
+public class BlobServerPortResponseTest extends RestResponseMarshallingTestBase<BlobServerPortResponseBody> {
 
 	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
+	protected Class<BlobServerPortResponseBody> getTestResponseClass() {
+		return BlobServerPortResponseBody.class;
 	}
 
 	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(terminationModeQueryParameter);
+	protected BlobServerPortResponseBody getTestResponseInstance() throws Exception {
+		return new BlobServerPortResponseBody(64);
 	}
 }

@@ -63,6 +63,8 @@ import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
@@ -82,7 +84,7 @@ import scala.concurrent.duration.FiniteDuration;
  */
 public abstract class ClusterClient {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** The optimizer used in the optimization of batch programs. */
 	final Optimizer compiler;
@@ -575,25 +577,46 @@ public abstract class ClusterClient {
 	 * @throws Exception In case an error occurred.
 	 */
 	public void cancel(JobID jobId) throws Exception {
-		final ActorGateway jobManagerGateway = getJobManagerGateway();
+		final ActorGateway jobManager = getJobManagerGateway();
 
-		final Future<Object> response;
-		try {
-			response = jobManagerGateway.ask(new JobManagerMessages.CancelJob(jobId), timeout);
-		} catch (final Exception e) {
-			throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
-		}
+		Object cancelMsg = new JobManagerMessages.CancelJob(jobId);
 
-		final Object result = Await.result(response, timeout);
+		Future<Object> response = jobManager.ask(cancelMsg, timeout);
+		final Object rc = Await.result(response, timeout);
 
-		if (result instanceof JobManagerMessages.CancellationSuccess) {
-			logAndSysout("Job cancellation with ID " + jobId + " succeeded.");
-		} else if (result instanceof JobManagerMessages.CancellationFailure) {
-			final Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
-			logAndSysout("Job cancellation with ID " + jobId + " failed because of " + t.getMessage());
-			throw new Exception("Failed to cancel the job with id " + jobId, t);
+		if (rc instanceof JobManagerMessages.CancellationSuccess) {
+			// no further action required
+		} else if (rc instanceof JobManagerMessages.CancellationFailure) {
+			throw new Exception("Canceling the job with ID " + jobId + " failed.",
+				((JobManagerMessages.CancellationFailure) rc).cause());
 		} else {
-			throw new Exception("Unknown message received while cancelling: " + result.getClass().getName());
+			throw new IllegalStateException("Unexpected response: " + rc);
+		}
+	}
+
+	/**
+	 * Cancels a job identified by the job id and triggers a savepoint.
+	 * @param jobId the job id
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return path where the savepoint is located
+	 * @throws Exception In case an error cocurred.
+	 */
+	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Object cancelMsg = new JobManagerMessages.CancelJobWithSavepoint(jobId, savepointDirectory);
+
+		Future<Object> response = jobManager.ask(cancelMsg, timeout);
+		final Object rc = Await.result(response, timeout);
+
+		if (rc instanceof JobManagerMessages.CancellationSuccess) {
+			JobManagerMessages.CancellationSuccess success = (JobManagerMessages.CancellationSuccess) rc;
+			return success.savepointPath();
+		} else if (rc instanceof JobManagerMessages.CancellationFailure) {
+			throw new Exception("Cancel & savepoint for the job with ID " + jobId + " failed.",
+				((JobManagerMessages.CancellationFailure) rc).cause());
+		} else {
+			throw new IllegalStateException("Unexpected response: " + rc);
 		}
 	}
 
@@ -610,25 +633,19 @@ public abstract class ClusterClient {
 	 *             failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
 	 */
 	public void stop(final JobID jobId) throws Exception {
-		final ActorGateway jobManagerGateway = getJobManagerGateway();
+		final ActorGateway jobManager = getJobManagerGateway();
 
-		final Future<Object> response;
-		try {
-			response = jobManagerGateway.ask(new JobManagerMessages.StopJob(jobId), timeout);
-		} catch (final Exception e) {
-			throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
-		}
+		Future<Object> response = jobManager.ask(new JobManagerMessages.StopJob(jobId), timeout);
 
-		final Object result = Await.result(response, timeout);
+		final Object rc = Await.result(response, timeout);
 
-		if (result instanceof JobManagerMessages.StoppingSuccess) {
-			log.info("Job stopping with ID " + jobId + " succeeded.");
-		} else if (result instanceof JobManagerMessages.StoppingFailure) {
-			final Throwable t = ((JobManagerMessages.StoppingFailure) result).cause();
-			log.info("Job stopping with ID " + jobId + " failed.", t);
-			throw new Exception("Failed to stop the job because of \n" + t.getMessage());
+		if (rc instanceof JobManagerMessages.StoppingSuccess) {
+			// no further action required
+		} else if (rc instanceof JobManagerMessages.StoppingFailure) {
+			throw new Exception("Stopping the job with ID " + jobId + " failed.",
+				((JobManagerMessages.StoppingFailure) rc).cause());
 		} else {
-			throw new Exception("Unknown message received while stopping: " + result.getClass().getName());
+			throw new IllegalStateException("Unexpected response: " + rc);
 		}
 	}
 
