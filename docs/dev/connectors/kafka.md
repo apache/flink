@@ -72,6 +72,14 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>0.10.x</td>
         <td>This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message">Kafka messages with timestamps</a> both for producing and consuming.</td>
     </tr>
+    <tr>
+        <td>flink-connector-kafka-0.11_2.11</td>
+        <td>1.4.0</td>
+        <td>FlinkKafkaConsumer011<br>
+        FlinkKafkaProducer011</td>
+        <td>0.11.x</td>
+        <td>Since 0.11.x Kafka does not support scala 2.10. This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka transactional messaging</a> to provide exactly once semantic for the producer.</td>
+    </tr>
   </tbody>
 </table>
 
@@ -517,6 +525,89 @@ into a Kafka topic.
   Default values for the above options can easily lead to data loss. Please refer to Kafka documentation
   for more explanation.
 </div>
+
+#### Kafka 0.11
+
+With Flink's checkpointing enabled, the `FlinkKafkaProducer011` can provide
+exactly-once delivery guarantees.
+
+Besides enabling Flink's checkpointing, you can also choose three different modes of operating
+chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011`:
+
+ * `Semantic.NONE`: Flink will not guarantee anything. Produced records can be lost or they can
+ be duplicated.
+ * `Semantic.AT_LEAST_ONCE` (default setting): similar to `setFlushOnCheckpoint(true)` in
+ `FlinkKafkaProducer010`. his guarantees that no records will be lost (although they can be duplicated).
+ * `Semantic.EXACTLY_ONCE`: uses Kafka transactions to provide exactly-once semantic.
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> Depending on your Kafka configuration, even after Kafka acknowledges
+  writes you can still experience data losses. In particular keep in mind about following properties
+  in Kafka config:
+  <ul>
+    <li><tt>acks</tt></li>
+    <li><tt>log.flush.interval.messages</tt></li>
+    <li><tt>log.flush.interval.ms</tt></li>
+    <li><tt>log.flush.*</tt></li>
+  </ul>
+  Default values for above options are easily prone to data losses. Please refer to Kafka documentation
+  for more explanation.
+</div>
+
+
+`Semantic.EXACTLY_ONCE` mode comes with some important limitations of which user must be
+aware.
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> <tt>Semantic.EXACTLY_ONCE</tt> mode relies on ability to commit transactions
+  that were started before taking a checkpoint, after recovering from the said checkpoint. If the time
+  between Flink application crash and completed restart is larger then Kafka's transaction timeout
+  there will be a data loss (Kafka will automatically abort transactions that exceeded timeout time).
+  Having this in mind, please configure your transaction timeout appropriately to your expected down
+  times.
+</div>
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> Kafka broker have a default value of <tt>transaction.max.timeout.ms</tt>
+  property set to 15 minutes. This property will not allow to set transaction timeouts for the producers
+  larger then it's value. <tt>FlinkKafkaProducer011</tt> by default sets the <tt>transaction.timeout.ms</tt>
+  property in producer config to 1 hour, thus <tt>transaction.max.timeout.ms</tt> should be increased before
+  using the <tt>Semantic.EXACTLY_ONCE</tt> mode.
+</div>
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> In <tt>read_committed</tt> mode of <tt>KafkaConsumer</tt>, any not
+  completed transaction (neither aborted nor completed) will block all reads from the given Kafka
+  topic past that not completed transaction. In other words after following sequence of events:
+  <ol>
+    <li>User started <tt>transaction1</tt> and written some records using it</li>
+    <li>User started <tt>transaction2</tt> and written some further records using it</li>
+    <li>User committed <tt>transaction2</tt></li>
+  </ol>
+  Despite records from <tt>transaction2</tt> are already committed, they will not be visible to
+  the consumers until <tt>transaction1</tt> is committed or aborted. This have  two implications:
+  <ul>
+    <li>First of all, during normal working of Flink applications, user can expect
+    a delay in visibility of the records produced into Kafka topics, equal to average time between
+    completed checkpoints.</li>
+    <li>Secondly in case of Flink application failure, topics into which this application was writting,
+    will be blocked for the readers until the application restarts or the configured transaction
+    timeout time will pass. This remark only applies for the cases when there are multiple agents/applications
+    writing to the same Kafka topic.</li>
+  </ul>
+</div>
+
+**Note**:  `Semantic.EXACTLY_ONCE` mode uses a fixed size pool of KafkaProducers
+per each `FlinkKafkaProducer011` instance. One of each of those producers is used per one
+checkpoint. If the number of concurrent checkpoints exceeds the pool size, `FlinkKafkaProducer011`
+will throw an exception and will fail the whole application. Please configure max pool size and max
+number of concurrent checkpoints accordingly.
+
+**Note**: `Semantic.EXACTLY_ONCE` takes all possible measures to not leave any lingering transactions
+that would block the consumers from reading from Kafka topic more then it is necessary. However in the
+event of failure of Flink application before first checkpoint, after restarting such application there
+is no information in the system about previous pool sizes. Thus it is unsafe to scale down Flink
+application before first checkpoint completes, by factor larger then `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 

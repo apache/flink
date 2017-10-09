@@ -21,6 +21,7 @@ import org.apache.flink.networking.NetworkFailuresProxy;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.ZooKeeperStringSerializer;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -57,6 +58,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -67,7 +69,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * An implementation of the KafkaServerProvider for Kafka 0.10 .
+ * An implementation of the KafkaServerProvider for Kafka 0.11 .
  */
 public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
@@ -80,12 +82,17 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 	private String zookeeperConnectionString;
 	private String brokerConnectionString = "";
 	private Properties standardProps;
-	private Config config;
+	private FlinkKafkaProducer011.Semantic producerSemantic = FlinkKafkaProducer011.Semantic.EXACTLY_ONCE;
 	// 6 seconds is default. Seems to be too small for travis. 30 seconds
 	private int zkTimeout = 30000;
+	private Config config;
 
 	public String getBrokerConnectionString() {
 		return brokerConnectionString;
+	}
+
+	public void setProducerSemantic(FlinkKafkaProducer011.Semantic producerSemantic) {
+		this.producerSemantic = producerSemantic;
 	}
 
 	@Override
@@ -111,7 +118,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public String getVersion() {
-		return "0.10";
+		return "0.11";
 	}
 
 	@Override
@@ -121,7 +128,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public <T> FlinkKafkaConsumerBase<T> getConsumer(List<String> topics, KeyedDeserializationSchema<T> readSchema, Properties props) {
-		return new FlinkKafkaConsumer010<>(topics, readSchema, props);
+		return new FlinkKafkaConsumer011<>(topics, readSchema, props);
 	}
 
 	@Override
@@ -154,23 +161,33 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 
 	@Override
 	public <T> StreamSink<T> getProducerSink(String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
-		FlinkKafkaProducer010<T> prod = new FlinkKafkaProducer010<>(topic, serSchema, props, partitioner);
-		prod.setFlushOnCheckpoint(true);
-		return new StreamSink<>(prod);
+		return new StreamSink<>(new FlinkKafkaProducer011<>(
+			topic,
+			serSchema,
+			props,
+			Optional.ofNullable(partitioner),
+			producerSemantic,
+			FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
 	}
 
 	@Override
 	public <T> DataStreamSink<T> produceIntoKafka(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props, FlinkKafkaPartitioner<T> partitioner) {
-		FlinkKafkaProducer010<T> prod = new FlinkKafkaProducer010<>(topic, serSchema, props, partitioner);
-		prod.setFlushOnCheckpoint(true);
-		return stream.addSink(prod);
+		return stream.addSink(new FlinkKafkaProducer011<>(
+			topic,
+			serSchema,
+			props,
+			Optional.ofNullable(partitioner),
+			producerSemantic,
+			FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
 	}
 
 	@Override
 	public <T> DataStreamSink<T> writeToKafkaWithTimestamps(DataStream<T> stream, String topic, KeyedSerializationSchema<T> serSchema, Properties props) {
-		FlinkKafkaProducer010<T> prod = new FlinkKafkaProducer010<>(topic, serSchema, props);
-		prod.setFlushOnCheckpoint(true);
+		FlinkKafkaProducer011<T> prod = new FlinkKafkaProducer011<>(
+			topic, serSchema, props, Optional.of(new FlinkFixedPartitioner<>()), producerSemantic, FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
+
 		prod.setWriteTimestampToKafka(true);
+
 		return stream.addSink(prod);
 	}
 
@@ -274,7 +291,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		standardProps.setProperty("enable.auto.commit", "false");
 		standardProps.setProperty("zookeeper.session.timeout.ms", String.valueOf(zkTimeout));
 		standardProps.setProperty("zookeeper.connection.timeout.ms", String.valueOf(zkTimeout));
-		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning. (earliest is kafka 0.10 value)
+		standardProps.setProperty("auto.offset.reset", "earliest"); // read from the beginning. (earliest is kafka 0.11 value)
 		standardProps.setProperty("max.partition.fetch.bytes", "256"); // make a lot of fetches (MESSAGES MUST BE SMALLER!)
 	}
 
@@ -395,6 +412,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
 		kafkaProperties.put("zookeeper.connect", zookeeperConnectionString);
 		kafkaProperties.put("message.max.bytes", String.valueOf(50 * 1024 * 1024));
 		kafkaProperties.put("replica.fetch.max.bytes", String.valueOf(50 * 1024 * 1024));
+		kafkaProperties.put("transaction.max.timeout.ms", Integer.toString(1000 * 60 * 60 * 2)); // 2hours
 
 		// for CI stability, increase zookeeper session timeout
 		kafkaProperties.put("zookeeper.session.timeout.ms", zkTimeout);

@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,25 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.streaming.connectors.kafka.internal.metrics;
+
+import org.apache.flink.metrics.Gauge;
+
+import org.apache.kafka.common.Metric;
 
 /**
- * IT cases for the {@link FlinkKafkaProducer09}.
+ * Gauge for getting the current value of a Kafka metric.
  */
-@SuppressWarnings("serial")
-public class Kafka09ProducerITCase extends KafkaProducerTestBase {
-	@Override
-	public void testExactlyOnceRegularSink() throws Exception {
-		// Kafka08 does not support exactly once semantic
+public class KafkaMetricMuttableWrapper implements Gauge<Double> {
+	private org.apache.kafka.common.Metric kafkaMetric;
+
+	public KafkaMetricMuttableWrapper(org.apache.kafka.common.Metric metric) {
+		this.kafkaMetric = metric;
 	}
 
 	@Override
-	public void testExactlyOnceCustomOperator() throws Exception {
-		// Kafka08 does not support exactly once semantic
+	public Double getValue() {
+		return kafkaMetric.value();
 	}
 
-	@Override
-	public void testOneToOneAtLeastOnceCustomOperator() throws Exception {
-		// Disable this test since FlinkKafka09Producer doesn't support custom operator mode
+	public void setKafkaMetric(Metric kafkaMetric) {
+		this.kafkaMetric = kafkaMetric;
 	}
 }

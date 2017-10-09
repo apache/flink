@@ -93,6 +93,10 @@ flink-connectors/flink-connector-twitter"
 MODULES_TESTS="\
 flink-tests"
 
+if [[ $PROFILE != *"scala-2.10"* ]]; then
+	MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.11"
+fi
+
 if [[ $PROFILE == *"include-kinesis"* ]]; then
 	case $TEST in
 		(connectors)

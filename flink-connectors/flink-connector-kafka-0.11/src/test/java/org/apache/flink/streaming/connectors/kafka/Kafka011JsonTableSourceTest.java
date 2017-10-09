@@ -18,23 +18,32 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
+import org.apache.flink.types.Row;
+
+import java.util.Properties;
+
 /**
- * IT cases for the {@link FlinkKafkaProducer09}.
+ * Tests for the {@link Kafka011JsonTableSource}.
  */
-@SuppressWarnings("serial")
-public class Kafka09ProducerITCase extends KafkaProducerTestBase {
+public class Kafka011JsonTableSourceTest extends KafkaTableSourceTestBase {
+
 	@Override
-	public void testExactlyOnceRegularSink() throws Exception {
-		// Kafka08 does not support exactly once semantic
+	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
+		return new Kafka011JsonTableSource(topic, properties, typeInfo);
 	}
 
 	@Override
-	public void testExactlyOnceCustomOperator() throws Exception {
-		// Kafka08 does not support exactly once semantic
+	@SuppressWarnings("unchecked")
+	protected Class<DeserializationSchema<Row>> getDeserializationSchema() {
+		return (Class) JsonRowDeserializationSchema.class;
 	}
 
 	@Override
-	public void testOneToOneAtLeastOnceCustomOperator() throws Exception {
-		// Disable this test since FlinkKafka09Producer doesn't support custom operator mode
+	@SuppressWarnings("unchecked")
+	protected Class<FlinkKafkaConsumerBase<Row>> getFlinkKafkaConsumer() {
+		return (Class) FlinkKafkaConsumer011.class;
 	}
 }
