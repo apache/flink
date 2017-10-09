@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import java.util.Objects;
+
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.util.Preconditions;
-
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 /**
@@ -57,11 +58,9 @@ public class ArchivedJson {
 		}
 	}
 
+	@Override
 	public int hashCode() {
-		HashCodeBuilder bldr = new HashCodeBuilder();
-		bldr.append(path);
-		bldr.append(json);
-		return bldr.toHashCode();
+		return Objects.hash(path, json);
 	}
 
 	@Override
