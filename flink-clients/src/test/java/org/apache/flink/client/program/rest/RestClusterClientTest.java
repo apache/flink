@@ -47,6 +47,10 @@ import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTargetDirectoryParameter;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
@@ -60,6 +64,7 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -179,6 +184,76 @@ public class RestClusterClientTest extends TestLogger {
 					break;
 			}
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
+		}
+	}
+
+	@Test
+	public void testTriggerSavepoint() throws Exception {
+
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+
+		RestServerEndpointConfiguration rsec = RestServerEndpointConfiguration.fromConfiguration(config);
+
+		String targetSavepointDirectory = "/alternate";
+
+		TestSavepointTriggerHandler triggerHandler = new TestSavepointTriggerHandler(targetSavepointDirectory);
+
+		RestServerEndpoint rse = new RestServerEndpoint(rsec) {
+			@Override
+			protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+
+				Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
+				handlers.add(Tuple2.of(triggerHandler.getMessageHeaders(), triggerHandler));
+				return handlers;
+			}
+		};
+
+		RestClusterClient rcc = new RestClusterClient(config);
+		try {
+			rse.start();
+
+			JobID id = new JobID();
+
+			{
+				CompletableFuture<String> savepointPathFuture = rcc.triggerSavepoint(id, null);
+				String savepointPath = savepointPathFuture.get();
+				Assert.assertEquals("/universe", savepointPath);
+			}
+
+			{
+				CompletableFuture<String> savepointPathFuture = rcc.triggerSavepoint(id, targetSavepointDirectory);
+				String savepointPath = savepointPathFuture.get();
+				Assert.assertEquals(targetSavepointDirectory + "/universe", savepointPath);
+			}
+		} finally {
+			rcc.shutdown();
+			rse.shutdown(Time.seconds(5));
+		}
+	}
+
+	private static class TestSavepointTriggerHandler extends TestHandler<EmptyRequestBody, SavepointTriggerResponseBody, SavepointMessageParameters> {
+
+		private final String expectedSavepointDirectory;
+
+		TestSavepointTriggerHandler(String expectedSavepointDirectory) {
+			super(SavepointTriggerHeaders.getInstance());
+			this.expectedSavepointDirectory = expectedSavepointDirectory;
+		}
+
+		@Override
+		protected CompletableFuture<SavepointTriggerResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, SavepointMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			List<String> targetDirectories = request.getQueryParameter(SavepointTargetDirectoryParameter.class);
+			if (targetDirectories.isEmpty()) {
+				return CompletableFuture.completedFuture(new SavepointTriggerResponseBody("growing", "/universe", "big-bang"));
+			} else {
+				String targetDir = targetDirectories.get(0);
+				if (targetDir.equals(expectedSavepointDirectory)) {
+					return CompletableFuture.completedFuture(new SavepointTriggerResponseBody("growing", targetDir + "/universe", "big-bang"));
+				} else {
+					return CompletableFuture.completedFuture(new SavepointTriggerResponseBody("growing", "savepoint directory (" + targetDir + ") did not match expected (" + expectedSavepointDirectory + ')', "big-bang"));
+				}
+			}
 		}
 	}
 
