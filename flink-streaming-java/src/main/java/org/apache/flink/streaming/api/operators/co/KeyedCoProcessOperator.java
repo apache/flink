@@ -98,6 +98,7 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
+		collector.eraseTimestamp();
 		onTimerContext.timeDomain = TimeDomain.PROCESSING_TIME;
 		onTimerContext.timer = timer;
 		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
