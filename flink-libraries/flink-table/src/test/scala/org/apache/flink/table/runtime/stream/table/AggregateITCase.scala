@@ -193,4 +193,29 @@ class AggregateITCase extends StreamingWithStateTestBase {
     // verify agg close is called
     assert(JavaUserDefinedAggFunctions.isCloseCalled)
   }
+
+  @Test
+  def testRemoveDuplicateRecordsWithUpsertSink(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((1, 1L, "A"))
+    data.+=((2, 2L, "B"))
+    data.+=((3, 2L, "B"))
+    data.+=((4, 3L, "C"))
+    data.+=((5, 3L, "C"))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+            .groupBy('c)
+            .select('c, 'b.max)
+
+    t.writeToSink(new TestUpsertSink(Array("c"), false))
+    env.execute()
+
+    val expected = List("(true,A,1)", "(true,B,2)", "(true,C,3)")
+    assertEquals(expected.sorted, RowCollector.getAndClearValues.map(_.toString).sorted)
+  }
 }
