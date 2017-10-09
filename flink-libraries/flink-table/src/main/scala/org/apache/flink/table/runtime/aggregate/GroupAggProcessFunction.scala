@@ -129,17 +129,19 @@ class GroupAggProcessFunction(
       state.update(accumulators)
       cntState.update(inputCnt)
 
-      // if this was not the first row and we have to emit retractions
-      if (generateRetraction && !firstRow) {
+      // if this was not the first row
+      if (!firstRow) {
         if (prevRow.row.equals(newRow.row) && !stateCleaningEnabled) {
           // newRow is the same as before and state cleaning is not enabled.
-          // We do not emit retraction and acc message.
+          // We emit nothing
           // If state cleaning is enabled, we have to emit messages to prevent too early
           // state eviction of downstream operators.
           return
         } else {
           // retract previous result
-          out.collect(prevRow)
+          if (generateRetraction) {
+            out.collect(prevRow)
+          }
         }
       }
       // emit the new result
