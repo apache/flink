@@ -23,19 +23,18 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
-import org.apache.flink.runtime.rest.handler.AbstractWebSocketMessageHandler;
+import org.apache.flink.runtime.rest.handler.AbstractWebSocketHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.ConversionException;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.WebSocketUpgradeResponseBody;
+import org.apache.flink.runtime.rest.messages.WebSocketSpecification;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.websocket.KeyedChannelRouter;
 import org.apache.flink.runtime.rest.websocket.WebSocket;
@@ -47,7 +46,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.group.ChannelGroup;
@@ -69,7 +68,6 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -238,8 +236,6 @@ public class RestEndpointITCase extends TestLogger {
 			serverAddress.getPort(),
 			new TestWebSocketOperation.WsHeaders(),
 			parameters,
-			TestMessage.class,
-			TestMessage.class,
 			(event) -> {
 				try {
 					messageQueue.put(event);
@@ -253,13 +249,15 @@ public class RestEndpointITCase extends TestLogger {
 		WebSocket<TestMessage, TestMessage> webSocket = response.get();
 		try {
 			// wait for the server to register the channel (happens asynchronously after handshake complete)
-			TestWebSocketOperation.WsMessageHandler.LATCH.await();
+			TestWebSocketOperation.WsRestHandler.LATCH.await();
 
-			// send a server-side event and then wait for the message to be received
-			TestMessage sent = new TestMessage(42);
-			eventProvider.write(PATH_JOB_ID, sent);
+			// play ping-pong (server goes first)
+			eventProvider.writeAndFlush(PATH_JOB_ID, new TestMessage(42));
 			TestMessage received = messageQueue.take();
-			Assert.assertEquals(sent, received);
+			Assert.assertEquals(42, received.sequenceNumber);
+			webSocket.send(received.incr());
+			received = messageQueue.take();
+			Assert.assertEquals(44, received.sequenceNumber);
 		}
 		finally {
 			webSocket.close();
@@ -423,12 +421,7 @@ public class RestEndpointITCase extends TestLogger {
 			}
 		}
 
-		static class WsHeaders implements MessageHeaders<EmptyRequestBody, WebSocketUpgradeResponseBody<TestMessage, TestMessage>, WsParameters> {
-
-			@Override
-			public HttpMethodWrapper getHttpMethod() {
-				return HttpMethodWrapper.GET;
-			}
+		static class WsHeaders implements WebSocketSpecification<WsParameters, TestMessage, TestMessage> {
 
 			@Override
 			public String getTargetRestEndpointURL() {
@@ -436,19 +429,18 @@ public class RestEndpointITCase extends TestLogger {
 			}
 
 			@Override
-			public Class<EmptyRequestBody> getRequestClass() {
-				return EmptyRequestBody.class;
+			public String getSubprotocol() {
+				return "test";
 			}
 
 			@Override
-			@SuppressWarnings("unchecked")
-			public Class<WebSocketUpgradeResponseBody<TestMessage, TestMessage>> getResponseClass() {
-				return (Class<WebSocketUpgradeResponseBody<TestMessage, TestMessage>>) (Class<?>) WebSocketUpgradeResponseBody.class;
+			public Class<TestMessage> getOutboundClass() {
+				return TestMessage.class;
 			}
 
 			@Override
-			public HttpResponseStatus getResponseStatusCode() {
-				return HttpResponseStatus.OK;
+			public Class<TestMessage> getInboundClass() {
+				return TestMessage.class;
 			}
 
 			@Override
@@ -457,7 +449,9 @@ public class RestEndpointITCase extends TestLogger {
 			}
 		}
 
-		static class WsRestHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, WebSocketUpgradeResponseBody<TestMessage, TestMessage>, WsParameters> {
+		static class WsRestHandler extends AbstractWebSocketHandler<RestfulGateway, WsParameters, TestMessage, TestMessage> {
+
+			public static final CountDownLatch LATCH = new CountDownLatch(1);
 
 			private final TestEventProvider eventProvider;
 
@@ -471,31 +465,24 @@ public class RestEndpointITCase extends TestLogger {
 			}
 
 			@Override
-			protected CompletableFuture<WebSocketUpgradeResponseBody<TestMessage, TestMessage>> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, WsParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-				JobID jobID = request.getPathParameter(JobIDPathParameter.class);
+			protected CompletableFuture<Void> handshakeInitiated(ChannelHandlerContext ctx, WsParameters parameters) throws Exception {
+				// validate request before completing the handshake
+				JobID jobID = parameters.getPathParameter(JobIDPathParameter.class);
 				Assert.assertEquals(PATH_JOB_ID, jobID);
-				ChannelHandler messageHandler = new WsMessageHandler(eventProvider, jobID);
-				WebSocketUpgradeResponseBody<TestMessage, TestMessage> responseBody = new WebSocketUpgradeResponseBody<>(messageHandler);
-				return CompletableFuture.completedFuture(responseBody);
-			}
-		}
-
-		static class WsMessageHandler extends AbstractWebSocketMessageHandler {
-
-			public static final CountDownLatch LATCH = new CountDownLatch(1);
-
-			private final TestEventProvider provider;
-			private JobID jobID;
-
-			public WsMessageHandler(TestEventProvider provider, JobID jobID) {
-				this.provider = provider;
-				this.jobID = jobID;
+				return CompletableFuture.completedFuture(null);
 			}
 
 			@Override
-			protected void handshakeComplete(ChannelHandlerContext ctx) throws Exception {
-				provider.register(ctx.channel(), jobID);
+			protected void handshakeCompleted(ChannelHandlerContext ctx, WsParameters parameters) throws Exception {
+				// handshake complete; register for server events
+				JobID jobID = parameters.getPathParameter(JobIDPathParameter.class);
+				eventProvider.register(ctx.channel(), jobID);
 				LATCH.countDown();
+			}
+
+			@Override
+			protected void messageReceived(ChannelHandlerContext ctx, WsParameters parameters, TestMessage msg) throws Exception {
+				ctx.channel().writeAndFlush(msg.incr()).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
 			}
 		}
 	}
@@ -557,21 +544,8 @@ public class RestEndpointITCase extends TestLogger {
 			this.sequenceNumber = sequenceNumber;
 		}
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			TestMessage that = (TestMessage) o;
-			return sequenceNumber == that.sequenceNumber;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(sequenceNumber);
+		public TestMessage incr() {
+			return new TestMessage(sequenceNumber + 1);
 		}
 	}
 }

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.WebSocketUpgradeResponseBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -40,8 +39,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpReques
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
-import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -160,34 +157,13 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 					}
 				} else {
-					if (resp instanceof WebSocketUpgradeResponseBody<?, ?>) {
-						upgradeToWebSocket(ctx, routed, (WebSocketUpgradeResponseBody<?, ?>) resp);
-					}
-					else {
-						HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
-					}
+					HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
 				}
 			});
 		} catch (Throwable e) {
 			log.error("Request processing failed.", e);
 			HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}
-	}
-
-	private void upgradeToWebSocket(final ChannelHandlerContext ctx, Routed routed, WebSocketUpgradeResponseBody<?, ?> upgrade) {
-		// inject the websocket protocol handler into this channel, to be active
-		// until the channel is closed.  note that the handshake may or may not complete synchronously.
-		ctx.pipeline().addAfter(ctx.name(), WebSocketServerProtocolHandler.class.getName(),
-			new WebSocketServerProtocolHandler(routed.path()));
-
-		// inject the message handler
-		ChannelHandler messageHandler = upgrade.getChannelHandler();
-		ctx.pipeline().addAfter(WebSocketServerProtocolHandler.class.getName(), messageHandler.getClass().getName(), messageHandler);
-
-		// forward the message to the installed protocol handler to initiate handshaking
-		HttpRequest request = routed.request();
-		ReferenceCountUtil.retain(request);
-		ctx.fireChannelRead(request);
 	}
 
 	/**

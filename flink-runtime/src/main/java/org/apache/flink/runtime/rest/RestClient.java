@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.rest.handler.JsonWebSocketMessageCodec;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -28,12 +29,11 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.WebSocketUpgradeResponseBody;
+import org.apache.flink.runtime.rest.messages.WebSocketSpecification;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.rest.websocket.WebSocket;
-import org.apache.flink.runtime.rest.websocket.WebSocketHandlerUtils;
 import org.apache.flink.runtime.rest.websocket.WebSocketListener;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -50,7 +50,6 @@ import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandl
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.EncoderException;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultHttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpRequest;
@@ -61,7 +60,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpObjectAggr
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.websocketx.WebSocketClientProtocolHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
@@ -326,17 +324,16 @@ public class RestClient {
 		}
 	}
 
+	//M messageHeaders
 	@SuppressWarnings("unchecked")
-	public <M extends MessageHeaders<EmptyRequestBody, WebSocketUpgradeResponseBody<I, O>, U>, U extends MessageParameters, I extends ResponseBody, O extends RequestBody> CompletableFuture<WebSocket<I, O>> sendWebSocketRequest(String targetAddress, int targetPort, M messageHeaders, U messageParameters, Class<I> inboundType, Class<O> outboundType, WebSocketListener<I>... listeners) throws IOException {
+	public <M extends WebSocketSpecification<U, O, I>, U extends MessageParameters, I extends ResponseBody, O extends RequestBody> CompletableFuture<WebSocket<I, O>> sendWebSocketRequest(String targetAddress, int targetPort, M spec, U messageParameters, WebSocketListener<I>... listeners) throws IOException {
 		Preconditions.checkNotNull(targetAddress);
 		Preconditions.checkArgument(0 <= targetPort && targetPort < 65536, "The target port " + targetPort + " is not in the range (0, 65536].");
-		Preconditions.checkNotNull(messageHeaders);
+		Preconditions.checkNotNull(spec);
 		Preconditions.checkNotNull(messageParameters);
 		Preconditions.checkState(messageParameters.isResolved(), "Message parameters were not resolved.");
-		Preconditions.checkNotNull(inboundType);
-		Preconditions.checkNotNull(outboundType);
 
-		String targetUrl = MessageParameters.resolveUrl(messageHeaders.getTargetRestEndpointURL(), messageParameters);
+		String targetUrl = MessageParameters.resolveUrl(spec.getTargetRestEndpointURL(), messageParameters);
 		URI webSocketURL = URI.create("ws://" + targetAddress + ":" + targetPort).resolve(targetUrl);
 		LOG.debug("Sending WebSocket request to {}", webSocketURL);
 
@@ -348,8 +345,9 @@ public class RestClient {
 			protected void initChannel(SocketChannel channel) throws Exception {
 				super.initChannel(channel);
 				channel.pipeline()
-					.addLast(new WebSocketClientProtocolHandler(webSocketURL, WebSocketVersion.V13, null, false, headers, 65535))
-					.addLast(new WsResponseHandler<I, O>(channel, inboundType, outboundType, listeners));
+					.addLast(new WebSocketClientProtocolHandler(webSocketURL, WebSocketVersion.V13, spec.getSubprotocol(), false, headers, 65535))
+					.addLast(new JsonWebSocketMessageCodec<>(spec.getInboundClass(), spec.getOutboundClass()))
+					.addLast(new WsResponseHandler<I, O>(channel, spec.getInboundClass(), spec.getOutboundClass(), listeners));
 			}
 		});
 
@@ -368,11 +366,9 @@ public class RestClient {
 			});
 	}
 
-	private static class WsResponseHandler<I extends ResponseBody, O extends RequestBody> extends SimpleChannelInboundHandler<Object> implements WebSocket<I, O> {
+	private static class WsResponseHandler<I extends ResponseBody, O extends RequestBody> extends SimpleChannelInboundHandler<I> implements WebSocket<I, O> {
 
 		private final Channel channel;
-		private final Class<I> inboundClass;
-		private final Class<O> outboundClass;
 		private final List<WebSocketListener<I>> listeners = new CopyOnWriteArrayList<>();
 
 		private final CompletableFuture<WebSocket<I, O>> webSocketFuture = new CompletableFuture<>();
@@ -382,9 +378,8 @@ public class RestClient {
 		}
 
 		public WsResponseHandler(Channel channel, Class<I> inboundClass, Class<O> outboundClass, WebSocketListener<I>[] listeners) {
+			super(inboundClass);
 			this.channel = channel;
-			this.inboundClass = inboundClass;
-			this.outboundClass = outboundClass;
 			this.listeners.addAll(Arrays.asList(listeners));
 		}
 
@@ -414,12 +409,9 @@ public class RestClient {
 		}
 
 		@Override
-		protected void channelRead0(ChannelHandlerContext channelHandlerContext, Object o) throws Exception {
-			if (o instanceof TextWebSocketFrame) {
-				I message = WebSocketHandlerUtils.decodeMessage((TextWebSocketFrame) o, inboundClass);
-				for (WebSocketListener<I> listener : listeners) {
-					listener.onEvent(message);
-				}
+		protected void channelRead0(ChannelHandlerContext channelHandlerContext, I msg) throws Exception {
+			for (WebSocketListener<I> listener : listeners) {
+				listener.onEvent(msg);
 			}
 		}
 
@@ -431,11 +423,7 @@ public class RestClient {
 		@Override
 		public ChannelFuture send(O message) {
 			try {
-				TextWebSocketFrame frame = WebSocketHandlerUtils.encodeMessage(message, outboundClass);
-				return channel.writeAndFlush(frame);
-			}
-			catch (IOException e) {
-				throw new EncoderException(e);
+				return channel.writeAndFlush(message);
 			}
 			finally {
 				ReferenceCountUtil.release(message);

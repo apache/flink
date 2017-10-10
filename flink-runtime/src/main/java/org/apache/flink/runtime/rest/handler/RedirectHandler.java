@@ -49,10 +49,16 @@ import java.util.concurrent.TimeUnit;
  * {@link SimpleChannelInboundHandler} which encapsulates the redirection logic for the
  * REST endpoints.
  *
+ * <p>This handler supports two modes of use.
+ * <ol>
+ *     <li>Inheritance - subclasses override {@code respondAsLeader}.</li>
+ *     <li>Composition - upstream handlers receive a user event containing the gateway, see {@link GatewayRetrieved}.</li>
+ * </ol>
+ *
  * @param <T> type of the leader to retrieve
  */
 @ChannelHandler.Sharable
-public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleChannelInboundHandler<Routed> {
+public class RedirectHandler<T extends RestfulGateway> extends SimpleChannelInboundHandler<Routed> {
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -64,7 +70,7 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 
 	private String localAddress;
 
-	protected RedirectHandler(
+	public RedirectHandler(
 			@Nonnull CompletableFuture<String> localAddressFuture,
 			@Nonnull GatewayRetriever<? extends T> leaderRetriever,
 			@Nonnull Time timeout) {
@@ -172,5 +178,39 @@ public abstract class RedirectHandler<T extends RestfulGateway> extends SimpleCh
 		}
 	}
 
-	protected abstract void respondAsLeader(ChannelHandlerContext channelHandlerContext, Routed routed, T gateway) throws Exception;
+	/**
+	 * Responds to an HTTP request in combination with the leader gateway.
+	 *
+	 * <p>The default behavior is to announce the leader gateway with a user event,
+	 * and then to forward the HTTP request to the next handler.
+	 *
+	 * @param ctx the channel handler context
+	 * @param routed the HTTP request
+	 * @param gateway the leader gateway
+	 */
+	protected void respondAsLeader(ChannelHandlerContext ctx, Routed routed, T gateway) throws Exception {
+
+		// announce the gateway to upstream handlers
+		ctx.fireUserEventTriggered(new GatewayRetrieved<>(gateway));
+
+		// propagate the HTTP request
+		ReferenceCountUtil.retain(routed);
+		ctx.fireChannelRead(routed);
+	}
+
+	/**
+	 * A gateway retrieval event.
+	 * @param <T> the gateway type
+	 */
+	public static class GatewayRetrieved<T> {
+		private final T gateway;
+
+		public GatewayRetrieved(T gateway) {
+			this.gateway = gateway;
+		}
+
+		public T getGateway() {
+			return gateway;
+		}
+	}
 }
