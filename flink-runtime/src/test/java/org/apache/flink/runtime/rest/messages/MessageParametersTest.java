@@ -45,6 +45,23 @@ public class MessageParametersTest extends TestLogger {
 		Assert.assertEquals("/jobs/" + pathJobID + "/state?jobid=" + queryJobID, resolvedUrl);
 	}
 
+	@Test
+	public void testUnresolvedParameters() {
+		String genericUrl = "/jobs/:jobid/state";
+		TestMessageParameters parameters = new TestMessageParameters();
+		try {
+			MessageParameters.resolveUrl(genericUrl, parameters);
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// the mandatory jobid path parameter was not resolved
+		}
+		JobID jobID = new JobID();
+		parameters.pathParameter.resolve(jobID);
+
+		String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
+		Assert.assertEquals("/jobs/" + jobID + "/state", resolvedUrl);
+	}
+
 	private static class TestMessageParameters extends MessageParameters {
 		private final TestPathParameter pathParameter = new TestPathParameter();
 		private final TestQueryParameter queryParameter = new TestQueryParameter();
@@ -80,7 +97,7 @@ public class MessageParametersTest extends TestLogger {
 	private static class TestQueryParameter extends MessageQueryParameter<JobID> {
 
 		TestQueryParameter() {
-			super("jobid", MessageParameterRequisiteness.MANDATORY);
+			super("jobid", MessageParameterRequisiteness.OPTIONAL);
 		}
 
 		@Override
