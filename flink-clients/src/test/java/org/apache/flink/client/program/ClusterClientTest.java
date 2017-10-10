@@ -133,50 +133,38 @@ public class ClusterClientTest extends TestLogger {
 		}
 	}
 
-	private static class TestCancelActorGateway extends DummyActorGateway {
+	private static class TestCancelActorGateway extends TestActorGateway<JobManagerMessages.CancelJob, JobManagerMessages.CancellationSuccess> {
 
 		private final JobID expectedJobID;
-		private volatile boolean messageArrived = false;
 
 		TestCancelActorGateway(JobID expectedJobID) {
+			super(JobManagerMessages.CancelJob.class);
 			this.expectedJobID = expectedJobID;
 		}
 
 		@Override
-		public Future<Object> ask(Object message, FiniteDuration timeout) {
-			messageArrived = true;
-			if (message instanceof JobManagerMessages.CancelJob) {
-				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;
-				Assert.assertEquals(expectedJobID, cancelJob.jobID());
-				return Future$.MODULE$.successful(new JobManagerMessages.CancellationSuccess(cancelJob.jobID(), null));
-			}
-			Assert.fail("Expected CancelJob message, got: " + message.getClass());
-			return null;
+		public JobManagerMessages.CancellationSuccess process(JobManagerMessages.CancelJob message) {
+			Assert.assertEquals(expectedJobID, message.jobID());
+			return new JobManagerMessages.CancellationSuccess(message.jobID(), null);
 		}
 	}
 
-	private static class TestCancelWithSavepointActorGateway extends DummyActorGateway {
+	private static class TestCancelWithSavepointActorGateway extends TestActorGateway<JobManagerMessages.CancelJobWithSavepoint, JobManagerMessages.CancellationSuccess> {
 
 		private final JobID expectedJobID;
 		private final String expectedTargetDirectory;
-		private volatile boolean messageArrived = false;
 
 		TestCancelWithSavepointActorGateway(JobID expectedJobID, String expectedTargetDirectory) {
+			super(JobManagerMessages.CancelJobWithSavepoint.class);
 			this.expectedJobID = expectedJobID;
 			this.expectedTargetDirectory = expectedTargetDirectory;
 		}
 
 		@Override
-		public Future<Object> ask(Object message, FiniteDuration timeout) {
-			messageArrived = true;
-			if (message instanceof JobManagerMessages.CancelJobWithSavepoint) {
-				JobManagerMessages.CancelJobWithSavepoint cancelJob = (JobManagerMessages.CancelJobWithSavepoint) message;
-				Assert.assertEquals(expectedJobID, cancelJob.jobID());
-				Assert.assertEquals(expectedTargetDirectory, cancelJob.savepointDirectory());
-				return Future$.MODULE$.successful(new JobManagerMessages.CancellationSuccess(cancelJob.jobID(), null));
-			}
-			Assert.fail("Expected CancelJobWithSavepoint message, got: " + message.getClass());
-			return null;
+		public JobManagerMessages.CancellationSuccess process(JobManagerMessages.CancelJobWithSavepoint message) {
+			Assert.assertEquals(expectedJobID, message.jobID());
+			Assert.assertEquals(expectedTargetDirectory, message.savepointDirectory());
+			return new JobManagerMessages.CancellationSuccess(message.jobID(), null);
 		}
 	}
 
@@ -184,7 +172,7 @@ public class ClusterClientTest extends TestLogger {
 
 		private final ActorGateway jobmanagerGateway;
 
-		public TestClusterClient(Configuration config, ActorGateway jobmanagerGateway) throws Exception {
+		TestClusterClient(Configuration config, ActorGateway jobmanagerGateway) throws Exception {
 			super(config);
 			this.jobmanagerGateway = jobmanagerGateway;
 		}
@@ -193,5 +181,40 @@ public class ClusterClientTest extends TestLogger {
 		public ActorGateway getJobManagerGateway() {
 			return jobmanagerGateway;
 		}
+	}
+
+	/**
+	 * Utility class for hiding akka/scala details.
+	 *
+	 * @param <M> expected type of incoming requests
+	 * @param <R> type of outgoing requests
+	 */
+	private abstract static class TestActorGateway<M, R> extends DummyActorGateway {
+		private final Class<M> messageClass;
+		volatile boolean messageArrived = false;
+
+		TestActorGateway(Class<M> messageClass) {
+			this.messageClass = messageClass;
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public Future<Object> ask(Object message, FiniteDuration timeout) {
+			messageArrived = true;
+			if (message.getClass().isAssignableFrom(messageClass)) {
+				return Future$.MODULE$.successful(process((M) message));
+			}
+			Assert.fail("Expected TriggerSavepoint message, got: " + message.getClass());
+			return null;
+		}
+
+		/**
+		 * Processes the incoming message and verifies it's correctness. Implementations may directly throw unchecked
+		 * exceptions (like JUnit asserts) in case of errors or faulty behaviors.
+		 *
+		 * @param message incoming message
+		 * @return response in case of success
+		 */
+		public abstract R process(M message);
 	}
 }
