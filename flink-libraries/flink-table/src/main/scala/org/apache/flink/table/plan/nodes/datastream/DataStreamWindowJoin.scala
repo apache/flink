@@ -136,6 +136,11 @@ class DataStreamWindowJoin(
       remainCondition,
       ruleDescription)
 
+    val joinOpName =
+      s"where: (" +
+        s"${joinConditionToString(schema.relDataType, joinCondition, getExpressionString)}), " +
+        s"join: (${joinSelectionToString(schema.relDataType)})"
+
     joinType match {
       case JoinRelType.INNER =>
         if (relativeWindowSize < 0) {
@@ -148,6 +153,7 @@ class DataStreamWindowJoin(
               leftDataStream,
               rightDataStream,
               returnTypeInfo,
+              joinOpName,
               joinFunction.name,
               joinFunction.code,
               leftKeys,
@@ -158,6 +164,7 @@ class DataStreamWindowJoin(
               leftDataStream,
               rightDataStream,
               returnTypeInfo,
+              joinOpName,
               joinFunction.name,
               joinFunction.code,
               leftKeys,
@@ -202,6 +209,7 @@ class DataStreamWindowJoin(
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow],
+      operatorName: String,
       joinFunctionName: String,
       joinFunctionCode: String,
       leftKeys: Array[Int],
@@ -210,7 +218,6 @@ class DataStreamWindowJoin(
     val procInnerJoinFunc = new ProcTimeBoundedStreamInnerJoin(
       leftLowerBound,
       leftUpperBound,
-      allowedLateness = 0L,
       leftSchema.typeInfo,
       rightSchema.typeInfo,
       joinFunctionName,
@@ -220,6 +227,7 @@ class DataStreamWindowJoin(
       leftDataStream.connect(rightDataStream)
         .keyBy(leftKeys, rightKeys)
         .process(procInnerJoinFunc)
+        .name(operatorName)
         .returns(returnTypeInfo)
     } else {
       leftDataStream.connect(rightDataStream)
@@ -227,6 +235,7 @@ class DataStreamWindowJoin(
         .process(procInnerJoinFunc)
         .setParallelism(1)
         .setMaxParallelism(1)
+        .name(operatorName)
         .returns(returnTypeInfo)
     }
   }
@@ -235,6 +244,7 @@ class DataStreamWindowJoin(
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow],
+      operatorName: String,
       joinFunctionName: String,
       joinFunctionCode: String,
       leftKeys: Array[Int],
@@ -256,7 +266,7 @@ class DataStreamWindowJoin(
         .connect(rightDataStream)
         .keyBy(leftKeys, rightKeys)
         .transform(
-          "InnerRowtimeWindowJoin",
+          operatorName,
           returnTypeInfo,
           new KeyedCoProcessOperatorWithWatermarkDelay[Tuple, CRow, CRow, CRow](
             rowTimeInnerJoinFunc,
@@ -266,7 +276,7 @@ class DataStreamWindowJoin(
       leftDataStream.connect(rightDataStream)
         .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow])
         .transform(
-          "InnerRowtimeWindowJoin",
+          operatorName,
           returnTypeInfo,
           new KeyedCoProcessOperatorWithWatermarkDelay[java.lang.Byte, CRow, CRow, CRow](
             rowTimeInnerJoinFunc,

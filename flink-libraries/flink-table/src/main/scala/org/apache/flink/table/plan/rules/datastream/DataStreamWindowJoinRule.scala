@@ -41,29 +41,22 @@ class DataStreamWindowJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
 
-    val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
       TableConfig.DEFAULT)
 
-    // remaining predicate must not access time attributes
-    val remainingPredsAccessTime = remainingPreds.isDefined &&
-      WindowJoinUtil.accessesTimeAttribute(remainingPreds.get, join.getRowType)
-
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {
-        !remainingPredsAccessTime
+        true
       } else {
-        // Check that no event-time attributes are in the input.
-        // The proc-time join implementation does ensure that record timestamp are correctly set.
-        // It is always the timestamp of the later arriving record.
+        // Check that no event-time attributes are in the input because the processing time window
+        // join does not correctly hold back watermarks.
         // We rely on projection pushdown to remove unused attributes before the join.
-        val rowTimeAttrInOutput = join.getRowType.getFieldList.asScala
+        !join.getRowType.getFieldList.asScala
           .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-
-        !remainingPredsAccessTime && !rowTimeAttrInOutput
       }
     } else {
       // the given join does not have valid window bounds. We cannot translate it.

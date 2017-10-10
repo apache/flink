@@ -29,19 +29,18 @@ import org.apache.flink.types.Row
 final class ProcTimeBoundedStreamInnerJoin(
     leftLowerBound: Long,
     leftUpperBound: Long,
-    allowedLateness: Long,
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
     genJoinFuncCode: String)
-    extends TimeBoundedStreamInnerJoin(
-      leftLowerBound,
-      leftUpperBound,
-      allowedLateness,
-      leftType,
-      rightType,
-      genJoinFuncName,
-      genJoinFuncCode) {
+  extends TimeBoundedStreamInnerJoin(
+    leftLowerBound,
+    leftUpperBound,
+    allowedLateness = 0L,
+    leftType,
+    rightType,
+    genJoinFuncName,
+    genJoinFuncCode) {
 
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
     leftOperatorTime = ctx.timerService().currentProcessingTime()
