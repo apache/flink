@@ -123,3 +123,5 @@ public static void main(String[] args) throws Exception {
 The `flink-examples-batch` module contains a full example, called `CollectionExecutionExample`.
 
 Please note that the execution of the collection-based Flink programs is only possible on small data, which fits into the JVM heap. The execution on collections is not multi-threaded, only one thread is used.
+
+{% top %}

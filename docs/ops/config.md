@@ -723,3 +723,5 @@ Each Flink TaskManager provides processing slots in the cluster. The number of s
 When starting a Flink application, users can supply the default number of slots to use for that job. The command line value therefore is called `-p` (for parallelism). In addition, it is possible to [set the number of slots in the programming APIs]({{site.baseurl}}/dev/parallel.html) for the whole application and for individual operators.
 
 <img src="{{ site.baseurl }}/fig/slots_parallelism.svg" class="img-responsive" />
+
+{% top %}

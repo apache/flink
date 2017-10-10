@@ -22,8 +22,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -97,7 +98,6 @@ import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 
 import java.net.InetAddress;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -665,8 +665,8 @@ public class TaskExecutorTest extends TestLogger {
 				name.getMethodName(),
 				new SerializedValue<>(new ExecutionConfig()),
 				new Configuration(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList());
+				Collections.emptyList(),
+				Collections.emptyList());
 
 		TaskInformation taskInformation = new TaskInformation(
 				jobVertexId,
@@ -697,13 +697,16 @@ public class TaskExecutorTest extends TestLogger {
 		final JobMasterGateway jobMasterGateway = mock(JobMasterGateway.class);
 		when(jobMasterGateway.getFencingToken()).thenReturn(jobMasterId);
 
+		BlobCacheService blobService =
+			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
+
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
 			ResourceID.generate(),
 			jobMasterGateway,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
-			mock(BlobCache.class),
+			blobService,
 			libraryCacheManager,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class));
@@ -1203,13 +1206,16 @@ public class TaskExecutorTest extends TestLogger {
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(eq(jobId))).thenReturn(getClass().getClassLoader());
 
+		BlobCacheService blobService =
+			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
+
 		final JobManagerConnection jobManagerConnection = new JobManagerConnection(
 			jobId,
 			jmResourceId,
 			jobMasterGateway,
 			mock(TaskManagerActions.class),
 			mock(CheckpointResponder.class),
-			mock(BlobCache.class),
+			blobService,
 			libraryCacheManager,
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class));
@@ -1258,8 +1264,8 @@ public class TaskExecutorTest extends TestLogger {
 				name.getMethodName(),
 				new SerializedValue<>(new ExecutionConfig()),
 				new Configuration(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList());
+				Collections.emptyList(),
+				Collections.emptyList());
 
 			TaskInformation taskInformation = new TaskInformation(
 				jobVertexId,

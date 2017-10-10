@@ -438,4 +438,6 @@ object MeanTransformer {
 {% endhighlight %}
 
 If we wanted to implement a `Predictor` instead of a `Transformer`, then we would have to provide a `FitOperation`, too.
-Moreover, a `Predictor` requires a `PredictOperation` which implements how predictions are calculated from testing data.  
+Moreover, a `Predictor` requires a `PredictOperation` which implements how predictions are calculated from testing data.
+
+{% top %}

@@ -360,3 +360,5 @@ The parameters provide additional information about the type itself as well as t
 If your type contains generic parameters that might need to be derived from the input type of a Flink function, make sure to also 
 implement `org.apache.flink.api.common.typeinfo.TypeInformation#getGenericParameters` for a bidirectional mapping of generic 
 parameters to type information.
+
+{% top %}

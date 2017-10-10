@@ -224,7 +224,7 @@ public final class KvStateRequestSerializer {
 		// Get the message type
 		int msgType = buf.readInt();
 		KvStateRequestType[] values = KvStateRequestType.values();
-		if (msgType >= 0 && msgType <= values.length) {
+		if (msgType >= 0 && msgType < values.length) {
 			return values[msgType];
 		} else {
 			throw new IllegalArgumentException("Illegal message type with index " + msgType);

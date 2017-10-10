@@ -59,6 +59,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-java8</module>
 		<module>flink-scala</module>
+		<module>flink-filesystems</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
@@ -458,6 +459,12 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<!-- Netty from zookeeper is conflicting with akka's, which can cause occasional deadlock inside
+					Netty threads -->
+					<exclusion>
+						<groupId>io.netty</groupId>
+						<artifactId>netty</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>

@@ -45,10 +45,20 @@ table.table.table-body-hover.table-clickable.table-activable
         span(ng-if="v.duration > -1" title="{{v.duration | humanizeDuration:false}}") {{v.duration | humanizeDuration:true}}
 
       td.td-long {{ v.name | humanizeText }}
-      td(title="{{v.metrics['read-bytes']}} bytes") {{ v.metrics['read-bytes'] | humanizeBytes }}
-      td {{ v.metrics['read-records'] | number }}
-      td(title="{{v.metrics['write-bytes']}} bytes") {{ v.metrics['write-bytes'] | humanizeBytes }}
-      td {{ v.metrics['write-records'] | number }}
+
+      td
+        span(ng-if="v.metrics['read-bytes-complete']") {{ v.metrics['read-bytes'] | humanizeBytes }}
+        i(ng-if="!v.metrics['read-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="v.metrics['read-records-complete']") {{ v.metrics['read-records'] | number }}
+        i(ng-if="!v.metrics['read-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="v.metrics['write-bytes-complete']") {{ v.metrics['write-bytes'] | humanizeBytes }}
+        i(ng-if="!v.metrics['write-bytes-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+      td
+        span(ng-if="v.metrics['write-records-complete']") {{ v.metrics['write-records'] | number }}
+        i(ng-if="!v.metrics['write-records-complete']", class="fa fa-spinner fa-spin fa-fw", aria-hidden="true")
+
       td {{ v.parallelism }}
       td
         .label-group

@@ -20,10 +20,9 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.plan.util.{RexProgramExtractor, RexProgramRewriter}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
-import org.apache.flink.table.sources.{NestedFieldsProjectableTableSource, ProjectableTableSource}
+import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, NestedFieldsProjectableTableSource, ProjectableTableSource}
 
 class PushProjectIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalCalc],
@@ -33,6 +32,9 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableSourceScan = call.rel(1).asInstanceOf[FlinkLogicalTableSourceScan]
     scan.tableSource match {
+      // projection pushdown is not supported for sources that provide time indicators
+      case r: DefinedRowtimeAttribute if r.getRowtimeAttribute != null => false
+      case p: DefinedProctimeAttribute if p.getProctimeAttribute != null => false
       case _: ProjectableTableSource[_] => true
       case _ => false
     }
@@ -45,7 +47,7 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
 
     // if no fields can be projected, we keep the original plan.
     val source = scan.tableSource
-    if (TableEnvironment.getFieldNames(source).length != usedFields.length) {
+    if (scan.getRowType.getFieldCount != usedFields.length) {
 
       val newTableSource = source match {
         case nested: NestedFieldsProjectableTableSource[_] =>

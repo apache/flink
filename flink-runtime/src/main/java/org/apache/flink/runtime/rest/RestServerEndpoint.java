@@ -54,6 +54,8 @@ import java.util.concurrent.TimeUnit;
  * An abstract class for netty-based REST server endpoints.
  */
 public abstract class RestServerEndpoint {
+
+	public static final int MAX_REQUEST_SIZE_BYTES = 1024 * 1024 * 10;
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	private final Object lock = new Object();
@@ -120,7 +122,7 @@ public abstract class RestServerEndpoint {
 
 					ch.pipeline()
 						.addLast(new HttpServerCodec())
-						.addLast(new HttpObjectAggregator(1024 * 1024 * 10))
+						.addLast(new HttpObjectAggregator(MAX_REQUEST_SIZE_BYTES))
 						.addLast(handler.name(), handler)
 						.addLast(new PipelineErrorHandler(log));
 				}

@@ -208,3 +208,5 @@ We referred to each execution of the step function of an iteration operator as *
 <p class="text-center">
     <img alt="Supersteps" width="50%" src="{{site.baseurl}}/fig/iterations_supersteps.png" />
 </p>
+
+{% top %}

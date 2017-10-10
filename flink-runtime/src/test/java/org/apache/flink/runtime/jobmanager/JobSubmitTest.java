@@ -19,13 +19,11 @@
 package org.apache.flink.runtime.jobmanager;
 
 import akka.actor.ActorSystem;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -54,7 +52,6 @@ import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -134,27 +131,8 @@ public class JobSubmitTest {
 			jobVertex.setInvokableClass(NoOpInvokable.class);
 			JobGraph jg = new JobGraph("test job", jobVertex);
 
-			// request the blob port from the job manager
-			Future<Object> future = jmGateway.ask(JobManagerMessages.getRequestBlobManagerPort(), timeout);
-			int blobPort = (Integer) Await.result(future, timeout);
-
-			// upload two dummy bytes and add their keys to the job graph as dependencies
-			BlobKey key1, key2;
-			BlobClient bc = new BlobClient(new InetSocketAddress("localhost", blobPort), jmConfig);
-			JobID jobId = jg.getJobID();
-			try {
-				key1 = bc.put(jobId, new byte[10]);
-				key2 = bc.put(jobId, new byte[10]);
-
-				// delete one of the blobs to make sure that the startup failed
-				bc.delete(jobId, key2);
-			}
-			finally {
-				bc.close();
-			}
-
-			jg.addBlob(key1);
-			jg.addBlob(key2);
+			// add a reference to some non-existing BLOB to the job graph as a dependency
+			jg.addBlob(new PermanentBlobKey());
 
 			// submit the job
 			Future<Object> submitFuture = jmGateway.ask(

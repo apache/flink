@@ -24,8 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -64,7 +65,6 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -146,7 +146,7 @@ public class JvmExitOnFatalErrorTest {
 
 				final JobInformation jobInformation = new JobInformation(
 						jid, "Test Job", execConfig, new Configuration(),
-						Collections.<BlobKey>emptyList(), Collections.<URL>emptyList());
+						Collections.emptyList(), Collections.emptyList());
 
 				final TaskInformation taskInformation = new TaskInformation(
 						jobVertexId, "Test Task", 1, 1, OomInvokable.class.getName(), new Configuration());
@@ -160,6 +160,9 @@ public class JvmExitOnFatalErrorTest {
 				final TaskManagerRuntimeInfo tmInfo = TaskManagerConfiguration.fromConfiguration(taskManagerConfig);
 
 				final Executor executor = Executors.newCachedThreadPool();
+
+				BlobCacheService blobService =
+					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				Task task = new Task(
 						jobInformation,
@@ -179,7 +182,7 @@ public class JvmExitOnFatalErrorTest {
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
 						new NoOpCheckpointResponder(),
-						mock(BlobCache.class),
+					blobService,
 						new FallbackLibraryCacheManager(),
 						new FileCache(tmInfo.getTmpDirectories()),
 						tmInfo,

@@ -2386,7 +2386,7 @@ object JobManager {
     val configuration = GlobalConfiguration.loadConfiguration(configDir)
 
     try {
-      FileSystem.setDefaultScheme(configuration)
+      FileSystem.initialize(configuration)
     }
     catch {
       case e: IOException => {
@@ -2500,6 +2500,7 @@ object JobManager {
 
     try {
       blobServer = new BlobServer(configuration, blobStore)
+      blobServer.start()
       instanceManager = new InstanceManager()
       scheduler = new FlinkScheduler(ExecutionContext.fromExecutor(futureExecutor))
       libraryCacheManager =

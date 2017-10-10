@@ -19,44 +19,37 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.cli.CommandLineOptions;
-import org.apache.flink.runtime.akka.FlinkUntypedActor;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
+import org.apache.flink.client.cli.StopOptions;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.testkit.JavaTestKit;
-import org.junit.AfterClass;
+import org.apache.commons.cli.CommandLine;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.UUID;
+import org.mockito.Mockito;
 
 import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.times;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Tests for the STOP command.
  */
 public class CliFrontendStopTest extends TestLogger {
 
-	private static ActorSystem actorSystem;
-
 	@BeforeClass
 	public static void setup() {
 		pipeSystemOutToNull();
-		actorSystem = ActorSystem.create("TestingActorSystem");
-	}
-
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(actorSystem);
-		actorSystem = null;
 	}
 
 	@Test
@@ -82,82 +75,53 @@ public class CliFrontendStopTest extends TestLogger {
 			JobID jid = new JobID();
 			String jidString = jid.toString();
 
-			final UUID leaderSessionID = UUID.randomUUID();
-			final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid, leaderSessionID));
-
-			final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-
 			String[] parameters = { jidString };
-			StopTestCliFrontend testFrontend = new StopTestCliFrontend(gateway);
+			StopTestCliFrontend testFrontend = new StopTestCliFrontend(false);
 
 			int retCode = testFrontend.stop(parameters);
-			assertTrue(retCode == 0);
+			assertEquals(0, retCode);
+
+			Mockito.verify(testFrontend.client, times(1)).stop(any(JobID.class));
 		}
 
 		// test unknown job Id
 		{
-			JobID jid1 = new JobID();
-			JobID jid2 = new JobID();
+			JobID jid = new JobID();
 
-			final UUID leaderSessionID = UUID.randomUUID();
-			final ActorRef jm = actorSystem.actorOf(Props.create(CliJobManager.class, jid1, leaderSessionID));
-
-			final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-
-			String[] parameters = { jid2.toString() };
-			StopTestCliFrontend testFrontend = new StopTestCliFrontend(gateway);
+			String[] parameters = { jid.toString() };
+			StopTestCliFrontend testFrontend = new StopTestCliFrontend(true);
 
 			assertTrue(testFrontend.stop(parameters) != 0);
+
+			Mockito.verify(testFrontend.client, times(1)).stop(any(JobID.class));
+		}
+
+		// test flip6 switch
+		{
+			String[] parameters =
+				{"-flip6", String.valueOf(new JobID())};
+			StopOptions options = CliFrontendParser.parseStopCommand(parameters);
+			assertTrue(options.getCommandLine().hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
 		}
 	}
 
 	private static final class StopTestCliFrontend extends CliFrontend {
+		private final ClusterClient client;
 
-		private ActorGateway jobManagerGateway;
-
-		public StopTestCliFrontend(ActorGateway jobManagerGateway) throws Exception {
+		StopTestCliFrontend(boolean reject) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
-			this.jobManagerGateway = jobManagerGateway;
-		}
-
-		@Override
-		public ActorGateway getJobManagerGateway(CommandLineOptions options) {
-			return jobManagerGateway;
-		}
-	}
-
-	private static final class CliJobManager extends FlinkUntypedActor {
-		private final JobID jobID;
-		private final UUID leaderSessionID;
-
-		public CliJobManager(final JobID jobID, final UUID leaderSessionID) {
-			this.jobID = jobID;
-			this.leaderSessionID = leaderSessionID;
-		}
-
-		@Override
-		public void handleMessage(Object message) {
-			if (message instanceof JobManagerMessages.RequestTotalNumberOfSlots$) {
-				getSender().tell(decorateMessage(1), getSelf());
-			} else if (message instanceof JobManagerMessages.StopJob) {
-				JobManagerMessages.StopJob stopJob = (JobManagerMessages.StopJob) message;
-
-				if (jobID != null && jobID.equals(stopJob.jobID())) {
-					getSender().tell(decorateMessage(new Status.Success(new Object())), getSelf());
-				} else {
-					getSender()
-							.tell(decorateMessage(new Status.Failure(new Exception(
-									"Wrong or no JobID"))), getSelf());
-				}
-			} else if (message instanceof JobManagerMessages.RequestRunningJobsStatus$) {
-				getSender().tell(decorateMessage(new JobManagerMessages.RunningJobsStatus()),
-						getSelf());
+			this.client = mock(ClusterClient.class);
+			if (reject) {
+				doThrow(new IllegalArgumentException("Test exception")).when(client).stop(any(JobID.class));
 			}
 		}
 
 		@Override
-		protected UUID getLeaderSessionID() {
-			return leaderSessionID;
+		public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+			CustomCommandLine ccl = mock(CustomCommandLine.class);
+			when(ccl.retrieveCluster(any(CommandLine.class), any(Configuration.class), anyString()))
+				.thenReturn(client);
+			return ccl;
 		}
 	}
 }

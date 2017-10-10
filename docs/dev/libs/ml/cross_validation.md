@@ -169,3 +169,5 @@ val dataKFolded: Array[TrainTestDataSet] =  Splitter.kFoldSplit(data, 10)
 // create an array of 5 datasets
 val dataMultiRandom: Array[DataSet[T]] = Splitter.multiRandomSplit(data, Array(0.5, 0.1, 0.1, 0.1, 0.1))
 {% endhighlight %}
+
+{% top %}

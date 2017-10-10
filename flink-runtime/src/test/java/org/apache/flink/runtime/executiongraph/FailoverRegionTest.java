@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -50,7 +49,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -140,8 +138,8 @@ public class FailoverRegionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				slotProvider,
 				ExecutionGraph.class.getClassLoader());
 
@@ -267,8 +265,8 @@ public class FailoverRegionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new RestartPipelinedRegionStrategy.Factory(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				scheduler,
 				ExecutionGraph.class.getClassLoader());
 		try {
@@ -344,8 +342,8 @@ public class FailoverRegionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				scheduler,
 				ExecutionGraph.class.getClassLoader());
 		try {
@@ -457,8 +455,8 @@ public class FailoverRegionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				restartStrategy,
 				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				scheduler,
 				ExecutionGraph.class.getClassLoader());
 		try {

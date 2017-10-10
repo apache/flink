@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.api.stream.table.validation
 
-import org.apache.flink.table.api.TableException
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.stream.table.{TestProctimeSource, TestRowtimeSource}
 import org.apache.flink.table.utils.TableTestBase
@@ -28,8 +29,16 @@ class TableSourceValidationTest extends TableTestBase {
 
   @Test(expected = classOf[TableException])
   def testRowtimeTableSourceWithEmptyName(): Unit = {
+
+    val tableSource = new TestRowtimeSource(
+      Array("id", "rowtime", "val", "name"),
+      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      "rowtime"
+    )
+
     val util = streamTestUtil()
-    util.tableEnv.registerTableSource("rowTimeT", new TestRowtimeSource(" "))
+    util.tableEnv.registerTableSource("rowTime", tableSource)
 
     val t = util.tableEnv.scan("rowTimeT")
             .select('id)

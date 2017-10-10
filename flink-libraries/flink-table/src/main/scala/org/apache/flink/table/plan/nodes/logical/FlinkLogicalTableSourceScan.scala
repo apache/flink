@@ -25,12 +25,11 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, TableSource}
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource}
 
 import scala.collection.JavaConverters._
 
@@ -47,34 +46,18 @@ class FlinkLogicalTableSourceScan(
   }
 
   override def deriveRowType(): RelDataType = {
+
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
-
-    val fields = fieldNames.zip(fieldTypes)
-
-    val withRowtime = tableSource match {
-      case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute != null =>
-        val rowtimeAttribute = timeSource.getRowtimeAttribute
-        fields :+ (rowtimeAttribute, TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
-      case _ =>
-        fields
+    tableSource match {
+      case s: StreamTableSource[_] =>
+        StreamTableSourceTable.deriveRowTypeOfTableSource(s, flinkTypeFactory)
+      case _: BatchTableSource[_] =>
+        val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
+        val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
+        flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes)
+      case _ => throw new TableException("Unknown TableSource type.")
     }
-
-    val withProctime = tableSource match {
-      case timeSource: DefinedProctimeAttribute if timeSource.getProctimeAttribute != null =>
-        val proctimeAttribute = timeSource.getProctimeAttribute
-        withRowtime :+ (proctimeAttribute, TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
-      case _ =>
-        withRowtime
-    }
-
-    val (fieldNamesWithIndicators, fieldTypesWithIndicators) = withProctime.unzip
-
-    flinkTypeFactory.buildLogicalRowType(
-      fieldNamesWithIndicators,
-      fieldTypesWithIndicators)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

@@ -120,7 +120,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	public AbstractStreamOperatorTestHarness(
 		StreamOperator<OUT> operator,
 		int maxParallelism,
-		int numSubtasks,
+		int parallelism,
 		int subtaskIndex) throws Exception {
 
 		this(
@@ -133,7 +133,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				new Configuration(),
 				new ExecutionConfig(),
 				maxParallelism,
-				numSubtasks,
+				parallelism,
 				subtaskIndex));
 	}
 

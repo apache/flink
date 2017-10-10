@@ -24,16 +24,27 @@ package org.apache.flink.table.sources
   * event-time.
   *
   * A [[TableSource]] that implements this interface defines the name of
-  * the event-time attribute. The attribute will be added to the schema of the
-  * [[org.apache.flink.table.api.Table]] produced by the [[TableSource]].
+  * the event-time attribute. The attribute must be present in the schema of the [[TableSource]]
+  * and must be of type [[Long]] or [[java.sql.Timestamp]].
   */
 trait DefinedRowtimeAttribute {
 
   /**
-    * Defines a name of the event-time attribute that represents Flink's
-    * event-time. Null if no rowtime should be available.
+    * Defines a name of the event-time attribute that represents Flink's event-time, i.e., an
+    * attribute that is aligned with the watermarks of the
+    * [[org.apache.flink.streaming.api.datastream.DataStream]] returned by
+    * [[StreamTableSource.getDataStream()]].
     *
-    * The field will be appended to the schema provided by the [[TableSource]].
+    * An attribute with the given name must be present in the schema of the [[TableSource]].
+    * The attribute must be of type [[Long]] or [[java.sql.Timestamp]].
+    *
+    * The method should return null if no rowtime attribute is defined.
+    *
+    * @return The name of the field that represents the event-time field and which is aligned
+    *         with the watermarks of the [[org.apache.flink.streaming.api.datastream.DataStream]]
+    *         returned by [[StreamTableSource.getDataStream()]].
+    *         The field must be present in the schema of the [[TableSource]] and be of type [[Long]]
+    *         or [[java.sql.Timestamp]].
     */
   def getRowtimeAttribute: String
 }

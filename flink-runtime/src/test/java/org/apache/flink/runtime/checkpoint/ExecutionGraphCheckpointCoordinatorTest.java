@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -36,7 +35,6 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collections;
 
 import static org.mockito.Matchers.eq;
@@ -92,8 +90,8 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			Time.days(1L),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			ClassLoader.getSystemClassLoader());
 

@@ -18,27 +18,36 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An input channel, which requests a remote partition queue.
  */
-public class RemoteInputChannel extends InputChannel {
+public class RemoteInputChannel extends InputChannel implements BufferRecycler, BufferListener {
 
 	/** ID to distinguish this channel from other channels sharing the same TCP connection. */
 	private final InputChannelID id = new InputChannelID();
@@ -70,6 +79,21 @@ public class RemoteInputChannel extends InputChannel {
 	 */
 	private int expectedSequenceNumber = 0;
 
+	/** The initial number of exclusive buffers assigned to this channel. */
+	private int initialCredit;
+
+	/** The current available buffers including both exclusive buffers and requested floating buffers. */
+	private final ArrayDeque<Buffer> availableBuffers = new ArrayDeque<>();
+
+	/** The number of available buffers that have not been announced to the producer yet. */
+	private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
+
+	/** The number of unsent buffers in the producer's sub partition. */
+	private final AtomicInteger senderBacklog = new AtomicInteger(0);
+
+	/** The tag indicates whether this channel is waiting for additional floating buffers from the buffer pool. */
+	private final AtomicBoolean isWaitingForFloatingBuffers = new AtomicBoolean(false);
+
 	public RemoteInputChannel(
 		SingleInputGate inputGate,
 		int channelIndex,
@@ -95,6 +119,26 @@ public class RemoteInputChannel extends InputChannel {
 
 		this.connectionId = checkNotNull(connectionId);
 		this.connectionManager = checkNotNull(connectionManager);
+	}
+
+	/**
+	 * Assigns exclusive buffers to this input channel, and this method should be called only once
+	 * after this input channel is created.
+	 */
+	void assignExclusiveSegments(List<MemorySegment> segments) {
+		checkState(this.initialCredit == 0, "Bug in input channel setup logic: exclusive buffers have " +
+			"already been set for this input channel.");
+
+		checkNotNull(segments);
+		checkArgument(segments.size() > 0, "The number of exclusive buffers per channel should be larger than 0.");
+
+		this.initialCredit = segments.size();
+
+		synchronized(availableBuffers) {
+			for (MemorySegment segment : segments) {
+				availableBuffers.add(new Buffer(segment, this));
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -177,16 +221,39 @@ public class RemoteInputChannel extends InputChannel {
 	}
 
 	/**
-	 * Releases all received buffers and closes the partition request client.
+	 * Releases all exclusive and floating buffers, closes the partition request client.
 	 */
 	@Override
 	void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
+
+			// Gather all exclusive buffers and recycle them to global pool in batch
+			final List<MemorySegment> exclusiveRecyclingSegments = new ArrayList<>();
+
 			synchronized (receivedBuffers) {
 				Buffer buffer;
 				while ((buffer = receivedBuffers.poll()) != null) {
-					buffer.recycle();
+					if (buffer.getRecycler() == this) {
+						exclusiveRecyclingSegments.add(buffer.getMemorySegment());
+					} else {
+						buffer.recycle();
+					}
 				}
+			}
+
+			synchronized (availableBuffers) {
+				Buffer buffer;
+				while ((buffer = availableBuffers.poll()) != null) {
+					if (buffer.getRecycler() == this) {
+						exclusiveRecyclingSegments.add(buffer.getMemorySegment());
+					} else {
+						buffer.recycle();
+					}
+				}
+			}
+
+			if (exclusiveRecyclingSegments.size() > 0) {
+				inputGate.returnExclusiveSegments(exclusiveRecyclingSegments);
 			}
 
 			// The released flag has to be set before closing the connection to ensure that
@@ -206,6 +273,95 @@ public class RemoteInputChannel extends InputChannel {
 	@Override
 	public String toString() {
 		return "RemoteInputChannel [" + partitionId + " at " + connectionId + "]";
+	}
+
+	// ------------------------------------------------------------------------
+	// Credit-based
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Enqueue this input channel in the pipeline for sending unannounced credits to producer.
+	 */
+	void notifyCreditAvailable() {
+		//TODO in next PR
+	}
+
+	/**
+	 * Exclusive buffer is recycled to this input channel directly and it may trigger notify
+	 * credit to producer.
+	 *
+	 * @param segment The exclusive segment of this channel.
+	 */
+	@Override
+	public void recycle(MemorySegment segment) {
+		synchronized (availableBuffers) {
+			// Important: the isReleased check should be inside the synchronized block.
+			// that way the segment can also be returned to global pool after added into
+			// the available queue during releasing all resources.
+			if (isReleased.get()) {
+				try {
+					inputGate.returnExclusiveSegments(Arrays.asList(segment));
+					return;
+				} catch (Throwable t) {
+					ExceptionUtils.rethrow(t);
+				}
+			}
+			availableBuffers.add(new Buffer(segment, this));
+		}
+
+		if (unannouncedCredit.getAndAdd(1) == 0) {
+			notifyCreditAvailable();
+		}
+	}
+
+	public int getNumberOfAvailableBuffers() {
+		synchronized (availableBuffers) {
+			return availableBuffers.size();
+		}
+	}
+
+	/**
+	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
+	 * currently does not need extra buffers, the buffer should be recycled to the buffer pool. Otherwise,
+	 * the buffer will be added into the <tt>availableBuffers</tt> queue and the unannounced credit is
+	 * increased by one.
+	 *
+	 * @param buffer Buffer that becomes available in buffer pool.
+	 * @return True when this channel is waiting for more floating buffers, otherwise false.
+	 */
+	@Override
+	public boolean notifyBufferAvailable(Buffer buffer) {
+		checkState(isWaitingForFloatingBuffers.get(), "This channel should be waiting for floating buffers.");
+
+		synchronized (availableBuffers) {
+			// Important: the isReleased check should be inside the synchronized block.
+			if (isReleased.get() || availableBuffers.size() >= senderBacklog.get()) {
+				isWaitingForFloatingBuffers.set(false);
+				buffer.recycle();
+
+				return false;
+			}
+
+			availableBuffers.add(buffer);
+
+			if (unannouncedCredit.getAndAdd(1) == 0) {
+				notifyCreditAvailable();
+			}
+
+			if (availableBuffers.size() >= senderBacklog.get()) {
+				isWaitingForFloatingBuffers.set(false);
+				return false;
+			} else {
+				return true;
+			}
+		}
+	}
+
+	@Override
+	public void notifyBufferDestroyed() {
+		if (!isWaitingForFloatingBuffers.compareAndSet(true, false)) {
+			throw new IllegalStateException("This channel should be waiting for floating buffers currently.");
+		}
 	}
 
 	// ------------------------------------------------------------------------

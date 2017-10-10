@@ -19,7 +19,13 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.cli.CancelOptions;
+import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
@@ -30,9 +36,11 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.Status;
 import akka.testkit.JavaTestKit;
+import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.util.UUID;
 
@@ -41,6 +49,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.isNull;
+import static org.mockito.Matchers.notNull;
+import static org.mockito.Mockito.times;
+import static org.powermock.api.mockito.PowerMockito.doThrow;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Tests for the CANCEL and LIST commands.
@@ -88,47 +104,35 @@ public class CliFrontendListCancelTest {
 			// test cancel properly
 			{
 				JobID jid = new JobID();
-				String jidString = jid.toString();
 
-				final UUID leaderSessionID = UUID.randomUUID();
-
-				final ActorRef jm = actorSystem.actorOf(Props.create(
-								CliJobManager.class,
-								jid,
-								leaderSessionID
-						)
-				);
-
-				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-
-				String[] parameters = { jidString };
-				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
+				String[] parameters = { jid.toString() };
+				CancelTestCliFrontend testFrontend = new CancelTestCliFrontend(false);
 
 				int retCode = testFrontend.cancel(parameters);
 				assertTrue(retCode == 0);
+
+				Mockito.verify(testFrontend.client, times(1)).cancel(any(JobID.class));
 			}
 
 			// test cancel properly
 			{
-				JobID jid1 = new JobID();
-				JobID jid2 = new JobID();
+				JobID jid = new JobID();
 
-				final UUID leaderSessionID = UUID.randomUUID();
+				String[] parameters = { jid.toString() };
+				CancelTestCliFrontend testFrontend = new CancelTestCliFrontend(true);
 
-				final ActorRef jm = actorSystem.actorOf(
-						Props.create(
-								CliJobManager.class,
-								jid1,
-								leaderSessionID
-						)
-				);
+				int retCode = testFrontend.cancel(parameters);
+				assertTrue(retCode != 0);
 
-				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
+				Mockito.verify(testFrontend.client, times(1)).cancel(any(JobID.class));
+			}
 
-				String[] parameters = { jid2.toString() };
-				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
-
-				assertTrue(testFrontend.cancel(parameters) != 0);
+			// test flip6 switch
+			{
+				String[] parameters =
+					{"-flip6", String.valueOf(new JobID())};
+				CancelOptions options = CliFrontendParser.parseCancelCommand(parameters);
+				assertTrue(options.getCommandLine().hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
 			}
 		}
 		catch (Exception e) {
@@ -145,56 +149,38 @@ public class CliFrontendListCancelTest {
 		{
 			// Cancel with savepoint (no target directory)
 			JobID jid = new JobID();
-			UUID leaderSessionID = UUID.randomUUID();
-
-			Props props = Props.create(CliJobManager.class, jid, leaderSessionID);
-			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
 
 			String[] parameters = { "-s", jid.toString() };
-			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
+			CancelTestCliFrontend testFrontend = new CancelTestCliFrontend(false);
 			assertEquals(0, testFrontend.cancel(parameters));
+
+			Mockito.verify(testFrontend.client, times(1))
+				.cancelWithSavepoint(any(JobID.class), isNull(String.class));
 		}
 
 		{
 			// Cancel with savepoint (with target directory)
 			JobID jid = new JobID();
-			UUID leaderSessionID = UUID.randomUUID();
-
-			Props props = Props.create(CliJobManager.class, jid, leaderSessionID, "targetDirectory");
-			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
 
 			String[] parameters = { "-s", "targetDirectory", jid.toString() };
-			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
+			CancelTestCliFrontend testFrontend = new CancelTestCliFrontend(false);
 			assertEquals(0, testFrontend.cancel(parameters));
+
+			Mockito.verify(testFrontend.client, times(1))
+				.cancelWithSavepoint(any(JobID.class), notNull(String.class));
 		}
 
 		{
 			// Cancel with savepoint (with target directory), but no job ID
-			JobID jid = new JobID();
-			UUID leaderSessionID = UUID.randomUUID();
-
-			Props props = Props.create(CliJobManager.class, jid, leaderSessionID, "targetDirectory");
-			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-
 			String[] parameters = { "-s", "targetDirectory" };
-			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
+			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			assertNotEquals(0, testFrontend.cancel(parameters));
 		}
 
 		{
 			// Cancel with savepoint (no target directory) and no job ID
-			JobID jid = new JobID();
-			UUID leaderSessionID = UUID.randomUUID();
-
-			Props props = Props.create(CliJobManager.class, jid, leaderSessionID);
-			ActorRef jm = actorSystem.actorOf(props);
-			ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-
 			String[] parameters = { "-s" };
-			InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
+			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
 			assertNotEquals(0, testFrontend.cancel(parameters));
 		}
 	}
@@ -234,11 +220,32 @@ public class CliFrontendListCancelTest {
 		}
 	}
 
+	private static final class CancelTestCliFrontend extends CliFrontend {
+		private final ClusterClient client;
+
+		CancelTestCliFrontend(boolean reject) throws Exception {
+			super(CliFrontendTestUtils.getConfigDir());
+			this.client = mock(ClusterClient.class);
+			if (reject) {
+				doThrow(new IllegalArgumentException("Test exception")).when(client).cancel(any(JobID.class));
+				doThrow(new IllegalArgumentException("Test exception")).when(client).cancelWithSavepoint(any(JobID.class), anyString());
+			}
+		}
+
+		@Override
+		public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
+			CustomCommandLine ccl = mock(CustomCommandLine.class);
+			when(ccl.retrieveCluster(any(CommandLine.class), any(Configuration.class), anyString()))
+				.thenReturn(client);
+			return ccl;
+		}
+	}
+
 	private static final class InfoListTestCliFrontend extends CliFrontend {
 
 		private ActorGateway jobManagerGateway;
 
-		public InfoListTestCliFrontend(ActorGateway jobManagerGateway) throws Exception {
+		InfoListTestCliFrontend(ActorGateway jobManagerGateway) throws Exception {
 			super(CliFrontendTestUtils.getConfigDir());
 			this.jobManagerGateway = jobManagerGateway;
 		}

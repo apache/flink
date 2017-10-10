@@ -22,13 +22,13 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.WebHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
@@ -59,7 +59,6 @@ import org.apache.flink.runtime.rest.handler.legacy.TaskManagersHandler;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.StackTraceSampleCoordinator;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointConfigHandler;
-import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsCache;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsDetailsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsDetailsSubtasksHandler;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsHandler;
@@ -156,7 +155,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 	public WebRuntimeMonitor(
 			Configuration config,
 			LeaderRetrievalService leaderRetrievalService,
-			BlobView blobView,
 			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Time timeout,
@@ -297,8 +295,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				localRestAddress,
 				timeout,
 				TaskManagerLogHandler.FileMode.LOG,
-				config,
-				blobView));
+				config));
 		get(router,
 			new TaskManagerLogHandler(
 				retriever,
@@ -306,8 +303,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 				localRestAddress,
 				timeout,
 				TaskManagerLogHandler.FileMode.STDOUT,
-				config,
-				blobView));
+				config));
 		get(router, new TaskManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
 		router

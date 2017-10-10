@@ -57,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * rpc in a {@link LocalRpcInvocation} message and then sends it to the {@link AkkaRpcActor} where it is
  * executed.
  */
-class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer {
+class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, RpcServer {
 	private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
 	/**
@@ -82,7 +82,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	private final long maximumFramesize;
 
 	// null if gateway; otherwise non-null
-	private final CompletableFuture<Void> terminationFuture;
+	@Nullable
+	private final CompletableFuture<Boolean> terminationFuture;
+
+	// null if gateway; otherwise non-null
+	@Nullable
+	private final CompletableFuture<Void> internalTerminationFuture;
 
 	AkkaInvocationHandler(
 			String address,
@@ -90,7 +95,8 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 			ActorRef rpcEndpoint,
 			Time timeout,
 			long maximumFramesize,
-			@Nullable CompletableFuture<Void> terminationFuture) {
+			@Nullable CompletableFuture<Boolean> terminationFuture,
+			@Nullable CompletableFuture<Void> internalTerminationFuture) {
 
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
@@ -99,6 +105,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 		this.timeout = Preconditions.checkNotNull(timeout);
 		this.maximumFramesize = maximumFramesize;
 		this.terminationFuture = terminationFuture;
+		this.internalTerminationFuture = internalTerminationFuture;
 	}
 
 	@Override
@@ -107,7 +114,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 
 		Object result;
 
-		if (declaringClass.equals(AkkaGateway.class) ||
+		if (declaringClass.equals(AkkaBasedEndpoint.class) ||
 			declaringClass.equals(Object.class) ||
 			declaringClass.equals(RpcGateway.class) ||
 			declaringClass.equals(StartStoppable.class) ||
@@ -127,7 +134,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	}
 
 	@Override
-	public ActorRef getRpcEndpoint() {
+	public ActorRef getActorRef() {
 		return rpcEndpoint;
 	}
 
@@ -339,7 +346,12 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaGateway, RpcServer
 	}
 
 	@Override
-	public CompletableFuture<Void> getTerminationFuture() {
+	public CompletableFuture<Boolean> getTerminationFuture() {
 		return terminationFuture;
+	}
+
+	@Override
+	public CompletableFuture<Void> getInternalTerminationFuture() {
+		return internalTerminationFuture;
 	}
 }
