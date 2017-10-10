@@ -35,6 +35,7 @@ import org.apache.flink.runtime.query.netty.KvStateServer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManager;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,7 +185,7 @@ public class NetworkEnvironment {
 						partition.getNumberOfSubpartitions() * networkBuffersPerChannel +
 							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
 					bufferPool = networkBufferPool.createBufferPool(partition.getNumberOfSubpartitions(),
-							maxNumberOfMemorySegments);
+						maxNumberOfMemorySegments);
 					partition.registerBufferPool(bufferPool);
 
 					resultPartitionManager.registerResultPartition(partition);
@@ -211,22 +212,24 @@ public class NetworkEnvironment {
 				BufferPool bufferPool = null;
 
 				try {
-					int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
-						gate.getNumberOfInputChannels() * networkBuffersPerChannel +
-							extraNetworkBuffersPerGate : Integer.MAX_VALUE;
-					bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
-						maxNumberOfMemorySegments);
+					if (gate.getConsumedPartitionType().isCreditBased()) {
+						// Create a fixed-size buffer pool for floating buffers and assign exclusive buffers to input channels directly
+						bufferPool = networkBufferPool.createBufferPool(extraNetworkBuffersPerGate, extraNetworkBuffersPerGate);
+						gate.assignExclusiveSegments(networkBufferPool, networkBuffersPerChannel);
+					} else {
+						int maxNumberOfMemorySegments = gate.getConsumedPartitionType().isBounded() ?
+							gate.getNumberOfInputChannels() * networkBuffersPerChannel +
+								extraNetworkBuffersPerGate : Integer.MAX_VALUE;
+						bufferPool = networkBufferPool.createBufferPool(gate.getNumberOfInputChannels(),
+							maxNumberOfMemorySegments);
+					}
 					gate.setBufferPool(bufferPool);
 				} catch (Throwable t) {
 					if (bufferPool != null) {
 						bufferPool.lazyDestroy();
 					}
 
-					if (t instanceof IOException) {
-						throw (IOException) t;
-					} else {
-						throw new IOException(t.getMessage(), t);
-					}
+					ExceptionUtils.rethrowIOException(t);
 				}
 			}
 		}
