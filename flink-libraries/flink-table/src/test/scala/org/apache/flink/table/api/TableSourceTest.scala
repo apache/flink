@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.{BinaryComparison, Expression, Literal}
 import org.apache.flink.table.expressions.utils._
@@ -27,8 +27,10 @@ import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.junit.{Assert, Test}
-
 import _root_.java.sql.{Date, Time, Timestamp}
+
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.types.Row
 
 class TableSourceTest extends TableTestBase {
 
@@ -363,43 +365,66 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTimeLiteralExpressionPushdown(): Unit = {
+    val (tableSource, tableName) = filterableTableSourceTimeTypes
     val util = batchTestUtil()
+    val tableEnv = util.tableEnv
 
-    val expectedTimestamp = Timestamp.valueOf("2017-09-27 13:00:01.001")
-    val expectedDate = Date.valueOf("2017-09-30")
-    val exprectedTime = Time.valueOf("15:20:01")
+    tableEnv.registerTableSource(tableName, tableSource)
 
+    val sqlQuery =
+      s"""
+        |SELECT id from $tableName
+        |WHERE
+        |  tv > TIME '14:25:02' AND
+        |  dv > DATE '2017-02-03' AND
+        |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
+      """.stripMargin
 
-    val query = "last_updated > TIMESTAMP '2017-09-27 13:00:01.001' AND " +
-      "last_updated_date > DATE '2017-09-30' AND last_updated_time > TIME '15:20:01'"
-    util.verifyExpressionProjection(
-      Seq[(String, TypeInformation[_])](
-        "last_updated" -> SqlTimeTypeInfo.TIMESTAMP,
-        "last_updated_date" -> SqlTimeTypeInfo.DATE,
-        "last_updated_time" -> SqlTimeTypeInfo.TIME
+    val result = tableEnv.sqlQuery(sqlQuery)
 
-      ),
-      query,
-      (exps: List[Expression]) => {
-        Assert.assertEquals(3, exps.length)
-
-        val extractedLiterals = exps
-          .map(_.asInstanceOf[BinaryComparison])
-          .map(_.right.asInstanceOf[Literal])
-
-        Assert.assertEquals(Literal(expectedTimestamp), extractedLiterals.head)
-        Assert.assertEquals(Literal(expectedDate), extractedLiterals(1))
-        Assert.assertEquals(Literal(exprectedTime), extractedLiterals(2))
-      }
+    val expectedFilter =
+        "'tv > 14:25:02.toTime && " +
+        "'dv > 2017-02-03.toDate && " +
+        "'tsv > 2017-02-03 14:25:02.0.toTimestamp"
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchFilterableSourceTableNode(
+        tableName,
+        Array("id", "dv", "tv", "tsv"),
+        expectedFilter),
+      term("select", "id")
     )
+    util.verifyTable(result, expected)
   }
 
   // utils
 
   def filterableTableSource:(TableSource[_], String) = {
-    val tableSource = new TestFilterableTableSource
+    val tableSource = TestFilterableTableSource()
     (tableSource, "filterableTable")
   }
+
+  def filterableTableSourceTimeTypes:(TableSource[_], String) = {
+    val rowTypeInfo = new RowTypeInfo(
+      Array[TypeInformation[_]](
+        BasicTypeInfo.INT_TYPE_INFO,
+        SqlTimeTypeInfo.DATE,
+        SqlTimeTypeInfo.TIME,
+        SqlTimeTypeInfo.TIMESTAMP
+      ),
+      Array("id", "dv", "tv", "tsv")
+    )
+
+    val row = new Row(4)
+    row.setField(0, 1)
+    row.setField(1, Date.valueOf("2017-01-23"))
+    row.setField(2, Time.valueOf("14:23:02"))
+    row.setField(3, Timestamp.valueOf("2017-01-24 12:45:01.234"))
+
+    val tableSource = TestFilterableTableSource(rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
+    (tableSource, "filterableTable")
+  }
+
 
   def csvTable: (CsvTableSource, String) = {
     val csvTable = CommonTestData.getCsvTableSource
@@ -430,4 +455,5 @@ class TableSourceTest extends TableTestBase {
     "StreamTableSourceScan(" +
       s"table=[[$sourceName]], fields=[${fields.mkString(", ")}], source=[filter=[$exp]])"
   }
+
 }

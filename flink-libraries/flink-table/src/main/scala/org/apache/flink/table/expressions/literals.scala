@@ -18,7 +18,7 @@
 package org.apache.flink.table.expressions
 
 import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rex.{RexLiteral, RexNode}
+import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlIntervalQualifier
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.parser.SqlParserPos
@@ -50,47 +50,6 @@ object Literal {
     case sqlTime: Time => Literal(sqlTime, SqlTimeTypeInfo.TIME)
     case sqlTimestamp: Timestamp => Literal(sqlTimestamp, SqlTimeTypeInfo.TIMESTAMP)
   }
-
-  private[flink] def apply(rexNode: RexLiteral): Literal = {
-    val literalType = FlinkTypeFactory.toTypeInfo(rexNode.getType)
-
-    val literalValue = literalType match {
-      // Chrono use cases.  We're force-adjusting the UTC-based epoch timestamps to a new
-      // timestamp such that we get the same year/month/hour/day field values in the query's
-      // timezone (UTC)
-      case _@SqlTimeTypeInfo.DATE =>
-        val rexValue = rexNode.getValueAs(classOf[DateString])
-        val adjustedCal = adjustCalendar(rexValue.toCalendar, TimeZone.getDefault)
-        new Date(adjustedCal.getTimeInMillis)
-      case _@SqlTimeTypeInfo.TIME =>
-        val rexValue = rexNode.getValueAs(classOf[TimeString])
-        val adjustedCal = adjustCalendar(rexValue.toCalendar, TimeZone.getDefault)
-        new Time(adjustedCal.getTimeInMillis)
-      case _@SqlTimeTypeInfo.TIMESTAMP =>
-        val rexValue = rexNode.getValueAs(classOf[TimestampString])
-        val adjustedCal = adjustCalendar(rexValue.toCalendar, TimeZone.getDefault)
-        new Timestamp(adjustedCal.getTimeInMillis)
-      case _ => rexNode.getValue
-    }
-
-    Literal(literalValue, literalType)
-  }
-
-  /**
-    * Adjusts a calendar so that it has the same fields in a new time zone.
-    * <p>
-    * See {@link #valueAsUtcCalendar} for more information about why we'd want to do this.
-    * @param from The calendar to adjust.
-    * @param toTz The time zone to set the new fields for.
-    * @return The adjusted calendar.
-    */
-  private def adjustCalendar(from: Calendar, toTz: TimeZone): Calendar = {
-    val sourceTimestamp = from.getTimeInMillis
-    val adjustment = from.getTimeZone.getOffset(sourceTimestamp) - toTz.getOffset(sourceTimestamp)
-    val to = Calendar.getInstance(toTz)
-    to.setTimeInMillis(sourceTimestamp + adjustment)
-    to
-  }
 }
 
 case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpression {
@@ -119,13 +78,13 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
 
       // date/time
       case SqlTimeTypeInfo.DATE =>
-        val datestr = DateString.fromCalendarFields(valueAsUtcCalendar)
+        val datestr = DateString.fromCalendarFields(valueAsCalendar)
         relBuilder.getRexBuilder.makeDateLiteral(datestr)
       case SqlTimeTypeInfo.TIME =>
-        val timestr = TimeString.fromCalendarFields(valueAsUtcCalendar)
+        val timestr = TimeString.fromCalendarFields(valueAsCalendar)
         relBuilder.getRexBuilder.makeTimeLiteral(timestr, 0)
       case SqlTimeTypeInfo.TIMESTAMP =>
-        val timestampstr = TimestampString.fromCalendarFields(valueAsUtcCalendar)
+        val timestampstr = TimestampString.fromCalendarFields(valueAsCalendar)
         relBuilder.getRexBuilder.makeTimestampLiteral(timestampstr, 3)
 
       case TimeIntervalTypeInfo.INTERVAL_MONTHS =>
@@ -149,20 +108,16 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
   }
 
   /**
-    * Convert a date value to a utc calendar.
-    * <p>
-    * We're assuming that when the user passes in a Date its constructed from fields,
-    * such as days and hours, and that they want those fields to be in the same timezone as the
-    * Calcite times, which are UTC.  Since we need to convert a Date to a Calendar, that means we
-    * have to shift the epoch millisecond timestamp to account for the difference between UTC and
-    * local time.
+    * Convert a date value to a calendar.  Calcite fromCalendarField functions use the Calendar.get
+    * methods, so the raw values of the individual fields are preserved when converted to the
+    * string formats.
     * @return Get the Calendar value
     */
-  private def valueAsUtcCalendar: Calendar = {
+  private def valueAsCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]
     val cal = Calendar.getInstance
     cal.setTime(date)
-    Literal.adjustCalendar(cal, Literal.UTC)
+    cal
   }
 }
 

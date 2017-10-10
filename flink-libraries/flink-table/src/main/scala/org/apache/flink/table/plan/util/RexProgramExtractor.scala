@@ -22,11 +22,15 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{And, Expression, Literal, Or, ResolvedFieldReference}
 import org.apache.flink.table.validate.FunctionCatalog
 import org.apache.flink.util.Preconditions
+
+import java.sql.{Date, Time, Timestamp}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -158,7 +162,33 @@ class RexNodeToExpressionConverter(
   }
 
   override def visitLiteral(literal: RexLiteral): Option[Expression] = {
-    Some(Literal(literal))
+    val literalType = FlinkTypeFactory.toTypeInfo(literal.getType)
+
+    val literalValue = literalType match {
+      // Chrono use cases.
+      case _@SqlTimeTypeInfo.DATE =>
+        val rexValue = literal.getValueAs(classOf[DateString])
+        Date.valueOf(rexValue.toString)
+      case _@SqlTimeTypeInfo.TIME =>
+        val rexValue = literal.getValueAs(classOf[TimeString])
+        Time.valueOf(rexValue.toString(0))
+      case _@SqlTimeTypeInfo.TIMESTAMP =>
+        val rexValue = literal.getValueAs(classOf[TimestampString])
+        Timestamp.valueOf(rexValue.toString(3))
+
+      case _@BasicTypeInfo.INT_TYPE_INFO =>
+        /*
+        Force integer conversion.  RelDataType is INTEGER and SqlTypeName is DECIMAL,
+        meaning that it will assume that we are using a BigDecimal
+        and refuse to convert to Integer.
+         */
+        val rexValue = literal.getValueAs(classOf[java.math.BigDecimal])
+        rexValue.intValue()
+
+      case _ => literal.getValue
+    }
+
+    Some(Literal(literalValue, literalType))
   }
 
   override def visitCall(call: RexCall): Option[Expression] = {
@@ -209,7 +239,6 @@ class RexNodeToExpressionConverter(
   private def replace(str: String): String = {
     str.replaceAll("\\s|_", "")
   }
-
 }
 
 /**
