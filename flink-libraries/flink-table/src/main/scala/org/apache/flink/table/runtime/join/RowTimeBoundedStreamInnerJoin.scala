@@ -36,18 +36,18 @@ final class RowTimeBoundedStreamInnerJoin(
     genJoinFuncCode: String,
     leftTimeIdx: Int,
     rightTimeIdx: Int)
-    extends TimeBoundedStreamInnerJoin(
-      leftLowerBound,
-      leftUpperBound,
-      allowedLateness,
-      leftType,
-      rightType,
-      genJoinFuncName,
-      genJoinFuncCode) {
+  extends TimeBoundedStreamInnerJoin(
+    leftLowerBound,
+    leftUpperBound,
+    allowedLateness,
+    leftType,
+    rightType,
+    genJoinFuncName,
+    genJoinFuncCode) {
 
   /**
     * Get the maximum interval between receiving a row and emitting it (as part of a joined result).
-    * Only reasonable for row time join.
+    * This is the time interval by which watermarks need to be held back.
     *
     * @return the maximum delay for the outputs
     */

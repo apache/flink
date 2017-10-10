@@ -38,15 +38,16 @@ import org.apache.flink.util.Collector
 /**
   * A CoProcessFunction to execute time-bounded stream inner-join.
   * Two kinds of time criteria:
-  * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X".
+  * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X" where
+  * X and Y might be negative or positive and X <= Y.
   *
   * @param leftLowerBound  the lower bound for the left stream (X in the criteria)
   * @param leftUpperBound  the upper bound for the left stream (Y in the criteria)
   * @param allowedLateness the lateness allowed for the two streams
   * @param leftType        the input type of left stream
   * @param rightType       the input type of right stream
-  * @param genJoinFuncName the function code of other non-equi conditions
-  * @param genJoinFuncCode the function name of other non-equi conditions
+  * @param genJoinFuncName the name of the generated function
+  * @param genJoinFuncCode the code of function to evaluate the non-window join conditions
   *
   */
 abstract class TimeBoundedStreamInnerJoin(
@@ -57,9 +58,9 @@ abstract class TimeBoundedStreamInnerJoin(
     private val rightType: TypeInformation[Row],
     private val genJoinFuncName: String,
     private val genJoinFuncCode: String)
-    extends CoProcessFunction[CRow, CRow, CRow]
-    with Compiler[FlatJoinFunction[Row, Row, Row]]
-    with Logging {
+  extends CoProcessFunction[CRow, CRow, CRow]
+  with Compiler[FlatJoinFunction[Row, Row, Row]]
+  with Logging {
 
   private var cRowWrapper: CRowWrappingCollector = _
 
@@ -79,15 +80,16 @@ abstract class TimeBoundedStreamInnerJoin(
   protected val leftRelativeSize: Long = -leftLowerBound
   protected val rightRelativeSize: Long = leftUpperBound
 
+  // Points in time until which the respective cache has been cleaned.
   private var leftExpirationTime: Long = 0L
   private var rightExpirationTime: Long = 0L
 
+  // Current time on the respective input stream.
   protected var leftOperatorTime: Long = 0L
   protected var rightOperatorTime: Long = 0L
 
-
-  // for delayed cleanup
-  private val cleanupDelay = (leftRelativeSize + rightRelativeSize) / 2
+  // Minimum interval by which state is cleaned up
+  private val minCleanUpInterval = (leftRelativeSize + rightRelativeSize) / 2
 
   if (allowedLateness < 0) {
     throw new IllegalArgumentException("The allowed lateness must be non-negative.")
@@ -140,12 +142,14 @@ abstract class TimeBoundedStreamInnerJoin(
       cRowValue: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
+
     updateOperatorTime(ctx)
     val leftRow = cRowValue.row
     val timeForLeftRow: Long = getTimeForLeftStream(ctx, leftRow)
     val rightQualifiedLowerBound: Long = timeForLeftRow - rightRelativeSize
     val rightQualifiedUpperBound: Long = timeForLeftRow + leftRelativeSize
     cRowWrapper.out = out
+
     // Check if we need to cache the current row.
     if (rightOperatorTime < rightQualifiedUpperBound) {
       // Operator time of right stream has not exceeded the upper window bound of the current
@@ -164,7 +168,7 @@ abstract class TimeBoundedStreamInnerJoin(
     }
     // Check if we need to join the current row against cached rows of the right input.
     // The condition here should be rightMinimumTime < rightQualifiedUpperBound.
-    // I use rightExpirationTime as an approximation of the rightMinimumTime here,
+    // We use rightExpirationTime as an approximation of the rightMinimumTime here,
     // since rightExpirationTime <= rightMinimumTime is always true.
     if (rightExpirationTime < rightQualifiedUpperBound) {
       // Upper bound of current join window has not passed the cache expiration time yet.
@@ -199,12 +203,14 @@ abstract class TimeBoundedStreamInnerJoin(
       cRowValue: CRow,
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
+
     updateOperatorTime(ctx)
     val rightRow = cRowValue.row
     val timeForRightRow: Long = getTimeForRightStream(ctx, rightRow)
     val leftQualifiedLowerBound: Long = timeForRightRow - leftRelativeSize
     val leftQualifiedUpperBound: Long =  timeForRightRow + rightRelativeSize
     cRowWrapper.out = out
+
     // Check if we need to cache the current row.
     if (leftOperatorTime < leftQualifiedUpperBound) {
       // Operator time of left stream has not exceeded the upper window bound of the current
@@ -223,7 +229,7 @@ abstract class TimeBoundedStreamInnerJoin(
     }
     // Check if we need to join the current row against cached rows of the left input.
     // The condition here should be leftMinimumTime < leftQualifiedUpperBound.
-    // I use leftExpirationTime as an approximation of the leftMinimumTime here,
+    // We use leftExpirationTime as an approximation of the leftMinimumTime here,
     // since leftExpirationTime <= leftMinimumTime is always true.
     if (leftExpirationTime < leftQualifiedUpperBound) {
       leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
@@ -261,6 +267,7 @@ abstract class TimeBoundedStreamInnerJoin(
       timestamp: Long,
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
+
     updateOperatorTime(ctx)
     // In the future, we should separate the left and right watermarks. Otherwise, the
     // registered timer of the faster stream will be delayed, even if the watermarks have
@@ -316,11 +323,11 @@ abstract class TimeBoundedStreamInnerJoin(
       rowTime: Long,
       leftRow: Boolean): Unit = {
     if (leftRow) {
-      val cleanupTime = rowTime + leftRelativeSize + cleanupDelay + allowedLateness + 1
+      val cleanupTime = rowTime + leftRelativeSize + minCleanUpInterval + allowedLateness + 1
       registerTimer(ctx, cleanupTime)
       rightTimerState.update(cleanupTime)
     } else {
-      val cleanupTime = rowTime + rightRelativeSize + cleanupDelay + allowedLateness + 1
+      val cleanupTime = rowTime + rightRelativeSize + minCleanUpInterval + allowedLateness + 1
       registerTimer(ctx, cleanupTime)
       leftTimerState.update(cleanupTime)
     }
@@ -361,6 +368,7 @@ abstract class TimeBoundedStreamInnerJoin(
         }
       }
     }
+
     if (earliestTimestamp > 0) {
       // There are rows left in the cache. Register a timer to expire them later.
       registerCleanUpTimer(
@@ -385,6 +393,8 @@ abstract class TimeBoundedStreamInnerJoin(
   /**
     * Return the time for the target row from the left stream.
     *
+    * Requires that [[updateOperatorTime()]] has been called before.
+    *
     * @param context the runtime context
     * @param row     the target row
     * @return time for the target row
@@ -393,6 +403,8 @@ abstract class TimeBoundedStreamInnerJoin(
 
   /**
     * Return the time for the target row from the right stream.
+    *
+    * Requires that [[updateOperatorTime()]] has been called before.
     *
     * @param context the runtime context
     * @param row     the target row

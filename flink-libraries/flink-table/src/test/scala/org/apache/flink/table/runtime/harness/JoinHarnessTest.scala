@@ -25,11 +25,12 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TupleRowKeySelector}
+import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks, TupleRowKeySelector}
 import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowTimeBoundedStreamInnerJoin}
+import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
-import org.junit.Assert.{assertEquals}
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class JoinHarnessTest extends HarnessTestBase {
@@ -75,7 +76,7 @@ class JoinHarnessTest extends HarnessTestBase {
   def testProcTimeJoinWithCommonBounds() {
 
     val joinProcessFunc = new ProcTimeBoundedStreamInnerJoin(
-      -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode)
+      -10, 20, rowType, rowType, "TestJoinFunction", funcCode)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -165,7 +166,7 @@ class JoinHarnessTest extends HarnessTestBase {
   def testProcTimeJoinWithNegativeBounds() {
 
     val joinProcessFunc = new ProcTimeBoundedStreamInnerJoin(
-      -10, -5, 0, rowType, rowType, "TestJoinFunction", funcCode)
+      -10, -5, rowType, rowType, "TestJoinFunction", funcCode)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -250,7 +251,9 @@ class JoinHarnessTest extends HarnessTestBase {
       -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[String, CRow, CRow, CRow](joinProcessFunc)
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+        joinProcessFunc,
+        joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
         operator,
@@ -312,23 +315,31 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(4, testHarness.numKeyedStateEntries())
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(2L: JLong, "k1", 2L: JLong, "k1"), true), 0))
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(5L: JLong, "k1", 2L: JLong, "k1"), true), 0))
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(5L: JLong, "k1", 15L: JLong, "k1"), true), 0))
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(35L: JLong, "k1", 15L: JLong, "k1"), true), 0))
-    expectedOutput.add(new StreamRecord(
-      CRow(Row.of(40L: JLong, "k2", 39L: JLong, "k2"), true), 0))
-
+    expectedOutput.add(new Watermark(-19))
     // This result is produced by the late row (1, "k1").
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(1L: JLong, "k1", 2L: JLong, "k1"), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2L: JLong, "k1", 2L: JLong, "k1"), true), 0))
+    expectedOutput.add(new StreamRecord(
+        CRow(Row.of(5L: JLong, "k1", 2L: JLong, "k1"), true), 0))
+    expectedOutput.add(new StreamRecord(
+        CRow(Row.of(5L: JLong, "k1", 15L: JLong, "k1"), true), 0))
+    expectedOutput.add(new Watermark(0))
+    expectedOutput.add(new StreamRecord(
+        CRow(Row.of(35L: JLong, "k1", 15L: JLong, "k1"), true), 0))
+    expectedOutput.add(new Watermark(18))
+    expectedOutput.add(new StreamRecord(
+        CRow(Row.of(40L: JLong, "k2", 39L: JLong, "k2"), true), 0))
+    expectedOutput.add(new Watermark(41))
 
     val result = testHarness.getOutput
-    verify(expectedOutput, result, new RowResultSortComparator())
+    println(result)
+    verify(
+      expectedOutput,
+      result,
+      new RowResultSortComparatorWithWatermarks(),
+      checkWaterMark = true)
     testHarness.close()
   }
 
@@ -340,7 +351,9 @@ class JoinHarnessTest extends HarnessTestBase {
       -10, -7, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
-      new KeyedCoProcessOperator[String, CRow, CRow, CRow](joinProcessFunc)
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+        joinProcessFunc,
+        joinProcessFunc.getMaxOutputDelay)
     val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
       new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
         operator,
@@ -394,13 +407,21 @@ class JoinHarnessTest extends HarnessTestBase {
     assertEquals(0, testHarness.numKeyedStateEntries())
 
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    expectedOutput.add(new Watermark(-9))
+    expectedOutput.add(new Watermark(-8))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(3L: JLong, "k1", 13L: JLong, "k1"), true), 0))
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(6L: JLong, "k1", 13L: JLong, "k1"), true), 0))
+    expectedOutput.add(new Watermark(0))
+    expectedOutput.add(new Watermark(8))
 
     val result = testHarness.getOutput
-    verify(expectedOutput, result, new RowResultSortComparator())
+    verify(
+      expectedOutput,
+      result,
+      new RowResultSortComparatorWithWatermarks(),
+      checkWaterMark = true)
     testHarness.close()
   }
 }

@@ -266,27 +266,6 @@ object WindowJoinUtil {
   }
 
   /**
-    * Checks if an expression accesses a time attribute.
-    *
-    * @param expr The expression to check.
-    * @param inputType The input type of the expression.
-    * @return True, if the expression accesses a time attribute. False otherwise.
-    */
-  def accessesTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
-    expr match {
-      case i: RexInputRef =>
-        val accessedType = inputType.getFieldList.get(i.getIndex).getType
-        accessedType match {
-          case _: TimeIndicatorRelDataType => true
-          case _ => false
-        }
-      case c: RexCall =>
-        c.operands.asScala.exists(accessesTimeAttribute(_, inputType))
-      case _ => false
-    }
-  }
-
-  /**
     * Checks if an expression accesses a non-time attribute.
     *
     * @param expr The expression to check.
