@@ -745,7 +745,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		return new QueryableStateStream<>(
 				queryableStateName,
-				stateDescriptor.getSerializer(),
+				stateDescriptor,
 				getKeyType().createSerializer(getExecutionConfig()));
 	}
 
@@ -772,7 +772,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		return new QueryableStateStream<>(
 				queryableStateName,
-				stateDescriptor.getSerializer(),
+				stateDescriptor,
 				getKeyType().createSerializer(getExecutionConfig()));
 	}
 
@@ -796,7 +796,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
 		return new QueryableStateStream<>(
 				queryableStateName,
-				stateDescriptor.getSerializer(),
+				stateDescriptor,
 				getKeyType().createSerializer(getExecutionConfig()));
 	}
 

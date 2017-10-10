@@ -21,10 +21,12 @@ package org.apache.flink.queryablestate.client;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.queryablestate.client.state.ImmutableStateBinder;
 import org.apache.flink.queryablestate.messages.KvStateRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.Client;
@@ -141,15 +143,15 @@ public class QueryableStateClient {
 	 * @param key			            The key we are interested in.
 	 * @param keyTypeHint				A {@link TypeHint} used to extract the type of the key.
 	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
-	 * @return Future holding the result.
+	 * @return Future holding the immutable {@link State} object containing the result.
 	 */
 	@PublicEvolving
-	public <K, V> CompletableFuture<V> getKvState(
+	public <K, S extends State, V> CompletableFuture<S> getKvState(
 			final JobID jobId,
 			final String queryableStateName,
 			final K key,
 			final TypeHint<K> keyTypeHint,
-			final StateDescriptor<?, V> stateDescriptor) {
+			final StateDescriptor<S, V> stateDescriptor) {
 
 		Preconditions.checkNotNull(keyTypeHint);
 
@@ -164,15 +166,15 @@ public class QueryableStateClient {
 	 * @param key			            The key we are interested in.
 	 * @param keyTypeInfo				The {@link TypeInformation} of the key.
 	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
-	 * @return Future holding the result.
+	 * @return Future holding the immutable {@link State} object containing the result.
 	 */
 	@PublicEvolving
-	public <K, V> CompletableFuture<V> getKvState(
+	public <K, S extends State, V> CompletableFuture<S> getKvState(
 			final JobID jobId,
 			final String queryableStateName,
 			final K key,
 			final TypeInformation<K> keyTypeInfo,
-			final StateDescriptor<?, V> stateDescriptor) {
+			final StateDescriptor<S, V> stateDescriptor) {
 
 		return getKvState(jobId, queryableStateName, key, VoidNamespace.INSTANCE,
 				keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, stateDescriptor);
@@ -187,48 +189,17 @@ public class QueryableStateClient {
 	 * @param keyTypeInfo				The {@link TypeInformation} of the keys.
 	 * @param namespaceTypeInfo			The {@link TypeInformation} of the namespace.
 	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
-	 * @return Future holding the result.
+	 * @return Future holding the immutable {@link State} object containing the result.
 	 */
 	@PublicEvolving
-	public <K, V, N> CompletableFuture<V> getKvState(
+	public <K, N, S extends State, V> CompletableFuture<S> getKvState(
 			final JobID jobId,
 			final String queryableStateName,
 			final K key,
 			final N namespace,
 			final TypeInformation<K> keyTypeInfo,
 			final TypeInformation<N> namespaceTypeInfo,
-			final StateDescriptor<?, V> stateDescriptor) {
-
-		Preconditions.checkNotNull(stateDescriptor);
-
-		// initialize the value serializer based on the execution config.
-		stateDescriptor.initializeSerializerUnlessSet(executionConfig);
-		TypeSerializer<V> stateSerializer = stateDescriptor.getSerializer();
-
-		return getKvState(jobId, queryableStateName, key,
-				namespace, keyTypeInfo, namespaceTypeInfo, stateSerializer);
-	}
-
-	/**
-	 * Returns a future holding the request result.
-	 * @param jobId                     JobID of the job the queryable state belongs to.
-	 * @param queryableStateName        Name under which the state is queryable.
-	 * @param key			            The key that the state we request is associated with.
-	 * @param namespace					The namespace of the state.
-	 * @param keyTypeInfo				The {@link TypeInformation} of the keys.
-	 * @param namespaceTypeInfo			The {@link TypeInformation} of the namespace.
-	 * @param stateSerializer			The {@link TypeSerializer} of the state we want to query.
-	 * @return Future holding the result.
-	 */
-	@PublicEvolving
-	public <K, N, V> CompletableFuture<V> getKvState(
-			final JobID jobId,
-			final String queryableStateName,
-			final K key,
-			final N namespace,
-			final TypeInformation<K> keyTypeInfo,
-			final TypeInformation<N> namespaceTypeInfo,
-			final TypeSerializer<V> stateSerializer) {
+			final StateDescriptor<S, V> stateDescriptor) {
 
 		Preconditions.checkNotNull(jobId);
 		Preconditions.checkNotNull(queryableStateName);
@@ -237,7 +208,7 @@ public class QueryableStateClient {
 
 		Preconditions.checkNotNull(keyTypeInfo);
 		Preconditions.checkNotNull(namespaceTypeInfo);
-		Preconditions.checkNotNull(stateSerializer);
+		Preconditions.checkNotNull(stateDescriptor);
 
 		TypeSerializer<K> keySerializer = keyTypeInfo.createSerializer(executionConfig);
 		TypeSerializer<N> namespaceSerializer = namespaceTypeInfo.createSerializer(executionConfig);
@@ -253,8 +224,8 @@ public class QueryableStateClient {
 		return getKvState(jobId, queryableStateName, key.hashCode(), serializedKeyAndNamespace).thenApply(
 				stateResponse -> {
 					try {
-						return KvStateSerializer.deserializeValue(stateResponse.getContent(), stateSerializer);
-					} catch (IOException e) {
+						return stateDescriptor.bind(new ImmutableStateBinder(stateResponse.getContent()));
+					} catch (Exception e) {
 						throw new FlinkRuntimeException(e);
 					}
 				});

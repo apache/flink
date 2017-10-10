@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
  * {@link StateDescriptor} for {@link FoldingState}. This can be used to create partitioned
  * folding state.
  *
- * @param <T> Type of the values folded int othe state
+ * @param <T> Type of the values folded in the other state
  * @param <ACC> Type of the value in the state
  *
  * @deprecated will be removed in a future version in favor of {@link AggregatingStateDescriptor}

@@ -19,17 +19,27 @@
 package org.apache.flink.queryablestate.itcases;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.AggregatingState;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
+import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -49,12 +59,18 @@ import org.apache.flink.runtime.minicluster.FlinkMiniCluster;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.VoidNamespaceTypeInfo;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.QueryableStateStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -63,13 +79,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -198,7 +217,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			while (!allNonZero && deadline.hasTimeLeft()) {
 				allNonZero = true;
 
-				final List<CompletableFuture<Tuple2<Integer, Long>>> futures = new ArrayList<>(numKeys);
+				final List<CompletableFuture<ReducingState<Tuple2<Integer, Long>>>> futures = new ArrayList<>(numKeys);
 
 				for (int i = 0; i < numKeys; i++) {
 					final int key = i;
@@ -210,7 +229,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 						allNonZero = false;
 					}
 
-					CompletableFuture<Tuple2<Integer, Long>> result = getKvStateWithRetries(
+					CompletableFuture<ReducingState<Tuple2<Integer, Long>>> result = getKvStateWithRetries(
 							client,
 							jobId,
 							queryName,
@@ -221,9 +240,14 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							false,
 							executor);
 
-					result.thenAccept(res -> {
-						counts.set(key, res.f1);
-						assertEquals("Key mismatch", key, res.f0.intValue());
+					result.thenAccept(response -> {
+						try {
+							Tuple2<Integer, Long> res = response.get();
+							counts.set(key, res.f1);
+							assertEquals("Key mismatch", key, res.f0.intValue());
+						} catch (Exception e) {
+							Assert.fail(e.getMessage());
+						}
 					});
 
 					futures.add(result);
@@ -406,7 +430,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			executeQuery(deadline, client, jobId, "hakuna", valueState, numElements);
+			executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -485,7 +509,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			executeQuery(deadline, client, jobId, "hakuna", valueState, expected);
+			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -498,87 +522,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			}
 
 			client.shutdown();
-		}
-	}
-
-	/**
-	 * Retry a query for state for keys between 0 and {@link #maxParallelism} until
-	 * <tt>expected</tt> equals the value of the result tuple's second field.
-	 */
-	private void executeQuery(
-			final Deadline deadline,
-			final QueryableStateClient client,
-			final JobID jobId,
-			final String queryableStateName,
-			final StateDescriptor<?, Tuple2<Integer, Long>> stateDescriptor,
-			final long expected) throws Exception {
-
-		for (int key = 0; key < maxParallelism; key++) {
-			boolean success = false;
-			while (deadline.hasTimeLeft() && !success) {
-				CompletableFuture<Tuple2<Integer, Long>> future = getKvStateWithRetries(
-						client,
-						jobId,
-						queryableStateName,
-						key,
-						BasicTypeInfo.INT_TYPE_INFO,
-						stateDescriptor,
-						QUERY_RETRY_DELAY,
-						false,
-						executor);
-
-				Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-				assertEquals("Key mismatch", key, value.f0.intValue());
-				if (expected == value.f1) {
-					success = true;
-				} else {
-					// Retry
-					Thread.sleep(50L);
-				}
-			}
-
-			assertTrue("Did not succeed query", success);
-		}
-	}
-
-	/**
-	 * Retry a query for state for keys between 0 and {@link #maxParallelism} until
-	 * <tt>expected</tt> equals the value of the result tuple's second field.
-	 */
-	private void executeQuery(
-			final Deadline deadline,
-			final QueryableStateClient client,
-			final JobID jobId,
-			final String queryableStateName,
-			final TypeSerializer<Tuple2<Integer, Long>> valueSerializer,
-			final long expected) throws Exception {
-
-		for (int key = 0; key < maxParallelism; key++) {
-			boolean success = false;
-			while (deadline.hasTimeLeft() && !success) {
-				Future<Tuple2<Integer, Long>> future = getKvStateWithRetries(client,
-						jobId,
-						queryableStateName,
-						key,
-						BasicTypeInfo.INT_TYPE_INFO,
-						valueSerializer,
-						QUERY_RETRY_DELAY,
-						false,
-						executor);
-
-				Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-
-				assertEquals("Key mismatch", key, value.f0.intValue());
-				if (expected == value.f1) {
-					success = true;
-				} else {
-					// Retry
-					Thread.sleep(50L);
-				}
-			}
-
-			assertTrue("Did not succeed query", success);
 		}
 	}
 
@@ -647,7 +590,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			// Now query
 			int key = 0;
-			CompletableFuture<Tuple2<Integer, Long>> future = getKvStateWithRetries(
+			CompletableFuture<ValueState<Tuple2<Integer, Long>>> future = getKvStateWithRetries(
 					client,
 					jobId,
 					queryableState.getQueryableStateName(),
@@ -730,8 +673,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			executeQuery(deadline, client, jobId, "matata",
-					queryableState.getValueSerializer(), numElements);
+			final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
+					(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
+			executeValueQuery(deadline, client, jobId, "matata", stateDesc, numElements);
 		} finally {
 
 			// Free cluster resources
@@ -809,10 +753,10 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
 				while (deadline.hasTimeLeft() && !success) {
-					CompletableFuture<String> future = getKvStateWithRetries(
+					CompletableFuture<FoldingState<Tuple2<Integer, Long>, String>> future = getKvStateWithRetries(
 							client,
 							jobId,
-							queryableState.getQueryableStateName(),
+							"pumba",
 							key,
 							BasicTypeInfo.INT_TYPE_INFO,
 							foldingState,
@@ -820,7 +764,9 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 							false,
 							executor);
 
-					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+
+					//assertEquals("Key mismatch", key, value.f0.intValue());
 					if (expected.equals(value)) {
 						success = true;
 					} else {
@@ -898,12 +844,36 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Wait until job is running
-
 			// Now query
 			long expected = numElements * (numElements + 1L) / 2L;
 
-			executeQuery(deadline, client, jobId, "jungle", reducingState, expected);
+			for (int key = 0; key < maxParallelism; key++) {
+				boolean success = false;
+				while (deadline.hasTimeLeft() && !success) {
+					CompletableFuture<ReducingState<Tuple2<Integer, Long>>> future = getKvStateWithRetries(
+							client,
+							jobId,
+							"jungle",
+							key,
+							BasicTypeInfo.INT_TYPE_INFO,
+							reducingState,
+							QUERY_RETRY_DELAY,
+							false,
+							executor);
+
+					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+
+					assertEquals("Key mismatch", key, value.f0.intValue());
+					if (expected == value.f1) {
+						success = true;
+					} else {
+						// Retry
+						Thread.sleep(50L);
+					}
+				}
+
+				assertTrue("Did not succeed query", success);
+			}
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
@@ -918,6 +888,341 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 			client.shutdown();
 		}
 	}
+
+	/**
+	 * Tests simple map state queryable state instance. Each source emits
+	 * (subtaskIndex, 0)..(subtaskIndex, numElements) tuples, which are then
+	 * queried. The map state instance sums the values up. The test succeeds
+	 * after each subtask index is queried with result n*(n+1)/2.
+	 */
+	@Test
+	public void testMapState() throws Exception {
+		// Config
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
+
+		final long numElements = 1024L;
+
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+
+		JobID jobId = null;
+		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
+			env.setParallelism(maxParallelism);
+			// Very important, because cluster is shared between tests and we
+			// don't explicitly check that all slots are available before
+			// submitting.
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+
+			DataStream<Tuple2<Integer, Long>> source = env
+					.addSource(new TestAscendingValueSource(numElements));
+
+			final MapStateDescriptor<Integer, Tuple2<Integer, Long>> mapStateDescriptor = new MapStateDescriptor<>(
+					"timon",
+					BasicTypeInfo.INT_TYPE_INFO,
+					source.getType());
+			mapStateDescriptor.setQueryable("timon-queryable");
+
+			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+				private static final long serialVersionUID = 8470749712274833552L;
+
+				@Override
+				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					return value.f0;
+				}
+			}).process(new ProcessFunction<Tuple2<Integer, Long>, Object>() {
+				private static final long serialVersionUID = -805125545438296619L;
+
+				private transient MapState<Integer, Tuple2<Integer, Long>> mapState;
+
+				@Override
+				public void open(Configuration parameters) throws Exception {
+					super.open(parameters);
+					mapState = getRuntimeContext().getMapState(mapStateDescriptor);
+				}
+
+				@Override
+				public void processElement(Tuple2<Integer, Long> value, Context ctx, Collector<Object> out) throws Exception {
+					Tuple2<Integer, Long> v = mapState.get(value.f0);
+					if (v == null) {
+						v = new Tuple2<>(value.f0, 0L);
+					}
+					mapState.put(value.f0, new Tuple2<>(v.f0, v.f1 + value.f1));
+				}
+			});
+
+			// Submit the job graph
+			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+			jobId = jobGraph.getJobID();
+
+			cluster.submitJobDetached(jobGraph);
+
+			// Now query
+			long expected = numElements * (numElements + 1L) / 2L;
+
+			for (int key = 0; key < maxParallelism; key++) {
+				boolean success = false;
+				while (deadline.hasTimeLeft() && !success) {
+					CompletableFuture<MapState<Integer, Tuple2<Integer, Long>>> future = getKvStateWithRetries(
+							client,
+							jobId,
+							"timon-queryable",
+							key,
+							BasicTypeInfo.INT_TYPE_INFO,
+							mapStateDescriptor,
+							QUERY_RETRY_DELAY,
+							false,
+							executor);
+
+					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
+					assertEquals("Key mismatch", key, value.f0.intValue());
+					if (expected == value.f1) {
+						success = true;
+					} else {
+						// Retry
+						Thread.sleep(50L);
+					}
+				}
+
+				assertTrue("Did not succeed query", success);
+			}
+		} finally {
+			// Free cluster resources
+			if (jobId != null) {
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
+						.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			}
+
+			client.shutdown();
+		}
+	}
+
+	/**
+	 * Tests simple list state queryable state instance. Each source emits
+	 * (subtaskIndex, 0)..(subtaskIndex, numElements) tuples, which are then
+	 * queried. The list state instance add the values to the list. The test
+	 * succeeds after each subtask index is queried and the list contains
+	 * the correct number of distinct elements.
+	 */
+	@Test
+	public void testListState() throws Exception {
+		// Config
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
+
+		final long numElements = 1024L;
+
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+
+		JobID jobId = null;
+		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
+			env.setParallelism(maxParallelism);
+			// Very important, because cluster is shared between tests and we
+			// don't explicitly check that all slots are available before
+			// submitting.
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+
+			DataStream<Tuple2<Integer, Long>> source = env
+					.addSource(new TestAscendingValueSource(numElements));
+
+			final ListStateDescriptor<Long> listStateDescriptor = new ListStateDescriptor<Long>(
+					"list",
+					BasicTypeInfo.LONG_TYPE_INFO);
+			listStateDescriptor.setQueryable("list-queryable");
+
+			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+				private static final long serialVersionUID = 8470749712274833552L;
+
+				@Override
+				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					return value.f0;
+				}
+			}).process(new ProcessFunction<Tuple2<Integer, Long>, Object>() {
+				private static final long serialVersionUID = -805125545438296619L;
+
+				private transient ListState<Long> listState;
+
+				@Override
+				public void open(Configuration parameters) throws Exception {
+					super.open(parameters);
+					listState = getRuntimeContext().getListState(listStateDescriptor);
+				}
+
+				@Override
+				public void processElement(Tuple2<Integer, Long> value, Context ctx, Collector<Object> out) throws Exception {
+					listState.add(value.f1);
+				}
+			});
+
+			// Submit the job graph
+			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+			jobId = jobGraph.getJobID();
+
+			cluster.submitJobDetached(jobGraph);
+
+			// Now query
+
+			Map<Integer, Set<Long>> results = new HashMap<>();
+
+			for (int key = 0; key < maxParallelism; key++) {
+				boolean success = false;
+				while (deadline.hasTimeLeft() && !success) {
+					CompletableFuture<ListState<Long>> future = getKvStateWithRetries(
+							client,
+							jobId,
+							"list-queryable",
+							key,
+							BasicTypeInfo.INT_TYPE_INFO,
+							listStateDescriptor,
+							QUERY_RETRY_DELAY,
+							false,
+							executor);
+
+					Iterable<Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+
+					Set<Long> res = new HashSet<>();
+					for (Long v: value) {
+						res.add(v);
+					}
+
+					// the source starts at 0, so +1
+					if (res.size() == numElements + 1L) {
+						success = true;
+						results.put(key, res);
+					} else {
+						// Retry
+						Thread.sleep(50L);
+					}
+				}
+
+				assertTrue("Did not succeed query", success);
+			}
+
+			for (int key = 0; key < maxParallelism; key++) {
+				Set<Long> values = results.get(key);
+				for (long i = 0L; i <= numElements; i++) {
+					assertTrue(values.contains(i));
+				}
+			}
+
+		} finally {
+			// Free cluster resources
+			if (jobId != null) {
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
+						.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			}
+
+			client.shutdown();
+		}
+	}
+
+	@Test
+	public void testAggregatingState() throws Exception {
+		// Config
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
+
+		final long numElements = 1024L;
+
+		final QueryableStateClient client = new QueryableStateClient(
+				"localhost",
+				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+
+		JobID jobId = null;
+		try {
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setStateBackend(stateBackend);
+			env.setParallelism(maxParallelism);
+			// Very important, because cluster is shared between tests and we
+			// don't explicitly check that all slots are available before
+			// submitting.
+			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+
+			DataStream<Tuple2<Integer, Long>> source = env
+					.addSource(new TestAscendingValueSource(numElements));
+
+			final AggregatingStateDescriptor<Tuple2<Integer, Long>, MutableString, String> aggrStateDescriptor =
+					new AggregatingStateDescriptor<>(
+							"aggregates",
+							new SumAggr(),
+							MutableString.class);
+			aggrStateDescriptor.setQueryable("aggr-queryable");
+
+			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+				private static final long serialVersionUID = 8470749712274833552L;
+
+				@Override
+				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					return value.f0;
+				}
+			}).transform(
+					"TestAggregatingOperator",
+					BasicTypeInfo.STRING_TYPE_INFO,
+					new AggregatingTestOperator(aggrStateDescriptor)
+			);
+
+			// Submit the job graph
+			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+			jobId = jobGraph.getJobID();
+
+			cluster.submitJobDetached(jobGraph);
+
+			// Now query
+
+			for (int key = 0; key < maxParallelism; key++) {
+				boolean success = false;
+				while (deadline.hasTimeLeft() && !success) {
+					CompletableFuture<AggregatingState<Tuple2<Integer, Long>, String>> future = getKvStateWithRetries(
+							client,
+							jobId,
+							"aggr-queryable",
+							key,
+							BasicTypeInfo.INT_TYPE_INFO,
+							aggrStateDescriptor,
+							QUERY_RETRY_DELAY,
+							false,
+							executor);
+
+					String value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
+
+					if (Long.parseLong(value) == numElements * (numElements + 1L) / 2L) {
+						success = true;
+					} else {
+						// Retry
+						Thread.sleep(50L);
+					}
+				}
+
+				assertTrue("Did not succeed query", success);
+			}
+		} finally {
+			// Free cluster resources
+			if (jobId != null) {
+				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
+						.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+
+				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			}
+
+			client.shutdown();
+		}
+	}
+
+	/////				Sources/UDFs Used in the Tests			//////
 
 	/**
 	 * Test source producing (key, 0)..(key, maxValue) with key being the sub
@@ -980,8 +1285,8 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	/**
 	 * Test source producing (key, 1) tuples with random key in key range (numKeys).
 	 */
-	protected static class TestKeyRangeSource extends RichParallelSourceFunction<Tuple2<Integer, Long>>
-			implements CheckpointListener {
+	private static class TestKeyRangeSource extends RichParallelSourceFunction<Tuple2<Integer, Long>> implements CheckpointListener {
+
 		private static final long serialVersionUID = -5744725196953582710L;
 
 		private static final AtomicLong LATEST_CHECKPOINT_ID = new AtomicLong();
@@ -997,7 +1302,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		public void open(Configuration parameters) throws Exception {
 			super.open(parameters);
 			if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
-				LATEST_CHECKPOINT_ID.set(0);
+				LATEST_CHECKPOINT_ID.set(0L);
 			}
 		}
 
@@ -1012,7 +1317,7 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 					ctx.collect(record);
 				}
 				// mild slow down
-				Thread.sleep(1);
+				Thread.sleep(1L);
 			}
 		}
 
@@ -1027,6 +1332,77 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 				LATEST_CHECKPOINT_ID.set(checkpointId);
 			}
 		}
+	}
+
+	/**
+	 * An operator that uses {@link AggregatingState}.
+	 *
+	 * <p>The operator exists for lack of possibility to get an
+	 * {@link AggregatingState} from the {@link org.apache.flink.api.common.functions.RuntimeContext}.
+	 * If this were not the case, we could have a {@link ProcessFunction}.
+	 */
+	private static class AggregatingTestOperator
+			extends AbstractStreamOperator<String>
+			implements OneInputStreamOperator<Tuple2<Integer, Long>, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final AggregatingStateDescriptor<Tuple2<Integer, Long>, MutableString, String> stateDescriptor;
+		private transient AggregatingState<Tuple2<Integer, Long>, String> state;
+
+		AggregatingTestOperator(AggregatingStateDescriptor<Tuple2<Integer, Long>, MutableString, String> stateDesc) {
+			this.stateDescriptor = stateDesc;
+		}
+
+		@Override
+		public void open() throws Exception {
+			super.open();
+			this.state = getKeyedStateBackend().getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescriptor);
+		}
+
+		@Override
+		public void processElement(StreamRecord<Tuple2<Integer, Long>> element) throws Exception {
+			state.add(element.getValue());
+		}
+	}
+
+	/**
+	 * Test {@link AggregateFunction} concatenating the already stored string with the long passed as argument.
+	 */
+	private static class SumAggr implements AggregateFunction<Tuple2<Integer, Long>, MutableString, String> {
+
+		private static final long serialVersionUID = -6249227626701264599L;
+
+		@Override
+		public MutableString createAccumulator() {
+			return new MutableString();
+		}
+
+		@Override
+		public void add(Tuple2<Integer, Long> value, MutableString accumulator) {
+			long acc = Long.valueOf(accumulator.value);
+			acc += value.f1;
+			accumulator.value = Long.toString(acc);
+		}
+
+		@Override
+		public String getResult(MutableString accumulator) {
+			return accumulator.value;
+		}
+
+		@Override
+		public MutableString merge(MutableString a, MutableString b) {
+			MutableString nValue = new MutableString();
+			nValue.value = Long.toString(Long.valueOf(a.value) + Long.valueOf(b.value));
+			return nValue;
+		}
+	}
+
+	private static final class MutableString {
+		String value = "0";
 	}
 
 	/**
@@ -1058,32 +1434,13 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 	/////				General Utility Methods				//////
 
-	private static <K, V> Future<V> getKvStateWithRetries(
+	private static <K, S extends State, V> CompletableFuture<S> getKvStateWithRetries(
 			final QueryableStateClient client,
 			final JobID jobId,
 			final String queryName,
 			final K key,
 			final TypeInformation<K> keyTypeInfo,
-			final TypeSerializer<V> valueTypeSerializer,
-			final Time retryDelay,
-			final boolean failForUnknownKeyOrNamespace,
-			final ScheduledExecutor executor) {
-
-		return retryWithDelay(
-				() -> client.getKvState(jobId, queryName, key, VoidNamespace.INSTANCE, keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, valueTypeSerializer),
-				NO_OF_RETRIES,
-				retryDelay,
-				executor,
-				failForUnknownKeyOrNamespace);
-	}
-
-	private static <K, V> CompletableFuture<V> getKvStateWithRetries(
-			final QueryableStateClient client,
-			final JobID jobId,
-			final String queryName,
-			final K key,
-			final TypeInformation<K> keyTypeInfo,
-			final StateDescriptor<?, V> stateDescriptor,
+			final StateDescriptor<S, V> stateDescriptor,
 			final Time retryDelay,
 			final boolean failForUnknownKeyOrNamespace,
 			final ScheduledExecutor executor) {
@@ -1155,6 +1512,47 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 			resultFuture.whenComplete(
 					(t, throwable) -> operationResultFuture.cancel(false));
+		}
+	}
+
+	/**
+	 * Retry a query for state for keys between 0 and {@link #maxParallelism} until
+	 * <tt>expected</tt> equals the value of the result tuple's second field.
+	 */
+	private void executeValueQuery(
+			final Deadline deadline,
+			final QueryableStateClient client,
+			final JobID jobId,
+			final String queryableStateName,
+			final ValueStateDescriptor<Tuple2<Integer, Long>> stateDescriptor,
+			final long expected) throws Exception {
+
+		for (int key = 0; key < maxParallelism; key++) {
+			boolean success = false;
+			while (deadline.hasTimeLeft() && !success) {
+				CompletableFuture<ValueState<Tuple2<Integer, Long>>> future = getKvStateWithRetries(
+						client,
+						jobId,
+						queryableStateName,
+						key,
+						BasicTypeInfo.INT_TYPE_INFO,
+						stateDescriptor,
+						QUERY_RETRY_DELAY,
+						false,
+						executor);
+
+				Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).value();
+
+				assertEquals("Key mismatch", key, value.f0.intValue());
+				if (expected == value.f1) {
+					success = true;
+				} else {
+					// Retry
+					Thread.sleep(50L);
+				}
+			}
+
+			assertTrue("Did not succeed query", success);
 		}
 	}
 }

@@ -121,7 +121,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 				// Execute actual query async, because it is possibly
 				// blocking (e.g. file I/O).
 				//
-				// A submission failure is not treated as fatal. todo here if there is a shared resource e.g. registry, then I will have to sync on that.
+				// A submission failure is not treated as fatal.
 				queryExecutor.submit(new AsyncRequestTask<>(this, ctx, requestId, request, stats));
 
 			} else {
