@@ -39,6 +39,10 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
@@ -128,15 +132,11 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
-	private static class TestBlobServerPortHandler extends AbstractRestHandler<DispatcherGateway, EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
+	private static class TestBlobServerPortHandler extends TestHandler<EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
 		private volatile boolean portRetrieved = false;
 
 		private TestBlobServerPortHandler() {
-			super(
-				CompletableFuture.completedFuture(restAddress),
-				mockGatewayRetriever,
-				RpcUtils.INF_TIMEOUT,
-				BlobServerPortHeaders.getInstance());
+			super(BlobServerPortHeaders.getInstance());
 		}
 
 		@Override
@@ -146,15 +146,11 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
-	private static class TestJobSubmitHandler extends AbstractRestHandler<DispatcherGateway, JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
+	private static class TestJobSubmitHandler extends TestHandler<JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
 		private volatile boolean jobSubmitted = false;
 
 		private TestJobSubmitHandler() {
-			super(
-				CompletableFuture.completedFuture(restAddress),
-				mockGatewayRetriever,
-				RpcUtils.INF_TIMEOUT,
-				JobSubmitHeaders.getInstance());
+			super(JobSubmitHeaders.getInstance());
 		}
 
 		@Override
@@ -164,16 +160,12 @@ public class RestClusterClientTest extends TestLogger {
 		}
 	}
 
-	private static class TestJobTerminationHandler extends AbstractRestHandler<DispatcherGateway, EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
+	private static class TestJobTerminationHandler extends TestHandler<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> {
 		private volatile boolean jobCanceled = false;
 		private volatile boolean jobStopped = false;
 
 		private TestJobTerminationHandler() {
-			super(
-				CompletableFuture.completedFuture(restAddress),
-				mockGatewayRetriever,
-				RpcUtils.INF_TIMEOUT,
-				JobTerminationHeaders.getInstance());
+			super(JobTerminationHeaders.getInstance());
 		}
 
 		@Override
@@ -187,6 +179,17 @@ public class RestClusterClientTest extends TestLogger {
 					break;
 			}
 			return CompletableFuture.completedFuture(EmptyResponseBody.getInstance());
+		}
+	}
+
+	private abstract static class TestHandler<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends AbstractRestHandler<DispatcherGateway, R, P, M> {
+
+		private TestHandler(MessageHeaders<R, P, M> headers) {
+			super(
+				CompletableFuture.completedFuture(restAddress),
+				mockGatewayRetriever,
+				RpcUtils.INF_TIMEOUT,
+				headers);
 		}
 	}
 }
