@@ -21,15 +21,23 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
 import scala.concurrent.Future;
@@ -134,6 +142,27 @@ public class ClusterClientTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testClusterClientList() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+
+		TestListActorGateway gateway = new TestListActorGateway();
+		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		try {
+			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
+			Collection<JobStatusMessage> jobDetails = jobDetailsFuture.get();
+			Assert.assertTrue(gateway.messageArrived);
+			Assert.assertEquals(2, jobDetails.size());
+			Iterator<JobStatusMessage> jobDetailsIterator = jobDetails.iterator();
+			JobStatusMessage job1 = jobDetailsIterator.next();
+			JobStatusMessage job2 = jobDetailsIterator.next();
+			Assert.assertNotEquals("The job statues should not be equal.", job1.getJobState(), job2.getJobState());
+		} finally {
+			clusterClient.shutdown();
+		}
+	}
+
 	private static class TestStopActorGateway extends DummyActorGateway {
 
 		private final JobID expectedJobID;
@@ -215,6 +244,20 @@ public class ClusterClientTest extends TestLogger {
 				Assert.assertEquals(expectedTargetDirectory, message.savepointDirectory().get());
 			}
 			return new JobManagerMessages.TriggerSavepointSuccess(message.jobId(), 0, savepointPathToReturn, 0);
+		}
+	}
+
+	private static class TestListActorGateway extends TestActorGateway<RequestJobDetails, MultipleJobsDetails> {
+
+		TestListActorGateway() {
+			super(RequestJobDetails.class);
+		}
+
+		@Override
+		public MultipleJobsDetails process(RequestJobDetails message) {
+			JobDetails running = new JobDetails(new JobID(), "job1", 0, 0, 0, JobStatus.RUNNING, 0, new int[9], 0);
+			JobDetails finished = new JobDetails(new JobID(), "job2", 0, 0, 0, JobStatus.FINISHED, 0, new int[9], 0);
+			return new MultipleJobsDetails(Collections.singleton(running), Collections.singleton(finished));
 		}
 	}
 
