@@ -94,7 +94,7 @@ trait FlinkRelNode extends RelNode {
     case SqlTypeName.ARRAY =>
       // 16 is an arbitrary estimate
       estimateDataTypeSize(t.getComponentType) * 16
-    case SqlTypeName.MAP =>
+    case SqlTypeName.MAP | SqlTypeName.MULTISET =>
       // 16 is an arbitrary estimate
       (estimateDataTypeSize(t.getKeyType) + estimateDataTypeSize(t.getValueType)) * 16
     case SqlTypeName.ANY => 128 // 128 is an arbitrary estimate
