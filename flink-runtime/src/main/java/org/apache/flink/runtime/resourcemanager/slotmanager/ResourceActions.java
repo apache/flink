@@ -24,11 +24,32 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 
-public interface ResourceManagerActions {
+/**
+ * Resource related actions which the {@link SlotManager} can perform.
+ */
+public interface ResourceActions {
 
+	/**
+	 * Releases the resource with the given instance id.
+	 *
+	 * @param instanceId identifying which resource to release
+	 */
 	void releaseResource(InstanceID instanceId);
 
+	/**
+	 * Requests to allocate a resource with the given {@link ResourceProfile}.
+	 *
+	 * @param resourceProfile for the to be allocated resource
+	 * @throws ResourceManagerException if the resource cannot be allocated
+	 */
 	void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException;
 
+	/**
+	 * Notifies that an allocation failure has occurred.
+	 *
+	 * @param jobId to which the allocation belonged
+	 * @param allocationId identifying the failed allocation
+	 * @param cause of the allocation failure
+	 */
 	void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause);
 }

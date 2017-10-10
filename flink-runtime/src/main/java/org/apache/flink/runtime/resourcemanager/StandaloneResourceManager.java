@@ -75,8 +75,9 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 	}
 
 	@Override
-	public void stopWorker(ResourceID resourceID) {
-
+	public boolean stopWorker(ResourceID resourceID) {
+		// standalone resource manager cannot stop workers
+		return false;
 	}
 
 	@Override

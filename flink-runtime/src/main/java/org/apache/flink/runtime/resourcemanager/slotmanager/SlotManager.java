@@ -61,7 +61,7 @@ import java.util.concurrent.TimeoutException;
  * their allocation and all pending slot requests. Whenever a new slot is registered or and
  * allocated slot is freed, then it tries to fulfill another pending slot request. Whenever there
  * are not enough slots available the slot manager will notify the resource manager about it via
- * {@link ResourceManagerActions#allocateResource(ResourceProfile)}.
+ * {@link ResourceActions#allocateResource(ResourceProfile)}.
  *
  * In order to free resources and avoid resource leaks, idling task managers (task managers whose
  * slots are currently not used) and pending slot requests time out triggering their release and
@@ -104,7 +104,7 @@ public class SlotManager implements AutoCloseable {
 	private Executor mainThreadExecutor;
 
 	/** Callbacks for resource (de-)allocations */
-	private ResourceManagerActions resourceManagerActions;
+	private ResourceActions resourceActions;
 
 	private ScheduledFuture<?> taskManagerTimeoutCheck;
 
@@ -130,7 +130,7 @@ public class SlotManager implements AutoCloseable {
 		pendingSlotRequests = new HashMap<>(16);
 
 		resourceManagerId = null;
-		resourceManagerActions = null;
+		resourceActions = null;
 		mainThreadExecutor = null;
 		taskManagerTimeoutCheck = null;
 		slotRequestTimeoutCheck = null;
@@ -175,14 +175,14 @@ public class SlotManager implements AutoCloseable {
 	 *
 	 * @param newResourceManagerId to use for communication with the task managers
 	 * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
-	 * @param newResourceManagerActions to use for resource (de-)allocations
+	 * @param newResourceActions to use for resource (de-)allocations
 	 */
-	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor, ResourceManagerActions newResourceManagerActions) {
+	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor, ResourceActions newResourceActions) {
 		LOG.info("Starting the SlotManager.");
 
 		this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
 		mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
-		resourceManagerActions = Preconditions.checkNotNull(newResourceManagerActions);
+		resourceActions = Preconditions.checkNotNull(newResourceActions);
 
 		started = true;
 
@@ -237,7 +237,7 @@ public class SlotManager implements AutoCloseable {
 		}
 
 		resourceManagerId = null;
-		resourceManagerActions = null;
+		resourceActions = null;
 		started = false;
 	}
 
@@ -362,6 +362,8 @@ public class SlotManager implements AutoCloseable {
 	 */
 	public boolean unregisterTaskManager(InstanceID instanceId) {
 		checkInit();
+
+		LOG.info("Unregister TaskManager {} from the SlotManager.", instanceId);
 
 		TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.remove(instanceId);
 
@@ -634,7 +636,7 @@ public class SlotManager implements AutoCloseable {
 		if (taskManagerSlot != null) {
 			allocateSlot(taskManagerSlot, pendingSlotRequest);
 		} else {
-			resourceManagerActions.allocateResource(pendingSlotRequest.getResourceProfile());
+			resourceActions.allocateResource(pendingSlotRequest.getResourceProfile());
 		}
 	}
 
@@ -822,7 +824,7 @@ public class SlotManager implements AutoCloseable {
 			} catch (ResourceManagerException e) {
 				pendingSlotRequests.remove(allocationId);
 
-				resourceManagerActions.notifyAllocationFailure(
+				resourceActions.notifyAllocationFailure(
 					pendingSlotRequest.getJobId(),
 					allocationId,
 					e);
@@ -870,21 +872,22 @@ public class SlotManager implements AutoCloseable {
 		if (!taskManagerRegistrations.isEmpty()) {
 			long currentTime = System.currentTimeMillis();
 
-			Iterator<Map.Entry<InstanceID, TaskManagerRegistration>> taskManagerRegistrationIterator = taskManagerRegistrations.entrySet().iterator();
+			ArrayList<InstanceID> timedOutTaskManagerIds = new ArrayList<>(taskManagerRegistrations.size());
 
-			while (taskManagerRegistrationIterator.hasNext()) {
-				TaskManagerRegistration taskManagerRegistration = taskManagerRegistrationIterator.next().getValue();
+			// first retrieve the timed out TaskManagers
+			for (TaskManagerRegistration taskManagerRegistration : taskManagerRegistrations.values()) {
 				LOG.debug("Evaluating TaskManager {} for idleness.", taskManagerRegistration.getInstanceId());
 
 				if (currentTime - taskManagerRegistration.getIdleSince() >= taskManagerTimeout.toMilliseconds()) {
-					LOG.info("Removing idle TaskManager {} from the SlotManager.", taskManagerRegistration.getInstanceId());
-
-					taskManagerRegistrationIterator.remove();
-
-					internalUnregisterTaskManager(taskManagerRegistration);
-
-					resourceManagerActions.releaseResource(taskManagerRegistration.getInstanceId());
+					// we collect the instance ids first in order to avoid concurrent modifications by the
+					// ResourceActions.releaseResource call
+					timedOutTaskManagerIds.add(taskManagerRegistration.getInstanceId());
 				}
+			}
+
+			// second we trigger the release resource callback which can decide upon the resource release
+			for (InstanceID timedOutTaskManagerId : timedOutTaskManagerIds) {
+				resourceActions.releaseResource(timedOutTaskManagerId);
 			}
 		}
 	}
@@ -905,7 +908,7 @@ public class SlotManager implements AutoCloseable {
 						cancelPendingSlotRequest(slotRequest);
 					}
 
-					resourceManagerActions.notifyAllocationFailure(
+					resourceActions.notifyAllocationFailure(
 						slotRequest.getJobId(),
 						slotRequest.getAllocationId(),
 						new TimeoutException("The allocation could not be fulfilled in time."));

@@ -46,7 +46,7 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.JobManagerRegistration;
 import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
-import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActions;
+import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -56,6 +56,7 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -672,7 +673,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		WorkerRegistration<WorkerType> workerRegistration = taskExecutors.remove(resourceID);
 
 		if (workerRegistration != null) {
-			log.info("Task manager {} failed because {}.", resourceID, cause);
+			log.info("Task manager {} failed because {}.", resourceID, cause.getMessage());
 
 			// TODO :: suggest failed task executor to stop itself
 			slotManager.unregisterTaskManager(workerRegistration.getInstanceID());
@@ -706,6 +707,29 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			}
 		} else {
 			log.debug("Discard job leader lost leadership for outdated leader {} for job {}.", oldJobMasterId, jobId);
+		}
+	}
+
+	protected void releaseResource(InstanceID instanceId) {
+		ResourceID resourceID = null;
+
+		// TODO: Improve performance by having an index on the instanceId
+		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry : taskExecutors.entrySet()) {
+			if (entry.getValue().getInstanceID().equals(instanceId)) {
+				resourceID = entry.getKey();
+				break;
+			}
+		}
+
+		if (resourceID != null) {
+			if (stopWorker(resourceID)) {
+				closeTaskManagerConnection(resourceID, new FlinkException("Worker was stopped."));
+			} else {
+				log.debug("Worker {} was not stopped.", resourceID);
+			}
+		} else {
+			// unregister in order to clean up potential left over state
+			slotManager.unregisterTaskManager(instanceId);
 		}
 	}
 
@@ -768,7 +792,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 
 				setFencingToken(newResourceManagerId);
 
-				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceManagerActionsImpl());
+				slotManager.start(getFencingToken(), getMainThreadExecutor(), new ResourceActionsImpl());
 
 				getRpcService().execute(
 					() ->
@@ -837,60 +861,41 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	public abstract void startNewWorker(ResourceProfile resourceProfile);
 
 	/**
-	 * Deallocates a resource.
-	 *
-	 * @param resourceID The resource ID
-	 */
-	public abstract void stopWorker(ResourceID resourceID);
-
-	/**
 	 * Callback when a worker was started.
 	 * @param resourceID The worker resource id
 	 */
 	protected abstract WorkerType workerStarted(ResourceID resourceID);
 
+	/**
+	 * Stops the given worker.
+	 *
+	 * @param resourceID identifying the worker to be stopped
+	 * @return True if the worker was stopped, otherwise false
+	 */
+	public abstract boolean stopWorker(ResourceID resourceID);
+
 	// ------------------------------------------------------------------------
 	//  Static utility classes
 	// ------------------------------------------------------------------------
 
-	private class ResourceManagerActionsImpl implements ResourceManagerActions {
+	private class ResourceActionsImpl implements ResourceActions {
 
 		@Override
 		public void releaseResource(InstanceID instanceId) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					ResourceID resourceID = null;
+			validateRunsInMainThread();
 
-					for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry : taskExecutors.entrySet()) {
-						if (entry.getValue().getInstanceID().equals(instanceId)) {
-							resourceID = entry.getKey();
-							break;
-						}
-					}
-
-					if (resourceID != null) {
-						stopWorker(resourceID);
-					}
-					else {
-						log.warn("Ignoring request to release TaskManager with instance ID {} (not found).", instanceId);
-					}
-				}
-			});
+			ResourceManager.this.releaseResource(instanceId);
 		}
 
 		@Override
 		public void allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					startNewWorker(resourceProfile);
-				}
-			});
+			validateRunsInMainThread();
+			startNewWorker(resourceProfile);
 		}
 
 		@Override
 		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
+			validateRunsInMainThread();
 			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
 		}
 	}

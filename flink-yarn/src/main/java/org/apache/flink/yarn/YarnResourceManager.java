@@ -227,8 +227,9 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 	}
 
 	@Override
-	public void stopWorker(ResourceID resourceID) {
+	public boolean stopWorker(ResourceID resourceID) {
 		// TODO: Implement to stop the worker
+		return false;
 	}
 
 	@Override
