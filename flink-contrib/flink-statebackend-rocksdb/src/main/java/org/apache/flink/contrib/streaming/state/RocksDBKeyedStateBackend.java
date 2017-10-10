@@ -235,6 +235,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 		this.instanceRocksDBPath = new File(instanceBasePath, "db");
 
+		cleanInstanceBasePath();
+
 		if (!instanceBasePath.exists()) {
 			if (!instanceBasePath.mkdirs()) {
 				throw new IOException("Could not create RocksDB data directory.");
@@ -313,10 +315,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		IOUtils.closeQuietly(dbOptions);
 		IOUtils.closeQuietly(columnOptions);
 
+		cleanInstanceBasePath();
+	}
+
+	private void cleanInstanceBasePath() {
 		try {
-			FileUtils.deleteDirectory(instanceBasePath);
+			if(instanceBasePath.exists()) {
+				FileUtils.deleteDirectory(instanceBasePath);
+			}
 		} catch (IOException ioex) {
-			LOG.info("Could not delete instace base path for RocksDB: " + instanceBasePath, ioex);
+			LOG.warn("Could not delete instance base path for RocksDB: " + instanceBasePath, ioex);
 		}
 	}
 
