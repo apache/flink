@@ -56,11 +56,10 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -83,6 +82,7 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -420,89 +420,72 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorGateway jobManagerGateway = getJobManagerGateway(options);
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 
-			LOG.info("Connecting to JobManager to retrieve list of jobs");
-			Future<Object> response = jobManagerGateway.ask(
-				JobManagerMessages.getRequestRunningJobsStatus(),
-				clientTimeout);
-
-			Object result;
+			Collection<JobDetails> jobDetails;
 			try {
-				result = Await.result(response, clientTimeout);
+				CompletableFuture<Collection<JobDetails>> jobDetailsFuture = client.listJobs();
+
+				try {
+					logAndSysout("Waiting for response...");
+					jobDetails = jobDetailsFuture.get();
+				}
+				catch (ExecutionException ee) {
+					Throwable cause = ExceptionUtils.stripExecutionException(ee);
+					throw new Exception("Failed to retrieve job list.", cause);
+				}
+			} finally {
+				client.shutdown();
 			}
-			catch (Exception e) {
-				throw new Exception("Could not retrieve running jobs from the JobManager.", e);
+
+			LOG.info("Successfully retrieved list of jobs");
+
+			SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+			Comparator<JobDetails> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
+
+			final List<JobDetails> runningJobs = new ArrayList<>();
+			final List<JobDetails> scheduledJobs = new ArrayList<>();
+			jobDetails.forEach(details -> {
+				if (details.getStatus() == JobStatus.CREATED) {
+					scheduledJobs.add(details);
+				} else {
+					runningJobs.add(details);
+				}
+			});
+
+			if (running) {
+				if (runningJobs.size() == 0) {
+					System.out.println("No running jobs.");
+				}
+				else {
+					runningJobs.sort(startTimeComparator);
+
+					System.out.println("------------------ Running/Restarting Jobs -------------------");
+					for (JobDetails runningJob : runningJobs) {
+						System.out.println(dateFormat.format(new Date(runningJob.getStartTime()))
+							+ " : " + runningJob.getJobId() + " : " + runningJob.getJobName() + " (" + runningJob.getStatus() + ")");
+					}
+					System.out.println("--------------------------------------------------------------");
+				}
+			}
+			if (scheduled) {
+				if (scheduledJobs.size() == 0) {
+					System.out.println("No scheduled jobs.");
+				}
+				else {
+					scheduledJobs.sort(startTimeComparator);
+
+					System.out.println("----------------------- Scheduled Jobs -----------------------");
+					for (JobDetails scheduledJob : scheduledJobs) {
+						System.out.println(dateFormat.format(new Date(scheduledJob.getStartTime()))
+							+ " : " + scheduledJob.getJobId() + " : " + scheduledJob.getJobName());
+					}
+					System.out.println("--------------------------------------------------------------");
+				}
 			}
 
-			if (result instanceof RunningJobsStatus) {
-				LOG.info("Successfully retrieved list of jobs");
-
-				List<JobStatusMessage> jobs = ((RunningJobsStatus) result).getStatusMessages();
-
-				ArrayList<JobStatusMessage> runningJobs = null;
-				ArrayList<JobStatusMessage> scheduledJobs = null;
-				if (running) {
-					runningJobs = new ArrayList<JobStatusMessage>();
-				}
-				if (scheduled) {
-					scheduledJobs = new ArrayList<JobStatusMessage>();
-				}
-
-				for (JobStatusMessage rj : jobs) {
-					if (running && (rj.getJobState().equals(JobStatus.RUNNING)
-							|| rj.getJobState().equals(JobStatus.RESTARTING))) {
-						runningJobs.add(rj);
-					}
-					if (scheduled && rj.getJobState().equals(JobStatus.CREATED)) {
-						scheduledJobs.add(rj);
-					}
-				}
-
-				SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-				Comparator<JobStatusMessage> njec = new Comparator<JobStatusMessage>(){
-					@Override
-					public int compare(JobStatusMessage o1, JobStatusMessage o2) {
-						return (int) (o1.getStartTime() - o2.getStartTime());
-					}
-				};
-
-				if (running) {
-					if (runningJobs.size() == 0) {
-						System.out.println("No running jobs.");
-					}
-					else {
-						Collections.sort(runningJobs, njec);
-
-						System.out.println("------------------ Running/Restarting Jobs -------------------");
-						for (JobStatusMessage rj : runningJobs) {
-							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName() + " (" + rj.getJobState() + ")");
-						}
-						System.out.println("--------------------------------------------------------------");
-					}
-				}
-				if (scheduled) {
-					if (scheduledJobs.size() == 0) {
-						System.out.println("No scheduled jobs.");
-					}
-					else {
-						Collections.sort(scheduledJobs, njec);
-
-						System.out.println("----------------------- Scheduled Jobs -----------------------");
-						for (JobStatusMessage rj : scheduledJobs) {
-							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName());
-						}
-						System.out.println("--------------------------------------------------------------");
-					}
-				}
-				return 0;
-			}
-			else {
-				throw new Exception("ReqeustRunningJobs requires a response of type " +
-						"RunningJobs. Instead the response is of type " + result.getClass() + ".");
-			}
+			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);

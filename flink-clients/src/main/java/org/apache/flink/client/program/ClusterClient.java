@@ -54,6 +54,9 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
@@ -70,6 +73,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -676,6 +680,29 @@ public abstract class ClusterClient {
 			} else if (responseMessage instanceof JobManagerMessages.TriggerSavepointFailure) {
 				JobManagerMessages.TriggerSavepointFailure failure = (JobManagerMessages.TriggerSavepointFailure) responseMessage;
 				throw new CompletionException(failure.cause());
+			} else {
+				throw new CompletionException(
+					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
+			}
+		});
+	}
+
+	/**
+	 * Lists the currently running jobs on the cluster.
+	 *
+	 * @return future collection of running jobs
+	 * @throws Exception if  no connection to the cluster could be established
+	 */
+	public CompletableFuture<Collection<JobDetails>> listJobs() throws Exception {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Future<Object> response = jobManager.ask(new RequestJobDetails(true, false), timeout);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
+
+		return responseFuture.thenApply((responseMessage) -> {
+			if (responseMessage instanceof MultipleJobsDetails) {
+				MultipleJobsDetails details = (MultipleJobsDetails) responseMessage;
+				return details.getRunning();
 			} else {
 				throw new CompletionException(
 					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
