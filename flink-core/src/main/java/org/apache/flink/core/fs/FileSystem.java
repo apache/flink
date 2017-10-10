@@ -493,7 +493,7 @@ public abstract class FileSystem {
 	 *
 	 * @param f
 	 *        given path
-	 * @return the statuses of the files/directories in the given patch
+	 * @return the statuses of the files/directories in the given path
 	 * @throws IOException
 	 */
 	public abstract FileStatus[] listStatus(Path f) throws IOException;
