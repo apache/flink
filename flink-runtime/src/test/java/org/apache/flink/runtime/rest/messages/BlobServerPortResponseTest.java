@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.legacy.messages.RestResponseMarshallingTestBase;
-
 /**
  * Tests for {@link BlobServerPortResponseBody}.
  */

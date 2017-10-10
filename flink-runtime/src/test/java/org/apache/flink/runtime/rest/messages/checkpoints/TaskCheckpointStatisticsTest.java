@@ -16,25 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
-
-import java.io.IOException;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
+import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 /**
- * Tests for the {@link JobSubmitRequestBody}.
+ * Tests the (un)marshalling of {@link TaskCheckpointStatistics}.
  */
-public class JobSubmitRequestBodyTest extends RestRequestMarshallingTestBase<JobSubmitRequestBody> {
+public class TaskCheckpointStatisticsTest extends RestResponseMarshallingTestBase<TaskCheckpointStatistics> {
 
 	@Override
-	protected Class<JobSubmitRequestBody> getTestRequestClass() {
-		return JobSubmitRequestBody.class;
+	protected Class<TaskCheckpointStatistics> getTestResponseClass() {
+		return TaskCheckpointStatistics.class;
 	}
 
 	@Override
-	protected JobSubmitRequestBody getTestRequestInstance() throws IOException {
-		return new JobSubmitRequestBody(new JobGraph("job"));
+	protected TaskCheckpointStatistics getTestResponseInstance() throws Exception {
+		return new TaskCheckpointStatistics(
+			1L,
+			CheckpointStatsStatus.FAILED,
+			42L,
+			1L,
+			23L,
+			1337L,
+			9,
+			8);
 	}
 }

@@ -18,23 +18,27 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
-
-import java.io.IOException;
-
 /**
- * Tests for the {@link JobSubmitRequestBody}.
+ * Tests for the {@link StatusOverviewWithVersion}.
  */
-public class JobSubmitRequestBodyTest extends RestRequestMarshallingTestBase<JobSubmitRequestBody> {
+public class StatusOverviewWithVersionTest extends RestResponseMarshallingTestBase<StatusOverviewWithVersion> {
 
 	@Override
-	protected Class<JobSubmitRequestBody> getTestRequestClass() {
-		return JobSubmitRequestBody.class;
+	protected Class<StatusOverviewWithVersion> getTestResponseClass() {
+		return StatusOverviewWithVersion.class;
 	}
 
 	@Override
-	protected JobSubmitRequestBody getTestRequestInstance() throws IOException {
-		return new JobSubmitRequestBody(new JobGraph("job"));
+	protected StatusOverviewWithVersion getTestResponseInstance() {
+		return new StatusOverviewWithVersion(
+			1,
+			3,
+			3,
+			7,
+			4,
+			2,
+			0,
+			"version",
+			"commit");
 	}
 }
