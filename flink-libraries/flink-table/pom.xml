@@ -96,29 +96,25 @@ under the License.
 					<groupId>commons-dbcp</groupId>
 					<artifactId>commons-dbcp</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>org.pentaho</groupId>
-					<artifactId>pentaho-aggdesigner-algorithm</artifactId>
-				</exclusion>
 			</exclusions>
 		</dependency>
 
-        <dependency>
-            <groupId>org.reflections</groupId>
-            <artifactId>reflections</artifactId>
-            <version>0.9.10</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.google.code.findbugs</groupId>
-                    <artifactId>annotations</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.guava</groupId>
-                    <artifactId>guava</artifactId>
-                </exclusion>
-            </exclusions>
-            <scope>compile</scope>
-        </dependency>
+		<dependency>
+			<groupId>org.reflections</groupId>
+			<artifactId>reflections</artifactId>
+			<version>0.9.10</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.code.findbugs</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+			<scope>compile</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>joda-time</groupId>
@@ -213,13 +209,23 @@ under the License.
 								<filter>
 									<artifact>*:*</artifact>
 									<excludes>
+										<!-- excluded all these files for a clean flink-table jar -->
 										<exclude>org-apache-calcite-jdbc.properties</exclude>
+										<exclude>common.proto</exclude>
+										<exclude>requests.proto</exclude>
+										<exclude>responses.proto</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>codegen/**</exclude>
 										<exclude>google/**</exclude>
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
+										<exclude>META-INF/services/**</exclude>
+										<exclude>properties.dtd</exclude>
+										<exclude>PropertyList-1.0.dtd</exclude>
+										<exclude>digesterRules.xml</exclude>
+										<!-- not relocated for now, because it is needed by Calcite -->
+										<!--<exclude>org.codehaus.commons.compiler.properties</exclude>-->
 									</excludes>
 								</filter>
 							</filters>
@@ -227,31 +233,55 @@ under the License.
 								<includes combine.children="append">
 									<include>org.apache.calcite:*</include>
 									<include>org.apache.calcite.avatica:*</include>
-									<include>net.hydromatic:*</include>
-									<include>org.reflections:*</include>
-									<include>org.codehaus.janino:*</include>
+
+									<!-- Calcite's dependencies -->
 									<include>com.google.guava:guava</include>
-                                </includes>
+									<include>net.hydromatic:*</include>
+
+									<!-- flink-table dependencies -->
+									<include>commons-configuration:*</include>
+									<include>commons-lang:*</include>
+									<include>commons-codec:*</include>
+									<include>org.codehaus.janino:*</include>
+									<include>org.reflections:*</include>
+									<include>joda-time:*</include>
+								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- We currently don't relocate slf4j as we have "logger not found" 
-									warnings otherwise during runtime -->
+								<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
 								<!--<relocation>
-									<pattern>org.slf4j</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.slf4j</shadedPattern>
+									<pattern>org.apache.calcite</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
 								</relocation>-->
-								<relocation>
-									<pattern>com.fasterxml.jackson</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.com.fasterxml.jackson</shadedPattern>
-								</relocation>
+
+								<!-- Calcite's dependencies -->
 								<relocation>
 									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.com.google</shadedPattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>org.eigenbase</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.eigenbase</shadedPattern>
+									<pattern>org.pentaho</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.pentaho</shadedPattern>
 								</relocation>
+
+								<!-- flink-table dependencies -->
+								<relocation>
+									<pattern>org.apache.commons</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.reflections</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda.time</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
+								</relocation>
+								<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
+								<!--<relocation>
+									<pattern>org.codehaus</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
+								</relocation>-->
 							</relocations>
 						</configuration>
 					</execution>
