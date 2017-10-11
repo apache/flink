@@ -992,6 +992,13 @@ public class TaskExecutorTest extends TestLogger {
 		try {
 			taskManager.start();
 
+			// wait for the registration at the ResourceManager
+			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).registerTaskExecutor(
+				eq(taskManager.getAddress()),
+				eq(resourceId),
+				any(SlotReport.class),
+				any(Time.class));
+
 			taskSlotTable.allocateSlot(0, jobId, allocationId1, Time.milliseconds(10000L));
 			taskSlotTable.allocateSlot(1, jobId, allocationId2, Time.milliseconds(10000L));
 
