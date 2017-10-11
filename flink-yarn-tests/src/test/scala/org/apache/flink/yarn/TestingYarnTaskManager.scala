@@ -23,6 +23,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
@@ -52,7 +53,8 @@ class TestingYarnTaskManager(
     network: NetworkEnvironment,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    metricRegistry : MetricRegistry)
+    metricRegistry : MetricRegistry,
+    taskManagerMetricGroup: TaskManagerMetricGroup)
   extends YarnTaskManager(
     config,
     resourceID,
@@ -62,7 +64,8 @@ class TestingYarnTaskManager(
     network,
     numberOfSlots,
     highAvailabilityServices,
-    metricRegistry)
+    metricRegistry,
+    taskManagerMetricGroup)
   with TestingTaskManagerLike {
 
   object YarnTaskManager {

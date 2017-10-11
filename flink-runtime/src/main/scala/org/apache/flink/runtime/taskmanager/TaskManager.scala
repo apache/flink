@@ -62,7 +62,6 @@ import org.apache.flink.runtime.messages.TaskMessages._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, NotifyCheckpointComplete, TriggerCheckpoint}
 import org.apache.flink.runtime.messages.{Acknowledge, StackTraceSampleResponse}
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
-import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 import org.apache.flink.runtime.process.ProcessReaper
 import org.apache.flink.runtime.security.{SecurityConfiguration, SecurityUtils}
@@ -126,7 +125,8 @@ class TaskManager(
     protected val network: NetworkEnvironment,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
-    protected val metricsRegistry: FlinkMetricRegistry)
+    protected val metricsRegistry: FlinkMetricRegistry,
+    protected val taskManagerMetricGroup: TaskManagerMetricGroup)
   extends FlinkActor
   with LeaderSessionMessageFilter // Mixin order is important: We want to filter after logging
   with LogMessages // Mixin order is important: first we want to support message logging
@@ -152,8 +152,6 @@ class TaskManager(
   protected val leaderRetrievalService: LeaderRetrievalService = highAvailabilityServices.
     getJobManagerLeaderRetriever(
       HighAvailabilityServices.DEFAULT_JOB_ID)
-
-  private var taskManagerMetricGroup : TaskManagerMetricGroup = _
 
   /** Actors which want to be notified once this task manager has been
     * registered at the job manager */
@@ -257,7 +255,14 @@ class TaskManager(
     } catch {
       case t: Exception => log.error("FileCache did not shutdown properly.", t)
     }
-    
+
+    // failsafe shutdown of the metrics group
+    try {
+      taskManagerMetricGroup.close()
+    } catch {
+      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
+    }
+
     // failsafe shutdown of the metrics registry
     try {
       metricsRegistry.shutdown()
@@ -982,12 +987,6 @@ class TaskManager(
       libraryCacheManager = Some(new FallbackLibraryCacheManager)
     }
     
-    taskManagerMetricGroup = 
-      new TaskManagerMetricGroup(metricsRegistry, location.getHostname, id.toString)
-    
-    MetricUtils.instantiateStatusMetrics(taskManagerMetricGroup)
-    MetricUtils.instantiateNetworkMetrics(taskManagerMetricGroup, network)
-    
     // watch job manager to detect when it dies
     context.watch(jobManager)
 
@@ -1065,13 +1064,6 @@ class TaskManager(
 
     if (network.getKvStateRegistry != null) {
       network.getKvStateRegistry.unregisterListener()
-    }
-    
-    // failsafe shutdown of the metrics registry
-    try {
-      taskManagerMetricGroup.close()
-    } catch {
-      case t: Exception => log.warn("TaskManagerMetricGroup could not be closed successfully.", t)
     }
   }
 
@@ -1996,7 +1988,8 @@ object TaskManager {
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
       highAvailabilityServices,
-      metricRegistry)
+      metricRegistry,
+      taskManagerServices.getTaskManagerMetricGroup())
 
     metricRegistry.startQueryService(actorSystem, resourceID)
 
@@ -2015,7 +2008,8 @@ object TaskManager {
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
     highAvailabilityServices: HighAvailabilityServices,
-    metricsRegistry: FlinkMetricRegistry
+    metricsRegistry: FlinkMetricRegistry,
+    taskManagerMetricGroup: TaskManagerMetricGroup
   ): Props = {
     Props(
       taskManagerClass,
@@ -2027,7 +2021,8 @@ object TaskManager {
       networkEnvironment,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
-      metricsRegistry)
+      metricsRegistry,
+      taskManagerMetricGroup)
   }
 
   // --------------------------------------------------------------------------

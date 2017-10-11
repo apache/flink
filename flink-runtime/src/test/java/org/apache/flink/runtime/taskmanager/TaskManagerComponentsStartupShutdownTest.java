@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import static org.junit.Assert.*;
 
 import akka.actor.ActorRef;
@@ -156,6 +157,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 			// create the task manager
+			MetricRegistry metricRegistry = new MetricRegistry(metricRegistryConfiguration);
 			final Props tmProps = Props.create(
 				TaskManager.class,
 				tmConfig,
@@ -166,7 +168,11 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				network,
 				numberOfSlots,
 				highAvailabilityServices,
-				new MetricRegistry(metricRegistryConfiguration));
+				metricRegistry,
+				new TaskManagerMetricGroup(
+							metricRegistry,
+					"localhost",
+					"tmId"));
 
 			taskManager = actorSystem.actorOf(tmProps);
 

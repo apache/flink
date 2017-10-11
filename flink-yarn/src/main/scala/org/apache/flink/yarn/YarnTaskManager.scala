@@ -23,6 +23,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
 import org.apache.flink.runtime.io.network.NetworkEnvironment
 import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup
 import org.apache.flink.runtime.metrics.MetricRegistry
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
@@ -39,7 +40,8 @@ class YarnTaskManager(
     network: NetworkEnvironment,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
-    metricRegistry : MetricRegistry)
+    metricRegistry : MetricRegistry,
+    taskManagerMetricGroup: TaskManagerMetricGroup)
   extends TaskManager(
     config,
     resourceID,
@@ -49,7 +51,8 @@ class YarnTaskManager(
     network,
     numberOfSlots,
     highAvailabilityServices,
-    metricRegistry) {
+    metricRegistry,
+    taskManagerMetricGroup) {
 
   override def handleMessage: Receive = {
     super.handleMessage
