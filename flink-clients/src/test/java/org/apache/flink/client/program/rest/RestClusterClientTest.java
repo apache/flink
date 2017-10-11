@@ -69,6 +69,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -292,9 +293,10 @@ public class RestClusterClientTest extends TestLogger {
 			{
 				CompletableFuture<Collection<JobDetails>> jobDetailsFuture = rcc.listJobs();
 				Collection<JobDetails> jobDetails = jobDetailsFuture.get();
-				// finished jobs should be ignored
-				Assert.assertEquals(1, jobDetails.size());
-				Assert.assertEquals(JobStatus.RUNNING, jobDetails.iterator().next().getStatus());
+				Iterator<JobDetails> jobDetailsIterator = jobDetails.iterator();
+				JobDetails job1 = jobDetailsIterator.next();
+				JobDetails job2 = jobDetailsIterator.next();
+				Assert.assertNotEquals("The job statues should not be equal.", job1.getStatus(), job2.getStatus());
 			}
 		} finally {
 			rcc.shutdown();

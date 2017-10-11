@@ -205,7 +205,11 @@ public class RestClusterClient extends ClusterClient {
 			headers
 		);
 		return jobDetailsFuture
-			.thenApply(MultipleJobsDetails::getRunning);
+			.thenApply(details -> {
+				Collection<JobDetails> flattenedDetails = details.getRunning();
+				flattenedDetails.addAll(details.getFinished());
+				return flattenedDetails;
+			});
 	}
 
 	// ======================================
