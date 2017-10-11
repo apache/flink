@@ -309,7 +309,7 @@ public class AkkaRpcService implements RpcService {
 
 			if (fromThisService) {
 				ActorRef selfActorRef = akkaClient.getActorRef();
-				LOG.info("Trigger shut down of RPC endpoint {}.", selfActorRef.path());
+				LOG.info("Trigger shut down of RPC endpoint {}.", selfGateway.getAddress());
 
 				CompletableFuture<Boolean> akkaTerminationFuture = FutureUtils.toJava(
 					Patterns.gracefulStop(
@@ -324,11 +324,12 @@ public class AkkaRpcService implements RpcService {
 					.whenComplete(
 						(Boolean terminated, Throwable throwable) -> {
 							if (throwable != null) {
-								LOG.debug("Graceful RPC endpoint shutdown failed.", throwable);
+								LOG.debug("Graceful RPC endpoint shutdown failed. Shutting endpoint down hard now.", throwable);
 
 								actorSystem.stop(selfActorRef);
 								selfGateway.getTerminationFuture().completeExceptionally(throwable);
 							} else {
+								LOG.info("RPC endpoint {} has been shut down.", selfGateway.getAddress());
 								selfGateway.getTerminationFuture().complete(null);
 							}
 						});
