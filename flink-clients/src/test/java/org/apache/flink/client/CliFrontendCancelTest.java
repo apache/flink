@@ -42,7 +42,7 @@ import static org.powermock.api.mockito.PowerMockito.doThrow;
 /**
  * Tests for the CANCEL command.
  */
-public class CliFrontendListCancelTest {
+public class CliFrontendCancelTest {
 
 	@BeforeClass
 	public static void init() {
