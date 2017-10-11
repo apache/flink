@@ -73,7 +73,7 @@ public class AkkaRpcServiceUtils {
 	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
 	 */
 	public static RpcService createRpcService(String hostname, int port, Configuration configuration) throws Exception {
-		LOG.info("Starting AkkaRpcService at {}.", NetUtils.hostAndPortToUrlString(hostname, port));
+		LOG.info("Starting AkkaRpcService at {}.", NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port));
 
 		final ActorSystem actorSystem;
 
