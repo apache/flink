@@ -120,6 +120,10 @@ This will atomically trigger a savepoint for the job with ID `:jobid` and cancel
 
 If you don't specify a target directory, you need to have [configured a default directory](#configuration). Otherwise, cancelling the job with a savepoint will fail.
 
+<div class="alert alert-warning">
+<strong>Attention:</strong> `[:targetDirectory]` has to be a location accessible by both the JobManager(s) and TaskManager(s) e.g. a location on a distributed file-system.
+</div>
+
 ### Resuming from Savepoints
 
 ```sh
