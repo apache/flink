@@ -130,7 +130,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 		}
 		finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}
@@ -411,7 +411,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			}
 		} finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}
@@ -471,7 +471,7 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			}
 		} finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}

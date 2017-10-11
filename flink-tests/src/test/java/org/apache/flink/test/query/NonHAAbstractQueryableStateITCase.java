@@ -68,7 +68,7 @@ public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryabl
 	@AfterClass
 	public static void tearDown() {
 		try {
-			cluster.shutdown();
+			cluster.stop();
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());

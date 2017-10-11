@@ -255,7 +255,7 @@ public class JobManagerCleanupITCase extends TestLogger {
 						fail(e.getMessage());
 					} finally {
 						if (cluster != null) {
-							cluster.shutdown();
+							cluster.stop();
 						}
 						if (tempBlob != null) {
 							assertTrue(tempBlob.delete());

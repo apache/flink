@@ -99,7 +99,7 @@ public class TimestampITCase extends TestLogger {
 
 	@AfterClass
 	public static void shutdownCluster() {
-		cluster.shutdown();
+		cluster.stop();
 		cluster = null;
 
 		TestStreamEnvironment.unsetAsContext();

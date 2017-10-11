@@ -116,8 +116,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
-				cluster.awaitTermination();
+				cluster.stop();
 			}
 		}
 	}
@@ -186,8 +185,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
-				cluster.awaitTermination();
+				cluster.stop();
 			}
 		}
 	}

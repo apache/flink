@@ -419,7 +419,7 @@ abstract class FlinkMiniCluster(
 
   def stop(): Unit = {
     LOG.info("Stopping FlinkMiniCluster.")
-    shutdown()
+    startInternalShutdown()
     awaitTermination()
 
     jobManagerLeaderRetrievalService.foreach(_.stop())
@@ -435,7 +435,7 @@ abstract class FlinkMiniCluster(
       ioExecutor)
   }
 
-  protected def shutdown(): Unit = {
+  protected def startInternalShutdown(): Unit = {
     webMonitor foreach {
       _.stop()
     }

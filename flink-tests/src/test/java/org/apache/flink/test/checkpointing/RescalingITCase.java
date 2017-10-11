@@ -139,7 +139,7 @@ public class RescalingITCase extends TestLogger {
 	@AfterClass
 	public static void shutDownExistingCluster() {
 		if (cluster != null) {
-			cluster.shutdown();
+			cluster.stop();
 			cluster.awaitTermination();
 		}
 	}

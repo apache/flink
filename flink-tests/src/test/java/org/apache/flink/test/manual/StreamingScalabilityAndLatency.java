@@ -68,7 +68,7 @@ public class StreamingScalabilityAndLatency {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
+				cluster.stop();
 			}
 		}
 	}

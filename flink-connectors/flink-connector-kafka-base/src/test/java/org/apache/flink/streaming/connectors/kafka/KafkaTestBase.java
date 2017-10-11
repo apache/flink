@@ -174,7 +174,7 @@ public abstract class KafkaTestBase extends TestLogger {
 	protected static void shutdownClusters() throws Exception {
 
 		if (flink != null) {
-			flink.shutdown();
+			flink.stop();
 		}
 
 		if (secureProps != null) {
@@ -182,7 +182,6 @@ public abstract class KafkaTestBase extends TestLogger {
 		}
 
 		kafkaServer.shutdown();
-
 	}
 
 	// ------------------------------------------------------------------------
