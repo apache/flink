@@ -36,6 +36,7 @@ import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
 import scala.concurrent.Future;
@@ -151,9 +152,11 @@ public class ClusterClientTest extends TestLogger {
 			CompletableFuture<Collection<JobDetails>> jobDetailsFuture = clusterClient.listJobs();
 			Collection<JobDetails> jobDetails = jobDetailsFuture.get();
 			Assert.assertTrue(gateway.messageArrived);
-			// finished jobs should be ignored
-			Assert.assertEquals(1, jobDetails.size());
-			Assert.assertEquals(JobStatus.RUNNING, jobDetails.iterator().next().getStatus());
+			Assert.assertEquals(2, jobDetails.size());
+			Iterator<JobDetails> jobDetailsIterator = jobDetails.iterator();
+			JobDetails job1 = jobDetailsIterator.next();
+			JobDetails job2 = jobDetailsIterator.next();
+			Assert.assertNotEquals("The job statues should not be equal.", job1.getStatus(), job2.getStatus());
 		} finally {
 			clusterClient.shutdown();
 		}

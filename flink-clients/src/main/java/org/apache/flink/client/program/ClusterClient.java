@@ -73,6 +73,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -688,10 +689,10 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * Lists the currently running jobs on the cluster.
+	 * Lists the currently running and finished jobs on the cluster.
 	 *
-	 * @return future collection of running jobs
-	 * @throws Exception if  no connection to the cluster could be established
+	 * @return future collection of running and finished jobs
+	 * @throws Exception if no connection to the cluster could be established
 	 */
 	public CompletableFuture<Collection<JobDetails>> listJobs() throws Exception {
 		final ActorGateway jobManager = getJobManagerGateway();
@@ -702,7 +703,10 @@ public abstract class ClusterClient {
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof MultipleJobsDetails) {
 				MultipleJobsDetails details = (MultipleJobsDetails) responseMessage;
-				return details.getRunning();
+				Collection<JobDetails> flattenedDetails = new ArrayList<>(details.getRunning().size() + details.getFinished().size());
+				flattenedDetails.addAll(details.getRunning());
+				flattenedDetails.addAll(details.getFinished());
+				return flattenedDetails;
 			} else {
 				throw new CompletionException(
 					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
