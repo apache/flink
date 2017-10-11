@@ -231,6 +231,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- utility to scan classpaths -->
 		<dependency>
 			<groupId>org.reflections</groupId>

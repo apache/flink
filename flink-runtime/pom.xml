@@ -306,6 +306,13 @@ under the License.
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
 		</dependency>
+
+		<!-- Used only for additional logging. Optional because of unclear EPL 1.0 license compatibility. -->
+		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<optional>true</optional>
+		</dependency>
 	</dependencies>
 
 	<!-- Dependency Management to converge transitive dependency versions -->

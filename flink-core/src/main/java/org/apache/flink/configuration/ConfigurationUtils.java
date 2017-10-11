@@ -18,11 +18,17 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.api.common.time.Time;
+
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+
+import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
+import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL;
 
 /**
  * Utility class for {@link Configuration} related helper functions.
@@ -66,6 +72,19 @@ public class ConfigurationUtils {
 		} else {
 			//use default value
 			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
+		}
+	}
+
+	/**
+	 * @return extracted {@link MetricOptions#SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL} or {@code Optional.empty()} if
+	 * {@link MetricOptions#SYSTEM_RESOURCE_METRICS} are disabled.
+	 */
+	public static Optional<Time> getSystemResourceMetricsProbingInterval(Configuration configuration) {
+		if (!configuration.getBoolean(SYSTEM_RESOURCE_METRICS)) {
+			return Optional.empty();
+		} else {
+			return Optional.of(Time.milliseconds(
+				configuration.getLong(SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL)));
 		}
 	}
 

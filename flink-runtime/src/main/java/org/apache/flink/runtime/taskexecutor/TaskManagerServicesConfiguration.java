@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.Optional;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.apache.flink.util.MathUtils.checkedDownCast;
@@ -83,6 +85,10 @@ public class TaskManagerServicesConfiguration {
 
 	private final boolean localRecoveryEnabled;
 
+	private boolean systemResourceMetricsEnabled;
+
+	private Optional<Time> systemResourceMetricsProbingInterval;
+
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
@@ -95,7 +101,8 @@ public class TaskManagerServicesConfiguration {
 			MemoryType memoryType,
 			boolean preAllocateMemory,
 			float memoryFraction,
-			long timerServiceShutdownTimeout) {
+			long timerServiceShutdownTimeout,
+			Optional<Time> systemResourceMetricsProbingInterval) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
@@ -113,6 +120,9 @@ public class TaskManagerServicesConfiguration {
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
 		this.timerServiceShutdownTimeout = timerServiceShutdownTimeout;
+
+		this.systemResourceMetricsEnabled = systemResourceMetricsEnabled;
+		this.systemResourceMetricsProbingInterval = checkNotNull(systemResourceMetricsProbingInterval);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -177,6 +187,10 @@ public class TaskManagerServicesConfiguration {
 
 	public long getTimerServiceShutdownTimeout() {
 		return timerServiceShutdownTimeout;
+	}
+
+	public Optional<Time> getSystemResourceMetricsProbingInterval() {
+		return systemResourceMetricsProbingInterval;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -276,7 +290,8 @@ public class TaskManagerServicesConfiguration {
 			memType,
 			preAllocateMemory,
 			memoryFraction,
-			timerServiceShutdownTimeout);
+			timerServiceShutdownTimeout,
+			ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 	}
 
 	// --------------------------------------------------------------------------

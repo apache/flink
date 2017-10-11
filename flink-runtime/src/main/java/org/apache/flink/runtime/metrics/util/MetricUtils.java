@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
@@ -45,6 +46,9 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
+import java.util.Optional;
+
+import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
 /**
  * Utility class to register pre-defined metric sets.
@@ -58,7 +62,8 @@ public class MetricUtils {
 
 	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
 			final MetricRegistry metricRegistry,
-			final String hostname) {
+			final String hostname,
+			final Optional<Time> systemResourceProbeInterval) {
 		final JobManagerMetricGroup jobManagerMetricGroup = new JobManagerMetricGroup(
 			metricRegistry,
 			hostname);
@@ -68,13 +73,17 @@ public class MetricUtils {
 		// initialize the JM metrics
 		instantiateStatusMetrics(statusGroup);
 
+		if (systemResourceProbeInterval.isPresent()) {
+			instantiateSystemMetrics(jobManagerMetricGroup, systemResourceProbeInterval.get());
+		}
 		return jobManagerMetricGroup;
 	}
 
 	public static TaskManagerMetricGroup instantiateTaskManagerMetricGroup(
 			MetricRegistry metricRegistry,
 			TaskManagerLocation taskManagerLocation,
-			NetworkEnvironment network) {
+			NetworkEnvironment network,
+			Optional<Time> systemResourceProbeInterval) {
 		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
 			metricRegistry,
 			taskManagerLocation.getHostname(),
@@ -89,6 +98,9 @@ public class MetricUtils {
 			.addGroup("Network");
 		instantiateNetworkMetrics(networkGroup, network);
 
+		if (systemResourceProbeInterval.isPresent()) {
+			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
+		}
 		return taskManagerMetricGroup;
 	}
 
