@@ -33,6 +33,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -56,6 +57,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 	private LeaderRetrievalService dispatcherLeaderRetrievalService;
 
+	private LeaderRetrievalService resourceManagerRetrievalService;
+
 	private DispatcherRestEndpoint dispatcherRestEndpoint;
 
 	public SessionClusterEntrypoint(Configuration configuration) {
@@ -73,6 +76,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 		dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
 
+		resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
+
 		LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 			rpcService,
 			DispatcherGateway.class,
@@ -80,9 +85,17 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			10,
 			Time.milliseconds(50L));
 
+		LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever = new RpcGatewayRetriever<>(
+			rpcService,
+			ResourceManagerGateway.class,
+			ResourceManagerId::new,
+			10,
+			Time.milliseconds(50L));
+
 		dispatcherRestEndpoint = createDispatcherRestEndpoint(
 			configuration,
 			dispatcherGatewayRetriever,
+			resourceManagerGatewayRetriever,
 			rpcService.getExecutor());
 
 		LOG.debug("Starting Dispatcher REST endpoint.");
@@ -110,6 +123,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 
 		LOG.debug("Starting ResourceManager.");
 		resourceManager.start();
+		resourceManagerRetrievalService.start(resourceManagerGatewayRetriever);
 
 		LOG.debug("Starting Dispatcher.");
 		dispatcher.start();
@@ -140,6 +154,14 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			}
 		}
 
+		if (resourceManagerRetrievalService != null) {
+			try {
+				resourceManagerRetrievalService.stop();
+			} catch (Throwable t) {
+				exception = ExceptionUtils.firstOrSuppressed(t, exception);
+			}
+		}
+
 		if (resourceManager != null) {
 			try {
 				resourceManager.shutDown();
@@ -156,6 +178,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 	protected DispatcherRestEndpoint createDispatcherRestEndpoint(
 			Configuration configuration,
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
+			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			Executor executor) throws Exception {
 
 		return new DispatcherRestEndpoint(
@@ -163,6 +186,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			dispatcherGatewayRetriever,
 			configuration,
 			RestHandlerConfiguration.fromConfiguration(configuration),
+			resourceManagerGatewayRetriever,
 			executor);
 	}
 
