@@ -33,7 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
- * Tests for the CANCEL command.
+ * Tests for the LIST command.
  */
 public class CliFrontendListTest extends TestLogger {
 
