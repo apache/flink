@@ -268,9 +268,14 @@ object AkkaUtils {
    * @param externalPort The port to expect for Akka messages
    * @return Flink's Akka configuration for remote actor systems
    */
-  private def getRemoteAkkaConfig(configuration: Configuration,
-                                  bindAddress: String, port: Int,
-                                  externalHostname: String, externalPort: Int): Config = {
+  private def getRemoteAkkaConfig(
+      configuration: Configuration,
+      bindAddress: String,
+      port: Int,
+      externalHostname: String,
+      externalPort: Int): Config = {
+
+    val normalizedExternalHostname = NetUtils.unresolvedHostToNormalizedString(externalHostname)
 
     val akkaAskTimeout = Duration(configuration.getString(AkkaOptions.ASK_TIMEOUT))
 
@@ -360,8 +365,8 @@ object AkkaUtils {
        """.stripMargin
 
     val effectiveHostname =
-      if (externalHostname != null && externalHostname.nonEmpty) {
-        externalHostname
+      if (normalizedExternalHostname != null && normalizedExternalHostname.nonEmpty) {
+        normalizedExternalHostname
       } else {
         // if bindAddress is null or empty, then leave bindAddress unspecified. Akka will pick
         // InetAddress.getLocalHost.getHostAddress
