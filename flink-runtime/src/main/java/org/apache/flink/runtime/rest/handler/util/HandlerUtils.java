@@ -36,6 +36,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpContent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -50,6 +52,8 @@ import static org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVer
  * Utilities for the REST handlers.
  */
 public class HandlerUtils {
+
+	private static final Logger LOG = LoggerFactory.getLogger(HandlerUtils.class);
 
 	private static final ObjectMapper mapper = RestMapperUtils.getStrictObjectMapper();
 
@@ -71,6 +75,7 @@ public class HandlerUtils {
 		try {
 			mapper.writeValue(sw, response);
 		} catch (IOException ioe) {
+			LOG.error("Internal server error. Could not map response to JSON.", ioe);
 			sendErrorResponse(channelHandlerContext, httpRequest, new ErrorResponseBody("Internal server error. Could not map response to JSON."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
 			return;
 		}
@@ -96,6 +101,7 @@ public class HandlerUtils {
 			mapper.writeValue(sw, errorMessage);
 		} catch (IOException e) {
 			// this should never happen
+			LOG.error("Internal server error. Could not map error response to JSON.", e);
 			sendResponse(channelHandlerContext, httpRequest, "Internal server error. Could not map error response to JSON.", HttpResponseStatus.INTERNAL_SERVER_ERROR);
 		}
 		sendResponse(channelHandlerContext, httpRequest, sw.toString(), statusCode);
