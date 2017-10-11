@@ -56,6 +56,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -423,9 +424,9 @@ public class CliFrontend {
 			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
 			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 
-			Collection<JobDetails> jobDetails;
+			Collection<JobStatusMessage> jobDetails;
 			try {
-				CompletableFuture<Collection<JobDetails>> jobDetailsFuture = client.listJobs();
+				CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = client.listJobs();
 
 				try {
 					logAndSysout("Waiting for response...");
@@ -442,12 +443,12 @@ public class CliFrontend {
 			LOG.info("Successfully retrieved list of jobs");
 
 			SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-			Comparator<JobDetails> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
+			Comparator<JobStatusMessage> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
 
-			final List<JobDetails> runningJobs = new ArrayList<>();
-			final List<JobDetails> scheduledJobs = new ArrayList<>();
+			final List<JobStatusMessage> runningJobs = new ArrayList<>();
+			final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
 			jobDetails.forEach(details -> {
-				if (details.getStatus() == JobStatus.CREATED) {
+				if (details.getJobState() == JobStatus.CREATED) {
 					scheduledJobs.add(details);
 				} else {
 					runningJobs.add(details);
@@ -462,9 +463,9 @@ public class CliFrontend {
 					runningJobs.sort(startTimeComparator);
 
 					System.out.println("------------------ Running/Restarting Jobs -------------------");
-					for (JobDetails runningJob : runningJobs) {
+					for (JobStatusMessage runningJob : runningJobs) {
 						System.out.println(dateFormat.format(new Date(runningJob.getStartTime()))
-							+ " : " + runningJob.getJobId() + " : " + runningJob.getJobName() + " (" + runningJob.getStatus() + ")");
+							+ " : " + runningJob.getJobId() + " : " + runningJob.getJobName() + " (" + runningJob.getJobState() + ")");
 					}
 					System.out.println("--------------------------------------------------------------");
 				}
@@ -477,7 +478,7 @@ public class CliFrontend {
 					scheduledJobs.sort(startTimeComparator);
 
 					System.out.println("----------------------- Scheduled Jobs -----------------------");
-					for (JobDetails scheduledJob : scheduledJobs) {
+					for (JobStatusMessage scheduledJob : scheduledJobs) {
 						System.out.println(dateFormat.format(new Date(scheduledJob.getStartTime()))
 							+ " : " + scheduledJob.getJobId() + " : " + scheduledJob.getJobName());
 					}

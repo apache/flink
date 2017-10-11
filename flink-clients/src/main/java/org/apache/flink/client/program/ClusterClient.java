@@ -40,6 +40,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobListeningContext;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -694,7 +695,7 @@ public abstract class ClusterClient {
 	 * @return future collection of running and finished jobs
 	 * @throws Exception if no connection to the cluster could be established
 	 */
-	public CompletableFuture<Collection<JobDetails>> listJobs() throws Exception {
+	public CompletableFuture<Collection<JobStatusMessage>> listJobs() throws Exception {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new RequestJobDetails(true, false), timeout);
@@ -703,9 +704,9 @@ public abstract class ClusterClient {
 		return responseFuture.thenApply((responseMessage) -> {
 			if (responseMessage instanceof MultipleJobsDetails) {
 				MultipleJobsDetails details = (MultipleJobsDetails) responseMessage;
-				Collection<JobDetails> flattenedDetails = new ArrayList<>(details.getRunning().size() + details.getFinished().size());
-				flattenedDetails.addAll(details.getRunning());
-				flattenedDetails.addAll(details.getFinished());
+				Collection<JobStatusMessage> flattenedDetails = new ArrayList<>(details.getRunning().size() + details.getFinished().size());
+				details.getRunning().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
+				details.getFinished().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
 				return flattenedDetails;
 			} else {
 				throw new CompletionException(
