@@ -382,6 +382,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return id;
 	}
 
+	public int getInitialCredit() {
+		return initialCredit;
+	}
+
 	public BufferProvider getBufferProvider() throws IOException {
 		if (isReleased.get()) {
 			return null;
