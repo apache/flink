@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.handler.legacy.messages;
 
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -28,9 +29,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
- * Status overview message including the current Flink version and commit id.
+ * Cluster overview message including the current Flink version and commit id.
  */
-public class StatusOverviewWithVersion extends StatusOverview implements ResponseBody {
+public class ClusterOverviewWithVersion extends ClusterOverview implements ResponseBody {
 
 	private static final long serialVersionUID = 5000058311783413216L;
 
@@ -44,7 +45,7 @@ public class StatusOverviewWithVersion extends StatusOverview implements Respons
 	private final String commitId;
 
 	@JsonCreator
-	public StatusOverviewWithVersion(
+	public ClusterOverviewWithVersion(
 			@JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
 			@JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
 			@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
@@ -67,7 +68,7 @@ public class StatusOverviewWithVersion extends StatusOverview implements Respons
 		this.commitId = Preconditions.checkNotNull(commitId);
 	}
 
-	public StatusOverviewWithVersion(
+	public ClusterOverviewWithVersion(
 			int numTaskManagersConnected,
 			int numSlotsTotal,
 			int numSlotsAvailable,
@@ -81,8 +82,8 @@ public class StatusOverviewWithVersion extends StatusOverview implements Respons
 		this.commitId = Preconditions.checkNotNull(commitId);
 	}
 
-	public static StatusOverviewWithVersion fromStatusOverview(StatusOverview statusOverview, String version, String commitId) {
-		return new StatusOverviewWithVersion(
+	public static ClusterOverviewWithVersion fromStatusOverview(ClusterOverview statusOverview, String version, String commitId) {
+		return new ClusterOverviewWithVersion(
 			statusOverview.getNumTaskManagersConnected(),
 			statusOverview.getNumSlotsTotal(),
 			statusOverview.getNumSlotsAvailable(),
@@ -114,7 +115,7 @@ public class StatusOverviewWithVersion extends StatusOverview implements Respons
 			return false;
 		}
 
-		StatusOverviewWithVersion that = (StatusOverviewWithVersion) o;
+		ClusterOverviewWithVersion that = (ClusterOverviewWithVersion) o;
 
 		return Objects.equals(version, that.getVersion()) && Objects.equals(commitId, that.getCommitId());
 	}

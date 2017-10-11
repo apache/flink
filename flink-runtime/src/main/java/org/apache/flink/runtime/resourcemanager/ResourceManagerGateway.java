@@ -157,4 +157,13 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * @param cause for the disconnection of the JobManager
 	 */
 	void disconnectJobManager(JobID jobId, Exception cause);
+
+	/**
+	 * Requests the resource overview. The resource overview provides information about the
+	 * connected TaskManagers, the total number of slots and the number of available slots.
+	 *
+	 * @param timeout of the request
+	 * @return Future containing the resource overview
+	 */
+	CompletableFuture<ResourceOverview> requestResourceOverview(@RpcTimeout Time timeout);
 }

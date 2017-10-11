@@ -32,6 +32,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -100,6 +101,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			configuration,
 			rpcService,
 			highAvailabilityServices,
+			resourceManager.getSelfGateway(ResourceManagerGateway.class),
 			blobServer,
 			heartbeatServices,
 			metricRegistry,
@@ -168,6 +170,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		Configuration configuration,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
+		ResourceManagerGateway resourceManagerGateway,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
@@ -180,6 +183,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			Dispatcher.DISPATCHER_NAME,
 			configuration,
 			highAvailabilityServices,
+			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
 			metricRegistry,

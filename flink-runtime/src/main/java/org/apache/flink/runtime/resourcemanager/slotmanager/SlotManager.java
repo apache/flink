@@ -22,8 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -36,8 +36,8 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +65,7 @@ import java.util.concurrent.TimeoutException;
  * slots are currently not used) and pending slot requests time out triggering their release and
  * failure, respectively.
  */
-public class SlotManager<T extends AbstractID> implements AutoCloseable {
+public class SlotManager implements AutoCloseable {
 	private static final Logger LOG = LoggerFactory.getLogger(SlotManager.class);
 
 	/** Scheduled executor for timeouts */
@@ -134,6 +134,14 @@ public class SlotManager<T extends AbstractID> implements AutoCloseable {
 		slotRequestTimeoutCheck = null;
 
 		started = false;
+	}
+
+	public int getNumberRegisteredSlots() {
+		return slots.size();
+	}
+
+	public int getNumberFreeSlots() {
+		return freeSlots.size();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -922,11 +930,6 @@ public class SlotManager<T extends AbstractID> implements AutoCloseable {
 	@VisibleForTesting
 	TaskManagerSlot getSlot(SlotID slotId) {
 		return slots.get(slotId);
-	}
-
-	@VisibleForTesting
-	int getNumberRegisteredSlots() {
-		return slots.size();
 	}
 
 	@VisibleForTesting

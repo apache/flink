@@ -480,6 +480,18 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		return CompletableFuture.completedFuture(taskExecutors.size());
 	}
 
+	@Override
+	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
+		final int numberSlots = slotManager.getNumberRegisteredSlots();
+		final int numberFreeSlots = slotManager.getNumberFreeSlots();
+
+		return CompletableFuture.completedFuture(
+			new ResourceOverview(
+				taskExecutors.size(),
+				numberSlots,
+				numberFreeSlots));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Internal methods
 	// ------------------------------------------------------------------------
