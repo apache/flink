@@ -103,13 +103,10 @@ public class MetricFetcher<T extends RestfulGateway> {
 			if (optionalLeaderGateway.isPresent()) {
 				final T leaderGateway = optionalLeaderGateway.get();
 
-				/**
+				/*
 				 * Remove all metrics that belong to a job that is not running and no longer archived.
 				 */
-				CompletableFuture<MultipleJobsDetails> jobDetailsFuture = leaderGateway.requestJobDetails(
-					true,
-					true,
-					timeout);
+				CompletableFuture<MultipleJobsDetails> jobDetailsFuture = leaderGateway.requestJobDetails(timeout);
 
 				jobDetailsFuture.whenCompleteAsync(
 					(MultipleJobsDetails jobDetails, Throwable throwable) -> {

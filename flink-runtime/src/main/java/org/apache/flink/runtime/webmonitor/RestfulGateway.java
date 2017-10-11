@@ -63,14 +63,10 @@ public interface RestfulGateway extends RpcGateway {
 	/**
 	 * Requests job details currently being executed on the Flink cluster.
 	 *
-	 * @param includeRunning true if running jobs shall be included, otherwise false
-	 * @param includeFinished true if finished jobs shall be included, otherwise false
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the job details
 	 */
 	CompletableFuture<MultipleJobsDetails> requestJobDetails(
-		boolean includeRunning,
-		boolean includeFinished,
 		@RpcTimeout Time timeout);
 
 	/**

@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
-import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.FileUtils;
 
@@ -224,7 +224,7 @@ class HistoryServerArchiveFetcher {
 	}
 
 	/**
-	 * This method replicates the JSON response that would be given by the {@link CurrentJobsOverviewHandler} when
+	 * This method replicates the JSON response that would be given by the {@link JobsOverviewHandler} when
 	 * listing both running and finished jobs.
 	 *
 	 * <p>Every job archive contains a joboverview.json file containing the same structure. Since jobs are archived on

@@ -20,19 +20,21 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for {@link CurrentJobsOverviewHandler}.
+ * Message headers for {@link JobsOverviewHandler}.
  */
-public final class CurrentJobsOverviewHandlerHeaders implements MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
+public final class JobsOverviewHeaders implements MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
 
-	private static final CurrentJobsOverviewHandlerHeaders INSTANCE = new CurrentJobsOverviewHandlerHeaders();
+	private static final JobsOverviewHeaders INSTANCE = new JobsOverviewHeaders();
+
+	public static final String URL = "/jobs/overview";
 
 	// make this class a singleton
-	private CurrentJobsOverviewHandlerHeaders() {}
+	private JobsOverviewHeaders() {}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
@@ -46,7 +48,7 @@ public final class CurrentJobsOverviewHandlerHeaders implements MessageHeaders<E
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return "/joboverview";
+		return URL;
 	}
 
 	@Override
@@ -64,7 +66,7 @@ public final class CurrentJobsOverviewHandlerHeaders implements MessageHeaders<E
 		return EmptyMessageParameters.getInstance();
 	}
 
-	public static CurrentJobsOverviewHandlerHeaders getInstance() {
+	public static JobsOverviewHeaders getInstance() {
 		return INSTANCE;
 	}
 }
