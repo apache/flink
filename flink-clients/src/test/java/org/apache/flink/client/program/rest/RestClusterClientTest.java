@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -291,12 +292,12 @@ public class RestClusterClientTest extends TestLogger {
 			rse.start();
 
 			{
-				CompletableFuture<Collection<JobDetails>> jobDetailsFuture = rcc.listJobs();
-				Collection<JobDetails> jobDetails = jobDetailsFuture.get();
-				Iterator<JobDetails> jobDetailsIterator = jobDetails.iterator();
-				JobDetails job1 = jobDetailsIterator.next();
-				JobDetails job2 = jobDetailsIterator.next();
-				Assert.assertNotEquals("The job statues should not be equal.", job1.getStatus(), job2.getStatus());
+				CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = rcc.listJobs();
+				Collection<JobStatusMessage> jobDetails = jobDetailsFuture.get();
+				Iterator<JobStatusMessage> jobDetailsIterator = jobDetails.iterator();
+				JobStatusMessage job1 = jobDetailsIterator.next();
+				JobStatusMessage job2 = jobDetailsIterator.next();
+				Assert.assertNotEquals("The job statues should not be equal.", job1.getJobState(), job2.getJobState());
 			}
 		} finally {
 			rcc.shutdown();

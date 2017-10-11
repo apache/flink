@@ -27,6 +27,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -52,6 +53,7 @@ import javax.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -197,7 +199,7 @@ public class RestClusterClient extends ClusterClient {
 	}
 
 	@Override
-	public CompletableFuture<Collection<JobDetails>> listJobs() throws Exception {
+	public CompletableFuture<Collection<JobStatusMessage>> listJobs() throws Exception {
 		CurrentJobsOverviewHandlerHeaders headers = CurrentJobsOverviewHandlerHeaders.getInstance();
 		CompletableFuture<MultipleJobsDetails> jobDetailsFuture = restClient.sendRequest(
 			restClusterClientConfiguration.getRestServerAddress(),
@@ -206,8 +208,9 @@ public class RestClusterClient extends ClusterClient {
 		);
 		return jobDetailsFuture
 			.thenApply(details -> {
-				Collection<JobDetails> flattenedDetails = details.getRunning();
-				flattenedDetails.addAll(details.getFinished());
+				Collection<JobStatusMessage> flattenedDetails = new ArrayList<>();
+				details.getRunning().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
+				details.getFinished().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
 				return flattenedDetails;
 			});
 	}
