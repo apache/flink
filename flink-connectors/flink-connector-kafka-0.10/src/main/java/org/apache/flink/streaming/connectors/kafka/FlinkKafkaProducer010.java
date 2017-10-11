@@ -31,7 +31,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
@@ -135,8 +138,9 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 
 		GenericTypeInfo<Object> objectTypeInfo = new GenericTypeInfo<>(Object.class);
 		FlinkKafkaProducer010<T> kafkaProducer = new FlinkKafkaProducer010<>(topicId, serializationSchema, producerConfig, customPartitioner);
-		SingleOutputStreamOperator<Object> transformation = inStream.transform("FlinKafkaProducer 0.10.x", objectTypeInfo, kafkaProducer);
-		return new FlinkKafkaProducer010Configuration<>(transformation, kafkaProducer);
+		SingleOutputStreamOperator<Object> streamOperator = inStream.transform
+				("FlinkKafkaProducer 0.10.x", objectTypeInfo, kafkaProducer);
+		return new FlinkKafkaProducer010Configuration<>(streamOperator, kafkaProducer);
 	}
 
 	// ---------------------- Regular constructors w/o timestamp support  ------------------
@@ -255,8 +259,9 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 		GenericTypeInfo<Object> objectTypeInfo = new GenericTypeInfo<>(Object.class);
 		FlinkKafkaProducer010<T> kafkaProducer =
 				new FlinkKafkaProducer010<>(topicId, serializationSchema, producerConfig, new FlinkKafkaDelegatePartitioner<>(customPartitioner));
-		SingleOutputStreamOperator<Object> transformation = inStream.transform("FlinKafkaProducer 0.10.x", objectTypeInfo, kafkaProducer);
-		return new FlinkKafkaProducer010Configuration<>(transformation, kafkaProducer);
+		SingleOutputStreamOperator<Object> streamOperator = inStream.transform
+				("FlinkKafkaProducer 0.10.x", objectTypeInfo, kafkaProducer);
+		return new FlinkKafkaProducer010Configuration<>(streamOperator, kafkaProducer);
 	}
 
 	/**
@@ -440,12 +445,14 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 
 		private final FlinkKafkaProducerBase wrappedProducerBase;
 		private final FlinkKafkaProducer010 producer;
+		private final StreamTransformation transformation;
 
 		private FlinkKafkaProducer010Configuration(DataStream stream, FlinkKafkaProducer010<T> producer) {
 			//noinspection unchecked
 			super(stream, producer);
-			this.producer = producer;
 			this.wrappedProducerBase = (FlinkKafkaProducerBase) producer.userFunction;
+			this.producer = producer;
+			this.transformation = stream.getTransformation();
 		}
 
 		/**
@@ -480,7 +487,51 @@ public class FlinkKafkaProducer010<T> extends StreamSink<T> implements SinkFunct
 		public void setWriteTimestampToKafka(boolean writeTimestampToKafka) {
 			this.producer.writeTimestampToKafka = writeTimestampToKafka;
 		}
+
+		// *************************************************************************
+		//  Override methods to use the transformation in this class.
+		// *************************************************************************
+
+		@Override
+		public SinkTransformation<T> getTransformation() {
+			throw new UnsupportedOperationException("The SinkTransformation is not accessible " +
+					"from " + this.getClass().getSimpleName());
+		}
+
+		@Override
+		public DataStreamSink<T> name(String name) {
+			transformation.setName(name);
+			return this;
+		}
+
+		@Override
+		public DataStreamSink<T> uid(String uid) {
+			transformation.setUid(uid);
+			return this;
+		}
+
+		@Override
+		public DataStreamSink<T> setUidHash(String uidHash) {
+			transformation.setUidHash(uidHash);
+			return this;
+		}
+
+		@Override
+		public DataStreamSink<T> setParallelism(int parallelism) {
+			transformation.setParallelism(parallelism);
+			return this;
+		}
+
+		@Override
+		public DataStreamSink<T> disableChaining() {
+			this.transformation.setChainingStrategy(ChainingStrategy.NEVER);
+			return this;
+		}
+
+		@Override
+		public DataStreamSink<T> slotSharingGroup(String slotSharingGroup) {
+			transformation.setSlotSharingGroup(slotSharingGroup);
+			return this;
+		}
 	}
-
-
 }
