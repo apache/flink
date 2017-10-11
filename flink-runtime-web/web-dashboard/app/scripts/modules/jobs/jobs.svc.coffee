@@ -86,7 +86,7 @@ angular.module('flinkApp')
   @listJobs = ->
     deferred = $q.defer()
 
-    $http.get flinkConfig.jobServer + "joboverview"
+    $http.get flinkConfig.jobServer + "jobs/overview"
     .success (data, status, headers, config) =>
       angular.forEach data, (list, listKey) =>
         switch listKey

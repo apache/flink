@@ -55,9 +55,7 @@ Values in angle brackets are variables, for example `http://hostname:8081/jobs/<
 
   - `/config`
   - `/overview`
-  - `/jobs`
-  - `/joboverview/running`
-  - `/joboverview/completed`
+  - `/jobs/overview`
   - `/jobs/<jobid>`
   - `/jobs/<jobid>/vertices`
   - `/jobs/<jobid>/config`
@@ -117,22 +115,7 @@ Sample Result:
 
 ### Overview of Jobs
 
-**`/jobs`**
-
-IDs of the jobs, grouped by status *running*, *finished*, *failed*, *canceled*.
-
-Sample Result:
-
-~~~
-{
-  "jobs-running": [],
-  "jobs-finished": ["7684be6004e4e955c2a558a9bc463f65","49306f94d0920216b636e8dd503a6409"],
-  "jobs-cancelled":[],
-  "jobs-failed":[]
-}
-~~~
-
-**`/joboverview`**
+**`/jobs/overview`**
 
 Jobs, grouped by status, each with a small summary of its status.
 
@@ -140,8 +123,7 @@ Sample Result:
 
 ~~~
 {
-  "running":[],
-  "finished":[
+  "jobs":[
     {
       "jid": "7684be6004e4e955c2a558a9bc463f65",
       "name": "Flink Java Job at Wed Sep 16 18:08:21 CEST 2015",
@@ -167,15 +149,6 @@ Sample Result:
     }]
 }
 ~~~
-
-**`/joboverview/running`**
-
-Jobs, grouped by status, each with a small summary of its status. The same as `/joboverview`, but containing only currently running jobs.
-
-**`/joboverview/completed`**
-
-Jobs, grouped by status, each with a small summary of its status. The same as `/joboverview`, but containing only completed (finished, canceled, or failed) jobs.
-
 
 ### Details of a Running or Completed Job
 

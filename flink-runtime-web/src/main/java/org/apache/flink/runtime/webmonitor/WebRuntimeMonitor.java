@@ -33,7 +33,6 @@ import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobIdsHandler;
-import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.JobAccumulatorsHandler;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.rest.handler.legacy.JobVertexAccumulatorsHandler
 import org.apache.flink.runtime.rest.handler.legacy.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobVertexDetailsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JobVertexTaskManagersHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.RequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.SubtaskExecutionAttemptAccumulatorsHandler;
@@ -271,6 +271,13 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new AggregatingTaskManagersMetricsHandler(scheduledExecutor, metricFetcher));
 		get(router, new TaskManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
+		// overview over jobs
+		get(router, new JobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT));
+
+		get(router, new CurrentJobIdsHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT));
+
+		get(router, new JobDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
+
 		get(router, new AggregatingJobsMetricsHandler(scheduledExecutor, metricFetcher));
 		get(router, new JobMetricsHandler(scheduledExecutor, metricFetcher));
 
@@ -278,15 +285,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 		get(router, new AggregatingSubtasksMetricsHandler(scheduledExecutor, metricFetcher));
 		get(router, new SubtaskMetricsHandler(scheduledExecutor, metricFetcher));
-
-		// overview over jobs
-		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, true, true));
-		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, true, false));
-		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, false, true));
-
-		get(router, new CurrentJobIdsHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT));
-
-		get(router, new JobDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 
 		get(router, new JobVertexDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new SubtasksTimesHandler(executionGraphCache, scheduledExecutor));
@@ -421,7 +419,7 @@ public class WebRuntimeMonitor implements WebMonitor {
 	 */
 	public static JsonArchivist[] getJsonArchivists() {
 		JsonArchivist[] archivists = {
-			new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
+			new JobsOverviewHandler.CurrentJobsOverviewJsonArchivist(),
 
 			new JobPlanHandler.JobPlanJsonArchivist(),
 			new JobConfigHandler.JobConfigJsonArchivist(),

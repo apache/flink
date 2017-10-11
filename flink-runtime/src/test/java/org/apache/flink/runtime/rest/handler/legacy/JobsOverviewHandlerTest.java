@@ -24,9 +24,11 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
+import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -42,11 +44,11 @@ import java.util.Collection;
 /**
  * Tests for the CurrentJobsOverviewHandler.
  */
-public class CurrentJobsOverviewHandlerTest {
+public class JobsOverviewHandlerTest extends TestLogger {
 
 	@Test
 	public void testArchiver() throws Exception {
-		JsonArchivist archivist = new CurrentJobsOverviewHandler.CurrentJobsOverviewJsonArchivist();
+		JsonArchivist archivist = new JobsOverviewHandler.CurrentJobsOverviewJsonArchivist();
 		AccessExecutionGraph originalJob = ArchivedJobGenerationUtils.getTestJob();
 		JobDetails expectedDetails = WebMonitorUtils.createDetailsForJob(originalJob);
 
@@ -54,7 +56,7 @@ public class CurrentJobsOverviewHandlerTest {
 		Assert.assertEquals(1, archives.size());
 
 		ArchivedJson archive = archives.iterator().next();
-		Assert.assertEquals("/joboverview", archive.getPath());
+		Assert.assertEquals(JobsOverviewHeaders.URL, archive.getPath());
 
 		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(archive.getJson());
 		ArrayNode running = (ArrayNode) result.get("running");
@@ -68,20 +70,10 @@ public class CurrentJobsOverviewHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		CurrentJobsOverviewHandler handlerAll = new CurrentJobsOverviewHandler(Executors.directExecutor(), Time.seconds(0L), true, true);
+		JobsOverviewHandler handlerAll = new JobsOverviewHandler(Executors.directExecutor(), Time.seconds(0L));
 		String[] pathsAll = handlerAll.getPaths();
 		Assert.assertEquals(1, pathsAll.length);
-		Assert.assertEquals("/joboverview", pathsAll[0]);
-
-		CurrentJobsOverviewHandler handlerRunning = new CurrentJobsOverviewHandler(Executors.directExecutor(), Time.seconds(0L), true, false);
-		String[] pathsRunning = handlerRunning.getPaths();
-		Assert.assertEquals(1, pathsRunning.length);
-		Assert.assertEquals("/joboverview/running", pathsRunning[0]);
-
-		CurrentJobsOverviewHandler handlerCompleted = new CurrentJobsOverviewHandler(Executors.directExecutor(), Time.seconds(0L), false, true);
-		String[] pathsCompleted = handlerCompleted.getPaths();
-		Assert.assertEquals(1, pathsCompleted.length);
-		Assert.assertEquals("/joboverview/completed", pathsCompleted[0]);
+		Assert.assertEquals(JobsOverviewHeaders.URL, pathsAll[0]);
 	}
 
 	@Test
