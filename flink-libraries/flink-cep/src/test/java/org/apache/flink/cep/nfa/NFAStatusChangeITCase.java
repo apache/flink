@@ -73,7 +73,7 @@ public class NFAStatusChangeITCase {
 			}
 		}).within(Time.milliseconds(10));
 
-		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, Event.createTypeSerializer(), true);
+		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, true);
 		NFA<Event> nfa = nfaFactory.createNFA();
 
 		nfa.process(new Event(1, "b", 1.0), 1L);
@@ -140,7 +140,7 @@ public class NFAStatusChangeITCase {
 			}
 		}).within(Time.milliseconds(10));
 
-		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, Event.createTypeSerializer(), true);
+		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, true);
 		NFA<Event> nfa = nfaFactory.createNFA();
 
 		nfa.resetNFAChanged();
@@ -167,7 +167,7 @@ public class NFAStatusChangeITCase {
 			}
 		}).within(Time.milliseconds(10));
 
-		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, Event.createTypeSerializer(), true);
+		NFACompiler.NFAFactory<Event> nfaFactory = NFACompiler.compileFactory(pattern, true);
 		NFA<Event> nfa = nfaFactory.createNFA();
 
 		nfa.resetNFAChanged();

@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -80,19 +79,12 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 * @deprecated This serializer is only used for backwards compatibility.
 	 */
 	@Deprecated
-	private final TypeSerializer<V> valueSerializer;
+	private TypeSerializer<V> valueSerializer;
 
 	private transient Map<K, SharedBufferPage<K, V>> pages;
 
-	public SharedBuffer(final TypeSerializer<V> valueSerializer) {
-		this.valueSerializer = valueSerializer;
+	public SharedBuffer() {
 		this.pages = new HashMap<>();
-	}
-
-	public TypeSerializer<V> getValueSerializer() {
-		return (valueSerializer instanceof NonDuplicatingTypeSerializer)
-				? ((NonDuplicatingTypeSerializer) valueSerializer).getTypeSerializer()
-				: valueSerializer;
 	}
 
 	/**
@@ -328,10 +320,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		}
 	}
 
-	private SharedBuffer(
-		TypeSerializer<V> valueSerializer,
-		Map<K, SharedBufferPage<K, V>> pages) {
-		this.valueSerializer = valueSerializer;
+	private SharedBuffer(Map<K, SharedBufferPage<K, V>> pages) {
 		this.pages = pages;
 	}
 
@@ -382,7 +371,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			@SuppressWarnings("unchecked")
 			SharedBuffer<K, V> other = (SharedBuffer<K, V>) obj;
 
-			return pages.equals(other.pages) && getValueSerializer().equals(other.getValueSerializer());
+			return pages.equals(other.pages);
 		} else {
 			return false;
 		}
@@ -390,7 +379,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(pages, getValueSerializer());
+		return Objects.hash(pages);
 	}
 
 	/**
@@ -841,7 +830,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		@Override
 		public SharedBuffer<K, V> createInstance() {
-			return new SharedBuffer<>(new NonDuplicatingTypeSerializer<V>(valueSerializer));
+			return new SharedBuffer<>();
 		}
 
 		@Override
@@ -1013,7 +1002,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			// here we put the old NonDuplicating serializer because this needs to create a copy
 			// of the buffer, as created by the NFA. There, for compatibility reasons, we have left
 			// the old serializer.
-			return new SharedBuffer(new NonDuplicatingTypeSerializer(valueSerializer), pages);
+			return new SharedBuffer(pages);
 		}
 
 		@Override

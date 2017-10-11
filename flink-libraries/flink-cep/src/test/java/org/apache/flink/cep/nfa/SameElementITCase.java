@@ -87,7 +87,7 @@ public class SameElementITCase extends TestLogger {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -138,7 +138,7 @@ public void testClearingBuffer() throws Exception {
 		}
 	});
 
-	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+	NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
@@ -180,7 +180,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 		}
 	});
 
-	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+	NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
@@ -235,7 +235,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -316,7 +316,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -371,7 +371,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -414,7 +414,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		}).oneOrMore().optional();
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 
@@ -477,7 +477,7 @@ public void testClearingBufferWithUntilAtTheEnd() throws Exception {
 			}
 		});
 
-		NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+		NFA<Event> nfa = NFACompiler.compile(pattern, false);
 
 		final List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
 

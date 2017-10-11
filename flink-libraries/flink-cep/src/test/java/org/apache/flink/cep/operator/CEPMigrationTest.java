@@ -531,7 +531,7 @@ public class CEPMigrationTest {
 			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new StartFilter())
 					.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compile(pattern, handleTimeout);
 		}
 	}
 
@@ -562,7 +562,7 @@ public class CEPMigrationTest {
 					// priority queue in CEP operator are correctly checkpointed/restored
 					.within(Time.milliseconds(10L));
 
-			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
+			return NFACompiler.compile(pattern, handleTimeout);
 		}
 	}
 
