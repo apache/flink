@@ -33,6 +33,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceManagerActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerException;
+import org.apache.flink.runtime.rest.messages.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -58,6 +60,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -325,6 +329,8 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			final String taskExecutorAddress,
 			final ResourceID taskExecutorResourceId,
 			final SlotReport slotReport,
+			final int dataPort,
+			final HardwareDescription hardwareDescription,
 			final Time timeout) {
 
 		CompletableFuture<TaskExecutorGateway> taskExecutorGatewayFuture = getRpcService().connect(taskExecutorAddress, TaskExecutorGateway.class);
@@ -338,7 +344,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 						taskExecutorGateway,
 						taskExecutorAddress,
 						taskExecutorResourceId,
-						slotReport);
+						slotReport,
+						dataPort,
+						hardwareDescription);
 				}
 			},
 			getMainThreadExecutor());
@@ -481,6 +489,28 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@Override
+	public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(Time timeout) {
+
+		ArrayList<TaskManagerInfo> taskManagerInfos = new ArrayList<>(taskExecutors.size());
+
+		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> taskExecutorEntry : taskExecutors.entrySet()) {
+			final WorkerRegistration<WorkerType> taskExecutor = taskExecutorEntry.getValue();
+
+			taskManagerInfos.add(
+				new TaskManagerInfo(
+					taskExecutor.getInstanceID(),
+					taskExecutor.getTaskExecutorGateway().getAddress(),
+					taskExecutor.getDataPort(),
+					taskManagerHeartbeatManager.getLastHeartbeatFrom(taskExecutorEntry.getKey()),
+					slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
+					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
+					taskExecutor.getHardwareDescription()));
+		}
+
+		return CompletableFuture.completedFuture(taskManagerInfos);
+	}
+
+	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
 		final int numberSlots = slotManager.getNumberRegisteredSlots();
 		final int numberFreeSlots = slotManager.getNumberFreeSlots();
@@ -566,13 +596,17 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 * @param taskExecutorAddress address of the TaskExecutor
 	 * @param taskExecutorResourceId ResourceID of the TaskExecutor
 	 * @param slotReport initial slot report from the TaskExecutor
+	 * @param dataPort port used for data transfer
+	 * @param hardwareDescription of the registering TaskExecutor
 	 * @return RegistrationResponse
 	 */
 	private RegistrationResponse registerTaskExecutorInternal(
-		TaskExecutorGateway taskExecutorGateway,
-		String taskExecutorAddress,
-		ResourceID taskExecutorResourceId,
-		SlotReport slotReport) {
+			TaskExecutorGateway taskExecutorGateway,
+			String taskExecutorAddress,
+			ResourceID taskExecutorResourceId,
+			SlotReport slotReport,
+			int dataPort,
+			HardwareDescription hardwareDescription) {
 		WorkerRegistration<WorkerType> oldRegistration = taskExecutors.remove(taskExecutorResourceId);
 		if (oldRegistration != null) {
 			// TODO :: suggest old taskExecutor to stop itself
@@ -590,7 +624,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			return new RegistrationResponse.Decline("unrecognized TaskExecutor");
 		} else {
 			WorkerRegistration<WorkerType> registration =
-				new WorkerRegistration<>(taskExecutorGateway, newWorker);
+				new WorkerRegistration<>(taskExecutorGateway, newWorker, dataPort, hardwareDescription);
 
 			taskExecutors.put(taskExecutorResourceId, registration);
 
