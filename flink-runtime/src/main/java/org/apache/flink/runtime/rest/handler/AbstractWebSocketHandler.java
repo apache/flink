@@ -166,7 +166,12 @@ public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M exten
 		if (specification.getInboundClass().isAssignableFrom(o.getClass())) {
 			// process an inbound message
 			M parameters = getMessageParameters(ctx);
-			messageReceived(ctx, parameters, (O) o);
+			try {
+				messageReceived(ctx, parameters, (O) o);
+			}
+			finally {
+				ReferenceCountUtil.release(o);
+			}
 			return;
 		}
 
@@ -288,14 +293,12 @@ public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M exten
 	/**
 	 * Invoked when the current channel has received a WebSocket message.
 	 *
-	 * <p>Be sure to release the message object (default behavior).
+	 * <p>The message object is automatically released after this method is called.
 	 *
 	 * @param ctx the channel handler context
 	 * @param parameters the REST parameters
 	 * @param msg the message received
 	 * @throws Exception if the message could not be processed.
 	 */
-	protected void messageReceived(ChannelHandlerContext ctx, M parameters, O msg) throws Exception {
-		ReferenceCountUtil.release(msg);
-	}
+	protected abstract void messageReceived(ChannelHandlerContext ctx, M parameters, O msg) throws Exception;
 }

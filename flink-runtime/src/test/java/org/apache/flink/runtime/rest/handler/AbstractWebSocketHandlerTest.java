@@ -353,6 +353,7 @@ public class AbstractWebSocketHandlerTest {
 			ReferenceCountUtil.retain(msg);
 			messages.put(msg);
 
+			ReferenceCountUtil.retain(msg);
 			ctx.channel().writeAndFlush(msg);
 		}
 	}
