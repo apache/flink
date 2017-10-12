@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
@@ -45,6 +46,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			String endpointId,
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
+			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
@@ -55,6 +57,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			endpointId,
 			configuration,
 			highAvailabilityServices,
+			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
 			metricRegistry,

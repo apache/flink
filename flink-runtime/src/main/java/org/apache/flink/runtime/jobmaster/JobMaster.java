@@ -750,6 +750,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		return CompletableFuture.completedFuture(executionGraph.archive());
 	}
 
+	@Override
+	public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+		return CompletableFuture.completedFuture(executionGraph.getState());
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------

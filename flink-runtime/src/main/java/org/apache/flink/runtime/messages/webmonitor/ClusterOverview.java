@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Response to the {@link RequestStatusOverview} message, carrying a description
  * of the Flink cluster status.
  */
-public class StatusOverview extends JobsOverview {
+public class ClusterOverview extends JobsOverview {
 
 	private static final long serialVersionUID = -729861859715105265L;
 
@@ -43,7 +43,7 @@ public class StatusOverview extends JobsOverview {
 	private final int numSlotsAvailable;
 
 	@JsonCreator
-	public StatusOverview(
+	public ClusterOverview(
 			@JsonProperty(FIELD_NAME_TASKMANAGERS) int numTaskManagersConnected,
 			@JsonProperty(FIELD_NAME_SLOTS_TOTAL) int numSlotsTotal,
 			@JsonProperty(FIELD_NAME_SLOTS_AVAILABLE) int numSlotsAvailable,
@@ -59,8 +59,8 @@ public class StatusOverview extends JobsOverview {
 		this.numSlotsAvailable = numSlotsAvailable;
 	}
 
-	public StatusOverview(int numTaskManagersConnected, int numSlotsTotal, int numSlotsAvailable,
-							JobsOverview jobs1, JobsOverview jobs2) {
+	public ClusterOverview(int numTaskManagersConnected, int numSlotsTotal, int numSlotsAvailable,
+						   JobsOverview jobs1, JobsOverview jobs2) {
 		super(jobs1, jobs2);
 		this.numTaskManagersConnected = numTaskManagersConnected;
 		this.numSlotsTotal = numSlotsTotal;
@@ -86,8 +86,8 @@ public class StatusOverview extends JobsOverview {
 		if (this == obj) {
 			return true;
 		}
-		else if (obj instanceof  StatusOverview) {
-			StatusOverview that = (StatusOverview) obj;
+		else if (obj instanceof ClusterOverview) {
+			ClusterOverview that = (ClusterOverview) obj;
 			return this.numTaskManagersConnected == that.numTaskManagersConnected &&
 					this.numSlotsTotal == that.numSlotsTotal &&
 					this.numSlotsAvailable == that.numSlotsAvailable &&

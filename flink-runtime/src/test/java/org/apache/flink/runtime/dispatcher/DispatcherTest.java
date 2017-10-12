@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -105,6 +106,7 @@ public class DispatcherTest extends TestLogger {
 			Dispatcher.DISPATCHER_NAME,
 			new Configuration(),
 			haServices,
+			mock(ResourceManagerGateway.class),
 			mock(BlobServer.class),
 			heartbeatServices,
 			mock(MetricRegistry.class),
@@ -164,6 +166,7 @@ public class DispatcherTest extends TestLogger {
 			Dispatcher.DISPATCHER_NAME,
 			new Configuration(),
 			haServices,
+			mock(ResourceManagerGateway.class),
 			mock(BlobServer.class),
 			heartbeatServices,
 			mock(MetricRegistry.class),
@@ -198,6 +201,7 @@ public class DispatcherTest extends TestLogger {
 				String endpointId,
 				Configuration configuration,
 				HighAvailabilityServices highAvailabilityServices,
+				ResourceManagerGateway resourceManagerGateway,
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				MetricRegistry metricRegistry,
@@ -209,6 +213,7 @@ public class DispatcherTest extends TestLogger {
 				endpointId,
 				configuration,
 				highAvailabilityServices,
+				resourceManagerGateway,
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
