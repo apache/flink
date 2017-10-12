@@ -118,6 +118,27 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
+  def testBatchProjectableSourceFullProjection(): Unit = {
+    val (tableSource, tableName) = csvTable
+    val util = batchTestUtil()
+    val tableEnv = util.tableEnv
+
+    tableEnv.registerTableSource(tableName, tableSource)
+
+    val result = tableEnv
+      .scan(tableName)
+      .select(1)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      batchSourceTableNode(tableName, Array("first")),
+      term("select", "1 AS _c0")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
   def testBatchFilterableWithoutPushDown(): Unit = {
     val (tableSource, tableName) = filterableTableSource
     val util = batchTestUtil()
