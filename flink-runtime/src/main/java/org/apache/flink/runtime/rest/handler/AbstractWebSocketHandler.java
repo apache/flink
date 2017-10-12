@@ -60,17 +60,17 @@ import java.util.concurrent.CompletableFuture;
  * <ol>
  *     <li>{@code handshakeInitiated} - occurs upon receipt of a handshake request from an HTTP client.  Useful for parameter validation.</li>
  *     <li>{@code handshakeCompleted} - occurs upon successful completion; WebSocket is ready for I/O.</li>
- *     <li>{@code messageReceived}: occurs when a WebSocket message is received on the channel.</li>
+ *     <li>{@code messageReceived} - occurs when a WebSocket message is received on the channel.</li>
  * </ol>
  *
  * <p>The handler supports gateway availability announcements.
  *
  * @param <T> The gateway type.
  * @param <M> The REST parameter type.
- * @param <O> The outbound message type.
  * @param <I> The inbound message type.
+ * @param <O> The outbound message type.
  */
-public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M extends MessageParameters, O extends RequestBody, I extends ResponseBody> extends ChannelInboundHandlerAdapter {
+public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M extends MessageParameters, I extends RequestBody, O extends ResponseBody> extends ChannelInboundHandlerAdapter {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -78,7 +78,7 @@ public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M exten
 
 	private final AttributeKey<T> gatewayAttr;
 
-	private final WebSocketSpecification<M, O, I> specification;
+	private final WebSocketSpecification<M, I, O> specification;
 
 	private final ChannelHandler messageCodec;
 
@@ -91,11 +91,11 @@ public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M exten
 		@Nonnull CompletableFuture<String> localAddressFuture,
 		@Nonnull GatewayRetriever<? extends T> leaderRetriever,
 		@Nonnull Time timeout,
-		@Nonnull WebSocketSpecification<M, O, I> specification) {
+		@Nonnull WebSocketSpecification<M, I, O> specification) {
 		this.redirectHandler = new RedirectHandler<>(localAddressFuture, leaderRetriever, timeout);
 		this.gatewayAttr = AttributeKey.valueOf("gateway");
 		this.specification = specification;
-		this.messageCodec = new JsonWebSocketMessageCodec<>(specification.getInboundClass(), specification.getOutboundClass());
+		this.messageCodec = new JsonWebSocketMessageCodec<>(specification.getClientClass(), specification.getServerClass());
 		this.parametersAttr = AttributeKey.valueOf("parameters");
 	}
 
@@ -163,11 +163,11 @@ public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M exten
 	@Override
 	@SuppressWarnings("unchecked")
 	public void channelRead(ChannelHandlerContext ctx, Object o) throws Exception {
-		if (specification.getInboundClass().isAssignableFrom(o.getClass())) {
+		if (specification.getClientClass().isAssignableFrom(o.getClass())) {
 			// process an inbound message
 			M parameters = getMessageParameters(ctx);
 			try {
-				messageReceived(ctx, parameters, (O) o);
+				messageReceived(ctx, parameters, (I) o);
 			}
 			finally {
 				ReferenceCountUtil.release(o);
@@ -300,5 +300,5 @@ public abstract class AbstractWebSocketHandler<T extends RestfulGateway, M exten
 	 * @param msg the message received
 	 * @throws Exception if the message could not be processed.
 	 */
-	protected abstract void messageReceived(ChannelHandlerContext ctx, M parameters, O msg) throws Exception;
+	protected abstract void messageReceived(ChannelHandlerContext ctx, M parameters, I msg) throws Exception;
 }

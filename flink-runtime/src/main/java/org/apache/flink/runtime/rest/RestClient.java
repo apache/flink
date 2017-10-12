@@ -346,8 +346,8 @@ public class RestClient {
 				super.initChannel(channel);
 				channel.pipeline()
 					.addLast(new WebSocketClientProtocolHandler(webSocketURL, WebSocketVersion.V13, spec.getSubprotocol(), false, headers, 65535))
-					.addLast(new JsonWebSocketMessageCodec<>(spec.getInboundClass(), spec.getOutboundClass()))
-					.addLast(new WsResponseHandler<I, O>(channel, spec.getInboundClass(), spec.getOutboundClass(), listeners));
+					.addLast(new JsonWebSocketMessageCodec<>(spec.getServerClass(), spec.getClientClass()))
+					.addLast(new WsResponseHandler<>(channel, spec.getServerClass(), spec.getClientClass(), listeners));
 			}
 		});
 
@@ -385,7 +385,7 @@ public class RestClient {
 
 		@Override
 		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-			LOG.warn("WebSocket exception", cause);
+			LOG.warn("WebSocket exception caught", cause);
 			webSocketFuture.completeExceptionally(cause);
 		}
 

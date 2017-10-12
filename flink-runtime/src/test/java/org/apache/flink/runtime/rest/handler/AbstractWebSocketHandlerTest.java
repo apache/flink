@@ -213,9 +213,9 @@ public class AbstractWebSocketHandlerTest {
 		HttpResponse response = (HttpResponse) channel.readOutbound();
 		Assert.assertEquals(HttpResponseStatus.SWITCHING_PROTOCOLS, response.getStatus());
 
-		TestMessage expected = new TestMessage(42);
+		ClientMessage expected = new ClientMessage(42);
 		channel.writeInbound(expected);
-		TestMessage actual = handler.messages.take();
+		ClientMessage actual = handler.messages.take();
 		Assert.assertEquals(expected.sequenceNumber, actual.sequenceNumber);
 		Assert.assertEquals(1, expected.refCnt());
 		Assert.assertTrue(channel.isOpen());
@@ -292,7 +292,7 @@ public class AbstractWebSocketHandlerTest {
 	/**
 	 * The specification for the test WebSocket resource.
 	 */
-	static class TestSpecification implements WebSocketSpecification<TestParameters, TestMessage, TestMessage> {
+	static class TestSpecification implements WebSocketSpecification<TestParameters, ClientMessage, ServerMessage> {
 
 		static final TestSpecification INSTANCE = new TestSpecification();
 
@@ -307,13 +307,13 @@ public class AbstractWebSocketHandlerTest {
 		}
 
 		@Override
-		public Class<TestMessage> getOutboundClass() {
-			return TestMessage.class;
+		public Class<ServerMessage> getServerClass() {
+			return ServerMessage.class;
 		}
 
 		@Override
-		public Class<TestMessage> getInboundClass() {
-			return TestMessage.class;
+		public Class<ClientMessage> getClientClass() {
+			return ClientMessage.class;
 		}
 
 		@Override
@@ -325,13 +325,13 @@ public class AbstractWebSocketHandlerTest {
 	/**
 	 * The channel handler for the test WebSocket resource.
 	 */
-	private class TestHandler extends AbstractWebSocketHandler<RestfulGateway, TestParameters, TestMessage, TestMessage> {
+	private class TestHandler extends AbstractWebSocketHandler<RestfulGateway, TestParameters, ClientMessage, ServerMessage> {
 
 		TestParameters handshakeInitiated = null;
 
 		TestParameters handshakeCompleted = null;
 
-		final LinkedBlockingQueue<TestMessage> messages = new LinkedBlockingQueue<>();
+		final LinkedBlockingQueue<ClientMessage> messages = new LinkedBlockingQueue<>();
 
 		public TestHandler() {
 			super(CompletableFuture.completedFuture(REST_ADDRESS), gatewayRetriever, RpcUtils.INF_TIMEOUT, TestSpecification.INSTANCE);
@@ -349,23 +349,36 @@ public class AbstractWebSocketHandlerTest {
 		}
 
 		@Override
-		protected void messageReceived(ChannelHandlerContext ctx, TestParameters parameters, TestMessage msg) throws Exception {
+		protected void messageReceived(ChannelHandlerContext ctx, TestParameters parameters, ClientMessage msg) throws Exception {
 			ReferenceCountUtil.retain(msg);
 			messages.put(msg);
 
-			ReferenceCountUtil.retain(msg);
-			ctx.channel().writeAndFlush(msg);
+			ctx.channel().writeAndFlush(new ServerMessage(msg.sequenceNumber));
 		}
 	}
 
 	/**
 	 * A WebSocket message for test purposes.
 	 */
-	private static class TestMessage extends AbstractReferenceCounted implements ResponseBody, RequestBody {
-
+	private static class ClientMessage extends AbstractReferenceCounted implements RequestBody {
 		public final int sequenceNumber;
 
-		public TestMessage(@JsonProperty("sequenceNumber") int sequenceNumber) {
+		public ClientMessage(@JsonProperty("sequenceNumber") int sequenceNumber) {
+			this.sequenceNumber = sequenceNumber;
+		}
+
+		@Override
+		protected void deallocate() {
+		}
+	}
+
+	/**
+	 * A WebSocket message for test purposes.
+	 */
+	private static class ServerMessage extends AbstractReferenceCounted implements ResponseBody {
+		public final int sequenceNumber;
+
+		public ServerMessage(@JsonProperty("sequenceNumber") int sequenceNumber) {
 			this.sequenceNumber = sequenceNumber;
 		}
 

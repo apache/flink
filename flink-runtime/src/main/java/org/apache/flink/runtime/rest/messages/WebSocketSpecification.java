@@ -26,11 +26,11 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
  *
  * <p>Implementations must be state-less.
  *
- * @param <O> outbound message type
- * @param <I> inbound message type
  * @param <M> message parameters type
+ * @param <I> inbound message type
+ * @param <O> outbound message type
  */
-public interface WebSocketSpecification<M extends MessageParameters, O extends RequestBody, I extends ResponseBody> extends RestHandlerSpecification {
+public interface WebSocketSpecification<M extends MessageParameters, I extends RequestBody, O extends ResponseBody> extends RestHandlerSpecification {
 
 	@Override
 	default HttpMethodWrapper getHttpMethod() {
@@ -43,18 +43,18 @@ public interface WebSocketSpecification<M extends MessageParameters, O extends R
 	String getSubprotocol();
 
 	/**
-	 * Returns the base class of inbound messages.
+	 * Returns the base class of client-to-server messages.
 	 *
-	 * @return class of the response message
+	 * @return class of the message
 	 */
-	Class<I> getInboundClass();
+	Class<I> getClientClass();
 
 	/**
-	 * Returns the base class of outbound messages.
+	 * Returns the base class of server-to-client messages.
 	 *
-	 * @return class of the request message
+	 * @return class of the message
 	 */
-	Class<O> getOutboundClass();
+	Class<O> getServerClass();
 
 	/**
 	 * Returns a new {@link MessageParameters} object.

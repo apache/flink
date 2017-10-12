@@ -434,12 +434,12 @@ public class RestEndpointITCase extends TestLogger {
 			}
 
 			@Override
-			public Class<TestMessage> getOutboundClass() {
+			public Class<TestMessage> getServerClass() {
 				return TestMessage.class;
 			}
 
 			@Override
-			public Class<TestMessage> getInboundClass() {
+			public Class<TestMessage> getClientClass() {
 				return TestMessage.class;
 			}
 
