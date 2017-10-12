@@ -160,7 +160,7 @@ public class SharedBufferTest extends TestLogger {
 		serializer.serialize(sharedBuffer, new DataOutputViewStreamWrapper(baos));
 
 		ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-		SharedBuffer<String, Event> copy = serializer.deserialize(new DataInputViewStreamWrapper(bais));
+		SharedBuffer<String, Event> copy = serializer.duplicate().deserialize(new DataInputViewStreamWrapper(bais));
 
 		assertEquals(sharedBuffer, copy);
 	}

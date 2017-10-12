@@ -259,12 +259,16 @@ public class CEPOperatorTest extends TestLogger {
 					null,
 					null,
 					new PatternSelectFunction<Event, Map<String, List<Event>>>() {
+						private static final long serialVersionUID = -5768297287711394420L;
+
 						@Override
 						public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 							return pattern;
 						}
 					},
 					new PatternTimeoutFunction<Event, Tuple2<Map<String, List<Event>>, Long>>() {
+						private static final long serialVersionUID = 2843329425823093249L;
+
 						@Override
 						public Tuple2<Map<String, List<Event>>, Long> timeout(
 							Map<String, List<Event>> pattern,
@@ -274,6 +278,8 @@ public class CEPOperatorTest extends TestLogger {
 					},
 					timedOut
 				), new KeySelector<Event, Integer>() {
+				private static final long serialVersionUID = 7219185117566268366L;
+
 				@Override
 				public Integer getKey(Event value) throws Exception {
 					return value.getId();
@@ -281,6 +287,11 @@ public class CEPOperatorTest extends TestLogger {
 			}, BasicTypeInfo.INT_TYPE_INFO);
 
 		try {
+			String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
+			RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+			rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+
+			harness.setStateBackend(rocksDBStateBackend);
 			harness.setup(
 				new KryoSerializer<>(
 					(Class<Map<String, List<Event>>>) (Object) Map.class,
