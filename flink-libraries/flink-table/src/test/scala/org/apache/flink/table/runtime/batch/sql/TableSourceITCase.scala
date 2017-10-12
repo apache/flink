@@ -77,4 +77,34 @@ class TableSourceITCase(
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
+  @Test
+  def testCsvTableSourceWithProjectionWithCountStar(): Unit = {
+    val csvTable = CommonTestData.getCsvTableSource
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerTableSource("csvTable", csvTable)
+
+    val result = tEnv.sqlQuery("SELECT COUNT(*) FROM csvTable").collect()
+
+    val expected = "8"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
+  @Test
+  def testCsvTableSourceWithProjectionWithCount1(): Unit = {
+    val csvTable = CommonTestData.getCsvTableSource
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerTableSource("csvTable", csvTable)
+
+    val result = tEnv.sqlQuery("SELECT COUNT(1) FROM csvTable").collect()
+
+    val expected = "8"
+    TestBaseUtils.compareResultAsText(result.asJava, expected)
+  }
+
 }

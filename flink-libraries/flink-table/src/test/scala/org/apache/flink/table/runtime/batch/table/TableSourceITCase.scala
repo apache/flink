@@ -61,6 +61,24 @@ class TableSourceITCase(
   }
 
   @Test
+  def testCsvTableSourceWithProjectionWithCount1(): Unit = {
+    val csvTable = CommonTestData.getCsvTableSource
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    tEnv.registerTableSource("csvTable", csvTable)
+
+    val results = tEnv
+      .scan("csvTable")
+      .select(1.count)
+      .collect()
+
+    val expected = "8"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testTableSourceWithFilterable(): Unit = {
     val tableName = "MyTable"
     val env = ExecutionEnvironment.getExecutionEnvironment
