@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.util.DirectExecutorService;
@@ -271,6 +272,64 @@ public class HeartbeatManagerTest extends TestLogger {
 			fail("Timeout should time out.");
 		} catch (TimeoutException e) {
 			// the timeout should not be completed since we unmonitored the target
+		}
+	}
+
+	/**
+	 * Tests that the last heartbeat from an unregistered target equals -1.
+	 */
+	@Test
+	public void testLastHeartbeatFromUnregisteredTarget() {
+		final long heartbeatTimeout = 100L;
+		final ResourceID resourceId = ResourceID.generate();
+		final HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
+
+		HeartbeatManager<?, ?> heartbeatManager = new HeartbeatManagerImpl<>(
+			heartbeatTimeout,
+			resourceId,
+			heartbeatListener,
+			Executors.directExecutor(),
+			mock(ScheduledExecutor.class),
+			LOG);
+
+		try {
+			assertEquals(-1L, heartbeatManager.getLastHeartbeatFrom(ResourceID.generate()));
+		} finally {
+			heartbeatManager.stop();
+		}
+	}
+
+	/**
+	 * Tests that we can correctly retrieve the last heartbeat for registered targets.
+	 */
+	@Test
+	public void testLastHeartbeatFrom() {
+		final long heartbeatTimeout = 100L;
+		final ResourceID resourceId = ResourceID.generate();
+		final HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
+		final HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
+		final ResourceID target = ResourceID.generate();
+
+		HeartbeatManager<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
+			heartbeatTimeout,
+			resourceId,
+			heartbeatListener,
+			Executors.directExecutor(),
+			mock(ScheduledExecutor.class),
+			LOG);
+
+		try {
+			heartbeatManager.monitorTarget(target, heartbeatTarget);
+
+			assertEquals(0L, heartbeatManager.getLastHeartbeatFrom(target));
+
+			final long currentTime = System.currentTimeMillis();
+
+			heartbeatManager.receiveHeartbeat(target, null);
+
+			assertTrue(heartbeatManager.getLastHeartbeatFrom(target) >= currentTime);
+		} finally {
+			heartbeatManager.stop();
 		}
 	}
 
