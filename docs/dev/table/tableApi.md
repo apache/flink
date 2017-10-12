@@ -959,7 +959,7 @@ val result = left.select('a, 'b, 'c).where('a.in(right));
 
 {% top %}
 
-### OrderBy & Limit
+### OrderBy, Offset & Fetch
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -987,19 +987,22 @@ Table result = in.orderBy("a.asc");
 
     <tr>
       <td>
-        <strong>Limit</strong><br>
+        <strong>Offset &amp; Fetch</strong><br>
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL LIMIT clause. Limits a sorted result to a specified number of records from an offset position. Limit is technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc").limit(3); // returns unlimited number of records beginning with the 4th record
-{% endhighlight %}
-or
-{% highlight java %}
-Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc").limit(3, 5); // returns 5 records beginning with the 4th record
+
+// returns the first 5 records from the sorted result
+Table result1 = in.orderBy("a.asc").fetch(5); 
+
+// skips the first 3 records and returns all following records from the sorted result
+Table result2 = in.orderBy("a.asc").offset(3);
+
+// skips the first 10 records and returns the next 5 records from the sorted result
+Table result3 = in.orderBy("a.asc").offset(10).fetch(5);
 {% endhighlight %}
       </td>
     </tr>
@@ -1033,19 +1036,22 @@ val result = in.orderBy('a.asc);
 
     <tr>
       <td>
-        <strong>Limit</strong><br>
+        <strong>Offset &amp; Fetch</strong><br>
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL LIMIT clause. Limits a sorted result to a specified number of records from an offset position. Limit is technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
 {% highlight scala %}
-val in = ds.toTable(tableEnv, 'a, 'b, 'c);
-val result = in.orderBy('a.asc).limit(3); // returns unlimited number of records beginning with the 4th record
-{% endhighlight %}
-or
-{% highlight scala %}
-val in = ds.toTable(tableEnv, 'a, 'b, 'c);
-val result = in.orderBy('a.asc).limit(3, 5); // returns 5 records beginning with the 4th record
+val in = ds.toTable(tableEnv, 'a, 'b, 'c)
+
+// returns the first 5 records from the sorted result
+val result1: Table = in.orderBy('a.asc).fetch(5)
+
+// skips the first 3 records and returns all following records from the sorted result
+val result2: Table = in.orderBy('a.asc).offset(3)
+
+// skips the first 10 records and returns the next 5 records from the sorted result
+val result3: Table = in.orderBy('a.asc).offset(10).fetch(5)
 {% endhighlight %}
       </td>
     </tr>

@@ -25,7 +25,6 @@ import org.apache.flink.table.expressions.{Alias, Asc, Expression, ExpressionPar
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.plan.ProjectionTranslator._
 import org.apache.flink.table.plan.logical.{Minus, _}
-import org.apache.flink.table.plan.schema.TableSinkTable
 import org.apache.flink.table.sinks.TableSink
 
 import _root_.scala.annotation.varargs
@@ -721,12 +720,16 @@ class Table(
     * Example:
     *
     * {{{
-    *   // returns unlimited number of records beginning with the 4th record
+    *   // skips the first 3 rows and returns all following rows.
     *   tab.orderBy('name.desc).limit(3)
     * }}}
     *
     * @param offset number of records to skip
+    *
+    * @deprecated Please use [[Table.offset()]] and [[Table.fetch()]] instead.
     */
+  @Deprecated
+  @deprecated(message = "Deprecated in favor of Table.offset() and Table.fetch()", since = "1.4.0")
   def limit(offset: Int): Table = {
     new Table(tableEnv, Limit(offset = offset, child = logicalPlan).validate(tableEnv))
   }
@@ -739,15 +742,72 @@ class Table(
     * Example:
     *
     * {{{
-    *   // returns 5 records beginning with the 4th record
+    *   // skips the first 3 rows and returns the next 5 rows.
     *   tab.orderBy('name.desc).limit(3, 5)
     * }}}
     *
     * @param offset number of records to skip
     * @param fetch number of records to be returned
+    *
+    * @deprecated Please use [[Table.offset()]] and [[Table.fetch()]] instead.
     */
+  @Deprecated
+  @deprecated(message = "deprecated in favor of Table.offset() and Table.fetch()", since = "1.4.0")
   def limit(offset: Int, fetch: Int): Table = {
     new Table(tableEnv, Limit(offset, fetch, logicalPlan).validate(tableEnv))
+  }
+
+  /**
+    * Limits a sorted result from an offset position.
+    * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * [[Table.offset(o)]] can be combined with a subsequent [[Table.fetch(n)]] call to return n rows
+    * after skipping the first o rows.
+    *
+    * {{{
+    *   // skips the first 3 rows and returns all following rows.
+    *   tab.orderBy('name.desc).offset(3)
+    *   // skips the first 10 rows and returns the next 5 rows.
+    *   tab.orderBy('name.desc).offset(10).fetch(5)
+    * }}}
+    *
+    * @param offset number of records to skip
+    */
+  def offset(offset: Int): Table = {
+    new Table(tableEnv, Limit(offset, -1, logicalPlan).validate(tableEnv))
+  }
+
+  /**
+    * Limits a sorted result to the first n rows.
+    * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
+    * thus must be preceded by it.
+    *
+    * [[Table.fetch(n)]] can be combined with a preceding [[Table.offset(o)]] call to return n rows
+    * after skipping the first o rows.
+    *
+    * {{{
+    *   // returns the first 3 records.
+    *   tab.orderBy('name.desc).fetch(3)
+    *   // skips the first 10 rows and returns the next 5 rows.
+    *   tab.orderBy('name.desc).offset(10).fetch(5)
+    * }}}
+    *
+    * @param fetch the number of records to return. Fetch must be >= 0.
+    */
+  def fetch(fetch: Int): Table = {
+    if (fetch < 0) {
+      throw ValidationException("FETCH count must be equal or larger than 0.")
+    }
+    this.logicalPlan match {
+      case Limit(o, -1, c) =>
+        // replace LIMIT without FETCH by LIMIT with FETCH
+        new Table(tableEnv, Limit(o, fetch, c).validate(tableEnv))
+      case Limit(_, _, _) =>
+        throw ValidationException("FETCH is already defined.")
+      case _ =>
+        new Table(tableEnv, Limit(0, fetch, logicalPlan).validate(tableEnv))
+    }
   }
 
   /**
