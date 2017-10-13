@@ -21,7 +21,6 @@ import java.io.{File, FileOutputStream, FileWriter, OutputStreamWriter}
 
 import org.apache.flink.api.java.io.PojoCsvInputFormat
 import org.apache.flink.api.java.io.TupleCsvInputFormat
-import org.apache.flink.api.java.io.CsvInputFormatTest.TwitterPOJO
 import org.apache.flink.api.java.typeutils.PojoTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -534,4 +533,33 @@ class CsvInputFormatTest {
     assert(expected.sameElements(actual))
   }
 
+}
+
+class POJO (var table: String, var time: String) {
+
+  def this() {
+    this("", "")
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: POJO => table == that.table && time == that.time
+      case _ => false
+    }
+  }
+}
+
+class TwitterPOJO(theTable: String, theTime: String, var tweet: String)
+  extends POJO(theTable, theTime) {
+
+  def this() {
+    this("", "", "")
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TwitterPOJO => table == that.table && time == that.time && tweet == that.tweet
+      case _ => false
+    }
+  }
 }

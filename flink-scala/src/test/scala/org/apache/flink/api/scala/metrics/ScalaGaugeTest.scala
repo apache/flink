@@ -18,14 +18,11 @@
 
 package org.apache.flink.api.scala.metrics
 
-import org.apache.flink.metrics.Gauge
-import org.apache.flink.runtime.metrics.{MetricRegistry, MetricRegistryConfiguration}
-import org.apache.flink.runtime.metrics.groups.GenericMetricGroup
 import org.apache.flink.util.TestLogger
-import org.junit.Test
-import org.scalatest.junit.JUnitSuiteLike
 
-class ScalaGaugeTest extends TestLogger with JUnitSuiteLike {
+import org.junit.Test
+
+class ScalaGaugeTest extends TestLogger {
 
   @Test
   def testGaugeCorrectValue(): Unit = {

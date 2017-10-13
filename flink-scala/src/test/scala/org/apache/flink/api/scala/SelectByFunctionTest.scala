@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.operator
+package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
-import org.apache.flink.api.scala.{SelectByMaxFunction, SelectByMinFunction}
-import org.apache.flink.api.scala._
+
 import org.junit.{Assert, Test}
 
 /**

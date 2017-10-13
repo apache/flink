@@ -17,26 +17,15 @@
  */
 package org.apache.flink.api.scala.types
 
-import java.io.{DataInput, DataOutput}
-
-import org.apache.flink.api.java.typeutils.TypeExtractorTest.CustomTuple
-import org.apache.flink.api.java.io.CollectionInputFormat
-import org.apache.hadoop.io.Writable
-import org.junit.{Assert, Test}
-
 import org.apache.flink.api.common.typeinfo._
+import org.apache.flink.api.java.io.CollectionInputFormat
+import org.apache.flink.api.java.typeutils.TypeExtractorTest.CustomTuple
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.typeutils.{UnitTypeInfo, CaseClassTypeInfo}
+import org.apache.flink.api.scala.typeutils.{CaseClassTypeInfo, UnitTypeInfo}
 import org.apache.flink.types.{IntValue, StringValue}
 
-class MyWritable extends Writable {
-  def write(out: DataOutput) {
-  }
-
-  def readFields(in: DataInput) {
-  }
-}
+import org.junit.{Assert, Test}
 
 case class CustomCaseClass(a: String, b: Int)
 
@@ -180,14 +169,6 @@ class TypeInformationGenTest {
     Assert.assertTrue(
       getType(objectArray).asInstanceOf[ObjectArrayTypeInfo[_, _]]
         .getComponentInfo.isInstanceOf[PojoTypeInfo[_]])
-  }
-
-  @Test
-  def testWritableType(): Unit = {
-    val ti = createTypeInformation[MyWritable]
-
-    Assert.assertTrue(ti.isInstanceOf[WritableTypeInfo[_]])
-    Assert.assertEquals(classOf[MyWritable], ti.asInstanceOf[WritableTypeInfo[_]].getTypeClass)
   }
 
   @Test

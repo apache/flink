@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.api.operator
+package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.scala._
+
 import org.junit.Test
 import org.junit.Assert
 
