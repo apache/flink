@@ -622,7 +622,7 @@ public class ClientTest {
 				serverStats[i] = new AtomicKvStateRequestStats();
 				server[i] = new KvStateServerImpl(
 						InetAddress.getLocalHost(),
-						0,
+						Collections.singletonList(0).iterator(),
 						numServerEventLoopThreads,
 						numServerQueryThreads,
 						registry[i],

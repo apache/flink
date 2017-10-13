@@ -31,17 +31,27 @@ public class QueryableStateConfiguration {
 
 	private final Iterator<Integer> proxyPortRange;
 
+	private final Iterator<Integer> qserverPortRange;
+
 	private final int numServerThreads;
 
 	private final int numQueryThreads;
 
-	public QueryableStateConfiguration(boolean enabled, Iterator<Integer> proxyPortRange, int numServerThreads, int numQueryThreads) {
+	public QueryableStateConfiguration(
+			boolean enabled,
+			Iterator<Integer> proxyPortRange,
+			Iterator<Integer> qserverPortRange,
+			int numServerThreads,
+			int numQueryThreads) {
+
 		checkArgument(!enabled || (proxyPortRange != null && proxyPortRange.hasNext()));
+		checkArgument(!enabled || (qserverPortRange != null && qserverPortRange.hasNext()));
 		checkArgument(numServerThreads >= 0, "queryable state number of server threads must be zero or larger");
 		checkArgument(numQueryThreads >= 0, "queryable state number of query threads must be zero or larger");
 
 		this.enabled = enabled;
 		this.proxyPortRange = proxyPortRange;
+		this.qserverPortRange = qserverPortRange;
 		this.numServerThreads = numServerThreads;
 		this.numQueryThreads = numQueryThreads;
 	}
@@ -59,8 +69,16 @@ public class QueryableStateConfiguration {
 	 * Returns the port range where the queryable state client proxy can listen.
 	 * See {@link org.apache.flink.configuration.QueryableStateOptions#PROXY_PORT_RANGE QueryableStateOptions.PROXY_PORT_RANGE}.
 	 */
-	public Iterator<Integer> ports() {
+	public Iterator<Integer> getProxyPortRange() {
 		return proxyPortRange;
+	}
+
+	/**
+	 * Returns the port range where the queryable state client proxy can listen.
+	 * See {@link org.apache.flink.configuration.QueryableStateOptions#SERVER_PORT_RANGE QueryableStateOptions.SERVER_PORT_RANGE}.
+	 */
+	public Iterator<Integer> getStateServerPortRange() {
+		return qserverPortRange;
 	}
 
 	/**
@@ -96,6 +114,6 @@ public class QueryableStateConfiguration {
 	 * Gets the configuration describing the queryable state as deactivated.
 	 */
 	public static QueryableStateConfiguration disabled() {
-		return new QueryableStateConfiguration(false, null, 0, 0);
+		return new QueryableStateConfiguration(false, null, null, 0, 0);
 	}
 }

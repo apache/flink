@@ -50,6 +50,7 @@ public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryabl
 			config.setBoolean(QueryableStateOptions.SERVER_ENABLE, true);
 			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
 			config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069-" + (9069 + NUM_TMS));
+			config.setString(QueryableStateOptions.SERVER_PORT_RANGE, "9062-" + (9062 + NUM_TMS));
 
 			cluster = new TestingCluster(config, false);
 			cluster.start(true);

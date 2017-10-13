@@ -104,31 +104,6 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 *
 	 * @param serverName the name of the server
 	 * @param bindAddress address to bind to
-	 * @param bindPort port to bind to
-	 * @param numEventLoopThreads number of event loop threads
-	 */
-	protected AbstractServerBase(
-			final String serverName,
-			final InetAddress bindAddress,
-			final Integer bindPort,
-			final Integer numEventLoopThreads,
-			final Integer numQueryThreads) {
-		this(
-				serverName,
-				bindAddress,
-				Collections.singleton(bindPort).iterator(),
-				numEventLoopThreads,
-				numQueryThreads
-		);
-	}
-
-	/**
-	 * Creates the {@link AbstractServerBase}.
-	 *
-	 * <p>The server needs to be started via {@link #start()}.
-	 *
-	 * @param serverName the name of the server
-	 * @param bindAddress address to bind to
 	 * @param bindPortIterator port to bind to
 	 * @param numEventLoopThreads number of event loop threads
 	 */

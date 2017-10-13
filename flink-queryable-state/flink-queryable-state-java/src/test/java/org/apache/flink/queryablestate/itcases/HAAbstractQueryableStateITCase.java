@@ -60,6 +60,7 @@ public abstract class HAAbstractQueryableStateITCase extends AbstractQueryableSt
 			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 2);
 			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 2);
 			config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069-" + (9069 + NUM_TMS));
+			config.setString(QueryableStateOptions.SERVER_PORT_RANGE, "9062-" + (9062 + NUM_TMS));
 			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().toString());
 			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
 			config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");

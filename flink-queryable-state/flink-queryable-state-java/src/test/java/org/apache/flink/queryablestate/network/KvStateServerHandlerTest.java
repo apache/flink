@@ -63,6 +63,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.net.InetAddress;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -87,7 +88,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 		try {
 			testServer = new KvStateServerImpl(
 					InetAddress.getLocalHost(),
-					0,
+					Collections.singletonList(0).iterator(),
 					1,
 					1,
 					new KvStateRegistry(),
@@ -382,7 +383,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 		KvStateServerImpl localTestServer = new KvStateServerImpl(
 				InetAddress.getLocalHost(),
-				0,
+				Collections.singletonList(0).iterator(),
 				1,
 				1,
 				new KvStateRegistry(),

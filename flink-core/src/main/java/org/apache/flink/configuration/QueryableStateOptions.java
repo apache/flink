@@ -44,7 +44,7 @@ public class QueryableStateOptions {
 	 * machine.
 	 *
 	 * <p>Given this, and to avoid port clashes, the user can specify a port range and
-	 * the proxy is going to bind to the first free port in that range.
+	 * the proxy will bind to the first free port in that range.
 	 *
 	 * <p>The specified range can be:
 	 * <ol>
@@ -56,8 +56,30 @@ public class QueryableStateOptions {
 	 * <p><b>The default port is 9069.</b>
 	 */
 	public static final ConfigOption<String> PROXY_PORT_RANGE =
-			key("query.server.port")
+			key("query.proxy.ports")
 			.defaultValue("9069");
+
+	/**
+	 * The config parameter defining the server port range of the queryable state server.
+	 *
+	 * <p>A state server runs on each Task Manager, so many server may run on the same
+	 * machine.
+	 *
+	 * <p>Given this, and to avoid port clashes, the user can specify a port range and
+	 * the server will bind to the first free port in that range.
+	 *
+	 * <p>The specified range can be:
+	 * <ol>
+	 *     <li>a port: "9123",
+	 *     <li>a range of ports: "50100-50200", or
+	 *     <li>a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 * </ol>
+	 *
+	 * <p><b>The default port is 9067.</b>
+	 */
+	public static final ConfigOption<String> SERVER_PORT_RANGE =
+			key("query.server.ports")
+			.defaultValue("9067");
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =

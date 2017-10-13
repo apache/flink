@@ -91,7 +91,9 @@ public final class QueryableStateUtils {
 	 * requested internal state to the {@link KvStateClientProxy client proxy}.
 	 *
 	 * @param address the address to bind to.
-	 * @param port the port to listen to.
+	 * @param ports the range of ports the state server will attempt to listen to
+	 *                 (see {@link org.apache.flink.configuration.QueryableStateOptions#SERVER_PORT_RANGE
+	 *                 QueryableStateOptions.SERVER_PORT_RANGE}).
 	 * @param eventLoopThreads the number of threads to be used to process incoming requests.
 	 * @param queryThreads the number of threads to be used to send the actual state.
 	 * @param kvStateRegistry the registry with the queryable state.
@@ -100,7 +102,7 @@ public final class QueryableStateUtils {
 	 */
 	public static KvStateServer createKvStateServer(
 			final InetAddress address,
-			final int port,
+			final Iterator<Integer> ports,
 			final int eventLoopThreads,
 			final int queryThreads,
 			final KvStateRegistry kvStateRegistry,
@@ -118,12 +120,12 @@ public final class QueryableStateUtils {
 			Class<? extends KvStateServer> clazz = Class.forName(classname).asSubclass(KvStateServer.class);
 			Constructor<? extends KvStateServer> constructor = clazz.getConstructor(
 					InetAddress.class,
-					Integer.class,
+					Iterator.class,
 					Integer.class,
 					Integer.class,
 					KvStateRegistry.class,
 					KvStateRequestStats.class);
-			return constructor.newInstance(address, port, eventLoopThreads, queryThreads, kvStateRegistry, stats);
+			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, kvStateRegistry, stats);
 		} catch (ClassNotFoundException e) {
 			LOG.warn("Could not load Queryable State Server. " +
 					"Probable reason: flink-queryable-state is not in the classpath");

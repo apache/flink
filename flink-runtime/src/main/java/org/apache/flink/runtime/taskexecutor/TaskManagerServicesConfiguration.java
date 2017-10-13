@@ -416,11 +416,16 @@ public class TaskManagerServicesConfiguration {
 		final boolean enabled = config.getBoolean(QueryableStateOptions.SERVER_ENABLE);
 
 		if (enabled) {
-			final Iterator<Integer> ports = NetUtils.getPortRangeFromString(
-					config.getString(QueryableStateOptions.PROXY_PORT_RANGE, "9069"));
+			final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
+					config.getString(QueryableStateOptions.PROXY_PORT_RANGE,
+							QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+			final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(
+					config.getString(QueryableStateOptions.SERVER_PORT_RANGE,
+							QueryableStateOptions.SERVER_PORT_RANGE.defaultValue()));
+
 			final int numNetworkThreads = config.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS);
 			final int numQueryThreads = config.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS);
-			return new QueryableStateConfiguration(true, ports, numNetworkThreads, numQueryThreads);
+			return new QueryableStateConfiguration(true, proxyPorts, serverPorts, numNetworkThreads, numQueryThreads);
 		}
 		else {
 			return QueryableStateConfiguration.disabled();

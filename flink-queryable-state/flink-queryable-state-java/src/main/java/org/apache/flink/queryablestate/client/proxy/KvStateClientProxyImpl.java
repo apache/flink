@@ -66,7 +66,7 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 	 * to the configured bind address.
 	 *
 	 * @param bindAddress the address to listen to.
-	 * @param bindPortIterator the port to listen to.
+	 * @param bindPortIterator the port range to try to bind to.
 	 * @param numEventLoopThreads number of event loop threads.
 	 * @param numQueryThreads number of query threads.
 	 * @param stats the statistics collector.

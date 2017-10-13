@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.util.Iterator;
 
 /**
  * The default implementation of the {@link KvStateServer}.
@@ -54,14 +55,14 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 * Creates the state server.
 	 *
 	 * <p>The server is instantiated using reflection by the
-	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(InetAddress, int, int, int, KvStateRegistry, KvStateRequestStats)
-	 * QueryableStateUtils.createKvStateServer(InetAddress, int, int, int, KvStateRegistry, KvStateRequestStats)}.
+	 * {@link org.apache.flink.runtime.query.QueryableStateUtils#createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)
+	 * QueryableStateUtils.createKvStateServer(InetAddress, Iterator, int, int, KvStateRegistry, KvStateRequestStats)}.
 	 *
 	 * <p>The server needs to be started via {@link #start()} in order to bind
 	 * to the configured bind address.
 	 *
 	 * @param bindAddress the address to listen to.
-	 * @param bindPort the port to listen to.
+	 * @param bindPortIterator the port range to try to bind to.
 	 * @param numEventLoopThreads number of event loop threads.
 	 * @param numQueryThreads number of query threads.
 	 * @param kvStateRegistry {@link KvStateRegistry} to query for state instances.
@@ -69,13 +70,13 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 	 */
 	public KvStateServerImpl(
 			final InetAddress bindAddress,
-			final Integer bindPort,
+			final Iterator<Integer> bindPortIterator,
 			final Integer numEventLoopThreads,
 			final Integer numQueryThreads,
 			final KvStateRegistry kvStateRegistry,
 			final KvStateRequestStats stats) {
 
-		super("Queryable State Server", bindAddress, bindPort, numEventLoopThreads, numQueryThreads);
+		super("Queryable State Server", bindAddress, bindPortIterator, numEventLoopThreads, numQueryThreads);
 		this.stats = Preconditions.checkNotNull(stats);
 		this.kvStateRegistry = Preconditions.checkNotNull(kvStateRegistry);
 	}

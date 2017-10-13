@@ -371,14 +371,14 @@ public class TaskManagerServices {
 
 			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
 					taskManagerServicesConfiguration.getTaskManagerAddress(),
-					qsConfig.ports(),
+					qsConfig.getProxyPortRange(),
 					numNetworkThreads,
 					numQueryThreads,
 					new DisabledKvStateRequestStats());
 
 			kvStateServer = QueryableStateUtils.createKvStateServer(
 					taskManagerServicesConfiguration.getTaskManagerAddress(),
-					0,
+					qsConfig.getStateServerPortRange(),
 					numNetworkThreads,
 					numQueryThreads,
 					kvStateRegistry,
