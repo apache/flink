@@ -1430,7 +1430,7 @@ public final class ConfigConstants {
 	/**
 	 * Whether Hadoop Snappy codec should be used for .snappy files decompression
 	 */
-	public static final boolean DEFAULT_FS_USE_HADOOP_SNAPPY = false;
+	public static final boolean DEFAULT_FS_USE_HADOOP_SNAPPY = true;
 
 	/**
 	 * Whether to use the LargeRecordHandler when spilling.
