@@ -25,6 +25,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
+import org.apache.flink.runtime.rest.messages.TaskManagerInfo;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -131,10 +132,13 @@ public class TaskManagersHandler extends AbstractJsonRequestHandler  {
 			gen.writeNumberField("timeSinceLastHeartbeat", instance.getLastHeartBeat());
 			gen.writeNumberField("slotsNumber", instance.getTotalNumberOfSlots());
 			gen.writeNumberField("freeSlots", instance.getNumberOfAvailableSlots());
+
+			gen.writeObjectFieldStart(TaskManagerInfo.FIELD_NAME_HARDWARE);
 			gen.writeNumberField("cpuCores", instance.getResources().getNumberOfCPUCores());
 			gen.writeNumberField("physicalMemory", instance.getResources().getSizeOfPhysicalMemory());
 			gen.writeNumberField("freeMemory", instance.getResources().getSizeOfJvmHeap());
 			gen.writeNumberField("managedMemory", instance.getResources().getSizeOfManagedMemory());
+			gen.writeEndObject();
 
 			// only send metrics when only one task manager requests them.
 			if (pathParams.containsKey(TASK_MANAGER_ID_KEY)) {
