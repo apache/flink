@@ -48,7 +48,7 @@ abstract class CaseClassSerializer[T <: Product](
     val result = super.clone().asInstanceOf[CaseClassSerializer[T]]
 
     // achieve a deep copy by duplicating the field serializers
-    result.fieldSerializers.transform(_.duplicate())
+    result.fieldSerializers = result.fieldSerializers.map(_.duplicate())
     result.fields = null
     result.instanceCreationFailed = false
 
