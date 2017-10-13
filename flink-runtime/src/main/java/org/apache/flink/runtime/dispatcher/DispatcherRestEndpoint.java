@@ -216,7 +216,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			executionGraphCache,
 			executor,
 			checkpointStatsCache);
-			
+
 		JobExceptionsHandler jobExceptionsHandler = new JobExceptionsHandler(
 			restAddressFuture,
 			leaderRetriever,
@@ -224,7 +224,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			JobExceptionsHeaders.getInstance(),
 			executionGraphCache,
 			executor);
-			
+
 		JobVertexAccumulatorsHandler jobVertexAccumulatorsHandler = new JobVertexAccumulatorsHandler(
 			restAddressFuture,
 			leaderRetriever,
