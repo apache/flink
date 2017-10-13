@@ -33,6 +33,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
+import org.apache.flink.table.plan.cost.{DataSetCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetRel
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -152,6 +153,11 @@ abstract class BatchTableEnvironment(
         throw new TableException("Only BatchTableSink can be registered in BatchTableEnvironment.")
     }
   }
+
+  /**
+    * Returns specific FlinkCostFactory of this Environment.
+    */
+  override protected def getFlinkCostFactory: FlinkCostFactory = DataSetCost.FACTORY
 
   /**
     * Writes a [[Table]] to a [[TableSink]].

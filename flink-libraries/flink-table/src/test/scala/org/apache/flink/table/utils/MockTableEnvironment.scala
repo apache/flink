@@ -21,6 +21,7 @@ package org.apache.flink.table.utils
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
@@ -30,6 +31,8 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
       table: Table,
       sink: TableSink[T],
       queryConfig: QueryConfig): Unit = ???
+
+  override protected def getFlinkCostFactory: FlinkCostFactory = ???
 
   override protected def checkValidTableName(name: String): Unit = ???
 

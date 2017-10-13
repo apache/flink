@@ -52,7 +52,7 @@ import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator,
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
-import org.apache.flink.table.plan.cost.DataSetCostFactory
+import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.logical.{CatalogNode, LogicalRelNode}
 import org.apache.flink.table.plan.rules.FlinkRuleSets
 import org.apache.flink.table.plan.schema.{RelTable, RowSchema, TableSinkTable}
@@ -86,7 +86,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     .newConfigBuilder
     .defaultSchema(rootSchema)
     .parserConfig(getSqlParserConfig)
-    .costFactory(new DataSetCostFactory)
+    .costFactory(getFlinkCostFactory)
     .typeSystem(new FlinkTypeSystem)
     .operatorTable(getSqlOperatorTable)
     // set the executor to evaluate constant expressions
@@ -215,6 +215,11 @@ abstract class TableEnvironment(val config: TableConfig) {
         sqlParserConfig
     }
   }
+
+  /**
+    * Returns specific FlinkCostFactory of TableEnvironment's subclass.
+    */
+  protected def getFlinkCostFactory: FlinkCostFactory
 
   /**
     * Returns the built-in normalization rules that are defined by the environment.

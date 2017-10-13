@@ -18,43 +18,19 @@
 
 package org.apache.flink.table.plan.cost
 
-import org.apache.calcite.plan.RelOptCost
+import org.apache.calcite.plan.{RelOptCost, RelOptCostFactory}
 
 /**
-  * This class is based on Apache Calcite's `org.apache.calcite.plan.volcano.VolcanoCost#Factory`.
+  * A [[RelOptCostFactory]] that adds makeCost methods with network and memory parameters.
   */
-class DataSetCostFactory extends FlinkCostFactory {
+trait FlinkCostFactory extends RelOptCostFactory {
 
-  override def makeCost(
+  def makeCost(
     rowCount: Double,
     cpu: Double,
     io: Double,
     network: Double,
-    memory: Double): RelOptCost = {
-    new DataSetCost(rowCount, cpu, io, network, memory)
-  }
+    memory: Double): RelOptCost
 
-  override def makeCost(rowCount: Double, cpu: Double, io: Double, network: Double): RelOptCost = {
-    new DataSetCost(rowCount, cpu, io, network, 0.0)
-  }
-
-  override def makeCost(dRows: Double, dCpu: Double, dIo: Double): RelOptCost = {
-    new DataSetCost(dRows, dCpu, dIo, 0.0, 0.0)
-  }
-
-  override def makeHugeCost: RelOptCost = {
-    DataSetCost.Huge
-  }
-
-  override def makeInfiniteCost: RelOptCost = {
-    DataSetCost.Infinity
-  }
-
-  override def makeTinyCost: RelOptCost = {
-    DataSetCost.Tiny
-  }
-
-  override def makeZeroCost: RelOptCost = {
-    DataSetCost.Zero
-  }
+  def makeCost(rowCount: Double, cpu: Double, io: Double, network: Double): RelOptCost
 }
