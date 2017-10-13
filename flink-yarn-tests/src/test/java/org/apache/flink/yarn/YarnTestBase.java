@@ -113,7 +113,8 @@ public abstract class YarnTestBase extends TestLogger {
 			// https://issues.apache.org/jira/browse/YARN-1022
 			"java.lang.InterruptedException",
 			// very specific on purpose
-			"Remote connection to [null] failed with java.net.ConnectException: Connection refused"
+			"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
+			"java.io.IOException: Connection reset by peer"
 	};
 
 	// Temp directory which is deleted after the unit test.
