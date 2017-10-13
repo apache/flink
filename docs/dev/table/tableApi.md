@@ -464,6 +464,7 @@ val result: Table = orders
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.distinct()
 {% endhighlight %}
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming.html">Streaming Concepts</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -489,7 +490,7 @@ val result = orders.distinct()
   	<tr>
       <td>
         <strong>Inner Join</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
         <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
@@ -498,6 +499,23 @@ Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 Table result = left.join(right).where("a = d").select("a, b, e");
 {% endhighlight %}
+        <p><b>Note:</b> Currently, only time-windowed inner joins can be processed in a streaming fashion.</p>
+
+        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+          <ul>
+            <li>Time predicates must compare time attributes of both input tables.</li>
+            <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
+            <li>Only range predicates are valid time predicates.</li>
+            <li>Non-time predicates must not access a time attribute.</li>
+          </ul>
+        </p>
+
+{% highlight java %}
+Table left = tableEnv.fromDataSet(ds1, "a, b, c, ltime.rowtime");
+Table right = tableEnv.fromDataSet(ds2, "d, e, f, rtime.rowtime");
+Table result = left.join(right).where("a = d && ltime >= rtime - 5.minutes && ltime < rtime + 10 .minutes").select("a, b, e, ltime");
+{% endhighlight %}
+
       </td>
     </tr>
 
@@ -609,11 +627,28 @@ Table result = orders
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and an equality join predicate must be defined using a where or filter operator.</p>
+        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c);
 val right = ds2.toTable(tableEnv, 'd, 'e, 'f);
 val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
+{% endhighlight %}
+
+        <p><b>Note:</b> Currently, only time-windowed inner joins can be processed in a streaming fashion.</p>
+
+        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+          <ul>
+            <li>Time predicates must compare time attributes of both input tables.</li>
+            <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
+            <li>Only range predicates are valid time predicates.</li>
+            <li>Non-time predicates must not access a time attribute.</li>
+          </ul>
+        </p>
+
+{% highlight scala %}
+val left = ds1.toTable(tableEnv, 'a, 'b, 'c, 'ltime.rowtime);
+val right = ds2.toTable(tableEnv, 'd, 'e, 'f, 'rtime.rowtime);
+val result = left.join(right).where('a === 'd && 'ltime >= 'rtime - 5.minutes && 'ltime < 'rtime + 10.minutes).select('a, 'b, 'e, 'ltime);
 {% endhighlight %}
       </td>
     </tr>
