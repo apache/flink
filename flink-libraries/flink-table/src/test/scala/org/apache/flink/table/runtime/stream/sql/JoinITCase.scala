@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
+import java.util
+
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
@@ -27,7 +29,6 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
-import org.hamcrest.CoreMatchers
 import org.junit._
 
 import scala.collection.mutable
@@ -238,22 +239,67 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
 
     // There may be two expected results according to the process order.
-    val expected1 = new mutable.MutableList[String]
-    expected1+= "1,LEFT3,RIGHT6"
-    expected1+= "1,LEFT1.1,RIGHT6"
-    expected1+= "2,LEFT4,RIGHT7"
-    expected1+= "1,LEFT4.9,RIGHT6"
+    val expected = new util.ArrayList[String]
+    expected.add("1,LEFT3,RIGHT6")
+    expected.add("1,LEFT1.1,RIGHT6")
+    expected.add("2,LEFT4,RIGHT7")
+    expected.add("1,LEFT4.9,RIGHT6")
+    StreamITCase.compareWithList(expected)
+  }
 
-    val expected2 = new mutable.MutableList[String]
-    expected2+= "1,LEFT3,RIGHT6"
-    expected2+= "1,LEFT1.1,RIGHT6"
-    expected2+= "2,LEFT4,RIGHT7"
-    expected2+= "1,LEFT4.9,RIGHT6"
+  /** test rowtime inner join with another time condition **/
+  @Test
+  def testRowTimeInnerJoinWithOtherTimeCondition(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    StreamITCase.clear
 
-    Assert.assertThat(
-      StreamITCase.testResults.sorted,
-      CoreMatchers.either(CoreMatchers.is(expected1.sorted)).
-        or(CoreMatchers.is(expected2.sorted)))
+    val sqlQuery =
+      """
+        |SELECT t2.a, t1.c, t2.c
+        |FROM T1 as t1 JOIN T2 as t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rt > t2.rt - INTERVAL '4' SECOND AND
+        |    t1.rt < t2.rt AND
+        |  QUARTER(t1.rt) = t2.a
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+    data1.+=((1, 4L, "LEFT1", 1000L))
+    data1.+=((1, 2L, "LEFT2", 2000L))
+    data1.+=((1, 7L, "LEFT3", 3000L))
+    data1.+=((2, 5L, "LEFT4", 4000L))
+    data1.+=((1, 4L, "LEFT5", 5000L))
+    data1.+=((1, 10L, "LEFT6", 6000L))
+
+    val data2 = new mutable.MutableList[(Int, Long, String, Long)]
+    data2.+=((1, 1L, "RIGHT1", 1000L))
+    data2.+=((1, 9L, "RIGHT6", 6000L))
+    data2.+=((2, 8, "RIGHT7", 7000L))
+    data2.+=((1, 4L, "RIGHT8", 8000L))
+
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rt.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = new java.util.ArrayList[String]
+    expected.add("1,LEFT3,RIGHT6")
+    expected.add("1,LEFT5,RIGHT6")
+    expected.add("1,LEFT5,RIGHT8")
+    expected.add("1,LEFT6,RIGHT8")
+    StreamITCase.compareWithList(expected)
   }
 
   /** test rowtime inner join with window aggregation **/

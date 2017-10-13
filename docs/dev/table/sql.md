@@ -405,7 +405,6 @@ FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
             <li>Time predicates must compare time attributes of both input tables.</li>
             <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
             <li>Only range predicates are valid time predicates.</li>
-            <li>Non-time predicates must not access a time attribute.</li>
           </ul>
         </p>
 
