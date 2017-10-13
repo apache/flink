@@ -20,21 +20,42 @@ package org.apache.flink.api.scala.runtime
 import java.util
 import java.util.Random
 
-import org.apache.flink.api.scala._
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest._
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.util.StringUtils
-
 import org.joda.time.LocalDate
-
-import org.junit.Assert
-import org.junit.Test
+import org.junit.Assert._
+import org.junit.{Assert, Test}
 
 import scala.collection.JavaConverters._
 
 class TupleSerializerTest {
+
+  @Test
+  def testProperDeepCopy(): Unit = {
+    val tpe = createTypeInformation[((String, Int), (Int, String))]
+
+    val originalSerializer =
+      tpe.createSerializer(new ExecutionConfig)
+        .asInstanceOf[CaseClassSerializer[((String, Int), (Int, String))]]
+    val duplicateSerializer = originalSerializer.duplicate()
+
+    duplicateSerializer.getFieldSerializers
+
+    // the list of child serializers must be duplicated
+    assertTrue(duplicateSerializer.getFieldSerializers ne originalSerializer.getFieldSerializers)
+
+    // each of the child serializers (which are themselves CaseClassSerializers) must be duplicated
+    assertTrue(
+      duplicateSerializer.getFieldSerializers()(0) ne originalSerializer.getFieldSerializers()(0))
+
+    assertTrue(
+      duplicateSerializer.getFieldSerializers()(1) ne originalSerializer.getFieldSerializers()(1))
+  }
 
   @Test
   def testTuple1Int(): Unit = {
