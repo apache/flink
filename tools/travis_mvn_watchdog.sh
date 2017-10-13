@@ -308,10 +308,18 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	NETTY=`cat allClasses | grep '^io/netty' | wc -l`
-	if [ "$NETTY" != "0" ]; then
+	IO_NETTY=`cat allClasses | grep '^io/netty' | wc -l`
+	if [ "$IO_NETTY" != "0" ]; then
 		echo "=============================================================================="
-		echo "Detected '$NETTY' unshaded netty dependencies in fat jar"
+		echo "Detected '$IO_NETTY' unshaded io.netty classes in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	ORG_NETTY=`cat allClasses | grep '^org/jboss/netty' | wc -l`
+	if [ "$ORG_NETTY" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$ORG_NETTY' unshaded org.jboss.netty classes in fat jar"
 		echo "=============================================================================="
 		return 1
 	fi
