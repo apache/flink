@@ -65,10 +65,10 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 
 	@Override
 	public void process(Byte key, final W window, final InternalWindowContext context, Iterable<T> input, Collector<R> out) throws Exception {
-		final ACC acc = aggFunction.createAccumulator();
+		ACC acc = aggFunction.createAccumulator();
 
 		for (T val : input) {
-			aggFunction.add(val, acc);
+			acc = aggFunction.add(val, acc);
 		}
 
 		this.ctx.window = window;

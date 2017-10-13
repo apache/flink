@@ -116,12 +116,12 @@ public class RocksDBAggregatingState<K, N, T, ACC, R>
 			final byte[] valueBytes = backend.db.get(columnFamily, key);
 
 			// deserialize the current accumulator, or create a blank one
-			final ACC accumulator = valueBytes == null ?
+			ACC accumulator = valueBytes == null ?
 					aggFunction.createAccumulator() :
 					valueSerializer.deserialize(new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(valueBytes)));
 
 			// aggregate the value into the accumulator
-			aggFunction.add(value, accumulator);
+			accumulator = aggFunction.add(value, accumulator);
 
 			// serialize the new accumulator
 			final DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
