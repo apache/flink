@@ -71,6 +71,10 @@ flink-libraries/flink-table"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
+flink-filesystems/flink-hadoop-fs,\
+flink-filesystems/flink-mapr-fs,\
+flink-filesystems/flink-s3-fs-hadoop,\
+flink-filesystems/flink-s3-fs-presto,\
 flink-connectors/flink-avro,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
