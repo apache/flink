@@ -457,8 +457,9 @@ public class InternalWindowFunctionTest {
 					}
 
 					@Override
-					public void add(Long value, Set<Long> accumulator) {
+					public Set<Long> add(Long value, Set<Long> accumulator) {
 						accumulator.add(value);
+						return accumulator;
 					}
 
 					@Override
@@ -552,8 +553,9 @@ public class InternalWindowFunctionTest {
 					}
 
 					@Override
-					public void add(Long value, Set<Long> accumulator) {
+					public Set<Long> add(Long value, Set<Long> accumulator) {
 						accumulator.add(value);
+						return accumulator;
 					}
 
 					@Override

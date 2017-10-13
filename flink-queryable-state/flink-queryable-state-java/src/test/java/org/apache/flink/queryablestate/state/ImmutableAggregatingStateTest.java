@@ -36,11 +36,11 @@ import static org.junit.Assert.assertEquals;
  */
 public class ImmutableAggregatingStateTest {
 
-	private final AggregatingStateDescriptor<Long, MutableString, String> aggrStateDesc =
+	private final AggregatingStateDescriptor<Long, String, String> aggrStateDesc =
 			new AggregatingStateDescriptor<>(
 					"test",
 					new SumAggr(),
-					MutableString.class);
+					String.class);
 
 	private ImmutableAggregatingState<Long, String> aggrState;
 
@@ -50,8 +50,7 @@ public class ImmutableAggregatingStateTest {
 			aggrStateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
 		}
 
-		final MutableString initValue = new MutableString();
-		initValue.value = "42";
+		final String initValue = "42";
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		aggrStateDesc.getSerializer().serialize(initValue, new DataOutputViewStreamWrapper(out));
@@ -81,34 +80,29 @@ public class ImmutableAggregatingStateTest {
 	/**
 	 * Test {@link AggregateFunction} concatenating the already stored string with the long passed as argument.
 	 */
-	private static class SumAggr implements AggregateFunction<Long, MutableString, String> {
+	private static class SumAggr implements AggregateFunction<Long, String, String> {
 
 		private static final long serialVersionUID = -6249227626701264599L;
 
 		@Override
-		public MutableString createAccumulator() {
-			return new MutableString();
+		public String createAccumulator() {
+			return "";
 		}
 
 		@Override
-		public void add(Long value, MutableString accumulator) {
-			accumulator.value += ", " + value;
+		public String add(Long value, String accumulator) {
+			accumulator += ", " + value;
+			return accumulator;
 		}
 
 		@Override
-		public String getResult(MutableString accumulator) {
-			return accumulator.value;
+		public String getResult(String accumulator) {
+			return accumulator;
 		}
 
 		@Override
-		public MutableString merge(MutableString a, MutableString b) {
-			MutableString nValue = new MutableString();
-			nValue.value = a.value + ", " + b.value;
-			return nValue;
+		public String merge(String a, String b) {
+			return a + ", " + b;
 		}
-	}
-
-	private static final class MutableString {
-		String value;
 	}
 }

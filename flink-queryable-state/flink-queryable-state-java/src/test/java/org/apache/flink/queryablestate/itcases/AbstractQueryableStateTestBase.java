@@ -1099,11 +1099,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			DataStream<Tuple2<Integer, Long>> source = env
 					.addSource(new TestAscendingValueSource(numElements));
 
-			final AggregatingStateDescriptor<Tuple2<Integer, Long>, MutableString, String> aggrStateDescriptor =
+			final AggregatingStateDescriptor<Tuple2<Integer, Long>, String, String> aggrStateDescriptor =
 					new AggregatingStateDescriptor<>(
 							"aggregates",
 							new SumAggr(),
-							MutableString.class);
+							String.class);
 			aggrStateDescriptor.setQueryable("aggr-queryable");
 
 			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
@@ -1291,10 +1291,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		private static final long serialVersionUID = 1L;
 
-		private final AggregatingStateDescriptor<Tuple2<Integer, Long>, MutableString, String> stateDescriptor;
+		private final AggregatingStateDescriptor<Tuple2<Integer, Long>, String, String> stateDescriptor;
 		private transient AggregatingState<Tuple2<Integer, Long>, String> state;
 
-		AggregatingTestOperator(AggregatingStateDescriptor<Tuple2<Integer, Long>, MutableString, String> stateDesc) {
+		AggregatingTestOperator(AggregatingStateDescriptor<Tuple2<Integer, Long>, String, String> stateDesc) {
 			this.stateDescriptor = stateDesc;
 		}
 
@@ -1316,37 +1316,31 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	/**
 	 * Test {@link AggregateFunction} concatenating the already stored string with the long passed as argument.
 	 */
-	private static class SumAggr implements AggregateFunction<Tuple2<Integer, Long>, MutableString, String> {
+	private static class SumAggr implements AggregateFunction<Tuple2<Integer, Long>, String, String> {
 
 		private static final long serialVersionUID = -6249227626701264599L;
 
 		@Override
-		public MutableString createAccumulator() {
-			return new MutableString();
+		public String createAccumulator() {
+			return "0";
 		}
 
 		@Override
-		public void add(Tuple2<Integer, Long> value, MutableString accumulator) {
-			long acc = Long.valueOf(accumulator.value);
+		public String add(Tuple2<Integer, Long> value, String accumulator) {
+			long acc = Long.valueOf(accumulator);
 			acc += value.f1;
-			accumulator.value = Long.toString(acc);
+			return Long.toString(acc);
 		}
 
 		@Override
-		public String getResult(MutableString accumulator) {
-			return accumulator.value;
+		public String getResult(String accumulator) {
+			return accumulator;
 		}
 
 		@Override
-		public MutableString merge(MutableString a, MutableString b) {
-			MutableString nValue = new MutableString();
-			nValue.value = Long.toString(Long.valueOf(a.value) + Long.valueOf(b.value));
-			return nValue;
+		public String merge(String a, String b) {
+			return Long.toString(Long.valueOf(a) + Long.valueOf(b));
 		}
-	}
-
-	private static final class MutableString {
-		String value = "0";
 	}
 
 	/**

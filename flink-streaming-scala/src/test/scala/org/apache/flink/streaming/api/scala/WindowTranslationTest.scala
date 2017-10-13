@@ -1988,7 +1988,7 @@ class DummyAggregator extends AggregateFunction[(String, Int), (String, Int), (S
 
   override def getResult(accumulator: (String, Int)): (String, Int) = accumulator
 
-  override def add(value: (String, Int), accumulator: (String, Int)): Unit = ()
+  override def add(value: (String, Int), accumulator: (String, Int)): (String, Int) = accumulator
 }
 
 class DummyRichAggregator extends RichAggregateFunction[(String, Int), (String, Int), (String, Int)]
@@ -2000,7 +2000,7 @@ class DummyRichAggregator extends RichAggregateFunction[(String, Int), (String, 
 
   override def getResult(accumulator: (String, Int)): (String, Int) = accumulator
 
-  override def add(value: (String, Int), accumulator: (String, Int)): Unit = ()
+  override def add(value: (String, Int), accumulator: (String, Int)): (String, Int) = accumulator
 }
 
 class TestWindowFunction

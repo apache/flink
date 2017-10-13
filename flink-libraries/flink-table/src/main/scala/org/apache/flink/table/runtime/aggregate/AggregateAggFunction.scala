@@ -42,11 +42,12 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
     function.createAccumulators()
   }
 
-  override def add(value: CRow, accumulatorRow: Row): Unit = {
+  override def add(value: CRow, accumulatorRow: Row): Row = {
     if (function == null) {
       initFunction()
     }
     function.accumulate(accumulatorRow, value.row)
+    accumulatorRow
   }
 
   override def getResult(accumulatorRow: Row): Row = {
