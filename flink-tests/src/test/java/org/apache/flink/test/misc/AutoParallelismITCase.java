@@ -102,14 +102,6 @@ public class AutoParallelismITCase extends TestLogger {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			try {
-				cluster.stop();
-			}
-			catch (Throwable t) {
-				// ignore exceptions on shutdown
-			}
-		}
 	}
 
 	private static class ParallelismDependentInputFormat extends GenericInputFormat<Integer> {
