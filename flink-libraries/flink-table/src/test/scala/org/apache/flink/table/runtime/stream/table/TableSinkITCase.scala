@@ -165,7 +165,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
     env.execute()
     val results = RowCollector.getAndClearValues
 
-    val retracted = RowCollector.restractResults(results).sorted
+    val retracted = RowCollector.retractResults(results).sorted
     val expected = List(
       "2,1,1",
       "5,1,2",
@@ -201,7 +201,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       "Received retraction messages for append only table",
       results.exists(!_.f0))
 
-    val retracted = RowCollector.restractResults(results).sorted
+    val retracted = RowCollector.retractResults(results).sorted
     val expected = List(
       "1970-01-01 00:00:00.005,4,8",
       "1970-01-01 00:00:00.01,5,18",
@@ -656,7 +656,7 @@ object RowCollector {
   }
 
   /** Converts a list of retraction messages into a list of final results. */
-  def restractResults(results: List[JTuple2[JBool, Row]]): List[String] = {
+  def retractResults(results: List[JTuple2[JBool, Row]]): List[String] = {
 
     val retracted = results
       .foldLeft(Map[String, Int]()){ (m: Map[String, Int], v: JTuple2[JBool, Row]) =>

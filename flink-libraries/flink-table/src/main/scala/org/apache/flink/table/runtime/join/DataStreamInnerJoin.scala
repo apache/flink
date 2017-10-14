@@ -19,10 +19,10 @@
 
 package org.apache.flink.table.runtime.join
 
-import org.apache.flink.api.common.functions.RichFlatJoinFunction
+import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, TupleTypeInfo}
+import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
@@ -31,43 +31,62 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+import org.slf4j.LoggerFactory
+import org.apache.flink.table.codegen.Compiler
+
 
 /**
   * Connect data for left stream and right stream. Only use for innerJoin.
   *
-  * @param joiner           join function
-  * @param leftType         the input type of left stream
-  * @param rightType        the input type of right stream
-  * @param resultType       the output type of join
-  * @param queryConfig
+  * @param leftType          the input type of left stream
+  * @param rightType         the input type of right stream
+  * @param resultType        the output type of join
+  * @param genJoinFuncName   the function code of other non-equi condition
+  * @param genJoinFuncCode   the function name of other non-equi condition
+  * @param queryConfig       the configuration for the query to generate
   */
-class ProcTimeNonWindowInnerJoin(
-    joiner: RichFlatJoinFunction[Row, Row, Row],
+class DataStreamInnerJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
     resultType: TypeInformation[CRow],
-    queryConfig: StreamQueryConfig) extends
-  CoProcessFunction[CRow, CRow, CRow] with ResultTypeQueryable[CRow] {
-
+    genJoinFuncName: String,
+    genJoinFuncCode: String,
+    queryConfig: StreamQueryConfig)
+  extends CoProcessFunction[CRow, CRow, CRow]
+          with Compiler[FlatJoinFunction[Row, Row, Row]] {
 
   // state to hold left stream element
-  private var leftState: MapState[Row, JTuple2[Int, Long]] = null
+  private var leftState: MapState[Row, JTuple2[Int, Long]] = _
   // state to hold right stream element
-  private var rightState: MapState[Row, JTuple2[Int, Long]] = null
-  private var cRowWrapper: CRowWrappingMultiOuputCollector = null
+  private var rightState: MapState[Row, JTuple2[Int, Long]] = _
+  private var cRowWrapper: CRowWrappingMultiOuputCollector = _
 
   private val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
   private val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
   private val stateCleaningEnabled: Boolean = minRetentionTime > 1
 
   // state to record last timer of left stream, 0 means no timer
-  private var timerState1: ValueState[Long] = _
+  private var leftTimer: ValueState[Long] = _
   // state to record last timer of right stream, 0 means no timer
-  private var timerState2: ValueState[Long] = _
+  private var rightTimer: ValueState[Long] = _
 
+  // other condition function
+  private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
+
+  val LOG = LoggerFactory.getLogger(this.getClass)
 
   override def open(parameters: Configuration): Unit = {
-    // initialize left and right state
+    LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
+                s"Code:\n$genJoinFuncCode")
+    val clazz = compile(
+      getRuntimeContext.getUserCodeClassLoader,
+      genJoinFuncName,
+      genJoinFuncCode)
+    LOG.debug("Instantiating JoinFunction.")
+    joinFunction = clazz.newInstance()
+
+    // initialize left and right state, the first element of tuple2 indicates how many rows of
+    // this row, while the second element represents the expired time of this row.
     val tupleTypeInfo = new TupleTypeInfo[JTuple2[Int, Long]](Types.INT, Types.LONG)
     val leftStateDescriptor = new MapStateDescriptor[Row, JTuple2[Int, Long]](
       "left", leftType, tupleTypeInfo)
@@ -78,21 +97,19 @@ class ProcTimeNonWindowInnerJoin(
 
     // initialize timer state
     val valueStateDescriptor1 = new ValueStateDescriptor[Long]("timervaluestate1", classOf[Long])
-    timerState1 = getRuntimeContext.getState(valueStateDescriptor1)
+    leftTimer = getRuntimeContext.getState(valueStateDescriptor1)
     val valueStateDescriptor2 = new ValueStateDescriptor[Long]("timervaluestate2", classOf[Long])
-    timerState2 = getRuntimeContext.getState(valueStateDescriptor2)
+    rightTimer = getRuntimeContext.getState(valueStateDescriptor2)
 
     cRowWrapper = new CRowWrappingMultiOuputCollector()
-    joiner.setRuntimeContext(getRuntimeContext)
-    joiner.open(parameters)
   }
 
   /**
     * Process left stream records
     *
     * @param valueC The input value.
-    * @param ctx   The ctx to register timer or get current time
-    * @param out   The collector for returning result values.
+    * @param ctx    The ctx to register timer or get current time
+    * @param out    The collector for returning result values.
     *
     */
   override def processElement1(
@@ -100,15 +117,15 @@ class ProcTimeNonWindowInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    processElement(valueC, ctx, out, timerState1, leftState, rightState, true)
+    processElement(valueC, ctx, out, leftTimer, leftState, rightState, true)
   }
 
   /**
     * Process right stream records
     *
     * @param valueC The input value.
-    * @param ctx   The ctx to register timer or get current time
-    * @param out   The collector for returning result values.
+    * @param ctx    The ctx to register timer or get current time
+    * @param out    The collector for returning result values.
     *
     */
   override def processElement2(
@@ -116,7 +133,7 @@ class ProcTimeNonWindowInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    processElement(valueC, ctx, out, timerState2, rightState, leftState, false)
+    processElement(valueC, ctx, out, rightTimer, rightState, leftState, false)
   }
 
 
@@ -133,20 +150,20 @@ class ProcTimeNonWindowInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
 
-    if (stateCleaningEnabled && timerState1.value == timestamp) {
+    if (stateCleaningEnabled && leftTimer.value == timestamp) {
       expireOutTimeRow(
         timestamp,
         leftState,
-        timerState1,
+        leftTimer,
         ctx
       )
     }
 
-    if (stateCleaningEnabled && timerState2.value == timestamp) {
+    if (stateCleaningEnabled && rightTimer.value == timestamp) {
       expireOutTimeRow(
         timestamp,
         rightState,
-        timerState2,
+        rightTimer,
         ctx
       )
     }
@@ -159,7 +176,7 @@ class ProcTimeNonWindowInnerJoin(
 
     var newExpiredTime = oldExpiredTime
     if (stateCleaningEnabled) {
-      if (-1 == oldExpiredTime || (curProcessTime + minRetentionTime) > oldExpiredTime) {
+      if (curProcessTime + minRetentionTime > oldExpiredTime) {
         newExpiredTime = curProcessTime + maxRetentionTime
       }
     }
@@ -184,32 +201,30 @@ class ProcTimeNonWindowInnerJoin(
     cRowWrapper.setChange(value.change)
 
     val curProcessTime = ctx.timerService.currentProcessingTime
-    var oldCnt = 0
-    var oldExpiredTime: Long = -1
-
-    val currentRowCntAndExpiredTime = currentSideState.get(value.row)
-    if (currentRowCntAndExpiredTime != null) {
-      oldCnt = currentRowCntAndExpiredTime.f0
-      oldExpiredTime = currentRowCntAndExpiredTime.f1
+    val oldCntAndExpiredTime = currentSideState.get(value.row)
+    val cntAndExpiredTime = if (null == oldCntAndExpiredTime) {
+      JTuple2.of(0, -1L)
+    } else {
+      oldCntAndExpiredTime
     }
 
-    val newExpiredTime = getNewExpiredTime(curProcessTime, oldExpiredTime)
+    cntAndExpiredTime.f1 = getNewExpiredTime(curProcessTime, cntAndExpiredTime.f1)
     if (stateCleaningEnabled && timerState.value() == 0) {
-      timerState.update(newExpiredTime)
-      ctx.timerService().registerProcessingTimeTimer(newExpiredTime)
+      timerState.update(cntAndExpiredTime.f1)
+      ctx.timerService().registerProcessingTimeTimer(cntAndExpiredTime.f1)
     }
 
     // update current side stream state
     if (!value.asInstanceOf[CRow].change) {
-      oldCnt = oldCnt - 1
-      if (oldCnt <= 0) {
+      cntAndExpiredTime.f0 = cntAndExpiredTime.f0 - 1
+      if (cntAndExpiredTime.f0 <= 0) {
         currentSideState.remove(value.row)
       } else {
-        currentSideState.put(value.row, JTuple2.of(oldCnt, newExpiredTime))
+        currentSideState.put(value.row, cntAndExpiredTime)
       }
     } else {
-      oldCnt = oldCnt + 1
-      currentSideState.put(value.row, JTuple2.of(oldCnt, newExpiredTime))
+      cntAndExpiredTime.f0 = cntAndExpiredTime.f0 + 1
+      currentSideState.put(value.row, cntAndExpiredTime)
     }
 
     val otherSideRowsIterator = otherSideState.keys().iterator()
@@ -217,18 +232,16 @@ class ProcTimeNonWindowInnerJoin(
     while (otherSideRowsIterator.hasNext) {
       val otherSideRow = otherSideRowsIterator.next()
       val cntAndExpiredTime = otherSideState.get(otherSideRow)
-      // if other side record is expired
+      // join
+      cRowWrapper.setTimes(cntAndExpiredTime.f0)
+      if (isLeft) {
+        joinFunction.join(value.row, otherSideRow, cRowWrapper)
+      } else {
+        joinFunction.join(otherSideRow, value.row, cRowWrapper)
+      }
+      // clear expired data. Note: clear after join to keep closer to the original semantics
       if (stateCleaningEnabled && curProcessTime >= cntAndExpiredTime.f1) {
         otherSideRowsIterator.remove()
-      }
-      // if other side record is valid
-      else {
-        cRowWrapper.setTimes(cntAndExpiredTime.f0)
-        if (isLeft) {
-          joiner.join(value.row, otherSideRow, cRowWrapper)
-        } else {
-          joiner.join(otherSideRow, value.row, cRowWrapper)
-        }
       }
     }
   }
@@ -270,6 +283,5 @@ class ProcTimeNonWindowInnerJoin(
     }
   }
 
-  override def getProducedType: TypeInformation[CRow] = resultType
 }
 

@@ -29,8 +29,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, Ta
 import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.FlatJoinRunner
-import org.apache.flink.table.runtime.join.ProcTimeNonWindowInnerJoin
+import org.apache.flink.table.runtime.join.DataStreamInnerJoin
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 
@@ -76,6 +75,8 @@ class DataStreamJoin(
   }
 
   def getJoinInfo: JoinInfo = joinInfo
+
+  def getJoinType: JoinRelType = joinType
 
   override def toString: String = {
     joinToString(
@@ -163,26 +164,25 @@ class DataStreamJoin(
       Some(rightSchema.physicalTypeInfo))
     val conversion = generator.generateConverterResultExpression(
       schema.physicalTypeInfo,
-      schema.physicalType.getFieldNames)
+      schema.physicalFieldNames)
 
 
-    var body = ""
-
-    if (joinInfo.isEqui) {
+    val body = if (joinInfo.isEqui) {
       // only equality condition
-      body = s"""
-                |${conversion.code}
-                |${generator.collectorTerm}.collect(${conversion.resultTerm});
-                |""".stripMargin
+      s"""
+         |${conversion.code}
+         |${generator.collectorTerm}.collect(${conversion.resultTerm});
+         |""".stripMargin
     } else {
-      val condition = generator.generateExpression(joinCondition)
-      body = s"""
-                |${condition.code}
-                |if (${condition.resultTerm}) {
-                |  ${conversion.code}
-                |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
-                |}
-                |""".stripMargin
+      val nonEquiPredicates = joinInfo.getRemaining(this.cluster.getRexBuilder)
+      val condition = generator.generateExpression(nonEquiPredicates)
+      s"""
+         |${condition.code}
+         |if (${condition.resultTerm}) {
+         |  ${conversion.code}
+         |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+         |}
+         |""".stripMargin
     }
 
     val genFunction = generator.generateFunction(
@@ -191,22 +191,21 @@ class DataStreamJoin(
       body,
       returnType)
 
-    val joinFun = new FlatJoinRunner[Row, Row, Row](
-      genFunction.name,
-      genFunction.code,
-      genFunction.returnType)
+
     val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
 
     val coMapFun =
-      new ProcTimeNonWindowInnerJoin(
-        joinFun,
+      new DataStreamInnerJoin(
         leftSchema.physicalTypeInfo,
         rightSchema.physicalTypeInfo,
         CRowTypeInfo(returnType),
+        genFunction.name,
+        genFunction.code,
         queryConfig)
 
     connectOperator
       .keyBy(leftKeys.toArray, rightKeys.toArray)
-      .process(coMapFun).name(joinOpName).asInstanceOf[DataStream[CRow]]
+      .process(coMapFun).name(joinOpName)
+      .returns(CRowTypeInfo(returnType))
   }
 }

@@ -37,7 +37,7 @@ class CRowWrappingMultiOuputCollector() extends Collector[Row] {
 
   override def collect(record: Row): Unit = {
     outCRow.row = record
-    var i = 0
+    var i: Long = 0L
     while (i < times) {
       out.collect(outCRow)
       i += 1

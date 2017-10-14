@@ -17,12 +17,15 @@
  */
 package org.apache.flink.table.plan.util
 
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.flink.table.plan.nodes.datastream._
 
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.JavaConversions._
+import scala.collection.mutable
 
 object UpdatingPlanChecker {
 
@@ -37,11 +40,7 @@ object UpdatingPlanChecker {
   /** Extracts the unique keys of the table produced by the plan. */
   def getUniqueKeyFields(plan: RelNode): Option[Array[String]] = {
     val keyExtractor = new UniqueKeyExtractor
-    if (!keyExtractor.visit(plan).isDefined) {
-      None
-    } else {
-      Some(keyExtractor.visit(plan).get.map(ka => ka._1).toArray)
-    }
+    keyExtractor.visit(plan).map(_.map(_._1).toArray)
   }
 
   private class AppendOnlyValidator extends RelVisitor {
@@ -61,18 +60,19 @@ object UpdatingPlanChecker {
   /** Identifies unique key fields in the output of a RelNode. */
   private class UniqueKeyExtractor {
 
-    // visit() function will return a tuple, the first element of tuple is the key, the second is
-    // the key's corresponding ancestor. Ancestors are used to identify same keys, for example:
-    // select('pk as pk1, 'pk as pk2), both pk1 and pk2 have the same ancestor, i.e., pk.
-    // A node having keys means: 1.it generates keys by itself 2.all ancestors from it's upstream
-    // nodes have been preserved even though the ancestors have been duplicated.
+    // visit() function will return a tuple, the first element is the name of a key field, the
+    // second is a group name that is shared by all equivalent key fields. The group names are
+    // used to identify same keys, for example: select('pk as pk1, 'pk as pk2), both pk1 and pk2
+    // belong to the same group, i.e., pk1. Here we use the lexicographic smallest attribute as
+    // the common group id. A node can have keys if it generates the keys by itself or it
+    // forwards keys from its input(s).
     def visit(node: RelNode): Option[List[(String, String)]] = {
       node match {
         case c: DataStreamCalc =>
-          val keyAncestors = visit(node.getInput(0))
-          // check if input has keyAncestors
-          if (keyAncestors.isDefined) {
-            // track keyAncestors forward
+          val inputKeys = visit(node.getInput(0))
+          // check if input has keys
+          if (inputKeys.isDefined) {
+            // track keys forward
             val inNames = c.getInput.getRowType.getFieldNames
             val inOutNames = c.getProgram.getNamedProjects.asScala
               .map(p => {
@@ -96,17 +96,22 @@ object UpdatingPlanChecker {
               // resolve names of input fields
               .map(io => (inNames.get(io._1), io._2))
 
-            // filter by input keyAncestors
-            val outKeyAncesters = inOutNames
-              .filter(io => keyAncestors.get.map(e => e._1).contains(io._1))
-              .map(io => (io._2, keyAncestors.get.find(ka => ka._1 == io._1).get._2))
+            // filter by input keys
+            val inputKeysAndOutput = inOutNames
+              .filter(io => inputKeys.get.map(e => e._1).contains(io._1))
 
-            // check if all keyAncestors have been preserved
-            if (outKeyAncesters.nonEmpty &&
-              outKeyAncesters.map(ka => ka._2).distinct.length ==
-                keyAncestors.get.map(ka => ka._2).distinct.length) {
+            val inputKeysMap = inputKeys.get.toMap
+            val inOutGroups = inputKeysAndOutput
+              .map(e => (inputKeysMap(e._1), e._2)).sorted.reverse.toMap
+
+            // get output keys
+            val outputKeys = inputKeysAndOutput
+              .map(io => (io._2, inOutGroups(inputKeysMap(io._1))))
+
+            // check if all keys have been preserved
+            if (outputKeys.map(_._2).distinct.length == inputKeys.get.map(_._2).distinct.length) {
               // all key have been preserved (but possibly renamed)
-              Some(outKeyAncesters.toList)
+              Some(outputKeys.toList)
             } else {
               // some (or all) keys have been removed. Keys are no longer unique and removed
               None
@@ -116,66 +121,114 @@ object UpdatingPlanChecker {
           }
 
         case _: DataStreamOverAggregate =>
-          // keyAncestors are always forwarded by Over aggregate
+          // keys are always forwarded by Over aggregate
           visit(node.getInput(0))
         case a: DataStreamGroupAggregate =>
-          // get grouping keyAncestors
+          // get grouping keys
           val groupKeys = a.getRowType.getFieldNames.asScala.take(a.getGroupings.length)
           Some(groupKeys.map(e => (e, e)).toList)
         case w: DataStreamGroupWindowAggregate =>
-          // get grouping keyAncestors
+          // get grouping keys
           val groupKeys =
             w.getRowType.getFieldNames.asScala.take(w.getGroupings.length).toArray
           // get window start and end time
           val windowStartEnd = w.getWindowProperties.map(_.name)
           // we have only a unique key if at least one window property is selected
           if (windowStartEnd.nonEmpty) {
-            Some((groupKeys ++ windowStartEnd).map(e => (e, e)).toList)
+            val smallestAttribute = windowStartEnd.sorted.head
+            Some((groupKeys.map(e => (e, e)) ++ windowStartEnd.map((_, smallestAttribute))).toList)
           } else {
             None
           }
 
         case j: DataStreamJoin =>
-          val leftKeyAncestors = visit(j.getLeft)
-          val rightKeyAncestors = visit(j.getRight)
-          if (!leftKeyAncestors.isDefined || !rightKeyAncestors.isDefined) {
-            None
-          } else {
-            // both left and right contain keys
-            val leftJoinKeys =
-              j.getLeft.getRowType.getFieldNames.asScala.zipWithIndex
-              .filter(e => j.getJoinInfo.leftKeys.contains(e._2))
-              .map(e => e._1)
-            val rightJoinKeys =
-              j.getRight.getRowType.getFieldNames.asScala.zipWithIndex
-                .filter(e => j.getJoinInfo.rightKeys.contains(e._2))
-                .map(e => e._1)
+          val joinType = j.getJoinType
+          joinType match {
+            case JoinRelType.INNER => {
+              // get key(s) for inner join
+              val lInputKeys = visit(j.getLeft)
+              val rInputKeys = visit(j.getRight)
+              if (lInputKeys.isEmpty || rInputKeys.isEmpty) {
+                None
+              } else {
+                // Output of inner join must have keys if left and right both contain key(s).
+                // Key groups from both side will be merged by join equi-predicates
+                val lFieldNames: Seq[String] = j.getLeft.getRowType.getFieldNames
+                val rFieldNames: Seq[String] = j.getRight.getRowType.getFieldNames
+                val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys.map(lFieldNames.get(_))
+                val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys.map(rFieldNames.get(_))
 
-            val leftKeys = leftKeyAncestors.get.map(e => e._1)
-            val rightKeys = rightKeyAncestors.get.map(e => e._1)
-
-            //1. join key = left key = right key
-            if (leftJoinKeys == leftKeys && rightJoinKeys == rightKeys) {
-              Some(leftKeyAncestors.get ::: (rightKeyAncestors.get.map(e => (e._1)) zip
-                leftKeyAncestors.get.map(e => (e._2))))
+                getOutputKeysForInnerJoin(
+                  lFieldNames ++ rFieldNames,
+                  lInputKeys.get ++ rInputKeys.get,
+                  lJoinKeys.zip(rJoinKeys).toList
+                )
+              }
             }
-            //2. join key = left key
-            else if (leftJoinKeys == leftKeys && rightJoinKeys != rightKeys) {
-              rightKeyAncestors
-            }
-            //3. join key = right key
-            else if (leftJoinKeys != leftKeys && rightJoinKeys == rightKeys) {
-              leftKeyAncestors
-            }
-            //4. join key not left or right key
-            else {
-              Some(leftKeyAncestors.get ++ rightKeyAncestors.get)
-            }
+            case _ => throw new UnsupportedOperationException(
+              s"An Unsupported JoinType [ $joinType ]")
           }
         case _: DataStreamRel =>
-          // anything else does not forward keyAncestors, so we can stop
+          // anything else does not forward keys, so we can stop
           None
       }
+    }
+
+
+    def getOutputKeysForInnerJoin(
+        inNames: Seq[String],
+        inKeys: List[(String, String)],
+        joinKeys: List[(String, String)])
+    : Option[List[(String, String)]] = {
+
+      val nameToGroups = mutable.HashMap.empty[String,String]
+
+      // merge two groups
+      def merge(nameA: String, nameB: String): Unit = {
+        val ga: String = findGroup(nameA);
+        val gb: String = findGroup(nameB);
+        if (!ga.equals(gb)) {
+          if(ga.compare(gb) < 0) {
+            nameToGroups += (gb -> ga)
+          } else {
+            nameToGroups += (ga -> gb)
+          }
+        }
+      }
+
+      def findGroup(x: String): String = {
+        // find the group of x
+        var r: String = x
+        while (!nameToGroups(r).equals(r)) {
+          r = nameToGroups(r)
+        }
+
+        // point all name to the group name directly
+        var a: String = x
+        var b: String = null
+        while (!nameToGroups(a).equals(r)) {
+          b = nameToGroups(a)
+          nameToGroups += (a -> r)
+          a = b
+        }
+        r
+      }
+
+      // init groups
+      inNames.foreach(e => nameToGroups += (e -> e))
+      inKeys.foreach(e => nameToGroups += (e._1 -> e._2))
+      // merge groups
+      joinKeys.foreach(e => merge(e._1, e._2))
+      // make sure all name point to the group name directly
+      inNames.foreach(findGroup(_))
+
+      val outputGroups = inKeys.map(e => nameToGroups(e._1)).distinct
+      Some(
+        inNames
+          .filter(e => outputGroups.contains(nameToGroups(e)))
+          .map(e => (e, nameToGroups(e)))
+          .toList
+      )
     }
   }
 }

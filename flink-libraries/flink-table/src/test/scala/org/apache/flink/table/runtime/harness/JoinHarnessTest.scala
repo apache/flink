@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.runtime.harness
 
-import java.lang.{Long => JLong}
+import java.lang.{Long => JLong, Integer => JInt}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import org.apache.flink.api.common.time.Time
@@ -33,9 +33,8 @@ import org.apache.flink.table.runtime.harness.HarnessTestBase.RowResultSortCompa
 import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowTimeBoundedStreamInnerJoin}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.api.StreamQueryConfig
-import org.apache.flink.table.runtime.FlatJoinRunner
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TupleRowKeySelector}
-import org.apache.flink.table.runtime.join.ProcTimeNonWindowInnerJoin
+import org.apache.flink.table.runtime.join.DataStreamInnerJoin
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
@@ -436,7 +435,7 @@ class JoinHarnessTest extends HarnessTestBase {
   }
 
   @Test
-  def testProcTimeNonWindowInnerJoin() {
+  def testNonWindowInnerJoin() {
 
     val joinReturnType = CRowTypeInfo(new RowTypeInfo(
       Array[TypeInformation[_]](
@@ -446,17 +445,13 @@ class JoinHarnessTest extends HarnessTestBase {
         STRING_TYPE_INFO),
       Array("a", "b", "c", "d")))
 
-    val joinFun = new FlatJoinRunner[Row, Row, Row](
-      "TestJoinFunction",
-      funcCode,
-      joinReturnType.rowType)
-
-    val joinProcessFunc = new ProcTimeNonWindowInnerJoin(
-      joinFun,
+    val joinProcessFunc = new DataStreamInnerJoin(
       rowType,
       rowType,
       joinReturnType,
-      queryConfig)
+      "TestJoinFunction",
+      funcCode,
+      joinReturnType.rowType)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -473,37 +468,37 @@ class JoinHarnessTest extends HarnessTestBase {
     // left stream input
     testHarness.setProcessingTime(1)
     testHarness.processElement1(new StreamRecord(
-      CRow(Row.of(1: JInt, "aaa"), true), 1))
+      CRow(Row.of(1: JInt, "aaa"), true)))
     assertEquals(1, testHarness.numProcessingTimeTimers())
     assertEquals(2, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(2)
     testHarness.processElement1(new StreamRecord(
-      CRow(Row.of(1: JInt, "aaa"), true), 2))
+      CRow(Row.of(1: JInt, "aaa"), true)))
     testHarness.processElement1(new StreamRecord(
-      CRow(Row.of(2: JInt, "bbb"), true), 2))
+      CRow(Row.of(2: JInt, "bbb"), true)))
     assertEquals(2, testHarness.numProcessingTimeTimers())
     assertEquals(4, testHarness.numKeyedStateEntries())
     testHarness.setProcessingTime(3)
     testHarness.processElement1(new StreamRecord(
-      CRow(Row.of(1: JInt, "aaa"), true), 3))
+      CRow(Row.of(1: JInt, "aaa"), true)))
     assertEquals(4, testHarness.numKeyedStateEntries())
     assertEquals(2, testHarness.numProcessingTimeTimers())
 
     // right stream input and output normally
     testHarness.processElement2(new StreamRecord(
-      CRow(Row.of(1: JInt, "Hi1"), true), 3))
+      CRow(Row.of(1: JInt, "Hi1"), true)))
     assertEquals(6, testHarness.numKeyedStateEntries())
     assertEquals(3, testHarness.numProcessingTimeTimers())
     testHarness.setProcessingTime(4)
     testHarness.processElement2(new StreamRecord(
-      CRow(Row.of(2: JInt, "Hello1"), true), 4))
+      CRow(Row.of(2: JInt, "Hello1"), true)))
     assertEquals(8, testHarness.numKeyedStateEntries())
     assertEquals(4, testHarness.numProcessingTimeTimers())
 
     // expired left stream record with key value of 1
     testHarness.setProcessingTime(5)
     testHarness.processElement2(new StreamRecord(
-      CRow(Row.of(1: JInt, "Hi2"), true), 5))
+      CRow(Row.of(1: JInt, "Hi2"), true)))
     assertEquals(6, testHarness.numKeyedStateEntries())
     assertEquals(3, testHarness.numProcessingTimeTimers())
 
@@ -529,13 +524,114 @@ class JoinHarnessTest extends HarnessTestBase {
     val expectedOutput = new ConcurrentLinkedQueue[Object]()
 
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true), 3))
+      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true), 3))
+      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true), 3))
+      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true)))
     expectedOutput.add(new StreamRecord(
-      CRow(Row.of(2: JInt, "bbb", 2: JInt, "Hello1"), true), 4))
+      CRow(Row.of(2: JInt, "bbb", 2: JInt, "Hello1"), true)))
+
+    verify(expectedOutput, result, new RowResultSortComparator(6))
+
+    testHarness.close()
+  }
+
+
+  @Test
+  def testNonWindowInnerJoinWithRetract() {
+
+    val joinReturnType = CRowTypeInfo(new RowTypeInfo(
+      Array[TypeInformation[_]](
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO,
+        INT_TYPE_INFO,
+        STRING_TYPE_INFO),
+      Array("a", "b", "c", "d")))
+
+    val joinProcessFunc = new DataStreamInnerJoin(
+      rT,
+      rT,
+      joinReturnType,
+      "TestJoinFunction",
+      funcCode,
+      queryConfig)
+
+    val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
+      new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
+    val testHarness: KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow] =
+      new KeyedTwoInputStreamOperatorTestHarness[Integer, CRow, CRow, CRow](
+        operator,
+        new TupleRowKeySelector[Integer](0),
+        new TupleRowKeySelector[Integer](0),
+        BasicTypeInfo.INT_TYPE_INFO,
+        1, 1, 0)
+
+    testHarness.open()
+
+    // left stream input
+    testHarness.setProcessingTime(1)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), true)))
+    assertEquals(1, testHarness.numProcessingTimeTimers())
+    assertEquals(2, testHarness.numKeyedStateEntries())
+    testHarness.setProcessingTime(2)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), true)))
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(2: JInt, "bbb"), true)))
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+    assertEquals(4, testHarness.numKeyedStateEntries())
+    testHarness.setProcessingTime(3)
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), false)))
+    assertEquals(4, testHarness.numKeyedStateEntries())
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+
+    // right stream input and output normally
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi1"), true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi1"), false)))
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+    testHarness.setProcessingTime(4)
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(2: JInt, "Hello1"), true)))
+    assertEquals(7, testHarness.numKeyedStateEntries())
+    assertEquals(4, testHarness.numProcessingTimeTimers())
+
+    testHarness.processElement1(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa"), false)))
+    // expired left stream record with key value of 1
+    testHarness.setProcessingTime(5)
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi2"), true)))
+    testHarness.processElement2(new StreamRecord(
+      CRow(Row.of(1: JInt, "Hi2"), false)))
+    assertEquals(5, testHarness.numKeyedStateEntries())
+    assertEquals(3, testHarness.numProcessingTimeTimers())
+
+    // expired all left stream record
+    testHarness.setProcessingTime(6)
+    assertEquals(3, testHarness.numKeyedStateEntries())
+    assertEquals(2, testHarness.numProcessingTimeTimers())
+
+    // expired right stream record with key value of 2
+    testHarness.setProcessingTime(8)
+    assertEquals(0, testHarness.numKeyedStateEntries())
+    assertEquals(0, testHarness.numProcessingTimeTimers())
+
+    val result = testHarness.getOutput
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), true)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1: JInt, "aaa", 1: JInt, "Hi1"), false)))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2: JInt, "bbb", 2: JInt, "Hello1"), true)))
 
     verify(expectedOutput, result, new RowResultSortComparator(6))
 

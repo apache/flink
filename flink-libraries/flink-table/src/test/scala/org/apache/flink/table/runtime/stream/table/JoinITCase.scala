@@ -80,7 +80,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)
       .select('a, 'b, 'c)
-      .writeToSink(new TestUpsertSink(Array("a"), false), queryConfig)
+      .writeToSink(new TestUpsertSink(Array("a,b"), false), queryConfig)
 
     env.execute()
     val results = RowCollector.getAndClearValues
@@ -141,7 +141,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
     val results = RowCollector.getAndClearValues
 
-    val retracted = RowCollector.restractResults(results).sorted
+    val retracted = RowCollector.retractResults(results).sorted
 
     val expected = Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3",
                        "5,5,5,5", "5,5,5,5")
