@@ -501,19 +501,18 @@ Table result = left.join(right).where("a = d").select("a, b, e");
 {% endhighlight %}
         <p><b>Note:</b> Currently, only time-windowed inner joins can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
           <ul>
             <li>Time predicates must compare time attributes of both input tables.</li>
             <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
             <li>Only range predicates are valid time predicates.</li>
-            <li>Non-time predicates must not access a time attribute.</li>
           </ul>
         </p>
 
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c, ltime.rowtime");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f, rtime.rowtime");
-Table result = left.join(right).where("a = d && ltime >= rtime - 5.minutes && ltime < rtime + 10 .minutes").select("a, b, e, ltime");
+Table result = left.join(right).where("a = d && ltime >= rtime - 5.minutes && ltime < rtime + 10.minutes").select("a, b, e, ltime");
 {% endhighlight %}
 
       </td>
@@ -636,12 +635,11 @@ val result = left.join(right).where('a === 'd).select('a, 'b, 'e);
 
         <p><b>Note:</b> Currently, only time-windowed inner joins can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
           <ul>
             <li>Time predicates must compare time attributes of both input tables.</li>
             <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
             <li>Only range predicates are valid time predicates.</li>
-            <li>Non-time predicates must not access a time attribute.</li>
           </ul>
         </p>
 
