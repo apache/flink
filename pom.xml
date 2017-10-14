@@ -1261,6 +1261,13 @@ under the License.
 										<exclude>log4j-test.properties</exclude>
 									</excludes>
 								</filter>
+								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
+								<filter>
+									<artifact>org.apache.flink:force-shading</artifact>
+									<excludes>
+										<exclude>**</exclude>
+									</excludes>
+								</filter>
 							</filters>
 							<artifactSet>
 								<includes>
