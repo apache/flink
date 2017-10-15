@@ -411,7 +411,11 @@ under the License.
 				<exclusions>
 					<exclusion>
 						<groupId>io.aeron</groupId>
-						<artifactId>*</artifactId>
+						<artifactId>aeron-driver</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>io.aeron</groupId>
+						<artifactId>aeron-client</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
