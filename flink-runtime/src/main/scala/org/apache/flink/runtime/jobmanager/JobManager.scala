@@ -1321,6 +1321,7 @@ class JobManager(
           restartStrategy,
           jobMetrics,
           numSlots,
+          blobServer,
           log.logger)
         
         if (registerNewGraph) {

@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import akka.actor.Status;
+
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -77,7 +80,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 /**
- * A collection of utility methods for testing the ExecutionGraph and its related classes. 
+ * A collection of utility methods for testing the ExecutionGraph and its related classes.
  */
 public class ExecutionGraphTestUtils {
 
@@ -89,10 +92,10 @@ public class ExecutionGraphTestUtils {
 
 	/**
 	 * Waits until the job has reached a certain state.
-	 * 
+	 *
 	 * <p>This method is based on polling and might miss very fast state transitions!
 	 */
-	public static void waitUntilJobStatus(ExecutionGraph eg, JobStatus status, long maxWaitMillis) 
+	public static void waitUntilJobStatus(ExecutionGraph eg, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
 
 		checkNotNull(eg);
@@ -103,7 +106,7 @@ public class ExecutionGraphTestUtils {
 		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
 
 		while (eg.getState() != status && System.nanoTime() < deadline) {
-			try { 
+			try {
 				Thread.sleep(2);
 			} catch (InterruptedException ignored) {}
 		}
@@ -280,7 +283,7 @@ public class ExecutionGraphTestUtils {
 
 	/**
 	 * Creates an execution graph containing the given vertices.
-	 * 
+	 *
 	 * <p>The execution graph uses {@link NoRestartStrategy} as the restart strategy.
 	 */
 	public static ExecutionGraph createSimpleTestGraph(JobID jid, JobVertex... vertices) throws Exception {
@@ -339,6 +342,7 @@ public class ExecutionGraphTestUtils {
 				restartStrategy,
 				new UnregisteredMetricsGroup(),
 				1,
+				null,
 				TEST_LOGGER);
 	}
 
@@ -368,8 +372,7 @@ public class ExecutionGraphTestUtils {
 
 	@SuppressWarnings("serial")
 	public static class SimpleActorGateway extends BaseTestingActorGateway {
-		
-		public TaskDeploymentDescriptor lastTDD;
+
 
 		public SimpleActorGateway(ExecutionContext executionContext){
 			super(executionContext);
@@ -379,7 +382,6 @@ public class ExecutionGraphTestUtils {
 		public Object handleMessage(Object message) {
 			if (message instanceof SubmitTask) {
 				SubmitTask submitTask = (SubmitTask) message;
-				lastTDD = submitTask.tasks();
 				return Acknowledge.get();
 			} else if(message instanceof CancelTask) {
 				return Acknowledge.get();
@@ -387,6 +389,35 @@ public class ExecutionGraphTestUtils {
 				return new Object();
 			} else {
 				return null;
+			}
+		}
+	}
+
+	@SuppressWarnings("serial")
+	public static class SimpleActorGatewayWithTDD extends SimpleActorGateway {
+
+		public TaskDeploymentDescriptor lastTDD;
+		private final PermanentBlobService blobCache;
+
+		public SimpleActorGatewayWithTDD(ExecutionContext executionContext, PermanentBlobService blobCache) {
+			super(executionContext);
+			this.blobCache = blobCache;
+		}
+
+		@Override
+		public Object handleMessage(Object message) {
+			if(message instanceof SubmitTask) {
+				SubmitTask submitTask = (SubmitTask) message;
+				lastTDD = submitTask.tasks();
+				try {
+					lastTDD.loadBigData(blobCache);
+					return Acknowledge.get();
+				} catch (Exception e) {
+					e.printStackTrace();
+					return new Status.Failure(e);
+				}
+			} else {
+				return super.handleMessage(message);
 			}
 		}
 	}

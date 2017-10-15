@@ -42,8 +42,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFileCountForJob;
-import static org.apache.flink.runtime.blob.BlobCacheCleanupTest.checkFilesExist;
+import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFilesExist;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;

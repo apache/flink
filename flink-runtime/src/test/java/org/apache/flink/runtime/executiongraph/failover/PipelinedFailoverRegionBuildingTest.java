@@ -639,6 +639,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 				new NoRestartStrategy(),
 				new UnregisteredMetricsGroup(),
 				1000,
+				null,
 				log);
 	}
 }

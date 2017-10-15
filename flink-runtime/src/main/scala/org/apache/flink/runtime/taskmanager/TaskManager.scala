@@ -42,7 +42,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{Executors, FutureUtils}
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
-import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, FallbackLibraryCacheManager, LibraryCacheManager}
+import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
 import org.apache.flink.runtime.executiongraph.{ExecutionAttemptID, PartitionInfo}
 import org.apache.flink.runtime.filecache.FileCache
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
@@ -955,31 +955,26 @@ class TaskManager(
     }
 
     // start a blob service, if a blob server is specified
-    if (blobPort > 0) {
-      val jmHost = jobManager.path.address.host.getOrElse("localhost")
-      val address = new InetSocketAddress(jmHost, blobPort)
+    val jmHost = jobManager.path.address.host.getOrElse("localhost")
+    val address = new InetSocketAddress(jmHost, blobPort)
 
-      log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
+    log.info(s"Determined BLOB server address to be $address. Starting BLOB cache.")
 
-      try {
-        val blobcache = new BlobCacheService(
-          address,
-          config.getConfiguration(),
-          highAvailabilityServices.createBlobStore())
-        blobCache = Option(blobcache)
-        libraryCacheManager = Some(
-          new BlobLibraryCacheManager(
+    try {
+      val blobcache = new BlobCacheService(
+        address,
+        config.getConfiguration(),
+        highAvailabilityServices.createBlobStore())
+      blobCache = Option(blobcache)
+      libraryCacheManager = Some(
+        new BlobLibraryCacheManager(
             blobcache.getPermanentBlobService, config.getClassLoaderResolveOrder()))
-      }
-      catch {
-        case e: Exception =>
-          val message = "Could not create BLOB cache or library cache."
-          log.error(message, e)
-          throw new RuntimeException(message, e)
-      }
     }
-    else {
-      libraryCacheManager = Some(new FallbackLibraryCacheManager)
+    catch {
+      case e: Exception =>
+        val message = "Could not create BLOB cache or library cache."
+        log.error(message, e)
+        throw new RuntimeException(message, e)
     }
     
     taskManagerMetricGroup = 
@@ -1142,15 +1137,28 @@ class TaskManager(
       }
 
       // create the task. this does not grab any TaskManager resources or download
-      // and libraries - the operation does not block
+      // any libraries except for offloaded TaskDeploymentDescriptor data which
+      // was too big for the RPC - the operation may only block for the latter
 
       val jobManagerGateway = new AkkaActorGateway(jobManagerActor, leaderSessionID.orNull)
+
+      try {
+        tdd.loadBigData(blobCache.getPermanentBlobService);
+      } catch {
+        case e @ (_: IOException | _: ClassNotFoundException) =>
+          throw new IOException("Could not deserialize the job information.", e)
+      }
 
       val jobInformation = try {
         tdd.getSerializedJobInformation.deserializeValue(getClass.getClassLoader)
       } catch {
         case e @ (_: IOException | _: ClassNotFoundException) =>
           throw new IOException("Could not deserialize the job information.", e)
+      }
+      if (tdd.getJobId != jobInformation.getJobId) {
+        throw new IOException(
+          "Inconsistent job ID information inside TaskDeploymentDescriptor (" +
+          tdd.getJobId + " vs. " + jobInformation.getJobId + ")")
       }
 
       val taskInformation = try {

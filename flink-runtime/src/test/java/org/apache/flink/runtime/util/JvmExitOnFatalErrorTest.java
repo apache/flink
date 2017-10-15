@@ -34,7 +34,8 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.FallbackLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
@@ -182,8 +183,10 @@ public class JvmExitOnFatalErrorTest {
 						new NoOpTaskManagerActions(),
 						new NoOpInputSplitProvider(),
 						new NoOpCheckpointResponder(),
-					blobService,
-						new FallbackLibraryCacheManager(),
+						blobService,
+						new BlobLibraryCacheManager(
+							blobService.getPermanentBlobService(),
+							FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
 						new FileCache(tmInfo.getTmpDirectories()),
 						tmInfo,
 						new UnregisteredTaskMetricsGroup(),

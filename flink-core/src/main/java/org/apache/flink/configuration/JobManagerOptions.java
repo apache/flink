@@ -96,6 +96,13 @@ public class JobManagerOptions {
 		key("jobmanager.archive.fs.dir")
 			.noDefaultValue();
 
+	/**
+	 * The maximum size of the <tt>TaskDeploymentDescriptor</tt>'s serialized task and job
+	 * information to still transmit them via RPC. Larger blobs may be offloaded to the BLOB server.
+	 */
+	public static final ConfigOption<Integer> TDD_OFFLOAD_MINSIZE = key("jobmanager.tdd.offload.minsize")
+		.defaultValue(1_024); // 1KiB by default
+
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {
