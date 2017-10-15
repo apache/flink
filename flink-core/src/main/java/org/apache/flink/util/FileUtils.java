@@ -23,10 +23,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -91,88 +89,57 @@ public final class FileUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Removes the given file or directory recursively.
-	 * 
-	 * <p>If the file or directory does not exist, this does not throw an exception, but simply does nothing.
-	 * It considers the fact that a file-to-be-deleted is not present a success.
-	 * 
-	 * <p>This method is safe against other concurrent deletion attempts.
-	 * 
-	 * @param file The file or directory to delete.
-	 * 
-	 * @throws IOException Thrown if the directory could not be cleaned for some reason, for example
-	 *                     due to missing access/write permissions.
-	 */
-	public static void deleteFileOrDirectory(File file) throws IOException {
-		checkNotNull(file, "file");
-
-		if (file.isDirectory()) {
-			// file exists and is directory
-			deleteDirectory(file);
-		}
-		else if (file.exists()) {
-			try {
-				Files.delete(file.toPath());
-			}
-			catch (NoSuchFileException e) {
-				// if the file is already gone (concurrently), we don't mind
-			}
-		}
-		// else: already deleted
-	}
-
-	/**
 	 * Deletes the given directory recursively.
-	 * 
+	 *
 	 * <p>If the directory does not exist, this does not throw an exception, but simply does nothing.
 	 * It considers the fact that a directory-to-be-deleted is not present a success.
-	 * 
+	 *
 	 * <p>This method is safe against other concurrent deletion attempts.
-	 * 
+	 *
 	 * @param directory The directory to be deleted.
 	 * @throws IOException Thrown if the given file is not a directory, or if the directory could not be
 	 *                     deleted for some reason, for example due to missing access/write permissions.
 	 */
 	public static void deleteDirectory(File directory) throws IOException {
-		checkNotNull(directory, "directory");
+		checkNotNull(directory, "file");
+
+		if(!directory.exists()) {
+			// if does not exist, which is okay (as if deleted)
+			return;
+		}
 
 		if (directory.isDirectory()) {
-			// directory exists and is a directory
-
 			// empty the directory first
-			try {
-				cleanDirectory(directory);
-			}
-			catch (FileNotFoundException ignored) {
-				// someone concurrently deleted the directory, nothing to do for us
-				return;
+			final File[] files = directory.listFiles();
+			if (files != null) {
+				for (File f : files) {
+					if (f != null) {
+						if (f.isDirectory()) {
+							deleteDirectory(f);
+						} else {
+							Files.deleteIfExists(f.toPath());
+						}
+					}
+				}
 			}
 
 			// delete the directory. this fails if the directory is not empty, meaning
 			// if new files got concurrently created. we want to fail then.
-			try {
-				Files.delete(directory.toPath());
-			}
-			catch (NoSuchFileException ignored) {
-				// if someone else deleted this concurrently, we don't mind
-				// the result is the same for us, after all
-			}
-		}
-		else if (directory.exists()) {
+			Files.deleteIfExists(directory.toPath());
+		} else {
 			// exists but is file, not directory
 			// either an error from the caller, or concurrently a file got created
 			throw new IOException(directory + " is not a directory");
 		}
-		// else: does not exist, which is okay (as if deleted)
 	}
 
 	/**
 	 * Deletes the given directory recursively, not reporting any I/O exceptions
 	 * that occur.
-	 * 
+	 *
 	 * <p>This method is identical to {@link FileUtils#deleteDirectory(File)}, except that it
 	 * swallows all exceptions and may leave the job quietly incomplete.
-	 * 
+	 *
 	 * @param directory The directory to delete.
 	 */
 	public static void deleteDirectoryQuietly(File directory) {
@@ -184,49 +151,6 @@ public final class FileUtils {
 		try {
 			deleteDirectory(directory);
 		} catch (Exception ignored) {}
-	}
-
-	/**
-	 * Removes all files contained within a directory, without removing the directory itself. 
-	 * 
-	 * <p>This method is safe against other concurrent deletion attempts.
-	 * 
-	 * @param directory The directory to remove all files from.
-	 * 
-	 * @throws FileNotFoundException Thrown if the directory itself does not exist.
-	 * @throws IOException Thrown if the file indicates a proper file and not a directory, or if
-	 *                     the directory could not be cleaned for some reason, for example
-	 *                     due to missing access/write permissions.
-	 */
-	public static void cleanDirectory(File directory) throws IOException, FileNotFoundException {
-		checkNotNull(directory, "directory");
-
-		if (directory.isDirectory()) {
-			final File[] files = directory.listFiles();
-
-			if (files == null) {
-				// directory does not exist any more or no permissions
-				if (directory.exists()) {
-					throw new IOException("Failed to list contents of " + directory);
-				} else {
-					throw new FileNotFoundException(directory.toString());
-				}
-			}
-
-			// remove all files in the directory
-			for (File file : files) {
-				if (file != null) {
-					deleteFileOrDirectory(file);
-				}
-			}
-		}
-		else if (directory.exists()) {
-			throw new IOException(directory + " is not a directory but a regular file");
-		}
-		else {
-			// else does not exist at all
-			throw new FileNotFoundException(directory.toString());
-		}
 	}
 
 	// ------------------------------------------------------------------------
