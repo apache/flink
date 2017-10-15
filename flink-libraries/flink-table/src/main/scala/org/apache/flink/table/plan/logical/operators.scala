@@ -457,8 +457,6 @@ case class Join(
     }
 
     var equiJoinPredicateFound = false
-    var nonEquiJoinPredicateFound = false
-    var localPredicateFound = false
     // Whether the predicate is literal true.
     val alwaysTrue = expression match {
       case x: Literal if x.value.equals(true) => true
@@ -472,15 +470,7 @@ case class Join(
         if (isAndBranch && checkIfJoinCondition(x)) {
           equiJoinPredicateFound = true
         }
-        if (checkIfFilterCondition(x)) {
-          localPredicateFound = true
-        }
       case x: BinaryComparison =>
-        if (checkIfFilterCondition(x)) {
-          localPredicateFound = true
-        } else {
-          nonEquiJoinPredicateFound = true
-        }
       // The boolean literal should be a valid condition type.
       case x: Literal if x.resultType == Types.BOOLEAN =>
       case x => failValidation(
@@ -499,11 +489,6 @@ case class Join(
         failValidation(
           s"Invalid join condition: $expression. At least one equi-join predicate is " +
             s"required.")
-      }
-      if (joinType != JoinType.INNER && (nonEquiJoinPredicateFound || localPredicateFound)) {
-        failValidation(
-          s"Invalid join condition: $expression. Non-equality join predicates or local" +
-            s" predicates are not supported in outer joins.")
       }
     }
   }

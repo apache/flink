@@ -77,7 +77,7 @@ private class FlinkLogicalJoinConverter
     val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
     val joinInfo = join.analyzeCondition
 
-    hasEqualityPredicates(join, joinInfo) || isSingleRowJoin(join)
+    hasEqualityPredicates(joinInfo) || isSingleRowJoin(join)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -95,10 +95,9 @@ private class FlinkLogicalJoinConverter
       join.getJoinType)
   }
 
-  private def hasEqualityPredicates(join: LogicalJoin, joinInfo: JoinInfo): Boolean = {
+  private def hasEqualityPredicates(joinInfo: JoinInfo): Boolean = {
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    // and disable outer joins with non-equality predicates(see FLINK-5520)
-    !joinInfo.pairs().isEmpty && (joinInfo.isEqui || join.getJoinType == JoinRelType.INNER)
+    !joinInfo.pairs().isEmpty
   }
 
   private def isSingleRowJoin(join: LogicalJoin): Boolean = {
