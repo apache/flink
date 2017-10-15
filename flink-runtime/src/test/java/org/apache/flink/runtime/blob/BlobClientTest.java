@@ -47,6 +47,7 @@ import java.util.Random;
 import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -113,15 +114,13 @@ public class BlobClientTest extends TestLogger {
 	 *
 	 * @param file
 	 * 		the file to prepare for the unit tests
-	 * @param blobType
-	 * 		whether the BLOB should become permanent or transient
 	 *
 	 * @return the BLOB key of the prepared file
 	 *
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while writing to the test file
 	 */
-	private static BlobKey prepareTestFile(File file, BlobKey.BlobType blobType) throws IOException {
+	private static byte[] prepareTestFile(File file) throws IOException {
 
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -145,7 +144,7 @@ public class BlobClientTest extends TestLogger {
 			}
 		}
 
-		return BlobKey.createKey(blobType, md.digest());
+		return md.digest();
 	}
 
 	/**
@@ -254,35 +253,38 @@ public class BlobClientTest extends TestLogger {
 			byte[] testBuffer = createTestBuffer();
 			MessageDigest md = BlobUtils.createMessageDigest();
 			md.update(testBuffer);
-			BlobKey origKey = BlobKey.createKey(blobType, md.digest());
+			byte[] digest = md.digest();
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
 			client = new BlobClient(serverAddress, getBlobClientConfig());
 
 			JobID jobId = new JobID();
-			BlobKey receivedKey;
 
 			// Store the data (job-unrelated)
+			BlobKey receivedKey1 = null;
 			if (blobType == TRANSIENT_BLOB) {
-				receivedKey = client.putBuffer(null, testBuffer, 0, testBuffer.length, blobType);
-				assertEquals(origKey, receivedKey);
+				receivedKey1 = client.putBuffer(null, testBuffer, 0, testBuffer.length, blobType);
+				assertArrayEquals(digest, receivedKey1.getHash());
 			}
 
 			// try again with a job-related BLOB:
-			receivedKey = client.putBuffer(jobId, testBuffer, 0, testBuffer.length, blobType);
-			assertEquals(origKey, receivedKey);
+			BlobKey receivedKey2 = client.putBuffer(jobId, testBuffer, 0, testBuffer.length, blobType);
+			assertArrayEquals(digest, receivedKey2.getHash());
+			if (blobType == TRANSIENT_BLOB) {
+				verifyKeyDifferentHashEquals(receivedKey1, receivedKey2);
+			}
 
 			// Retrieve the data (job-unrelated)
 			if (blobType == TRANSIENT_BLOB) {
-				validateGetAndClose(client.getInternal(null, receivedKey), testBuffer);
+				validateGetAndClose(client.getInternal(null, receivedKey1), testBuffer);
 				// transient BLOBs should be deleted from the server, eventually
-				verifyDeletedEventually(getBlobServer(), null, receivedKey);
+				verifyDeletedEventually(getBlobServer(), null, receivedKey1);
 			}
 			// job-related
-			validateGetAndClose(client.getInternal(jobId, receivedKey), testBuffer);
+			validateGetAndClose(client.getInternal(jobId, receivedKey2), testBuffer);
 			if (blobType == TRANSIENT_BLOB) {
 				// transient BLOBs should be deleted from the server, eventually
-				verifyDeletedEventually(getBlobServer(), jobId, receivedKey);
+				verifyDeletedEventually(getBlobServer(), jobId, receivedKey2);
 			}
 
 			// Check reaction to invalid keys for job-unrelated blobs
@@ -342,41 +344,42 @@ public class BlobClientTest extends TestLogger {
 			throws IOException, InterruptedException {
 
 		File testFile = temporaryFolder.newFile();
-		BlobKey origKey = prepareTestFile(testFile, blobType);
+		byte[] digest = prepareTestFile(testFile);
 
 		InputStream is = null;
 
 		try (BlobClient client = new BlobClient(new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
 
 			JobID jobId = new JobID();
-			BlobKey receivedKey;
+			BlobKey receivedKey1 = null;
 
 			// Store the data (job-unrelated)
 			if (blobType == TRANSIENT_BLOB) {
 				is = new FileInputStream(testFile);
-				receivedKey = client.putInputStream(null, is, blobType);
-				assertEquals(origKey, receivedKey);
+				receivedKey1 = client.putInputStream(null, is, blobType);
+				assertArrayEquals(digest, receivedKey1.getHash());
 			}
 
 			// try again with a job-related BLOB:
 			is = new FileInputStream(testFile);
-			receivedKey = client.putInputStream(jobId, is, blobType);
-			assertEquals(origKey, receivedKey);
+			BlobKey receivedKey2 = client.putInputStream(jobId, is, blobType);
 
 			is.close();
 			is = null;
 
 			// Retrieve the data (job-unrelated)
 			if (blobType == TRANSIENT_BLOB) {
-				validateGetAndClose(client.getInternal(null, receivedKey), testFile);
+				verifyKeyDifferentHashEquals(receivedKey1, receivedKey2);
+
+				validateGetAndClose(client.getInternal(null, receivedKey1), testFile);
 				// transient BLOBs should be deleted from the server, eventually
-				verifyDeletedEventually(getBlobServer(), null, receivedKey);
+				verifyDeletedEventually(getBlobServer(), null, receivedKey1);
 			}
 			// job-related
-			validateGetAndClose(client.getInternal(jobId, receivedKey), testFile);
+			validateGetAndClose(client.getInternal(jobId, receivedKey2), testFile);
 			if (blobType == TRANSIENT_BLOB) {
 				// transient BLOBs should be deleted from the server, eventually
-				verifyDeletedEventually(getBlobServer(), jobId, receivedKey);
+				verifyDeletedEventually(getBlobServer(), jobId, receivedKey2);
 			}
 		} finally {
 			if (is != null) {
@@ -463,7 +466,7 @@ public class BlobClientTest extends TestLogger {
 	static void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
 		final File testFile = File.createTempFile("testfile", ".dat");
 		testFile.deleteOnExit();
-		prepareTestFile(testFile, PERMANENT_BLOB);
+		prepareTestFile(testFile);
 
 		InetSocketAddress serverAddress = new InetSocketAddress("localhost", blobServer.getPort());
 

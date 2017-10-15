@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.StringUtils;
 
 import java.io.EOFException;
@@ -41,7 +42,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	private static final long serialVersionUID = 3847117712521785209L;
 
 	/** Size of the internal BLOB key in bytes. */
-	private static final int SIZE = 20;
+	public static final int SIZE = 20;
 
 	/** The byte buffer storing the actual key data. */
 	private final byte[] key;
@@ -68,6 +69,11 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	}
 
 	/**
+	 * Random component of the key.
+	 */
+	private final AbstractID random;
+
+	/**
 	 * Constructs a new BLOB key.
 	 *
 	 * @param type
@@ -76,6 +82,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	protected BlobKey(BlobType type) {
 		this.type = checkNotNull(type);
 		this.key = new byte[SIZE];
+		this.random = new AbstractID();
 	}
 
 	/**
@@ -87,13 +94,33 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	 *        the actual key data
 	 */
 	protected BlobKey(BlobType type, byte[] key) {
-		this.type = checkNotNull(type);
-
 		if (key == null || key.length != SIZE) {
 			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
 		}
 
+		this.type = checkNotNull(type);
 		this.key = key;
+		this.random = new AbstractID();
+	}
+
+	/**
+	 * Constructs a new BLOB key from the given byte array.
+	 *
+	 * @param type
+	 * 		whether the referenced BLOB is permanent or transient
+	 * @param key
+	 *        the actual key data
+	 * @param random
+	 *        the random component of the key
+	 */
+	protected BlobKey(BlobType type, byte[] key, byte[] random) {
+		if (key == null || key.length != SIZE) {
+			throw new IllegalArgumentException("BLOB key must have a size of " + SIZE + " bytes");
+		}
+
+		this.type = checkNotNull(type);
+		this.key = key;
+		this.random = new AbstractID(random);
 	}
 
 	/**
@@ -107,10 +134,10 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	@VisibleForTesting
 	static BlobKey createKey(BlobType type) {
 		if (type == PERMANENT_BLOB) {
-            return new PermanentBlobKey();
-        } else {
+			return new PermanentBlobKey();
+		} else {
 			return new TransientBlobKey();
-        }
+		}
 	}
 
 	/**
@@ -125,10 +152,30 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	 */
 	static BlobKey createKey(BlobType type, byte[] key) {
 		if (type == PERMANENT_BLOB) {
-            return new PermanentBlobKey(key);
-        } else {
+			return new PermanentBlobKey(key);
+		} else {
 			return new TransientBlobKey(key);
-        }
+		}
+	}
+
+	/**
+	 * Returns the right {@link BlobKey} subclass for the given parameters.
+	 *
+	 * @param type
+	 * 		whether the referenced BLOB is permanent or transient
+	 * @param key
+	 *        the actual key data
+	 * @param random
+	 *        the random component of the key
+	 *
+	 * @return BlobKey subclass
+	 */
+	static BlobKey createKey(BlobType type, byte[] key, byte[] random) {
+		if (type == PERMANENT_BLOB) {
+			return new PermanentBlobKey(key, random);
+		} else {
+			return new TransientBlobKey(key, random);
+		}
 	}
 
 	/**
@@ -138,6 +185,15 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	 */
 	byte[] getHash() {
 		return key;
+	}
+
+	/**
+	 * Returns the (internal) BLOB type which is reflected by the inheriting sub-class.
+	 *
+	 * @return BLOB type, i.e. permanent or transient
+	 */
+	BlobType getType() {
+		return type;
 	}
 
 	/**
@@ -159,13 +215,16 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
 		final BlobKey bk = (BlobKey) obj;
 
-		return Arrays.equals(this.key, bk.key) && this.type == bk.type;
+		return Arrays.equals(this.key, bk.key) &&
+			this.type == bk.type &&
+			this.random.equals(bk.random);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = Arrays.hashCode(this.key);
 		result = 37 * result + this.type.hashCode();
+		result = 37 * result + this.random.hashCode();
 		return result;
 	}
 
@@ -183,7 +242,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 				// this actually never happens!
 				throw new IllegalStateException("Invalid BLOB type");
 		}
-		return typeString + StringUtils.byteToHexString(this.key);
+		return typeString + StringUtils.byteToHexString(this.key) + "-" + random.toString();
 	}
 
 	@Override
@@ -203,7 +262,13 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
 		if (aarr.length == barr.length) {
 			// same hash contents - compare the BLOB types
-			return this.type.compareTo(o.type);
+			int typeCompare = this.type.compareTo(o.type);
+			if (typeCompare == 0) {
+				// same type - compare random components
+				return this.random.compareTo(o.random);
+			} else {
+				return typeCompare;
+			}
 		} else {
 			return aarr.length - barr.length;
 		}
@@ -223,6 +288,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	static BlobKey readFromInputStream(InputStream inputStream) throws IOException {
 
 		final byte[] key = new byte[BlobKey.SIZE];
+		final byte[] random = new byte[AbstractID.SIZE];
 
 		int bytesRead = 0;
 		// read key
@@ -233,6 +299,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 			}
 			bytesRead += read;
 		}
+
 		// read BLOB type
 		final BlobType blobType;
 		{
@@ -248,7 +315,17 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 			}
 		}
 
-		return createKey(blobType, key);
+		// read random component
+		bytesRead = 0;
+		while (bytesRead < AbstractID.SIZE) {
+			final int read = inputStream.read(random, bytesRead, AbstractID.SIZE - bytesRead);
+			if (read < 0) {
+				throw new EOFException("Read an incomplete BLOB key");
+			}
+			bytesRead += read;
+		}
+
+		return createKey(blobType, key, random);
 	}
 
 	/**
@@ -262,5 +339,6 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 	void writeToOutputStream(final OutputStream outputStream) throws IOException {
 		outputStream.write(this.key);
 		outputStream.write(this.type.ordinal());
+		outputStream.write(this.random.getBytes());
 	}
 }

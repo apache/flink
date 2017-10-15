@@ -51,7 +51,6 @@ import static org.apache.flink.runtime.blob.BlobServerDeleteTest.delete;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -87,6 +86,12 @@ public class BlobCacheDeleteTest extends TestLogger {
 		testDelete(new JobID(), new JobID());
 	}
 
+	@Test
+	public void testDeleteTransient5() throws IOException {
+		JobID jobId = new JobID();
+		testDelete(jobId, jobId);
+	}
+
 	/**
 	 * Uploads a (different) byte array for each of the given jobs and verifies that deleting one of
 	 * them (via the {@link BlobCacheService}) does not influence the other.
@@ -98,7 +103,6 @@ public class BlobCacheDeleteTest extends TestLogger {
 	 */
 	private void testDelete(@Nullable JobID jobId1, @Nullable JobID jobId2)
 			throws IOException {
-		final boolean sameJobId = (jobId1 == jobId2) || (jobId1 != null && jobId1.equals(jobId2));
 
 		final Configuration config = new Configuration();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
@@ -122,9 +126,10 @@ public class BlobCacheDeleteTest extends TestLogger {
 			// put two more BLOBs (same key, other key) for another job ID
 			TransientBlobKey key2a = (TransientBlobKey) put(server, jobId2, data, TRANSIENT_BLOB);
 			assertNotNull(key2a);
-			assertEquals(key1, key2a);
+			BlobKeyTest.verifyKeyDifferentHashEquals(key1, key2a);
 			TransientBlobKey key2b = (TransientBlobKey) put(server, jobId2, data2, TRANSIENT_BLOB);
 			assertNotNull(key2b);
+			BlobKeyTest.verifyKeyDifferentHashDifferent(key1, key2b);
 
 			// issue a DELETE request
 			assertTrue(delete(cache, jobId1, key1));
@@ -134,16 +139,15 @@ public class BlobCacheDeleteTest extends TestLogger {
 			// delete on server so that the cache cannot re-download
 			assertTrue(server.deleteInternal(jobId1, key1));
 			verifyDeleted(cache, jobId1, key1);
-			// deleting a one BLOB should not affect another BLOB, even with the same key if job IDs are different
-			if (!sameJobId) {
-				verifyContents(server, jobId2, key2a, data);
-			}
+			// deleting one BLOB should not affect another BLOB with a different key
+			// (and keys are always different now)
+			verifyContents(server, jobId2, key2a, data);
 			verifyContents(server, jobId2, key2b, data2);
 
 			// delete first file of second job
 			assertTrue(delete(cache, jobId2, key2a));
-			// delete only works on local cache (unless already deleted - key1 == key2a)!
-			assertTrue(sameJobId || server.getStorageLocation(jobId2, key2a).exists());
+			// delete only works on local cache
+			assertTrue(server.getStorageLocation(jobId2, key2a).exists());
 			// delete on server so that the cache cannot re-download
 			assertTrue(server.deleteInternal(jobId2, key2a));
 			verifyDeleted(cache, jobId2, key2a);
@@ -151,7 +155,7 @@ public class BlobCacheDeleteTest extends TestLogger {
 
 			// delete second file of second job
 			assertTrue(delete(cache, jobId2, key2b));
-			// delete only works on local cache (unless already deleted - key1 == key2a)!
+			// delete only works on local cache
 			assertTrue(server.getStorageLocation(jobId2, key2b).exists());
 			// delete on server so that the cache cannot re-download
 			assertTrue(server.deleteInternal(jobId2, key2b));
