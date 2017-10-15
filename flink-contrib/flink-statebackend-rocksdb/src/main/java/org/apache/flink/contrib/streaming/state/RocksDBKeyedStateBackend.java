@@ -322,7 +322,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	private void cleanInstanceBasePath() {
 		try {
-			if(instanceBasePath.exists()) {
+			if (instanceBasePath.exists()) {
 				FileUtils.deleteDirectory(instanceBasePath);
 			}
 		} catch (IOException ioex) {
