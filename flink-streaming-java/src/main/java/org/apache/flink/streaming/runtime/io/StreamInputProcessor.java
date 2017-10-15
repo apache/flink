@@ -264,6 +264,7 @@ public class StreamInputProcessor<IN> {
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();
 			}
+			deserializer.clear();
 		}
 
 		// cleanup the barrier handler resources
