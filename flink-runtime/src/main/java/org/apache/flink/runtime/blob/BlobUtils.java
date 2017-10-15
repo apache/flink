@@ -30,6 +30,7 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
@@ -42,7 +43,6 @@ import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import java.util.concurrent.locks.Lock;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
@@ -422,7 +422,7 @@ public class BlobUtils {
 
 	/**
 	 * Moves the temporary <tt>incomingFile</tt> to its permanent location where it is available for
-	 * use.
+	 * use (not thread-safe!).
 	 *
 	 * @param incomingFile
 	 * 		temporary file created during transfer
@@ -432,8 +432,6 @@ public class BlobUtils {
 	 * 		BLOB key identifying the file
 	 * @param storageFile
 	 *      (local) file where the blob is/should be stored
-	 * @param writeLock
-	 *      lock to acquire before doing the move
 	 * @param log
 	 *      logger for debug information
 	 * @param blobStore
@@ -444,9 +442,7 @@ public class BlobUtils {
 	 */
 	static void moveTempFileToStore(
 			File incomingFile, @Nullable JobID jobId, BlobKey blobKey, File storageFile,
-			Lock writeLock, Logger log, @Nullable BlobStore blobStore) throws IOException {
-
-		writeLock.lock();
+			Logger log, @Nullable BlobStore blobStore) throws IOException {
 
 		try {
 			// first check whether the file already exists
@@ -483,8 +479,6 @@ public class BlobUtils {
 			if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
 				log.warn("Could not delete the staging file {} for blob key {} and job {}.", incomingFile, blobKey, jobId);
 			}
-
-			writeLock.unlock();
 		}
 	}
 }
