@@ -21,27 +21,13 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CancelOptions;
 import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.client.util.MockedCliFrontend;
-import org.apache.flink.runtime.akka.FlinkUntypedActor;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.Status;
-import akka.testkit.JavaTestKit;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.UUID;
-
-import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -54,23 +40,9 @@ import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 
 /**
- * Tests for the CANCEL and LIST commands.
+ * Tests for the CANCEL command.
  */
-public class CliFrontendListCancelTest {
-
-	private static ActorSystem actorSystem;
-
-	@BeforeClass
-	public static void setup(){
-		pipeSystemOutToNull();
-		actorSystem = ActorSystem.create("TestingActorSystem");
-	}
-
-	@AfterClass
-	public static void teardown() {
-		JavaTestKit.shutdownActorSystem(actorSystem);
-		actorSystem = null;
-	}
+public class CliFrontendCancelTest {
 
 	@BeforeClass
 	public static void init() {
@@ -180,41 +152,6 @@ public class CliFrontendListCancelTest {
 		}
 	}
 
-	@Test
-	public void testList() {
-		try {
-			// test unrecognized option
-			{
-				String[] parameters = {"-v", "-k"};
-				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-				int retCode = testFrontend.list(parameters);
-				assertTrue(retCode != 0);
-			}
-
-			// test list properly
-			{
-				final UUID leaderSessionID = UUID.randomUUID();
-				final ActorRef jm = actorSystem.actorOf(
-						Props.create(
-								CliJobManager.class,
-								null,
-								leaderSessionID
-						)
-				);
-				final ActorGateway gateway = new AkkaActorGateway(jm, leaderSessionID);
-				String[] parameters = {"-r", "-s"};
-				InfoListTestCliFrontend testFrontend = new InfoListTestCliFrontend(gateway);
-				int retCode = testFrontend.list(parameters);
-				assertTrue(retCode == 0);
-			}
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Program caused an exception: " + e.getMessage());
-		}
-	}
-
 	private static final class CancelTestCliFrontend extends MockedCliFrontend {
 
 		CancelTestCliFrontend(boolean reject) throws Exception {
@@ -222,89 +159,6 @@ public class CliFrontendListCancelTest {
 				doThrow(new IllegalArgumentException("Test exception")).when(client).cancel(any(JobID.class));
 				doThrow(new IllegalArgumentException("Test exception")).when(client).cancelWithSavepoint(any(JobID.class), anyString());
 			}
-		}
-	}
-
-	private static final class InfoListTestCliFrontend extends CliFrontend {
-
-		private ActorGateway jobManagerGateway;
-
-		InfoListTestCliFrontend(ActorGateway jobManagerGateway) throws Exception {
-			super(CliFrontendTestUtils.getConfigDir());
-			this.jobManagerGateway = jobManagerGateway;
-		}
-
-		@Override
-		public ActorGateway getJobManagerGateway(CommandLineOptions options) {
-			return jobManagerGateway;
-		}
-	}
-
-	private static final class CliJobManager extends FlinkUntypedActor {
-		private final JobID jobID;
-		private final UUID leaderSessionID;
-		private final String targetDirectory;
-
-		public CliJobManager(final JobID jobID, final UUID leaderSessionID){
-			this(jobID, leaderSessionID, null);
-		}
-
-		public CliJobManager(final JobID jobID, final UUID leaderSessionID, String targetDirectory){
-			this.jobID = jobID;
-			this.leaderSessionID = leaderSessionID;
-			this.targetDirectory = targetDirectory;
-		}
-
-		@Override
-		public void handleMessage(Object message) {
-			if (message instanceof JobManagerMessages.RequestTotalNumberOfSlots$) {
-				getSender().tell(decorateMessage(1), getSelf());
-			}
-			else if (message instanceof JobManagerMessages.CancelJob) {
-				JobManagerMessages.CancelJob cancelJob = (JobManagerMessages.CancelJob) message;
-
-				if (jobID != null && jobID.equals(cancelJob.jobID())) {
-					getSender().tell(
-							decorateMessage(new Status.Success(new JobManagerMessages.CancellationSuccess(jobID, null))),
-							getSelf());
-				}
-				else {
-					getSender().tell(
-							decorateMessage(new Status.Failure(new Exception("Wrong or no JobID"))),
-							getSelf());
-				}
-			}
-			else if (message instanceof JobManagerMessages.CancelJobWithSavepoint) {
-				JobManagerMessages.CancelJobWithSavepoint cancelJob = (JobManagerMessages.CancelJobWithSavepoint) message;
-
-				if (jobID != null && jobID.equals(cancelJob.jobID())) {
-					if (targetDirectory == null && cancelJob.savepointDirectory() == null ||
-							targetDirectory != null && targetDirectory.equals(cancelJob.savepointDirectory())) {
-						getSender().tell(
-								decorateMessage(new JobManagerMessages.CancellationSuccess(jobID, targetDirectory)),
-								getSelf());
-					} else {
-						getSender().tell(
-								decorateMessage(new JobManagerMessages.CancellationFailure(jobID, new Exception("Wrong target directory"))),
-								getSelf());
-					}
-				}
-				else {
-					getSender().tell(
-							decorateMessage(new JobManagerMessages.CancellationFailure(jobID, new Exception("Wrong or no JobID"))),
-							getSelf());
-				}
-			}
-			else if (message instanceof JobManagerMessages.RequestRunningJobsStatus$) {
-				getSender().tell(
-						decorateMessage(new JobManagerMessages.RunningJobsStatus()),
-						getSelf());
-			}
-		}
-
-		@Override
-		protected UUID getLeaderSessionID() {
-			return leaderSessionID;
 		}
 	}
 }
