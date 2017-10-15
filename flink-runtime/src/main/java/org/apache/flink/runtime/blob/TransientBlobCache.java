@@ -20,6 +20,8 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
+import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -41,6 +46,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * being removed upon retrieval and the local copy being deleted at the end of the stream.
  */
 public class TransientBlobCache extends AbstractBlobCache implements TransientBlobService {
+
+	/**
+	 * Map to store the TTL of each element stored in the local storage, i.e. via one of the {@link
+	 * #getFile} methods.
+	 **/
+	private final ConcurrentHashMap<Tuple2<JobID, TransientBlobKey>, Long> blobExpiryTimes =
+		new ConcurrentHashMap<>();
+
+	/**
+	 * Time interval (ms) to run the cleanup task; also used as the default TTL.
+	 */
+	private final long cleanupInterval;
+
+	/**
+	 * Timer task to execute the cleanup at regular intervals.
+	 */
+	private final Timer cleanupTimer;
 
 	/**
 	 * Instantiates a new BLOB cache.
@@ -59,6 +81,14 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 
 		super(serverAddress, blobClientConfig, new VoidBlobStore(),
 			LoggerFactory.getLogger(TransientBlobCache.class));
+
+		// Initializing the clean up task
+		this.cleanupTimer = new Timer(true);
+
+		this.cleanupInterval = blobClientConfig.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
+		this.cleanupTimer
+			.schedule(new TransientBlobCleanupTask(blobExpiryTimes, readWriteLock.writeLock(),
+				storageDir, log), cleanupInterval, cleanupInterval);
 	}
 
 	@Override
@@ -70,6 +100,24 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 	public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
 		checkNotNull(jobId);
 		return getFileInternal(jobId, key);
+	}
+
+	@Override
+	protected File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
+		File file = super.getFileInternal(jobId, blobKey);
+
+		readWriteLock.readLock().lock();
+		try {
+			// regarding concurrent operations, it is not really important which timestamp makes
+			// it into the map as they are close to each other anyway, also we can simply
+			// overwrite old values as long as we are in the read (or write) lock
+			blobExpiryTimes.put(Tuple2.of(jobId, (TransientBlobKey) blobKey),
+				System.currentTimeMillis() + cleanupInterval);
+		} finally {
+			readWriteLock.readLock().unlock();
+		}
+
+		return file;
 	}
 
 	@Override
@@ -134,11 +182,24 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 				log.warn("Failed to delete locally cached BLOB {} at {}", key,
 					localFile.getAbsolutePath());
 				return false;
+			} else {
+				// this needs to happen inside the write lock in case of concurrent getFile() calls
+				blobExpiryTimes.remove(Tuple2.of(jobId, key));
 			}
 		} finally {
 			readWriteLock.writeLock().unlock();
 		}
 		return true;
+	}
+
+	/**
+	 * Returns the blob expiry times - for testing purposes only!
+	 *
+	 * @return blob expiry times (internal state!)
+	 */
+	@VisibleForTesting
+	ConcurrentMap<Tuple2<JobID, TransientBlobKey>, Long> getBlobExpiryTimes() {
+		return blobExpiryTimes;
 	}
 
 	/**
@@ -166,6 +227,6 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
 
 	@Override
 	protected void cancelCleanupTask() {
-		// nothing to do here
+		cleanupTimer.cancel();
 	}
 }

@@ -159,8 +159,13 @@ public abstract class AbstractBlobCache implements Closeable {
 			try {
 				if (blobView.get(jobId, blobKey, incomingFile)) {
 					// now move the temp file to our local cache atomically
-					BlobUtils.moveTempFileToStore(
-						incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), log, null);
+					readWriteLock.writeLock().lock();
+					try {
+						BlobUtils.moveTempFileToStore(
+							incomingFile, jobId, blobKey, localFile, log, null);
+					} finally {
+						readWriteLock.writeLock().unlock();
+					}
 
 					return localFile;
 				}
@@ -172,8 +177,13 @@ public abstract class AbstractBlobCache implements Closeable {
 			BlobClient.downloadFromBlobServer(
 				jobId, blobKey, incomingFile, serverAddress, blobClientConfig, numFetchRetries);
 
-			BlobUtils.moveTempFileToStore(
-				incomingFile, jobId, blobKey, localFile, readWriteLock.writeLock(), log, null);
+			readWriteLock.writeLock().lock();
+			try {
+				BlobUtils.moveTempFileToStore(
+					incomingFile, jobId, blobKey, localFile, log, null);
+			} finally {
+				readWriteLock.writeLock().unlock();
+			}
 
 			return localFile;
 		} finally {

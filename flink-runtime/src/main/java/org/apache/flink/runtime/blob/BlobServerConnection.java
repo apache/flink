@@ -37,6 +37,8 @@ import java.security.MessageDigest;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
@@ -44,8 +46,6 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CON
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
-import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
-import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.closeSilently;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
@@ -346,9 +346,9 @@ class BlobServerConnection extends Thread {
 			}
 
 			incomingFile = blobServer.createTemporaryFilename();
-			BlobKey blobKey = readFileFully(inputStream, incomingFile, buf, blobType);
+			byte[] digest = readFileFully(inputStream, incomingFile, buf);
 
-			blobServer.moveTempFileToStore(incomingFile, jobId, blobKey);
+			BlobKey blobKey = blobServer.moveTempFileToStore(incomingFile, jobId, digest, blobType);
 
 			// Return computed key to client for validation
 			outputStream.write(RETURN_OKAY);
@@ -387,16 +387,14 @@ class BlobServerConnection extends Thread {
 	 * 		file to write to
 	 * @param buf
 	 * 		An auxiliary buffer for data serialization/deserialization
-	 * @param blobType
-	 * 		whether to make the data permanent or transient
 	 *
-	 * @return the received file's content hash as a BLOB key
+	 * @return the received file's content hash
 	 *
 	 * @throws IOException
 	 * 		thrown if an I/O error occurs while reading/writing data from/to the respective streams
 	 */
-	private static BlobKey readFileFully(
-			final InputStream inputStream, final File incomingFile, final byte[] buf, BlobKey.BlobType blobType)
+	private static byte[] readFileFully(
+			final InputStream inputStream, final File incomingFile, final byte[] buf)
 			throws IOException {
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -417,7 +415,7 @@ class BlobServerConnection extends Thread {
 
 				md.update(buf, 0, bytesExpected);
 			}
-			return BlobKey.createKey(blobType, md.digest());
+			return md.digest();
 		}
 	}
 

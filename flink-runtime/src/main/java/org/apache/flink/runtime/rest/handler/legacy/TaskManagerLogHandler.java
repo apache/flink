@@ -190,6 +190,9 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 							//delete previous log file, if it is different than the current one
 							HashMap<String, TransientBlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
 							if (lastSubmittedFile.containsKey(taskManagerID)) {
+								// the BlobKey will almost certainly be different but the old file
+								// may not exist anymore so we cannot rely on it and need to
+								// download the new file anyway, even if the hashes match
 								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
 									if (!blobCache.deleteFromCache(lastSubmittedFile.get(taskManagerID))) {
 										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.'));

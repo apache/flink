@@ -47,9 +47,11 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.BUFFER_SIZE;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.GET_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_RELATED_CONTENT;
@@ -57,7 +59,6 @@ import static org.apache.flink.runtime.blob.BlobServerProtocol.JOB_UNRELATED_CON
 import static org.apache.flink.runtime.blob.BlobServerProtocol.PUT_OPERATION;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_ERROR;
 import static org.apache.flink.runtime.blob.BlobServerProtocol.RETURN_OKAY;
-import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobUtils.readFully;
 import static org.apache.flink.runtime.blob.BlobUtils.readLength;
 import static org.apache.flink.runtime.blob.BlobUtils.writeLength;
@@ -496,13 +497,16 @@ public final class BlobClient implements Closeable {
 		else if (response == RETURN_OKAY) {
 
 			BlobKey remoteKey = BlobKey.readFromInputStream(is);
-			BlobKey localKey = BlobKey.createKey(blobType, md.digest());
+			byte[] localHash = md.digest();
 
-			if (!localKey.equals(remoteKey)) {
+			if (blobType != remoteKey.getType()) {
+				throw new IOException("Detected data corruption during transfer");
+			}
+			if (!Arrays.equals(localHash, remoteKey.getHash())) {
 				throw new IOException("Detected data corruption during transfer");
 			}
 
-			return localKey;
+			return remoteKey;
 		}
 		else if (response == RETURN_ERROR) {
 			Throwable cause = readExceptionFromStream(is);

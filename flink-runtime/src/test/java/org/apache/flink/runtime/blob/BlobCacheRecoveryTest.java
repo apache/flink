@@ -38,13 +38,11 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashDifferent;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -131,10 +129,8 @@ public class BlobCacheRecoveryTest extends TestLogger {
 
 			// put non-HA data
 			nonHAKey = put(cache0, jobId[0], expected2, TRANSIENT_BLOB);
-			assertNotEquals(keys[0], nonHAKey);
-			assertThat(keys[0].getHash(), not(equalTo(nonHAKey.getHash())));
-			assertNotEquals(keys[1], nonHAKey);
-			assertThat(keys[1].getHash(), equalTo(nonHAKey.getHash()));
+			verifyKeyDifferentHashDifferent(keys[0], nonHAKey);
+			verifyKeyDifferentHashEquals(keys[1], nonHAKey);
 
 			// check that the storage directory exists
 			final Path blobServerPath = new Path(storagePath, "blob");
