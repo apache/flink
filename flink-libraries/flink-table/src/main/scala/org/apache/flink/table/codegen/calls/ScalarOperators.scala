@@ -382,33 +382,23 @@ object ScalarOperators {
          |boolean $resultTerm = false;
          |boolean $nullTerm = false;
          |if (!${left.nullTerm} && !${left.resultTerm}) {
-         |  // left expr is false, skip right expr
+         |  // left expr is false, result is always false
+         |  // skip right expr
          |} else {
          |  ${right.code}
          |
-         |  if (!${left.nullTerm} && !${right.nullTerm}) {
-         |    $resultTerm = ${left.resultTerm} && ${right.resultTerm};
-         |    $nullTerm = false;
-         |  }
-         |  else if (!${left.nullTerm} && ${left.resultTerm} && ${right.nullTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = true;
-         |  }
-         |  else if (!${left.nullTerm} && !${left.resultTerm} && ${right.nullTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = false;
-         |  }
-         |  else if (${left.nullTerm} && !${right.nullTerm} && ${right.resultTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = true;
-         |  }
-         |  else if (${left.nullTerm} && !${right.nullTerm} && !${right.resultTerm}) {
-         |    $resultTerm = false;
-         |    $nullTerm = false;
-         |  }
-         |  else {
-         |    $resultTerm = false;
-         |    $nullTerm = true;
+         |  if (${left.nullTerm}) {
+         |    // left is null (unknown)
+         |    if (${right.nullTerm} || ${right.resultTerm}) {
+         |      $nullTerm = true;
+         |    }
+         |  } else {
+         |    // left is true
+         |    if (${right.nullTerm}) {
+         |      $nullTerm = true;
+         |    } else if (${right.resultTerm}) {
+         |      $resultTerm = true;
+         |    }
          |  }
          |}
        """.stripMargin

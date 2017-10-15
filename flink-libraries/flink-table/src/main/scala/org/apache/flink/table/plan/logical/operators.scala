@@ -486,11 +486,6 @@ case class Join(
         s"Invalid join condition: $expression. At least one equi-join predicate is " +
           s"required.")
     }
-    if (joinType != JoinType.INNER && (nonEquiJoinPredicateFound || localPredicateFound)) {
-      failValidation(
-        s"Invalid join condition: $expression. Non-equality join predicates or local" +
-          s" predicates are not supported in outer joins.")
-    }
   }
 }
 

@@ -125,6 +125,18 @@ class FunctionCodeGenerator(
              s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
     }
 
+    // JoinFunction
+    else if (clazz == classOf[JoinFunction[_, _, _]]) {
+      val baseClass = classOf[RichJoinFunction[_, _, _]]
+      val inputTypeTerm1 = boxedTypeTermForTypeInfo(input1)
+      val inputTypeTerm2 = boxedTypeTermForTypeInfo(input2.getOrElse(
+        throw new CodeGenException("Input 2 for JoinFunction should not be null")))
+      (baseClass,
+        s"Object join(Object _in1, Object _in2)",
+        List(s"$inputTypeTerm1 $input1Term = ($inputTypeTerm1) _in1;",
+          s"$inputTypeTerm2 $input2Term = ($inputTypeTerm2) _in2;"))
+    }
+
     // ProcessFunction
     else if (clazz == classOf[ProcessFunction[_, _]]) {
       val baseClass = classOf[ProcessFunction[_, _]]
