@@ -47,7 +47,7 @@ public class JobMetricsHandler extends AbstractMetricsHandler {
 
 	@Override
 	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.JobMetricStore job = metrics.getJobMetricStore(pathParams.get(PARAMETER_JOB_ID));
+		MetricStore.ComponentMetricStore job = metrics.getJobMetricStore(pathParams.get(PARAMETER_JOB_ID));
 		return job != null
 			? job.metrics
 			: null;

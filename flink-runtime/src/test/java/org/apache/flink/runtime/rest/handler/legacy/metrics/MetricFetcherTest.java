@@ -126,17 +126,17 @@ public class MetricFetcherTest extends TestLogger {
 		fetcher.update();
 		MetricStore store = fetcher.getMetricStore();
 		synchronized (store) {
-			assertEquals("7", store.jobManager.metrics.get("abc.hist_min"));
-			assertEquals("6", store.jobManager.metrics.get("abc.hist_max"));
-			assertEquals("4.0", store.jobManager.metrics.get("abc.hist_mean"));
-			assertEquals("0.5", store.jobManager.metrics.get("abc.hist_median"));
-			assertEquals("5.0", store.jobManager.metrics.get("abc.hist_stddev"));
-			assertEquals("0.75", store.jobManager.metrics.get("abc.hist_p75"));
-			assertEquals("0.9", store.jobManager.metrics.get("abc.hist_p90"));
-			assertEquals("0.95", store.jobManager.metrics.get("abc.hist_p95"));
-			assertEquals("0.98", store.jobManager.metrics.get("abc.hist_p98"));
-			assertEquals("0.99", store.jobManager.metrics.get("abc.hist_p99"));
-			assertEquals("0.999", store.jobManager.metrics.get("abc.hist_p999"));
+			assertEquals("7", store.getJobManagerMetricStore().getMetric("abc.hist_min"));
+			assertEquals("6", store.getJobManagerMetricStore().getMetric("abc.hist_max"));
+			assertEquals("4.0", store.getJobManagerMetricStore().getMetric("abc.hist_mean"));
+			assertEquals("0.5", store.getJobManagerMetricStore().getMetric("abc.hist_median"));
+			assertEquals("5.0", store.getJobManagerMetricStore().getMetric("abc.hist_stddev"));
+			assertEquals("0.75", store.getJobManagerMetricStore().getMetric("abc.hist_p75"));
+			assertEquals("0.9", store.getJobManagerMetricStore().getMetric("abc.hist_p90"));
+			assertEquals("0.95", store.getJobManagerMetricStore().getMetric("abc.hist_p95"));
+			assertEquals("0.98", store.getJobManagerMetricStore().getMetric("abc.hist_p98"));
+			assertEquals("0.99", store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
+			assertEquals("0.999", store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
 
 			assertEquals("x", store.getTaskManagerMetricStore(tmID.toString()).metrics.get("abc.gauge"));
 			assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
@@ -157,8 +157,8 @@ public class MetricFetcherTest extends TestLogger {
 		c1.inc(1);
 		c2.inc(2);
 
-		counters.put(c1, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.OperatorQueryScopeInfo(jobID.toString(), "taskid", 2, "opname", "abc"), "oc"));
-		counters.put(c2, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.TaskQueryScopeInfo(jobID.toString(), "taskid", 2, "abc"), "tc"));
+		counters.put(c1, new Tuple2<>(new QueryScopeInfo.OperatorQueryScopeInfo(jobID.toString(), "taskid", 2, "opname", "abc"), "oc"));
+		counters.put(c2, new Tuple2<>(new QueryScopeInfo.TaskQueryScopeInfo(jobID.toString(), "taskid", 2, "abc"), "tc"));
 		meters.put(new Meter() {
 			@Override
 			public void markEvent() {
@@ -177,14 +177,14 @@ public class MetricFetcherTest extends TestLogger {
 			public long getCount() {
 				return 10;
 			}
-		}, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.JobQueryScopeInfo(jobID.toString(), "abc"), "jc"));
+		}, new Tuple2<>(new QueryScopeInfo.JobQueryScopeInfo(jobID.toString(), "abc"), "jc"));
 		gauges.put(new Gauge<String>() {
 			@Override
 			public String getValue() {
 				return "x";
 			}
-		}, new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmID.toString(), "abc"), "gauge"));
-		histograms.put(new TestingHistogram(), new Tuple2<QueryScopeInfo, String>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
+		}, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmID.toString(), "abc"), "gauge"));
+		histograms.put(new TestingHistogram(), new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
 
 		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
 		MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);

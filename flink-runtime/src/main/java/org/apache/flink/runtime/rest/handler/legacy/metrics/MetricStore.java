@@ -18,17 +18,22 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import javax.annotation.concurrent.ThreadSafe;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
+import static java.util.Collections.unmodifiableMap;
+import static java.util.Collections.unmodifiableSet;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_COUNTER;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_GAUGE;
 import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_HISTOGRAM;
@@ -38,29 +43,136 @@ import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_OPERATOR;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_TASK;
 import static org.apache.flink.runtime.metrics.dump.QueryScopeInfo.INFO_CATEGORY_TM;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Nested data-structure to store metrics.
- *
- * <p>This structure is not thread-safe.
  */
+@ThreadSafe
 public class MetricStore {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricStore.class);
 
-	final JobManagerMetricStore jobManager = new JobManagerMetricStore();
-	final Map<String, TaskManagerMetricStore> taskManagers = new HashMap<>();
-	final Map<String, JobMetricStore> jobs = new HashMap<>();
+	private final ComponentMetricStore jobManager = new ComponentMetricStore();
+	private final Map<String, TaskManagerMetricStore> taskManagers = new ConcurrentHashMap<>();
+	private final Map<String, JobMetricStore> jobs = new ConcurrentHashMap<>();
+
+	/**
+	 * Remove inactive task managers.
+	 *
+	 * @param activeTaskManagers to retain.
+	 */
+	synchronized void retainTaskManagers(List<String> activeTaskManagers) {
+		taskManagers.keySet().retainAll(activeTaskManagers);
+	}
+
+	/**
+	 * Remove inactive jobs..
+	 *
+	 * @param activeJobs to retain.
+	 */
+	synchronized void retainJobs(List<String> activeJobs) {
+		jobs.keySet().retainAll(activeJobs);
+	}
+
+	/**
+	 * Add metric dumps to the store.
+	 *
+	 * @param metricDumps to add.
+	 */
+	synchronized void addAll(List<MetricDump> metricDumps) {
+		for (MetricDump metric : metricDumps) {
+			add(metric);
+		}
+	}
 
 	// -----------------------------------------------------------------------------------------------------------------
-	// Adding metrics
+	// Accessors for sub MetricStores
 	// -----------------------------------------------------------------------------------------------------------------
-	public void add(MetricDump metric) {
+
+	/**
+	 * Returns the {@link ComponentMetricStore} for the JobManager.
+	 *
+	 * @return ComponentMetricStore for the JobManager
+	 */
+	public synchronized ComponentMetricStore getJobManagerMetricStore() {
+		return ComponentMetricStore.unmodifiable(jobManager);
+	}
+
+	/**
+	 * Returns the {@link TaskManagerMetricStore} for the given taskmanager ID.
+	 *
+	 * @param tmID taskmanager ID
+	 * @return TaskManagerMetricStore for the given ID, or null if no store for the given argument exists
+	 */
+	public synchronized TaskManagerMetricStore getTaskManagerMetricStore(String tmID) {
+		return tmID == null ? null : TaskManagerMetricStore.unmodifiable(taskManagers.get(tmID));
+	}
+
+	/**
+	 * Returns the {@link ComponentMetricStore} for the given job ID.
+	 *
+	 * @param jobID job ID
+	 * @return ComponentMetricStore for the given ID, or null if no store for the given argument exists
+	 */
+	public synchronized ComponentMetricStore getJobMetricStore(String jobID) {
+		return jobID == null ? null : ComponentMetricStore.unmodifiable(jobs.get(jobID));
+	}
+
+	/**
+	 * Returns the {@link ComponentMetricStore} for the given job/task ID.
+	 *
+	 * @param jobID  job ID
+	 * @param taskID task ID
+	 * @return ComponentMetricStore for given IDs, or null if no store for the given arguments exists
+	 */
+	public synchronized ComponentMetricStore getTaskMetricStore(String jobID, String taskID) {
+		JobMetricStore job = jobID == null ? null : jobs.get(jobID);
+		if (job == null || taskID == null) {
+			return null;
+		}
+		return ComponentMetricStore.unmodifiable(job.getTaskMetricStore(taskID));
+	}
+
+	/**
+	 * Returns the {@link ComponentMetricStore} for the given job/task ID and subtask index.
+	 *
+	 * @param jobID        job ID
+	 * @param taskID       task ID
+	 * @param subtaskIndex subtask index
+	 * @return SubtaskMetricStore for the given IDs and index, or null if no store for the given arguments exists
+	 */
+	public synchronized ComponentMetricStore getSubtaskMetricStore(String jobID, String taskID, int subtaskIndex) {
+		JobMetricStore job = jobID == null ? null : jobs.get(jobID);
+		if (job == null) {
+			return null;
+		}
+		TaskMetricStore task = job.getTaskMetricStore(taskID);
+		if (task == null) {
+			return null;
+		}
+		return ComponentMetricStore.unmodifiable(task.getSubtaskMetricStore(subtaskIndex));
+	}
+
+	public synchronized Map<String, JobMetricStore> getJobs() {
+		return unmodifiableMap(jobs);
+	}
+
+	public synchronized Map<String, TaskManagerMetricStore> getTaskManagers() {
+		return unmodifiableMap(taskManagers);
+	}
+
+	public synchronized ComponentMetricStore getJobManager() {
+		return ComponentMetricStore.unmodifiable(jobManager);
+	}
+
+	@VisibleForTesting
+	void add(MetricDump metric) {
 		try {
 			QueryScopeInfo info = metric.scopeInfo;
 			TaskManagerMetricStore tm;
 			JobMetricStore job;
 			TaskMetricStore task;
-			SubtaskMetricStore subtask;
+			ComponentMetricStore subtask;
 
 			String name = info.scope.isEmpty()
 				? metric.name
@@ -76,11 +188,7 @@ public class MetricStore {
 					break;
 				case INFO_CATEGORY_TM:
 					String tmID = ((QueryScopeInfo.TaskManagerQueryScopeInfo) info).taskManagerID;
-					tm = taskManagers.get(tmID);
-					if (tm == null) {
-						tm = new TaskManagerMetricStore();
-						taskManagers.put(tmID, tm);
-					}
+					tm = taskManagers.computeIfAbsent(tmID, k -> new TaskManagerMetricStore());
 					if (name.contains("GarbageCollector")) {
 						String gcName = name.substring("Status.JVM.GarbageCollector.".length(), name.lastIndexOf('.'));
 						tm.addGarbageCollectorName(gcName);
@@ -89,30 +197,14 @@ public class MetricStore {
 					break;
 				case INFO_CATEGORY_JOB:
 					QueryScopeInfo.JobQueryScopeInfo jobInfo = (QueryScopeInfo.JobQueryScopeInfo) info;
-					job = jobs.get(jobInfo.jobID);
-					if (job == null) {
-						job = new JobMetricStore();
-						jobs.put(jobInfo.jobID, job);
-					}
+					job = jobs.computeIfAbsent(jobInfo.jobID, k -> new JobMetricStore());
 					addMetric(job.metrics, name, metric);
 					break;
 				case INFO_CATEGORY_TASK:
 					QueryScopeInfo.TaskQueryScopeInfo taskInfo = (QueryScopeInfo.TaskQueryScopeInfo) info;
-					job = jobs.get(taskInfo.jobID);
-					if (job == null) {
-						job = new JobMetricStore();
-						jobs.put(taskInfo.jobID, job);
-					}
-					task = job.tasks.get(taskInfo.vertexID);
-					if (task == null) {
-						task = new TaskMetricStore();
-						job.tasks.put(taskInfo.vertexID, task);
-					}
-					subtask = task.subtasks.get(taskInfo.subtaskIndex);
-					if (subtask == null) {
-						subtask = new SubtaskMetricStore();
-						task.subtasks.put(taskInfo.subtaskIndex, subtask);
-					}
+					job = jobs.computeIfAbsent(taskInfo.jobID, k -> new JobMetricStore());
+					task = job.tasks.computeIfAbsent(taskInfo.vertexID, k -> new TaskMetricStore());
+					subtask = task.subtasks.computeIfAbsent(taskInfo.subtaskIndex, k -> new ComponentMetricStore());
 					/**
 					 * The duplication is intended. Metrics scoped by subtask are useful for several job/task handlers,
 					 * while the WebInterface task metric queries currently do not account for subtasks, so we don't
@@ -124,16 +216,8 @@ public class MetricStore {
 					break;
 				case INFO_CATEGORY_OPERATOR:
 					QueryScopeInfo.OperatorQueryScopeInfo operatorInfo = (QueryScopeInfo.OperatorQueryScopeInfo) info;
-					job = jobs.get(operatorInfo.jobID);
-					if (job == null) {
-						job = new JobMetricStore();
-						jobs.put(operatorInfo.jobID, job);
-					}
-					task = job.tasks.get(operatorInfo.vertexID);
-					if (task == null) {
-						task = new TaskMetricStore();
-						job.tasks.put(operatorInfo.vertexID, task);
-					}
+					job = jobs.computeIfAbsent(operatorInfo.jobID, k -> new JobMetricStore());
+					task = job.tasks.computeIfAbsent(operatorInfo.vertexID, k -> new TaskMetricStore());
 					/**
 					 * As the WebInterface does not account for operators (because it can't) we don't
 					 * divide by operator and instead use the concatenation of subtask index, operator name and metric name
@@ -181,74 +265,23 @@ public class MetricStore {
 	}
 
 	// -----------------------------------------------------------------------------------------------------------------
-	// Accessors for sub MetricStores
-	// -----------------------------------------------------------------------------------------------------------------
-
-	/**
-	 * Returns the {@link JobManagerMetricStore}.
-	 *
-	 * @return JobManagerMetricStore
-	 */
-	public JobManagerMetricStore getJobManagerMetricStore() {
-		return jobManager;
-	}
-
-	/**
-	 * Returns the {@link TaskManagerMetricStore} for the given taskmanager ID.
-	 *
-	 * @param tmID taskmanager ID
-	 * @return TaskManagerMetricStore for the given ID, or null if no store for the given argument exists
-	 */
-	public TaskManagerMetricStore getTaskManagerMetricStore(String tmID) {
-		return taskManagers.get(tmID);
-	}
-
-	/**
-	 * Returns the {@link JobMetricStore} for the given job ID.
-	 *
-	 * @param jobID job ID
-	 * @return JobMetricStore for the given ID, or null if no store for the given argument exists
-	 */
-	public JobMetricStore getJobMetricStore(String jobID) {
-		return jobs.get(jobID);
-	}
-
-	/**
-	 * Returns the {@link TaskMetricStore} for the given job/task ID.
-	 *
-	 * @param jobID  job ID
-	 * @param taskID task ID
-	 * @return TaskMetricStore for given IDs, or null if no store for the given arguments exists
-	 */
-	public TaskMetricStore getTaskMetricStore(String jobID, String taskID) {
-		JobMetricStore job = getJobMetricStore(jobID);
-		if (job == null) {
-			return null;
-		}
-		return job.getTaskMetricStore(taskID);
-	}
-
-	/**
-	 * Returns the {@link SubtaskMetricStore} for the given job/task ID and subtask index.
-	 *
-	 * @param jobID        job ID
-	 * @param taskID       task ID
-	 * @param subtaskIndex subtask index
-	 * @return SubtaskMetricStore for the given IDs and index, or null if no store for the given arguments exists
-	 */
-	public SubtaskMetricStore getSubtaskMetricStore(String jobID, String taskID, int subtaskIndex) {
-		TaskMetricStore task = getTaskMetricStore(jobID, taskID);
-		if (task == null) {
-			return null;
-		}
-		return task.getSubtaskMetricStore(subtaskIndex);
-	}
-
-	// -----------------------------------------------------------------------------------------------------------------
 	// sub MetricStore classes
 	// -----------------------------------------------------------------------------------------------------------------
-	private abstract static class ComponentMetricStore {
-		public final Map<String, String> metrics = new HashMap<>();
+
+	/**
+	 * Structure containing metrics of a single component.
+	 */
+	@ThreadSafe
+	public static class ComponentMetricStore {
+		public final Map<String, String> metrics;
+
+		private ComponentMetricStore() {
+			this(new ConcurrentHashMap<>());
+		}
+
+		private ComponentMetricStore(Map<String, String> metrics) {
+			this.metrics = checkNotNull(metrics);
+		}
 
 		public String getMetric(String name) {
 			return this.metrics.get(name);
@@ -260,50 +293,66 @@ public class MetricStore {
 				? value
 				: defaultValue;
 		}
-	}
 
-	/**
-	 * Sub-structure containing metrics of the JobManager.
-	 */
-	public static class JobManagerMetricStore extends ComponentMetricStore {
+		private static ComponentMetricStore unmodifiable(ComponentMetricStore source) {
+			if (source == null) {
+				return null;
+			}
+			return new ComponentMetricStore(unmodifiableMap(source.metrics));
+		}
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single TaskManager.
 	 */
+	@ThreadSafe
 	public static class TaskManagerMetricStore extends ComponentMetricStore {
-		public final Set<String> garbageCollectorNames = new HashSet<>();
+		public final Set<String> garbageCollectorNames;
 
-		public void addGarbageCollectorName(String name) {
+		private TaskManagerMetricStore() {
+			this(new ConcurrentHashMap<>(), ConcurrentHashMap.newKeySet());
+		}
+
+		private TaskManagerMetricStore(Map<String, String> metrics, Set<String> garbageCollectorNames) {
+			super(metrics);
+			this.garbageCollectorNames = checkNotNull(garbageCollectorNames);
+		}
+
+		private void addGarbageCollectorName(String name) {
 			garbageCollectorNames.add(name);
+		}
+
+		private static TaskManagerMetricStore unmodifiable(TaskManagerMetricStore source) {
+			if (source == null) {
+				return null;
+			}
+			return new TaskManagerMetricStore(
+				unmodifiableMap(source.metrics),
+				unmodifiableSet(source.garbageCollectorNames));
 		}
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single Job.
 	 */
-	public static class JobMetricStore extends ComponentMetricStore {
-		private final Map<String, TaskMetricStore> tasks = new HashMap<>();
+	@ThreadSafe
+	private static class JobMetricStore extends ComponentMetricStore {
+		private final Map<String, TaskMetricStore> tasks = new ConcurrentHashMap<>();
 
 		public TaskMetricStore getTaskMetricStore(String taskID) {
-			return tasks.get(taskID);
+			return taskID == null ? null : tasks.get(taskID);
 		}
 	}
 
 	/**
 	 * Sub-structure containing metrics of a single Task.
 	 */
-	public static class TaskMetricStore extends ComponentMetricStore {
-		private final Map<Integer, SubtaskMetricStore> subtasks = new HashMap<>();
+	@ThreadSafe
+	private static class TaskMetricStore extends ComponentMetricStore {
+		private final Map<Integer, ComponentMetricStore> subtasks = new ConcurrentHashMap<>();
 
-		public SubtaskMetricStore getSubtaskMetricStore(int subtaskIndex) {
+		public ComponentMetricStore getSubtaskMetricStore(int subtaskIndex) {
 			return subtasks.get(subtaskIndex);
 		}
-	}
-
-	/**
-	 * Sub-structure containing metrics of a single Subtask.
-	 */
-	public static class SubtaskMetricStore extends ComponentMetricStore {
 	}
 }
