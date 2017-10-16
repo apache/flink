@@ -70,7 +70,7 @@ lateness of 1 min, Flink will create a new window for the interval between `12:0
 a timestamp that falls into this interval arrives, and it will remove it when the watermark passes the `12:06`
 timestamp.
 
-In addition, each window will have a `Trigger` (see [Triggers](#triggers)) and a function (`WindowFunction`, `ReduceFunction` or
+In addition, each window will have a `Trigger` (see [Triggers](#triggers)) and a function (`ProcessWindowFunction`, `ReduceFunction` or
 `FoldFunction`) (see [Window Functions](#window-functions)) attached to it. The function will contain the computation to
 be applied to the contents of the window, while the `Trigger` specifies the conditions under which the window is
 considered ready for the function to be applied. A triggering policy might be something like "when the number of elements
@@ -333,7 +333,7 @@ they are  evaluated differently than tumbling and sliding windows. Internally, a
 creates a new window for each arriving record and merges windows together if their are closer to each other
 than the defined gap.
 In order to be mergeable, a session window operator requires a merging [Trigger](#triggers) and a merging
-[Window Function](#window-functions), such as `ReduceFunction` or `WindowFunction`
+[Window Function](#window-functions), such as `ReduceFunction` or `ProcessWindowFunction`
 (`FoldFunction` cannot merge.)
 
 ### Global Windows
@@ -378,16 +378,16 @@ to perform on each of these windows. This is the responsibility of the *window f
 elements of each (possibly keyed) window once the system determines that a window is ready for processing
 (see [triggers](#triggers) for how Flink determines when a window is ready).
 
-The window function can be one of `ReduceFunction`, `FoldFunction` or `WindowFunction`. The first
+The window function can be one of `ReduceFunction`, `FoldFunction` or `ProcessWindowFunction`. The first
 two can be executed more efficiently (see [State Size](#state size) section) because Flink can incrementally aggregate
-the elements for each window as they arrive. A `WindowFunction` gets an `Iterable` for all the elements contained in a
+the elements for each window as they arrive. A `ProcessWindowFunction` gets an `Iterable` for all the elements contained in a
 window and additional meta information about the window to which the elements belong.
 
-A windowed transformation with a `WindowFunction` cannot be executed as efficiently as the other
+A windowed transformation with a `ProcessWindowFunction` cannot be executed as efficiently as the other
 cases because Flink has to buffer *all* elements for a window internally before invoking the function.
-This can be mitigated by combining a `WindowFunction` with a `ReduceFunction` or `FoldFunction` to
+This can be mitigated by combining a `ProcessWindowFunction` with a `ReduceFunction` or `FoldFunction` to
 get both incremental aggregation of window elements and the additional window metadata that the
-`WindowFunction` receives. We will look at examples for each of these variants.
+`ProcessWindowFunction` receives. We will look at examples for each of these variants.
 
 ### ReduceFunction
 
@@ -629,7 +629,7 @@ input
 
 /* ... */
 
-class MyWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
+class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), String, String, TimeWindow] {
 
   def apply(key: String, context: Context, input: Iterable[(String, Long)], out: Collector[String]): () = {
     var count = 0L
@@ -661,7 +661,7 @@ additional window meta information of the `ProcessWindowFunction`.
 #### Incremental Window Aggregation with ReduceFunction
 
 The following example shows how an incremental `ReduceFunction` can be combined with
-a `WindowFunction` to return the smallest event in a window along
+a `ProcessWindowFunction` to return the smallest event in a window along
 with the start time of the window.
 
 <div class="codetabs" markdown="1">
@@ -890,8 +890,8 @@ Two things to notice about the above methods are:
 ### Fire and Purge
 
 Once a trigger determines that a window is ready for processing, it fires, *i.e.*, it returns `FIRE` or `FIRE_AND_PURGE`. This is the signal for the window operator
-to emit the result of the current window. Given a window with a `WindowFunction`
-all elements are passed to the `WindowFunction` (possibly after passing them to an evictor).
+to emit the result of the current window. Given a window with a `ProcessWindowFunction`
+all elements are passed to the `ProcessWindowFunction` (possibly after passing them to an evictor).
 Windows with `ReduceFunction` of `FoldFunction` simply emit their eagerly aggregated result.
 
 When a trigger fires, it can either `FIRE` or `FIRE_AND_PURGE`. While `FIRE` keeps the contents of the window, `FIRE_AND_PURGE` removes its content.
@@ -1162,7 +1162,7 @@ Windows can be defined over long periods of time (such as days, weeks, or months
 
 1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each element (an element belongs to exactly window unless it is dropped late). In contrast, sliding windows create several of each element, as explained in the [Window Assigners](#window-assigners) section. Hence, a sliding window of size 1 day and slide 1 second might not be a good idea.
 
-2. `FoldFunction` and `ReduceFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `WindowFunction` requires accumulating all elements.
+2. `FoldFunction` and `ReduceFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `ProcessWindowFunction` requires accumulating all elements.
 
 3. Using an `Evictor` prevents any pre-aggregation, as all the elements of a window have to be passed through the evictor before applying the computation (see [Evictors](#evictors)).
 
