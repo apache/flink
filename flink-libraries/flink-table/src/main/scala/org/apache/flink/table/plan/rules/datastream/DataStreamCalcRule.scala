@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.plan.rules.datastream
 
-import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
+import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamCalc
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
+import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate}
 import org.apache.flink.table.plan.schema.RowSchema
 
 class DataStreamCalcRule
@@ -31,8 +33,19 @@ class DataStreamCalcRule
     classOf[FlinkLogicalCalc],
     FlinkConventions.LOGICAL,
     FlinkConventions.DATASTREAM,
-    "DataStreamCalcRule")
-{
+    "DataStreamCalcRule") {
+
+  override def matches(call: RelOptRuleCall): Boolean = {
+    val calc = call.rels(0).asInstanceOf[FlinkLogicalCalc]
+    val input = calc.getInput.asInstanceOf[RelSubset].getBest
+    input match {
+      // All predicates, except for the local ones of the left table, are forbidden for
+      // TableFunction LEFT OUTER JOIN now. See CALCITE-2004 for more details.
+      case node: FlinkLogicalCorrelate
+        if node.getJoinType == SemiJoinType.LEFT && calc.getProgram.getCondition != null => false
+      case _ => true
+    }
+  }
 
   def convert(rel: RelNode): RelNode = {
     val calc: FlinkLogicalCalc = rel.asInstanceOf[FlinkLogicalCalc]

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableEnvironment, TableException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func18, RichFunc2}
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
@@ -63,8 +63,12 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we could
+    * only accept local join predicates on the left table.
+    */
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithoutPredicates(): Unit = {
     val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
     val func0 = new TableFunc0
 
@@ -79,6 +83,28 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
     val expected = mutable.MutableList(
       "nosharp,null,null", "Jack#22,Jack,22",
       "John#19,John,19", "Anna#44,Anna,44")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), this
+    * test can not be normally passed.
+    */
+  @Test(expected = classOf[TableException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
+    val func0 = new TableFunc0
+
+    val result = t
+      .leftOuterJoin(func0('c) as('d, 'e))
+      .where('e < 40)
+      .select('c, 'd, 'e)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("nosharp,null,null", "Jack#22,Jack,22", "John#19,John,19")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 

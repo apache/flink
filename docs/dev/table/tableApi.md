@@ -547,7 +547,7 @@ Table result = left.fullOuterJoin(right, "a = d").select("a, b, e");
     </tr>
     <tr>
     	<td>
-        <strong>TableFunction Join</strong><br>
+        <strong>TableFunction Inner Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -561,7 +561,7 @@ tEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .join(new Table(tEnv, "split(c)").as("s", "t", "v")))
+    .join(new Table(tEnv, "split(c)").as("s", "t", "v"))
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -573,6 +573,7 @@ Table result = orders
       </td>
       <td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
+        <p><b>Note:</b> Currently only local predicates on the left table can be provided for the table function left outer join.</p>
         </p>
 {% highlight java %}
 // register function
@@ -582,7 +583,8 @@ tEnv.registerFunction("split", split);
 // join
 Table orders = tableEnv.scan("Orders");
 Table result = orders
-    .leftOuterJoin(new Table(tEnv, "split(c)").as("s", "t", "v")))
+    .leftOuterJoin(new Table(tEnv, "split(c)").as("s", "t", "v"))
+    .where("a > 5")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -664,7 +666,7 @@ val result = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
     </tr>
     <tr>
     	<td>
-        <strong>TableFunction Join</strong><br>
+        <strong>TableFunction Inner Join</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -687,6 +689,7 @@ val result: Table = table
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
+        <p><b>Note:</b> Currently only local predicates on the left table can be provided for the table function left outer join.</p>
         </p>
 {% highlight scala %}
 // instantiate function
@@ -695,6 +698,7 @@ val split: TableFunction[_] = new MySplitUDTF()
 // join
 val result: Table = table
     .leftOuterJoin(split('c) as ('s, 't, 'v))
+    .where('a > 5)
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
       </td>
