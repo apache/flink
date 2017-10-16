@@ -251,38 +251,38 @@ under the License.
 								<!-- Calcite and its dependencies -->
 								<relocation>
 									<pattern>org.apache.calcite</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.apache.calcite</shadedPattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.com.google</shadedPattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.eigenbase</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.eigenbase</shadedPattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.eigenbase</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.pentaho</pattern>
-									<shadedPattern>org.apache.flink.shaded.calcite.org.pentaho</shadedPattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.pentaho</shadedPattern>
 								</relocation>
 
 								<!-- flink-table dependencies -->
 								<relocation>
 									<pattern>org.apache.commons</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.commons</shadedPattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.apache.commons</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.reflections</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.reflections</shadedPattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.joda.time</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.joda.time</shadedPattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
 								</relocation>
 								<!-- not relocated for now -->
 								<!--<relocation>
 									<pattern>org.codehaus</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.codehaus</shadedPattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
 								</relocation>-->
 							</relocations>
 						</configuration>
