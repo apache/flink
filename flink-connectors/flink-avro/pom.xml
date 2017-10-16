@@ -196,7 +196,7 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.codehaus.jackson</pattern>
-									<shadedPattern>org.apache.flink.avro.shaded.org.codehouse.jackson</shadedPattern>
+									<shadedPattern>org.apache.flink.avro.shaded.org.codehaus.jackson</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
