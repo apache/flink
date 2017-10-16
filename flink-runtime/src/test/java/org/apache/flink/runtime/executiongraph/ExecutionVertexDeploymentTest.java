@@ -20,10 +20,13 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.execution.DeployTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.RestoreTaskException;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -275,7 +278,53 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			vertex.fail(testError);
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
-			assertEquals(testError, vertex.getFailureCause());
+			assertTrue(vertex.getFailureCause() instanceof DeployTaskException);
+			assertEquals(testError, vertex.getFailureCause().getCause());
+
+			queue.triggerNextAction();
+			queue.triggerNextAction();
+
+			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);
+			assertTrue(vertex.getStateTimestamp(ExecutionState.FAILED) > 0);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+
+	@Test
+	public void testFailExternallyDuringDeployWhenRestoredFromCheckpoint() {
+		try {
+			final JobVertexID jid = new JobVertexID();
+
+			final TestingUtils.QueuedActionExecutionContext ec = TestingUtils.queuedActionExecutionContext();
+			final TestingUtils.ActionQueue queue = ec.actionQueue();
+
+			final CheckpointCoordinator checkpointCoordinator = mock(CheckpointCoordinator.class);
+			when(checkpointCoordinator.getRestoredCheckpointID()).thenReturn(10L);
+
+			final ExecutionJobVertex ejv = getExecutionVertex(jid, ec, checkpointCoordinator);
+
+			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
+				AkkaUtils.getDefaultTimeout());
+
+			final Instance instance = getInstance(
+				new ActorTaskManagerGateway(
+					new SimpleActorGateway(TestingUtils.directExecutionContext())));
+			final SimpleSlot slot = instance.allocateSimpleSlot();
+
+			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+			vertex.deployToSlot(slot);
+			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
+
+			Exception testError = new Exception("test error");
+			vertex.fail(testError);
+
+			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
+			assertTrue(vertex.getFailureCause() instanceof RestoreTaskException);
+			assertEquals(testError, vertex.getFailureCause().getCause());
+			assertEquals(10L, ((RestoreTaskException) vertex.getFailureCause()).getCheckpointId());
 
 			queue.triggerNextAction();
 			queue.triggerNextAction();
@@ -339,7 +388,8 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
 
-			assertEquals(testError, vertex.getFailureCause());
+			assertTrue(vertex.getFailureCause() instanceof DeployTaskException);
+			assertEquals(testError, vertex.getFailureCause().getCause());
 
 			assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
 			assertTrue(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0);

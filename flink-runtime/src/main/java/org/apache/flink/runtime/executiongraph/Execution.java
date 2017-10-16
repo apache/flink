@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -1038,15 +1039,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			if (transitionState(current, FAILED, t)) {
 				// success (in a manner of speaking)
 				if (current == DEPLOYING) {
-					long restoredCheckpointID = getVertex().getExecutionGraph().getCheckpointCoordinator().getRestoredCheckpointID();
-					if (restoredCheckpointID != -1) {
+					CheckpointCoordinator checkpointCoordinator = getVertex().getExecutionGraph().getCheckpointCoordinator();
+					if (checkpointCoordinator != null && checkpointCoordinator.getRestoredCheckpointID() != -1L) {
 						// we have restore it from a checkpoint
-						t = new RestoreTaskException(t, restoredCheckpointID);
+						this.failureCause = new RestoreTaskException(t, checkpointCoordinator.getRestoredCheckpointID());
 					} else {
-						t = new DeployTaskException(t);
+						this.failureCause = new DeployTaskException(t);
 					}
+				} else {
+					this.failureCause = t;
 				}
-				this.failureCause = t;
 
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 

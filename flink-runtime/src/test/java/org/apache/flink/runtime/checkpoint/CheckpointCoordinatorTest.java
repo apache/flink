@@ -2072,6 +2072,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// verify the restored state
 		verifyStateRestore(jobVertexID1, jobVertex1, keyGroupPartitions1);
 		verifyStateRestore(jobVertexID2, jobVertex2, keyGroupPartitions2);
+
+		// verify restored checkpoint id is same as the latest one.
+		assertEquals(completedCheckpoints.get(0).getCheckpointID(), coord.getRestoredCheckpointID());
 	}
 
 	/**
@@ -2190,6 +2193,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		coord.restoreLatestCheckpointedState(tasks, true, false);
 
 		fail("The restoration should have failed because the max parallelism changed.");
+
+		assertEquals(-1L, coord.getRestoredCheckpointID());
 	}
 
 	@Test
