@@ -18,6 +18,7 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.Func13
 import org.apache.flink.table.utils.TableTestUtil._
@@ -73,13 +74,17 @@ class CorrelateTest extends TableTestBase {
     util.verifyTable(result2, expected2)
   }
 
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicates can only be empty or literal true.
+    */
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithTrueLiteral(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.leftOuterJoin(function('c) as 's).select('c, 's)
+    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -97,6 +102,21 @@ class CorrelateTest extends TableTestBase {
     )
 
     util.verifyTable(result, expected)
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicates can only be empty or literal true.
+    */
+  @Test (expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = util.addFunction("func1", new TableFunc1)
+
+    val result = table.leftOuterJoin(function('c) as 's, 'c === 's).select('c, 's).where('a > 10)
+
+    util.verifyTable(result, "")
   }
 
   @Test
