@@ -22,7 +22,8 @@ import org.apache.calcite.adapter.java.JavaTypeFactory
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
-import org.apache.calcite.sql.validate.{SqlConformanceEnum, SqlValidatorImpl}
+import org.apache.calcite.sql.validate.{SqlConformanceEnum, SqlValidatorImpl, SqlValidatorScope}
+import org.apache.flink.table.api.ValidationException
 
 /**
  * This is a copy of Calcite's CalciteSqlValidator to use with [[FlinkPlannerImpl]].
@@ -47,5 +48,20 @@ class FlinkCalciteSqlValidator(
       targetRowType: RelDataType,
       insert: SqlInsert): RelDataType = {
     typeFactory.asInstanceOf[JavaTypeFactory].toSql(targetRowType)
+  }
+
+  override def validateJoin(join: SqlJoin, scope: SqlValidatorScope): Unit = {
+    // Due to the improperly translation of lateral table left outer join (see CALCITE-2004), we
+    // need to temporarily forbid the common predicates until the problem is fixed.
+    // The check for join with a lateral table is actually quite tricky.
+    if (join.getJoinType == JoinType.LEFT &&
+      join.getRight.toString.startsWith("TABLE(")) { // TABLE (`func`(`foo`)) AS...
+      join.getCondition match {
+        case c: SqlLiteral if c.getValue.equals(true) => // only accept literal true
+        case c => throw new ValidationException(s"$c is not a valid predicate for " +
+          s"lateral table outer join. Can only accept literal TRUE.")
+      }
+    }
+    super.validateJoin(join, scope)
   }
 }

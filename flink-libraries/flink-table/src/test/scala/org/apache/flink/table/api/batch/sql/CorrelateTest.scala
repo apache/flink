@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
 import org.apache.flink.table.utils.TableTestUtil._
@@ -75,8 +76,12 @@ class CorrelateTest extends TableTestBase {
     util.verifySql(sqlQuery2, expected2)
   }
 
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we can
+    * only accept literal true as the predicate for lateral table left outer join.
+    */
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithTruePredicates(): Unit = {
     val util = batchTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -100,6 +105,23 @@ class CorrelateTest extends TableTestBase {
     )
 
     util.verifySql(sqlQuery, expected)
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we can
+    * only accept literal true as the predicate for lateral table left outer join.
+    */
+  @Test (expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = batchTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("func1", func1)
+
+    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON s > '1'" +
+      " where c = s"
+
+    util.verifySql(sqlQuery, "")
   }
 
   @Test
