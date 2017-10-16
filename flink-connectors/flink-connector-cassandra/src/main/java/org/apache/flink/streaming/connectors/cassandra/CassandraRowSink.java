@@ -28,28 +28,13 @@ import com.google.common.util.concurrent.ListenableFuture;
  * Flink Sink to save data into a Cassandra cluster.
  *
  */
-public class CassandraRowSink extends CassandraSinkBase<Row, ResultSet> {
-	private final String insertQuery;
-	private transient PreparedStatement ps;
-
+public class CassandraRowSink extends AbstractCassandraTupleSink<Row> {
 	public CassandraRowSink(String insertQuery, ClusterBuilder builder) {
-		super(builder);
-		this.insertQuery = insertQuery;
+		super(insertQuery, builder);
 	}
 
 	@Override
-	public void open(Configuration configuration) {
-		super.open(configuration);
-		this.ps = session.prepare(insertQuery);
-	}
-
-	@Override
-	public ListenableFuture<ResultSet> send(Row value) {
-		Object[] fields = extract(value);
-		return session.executeAsync(ps.bind(fields));
-	}
-
-	private Object[] extract(Row record) {
+	protected Object[] extract(Row record) {
 		Object[] al = new Object[record.getArity()];
 		for (int i = 0; i < record.getArity(); i++) {
 			al[i] = record.getField(i);

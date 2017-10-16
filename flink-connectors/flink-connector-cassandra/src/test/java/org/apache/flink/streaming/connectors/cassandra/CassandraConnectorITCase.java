@@ -530,10 +530,10 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		sink.close();
 
 		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
-		List<com.datastax.driver.core.Row > rows = rs.all();
+		List<com.datastax.driver.core.Row> rows = rs.all();
 		Assert.assertEquals(scalaTupleCollection.size(), rows.size());
 
-		for (com.datastax.driver.core.Row  row : rows) {
+		for (com.datastax.driver.core.Row row : rows) {
 			scalaTupleCollection.remove(new scala.Tuple3<>(row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
 		}
 		Assert.assertEquals(0, scalaTupleCollection.size());
