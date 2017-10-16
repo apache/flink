@@ -31,14 +31,13 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoi
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.util.FlinkException;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.FullHttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
-
-import com.fasterxml.jackson.core.JsonGenerator;
 
 import javax.annotation.Nullable;
 
