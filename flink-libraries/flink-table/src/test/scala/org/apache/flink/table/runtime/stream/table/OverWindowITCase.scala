@@ -112,15 +112,14 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       .window(
         Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c, weightAvgFun('a, 42, 'b, "2") over 'w as 'wAvg)
-      .select('c, 'wAvg)
 
     val results = windowedTable.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
 
     val expected = Seq(
-      "Hello World,1", "Hello World,1", "Hello World,1", "Hello World,1", "Hello,1",
-      "Hello,1", "Hello,1", "Hello,1", "Hello,1", "Hello,1")
+      "Hello World,12", "Hello World,9", "Hello World,9", "Hello World,9", "Hello,3",
+      "Hello,3", "Hello,4", "Hello,4", "Hello,5", "Hello,5")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
