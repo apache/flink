@@ -87,54 +87,48 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 			 */
 			return "";
 		}
-		MetricStore metricStore = fetcher.getMetricStore();
-		synchronized (metricStore) {
-			Map<String, String> metrics = getMapFor(pathParams, metricStore);
-			if (metrics == null) {
-				return "";
-			}
-			String[] requestedMetrics = requestedMetricsList.split(",");
-
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-
-			gen.writeStartArray();
-			for (String requestedMetric : requestedMetrics) {
-				Object metricValue = metrics.get(requestedMetric);
-				if (metricValue != null) {
-					gen.writeStartObject();
-					gen.writeStringField("id", requestedMetric);
-					gen.writeStringField("value", metricValue.toString());
-					gen.writeEndObject();
-				}
-			}
-			gen.writeEndArray();
-
-			gen.close();
-			return writer.toString();
+		Map<String, String> metrics = getMapFor(pathParams, fetcher.getMetricStore());
+		if (metrics == null) {
+			return "";
 		}
+		String[] requestedMetrics = requestedMetricsList.split(",");
+
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
+		gen.writeStartArray();
+		for (String requestedMetric : requestedMetrics) {
+			Object metricValue = metrics.get(requestedMetric);
+			if (metricValue != null) {
+				gen.writeStartObject();
+				gen.writeStringField("id", requestedMetric);
+				gen.writeStringField("value", metricValue.toString());
+				gen.writeEndObject();
+			}
+		}
+		gen.writeEndArray();
+
+		gen.close();
+		return writer.toString();
 	}
 
 	private String getAvailableMetricsList(Map<String, String> pathParams) throws IOException {
-		MetricStore metricStore = fetcher.getMetricStore();
-		synchronized (metricStore) {
-			Map<String, String> metrics = getMapFor(pathParams, metricStore);
-			if (metrics == null) {
-				return "";
-			}
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-
-			gen.writeStartArray();
-			for (String m : metrics.keySet()) {
-				gen.writeStartObject();
-				gen.writeStringField("id", m);
-				gen.writeEndObject();
-			}
-			gen.writeEndArray();
-
-			gen.close();
-			return writer.toString();
+		Map<String, String> metrics = getMapFor(pathParams, fetcher.getMetricStore());
+		if (metrics == null) {
+			return "";
 		}
+		StringWriter writer = new StringWriter();
+		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+
+		gen.writeStartArray();
+		for (String m : metrics.keySet()) {
+			gen.writeStartObject();
+			gen.writeStringField("id", m);
+			gen.writeEndObject();
+		}
+		gen.writeEndArray();
+
+		gen.close();
+		return writer.toString();
 	}
 }

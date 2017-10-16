@@ -23,7 +23,6 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -112,16 +111,14 @@ public class MetricFetcher {
 						if (throwable != null) {
 							LOG.debug("Fetching of JobDetails failed.", throwable);
 						} else {
-							ArrayList<String> toRetain = new ArrayList<>();
+							ArrayList<String> activeJobs = new ArrayList<>();
 							for (JobDetails job : jobDetails.getRunning()) {
-								toRetain.add(job.getJobId().toString());
+								activeJobs.add(job.getJobId().toString());
 							}
 							for (JobDetails job : jobDetails.getFinished()) {
-								toRetain.add(job.getJobId().toString());
+								activeJobs.add(job.getJobId().toString());
 							}
-							synchronized (metrics) {
-								metrics.jobs.keySet().retainAll(toRetain);
-							}
+							metrics.retainJobs(activeJobs);
 						}
 					},
 					executor);
@@ -154,9 +151,7 @@ public class MetricFetcher {
 									return taskManagerInstance.getId().toString();
 								}).collect(Collectors.toList());
 
-							synchronized (metrics) {
-								metrics.taskManagers.keySet().retainAll(activeTaskManagers);
-							}
+							metrics.retainTaskManagers(activeTaskManagers);
 						}
 					},
 					executor);
@@ -198,12 +193,7 @@ public class MetricFetcher {
 					if (t != null) {
 						LOG.debug("Fetching metrics failed.", t);
 					} else {
-						List<MetricDump> dumpedMetrics = deserializer.deserialize(result);
-						synchronized (metrics) {
-							for (MetricDump metric : dumpedMetrics) {
-								metrics.add(metric);
-							}
-						}
+						metrics.addAll(deserializer.deserialize(result));
 					}
 				},
 				executor);

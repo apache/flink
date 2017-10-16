@@ -27,6 +27,7 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the MetricStore.
@@ -58,9 +59,9 @@ public class MetricStoreTest extends TestLogger {
 		store.add(cd);
 
 		//-----verify that no side effects occur
-		assertEquals(0, store.jobManager.metrics.size());
-		assertEquals(0, store.taskManagers.size());
-		assertEquals(0, store.jobs.size());
+		assertTrue(store.getTaskManagers().isEmpty());
+		assertTrue(store.getJobs().isEmpty());
+		assertTrue(store.getJobManager().metrics.isEmpty());
 	}
 
 	public static MetricStore setupStore(MetricStore store) {
