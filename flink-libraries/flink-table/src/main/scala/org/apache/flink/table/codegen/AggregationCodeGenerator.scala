@@ -247,7 +247,7 @@ class AggregationCodeGenerator(
             val dataViewFieldTerm = createDataViewTerm(i, dataViewField.getName)
             val field =
               s"""
-                 |    transient $dataViewTypeTerm $dataViewFieldTerm = null;
+                 |    final $dataViewTypeTerm $dataViewFieldTerm;
                  |""".stripMargin
             reusableMemberStatements.add(field)
 
