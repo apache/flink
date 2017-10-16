@@ -33,12 +33,13 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;
 
-public class ScheduleWithCoLocationHintTest {
+public class ScheduleWithCoLocationHintTest extends TestLogger {
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() {

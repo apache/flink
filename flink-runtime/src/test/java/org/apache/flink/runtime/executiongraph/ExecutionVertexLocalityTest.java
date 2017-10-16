@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -50,6 +51,7 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
@@ -92,10 +94,10 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		// validate that the target vertices have no location preference
 		for (int i = 0; i < parallelism; i++) {
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			Iterator<TaskManagerLocation> preference = target.getPreferredLocations().iterator();
+			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
 
 			assertTrue(preference.hasNext());
-			assertEquals(locations[i], preference.next());
+			assertEquals(locations[i], preference.next().get());
 			assertFalse(preference.hasNext());
 		}
 	}
@@ -122,7 +124,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		for (int i = 0; i < parallelism; i++) {
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
 
-			Iterator<TaskManagerLocation> preference = target.getPreferredLocations().iterator();
+			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
 			assertFalse(preference.hasNext());
 		}
 	}
@@ -178,10 +180,10 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		// validate that the target vertices have the state's location as the location preference
 		for (int i = 0; i < parallelism; i++) {
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			Iterator<TaskManagerLocation> preference = target.getPreferredLocations().iterator();
+			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
 
 			assertTrue(preference.hasNext());
-			assertEquals(locations[i], preference.next());
+			assertEquals(locations[i], preference.next().get());
 			assertFalse(preference.hasNext());
 		}
 	}
@@ -236,10 +238,9 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
 		SimpleSlot simpleSlot = new SimpleSlot(slot, mock(SlotOwner.class), 0);
 
-		final Field locationField = Execution.class.getDeclaredField("assignedResource");
-		locationField.setAccessible(true);
-
-		locationField.set(vertex.getCurrentExecutionAttempt(), simpleSlot);
+		if (!vertex.getCurrentExecutionAttempt().tryAssignResource(simpleSlot)) {
+			throw new FlinkException("Could not assign resource.");
+		}
 	}
 
 	private void setState(Execution execution, ExecutionState state) throws Exception {

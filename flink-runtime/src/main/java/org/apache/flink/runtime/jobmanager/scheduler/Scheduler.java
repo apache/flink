@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +32,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -134,31 +136,36 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 	@Override
 	public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
-		try {
-			final Object ret = scheduleTask(task, allowQueued);
+		Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = task.getTaskToExecute().getVertex().getPreferredLocationsBasedOnInputs();
 
-			if (ret instanceof SimpleSlot) {
-				return CompletableFuture.completedFuture((SimpleSlot) ret);
+		CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = FutureUtils.combineAll(preferredLocationFutures);
+
+		return preferredLocationsFuture.thenCompose(
+			preferredLocations -> {
+				try {
+					final Object ret = scheduleTask(task, allowQueued, preferredLocations);
+
+					if (ret instanceof SimpleSlot) {
+						return CompletableFuture.completedFuture((SimpleSlot) ret);
+					} else if (ret instanceof CompletableFuture) {
+						@SuppressWarnings("unchecked")
+						CompletableFuture<SimpleSlot> typed = (CompletableFuture<SimpleSlot>) ret;
+						return typed;
+					} else {
+						// this should never happen, simply guard this case with an exception
+						throw new RuntimeException();
+					}
+				} catch (NoResourceAvailableException e) {
+					throw new CompletionException(e);
+				}
 			}
-			else if (ret instanceof CompletableFuture) {
-				@SuppressWarnings("unchecked")
-				CompletableFuture<SimpleSlot> typed = (CompletableFuture<SimpleSlot>) ret;
-				return typed;
-			}
-			else {
-				// this should never happen, simply guard this case with an exception
-				throw new RuntimeException();
-			}
-		}
-		catch (NoResourceAvailableException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
+		);
 	}
 
 	/**
 	 * Returns either a {@link SimpleSlot}, or a {@link CompletableFuture}.
 	 */
-	private Object scheduleTask(ScheduledUnit task, boolean queueIfNoResource) throws NoResourceAvailableException {
+	private Object scheduleTask(ScheduledUnit task, boolean queueIfNoResource, Iterable<TaskManagerLocation> preferredLocations) throws NoResourceAvailableException {
 		if (task == null) {
 			throw new NullPointerException();
 		}
@@ -168,7 +175,6 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 		final ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 		
-		final Iterable<TaskManagerLocation> preferredLocations = vertex.getPreferredLocationsBasedOnInputs();
 		final boolean forceExternalLocation = false &&
 									preferredLocations != null && preferredLocations.iterator().hasNext();
 	
@@ -197,10 +203,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				// get a slot from the group, if the group has one for us (and can fulfill the constraint)
 				final SimpleSlot slotFromGroup;
 				if (constraint == null) {
-					slotFromGroup = assignment.getSlotForTask(vertex);
+					slotFromGroup = assignment.getSlotForTask(vertex.getJobvertexId(), preferredLocations);
 				}
 				else {
-					slotFromGroup = assignment.getSlotForTask(vertex, constraint);
+					slotFromGroup = assignment.getSlotForTask(constraint, preferredLocations);
 				}
 
 				SimpleSlot newSlot = null;
@@ -234,7 +240,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						localOnly = true;
 					}
 					else {
-						locations = vertex.getPreferredLocationsBasedOnInputs();
+						locations = preferredLocations;
 						localOnly = forceExternalLocation;
 					}
 					

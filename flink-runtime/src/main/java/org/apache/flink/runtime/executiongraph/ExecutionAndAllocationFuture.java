@@ -18,24 +18,22 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.instance.SimpleSlot;
-
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A pair of an {@link Execution} together with a slot future.
+ * A pair of an {@link Execution} together with an allocation future.
  */
-public class ExecutionAndSlot {
+public class ExecutionAndAllocationFuture {
 
 	public final Execution executionAttempt;
 
-	public final CompletableFuture<SimpleSlot> slotFuture;
+	public final CompletableFuture<Void> allocationFuture;
 
-	public ExecutionAndSlot(Execution executionAttempt, CompletableFuture<SimpleSlot> slotFuture) {
+	public ExecutionAndAllocationFuture(Execution executionAttempt, CompletableFuture<Void> allocationFuture) {
 		this.executionAttempt = checkNotNull(executionAttempt);
-		this.slotFuture = checkNotNull(slotFuture);
+		this.allocationFuture = checkNotNull(allocationFuture);
 	}
 
 	// -----------------------------------------------------------------------

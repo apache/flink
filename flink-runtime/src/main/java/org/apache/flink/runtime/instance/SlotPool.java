@@ -1003,10 +1003,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 		@Override
 		public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
-			Iterable<TaskManagerLocation> locationPreferences = 
-					task.getTaskToExecute().getVertex().getPreferredLocations();
+			Collection<CompletableFuture<TaskManagerLocation>> locationPreferenceFutures =
+				task.getTaskToExecute().getVertex().getPreferredLocations();
 
-			return gateway.allocateSlot(task, ResourceProfile.UNKNOWN, locationPreferences, timeout);
+			CompletableFuture<Collection<TaskManagerLocation>> locationPreferencesFuture = FutureUtils.combineAll(locationPreferenceFutures);
+
+			return locationPreferencesFuture.thenCompose(
+				locationPreferences -> gateway.allocateSlot(task, ResourceProfile.UNKNOWN, locationPreferences, timeout));
 		}
 	}
 

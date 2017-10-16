@@ -38,7 +38,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -49,21 +48,22 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Test;
-
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.verification.Timeout;
 
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the scheduling of the execution graph. This tests that
@@ -397,141 +397,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 				assertTrue(future.get().isCanceled());
 			}
 		}
-	}
-
-	/**
-	 * Tests that the {@link ExecutionJobVertex#allocateResourcesForAll(SlotProvider, boolean)} method
-	 * releases partially acquired resources upon exception.
-	 */
-	@Test
-	public void testExecutionJobVertexAllocateResourcesReleasesOnException() throws Exception {
-		final int parallelism = 8;
-
-		final JobVertex vertex = new JobVertex("vertex");
-		vertex.setParallelism(parallelism);
-		vertex.setInvokableClass(NoOpInvokable.class);
-
-		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", vertex);
-
-		// set up some available slots and some slot owner that accepts released slots back
-		final List<SimpleSlot> returnedSlots = new ArrayList<>();
-		final SlotOwner recycler = new SlotOwner() {
-			@Override
-			public boolean returnAllocatedSlot(Slot slot) {
-				returnedSlots.add((SimpleSlot) slot);
-				return true;
-			}
-		};
-
-		// slot provider that hand out parallelism / 3 slots, then throws an exception
-		final SlotProvider slotProvider = mock(SlotProvider.class);
-
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
-		final List<SimpleSlot> availableSlots = new ArrayList<>(Arrays.asList(
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler)));
-
-		when(slotProvider.allocateSlot(any(ScheduledUnit.class), anyBoolean())).then(
-			(InvocationOnMock invocation) -> {
-					if (availableSlots.isEmpty()) {
-						throw new TestRuntimeException();
-					} else {
-						return CompletableFuture.completedFuture(availableSlots.remove(0));
-					}
-				});
-
-		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
-		final ExecutionJobVertex ejv = eg.getJobVertex(vertex.getID());
-
-		// acquire resources and check that all are back after the failure
-
-		final int numSlotsToExpectBack = availableSlots.size();
-
-		try {
-			ejv.allocateResourcesForAll(slotProvider, false);
-			fail("should have failed with an exception");
-		}
-		catch (TestRuntimeException e) {
-			// expected
-		}
-
-		assertEquals(numSlotsToExpectBack, returnedSlots.size());
-	}
-
-	/**
-	 * Tests that the {@link ExecutionGraph#scheduleForExecution()} method
-	 * releases partially acquired resources upon exception.
-	 */
-	@Test
-	public void testExecutionGraphScheduleReleasesResourcesOnException() throws Exception {
-
-		//                                            [pipelined]
-		//  we construct a simple graph    (source) ----------------> (target)
-
-		final int parallelism = 3;
-
-		final JobVertex sourceVertex = new JobVertex("source");
-		sourceVertex.setParallelism(parallelism);
-		sourceVertex.setInvokableClass(NoOpInvokable.class);
-
-		final JobVertex targetVertex = new JobVertex("target");
-		targetVertex.setParallelism(parallelism);
-		targetVertex.setInvokableClass(NoOpInvokable.class);
-
-		targetVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-
-		final JobID jobId = new JobID();
-		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
-
-		// set up some available slots and some slot owner that accepts released slots back
-		final List<SimpleSlot> returnedSlots = new ArrayList<>();
-		final SlotOwner recycler = new SlotOwner() {
-			@Override
-			public boolean returnAllocatedSlot(Slot slot) {
-				returnedSlots.add((SimpleSlot) slot);
-				return true;
-			}
-		};
-
-		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
-		final List<SimpleSlot> availableSlots = new ArrayList<>(Arrays.asList(
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler),
-			createSlot(taskManager, jobId, recycler)));
-
-
-		// slot provider that hand out parallelism / 3 slots, then throws an exception
-		final SlotProvider slotProvider = mock(SlotProvider.class);
-
-		when(slotProvider.allocateSlot(any(ScheduledUnit.class), anyBoolean())).then(
-			(InvocationOnMock invocation) -> {
-					if (availableSlots.isEmpty()) {
-						throw new TestRuntimeException();
-					} else {
-						return CompletableFuture.completedFuture(availableSlots.remove(0));
-					}
-				});
-
-		final ExecutionGraph eg = createExecutionGraph(jobGraph, slotProvider);
-
-		// acquire resources and check that all are back after the failure
-
-		final int numSlotsToExpectBack = availableSlots.size();
-
-		try {
-			eg.setScheduleMode(ScheduleMode.EAGER);
-			eg.scheduleForExecution();
-			fail("should have failed with an exception");
-		}
-		catch (TestRuntimeException e) {
-			// expected
-		}
-
-		assertEquals(numSlotsToExpectBack, returnedSlots.size());
 	}
 
 	// ------------------------------------------------------------------------

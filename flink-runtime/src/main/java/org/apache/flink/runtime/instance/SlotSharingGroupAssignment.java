@@ -266,18 +266,12 @@ public class SlotSharingGroupAssignment {
 	 * slots if no local slot is available. The method returns null, when this sharing group has
 	 * no slot is available for the given JobVertexID. 
 	 *
-	 * @param vertex The vertex to allocate a slot for.
+	 * @param vertexID the vertex id
+	 * @param locationPreferences location preferences
 	 *
 	 * @return A slot to execute the given ExecutionVertex in, or null, if none is available.
 	 */
-	public SimpleSlot getSlotForTask(ExecutionVertex vertex) {
-		return getSlotForTask(vertex.getJobvertexId(), vertex.getPreferredLocationsBasedOnInputs());
-	}
-
-	/**
-	 * 
-	 */
-	SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<TaskManagerLocation> locationPreferences) {
+	public SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
 			Tuple2<SharedSlot, Locality> p = getSlotForTaskInternal(vertexID, locationPreferences, false);
 
@@ -306,17 +300,13 @@ public class SlotSharingGroupAssignment {
 	 * shared slot and returns it. If no suitable shared slot could be found, this method
 	 * returns null.</p>
 	 * 
-	 * @param vertex The execution vertex to find a slot for.
 	 * @param constraint The co-location constraint for the placement of the execution vertex.
+	 * @param locationPreferences location preferences
 	 * 
 	 * @return A simple slot allocate within a suitable shared slot, or {@code null}, if no suitable
 	 *         shared slot is available.
 	 */
-	public SimpleSlot getSlotForTask(ExecutionVertex vertex, CoLocationConstraint constraint) {
-		return getSlotForTask(constraint, vertex.getPreferredLocationsBasedOnInputs());
-	}
-	
-	SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<TaskManagerLocation> locationPreferences) {
+	public SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
 			if (constraint.isAssignedAndAlive()) {
 				// the shared slot of the co-location group is initialized and set we allocate a sub-slot

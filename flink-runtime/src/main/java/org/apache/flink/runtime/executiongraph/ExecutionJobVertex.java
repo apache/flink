@@ -35,7 +35,6 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -57,6 +56,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -475,37 +475,21 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	 * 
 	 * @param resourceProvider The resource provider from whom the slots are requested.
 	 */
-	public ExecutionAndSlot[] allocateResourcesForAll(SlotProvider resourceProvider, boolean queued) {
+	public Collection<CompletableFuture<Execution>> allocateResourcesForAll(SlotProvider resourceProvider, boolean queued) {
 		final ExecutionVertex[] vertices = this.taskVertices;
-		final ExecutionAndSlot[] slots = new ExecutionAndSlot[vertices.length];
+		final CompletableFuture<Execution>[] slots = new CompletableFuture[vertices.length];
 
 		// try to acquire a slot future for each execution.
 		// we store the execution with the future just to be on the safe side
 		for (int i = 0; i < vertices.length; i++) {
-
-			// we use this flag to handle failures in a 'finally' clause
-			// that allows us to not go through clumsy cast-and-rethrow logic
-			boolean successful = false;
-
-			try {
-				// allocate the next slot (future)
-				final Execution exec = vertices[i].getCurrentExecutionAttempt();
-				final CompletableFuture<SimpleSlot> future = exec.allocateSlotForExecution(resourceProvider, queued);
-				slots[i] = new ExecutionAndSlot(exec, future);
-				successful = true;
-			}
-			finally {
-				if (!successful) {
-					// this is the case if an exception was thrown
-					for (int k = 0; k < i; k++) {
-						ExecutionGraphUtils.releaseSlotFuture(slots[k].slotFuture);
-					}
-				}
-			}
+			// allocate the next slot (future)
+			final Execution exec = vertices[i].getCurrentExecutionAttempt();
+			final CompletableFuture<Execution> allocationFuture = exec.allocateAndAssignSlotForExecution(resourceProvider, queued);
+			slots[i] = allocationFuture;
 		}
 
 		// all good, we acquired all slots
-		return slots;
+		return Arrays.asList(slots);
 	}
 
 	/**

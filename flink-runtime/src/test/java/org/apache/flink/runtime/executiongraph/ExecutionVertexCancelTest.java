@@ -263,8 +263,8 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -303,8 +303,8 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -351,8 +351,8 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -384,8 +384,8 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			Instance instance = getInstance(new ActorTaskManagerGateway(gateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 

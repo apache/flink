@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -266,6 +267,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return currentExecution.getFailureCause();
 	}
 
+	public CompletableFuture<TaskManagerLocation> getCurrentTaskManagerLocationFuture() {
+		return currentExecution.getTaskManagerLocationFuture();
+	}
+
 	public SimpleSlot getCurrentAssignedResource() {
 		return currentExecution.getAssignedResource();
 	}
@@ -445,8 +450,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @see #getPreferredLocationsBasedOnState()
 	 * @see #getPreferredLocationsBasedOnInputs() 
 	 */
-	public Iterable<TaskManagerLocation> getPreferredLocations() {
-		Iterable<TaskManagerLocation> basedOnState = getPreferredLocationsBasedOnState();
+	public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocations() {
+		Collection<CompletableFuture<TaskManagerLocation>> basedOnState = getPreferredLocationsBasedOnState();
 		return basedOnState != null ? basedOnState : getPreferredLocationsBasedOnInputs();
 	}
 	
@@ -454,13 +459,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * Gets the preferred location to execute the current task execution attempt, based on the state
 	 * that the execution attempt will resume.
 	 * 
-	 * @return A size-one iterable with the location preference, or null, if there is no
+	 * @return A size-one collection with the location preference, or null, if there is no
 	 *         location preference based on the state.
 	 */
-	public Iterable<TaskManagerLocation> getPreferredLocationsBasedOnState() {
+	public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnState() {
 		TaskManagerLocation priorLocation;
 		if (currentExecution.getTaskStateSnapshot() != null && (priorLocation = getLatestPriorLocation()) != null) {
-			return Collections.singleton(priorLocation);
+			return Collections.singleton(CompletableFuture.completedFuture(priorLocation));
 		}
 		else {
 			return null;
@@ -476,14 +481,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * @return The preferred locations based in input streams, or an empty iterable,
 	 *         if there is no input-based preference.
 	 */
-	public Iterable<TaskManagerLocation> getPreferredLocationsBasedOnInputs() {
+	public Collection<CompletableFuture<TaskManagerLocation>> getPreferredLocationsBasedOnInputs() {
 		// otherwise, base the preferred locations on the input connections
 		if (inputEdges == null) {
 			return Collections.emptySet();
 		}
 		else {
-			Set<TaskManagerLocation> locations = new HashSet<>();
-			Set<TaskManagerLocation> inputLocations = new HashSet<>();
+			Set<CompletableFuture<TaskManagerLocation>> inputLocations = new HashSet<>(4);
 
 			// go over all inputs
 			for (int i = 0; i < inputEdges.length; i++) {
@@ -493,28 +497,17 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					// go over all input sources
 					for (int k = 0; k < sources.length; k++) {
 						// look-up assigned slot of input source
-						SimpleSlot sourceSlot = sources[k].getSource().getProducer().getCurrentAssignedResource();
-						if (sourceSlot != null) {
-							// add input location
-							inputLocations.add(sourceSlot.getTaskManagerLocation());
-							// inputs which have too many distinct sources are not considered
-							if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-								inputLocations.clear();
-								break;
-							}
+						CompletableFuture<TaskManagerLocation> taskManagerLocationFuture = sources[k].getSource().getProducer().getCurrentTaskManagerLocationFuture();
+						inputLocations.add(taskManagerLocationFuture);
+
+						if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
+							return Collections.emptyList();
 						}
 					}
 				}
-				// keep the locations of the input with the least preferred locations
-				if (locations.isEmpty() || // nothing assigned yet
-						(!inputLocations.isEmpty() && inputLocations.size() < locations.size())) {
-					// current input has fewer preferred locations
-					locations.clear();
-					locations.addAll(inputLocations);
-				}
 			}
 
-			return locations.isEmpty() ? Collections.<TaskManagerLocation>emptyList() : locations;
+			return inputLocations.isEmpty() ? Collections.emptyList() : inputLocations;
 		}
 	}
 
@@ -598,8 +591,14 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.currentExecution.scheduleForExecution(slotProvider, queued);
 	}
 
+	@VisibleForTesting
 	public void deployToSlot(SimpleSlot slot) throws JobException {
-		this.currentExecution.deployToSlot(slot);
+		if (this.currentExecution.tryAssignResource(slot)) {
+			this.currentExecution.deploy();
+		} else {
+			throw new IllegalStateException("Could not assign resource " + slot + " to current execution " +
+				currentExecution + '.');
+		}
 	}
 
 	/**

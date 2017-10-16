@@ -50,7 +50,6 @@ import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -90,7 +89,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -878,113 +876,67 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		// that way we do not have any operation that can fail between allocating the slots
 		// and adding them to the list. If we had a failure in between there, that would
 		// cause the slots to get lost
-		final ArrayList<ExecutionAndSlot[]> resources = new ArrayList<>(getNumberOfExecutionJobVertices());
 		final boolean queued = allowQueuedScheduling;
 
-		// we use this flag to handle failures in a 'finally' clause
-		// that allows us to not go through clumsy cast-and-rethrow logic
-		boolean successful = false;
+		// collecting all the slots may resize and fail in that operation without slots getting lost
+		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>(getNumberOfExecutionJobVertices());
 
-		try {
-			// collecting all the slots may resize and fail in that operation without slots getting lost
-			final ArrayList<CompletableFuture<SimpleSlot>> slotFutures = new ArrayList<>(getNumberOfExecutionJobVertices());
+		// allocate the slots (obtain all their futures
+		for (ExecutionJobVertex ejv : getVerticesTopologically()) {
+			// these calls are not blocking, they only return futures
+			Collection<CompletableFuture<Execution>> allocationFutures = ejv.allocateResourcesForAll(slotProvider, queued);
 
-			// allocate the slots (obtain all their futures
-			for (ExecutionJobVertex ejv : getVerticesTopologically()) {
-				// these calls are not blocking, they only return futures
-				ExecutionAndSlot[] slots = ejv.allocateResourcesForAll(slotProvider, queued);
+			allAllocationFutures.addAll(allocationFutures);
+		}
 
-				// we need to first add the slots to this list, to be safe on release
-				resources.add(slots);
+		// this future is complete once all slot futures are complete.
+		// the future fails once one slot future fails.
+		final ConjunctFuture<Collection<Execution>> allAllocationsComplete = FutureUtils.combineAll(allAllocationFutures);
 
-				for (ExecutionAndSlot ens : slots) {
-					slotFutures.add(ens.slotFuture);
-				}
+		// make sure that we fail if the allocation timeout was exceeded
+		final ScheduledFuture<?> timeoutCancelHandle = futureExecutor.schedule(new Runnable() {
+			@Override
+			public void run() {
+				// When the timeout triggers, we try to complete the conjunct future with an exception.
+				// Note that this is a no-op if the future is already completed
+				int numTotal = allAllocationsComplete.getNumFuturesTotal();
+				int numComplete = allAllocationsComplete.getNumFuturesCompleted();
+				String message = "Could not allocate all requires slots within timeout of " +
+						timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
+
+				allAllocationsComplete.completeExceptionally(new NoResourceAvailableException(message));
 			}
-
-			// this future is complete once all slot futures are complete.
-			// the future fails once one slot future fails.
-			final ConjunctFuture<Void> allAllocationsComplete = FutureUtils.waitForAll(slotFutures);
-
-			// make sure that we fail if the allocation timeout was exceeded
-			final ScheduledFuture<?> timeoutCancelHandle = futureExecutor.schedule(new Runnable() {
-				@Override
-				public void run() {
-					// When the timeout triggers, we try to complete the conjunct future with an exception.
-					// Note that this is a no-op if the future is already completed
-					int numTotal = allAllocationsComplete.getNumFuturesTotal();
-					int numComplete = allAllocationsComplete.getNumFuturesCompleted();
-					String message = "Could not allocate all requires slots within timeout of " +
-							timeout + ". Slots required: " + numTotal + ", slots allocated: " + numComplete;
-
-					allAllocationsComplete.completeExceptionally(new NoResourceAvailableException(message));
-				}
-			}, timeout.getSize(), timeout.getUnit());
+		}, timeout.getSize(), timeout.getUnit());
 
 
-			allAllocationsComplete.handleAsync(
-				(Void slots, Throwable throwable) -> {
-					try {
-						// we do not need the cancellation timeout any more
-						timeoutCancelHandle.cancel(false);
+		allAllocationsComplete.handleAsync(
+			(Collection<Execution> executions, Throwable throwable) -> {
+				try {
+					// we do not need the cancellation timeout any more
+					timeoutCancelHandle.cancel(false);
 
-						if (throwable == null) {
-							// successfully obtained all slots, now deploy
-
-							for (ExecutionAndSlot[] jobVertexTasks : resources) {
-								for (ExecutionAndSlot execAndSlot : jobVertexTasks) {
-
-									// the futures must all be ready - this is simply a sanity check
-									final SimpleSlot slot;
-									try {
-										slot = execAndSlot.slotFuture.getNow(null);
-										checkNotNull(slot);
-									}
-									catch (CompletionException | NullPointerException e) {
-										throw new IllegalStateException("SlotFuture is incomplete " +
-												"or erroneous even though all futures completed", e);
-									}
-
-									// actual deployment
-									execAndSlot.executionAttempt.deployToSlot(slot);
-								}
-							}
-						}
-						else {
-							// let the exception handler deal with this
-							throw throwable;
+					if (throwable == null) {
+						// successfully obtained all slots, now deploy
+						for (Execution execution : executions) {
+							execution.deploy();
 						}
 					}
-					catch (Throwable t) {
-						// we catch everything here to make sure cleanup happens and the
-						// ExecutionGraph notices the error
-
-						// we need to to release all slots before going into recovery!
-						try {
-							ExecutionGraphUtils.releaseAllSlotsSilently(resources);
-						}
-						finally {
-							failGlobal(t);
-						}
+					else {
+						// let the exception handler deal with this
+						throw throwable;
 					}
+				}
+				catch (Throwable t) {
+					// we catch everything here to make sure cleanup happens and the
+					// ExecutionGraph notices the error
+					failGlobal(ExceptionUtils.stripCompletionException(t));
+				}
 
-					// Wouldn't it be nice if we could return an actual Void object?
-					// return (Void) Unsafe.getUnsafe().allocateInstance(Void.class);
-					return null;
-				},
-				futureExecutor);
-
-			// from now on, slots will be rescued by the futures and their completion, or by the timeout
-			successful = true;
-		}
-		finally {
-			if (!successful) {
-				// we come here only if the 'try' block finished with an exception
-				// we release the slots (possibly failing some executions on the way) and
-				// let the exception bubble up
-				ExecutionGraphUtils.releaseAllSlotsSilently(resources);
-			}
-		}
+				// Wouldn't it be nice if we could return an actual Void object?
+				// return (Void) Unsafe.getUnsafe().allocateInstance(Void.class);
+				return null;
+			},
+			futureExecutor);
 	}
 
 	public void cancel() {

@@ -112,25 +112,29 @@ public class ExecutionGraphStopTest extends TestLogger {
 		// deploy source 1
 		for (ExecutionVertex ev : eg.getJobVertex(source1.getID()).getTaskVertices()) {
 			SimpleSlot slot = ExecutionGraphTestUtils.createMockSimpleSlot(jid, sourceGateway);
-			ev.getCurrentExecutionAttempt().deployToSlot(slot);
+			ev.getCurrentExecutionAttempt().tryAssignResource(slot);
+			ev.getCurrentExecutionAttempt().deploy();
 		}
 
 		// deploy source 2
 		for (ExecutionVertex ev : eg.getJobVertex(source2.getID()).getTaskVertices()) {
 			SimpleSlot slot = ExecutionGraphTestUtils.createMockSimpleSlot(jid, sourceGateway);
-			ev.getCurrentExecutionAttempt().deployToSlot(slot);
+			ev.getCurrentExecutionAttempt().tryAssignResource(slot);
+			ev.getCurrentExecutionAttempt().deploy();
 		}
 
 		// deploy non-source 1
 		for (ExecutionVertex ev : eg.getJobVertex(nonSource1.getID()).getTaskVertices()) {
 			SimpleSlot slot = ExecutionGraphTestUtils.createMockSimpleSlot(jid, nonSourceGateway);
-			ev.getCurrentExecutionAttempt().deployToSlot(slot);
+			ev.getCurrentExecutionAttempt().tryAssignResource(slot);
+			ev.getCurrentExecutionAttempt().deploy();
 		}
 
 		// deploy non-source 2
 		for (ExecutionVertex ev : eg.getJobVertex(nonSource2.getID()).getTaskVertices()) {
 			SimpleSlot slot = ExecutionGraphTestUtils.createMockSimpleSlot(jid, nonSourceGateway);
-			ev.getCurrentExecutionAttempt().deployToSlot(slot);
+			ev.getCurrentExecutionAttempt().tryAssignResource(slot);
+			ev.getCurrentExecutionAttempt().deploy();
 		}
 
 		eg.stop();
@@ -162,7 +166,8 @@ public class ExecutionGraphStopTest extends TestLogger {
 
 		final SimpleSlot slot = ExecutionGraphTestUtils.createMockSimpleSlot(jid, gateway);
 
-		exec.deployToSlot(slot);
+		exec.tryAssignResource(slot);
+		exec.deploy();
 		exec.switchToRunning();
 		assertEquals(ExecutionState.RUNNING, exec.getState());
 
