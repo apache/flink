@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.scala.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc2}
 import org.apache.flink.table.utils._
@@ -74,7 +75,7 @@ class UserDefinedTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -94,6 +95,46 @@ class UserDefinedTableFunctionTest extends TableTestBase {
         term("joinType", "LEFT")
       ),
       term("select", "c", "f0 AS s")
+    )
+
+    util.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinAsSubQuery(): Unit = {
+    val util = batchTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTable[(Int, Long, String)]("MyTable2", 'a2, 'b2, 'c2)
+    util.addFunction("func1", func1)
+
+    val sqlQuery =
+      """
+        | SELECT *
+        | FROM MyTable2 LEFT OUTER JOIN
+        |  (SELECT c, s
+        |   FROM MyTable LEFT OUTER JOIN LATERAL TABLE(func1(c)) AS T(s) on true)
+        | ON c2 = s """.stripMargin
+
+    val expected = binaryNode(
+      "DataSetJoin",
+      batchTableNode(1),
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetCorrelate",
+          batchTableNode(0),
+          term("invocation", "func1($cor0.c)"),
+          term("function", func1.getClass.getCanonicalName),
+          term("rowType",
+            "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)"),
+          term("joinType","LEFT")
+        ),
+        term("select", "c", "f0 AS s")
+      ),
+      term("where", "=(c2, s)"),
+      term("join", "a2", "b2", "c2", "c", "s"),
+      term("joinType", "LeftOuterJoin")
     )
 
     util.verifySql(sqlQuery, expected)
@@ -233,5 +274,22 @@ class UserDefinedTableFunctionTest extends TableTestBase {
     )
 
     util.verifySql(sqlQuery, expected)
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicate can only be empty or literal true (the restriction should be removed in
+    * FLINK-7865).
+    */
+  @Test(expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = streamTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("func1", func1)
+
+    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON c = s"
+
+    util.verifySql(sqlQuery, "n/a")
   }
 }
