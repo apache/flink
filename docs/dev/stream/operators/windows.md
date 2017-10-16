@@ -506,13 +506,13 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
    	     * Returns the window that is being evaluated.
    	     */
    	    public abstract W window();
-   
+
    	    /** Returns the current processing time. */
    	    public abstract long currentProcessingTime();
-   
+
    	    /** Returns the current event-time watermark. */
    	    public abstract long currentWatermark();
-   
+
    	    /**
    	     * State accessor for per-key and per-window state.
    	     *
@@ -520,7 +520,7 @@ public abstract class ProcessWindowFunction<IN, OUT, KEY, W extends Window> impl
    	     * by implementing {@link ProcessWindowFunction#clear(Context)}.
    	     */
    	    public abstract KeyedStateStore windowState();
-   
+
    	    /**
    	     * State accessor for per-key global state.
    	     */
@@ -558,22 +558,22 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
       * Returns the window that is being evaluated.
       */
     def window: W
-  
+
     /**
       * Returns the current processing time.
       */
     def currentProcessingTime: Long
-  
+
     /**
       * Returns the current event-time watermark.
       */
     def currentWatermark: Long
-  
+
     /**
       * State accessor for per-key and per-window state.
       */
     def windowState: KeyedStateStore
-  
+
     /**
       * State accessor for per-key global state.
       */
@@ -658,6 +658,69 @@ additional window meta information of the `ProcessWindowFunction`.
 <span class="label label-info">Note</span> You can also the legacy `WindowFunction` instead of
 `ProcessWindowFunction` for incremental window aggregation.
 
+#### Incremental Window Aggregation with ReduceFunction
+
+The following example shows how an incremental `ReduceFunction` can be combined with
+a `WindowFunction` to return the smallest event in a window along
+with the start time of the window.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+DataStream<SensorReading> input = ...;
+
+input
+  .keyBy(<key selector>)
+  .timeWindow(<window assigner>)
+  .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
+
+// Function definitions
+
+private static class MyReduceFunction implements ReduceFunction<SensorReading> {
+
+  public SensorReading reduce(SensorReading r1, SensorReading r2) {
+      return r1.value() > r2.value() ? r2 : r1;
+  }
+}
+
+private static class MyProcessWindowFunction
+    implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
+
+  public void apply(String key,
+                    Context context,
+                    Iterable<SensorReading> minReadings,
+                    Collector<Tuple2<Long, SensorReading>> out) {
+      SensorReading min = minReadings.iterator().next();
+      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
+  }
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+val input: DataStream[SensorReading] = ...
+
+input
+  .keyBy(<key selector>)
+  .timeWindow(<window assigner>)
+  .reduce(
+    (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
+    ( key: String,
+      window: TimeWindow,
+      minReadings: Iterable[SensorReading],
+      out: Collector[(Long, SensorReading)] ) =>
+      {
+        val min = minReadings.iterator.next()
+        out.collect((window.getStart, min))
+      }
+  )
+
+{% endhighlight %}
+</div>
+</div>
+
 #### Incremental Window Aggregation with FoldFunction
 
 The following example shows how an incremental `FoldFunction` can be combined with
@@ -718,69 +781,6 @@ input
       {
         val count = counts.iterator.next()
         out.collect((key, window.getEnd, count._3))
-      }
-  )
-
-{% endhighlight %}
-</div>
-</div>
-
-#### Incremental Window Aggregation with ReduceFunction
-
-The following example shows how an incremental `ReduceFunction` can be combined with
-a `WindowFunction` to return the smallest event in a window along
-with the start time of the window.
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-DataStream<SensorReading> input = ...;
-
-input
-  .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
-  .reduce(new MyReduceFunction(), new MyProcessWindowFunction());
-
-// Function definitions
-
-private static class MyReduceFunction implements ReduceFunction<SensorReading> {
-
-  public SensorReading reduce(SensorReading r1, SensorReading r2) {
-      return r1.value() > r2.value() ? r2 : r1;
-  }
-}
-
-private static class MyProcessWindowFunction
-    implements ProcessWindowFunction<SensorReading, Tuple2<Long, SensorReading>, String, TimeWindow> {
-
-  public void apply(String key,
-                    Context context,
-                    Iterable<SensorReading> minReadings,
-                    Collector<Tuple2<Long, SensorReading>> out) {
-      SensorReading min = minReadings.iterator().next();
-      out.collect(new Tuple2<Long, SensorReading>(window.getStart(), min));
-  }
-}
-
-{% endhighlight %}
-</div>
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-
-val input: DataStream[SensorReading] = ...
-
-input
-  .keyBy(<key selector>)
-  .timeWindow(<window assigner>)
-  .reduce(
-    (r1: SensorReading, r2: SensorReading) => { if (r1.value > r2.value) r2 else r1 },
-    ( key: String,
-      window: TimeWindow,
-      minReadings: Iterable[SensorReading],
-      out: Collector[(Long, SensorReading)] ) =>
-      {
-        val min = minReadings.iterator.next()
-        out.collect((window.getStart, min))
       }
   )
 
