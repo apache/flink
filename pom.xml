@@ -114,7 +114,7 @@ under the License.
 		<chill.version>0.7.4</chill.version>
 		<zookeeper.version>3.4.10</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
-		<jackson.version>2.7.4</jackson.version>
+		<jackson.version>2.7.9</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
 		<prometheus.version>0.0.26</prometheus.version>
 		<junit.version>4.12</junit.version>
@@ -230,6 +230,12 @@ under the License.
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-guava</artifactId>
 				<version>18.0-1.0</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-jackson</artifactId>
+				<version>${jackson.version}-2.0</version>
 			</dependency>
 
 			<!-- This manages the 'javax.annotation' annotations (JSR305) -->
@@ -512,24 +518,6 @@ under the License.
 				<groupId>org.apache.httpcomponents</groupId>
 				<artifactId>httpclient</artifactId>
 				<version>4.5.3</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-core</artifactId>
-				<version>${jackson.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-databind</artifactId>
-				<version>${jackson.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.fasterxml.jackson.core</groupId>
-				<artifactId>jackson-annotations</artifactId>
-				<version>${jackson.version}</version>
 			</dependency>
 
 			<dependency>
