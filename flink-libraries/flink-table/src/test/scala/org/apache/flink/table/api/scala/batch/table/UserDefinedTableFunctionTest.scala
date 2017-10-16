@@ -176,4 +176,28 @@ class UserDefinedTableFunctionTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = util.addFunction("func1", new TableFunc1)
+
+    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetCorrelate",
+        batchTableNode(0),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("function", function),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+        term("joinType", "LEFT")
+      ),
+      term("select", "c", "s"))
+
+    util.verifyTable(result, expected)
+  }
 }
