@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
 import org.apache.flink.table.utils.TableTestUtil._
@@ -75,20 +76,29 @@ class CorrelateTest extends TableTestBase {
     util.verifySql(sqlQuery2, expected2)
   }
 
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we could
+    * only accept local join predicates on the left table.
+    */
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithLeftLocalPredicates(): Unit = {
     val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     util.addFunction("func1", func1)
 
-    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON TRUE"
+    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON a > 3"
 
     val expected = unaryNode(
       "DataStreamCalc",
       unaryNode(
         "DataStreamCorrelate",
-        streamTableNode(0),
+        unaryNode(
+          "DataStreamCalc",
+          streamTableNode(0),
+          term("select", "a", "b", "c"),
+          term("where", ">(a, 3)")
+        ),
         term("invocation", "func1($cor0.c)"),
         term("correlate", s"table(func1($$cor0.c))"),
         term("select", "a", "b", "c", "f0"),
@@ -100,6 +110,22 @@ class CorrelateTest extends TableTestBase {
     )
 
     util.verifySql(sqlQuery, expected)
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we could
+    * only accept local join predicates on the left table.
+    */
+  @Test(expected = classOf[TableException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = streamTestUtil()
+    val func1 = new TableFunc1
+    util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addFunction("func1", func1)
+
+    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON s > 5"
+
+    util.verifySql(sqlQuery, "")
   }
 
   @Test
