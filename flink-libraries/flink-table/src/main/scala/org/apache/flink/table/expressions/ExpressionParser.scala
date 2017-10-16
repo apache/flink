@@ -201,7 +201,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   }
 
   lazy val atom: PackratParser[Expression] =
-    ( "(" ~> expression <~ ")" ) | literalExpr | fieldReference
+    ( "(" ~> expression <~ ")" ) | (fieldReference ||| literalExpr)
 
   lazy val over: PackratParser[Expression] = composite ~ OVER ~ fieldReference ^^ {
     case agg ~ _ ~ windowRef => UnresolvedOverCall(agg, windowRef)
