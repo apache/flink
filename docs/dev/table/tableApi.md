@@ -344,7 +344,7 @@ Table orders = tableEnv.scan("Orders");
 Table result = orders
     .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
     .groupBy("a, w") // group by key and window
-    .select("a, w.start, w.end, b.sum as d"); // access window properties and aggregate
+    .select("a, w.start, w.end, w.rowtime, b.sum as d"); // access window properties and aggregate
 {% endhighlight %}
       </td>
     </tr>
@@ -427,7 +427,7 @@ val orders: Table = tableEnv.scan("Orders")
 val result: Table = orders
     .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
     .groupBy('a, 'w) // group by key and window
-    .select('a, w.start, 'w.end, 'b.sum as 'd) // access window properties and aggregate
+    .select('a, w.start, 'w.end, 'w.rowtime, 'b.sum as 'd) // access window properties and aggregate
 {% endhighlight %}
       </td>
     </tr>
@@ -1170,7 +1170,7 @@ val table = input
 </div>
 </div>
 
-Window properties such as the start and end timestamp of a time window can be added in the select statement as a property of the window alias as `w.start` and `w.end`, respectively.
+Window properties such as the start, end, or rowtime timestamp of a time window can be added in the select statement as a property of the window alias as `w.start`, `w.end`, and `w.rowtime`, respectively. The window start and rowtime timestamps are the inclusive lower and uppper window boundaries. In contrast, the window end timestamp is the exclusive upper window boundary. For example a tumbling window of 30 minutes that starts at 2pm would have `14:00:00.000` as start timestamp, `14:29:59.999` as rowtime timestamp, and `14:30:00.000` as end timestamp.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1178,7 +1178,7 @@ Window properties such as the start and end timestamp of a time window can be ad
 Table table = input
   .window([Window w].as("w"))  // define window with alias w
   .groupBy("w, a")  // group the table by attribute a and window w 
-  .select("a, w.start, w.end, b.count"); // aggregate and add window start and end timestamps
+  .select("a, w.start, w.end, w.rowtime, b.count"); // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
 </div>
 
@@ -1187,7 +1187,7 @@ Table table = input
 val table = input
   .window([w: Window] as 'w)  // define window with alias w
   .groupBy('w, 'a)  // group the table by attribute a and window w 
-  .select('a, 'w.start, 'w.end, 'b.count) // aggregate and add window start and end timestamps
+  .select('a, 'w.start, 'w.end, 'w.rowtime, 'b.count) // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
 </div>
 </div>
@@ -1219,7 +1219,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1281,7 +1281,7 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>
@@ -1339,7 +1339,7 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start or end time in the <code>select()</code> clause.</td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
     </tr>
   </tbody>
 </table>

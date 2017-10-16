@@ -40,6 +40,8 @@ abstract class TimeWindowPropertyCollector[T](
 
   def getRow(record: T): Row
 
+  def setRowtimeAttribute(pos: Int): Unit
+
   override def collect(record: T): Unit = {
 
     output = getRow(record)
@@ -57,9 +59,7 @@ abstract class TimeWindowPropertyCollector[T](
     }
 
     if (windowRowtimeOffset.isDefined) {
-      output.setField(
-        lastFieldPos + windowRowtimeOffset.get,
-        windowEnd - 1)
+      setRowtimeAttribute(lastFieldPos + windowRowtimeOffset.get)
     }
 
     wrappedCollector.collect(record)
@@ -68,20 +68,28 @@ abstract class TimeWindowPropertyCollector[T](
   override def close(): Unit = wrappedCollector.close()
 }
 
-class RowTimeWindowPropertyCollector(
+final class DataSetTimeWindowPropertyCollector(
     startOffset: Option[Int],
     endOffset: Option[Int],
     rowtimeOffset: Option[Int])
   extends TimeWindowPropertyCollector[Row](startOffset, endOffset, rowtimeOffset) {
 
   override def getRow(record: Row): Row = record
+
+  override def setRowtimeAttribute(pos: Int): Unit = {
+    output.setField(pos, SqlFunctions.internalToTimestamp(windowEnd - 1))
+  }
 }
 
-class CRowTimeWindowPropertyCollector(
+final class DataStreamTimeWindowPropertyCollector(
     startOffset: Option[Int],
     endOffset: Option[Int],
     rowtimeOffset: Option[Int])
   extends TimeWindowPropertyCollector[CRow](startOffset, endOffset, rowtimeOffset) {
 
   override def getRow(record: CRow): Row = record.row
+
+  override def setRowtimeAttribute(pos: Int): Unit = {
+    output.setField(pos, windowEnd - 1)
+  }
 }
