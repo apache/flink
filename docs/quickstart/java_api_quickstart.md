@@ -43,10 +43,11 @@ Use one of the following commands to __create a project__:
 </ul>
 <div class="tab-content">
     <div class="tab-pane active" id="maven-archetype">
-    {% highlight bash %}
-    $ mvn archetype:generate                               \
-      -DarchetypeGroupId=org.apache.flink              \
-      -DarchetypeArtifactId=flink-quickstart-java      \{% unless site.is_stable %}
+    {% highlight bash %}{% if site.is_stable %}
+    $ mvn archetype:generate \{% else %}
+    $ mvn org.apache.maven.plugins:maven-archetype-plugin:2.4:generate \{% endif %}
+      -DarchetypeGroupId=org.apache.flink \
+      -DarchetypeArtifactId=flink-quickstart-java \{% unless site.is_stable %}
       -DarchetypeCatalog=https://repository.apache.org/content/repositories/snapshots/ \{% endunless %}
       -DarchetypeVersion={{site.version}}
     {% endhighlight %}
