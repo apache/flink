@@ -62,27 +62,20 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-actor_${scala.binary.version}</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-remote_${scala.binary.version}</artifactId>
 			<scope>provided</scope>
-			<exclusions>
-				<!-- exclude the lower/wrong version of Protobuf here -->
-				<exclusion>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protobuf-java</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 			<scope>provided</scope>
 		</dependency>
 
@@ -138,8 +131,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
-			<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -269,9 +262,7 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<!-- Relocate Mesos Protobuf dependency. Mesos 1.0.1 requires Protobuf 2.6.1 whereas
-			 Flakka pulls in Protobuf 2.5.0. It might be feasible to set Protobuf to version 2.6.1,
-			 but we shade to be on the safe side. -->
+			<!-- Relocate Mesos Protobuf dependency. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -283,11 +274,10 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes combine.children="append">
-									<include>com.google.protobuf:*</include>
-									<include>org.apache.mesos:*</include>
+									<include>com.google.protobuf:protobuf-java</include>
+									<include>org.apache.mesos:mesos</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">

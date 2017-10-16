@@ -19,6 +19,7 @@
 package org.apache.flink.client;
 
 import org.apache.flink.client.cli.CliFrontendParser;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
@@ -127,6 +128,14 @@ public class CliFrontendRunTest {
 				assertEquals("justavalue", options.getProgramArgs()[2]);
 				assertEquals("--arg2", options.getProgramArgs()[3]);
 				assertEquals("value2", options.getProgramArgs()[4]);
+			}
+
+			// test flip6 switch
+			{
+				String[] parameters =
+					{"-flip6", getTestJarPath()};
+				RunOptions options = CliFrontendParser.parseRunCommand(parameters);
+				assertTrue(options.getCommandLine().hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
 			}
 		}
 		catch (Exception e) {

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
@@ -37,7 +36,6 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collections;
 import java.util.Random;
 
@@ -174,8 +172,8 @@ public class GlobalModVersionTest {
 				Time.seconds(10),
 				new InfiniteDelayRestartStrategy(),
 				new CustomStrategy(failoverStrategy),
-				Collections.<BlobKey>emptyList(),
-				Collections.<URL>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				slotProvider,
 				getClass().getClassLoader());
 

@@ -291,11 +291,12 @@ class MemoryArchivist(
       throw new IllegalArgumentException("Cannot use the root directory for storing job archives.")
     }
 
-    if (!FileSystem.isFlinkSupportedScheme(archivePathUri.getScheme)) {
-      // skip verification checks for non-flink supported filesystem
-      // this is because the required filesystem classes may not be available to the flink client
-      throw new IllegalArgumentException("No file system found with scheme " + scheme
-        + ", referenced in file URI '" + archivePathUri.toString + "'.")
+    try {
+      FileSystem.get(archivePathUri)
+    }
+    catch {
+      case e: Exception =>
+          throw new IllegalArgumentException(s"No file system found for URI '${archivePathUri}'.")
     }
     new Path(archivePathUri)
   }

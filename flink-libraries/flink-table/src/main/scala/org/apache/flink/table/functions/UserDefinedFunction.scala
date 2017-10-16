@@ -41,7 +41,7 @@ abstract class UserDefinedFunction extends Serializable {
   def close(): Unit = {}
 
   /**
-    * @return true iff a call to this function is guaranteed to always return
+    * @return true if and only if a call to this function is guaranteed to always return
     *         the same result given the same parameters; true is assumed by default
     *         if user's function is not pure functional, like random(), date(), now()...
     *         isDeterministic must return false
@@ -52,4 +52,10 @@ abstract class UserDefinedFunction extends Serializable {
     val md5 = DigestUtils.md5Hex(serialize(this))
     getClass.getCanonicalName.replace('.', '$').concat("$").concat(md5)
   }
+
+  /**
+    * Returns the name of the UDF that is used for plan explain and logging.
+    */
+  override def toString: String = getClass.getSimpleName
+
 }

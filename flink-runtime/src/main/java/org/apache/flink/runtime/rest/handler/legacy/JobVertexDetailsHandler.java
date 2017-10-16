@@ -53,7 +53,7 @@ public class JobVertexDetailsHandler extends AbstractJobVertexRequestHandler {
 
 	private final MetricFetcher fetcher;
 
-	public JobVertexDetailsHandler(ExecutionGraphHolder executionGraphHolder, Executor executor, MetricFetcher fetcher) {
+	public JobVertexDetailsHandler(ExecutionGraphCache executionGraphHolder, Executor executor, MetricFetcher fetcher) {
 		super(executionGraphHolder, executor);
 		this.fetcher = fetcher;
 	}

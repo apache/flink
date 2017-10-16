@@ -27,22 +27,38 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.LegacyRestHandlerAdapter;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.job.BlobServerPortHandler;
+import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
+import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
+import org.apache.flink.runtime.rest.handler.job.JobSubmitHandler;
 import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointConfigHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatisticDetailsHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointingStatisticsHandler;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.TaskCheckpointStatisticDetailsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
-import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterConfigurationInfo;
-import org.apache.flink.runtime.rest.handler.legacy.messages.DashboardConfiguration;
-import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
+import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.CurrentJobsOverviewHandlerHeaders;
+import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
+import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
+import org.apache.flink.runtime.rest.messages.JobPlanHeaders;
 import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FileUtils;
@@ -68,6 +84,9 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 	private final RestHandlerConfiguration restConfiguration;
 	private final Executor executor;
 
+	private final ExecutionGraphCache executionGraphCache;
+	private final CheckpointStatsCache checkpointStatsCache;
+
 	public DispatcherRestEndpoint(
 			RestServerEndpointConfiguration endpointConfiguration,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
@@ -79,6 +98,13 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		this.clusterConfiguration = Preconditions.checkNotNull(clusterConfiguration);
 		this.restConfiguration = Preconditions.checkNotNull(restConfiguration);
 		this.executor = Preconditions.checkNotNull(executor);
+
+		this.executionGraphCache = new ExecutionGraphCache(
+			restConfiguration.getTimeout(),
+			Time.milliseconds(restConfiguration.getRefreshInterval()));
+
+		this.checkpointStatsCache = new CheckpointStatsCache(
+			restConfiguration.getMaxCheckpointStatisticCacheEntries());
 	}
 
 	@Override
@@ -87,7 +113,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 
 		final Time timeout = restConfiguration.getTimeout();
 
-		LegacyRestHandlerAdapter<DispatcherGateway, StatusOverviewWithVersion, EmptyMessageParameters> clusterOverviewHandler = new LegacyRestHandlerAdapter<>(
+		LegacyRestHandlerAdapter<DispatcherGateway, ClusterOverviewWithVersion, EmptyMessageParameters> clusterOverviewHandler = new LegacyRestHandlerAdapter<>(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
@@ -131,6 +157,56 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			timeout,
 			JobTerminationHeaders.getInstance());
 
+		JobConfigHandler jobConfigHandler = new JobConfigHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			JobConfigHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
+		CheckpointConfigHandler checkpointConfigHandler = new CheckpointConfigHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			CheckpointConfigHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
+		CheckpointingStatisticsHandler checkpointStatisticsHandler = new CheckpointingStatisticsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			CheckpointingStatisticsHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
+		CheckpointStatisticDetailsHandler checkpointStatisticDetailsHandler = new CheckpointStatisticDetailsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			CheckpointStatisticDetailsHeaders.getInstance(),
+			executionGraphCache,
+			executor,
+			checkpointStatsCache);
+
+		JobPlanHandler jobPlanHandler = new JobPlanHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			JobPlanHeaders.getInstance(),
+			executionGraphCache,
+			executor);
+
+		TaskCheckpointStatisticDetailsHandler taskCheckpointStatisticDetailsHandler = new TaskCheckpointStatisticDetailsHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			TaskCheckpointStatisticsHeaders.getInstance(),
+			executionGraphCache,
+			executor,
+			checkpointStatsCache);
+
 		final File tmpDir = restConfiguration.getTmpDir();
 
 		Optional<StaticFileServerHandler<DispatcherGateway>> optWebContent;
@@ -151,6 +227,18 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		handlers.add(Tuple2.of(DashboardConfigurationHeaders.getInstance(), dashboardConfigurationHandler));
 		handlers.add(Tuple2.of(CurrentJobsOverviewHandlerHeaders.getInstance(), currentJobsOverviewHandler));
 		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
+		handlers.add(Tuple2.of(JobConfigHeaders.getInstance(), jobConfigHandler));
+		handlers.add(Tuple2.of(CheckpointConfigHeaders.getInstance(), checkpointConfigHandler));
+		handlers.add(Tuple2.of(CheckpointingStatisticsHeaders.getInstance(), checkpointStatisticsHandler));
+		handlers.add(Tuple2.of(CheckpointStatisticDetailsHeaders.getInstance(), checkpointStatisticDetailsHandler));
+		handlers.add(Tuple2.of(JobPlanHeaders.getInstance(), jobPlanHandler));
+		handlers.add(Tuple2.of(TaskCheckpointStatisticsHeaders.getInstance(), taskCheckpointStatisticDetailsHandler));
+
+		BlobServerPortHandler blobServerPortHandler = new BlobServerPortHandler(restAddressFuture, leaderRetriever, timeout);
+		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));
+
+		JobSubmitHandler jobSubmitHandler = new JobSubmitHandler(restAddressFuture, leaderRetriever, timeout);
+		handlers.add(Tuple2.of(jobSubmitHandler.getMessageHeaders(), jobSubmitHandler));
 
 		// This handler MUST be added last, as it otherwise masks all subsequent GET handlers
 		optWebContent.ifPresent(
@@ -162,6 +250,8 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 	@Override
 	public void shutdown(Time timeout) {
 		super.shutdown(timeout);
+
+		executionGraphCache.close();
 
 		final File tmpDir = restConfiguration.getTmpDir();
 

@@ -22,40 +22,34 @@ import org.apache.flink.annotation.Internal;
 
 import java.nio.ByteBuffer;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
- * A factory for memory segments. The purpose of this factory is to make sure that all memory segments
- * for heap data are of the same type. That way, the runtime does not mix the various specializations
- * of the {@link org.apache.flink.core.memory.MemorySegment}. Not mixing them has shown to be beneficial
- * to method specialization by the JIT and to overall performance.
- * 
- * <p>Note that this factory auto-initialized to use {@link org.apache.flink.core.memory.HeapMemorySegment},
- * if a request to create a segment comes before the initialization.
+ * A factory for (hybrid) memory segments ({@link HybridMemorySegment}).
+ *
+ * <p>The purpose of this factory is to make sure that all memory segments for heap data are of the
+ * same type. That way, the runtime does not mix the various specializations of the {@link
+ * MemorySegment}. Not mixing them has shown to be beneficial to method specialization by the JIT
+ * and to overall performance.
  */
 @Internal
-public class MemorySegmentFactory {
-
-	/** The factory to use */
-	private static volatile Factory factory;
+public final class MemorySegmentFactory {
 
 	/**
 	 * Creates a new memory segment that targets the given heap memory region.
-	 * This method should be used to turn short lived byte arrays into memory segments.
+	 *
+	 * <p>This method should be used to turn short lived byte arrays into memory segments.
 	 *
 	 * @param buffer The heap memory region.
 	 * @return A new memory segment that targets the given heap memory region.
 	 */
 	public static MemorySegment wrap(byte[] buffer) {
-		ensureInitialized();
-		return factory.wrap(buffer);
+		return new HybridMemorySegment(buffer);
 	}
 
 	/**
 	 * Allocates some unpooled memory and creates a new memory segment that represents
 	 * that memory.
-	 * <p>
-	 * This method is similar to {@link #allocateUnpooledSegment(int, Object)}, but the
+	 *
+	 * <p>This method is similar to {@link #allocateUnpooledSegment(int, Object)}, but the
 	 * memory segment will have null as the owner.
 	 *
 	 * @param size The size of the memory segment to allocate.
@@ -68,40 +62,37 @@ public class MemorySegmentFactory {
 	/**
 	 * Allocates some unpooled memory and creates a new memory segment that represents
 	 * that memory.
-	 * <p>
-	 * This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets
+	 *
+	 * <p>This method is similar to {@link #allocateUnpooledSegment(int)}, but additionally sets
 	 * the owner of the memory segment.
-	 * 
+	 *
 	 * @param size The size of the memory segment to allocate.
 	 * @param owner The owner to associate with the memory segment.
 	 * @return A new memory segment, backed by unpooled heap memory.
 	 */
 	public static MemorySegment allocateUnpooledSegment(int size, Object owner) {
-		ensureInitialized();
-		return factory.allocateUnpooledSegment(size, owner);
+		return new HybridMemorySegment(new byte[size], owner);
 	}
 
 	/**
 	 * Creates a memory segment that wraps the given byte array.
-	 * <p>
-	 * This method is intended to be used for components which pool memory and create
+	 *
+	 * <p>This method is intended to be used for components which pool memory and create
 	 * memory segments around long-lived memory regions.
 	 *
-	 * 
 	 * @param memory The heap memory to be represented by the memory segment.
 	 * @param owner The owner to associate with the memory segment.
 	 * @return A new memory segment representing the given heap memory.
 	 */
 	public static MemorySegment wrapPooledHeapMemory(byte[] memory, Object owner) {
-		ensureInitialized();
-		return factory.wrapPooledHeapMemory(memory, owner);
+		return new HybridMemorySegment(memory, owner);
 	}
 
 	/**
 	 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
-	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>. 
-	 * <p>
-	 * This method is intended to be used for components which pool memory and create
+	 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>.
+	 *
+	 * <p>This method is intended to be used for components which pool memory and create
 	 * memory segments around long-lived memory regions.
 	 *
 	 * @param memory The byte buffer with the off-heap memory to be represented by the memory segment.
@@ -109,117 +100,7 @@ public class MemorySegmentFactory {
 	 * @return A new memory segment representing the given off-heap memory.
 	 */
 	public static MemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner) {
-		ensureInitialized();
-		return factory.wrapPooledOffHeapMemory(memory, owner);
+		return new HybridMemorySegment(memory, owner);
 	}
 
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Initializes this factory with the given concrete factory, iff it is not yet initialized.
-	 * This also checks if the factory is already initialized to the exact same concrete factory
-	 * as given.
-	 *
-	 * @param f The concrete factory to use.
-	 * @return True, if the factory is initialized with the given concrete factory, or if it was already
-	 *         initialized with the exact same concrete factory. False, if it is already initialized with
-	 *         a different concrete factory.
-	 */
-	public static boolean initializeIfNotInitialized(Factory f) {
-		checkNotNull(f);
-
-		synchronized (MemorySegmentFactory.class) {
-			if (factory == null) {
-				factory = f;
-				return true;
-			} else {
-				return factory == f;
-			}
-		}
-	}
-
-	/**
-	 * Checks whether this memory segment factory has been initialized (with a type to produce).
-	 * 
-	 * @return True, if the factory has been initialized, false otherwise.
-	 */
-	public static boolean isInitialized() {
-		return factory != null;
-	}
-
-	/**
-	 * Gets the factory. May return null, if the factory has not been initialized.
-	 * 
-	 * @return The factory, or null, if the factory has not been initialized.
-	 */
-	public static Factory getFactory() {
-		return factory;
-	}
-
-	/**
-	 * Sets the factory to the {@link HeapMemorySegment#FACTORY} is no factory has been initialized, yet.
-	 */
-	private static void ensureInitialized() {
-		if (factory == null) {
-			synchronized (MemorySegmentFactory.class) {
-				if (factory == null) {
-					factory = HeapMemorySegment.FACTORY;
-				}
-			}
-		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Internal factory
-	// ------------------------------------------------------------------------
-	
-	/**
-	 * A concrete factory for memory segments.
-	 */
-	public interface Factory {
-
-		/**
-		 * Creates a new memory segment that targets the given heap memory region.
-		 *
-		 * @param memory The heap memory region.
-		 * @return A new memory segment that targets the given heap memory region.
-		 */
-		MemorySegment wrap(byte[] memory);
-
-		/**
-		 * Allocates some unpooled memory and creates a new memory segment that represents
-		 * that memory.
-		 *
-		 * @param size The size of the memory segment to allocate.
-		 * @param owner The owner to associate with the memory segment.
-		 * @return A new memory segment, backed by unpooled heap memory.
-		 */
-		MemorySegment allocateUnpooledSegment(int size, Object owner);
-
-		/**
-		 * Creates a memory segment that wraps the given byte array.
-		 * <p>
-		 * This method is intended to be used for components which pool memory and create
-		 * memory segments around long-lived memory regions.
-		 *
-		 *
-		 * @param memory The heap memory to be represented by the memory segment.
-		 * @param owner The owner to associate with the memory segment.
-		 * @return A new memory segment representing the given heap memory.
-		 */
-		MemorySegment wrapPooledHeapMemory(byte[] memory, Object owner);
-
-		/**
-		 * Creates a memory segment that wraps the off-heap memory backing the given ByteBuffer.
-		 * Note that the ByteBuffer needs to be a <i>direct ByteBuffer</i>. 
-		 * <p>
-		 * This method is intended to be used for components which pool memory and create
-		 * memory segments around long-lived memory regions.
-		 *
-		 * @param memory The byte buffer with the off-heap memory to be represented by the memory segment.
-		 * @param owner The owner to associate with the memory segment.
-		 * @return A new memory segment representing the given off-heap memory.
-		 */
-		MemorySegment wrapPooledOffHeapMemory(ByteBuffer memory, Object owner);
-	}
 }

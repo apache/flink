@@ -89,8 +89,7 @@ public class Emitter<OUT> implements Runnable {
 				operatorActions.failOperator(e);
 			} else {
 				// Thread got interrupted which means that it should shut down
-				LOG.debug("Emitter thread got interrupted. This indicates that the emitter should " +
-					"shut down.", e);
+				LOG.debug("Emitter thread got interrupted, shutting down.");
 			}
 		} catch (Throwable t) {
 			operatorActions.failOperator(new Exception("AsyncWaitOperator's emitter caught an " +

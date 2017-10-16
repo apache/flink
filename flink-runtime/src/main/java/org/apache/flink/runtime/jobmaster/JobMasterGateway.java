@@ -23,12 +23,15 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.message.ClassloadingProps;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -232,5 +235,27 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	 */
 	void heartbeatFromResourceManager(final ResourceID resourceID);
 
+	/**
+	 * Request the details of the executed job.
+	 *
+	 * @param timeout for the rpc call
+	 * @return Future details of the executed job
+	 */
 	CompletableFuture<JobDetails> requestJobDetails(@RpcTimeout Time timeout);
+
+	/**
+	 * Request the {@link ArchivedExecutionGraph} of the currently executed job.
+	 *
+	 * @param timeout for the rpc call
+	 * @return Future archived execution graph derived from the currently executed job
+	 */
+	CompletableFuture<AccessExecutionGraph> requestArchivedExecutionGraph(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the current job status.
+	 *
+	 * @param timeout for the rpc call
+	 * @return Future containing the current job status
+	 */
+	CompletableFuture<JobStatus> requestJobStatus(@RpcTimeout Time timeout);
 }

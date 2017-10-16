@@ -77,12 +77,12 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 	/** the helper that tracks whether calls come from the main thread. */
 	private final MainThreadValidatorUtil mainThreadValidator;
 
-	private final CompletableFuture<Void> terminationFuture;
+	private final CompletableFuture<Void> internalTerminationFuture;
 
-	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Void> terminationFuture) {
+	AkkaRpcActor(final T rpcEndpoint, final CompletableFuture<Void> internalTerminationFuture) {
 		this.rpcEndpoint = checkNotNull(rpcEndpoint, "rpc endpoint");
 		this.mainThreadValidator = new MainThreadValidatorUtil(rpcEndpoint);
-		this.terminationFuture = checkNotNull(terminationFuture);
+		this.internalTerminationFuture = checkNotNull(internalTerminationFuture);
 	}
 
 	@Override
@@ -106,9 +106,9 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends UntypedActor {
 			// Complete the termination future so that others know that we've stopped.
 
 			if (shutdownThrowable != null) {
-				terminationFuture.completeExceptionally(shutdownThrowable);
+				internalTerminationFuture.completeExceptionally(shutdownThrowable);
 			} else {
-				terminationFuture.complete(null);
+				internalTerminationFuture.complete(null);
 			}
 		} finally {
 			mainThreadValidator.exitMainThread();

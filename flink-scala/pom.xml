@@ -75,9 +75,15 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils-junit</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -87,6 +93,18 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.joda</groupId>
+			<artifactId>joda-convert</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 	</dependencies>
@@ -238,24 +256,4 @@ under the License.
 
 		</plugins>
 	</build>
-
-	<profiles>
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<name>scala-2.10</name>
-				</property>
-			</activation>
-			<!-- only required for Scala 2.10 -->
-			<dependencies>
-				<dependency>
-					<groupId>org.scalamacros</groupId>
-					<artifactId>quasiquotes_2.10</artifactId>
-					<version>${scala.macros.version}</version>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
-
 </project>

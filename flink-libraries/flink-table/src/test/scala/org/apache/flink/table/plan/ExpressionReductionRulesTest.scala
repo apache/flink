@@ -491,7 +491,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "a", "b", "c"),
-      term("where", s"IS NULL(${NonDeterministicNullFunc.functionIdentifier}())")
+      term("where", s"IS NULL(NonDeterministicNullFunc$$())")
     )
 
     util.verifyTable(result, expected)

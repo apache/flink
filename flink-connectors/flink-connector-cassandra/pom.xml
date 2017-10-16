@@ -72,6 +72,7 @@ under the License.
 									<include>com.datastax.cassandra:cassandra-driver-core</include>
 									<include>com.datastax.cassandra:cassandra-driver-mapping</include>
 									<include>com.google.guava:guava</include>
+									<include>io.netty:netty-*</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -82,6 +83,15 @@ under the License.
 										<exclude>com.google.protobuf.**</exclude>
 										<exclude>com.google.inject.**</exclude>
 									</excludes>
+								</relocation>
+								<!--
+									For the details of relocation pattern, refer the discussion at
+									https://github.com/apache/flink/pull/4545
+									FLINK-6805
+								-->
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.cassandra.shaded.io.netty</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

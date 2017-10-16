@@ -111,28 +111,6 @@ DataSet<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters)
 
 and then use it inside the function for getting values from the command line.
 
-
-#### Passing parameters as a `Configuration` object to single functions
-
-The example below shows how to pass the parameters as a `Configuration` object to a user defined function.
-
-{% highlight java %}
-ParameterTool parameters = ParameterTool.fromArgs(args);
-DataSet<Tuple2<String, Integer>> counts = text
-        .flatMap(new Tokenizer()).withParameters(parameters.getConfiguration())
-{% endhighlight %}
-
-In the `Tokenizer`, the object is now accessible in the `open(Configuration conf)` method:
-
-{% highlight java %}
-public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
-    @Override
-    public void open(Configuration parameters) throws Exception {
-	parameters.getInteger("myInt", -1);
-	// .. do
-{% endhighlight %}
-
-
 #### Register the parameters globally
 
 Parameters registered as global job parameters in the `ExecutionConfig` can be accessed as configuration values from the JobManager web interface and in all functions defined by the user.
@@ -317,4 +295,4 @@ Note that you need to explicitly set the `lib/` directory when using a per-job Y
 
 The command to submit Flink on YARN with a custom logger is: `./bin/flink run -yt $FLINK_HOME/lib <... remaining arguments ...>`
 
-
+{% top %}

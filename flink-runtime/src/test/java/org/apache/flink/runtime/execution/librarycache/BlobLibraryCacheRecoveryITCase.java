@@ -21,14 +21,12 @@ package org.apache.flink.runtime.execution.librarycache;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobClient;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
@@ -44,7 +42,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
@@ -68,12 +65,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 		BlobServer[] server = new BlobServer[2];
 		InetSocketAddress[] serverAddress = new InetSocketAddress[2];
 		BlobLibraryCacheManager[] libServer = new BlobLibraryCacheManager[2];
-		BlobCache cache = null;
+		PermanentBlobCache cache = null;
 		BlobStoreService blobStoreService = null;
 
 		Configuration config = new Configuration();
 		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(CoreOptions.STATE_BACKEND, "FILESYSTEM");
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH,
@@ -85,6 +81,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			for (int i = 0; i < server.length; i++) {
 				server[i] = new BlobServer(config, blobStoreService);
+				server[i].start();
 				serverAddress[i] = new InetSocketAddress("localhost", server[i].getPort());
 				libServer[i] = new BlobLibraryCacheManager(server[i], FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST);
 			}
@@ -93,18 +90,17 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			byte[] expected = new byte[1024];
 			rand.nextBytes(expected);
 
-			List<BlobKey> keys = new ArrayList<>(2);
+			ArrayList<PermanentBlobKey> keys = new ArrayList<>(2);
 
 			JobID jobId = new JobID();
 
 			// Upload some data (libraries)
-			try (BlobClient client = new BlobClient(serverAddress[0], config)) {
-				keys.add(client.put(jobId, expected)); // Request 1
-				keys.add(client.put(jobId, expected, 32, 256)); // Request 2
-			}
+			keys.add(server[0].putPermanent(jobId, expected)); // Request 1
+			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
+			keys.add(server[0].putPermanent(jobId, expected2)); // Request 2
 
 			// The cache
-			cache = new BlobCache(serverAddress[0], config, blobStoreService);
+			cache = new PermanentBlobCache(serverAddress[0], config, blobStoreService);
 
 			// Register uploaded libraries
 			ExecutionAttemptID executionId = new ExecutionAttemptID();
@@ -125,7 +121,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 			// Shutdown cache and start with other server
 			cache.close();
 
-			cache = new BlobCache(serverAddress[1], config, blobStoreService);
+			cache = new PermanentBlobCache(serverAddress[1], config, blobStoreService);
 
 			// Verify key 1
 			f = cache.getFile(jobId, keys.get(0));
@@ -141,21 +137,18 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
 
 			// Verify key 2
 			f = cache.getFile(jobId, keys.get(1));
-			assertEquals(256, f.length());
+			assertEquals(expected2.length, f.length());
 
 			try (FileInputStream fis = new FileInputStream(f)) {
 				for (int i = 0; i < 256 && fis.available() > 0; i++) {
-					assertEquals(expected[32 + i], (byte) fis.read());
+					assertEquals(expected2[i], (byte) fis.read());
 				}
 
 				assertEquals(0, fis.available());
 			}
 
 			// Remove blobs again
-			try (BlobClient client = new BlobClient(serverAddress[1], config)) {
-				client.delete(jobId, keys.get(0));
-				client.delete(jobId, keys.get(1));
-			}
+			server[1].cleanupJob(jobId);
 
 			// Verify everything is clean below recoveryDir/<cluster_id>
 			final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);

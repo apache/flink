@@ -20,6 +20,8 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.util.MockedCliFrontend;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 
@@ -33,22 +35,23 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipOutputStream;
 
-import scala.Option;
 import scala.concurrent.Future;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
-import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -76,31 +79,19 @@ public class CliFrontendSavepointTest {
 
 		try {
 			JobID jobId = new JobID();
-			ActorGateway jobManager = mock(ActorGateway.class);
-
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
-
-			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
-					any(FiniteDuration.class)))
-					.thenReturn(triggerResponse.future());
 
 			String savepointPath = "expectedSavepointPath";
 
-			triggerResponse.success(new TriggerSavepointSuccess(jobId, -1, savepointPath, -1));
-
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
+			MockedCliFrontend frontend = new SavepointTestCliFrontend(savepointPath);
 
 			String[] parameters = { jobId.toString() };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertEquals(0, returnCode);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
-					any(FiniteDuration.class));
+			verify(frontend.client, times(1))
+				.triggerSavepoint(eq(jobId), isNull(String.class));
 
-			assertTrue(buffer.toString().contains("expectedSavepointPath"));
+			assertTrue(buffer.toString().contains(savepointPath));
 		}
 		finally {
 			restoreStdOutAndStdErr();
@@ -113,29 +104,17 @@ public class CliFrontendSavepointTest {
 
 		try {
 			JobID jobId = new JobID();
-			ActorGateway jobManager = mock(ActorGateway.class);
-
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
-
-			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
-					any(FiniteDuration.class)))
-					.thenReturn(triggerResponse.future());
 
 			Exception testException = new Exception("expectedTestException");
 
-			triggerResponse.success(new TriggerSavepointFailure(jobId, testException));
-
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
+			MockedCliFrontend frontend = new SavepointTestCliFrontend(testException);
 
 			String[] parameters = { jobId.toString() };
 			int returnCode = frontend.savepoint(parameters);
 
-			assertTrue(returnCode != 0);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
-					any(FiniteDuration.class));
+			assertNotEquals(0, returnCode);
+			verify(frontend.client, times(1))
+				.triggerSavepoint(eq(jobId), isNull(String.class));
 
 			assertTrue(buffer.toString().contains("expectedTestException"));
 		}
@@ -162,46 +141,9 @@ public class CliFrontendSavepointTest {
 		}
 	}
 
-	@Test
-	public void testTriggerSavepointFailureUnknownResponse() throws Exception {
-		replaceStdOutAndStdErr();
-
-		try {
-			JobID jobId = new JobID();
-			ActorGateway jobManager = mock(ActorGateway.class);
-
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
-
-			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
-					any(FiniteDuration.class)))
-					.thenReturn(triggerResponse.future());
-
-			triggerResponse.success("UNKNOWN RESPONSE");
-
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
-
-			String[] parameters = { jobId.toString() };
-			int returnCode = frontend.savepoint(parameters);
-
-			assertTrue(returnCode != 0);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId, Option.<String>empty())),
-					any(FiniteDuration.class));
-
-			String errMsg = buffer.toString();
-			assertTrue(errMsg.contains("IllegalStateException"));
-			assertTrue(errMsg.contains("Unknown JobManager response"));
-		}
-		finally {
-			restoreStdOutAndStdErr();
-		}
-	}
-
 	/**
 	 * Tests that a CLI call with a custom savepoint directory target is
-	 * forwarded correctly to the JM.
+	 * forwarded correctly to the cluster client.
 	 */
 	@Test
 	public void testTriggerSavepointCustomTarget() throws Exception {
@@ -209,30 +151,19 @@ public class CliFrontendSavepointTest {
 
 		try {
 			JobID jobId = new JobID();
-			Option<String> customTarget = Option.apply("customTargetDirectory");
-			ActorGateway jobManager = mock(ActorGateway.class);
 
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
+			String savepointDirectory = "customTargetDirectory";
 
-			when(jobManager.ask(
-					Mockito.eq(new TriggerSavepoint(jobId, customTarget)),
-					any(FiniteDuration.class)))
-					.thenReturn(triggerResponse.future());
-			String savepointPath = "expectedSavepointPath";
-			triggerResponse.success(new TriggerSavepointSuccess(jobId, -1, savepointPath, -1));
+			MockedCliFrontend frontend = new SavepointTestCliFrontend(savepointDirectory);
 
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
-
-			String[] parameters = { jobId.toString(), customTarget.get() };
+			String[] parameters = { jobId.toString(), savepointDirectory };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertEquals(0, returnCode);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new TriggerSavepoint(jobId, customTarget)),
-					any(FiniteDuration.class));
+			verify(frontend.client, times(1))
+				.triggerSavepoint(eq(jobId), eq(savepointDirectory));
 
-			assertTrue(buffer.toString().contains("expectedSavepointPath"));
+			assertTrue(buffer.toString().contains(savepointDirectory));
 		}
 		finally {
 			restoreStdOutAndStdErr();
@@ -443,5 +374,18 @@ public class CliFrontendSavepointTest {
 	private static void restoreStdOutAndStdErr() {
 		System.setOut(stdOut);
 		System.setErr(stdErr);
+	}
+
+	private static final class SavepointTestCliFrontend extends MockedCliFrontend {
+
+		SavepointTestCliFrontend(String expectedResponse) throws Exception {
+			when(client.triggerSavepoint(any(JobID.class), anyString()))
+				.thenReturn(CompletableFuture.completedFuture(expectedResponse));
+		}
+
+		SavepointTestCliFrontend(Exception expectedException) throws Exception {
+			when(client.triggerSavepoint(any(JobID.class), anyString()))
+				.thenReturn(FutureUtils.completedExceptionally(expectedException));
+		}
 	}
 }

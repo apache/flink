@@ -138,17 +138,30 @@ This allows the job to finish processing all inflight data.
 
 [Savepoints]({{site.baseurl}}/ops/state/savepoints.html) are controlled via the command line client:
 
-#### Trigger a savepoint
+#### Trigger a Savepoint
 
 {% highlight bash %}
-./bin/flink savepoint <jobID> [savepointDirectory]
+./bin/flink savepoint <jobId> [savepointDirectory]
 {% endhighlight %}
 
-Returns the path of the created savepoint. You need this path to restore and dispose savepoints.
+This will trigger a savepoint for the job with ID `jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-You can optionally specify a `savepointDirectory` when triggering the savepoint. If you don't specify one here, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
 
-##### Cancel with a savepoint
+Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
+
+If you don't specify a target directory, you need to have [configured a default directory](#configuration) (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)). Otherwise, triggering the savepoint will fail.
+
+#### Trigger a Savepoint with YARN
+
+{% highlight bash %}
+./bin/flink savepoint <jobId> [savepointDirectory] -yid <yarnAppId>
+{% endhighlight %}
+
+This will trigger a savepoint for the job with ID `jobId` and YARN application ID `yarnAppId`, and returns the path of the created savepoint.
+
+Everything else is the same as described in the above **Trigger a Savepoint** section.
+
+#### Cancel with a savepoint
 
 You can atomically trigger a savepoint and cancel a job.
 
@@ -353,3 +366,5 @@ Action "savepoint" triggers savepoints for a running job or disposes existing on
   Options for yarn-cluster mode:
      -yid,--yarnapplicationId <arg>   Attach to running YARN session
 ~~~
+
+{% top %}

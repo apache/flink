@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobView;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -175,11 +174,10 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 				webMonitor[i] = new WebRuntimeMonitor(
 					config,
 					highAvailabilityServices.getJobManagerLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID),
-					highAvailabilityServices.createBlobStore(),
 					jobManagerRetrievers[i],
 					new AkkaQueryServiceRetriever(jobManagerSystem[i], TIMEOUT),
 					TIMEOUT,
-					TestingUtils.defaultExecutor());
+					TestingUtils.defaultScheduledExecutor());
 			}
 
 			ActorRef[] jobManager = new ActorRef[2];
@@ -319,11 +317,10 @@ public class WebRuntimeMonitorITCase extends TestLogger {
 			webRuntimeMonitor = new WebRuntimeMonitor(
 				config,
 				mock(LeaderRetrievalService.class),
-				mock(BlobView.class),
 				new AkkaJobManagerRetriever(actorSystem, TIMEOUT, 0, Time.milliseconds(50L)),
 				new AkkaQueryServiceRetriever(actorSystem, TIMEOUT),
 				TIMEOUT,
-				TestingUtils.defaultExecutor());
+				TestingUtils.defaultScheduledExecutor());
 
 			webRuntimeMonitor.start();
 

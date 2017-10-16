@@ -120,6 +120,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycle();
 			}
+			deserializer.clear();
 		}
 	}
 }

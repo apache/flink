@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
 
@@ -153,6 +153,6 @@ public class HeapMapState<K, N, UK, UV>
 		TypeSerializer<UK> userKeySerializer = stateDesc.getKeySerializer();
 		TypeSerializer<UV> userValueSerializer = stateDesc.getValueSerializer();
 
-		return KvStateRequestSerializer.serializeMap(result.entrySet(), userKeySerializer, userValueSerializer);
+		return KvStateSerializer.serializeMap(result.entrySet(), userKeySerializer, userValueSerializer);
 	}
 }

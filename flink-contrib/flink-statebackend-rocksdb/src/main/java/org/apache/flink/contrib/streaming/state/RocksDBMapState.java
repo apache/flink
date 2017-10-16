@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.runtime.query.netty.message.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.Preconditions;
@@ -223,8 +223,8 @@ public class RocksDBMapState<K, N, UK, UV>
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
 		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
 
-		//TODO make KvStateRequestSerializer key-group aware to save this round trip and key-group computation
-		Tuple2<K, N> des = KvStateRequestSerializer.deserializeKeyAndNamespace(
+		//TODO make KvStateSerializer key-group aware to save this round trip and key-group computation
+		Tuple2<K, N> des = KvStateSerializer.deserializeKeyAndNamespace(
 				serializedKeyAndNamespace,
 				backend.getKeySerializer(),
 				namespaceSerializer);
@@ -248,7 +248,7 @@ public class RocksDBMapState<K, N, UK, UV>
 			return null;
 		}
 
-		return KvStateRequestSerializer.serializeMap(new Iterable<Map.Entry<UK, UV>>() {
+		return KvStateSerializer.serializeMap(new Iterable<Map.Entry<UK, UV>>() {
 			@Override
 			public Iterator<Map.Entry<UK, UV>> iterator() {
 				return iterator;

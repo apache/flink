@@ -124,6 +124,7 @@ under the License.
 									<include>net.java.dev.jets3t:jets3t</include>
 									<include>org.apache.httpcomponents:*</include>
 									<include>commons-httpclient:commons-httpclient</include>
+									<include>org.codehaus.jackson:*</include>
 								</includes>
 								<excludes>
 									<exclude>org.slf4j:*</exclude>
@@ -161,6 +162,10 @@ under the License.
 								<relocation>
 									<pattern>org.htrace</pattern>
 									<shadedPattern>org.apache.flink.hadoop.shaded.org.htrace</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.codehaus.jackson</pattern>
+									<shadedPattern>org.apache.flink.hadoop.shaded.org.codehaus.jackson</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

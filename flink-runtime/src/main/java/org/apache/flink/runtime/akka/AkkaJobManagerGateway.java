@@ -28,13 +28,14 @@ import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -226,7 +227,7 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<Optional<AccessExecutionGraph>> requestJob(JobID jobId, Time timeout) {
+	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
 		CompletableFuture<JobManagerMessages.JobResponse> jobResponseFuture = FutureUtils.toJava(
 			jobManagerGateway
 				.ask(new JobManagerMessages.RequestJob(jobId), FutureUtils.toFiniteDuration(timeout))
@@ -235,19 +236,19 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 		return jobResponseFuture.thenApply(
 			(JobManagerMessages.JobResponse jobResponse) -> {
 				if (jobResponse instanceof JobManagerMessages.JobFound) {
-					return Optional.of(((JobManagerMessages.JobFound) jobResponse).executionGraph());
+					return ((JobManagerMessages.JobFound) jobResponse).executionGraph();
 				} else {
-					return Optional.empty();
+					throw new CompletionException(new FlinkJobNotFoundException(jobId));
 				}
 			});
 	}
 
 	@Override
-	public CompletableFuture<StatusOverview> requestStatusOverview(Time timeout) {
+	public CompletableFuture<ClusterOverview> requestClusterOverview(Time timeout) {
 		return FutureUtils.toJava(
 			jobManagerGateway
 				.ask(RequestStatusOverview.getInstance(), FutureUtils.toFiniteDuration(timeout))
-				.mapTo(ClassTag$.MODULE$.apply(StatusOverview.class)));
+				.mapTo(ClassTag$.MODULE$.apply(ClusterOverview.class)));
 	}
 
 	@Override

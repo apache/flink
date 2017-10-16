@@ -241,3 +241,5 @@ coordinate ascent.* Advances in Neural Information Processing Systems. 2014.
 
 <a name="hsu"></a>[3] Hsu, Chih-Wei, Chih-Chung Chang, and Chih-Jen Lin.
  *A practical guide to support vector classification.* 2003.
+
+{% top %}

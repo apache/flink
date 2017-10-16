@@ -100,7 +100,7 @@ public class YarnTaskExecutorRunner {
 			LOG.info("TM: remote keytab principal obtained {}", remoteKeytabPrincipal);
 
 			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
-			FileSystem.setDefaultScheme(configuration);
+			FileSystem.initialize(configuration);
 
 			// configure local directory
 			String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);

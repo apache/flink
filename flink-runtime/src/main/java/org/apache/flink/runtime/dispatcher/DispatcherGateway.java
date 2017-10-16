@@ -22,8 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -75,12 +73,10 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
 	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
 
 	/**
-	 * Request the cluster overview.
+	 * Returns the port of the blob server.
 	 *
 	 * @param timeout of the operation
-	 * @return Future {@link StatusOverview} containing the cluster information
+	 * @return A future integer of the blob server port
 	 */
-	CompletableFuture<StatusOverview> requestStatusOverview(@RpcTimeout Time timeout);
-
-	CompletableFuture<MultipleJobsDetails> requestJobDetails(@RpcTimeout Time timeout);
+	CompletableFuture<Integer> getBlobServerPort(@RpcTimeout Time timeout);
 }

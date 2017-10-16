@@ -18,14 +18,19 @@
 
 package org.apache.flink.runtime.blob;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import javax.annotation.Nullable;
 
 import java.io.EOFException;
 import java.io.File;
@@ -37,12 +42,15 @@ import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.util.TestLogger;
-
+import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventually;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
+import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -56,7 +64,7 @@ public class BlobClientTest extends TestLogger {
 	/** The instance of the (non-ssl) BLOB server used during the tests. */
 	static BlobServer BLOB_SERVER;
 
-	/** The blob service (non-ssl) client configuration */
+	/** The blob service (non-ssl) client configuration. */
 	static Configuration clientConfig;
 
 	@ClassRule
@@ -72,6 +80,7 @@ public class BlobClientTest extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath());
 
 		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
+		BLOB_SERVER.start();
 
 		clientConfig = new Configuration();
 	}
@@ -88,7 +97,7 @@ public class BlobClientTest extends TestLogger {
 
 	/**
 	 * Creates a test buffer and fills it with a specific byte pattern.
-	 * 
+	 *
 	 * @return a test buffer filled with a specific byte pattern
 	 */
 	private static byte[] createTestBuffer() {
@@ -100,16 +109,18 @@ public class BlobClientTest extends TestLogger {
 	}
 
 	/**
-	 * Prepares a test file for the unit tests, i.e. the methods fills the file with a particular byte patterns and
-	 * computes the file's BLOB key.
-	 * 
+	 * Prepares a test file for the unit tests, i.e. the methods fills the file with a particular
+	 * byte patterns and computes the file's BLOB key.
+	 *
 	 * @param file
-	 *        the file to prepare for the unit tests
+	 * 		the file to prepare for the unit tests
+	 *
 	 * @return the BLOB key of the prepared file
+	 *
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while writing to the test file
+	 * 		thrown if an I/O error occurs while writing to the test file
 	 */
-	private static BlobKey prepareTestFile(File file) throws IOException {
+	private static byte[] prepareTestFile(File file) throws IOException {
 
 		MessageDigest md = BlobUtils.createMessageDigest();
 
@@ -133,68 +144,62 @@ public class BlobClientTest extends TestLogger {
 			}
 		}
 
-		return new BlobKey(md.digest());
+		return md.digest();
 	}
 
 	/**
 	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
 	 * the specified buffer.
-	 * 
-	 * @param inputStream
+	 *
+	 * @param actualInputStream
 	 *        the input stream returned from the GET operation (will be closed by this method)
-	 * @param buf
+	 * @param expectedBuf
 	 *        the buffer to compare the input stream's data to
 	 * @throws IOException
 	 *         thrown if an I/O error occurs while reading the input stream
 	 */
-	static void validateGetAndClose(final InputStream inputStream, final byte[] buf) throws IOException {
+	static void validateGetAndClose(final InputStream actualInputStream, final byte[] expectedBuf) throws IOException {
 		try {
-			byte[] receivedBuffer = new byte[buf.length];
+			byte[] receivedBuffer = new byte[expectedBuf.length];
 
 			int bytesReceived = 0;
 
 			while (true) {
 
-				final int read = inputStream
-					.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
+				final int read = actualInputStream.read(receivedBuffer, bytesReceived, receivedBuffer.length - bytesReceived);
 				if (read < 0) {
 					throw new EOFException();
 				}
 				bytesReceived += read;
 
 				if (bytesReceived == receivedBuffer.length) {
-					assertEquals(-1, inputStream.read());
-					assertArrayEquals(buf, receivedBuffer);
+					assertEquals(-1, actualInputStream.read());
+					assertArrayEquals(expectedBuf, receivedBuffer);
 					return;
 				}
 			}
 		} finally {
-			inputStream.close();
+			actualInputStream.close();
 		}
 	}
 
 	/**
 	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
-	 * the specified file.
-	 * 
-	 * @param inputStream
+	 * the expected input stream.
+	 *
+	 * @param actualInputStream
 	 *        the input stream returned from the GET operation (will be closed by this method)
-	 * @param file
-	 *        the file to compare the input stream's data to
+	 * @param expectedInputStream
+	 *        the input stream to compare the input stream's data to
 	 * @throws IOException
-	 *         thrown if an I/O error occurs while reading the input stream or the file
+	 *         thrown if an I/O error occurs while reading any input stream
 	 */
-	private static void validateGetAndClose(final InputStream inputStream, final File file) throws IOException {
-
-		InputStream inputStream2 = null;
+	static void validateGetAndClose(InputStream actualInputStream, InputStream expectedInputStream)
+			throws IOException {
 		try {
-
-			inputStream2 = new FileInputStream(file);
-
 			while (true) {
-
-				final int r1 = inputStream.read();
-				final int r2 = inputStream2.read();
+				final int r1 = actualInputStream.read();
+				final int r2 = expectedInputStream.read();
 
 				assertEquals(r2, r1);
 
@@ -202,56 +207,98 @@ public class BlobClientTest extends TestLogger {
 					break;
 				}
 			}
-
 		} finally {
-			if (inputStream2 != null) {
-				inputStream2.close();
-			}
-			inputStream.close();
+			actualInputStream.close();
+			expectedInputStream.close();
 		}
+	}
 
+	/**
+	 * Validates the result of a GET operation by comparing the data from the retrieved input stream to the content of
+	 * the specified file.
+	 *
+	 * @param actualInputStream
+	 *        the input stream returned from the GET operation
+	 * @param expectedFile
+	 *        the file to compare the input stream's data to
+	 * @throws IOException
+	 *         thrown if an I/O error occurs while reading the input stream or the file
+	 */
+	@SuppressWarnings("WeakerAccess")
+	static void validateGetAndClose(final InputStream actualInputStream, final File expectedFile) throws IOException {
+		validateGetAndClose(actualInputStream, new FileInputStream(expectedFile));
+	}
+
+	@Test
+	public void testContentAddressableBufferTransientBlob() throws IOException, InterruptedException {
+		testContentAddressableBuffer(TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testContentAddressableBufferPermantBlob() throws IOException, InterruptedException {
+		testContentAddressableBuffer(PERMANENT_BLOB);
 	}
 
 	/**
 	 * Tests the PUT/GET operations for content-addressable buffers.
+	 *
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	@Test
-	public void testContentAddressableBuffer() throws IOException {
-
+	private void testContentAddressableBuffer(BlobKey.BlobType blobType)
+			throws IOException, InterruptedException {
 		BlobClient client = null;
 
 		try {
 			byte[] testBuffer = createTestBuffer();
 			MessageDigest md = BlobUtils.createMessageDigest();
 			md.update(testBuffer);
-			BlobKey origKey = new BlobKey(md.digest());
+			byte[] digest = md.digest();
 
 			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
 			client = new BlobClient(serverAddress, getBlobClientConfig());
 
 			JobID jobId = new JobID();
 
-			// Store the data
-			BlobKey receivedKey = client.put(null, testBuffer);
-			assertEquals(origKey, receivedKey);
+			// Store the data (job-unrelated)
+			BlobKey receivedKey1 = null;
+			if (blobType == TRANSIENT_BLOB) {
+				receivedKey1 = client.putBuffer(null, testBuffer, 0, testBuffer.length, blobType);
+				assertArrayEquals(digest, receivedKey1.getHash());
+			}
+
 			// try again with a job-related BLOB:
-			receivedKey = client.put(jobId, testBuffer);
-			assertEquals(origKey, receivedKey);
+			BlobKey receivedKey2 = client.putBuffer(jobId, testBuffer, 0, testBuffer.length, blobType);
+			assertArrayEquals(digest, receivedKey2.getHash());
+			if (blobType == TRANSIENT_BLOB) {
+				verifyKeyDifferentHashEquals(receivedKey1, receivedKey2);
+			}
 
-			// Retrieve the data
-			validateGetAndClose(client.get(receivedKey), testBuffer);
-			validateGetAndClose(client.get(jobId, receivedKey), testBuffer);
+			// Retrieve the data (job-unrelated)
+			if (blobType == TRANSIENT_BLOB) {
+				validateGetAndClose(client.getInternal(null, receivedKey1), testBuffer);
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), null, receivedKey1);
+			}
+			// job-related
+			validateGetAndClose(client.getInternal(jobId, receivedKey2), testBuffer);
+			if (blobType == TRANSIENT_BLOB) {
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), jobId, receivedKey2);
+			}
 
-			// Check reaction to invalid keys
-			try (InputStream ignored = client.get(new BlobKey())) {
+			// Check reaction to invalid keys for job-unrelated blobs
+			try (InputStream ignored = client.getInternal(null, BlobKey.createKey(blobType))) {
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
 				// expected
 			}
+
+			// Check reaction to invalid keys for job-related blobs
 			// new client needed (closed from failure above)
 			client = new BlobClient(serverAddress, getBlobClientConfig());
-			try (InputStream ignored = client.get(jobId, new BlobKey())) {
+			try (InputStream ignored = client.getInternal(jobId, BlobKey.createKey(blobType))) {
 				fail("Expected IOException did not occur");
 			}
 			catch (IOException fnfe) {
@@ -275,52 +322,132 @@ public class BlobClientTest extends TestLogger {
 		return BLOB_SERVER;
 	}
 
+	@Test
+	public void testContentAddressableStreamTransientBlob()
+			throws IOException, InterruptedException {
+		testContentAddressableStream(TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testContentAddressableStreamPermanentBlob()
+			throws IOException, InterruptedException {
+		testContentAddressableStream(PERMANENT_BLOB);
+	}
+
 	/**
 	 * Tests the PUT/GET operations for content-addressable streams.
+	 *
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
 	 */
-	@Test
-	public void testContentAddressableStream() throws IOException {
+	private void testContentAddressableStream(BlobKey.BlobType blobType)
+			throws IOException, InterruptedException {
 
-		BlobClient client = null;
+		File testFile = temporaryFolder.newFile();
+		byte[] digest = prepareTestFile(testFile);
+
 		InputStream is = null;
 
-		try {
-			File testFile = File.createTempFile("testfile", ".dat");
-			testFile.deleteOnExit();
-
-			BlobKey origKey = prepareTestFile(testFile);
-
-			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
-			client = new BlobClient(serverAddress, getBlobClientConfig());
+		try (BlobClient client = new BlobClient(new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
 
 			JobID jobId = new JobID();
+			BlobKey receivedKey1 = null;
 
-			// Store the data
-			is = new FileInputStream(testFile);
-			BlobKey receivedKey = client.put(is);
-			assertEquals(origKey, receivedKey);
+			// Store the data (job-unrelated)
+			if (blobType == TRANSIENT_BLOB) {
+				is = new FileInputStream(testFile);
+				receivedKey1 = client.putInputStream(null, is, blobType);
+				assertArrayEquals(digest, receivedKey1.getHash());
+			}
+
 			// try again with a job-related BLOB:
 			is = new FileInputStream(testFile);
-			receivedKey = client.put(jobId, is);
-			assertEquals(origKey, receivedKey);
+			BlobKey receivedKey2 = client.putInputStream(jobId, is, blobType);
 
 			is.close();
 			is = null;
 
-			// Retrieve the data
-			validateGetAndClose(client.get(receivedKey), testFile);
-			validateGetAndClose(client.get(jobId, receivedKey), testFile);
-		}
-		finally {
+			// Retrieve the data (job-unrelated)
+			if (blobType == TRANSIENT_BLOB) {
+				verifyKeyDifferentHashEquals(receivedKey1, receivedKey2);
+
+				validateGetAndClose(client.getInternal(null, receivedKey1), testFile);
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), null, receivedKey1);
+			}
+			// job-related
+			validateGetAndClose(client.getInternal(jobId, receivedKey2), testFile);
+			if (blobType == TRANSIENT_BLOB) {
+				// transient BLOBs should be deleted from the server, eventually
+				verifyDeletedEventually(getBlobServer(), jobId, receivedKey2);
+			}
+		} finally {
 			if (is != null) {
 				try {
 					is.close();
 				} catch (Throwable ignored) {}
 			}
-			if (client != null) {
-				try {
-					client.close();
-				} catch (Throwable ignored) {}
+		}
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingNoJobTransientBlob() throws IOException {
+		testGetFailsDuringStreaming(null, TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingForJobTransientBlob() throws IOException {
+		testGetFailsDuringStreaming(new JobID(), TRANSIENT_BLOB);
+	}
+
+	@Test
+	public void testGetFailsDuringStreamingForJobPermanentBlob() throws IOException {
+		testGetFailsDuringStreaming(new JobID(), PERMANENT_BLOB);
+	}
+
+	/**
+	 * Checks the correct result if a GET operation fails during the file download.
+	 *
+	 * @param jobId
+	 * 		job ID or <tt>null</tt> if job-unrelated
+	 * @param blobType
+	 * 		whether the BLOB should become permanent or transient
+	 */
+	private void testGetFailsDuringStreaming(@Nullable final JobID jobId, BlobKey.BlobType blobType)
+			throws IOException {
+
+		try (BlobClient client = new BlobClient(
+			new InetSocketAddress("localhost", getBlobServer().getPort()), getBlobClientConfig())) {
+
+			byte[] data = new byte[5000000];
+			Random rnd = new Random();
+			rnd.nextBytes(data);
+
+			// put content addressable (like libraries)
+			BlobKey key = client.putBuffer(jobId, data, 0, data.length, blobType);
+			assertNotNull(key);
+
+			// issue a GET request that succeeds
+			InputStream is = client.getInternal(jobId, key);
+
+			byte[] receiveBuffer = new byte[data.length];
+			int firstChunkLen = 50000;
+			BlobUtils.readFully(is, receiveBuffer, 0, firstChunkLen, null);
+			BlobUtils.readFully(is, receiveBuffer, firstChunkLen, firstChunkLen, null);
+
+			// shut down the server
+			for (BlobServerConnection conn : getBlobServer().getCurrentActiveConnections()) {
+				conn.close();
+			}
+
+			try {
+				BlobUtils.readFully(is, receiveBuffer, 2 * firstChunkLen, data.length - 2 * firstChunkLen, null);
+				// we tolerate that this succeeds, as the receiver socket may have buffered
+				// everything already, but in this case, also verify the contents
+				assertArrayEquals(data, receiveBuffer);
+			}
+			catch (IOException e) {
+				// expected
 			}
 		}
 	}
@@ -351,13 +478,13 @@ public class BlobClientTest extends TestLogger {
 			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
 			final File testFile) throws IOException {
 		JobID jobId = new JobID();
-		List<BlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
+		List<PermanentBlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
 			jobId, Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
-			validateGetAndClose(blobClient.get(jobId, blobKeys.get(0)), testFile);
+			validateGetAndClose(blobClient.getInternal(jobId, blobKeys.get(0)), testFile);
 		}
 	}
 }

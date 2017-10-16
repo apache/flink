@@ -20,14 +20,14 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.legacy.ClusterOverviewHandler;
-import org.apache.flink.runtime.rest.handler.legacy.messages.StatusOverviewWithVersion;
+import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * Message headers for the {@link ClusterOverviewHandler}.
  */
-public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequestBody, StatusOverviewWithVersion, EmptyMessageParameters> {
+public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> {
 
 	private static final ClusterOverviewHeaders INSTANCE = new ClusterOverviewHeaders();
 
@@ -52,8 +52,8 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 	}
 
 	@Override
-	public Class<StatusOverviewWithVersion> getResponseClass() {
-		return StatusOverviewWithVersion.class;
+	public Class<ClusterOverviewWithVersion> getResponseClass() {
+		return ClusterOverviewWithVersion.class;
 	}
 
 	@Override

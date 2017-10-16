@@ -38,26 +38,25 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapper;
+import org.apache.flink.streaming.connectors.kafka.testutils.IntegerSource;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.streaming.util.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 import static org.junit.Assert.assertEquals;
@@ -295,38 +294,79 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * We manually handle the timeout instead of using JUnit's timeout to return failure instead of timeout error.
-	 * After timeout we assume that there are missing records and there is a bug, not that the test has run out of time.
+	 * Tests the exactly-once semantic for the simple writes into Kafka.
 	 */
-	private void assertAtLeastOnceForTopic(
-			Properties properties,
-			String topic,
-			int partition,
-			Set<Integer> expectedElements,
-			long timeoutMillis) throws Exception {
+	@Test
+	public void testExactlyOnceRegularSink() throws Exception {
+		testExactlyOnce(true);
+	}
 
-		long startMillis = System.currentTimeMillis();
-		Set<Integer> actualElements = new HashSet<>();
+	/**
+	 * Tests the exactly-once semantic for the simple writes into Kafka.
+	 */
+	@Test
+	public void testExactlyOnceCustomOperator() throws Exception {
+		testExactlyOnce(false);
+	}
 
-		// until we timeout...
-		while (System.currentTimeMillis() < startMillis + timeoutMillis) {
-			properties.put("key.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
-			properties.put("value.deserializer", "org.apache.kafka.common.serialization.IntegerDeserializer");
+	/**
+	 * This test sets KafkaProducer so that it will  automatically flush the data and
+	 * and fails the broker to check whether flushed records since last checkpoint were not duplicated.
+	 */
+	protected void testExactlyOnce(boolean regularSink) throws Exception {
+		final String topic = regularSink ? "exactlyOnceTopicRegularSink" : "exactlyTopicCustomOperator";
+		final int partition = 0;
+		final int numElements = 1000;
+		final int failAfterElements = 333;
 
-			// query kafka for new records ...
-			Collection<ConsumerRecord<Integer, Integer>> records = kafkaServer.getAllRecordsFromTopic(properties, topic, partition, 100);
+		createTestTopic(topic, 1, 1);
 
-			for (ConsumerRecord<Integer, Integer> record : records) {
-				actualElements.add(record.value());
+		TypeInformationSerializationSchema<Integer> schema = new TypeInformationSerializationSchema<>(BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
+		KeyedSerializationSchema<Integer> keyedSerializationSchema = new KeyedSerializationSchemaWrapper(schema);
+
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(500);
+		env.setParallelism(1);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+		env.getConfig().disableSysoutLogging();
+
+		Properties properties = new Properties();
+		properties.putAll(standardProps);
+		properties.putAll(secureProps);
+
+		// process exactly failAfterElements number of elements and then shutdown Kafka broker and fail application
+		List<Integer> expectedElements = getIntegersSequence(numElements);
+
+		DataStream<Integer> inputStream = env
+			.addSource(new IntegerSource(numElements))
+			.map(new FailingIdentityMapper<Integer>(failAfterElements));
+
+		FlinkKafkaPartitioner<Integer> partitioner = new FlinkKafkaPartitioner<Integer>() {
+			@Override
+			public int partition(Integer record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+				return partition;
 			}
-
-			// succeed if we got all expectedElements
-			if (actualElements.containsAll(expectedElements)) {
-				return;
-			}
+		};
+		if (regularSink) {
+			StreamSink<Integer> kafkaSink = kafkaServer.getProducerSink(topic, keyedSerializationSchema, properties, partitioner);
+			inputStream.addSink(kafkaSink.getUserFunction());
+		}
+		else {
+			kafkaServer.produceIntoKafka(inputStream, topic, keyedSerializationSchema, properties, partitioner);
 		}
 
-		fail(String.format("Expected to contain all of: <%s>, but was: <%s>", expectedElements, actualElements));
+		FailingIdentityMapper.failedBefore = false;
+		TestUtils.tryExecute(env, "Exactly once test");
+
+		// assert that before failure we successfully snapshot/flushed all expected elements
+		assertExactlyOnceForTopic(
+			properties,
+			topic,
+			partition,
+			expectedElements,
+			30000L);
+
+		deleteTestTopic(topic);
 	}
 
 	private List<Integer> getIntegersSequence(int size) {

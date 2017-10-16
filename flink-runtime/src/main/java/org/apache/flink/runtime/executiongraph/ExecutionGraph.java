@@ -31,7 +31,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -304,8 +304,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			timeout,
 			restartStrategy,
 			new RestartAllStrategy.Factory(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList(),
+			Collections.emptyList(),
+			Collections.emptyList(),
 			slotProvider,
 			ExecutionGraph.class.getClassLoader());
 	}
@@ -320,7 +320,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			Time timeout,
 			RestartStrategy restartStrategy,
 			FailoverStrategy.Factory failoverStrategyFactory,
-			List<BlobKey> requiredJarFiles,
+			List<PermanentBlobKey> requiredJarFiles,
 			List<URL> requiredClasspaths,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader) {
@@ -536,7 +536,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * Returns a list of BLOB keys referring to the JAR files required to run this job
 	 * @return list of BLOB keys referring to the JAR files required to run this job
 	 */
-	public Collection<BlobKey> getRequiredJarFiles() {
+	public Collection<PermanentBlobKey> getRequiredJarFiles() {
 		return jobInformation.getRequiredJarFileBlobKeys();
 	}
 
@@ -1223,7 +1223,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	/**
-	 * Returns the serializable ArchivedExecutionConfig
+	 * Returns the serializable {@link ArchivedExecutionConfig}.
+	 *
 	 * @return ArchivedExecutionConfig which may be null in case of errors
 	 */
 	@Override

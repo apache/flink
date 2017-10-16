@@ -40,32 +40,23 @@ class DataStreamWindowJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
-    val joinInfo = join.analyzeCondition
 
-    val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
-      joinInfo.getRemaining(join.getCluster.getRexBuilder),
+    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
+      join.getCondition,
       join.getLeft.getRowType.getFieldCount,
       join.getRowType,
       join.getCluster.getRexBuilder,
       TableConfig.DEFAULT)
 
-    // remaining predicate must not access time attributes
-    val remainingPredsAccessTime = remainingPreds.isDefined &&
-      WindowJoinUtil.accessesTimeAttribute(remainingPreds.get, join.getRowType)
-
     if (windowBounds.isDefined) {
       if (windowBounds.get.isEventTime) {
-        // we cannot handle event-time window joins yet
-        false
+        true
       } else {
-        // Check that no event-time attributes are in the input.
-        // The proc-time join implementation does ensure that record timestamp are correctly set.
-        // It is always the timestamp of the later arriving record.
+        // Check that no event-time attributes are in the input because the processing time window
+        // join does not correctly hold back watermarks.
         // We rely on projection pushdown to remove unused attributes before the join.
-        val rowTimeAttrInOutput = join.getRowType.getFieldList.asScala
+        !join.getRowType.getFieldList.asScala
           .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-
-        !remainingPredsAccessTime && !rowTimeAttrInOutput
       }
     } else {
       // the given join does not have valid window bounds. We cannot translate it.
@@ -80,13 +71,12 @@ class DataStreamWindowJoinRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
     val convLeft: RelNode = RelOptRule.convert(join.getInput(0), FlinkConventions.DATASTREAM)
     val convRight: RelNode = RelOptRule.convert(join.getInput(1), FlinkConventions.DATASTREAM)
-    val joinInfo = join.analyzeCondition
     val leftRowSchema = new RowSchema(convLeft.getRowType)
     val rightRowSchema = new RowSchema(convRight.getRowType)
 
     val (windowBounds, remainCondition) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
-        joinInfo.getRemaining(join.getCluster.getRexBuilder),
+        join.getCondition,
         leftRowSchema.arity,
         join.getRowType,
         join.getCluster.getRexBuilder,
@@ -105,6 +95,8 @@ class DataStreamWindowJoinRule
       windowBounds.get.isEventTime,
       windowBounds.get.leftLowerBound,
       windowBounds.get.leftUpperBound,
+      windowBounds.get.leftTimeIdx,
+      windowBounds.get.rightTimeIdx,
       remainCondition,
       description)
   }

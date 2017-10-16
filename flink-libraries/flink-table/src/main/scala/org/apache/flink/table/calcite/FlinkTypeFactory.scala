@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.ValueTypeInfo._
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory.typeInfoToSqlTypeName
 import org.apache.flink.table.plan.schema._
@@ -156,6 +156,13 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           createTypeFromTypeInfo(mp.getValueTypeInfo, isNullable = true),
           isNullable)
 
+      case mts: MultisetTypeInfo[_] =>
+        new MultisetRelDataType(
+          mts,
+          createTypeFromTypeInfo(mts.getElementTypeInfo, isNullable = true),
+          isNullable
+        )
+
       case ti: TypeInformation[_] =>
         new GenericRelDataType(
           ti,
@@ -213,6 +220,14 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     canonize(relType)
   }
 
+  override def createMultisetType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
+    val relType = new MultisetRelDataType(
+      MultisetTypeInfo.getInfoFor(FlinkTypeFactory.toTypeInfo(elementType)),
+      elementType,
+      isNullable = false)
+    canonize(relType)
+  }
+
   override def createTypeWithNullability(
       relDataType: RelDataType,
       isNullable: Boolean): RelDataType = {
@@ -233,6 +248,9 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
       case map: MapRelDataType =>
         new MapRelDataType(map.typeInfo, map.keyType, map.valueType, isNullable)
+
+      case multiSet: MultisetRelDataType =>
+        new MultisetRelDataType(multiSet.typeInfo, multiSet.getComponentType, isNullable)
 
       case generic: GenericRelDataType =>
         new GenericRelDataType(generic.typeInfo, isNullable, typeSystem)
@@ -402,6 +420,10 @@ object FlinkTypeFactory {
     case MAP if relDataType.isInstanceOf[MapRelDataType] =>
       val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
       mapRelDataType.typeInfo
+
+    case MULTISET if relDataType.isInstanceOf[MultisetRelDataType] =>
+      val multisetRelDataType = relDataType.asInstanceOf[MultisetRelDataType]
+      multisetRelDataType.typeInfo
 
     case _@t =>
       throw TableException(s"Type is not supported: $t")

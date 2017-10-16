@@ -35,9 +35,9 @@ class OptionTypeComparator[A](
 
   override def compare(first: Option[A], second: Option[A]) = {
     first match {
-      case Some(firstValue: A) =>
+      case Some(firstValue) =>
         second match {
-          case Some(secondValue: A) => typeComparator.compare(firstValue, secondValue)
+          case Some(secondValue) => typeComparator.compare(firstValue, secondValue)
           case None =>
             if (ascending) {
               1
@@ -116,7 +116,7 @@ class OptionTypeComparator[A](
   ) = {
     if (numBytes >= 1) {
       record match {
-        case Some(v: A) =>
+        case Some(v) =>
           target.put(offset, OptionTypeComparator.OneInByte)
           typeComparator.putNormalizedKey(v, target, offset + 1, numBytes - 1)
         case None =>

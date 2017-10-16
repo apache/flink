@@ -47,7 +47,7 @@ public class QueryableStateConfiguration {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns whether queryable state is enabled. 
+	 * Returns whether queryable state is enabled.
 	 */
 	public boolean enabled() {
 		return enabled;
@@ -70,7 +70,7 @@ public class QueryableStateConfiguration {
 
 	/**
 	 * Returns the number of threads for the thread pool that performs the actual state lookup.
-	 * These threads perform the actual state lookup. 
+	 * These threads perform the actual state lookup.
 	 */
 	public int numQueryThreads() {
 		return numQueryThreads;
@@ -82,6 +82,7 @@ public class QueryableStateConfiguration {
 	public String toString() {
 		return "QueryableStateConfiguration {" +
 				"enabled=" + enabled +
+				", port=" + port +
 				", numServerThreads=" + numServerThreads +
 				", numQueryThreads=" + numQueryThreads +
 				'}';
@@ -90,7 +91,7 @@ public class QueryableStateConfiguration {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Gets the configuration describing the queryable state as deactivated. 
+	 * Gets the configuration describing the queryable state as deactivated.
 	 */
 	public static QueryableStateConfiguration disabled() {
 		return new QueryableStateConfiguration(false, 0, 0, 0);

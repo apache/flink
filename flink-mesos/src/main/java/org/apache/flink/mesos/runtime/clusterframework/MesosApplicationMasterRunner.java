@@ -33,6 +33,7 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
@@ -155,12 +156,11 @@ public class MesosApplicationMasterRunner {
 			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 			final Configuration config = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
-			// configure the default filesystem
+			// configure the filesystems
 			try {
-				FileSystem.setDefaultScheme(config);
+				FileSystem.initialize(config);
 			} catch (IOException e) {
-				throw new IOException("Error while setting the default " +
-					"filesystem scheme from configuration.", e);
+				throw new IOException("Error while configuring the filesystems.", e);
 			}
 
 			// configure security
@@ -294,7 +294,7 @@ public class MesosApplicationMasterRunner {
 				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout, 10, Time.milliseconds(50L)),
 				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
 				webMonitorTimeout,
-				futureExecutor,
+				new ScheduledExecutorServiceAdapter(futureExecutor),
 				LOG);
 			if (webMonitor != null) {
 				final URL webMonitorURL = new URL(webMonitor.getRestAddress());

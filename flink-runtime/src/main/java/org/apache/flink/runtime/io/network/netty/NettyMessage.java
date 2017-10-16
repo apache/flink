@@ -358,10 +358,13 @@ abstract class NettyMessage {
 
 		final InputChannelID receiverId;
 
-		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId) {
+		final int credit;
+
+		PartitionRequest(ResultPartitionID partitionId, int queueIndex, InputChannelID receiverId, int credit) {
 			this.partitionId = checkNotNull(partitionId);
 			this.queueIndex = queueIndex;
 			this.receiverId = checkNotNull(receiverId);
+			this.credit = credit;
 		}
 
 		@Override
@@ -369,12 +372,13 @@ abstract class NettyMessage {
 			ByteBuf result = null;
 
 			try {
-				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16);
+				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16 + 4);
 
 				partitionId.getPartitionId().writeTo(result);
 				partitionId.getProducerId().writeTo(result);
 				result.writeInt(queueIndex);
 				receiverId.writeTo(result);
+				result.writeInt(credit);
 
 				return result;
 			}
@@ -394,8 +398,9 @@ abstract class NettyMessage {
 					ExecutionAttemptID.fromByteBuf(buffer));
 			int queueIndex = buffer.readInt();
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+			int credit = buffer.readInt();
 
-			return new PartitionRequest(partitionId, queueIndex, receiverId);
+			return new PartitionRequest(partitionId, queueIndex, receiverId, credit);
 		}
 
 		@Override
@@ -450,12 +455,11 @@ abstract class NettyMessage {
 		}
 
 		static TaskEventRequest readFrom(ByteBuf buffer, ClassLoader classLoader) throws IOException {
-			// TODO Directly deserialize fromNetty's buffer
+			// directly deserialize fromNetty's buffer
 			int length = buffer.readInt();
-			ByteBuffer serializedEvent = ByteBuffer.allocate(length);
-
-			buffer.readBytes(serializedEvent);
-			serializedEvent.flip();
+			ByteBuffer serializedEvent = buffer.nioBuffer(buffer.readerIndex(), length);
+			// assume this event's content is read from the ByteBuf (positions are not shared!)
+			buffer.readerIndex(buffer.readerIndex() + length);
 
 			TaskEvent event =
 				(TaskEvent) EventSerializer.fromSerializedEvent(serializedEvent, classLoader);

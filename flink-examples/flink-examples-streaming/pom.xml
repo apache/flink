@@ -543,6 +543,7 @@ under the License.
 								<filter>
 									<artifact>*</artifact>
 									<includes>
+										<include>org/apache/flink/twitter/shaded/com/google/common/**</include>
 										<include>org/apache/flink/streaming/examples/twitter/**</include>
 										<include>org/apache/flink/streaming/connectors/twitter/**</include>
 										<include>org/apache/http/**</include>

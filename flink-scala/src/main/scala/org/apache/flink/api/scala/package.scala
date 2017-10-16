@@ -57,7 +57,7 @@ package object scala {
   private[flink] def explicitFirst[T](
       funcOrInputFormat: AnyRef,
       typeInfo: TypeInformation[T]): TypeInformation[T] = funcOrInputFormat match {
-    case rtq: ResultTypeQueryable[T] => rtq.getProducedType
+    case rtq: ResultTypeQueryable[_] => rtq.asInstanceOf[ResultTypeQueryable[T]].getProducedType
     case _ => typeInfo
   }
 

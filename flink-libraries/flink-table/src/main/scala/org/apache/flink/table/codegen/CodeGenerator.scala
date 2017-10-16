@@ -255,11 +255,31 @@ abstract class CodeGenerator(
         generateRowtimeAccess()
       case TimeIndicatorTypeInfo.PROCTIME_MARKER =>
         // attribute is proctime indicator.
-        // We use a null literal and generate a timestamp when we need it.
+        // we use a null literal and generate a timestamp when we need it.
         generateNullLiteral(TimeIndicatorTypeInfo.PROCTIME_INDICATOR)
       case idx =>
-        // regular attribute. Access attribute in input data type.
-        generateInputAccess(input1, input1Term, idx)
+        // get type of result field
+        val outIdx = input1Mapping.indexOf(idx)
+        val outType = returnType match {
+          case pt: PojoTypeInfo[_] => pt.getTypeAt(resultFieldNames(outIdx))
+          case ct: CompositeType[_] => ct.getTypeAt(outIdx)
+          case t: TypeInformation[_] => t
+        }
+        val inputAccess = generateInputAccess(input1, input1Term, idx)
+        // Change output type to rowtime indicator
+        if (FlinkTypeFactory.isRowtimeIndicatorType(outType) &&
+          (inputAccess.resultType == Types.LONG || inputAccess.resultType == Types.SQL_TIMESTAMP)) {
+          // This case is required for TableSources that implement DefinedRowtimeAttribute.
+          // Hard cast possible because LONG, TIMESTAMP, and ROWTIME_INDICATOR are internally
+          // represented as Long.
+          GeneratedExpression(
+            inputAccess.resultTerm,
+            inputAccess.nullTerm,
+            inputAccess.code,
+            TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+        } else {
+          inputAccess
+        }
     }
 
     val input2AccessExprs = input2 match {

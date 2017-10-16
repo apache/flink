@@ -319,6 +319,7 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.SUM,
     SqlStdOperatorTable.SUM0,
     SqlStdOperatorTable.COUNT,
+    SqlStdOperatorTable.COLLECT,
     SqlStdOperatorTable.MIN,
     SqlStdOperatorTable.MAX,
     SqlStdOperatorTable.AVG,

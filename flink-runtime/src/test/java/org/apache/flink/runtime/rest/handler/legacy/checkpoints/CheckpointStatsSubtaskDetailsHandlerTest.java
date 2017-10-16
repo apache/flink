@@ -30,7 +30,8 @@ import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphHolder;
+import org.apache.flink.runtime.rest.handler.job.checkpoints.CheckpointStatsCache;
+import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 
@@ -101,7 +102,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 
 	@Test
 	public void testGetPaths() {
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid", paths[0]);
@@ -150,7 +151,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	@Test
 	public void testIllegalCheckpointId() throws Exception {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
 		params.put("checkpointid", "illegal checkpoint");
 		String json = handler.handleRequest(graph, params).get();
@@ -164,7 +165,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	@Test
 	public void testNoCheckpointIdParam() throws Exception {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap()).get();
 
 		assertEquals("{}", json);
@@ -184,7 +185,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
 		params.put("checkpointid", "123");
 		params.put("vertexid", new JobVertexID().toString());
@@ -200,7 +201,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	@Test
 	public void testIllegalJobVertexIdParam() throws Exception {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
 		params.put("checkpointid", "1");
 		params.put("vertexid", "illegal vertex id");
@@ -215,7 +216,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 	@Test
 	public void testNoJobVertexIdParam() throws Exception {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
 		params.put("checkpointid", "1");
 		String json = handler.handleRequest(graph, params).get();
@@ -239,7 +240,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
 		params.put("checkpointid", "123");
 		params.put("vertexid", new JobVertexID().toString());
@@ -260,7 +261,7 @@ public class CheckpointStatsSubtaskDetailsHandlerTest {
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointStatsSnapshot()).thenReturn(snapshot);
 
-		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphHolder.class), Executors.directExecutor(), new CheckpointStatsCache(0));
+		CheckpointStatsDetailsSubtasksHandler handler = new CheckpointStatsDetailsSubtasksHandler(mock(ExecutionGraphCache.class), Executors.directExecutor(), new CheckpointStatsCache(0));
 		Map<String, String> params = new HashMap<>();
 		params.put("checkpointid", "123");
 		params.put("vertexid", new JobVertexID().toString());

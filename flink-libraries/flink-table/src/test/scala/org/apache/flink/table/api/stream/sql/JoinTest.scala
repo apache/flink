@@ -20,8 +20,9 @@ package org.apache.flink.table.api.stream.sql
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.logical.TumblingGroupWindow
 import org.apache.flink.table.runtime.join.WindowJoinUtil
-import org.apache.flink.table.utils.TableTestUtil._
+import org.apache.flink.table.utils.TableTestUtil.{term, _}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 import org.junit.Assert._
 import org.junit.Test
@@ -32,7 +33,7 @@ class JoinTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
   @Test
-  def testProcessingTimeInnerJoinWithOnClause() = {
+  def testProcessingTimeInnerJoinWithOnClause(): Unit = {
 
     val sqlQuery =
       """
@@ -70,7 +71,45 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
-  def testProcessingTimeInnerJoinWithWhereClause() = {
+  def testRowTimeInnerJoinWithOnClause(): Unit = {
+
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.c BETWEEN t2.c - INTERVAL '10' SECOND AND t2.c + INTERVAL '1' HOUR
+        |""".stripMargin
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c")
+          ),
+          term("where",
+            "AND(=(a, a0), >=(c, -(c0, 10000)), " +
+              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+          term("join", "a, c, a0, b, c0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testProcessingTimeInnerJoinWithWhereClause(): Unit = {
 
     val sqlQuery =
       """
@@ -102,6 +141,134 @@ class JoinTest extends TableTestBase {
           term("joinType", "InnerJoin")
         ),
         term("select", "a", "b0 AS b")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testRowTimeInnerJoinWithWhereClause(): Unit = {
+
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.c BETWEEN t2.c - INTERVAL '10' MINUTE AND t2.c + INTERVAL '1' HOUR
+        |""".stripMargin
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c")
+          ),
+          term("where",
+            "AND(=(a, a0), >=(c, -(c0, 600000)), " +
+              "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+          term("join", "a, c, a0, b, c0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b0 AS b")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testRowTimeInnerJoinAndWindowAggregationOnFirst(): Unit = {
+
+    val sqlQuery =
+      """
+        |SELECT t1.b, SUM(t2.a) AS aSum, COUNT(t2.b) AS bCnt
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.c BETWEEN t2.c - INTERVAL '10' MINUTE AND t2.c + INTERVAL '1' HOUR
+        |GROUP BY TUMBLE(t1.c, INTERVAL '6' HOUR), t1.b
+        |""".stripMargin
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupWindowAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          binaryNode(
+            "DataStreamWindowJoin",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(0),
+              term("select", "a", "b", "c")
+            ),
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(1),
+              term("select", "a", "b", "c")
+            ),
+            term("where",
+              "AND(=(a, a0), >=(c, -(c0, 600000)), " +
+                "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+            term("join", "a, b, c, a0, b0, c0"),
+            term("joinType", "InnerJoin")
+          ),
+          term("select", "c", "b", "a0", "b0")
+        ),
+        term("groupBy", "b"),
+        term("window", TumblingGroupWindow('w$, 'c, 21600000.millis)),
+        term("select", "b", "SUM(a0) AS aSum", "COUNT(b0) AS bCnt")
+      )
+
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testRowTimeInnerJoinAndWindowAggregationOnSecond(): Unit = {
+
+    val sqlQuery =
+      """
+        |SELECT t2.b, SUM(t1.a) AS aSum, COUNT(t1.b) AS bCnt
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.c BETWEEN t2.c - INTERVAL '10' MINUTE AND t2.c + INTERVAL '1' HOUR
+        |GROUP BY TUMBLE(t2.c, INTERVAL '6' HOUR), t2.b
+        |""".stripMargin
+
+    val expected =
+      unaryNode(
+        "DataStreamGroupWindowAggregate",
+        unaryNode(
+          "DataStreamCalc",
+          binaryNode(
+            "DataStreamWindowJoin",
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(0),
+              term("select", "a", "b", "c")
+            ),
+            unaryNode(
+              "DataStreamCalc",
+              streamTableNode(1),
+              term("select", "a", "b", "c")
+            ),
+            term("where",
+              "AND(=(a, a0), >=(c, -(c0, 600000)), " +
+                "<=(c, DATETIME_PLUS(c0, 3600000)))"),
+            term("join", "a, b, c, a0, b0, c0"),
+            term("joinType", "InnerJoin")
+          ),
+          term("select", "c0", "b0", "a", "b")
+        ),
+        term("groupBy", "b0"),
+        term("window", TumblingGroupWindow('w$, 'c0, 21600000.millis)),
+        term("select", "b0", "SUM(a) AS aSum", "COUNT(b) AS bCnt")
       )
 
     streamUtil.verifySql(sqlQuery, expected)
@@ -175,16 +342,17 @@ class JoinTest extends TableTestBase {
       "SELECT t1.a, t2.c FROM MyTable3 as t1 join MyTable4 as t2 on t1.a = t2.a and " +
         "t1.b >= t2.b - interval '10' second and t1.b <= t2.b - interval '5' second and " +
         "t1.c > t2.c"
+    // The equi-join predicate should also be included
     verifyRemainConditionConvert(
       query,
-      ">($2, $6)")
+      "AND(=($0, $4), >($2, $6))")
 
     val query1 =
       "SELECT t1.a, t2.c FROM MyTable3 as t1 join MyTable4 as t2 on t1.a = t2.a and " +
         "t1.b >= t2.b - interval '10' second and t1.b <= t2.b - interval '5' second "
     verifyRemainConditionConvert(
       query1,
-      "")
+      "=($0, $4)")
 
     streamUtil.addTable[(Int, Long, Int)]("MyTable5", 'a, 'b, 'c, 'proctime.proctime)
     streamUtil.addTable[(Int, Long, Int)]("MyTable6", 'a, 'b, 'c, 'proctime.proctime)
@@ -195,7 +363,7 @@ class JoinTest extends TableTestBase {
         "t1.c > t2.c"
     verifyRemainConditionConvert(
       query2,
-      ">($2, $6)")
+      "AND(=($0, $4), >($2, $6))")
   }
 
   private def verifyTimeBoundary(
@@ -209,10 +377,9 @@ class JoinTest extends TableTestBase {
     val resultTable = streamUtil.tableEnv.sqlQuery(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val rexNode = joinNode.getCondition
     val (windowBounds, _) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
-        rexNode,
+        joinNode.getCondition,
         4,
         joinNode.getRowType,
         joinNode.getCluster.getRexBuilder,
@@ -233,11 +400,9 @@ class JoinTest extends TableTestBase {
     val resultTable = streamUtil.tableEnv.sqlQuery(query)
     val relNode = resultTable.getRelNode
     val joinNode = relNode.getInput(0).asInstanceOf[LogicalJoin]
-    val joinInfo = joinNode.analyzeCondition
-    val rexNode = joinInfo.getRemaining(joinNode.getCluster.getRexBuilder)
     val (_, remainCondition) =
       WindowJoinUtil.extractWindowBoundsFromPredicate(
-        rexNode,
+        joinNode.getCondition,
         4,
         joinNode.getRowType,
         joinNode.getCluster.getRexBuilder,

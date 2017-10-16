@@ -31,7 +31,7 @@ under the License.
 ## Predefined Sources and Sinks
 
 A few basic data sources and sinks are built into Flink and are always available.
-The [predefined data sources]({{ site.baseurll }}/dev/datastream_api.html#data-sources) include reading from files, directories, and sockets, and
+The [predefined data sources]({{ site.baseurl }}/dev/datastream_api.html#data-sources) include reading from files, directories, and sockets, and
 ingesting data from collections and iterators.
 The [predefined data sinks]({{ site.baseurl }}/dev/datastream_api.html#data-sinks) support writing to files, to stdout and stderr, and to sockets.
 

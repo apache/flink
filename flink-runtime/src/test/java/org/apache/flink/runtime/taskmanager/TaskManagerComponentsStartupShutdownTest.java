@@ -145,6 +145,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				new TaskEventDispatcher(),
 				new KvStateRegistry(),
 				null,
+				null,
 				netConf.ioMode(),
 				netConf.partitionRequestInitialBackoff(),
 				netConf.partitionRequestMaxBackoff(),
@@ -201,8 +202,6 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 			assertTrue(ioManager.isProperlyShutDown());
 			assertTrue(memManager.isShutdown());
 		} finally {
-			TestingUtils.stopActorsGracefully(Arrays.asList(jobManager, taskManager));
-
 			if (actorSystem != null) {
 				actorSystem.shutdown();
 

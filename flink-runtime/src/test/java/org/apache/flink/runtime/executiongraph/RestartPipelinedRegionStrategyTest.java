@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -36,7 +35,6 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -105,8 +103,8 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.<BlobKey>emptyList(),
-            Collections.<URL>emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
             scheduler,
             ExecutionGraph.class.getClassLoader());
 		try {
@@ -190,8 +188,8 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.<BlobKey>emptyList(),
-            Collections.<URL>emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
             scheduler,
             ExecutionGraph.class.getClassLoader());
 		try {
@@ -280,8 +278,8 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.<BlobKey>emptyList(),
-            Collections.<URL>emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
             scheduler,
             ExecutionGraph.class.getClassLoader());
 		try {
@@ -361,8 +359,8 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            Collections.<BlobKey>emptyList(),
-            Collections.<URL>emptyList(),
+            Collections.emptyList(),
+            Collections.emptyList(),
             scheduler,
             ExecutionGraph.class.getClassLoader());
 		try {

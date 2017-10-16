@@ -43,10 +43,10 @@ limitations under the License.
       <td><span ng-if="v['end-time'] &gt; -1">{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="v.duration &gt; -1" title="{{v.duration | humanizeDuration:false}}">{{v.duration | humanizeDuration:true}}</span></td>
       <td class="td-long">{{ v.name | humanizeText }}</td>
-      <td title="{{v.metrics['read-bytes']}} bytes">{{ v.metrics['read-bytes'] | humanizeBytes }}</td>
-      <td>{{ v.metrics['read-records'] | number }}</td>
-      <td title="{{v.metrics['write-bytes']}} bytes">{{ v.metrics['write-bytes'] | humanizeBytes }}</td>
-      <td>{{ v.metrics['write-records'] | number }}</td>
+      <td><span ng-if="v.metrics['read-bytes-complete']">{{ v.metrics['read-bytes'] | humanizeBytes }}</span><i ng-if="!v.metrics['read-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="v.metrics['read-records-complete']">{{ v.metrics['read-records'] | number }}</span><i ng-if="!v.metrics['read-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="v.metrics['write-bytes-complete']">{{ v.metrics['write-bytes'] | humanizeBytes }}</span><i ng-if="!v.metrics['write-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="v.metrics['write-records-complete']">{{ v.metrics['write-records'] | number }}</span><i ng-if="!v.metrics['write-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
       <td>{{ v.parallelism }}</td>
       <td>
         <div class="label-group">

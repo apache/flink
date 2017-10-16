@@ -26,10 +26,12 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
@@ -39,10 +41,12 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -76,6 +80,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final RunningJobsRegistry runningJobsRegistry;
 
 	private final HighAvailabilityServices highAvailabilityServices;
+	private final ResourceManagerGateway resourceManagerGateway;
 	private final JobManagerServices jobManagerServices;
 	private final HeartbeatServices heartbeatServices;
 	private final MetricRegistry metricRegistry;
@@ -93,6 +98,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			String endpointId,
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
+			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
@@ -102,6 +108,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
+		this.resourceManagerGateway = Preconditions.checkNotNull(resourceManagerGateway);
 		this.jobManagerServices = JobManagerServices.fromConfiguration(
 			configuration,
 			Preconditions.checkNotNull(blobServer));
@@ -270,21 +277,58 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<StatusOverview> requestStatusOverview(Time timeout) {
-		// TODO: Implement proper cluster overview generation
-		return CompletableFuture.completedFuture(
-			new StatusOverview(
-				42,
-				1337,
-				1337,
-				5,
-				6,
-				7,
-				8));
+	public CompletableFuture<ClusterOverview> requestClusterOverview(Time timeout) {
+		CompletableFuture<ResourceOverview> taskManagerOverviewFuture = resourceManagerGateway.requestResourceOverview(timeout);
+
+		ArrayList<CompletableFuture<JobStatus>> jobStatus = new ArrayList<>(jobManagerRunners.size());
+
+		for (Map.Entry<JobID, JobManagerRunner> jobManagerRunnerEntry : jobManagerRunners.entrySet()) {
+			CompletableFuture<JobStatus> jobStatusFuture = jobManagerRunnerEntry.getValue().getJobManagerGateway().requestJobStatus(timeout);
+
+			jobStatus.add(jobStatusFuture);
+		}
+
+		CompletableFuture<Collection<JobStatus>> allJobsFuture = FutureUtils.combineAll(jobStatus);
+
+		return allJobsFuture.thenCombine(
+			taskManagerOverviewFuture,
+			(Collection<JobStatus> allJobsStatus, ResourceOverview resourceOverview) -> {
+
+				int numberRunningOrPendingJobs = 0;
+				int numberFinishedJobs = 0;
+				int numberCancelledJobs = 0;
+				int numberFailedJobs = 0;
+
+				for (JobStatus status : allJobsStatus) {
+					switch (status) {
+						case FINISHED:
+							numberFinishedJobs++;
+							break;
+						case FAILED:
+							numberFailedJobs++;
+							break;
+						case CANCELED:
+							numberCancelledJobs++;
+							break;
+						default:
+							numberRunningOrPendingJobs++;
+							break;
+					}
+				}
+
+				return new ClusterOverview(
+					resourceOverview.getNumberTaskManagers(),
+					resourceOverview.getNumberRegisteredSlots(),
+					resourceOverview.getNumberFreeSlots(),
+					numberRunningOrPendingJobs,
+					numberFinishedJobs,
+					numberCancelledJobs,
+					numberFailedJobs);
+			});
 	}
 
 	@Override
-	public CompletableFuture<MultipleJobsDetails> requestJobDetails(Time timeout) {
+	public CompletableFuture<MultipleJobsDetails> requestJobDetails(boolean includeRunning, boolean includeFinished, Time timeout) {
 		final int numberJobsRunning = jobManagerRunners.size();
 
 		ArrayList<CompletableFuture<JobDetails>> individualJobDetails = new ArrayList<>(numberJobsRunning);
@@ -298,6 +342,22 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return combinedJobDetails.thenApply(
 			(Collection<JobDetails> jobDetails) ->
 				new MultipleJobsDetails(jobDetails, null));
+	}
+
+	@Override
+	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
+		final JobManagerRunner jobManagerRunner = jobManagerRunners.get(jobId);
+
+		if (jobManagerRunner == null) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		} else {
+			return jobManagerRunner.getJobManagerGateway().requestArchivedExecutionGraph(timeout);
+		}
+	}
+
+	@Override
+	public CompletableFuture<Integer> getBlobServerPort(Time timeout) {
+		return CompletableFuture.completedFuture(jobManagerServices.blobServer.getPort());
 	}
 
 	/**

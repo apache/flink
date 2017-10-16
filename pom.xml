@@ -59,6 +59,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-java8</module>
 		<module>flink-scala</module>
+		<module>flink-filesystems</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
@@ -80,6 +81,7 @@ under the License.
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
+		<module>flink-queryable-state</module>
 	</modules>
 
 	<properties>
@@ -96,7 +98,7 @@ under the License.
 		<flink.reuseForks>true</flink.reuseForks>
 		<log4j.configuration>log4j-test.properties</log4j.configuration>
 		<guava.version>18.0</guava.version>
-		<akka.version>2.3-custom</akka.version>
+		<akka.version>2.4.20</akka.version>
 		<java.version>1.8</java.version>
 		<slf4j.version>1.7.7</slf4j.version>
 		<log4j.version>1.2.17</log4j.version>
@@ -397,32 +399,42 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-actor_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-actor_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-remote_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-remote_${scala.binary.version}</artifactId>
+				<version>${akka.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>io.aeron</groupId>
+						<artifactId>aeron-driver</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>io.aeron</groupId>
+						<artifactId>aeron-client</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-slf4j_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-camel_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 			</dependency>
 
 			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-camel_${scala.binary.version}</artifactId>
-				<version>${akka.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>com.data-artisans</groupId>
-				<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 				<version>${akka.version}</version>
 				<scope>test</scope>
 			</dependency>
@@ -458,6 +470,16 @@ under the License.
 					<exclusion>
 						<groupId>org.slf4j</groupId>
 						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+					<!-- Netty is only needed sor ZK servers, not clients -->
+					<exclusion>
+						<groupId>io.netty</groupId>
+						<artifactId>netty</artifactId>
+					</exclusion>
+					<!-- jline is optional for ZK console shell -->
+					<exclusion>
+						<groupId>jline</groupId>
+						<artifactId>jline</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
@@ -520,20 +542,6 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
-		
-		<!-- Profile to switch to Scala Version 2.10 -->
-		<profile>
-			<id>scala-2.10</id>
-			<activation>
-				<property>
-					<name>scala-2.10</name>
-				</property>
-			</activation>
-			<properties>
-				<scala.version>2.10.6</scala.version>
-				<scala.binary.version>2.10</scala.binary.version>
-			</properties>
-		</profile>
 
 		<profile>
 			<id>spotbugs</id>
@@ -698,8 +706,8 @@ under the License.
 							com.sun.tools.javac.code.Symbol$CompletionFailure:
 								class file for akka.testkit.TestKit not found"
 					-->
-					<groupId>com.data-artisans</groupId>
-					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 					<version>${akka.version}</version>
 					<scope>provided</scope>
 				</dependency>
@@ -844,8 +852,8 @@ under the License.
 							com.sun.tools.javac.code.Symbol$CompletionFailure:
 								class file for akka.testkit.TestKit not found"
 					-->
-					<groupId>com.data-artisans</groupId>
-					<artifactId>flakka-testkit_${scala.binary.version}</artifactId>
+					<groupId>com.typesafe.akka</groupId>
+					<artifactId>akka-testkit_${scala.binary.version}</artifactId>
 					<version>${akka.version}</version>
 					<scope>provided</scope>
 				</dependency>
@@ -1036,7 +1044,7 @@ under the License.
 
 						<!-- Test Data. -->
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
-						<exclude>flink-tests/src/test/resources/flink_11-kryo_registrations</exclude>
+						<exclude>flink-runtime/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-connectors/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
@@ -1203,34 +1211,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- make sure all licenses that need to be repackaged are in the target folder -->
-			<plugin>
-				<artifactId>maven-resources-plugin</artifactId>
-				<configuration>
-					<encoding>UTF-8</encoding>
-				</configuration>
-				<executions>
-					<execution>
-						<id>copy-packaged-licenses</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>copy-resources</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>${basedir}/target/classes/META-INF/licenses/</outputDirectory>
-							<resources>
-								<resource>
-									<directory>${basedir}/packaged_licenses</directory>
-									<includes>
-										<include>LICENSE.*.txt</include>
-									</includes>
-								</resource>
-							</resources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- We use shading in all packages for relocating some classes, such as
 				Guava and ASM.
 				By doing so, users adding Flink as a dependency won't run into conflicts.
@@ -1259,6 +1239,13 @@ under the License.
 									<excludes>
 										<exclude>log4j.properties</exclude>
 										<exclude>log4j-test.properties</exclude>
+									</excludes>
+								</filter>
+								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
+								<filter>
+									<artifact>org.apache.flink:force-shading</artifact>
+									<excludes>
+										<exclude>**</exclude>
 									</excludes>
 								</filter>
 							</filters>

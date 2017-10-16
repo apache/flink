@@ -52,3 +52,5 @@ compiler used to inspect inlining decisions, hot methods, bytecode, and assembly
 ~~~
 env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
 ~~~
+
+{% top %}
