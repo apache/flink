@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.api.common.operators.CompilerHints;
 import org.apache.flink.optimizer.dag.OptimizerNode;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
@@ -28,6 +26,9 @@ import org.apache.flink.optimizer.plan.PlanNode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.IOException;
 import java.io.StringWriter;

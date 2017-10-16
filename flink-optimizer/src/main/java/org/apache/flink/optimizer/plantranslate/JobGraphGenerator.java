@@ -18,7 +18,7 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
-import com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
