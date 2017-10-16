@@ -85,6 +85,45 @@ class OverWindowITCase extends StreamingWithStateTestBase {
   }
 
   @Test
+  def testOverWindowWithConstant(): Unit = {
+
+    val data = List(
+      (1L, 1, "Hello"),
+      (2L, 2, "Hello"),
+      (3L, 3, "Hello"),
+      (4L, 4, "Hello"),
+      (5L, 5, "Hello"),
+      (6L, 6, "Hello"),
+      (7L, 7, "Hello World"),
+      (8L, 8, "Hello World"),
+      (8L, 8, "Hello World"),
+      (20L, 20, "Hello World"))
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+    StreamITCase.clear
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val weightAvgFun = new WeightedAvg
+
+    val windowedTable = table
+      .window(
+        Over partitionBy 'c orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
+      .select('c, weightAvgFun('a, 42, 'b, "2") over 'w as 'wAvg)
+
+    val results = windowedTable.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "Hello World,12", "Hello World,9", "Hello World,9", "Hello World,9", "Hello,3",
+      "Hello,3", "Hello,4", "Hello,4", "Hello,5", "Hello,5")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testRowTimeUnBoundedPartitionedRangeOver(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)

@@ -173,7 +173,8 @@ class DataStreamGroupWindowAggregate(
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
       false,
-      inputSchema.typeInfo)
+      inputSchema.typeInfo,
+      None)
 
     val needMerge = window match {
       case SessionGroupWindow(_, _, _) => true

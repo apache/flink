@@ -27,8 +27,8 @@ import org.apache.calcite.rex.RexProgram
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.calcite.RelTimeIndicatorConverter
 import org.apache.flink.table.codegen.FunctionCodeGenerator
-import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowProcessRunner
