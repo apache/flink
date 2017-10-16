@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.KeyDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.KeyDeserializer;
 
 import java.io.IOException;
 

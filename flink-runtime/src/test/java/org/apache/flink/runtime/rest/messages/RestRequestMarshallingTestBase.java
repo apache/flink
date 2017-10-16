@@ -21,8 +21,9 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.junit.Assert;
 import org.junit.Test;
 

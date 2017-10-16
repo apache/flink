@@ -20,8 +20,9 @@ package org.apache.flink.runtime.messages.webmonitor;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.commons.collections.CollectionUtils;
 
 import java.io.Serializable;
