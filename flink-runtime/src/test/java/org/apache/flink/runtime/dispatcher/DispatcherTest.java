@@ -25,24 +25,36 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
+import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,6 +64,23 @@ import static org.mockito.Mockito.when;
  */
 public class DispatcherTest extends TestLogger {
 
+	private static RpcService rpcService;
+	private static final Time timeout = Time.seconds(10L);
+
+	@BeforeClass
+	public static void setup() {
+		rpcService = new TestingRpcService();
+	}
+
+	@AfterClass
+	public static void teardown() {
+		if (rpcService != null) {
+			rpcService.stopService();
+
+			rpcService = null;
+		}
+	}
+
 	/**
 	 * Tests that we can submit a job to the Dispatcher which then spawns a
 	 * new JobManagerRunner.
@@ -59,30 +88,39 @@ public class DispatcherTest extends TestLogger {
 	@Test
 	public void testJobSubmission() throws Exception {
 		TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
-		RpcService rpcService = new TestingRpcService();
-		HighAvailabilityServices haServices = new StandaloneHaServices("localhost", "localhost");
+
+		TestingLeaderElectionService dispatcherLeaderElectionService = new TestingLeaderElectionService();
+		TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+		haServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
+		haServices.setSubmittedJobGraphStore(new StandaloneSubmittedJobGraphStore());
+
 		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
 		JobManagerRunner jobManagerRunner = mock(JobManagerRunner.class);
 
-		final Time timeout = Time.seconds(5L);
 		final JobGraph jobGraph = mock(JobGraph.class);
 		final JobID jobId = new JobID();
 		when(jobGraph.getJobID()).thenReturn(jobId);
 
-		try {
-			final TestingDispatcher dispatcher = new TestingDispatcher(
-				rpcService,
-				Dispatcher.DISPATCHER_NAME,
-				new Configuration(),
-				haServices,
-				mock(BlobServer.class),
-				heartbeatServices,
-				mock(MetricRegistry.class),
-				fatalErrorHandler,
-				jobManagerRunner,
-				jobId);
+		final TestingDispatcher dispatcher = new TestingDispatcher(
+			rpcService,
+			Dispatcher.DISPATCHER_NAME,
+			new Configuration(),
+			haServices,
+			mock(ResourceManagerGateway.class),
+			mock(BlobServer.class),
+			heartbeatServices,
+			mock(MetricRegistry.class),
+			fatalErrorHandler,
+			jobManagerRunner,
+			jobId);
 
+		try {
 			dispatcher.start();
+
+			CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
+
+			// wait for the leader to be elected
+			leaderFuture.get();
 
 			DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
@@ -95,7 +133,61 @@ public class DispatcherTest extends TestLogger {
 			// check that no error has occurred
 			fatalErrorHandler.rethrowError();
 		} finally {
-			rpcService.stopService();
+			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
+		}
+	}
+
+	/**
+	 * Tests that the dispatcher takes part in the leader election.
+	 */
+	@Test
+	public void testLeaderElection() throws Exception {
+		TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
+		TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+
+		UUID expectedLeaderSessionId = UUID.randomUUID();
+		CompletableFuture<UUID> leaderSessionIdFuture = new CompletableFuture<>();
+		SubmittedJobGraphStore mockSubmittedJobGraphStore = mock(SubmittedJobGraphStore.class);
+		TestingLeaderElectionService testingLeaderElectionService = new TestingLeaderElectionService() {
+			@Override
+			public void confirmLeaderSessionID(UUID leaderSessionId) {
+				super.confirmLeaderSessionID(leaderSessionId);
+				leaderSessionIdFuture.complete(leaderSessionId);
+			}
+		};
+
+		haServices.setSubmittedJobGraphStore(mockSubmittedJobGraphStore);
+		haServices.setDispatcherLeaderElectionService(testingLeaderElectionService);
+		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+		final JobID jobId = new JobID();
+
+		final TestingDispatcher dispatcher = new TestingDispatcher(
+			rpcService,
+			Dispatcher.DISPATCHER_NAME,
+			new Configuration(),
+			haServices,
+			mock(ResourceManagerGateway.class),
+			mock(BlobServer.class),
+			heartbeatServices,
+			mock(MetricRegistry.class),
+			fatalErrorHandler,
+			mock(JobManagerRunner.class),
+			jobId);
+
+		try {
+			dispatcher.start();
+
+			assertFalse(leaderSessionIdFuture.isDone());
+
+			testingLeaderElectionService.isLeader(expectedLeaderSessionId);
+
+			UUID actualLeaderSessionId = leaderSessionIdFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+
+			verify(mockSubmittedJobGraphStore, Mockito.timeout(timeout.toMilliseconds()).atLeast(1)).getJobIds();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
 		}
 	}
 
@@ -109,6 +201,7 @@ public class DispatcherTest extends TestLogger {
 				String endpointId,
 				Configuration configuration,
 				HighAvailabilityServices highAvailabilityServices,
+				ResourceManagerGateway resourceManagerGateway,
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				MetricRegistry metricRegistry,
@@ -120,10 +213,12 @@ public class DispatcherTest extends TestLogger {
 				endpointId,
 				configuration,
 				highAvailabilityServices,
+				resourceManagerGateway,
 				blobServer,
 				heartbeatServices,
 				metricRegistry,
-				fatalErrorHandler);
+				fatalErrorHandler,
+				Optional.empty());
 
 			this.jobManagerRunner = jobManagerRunner;
 			this.expectedJobId = expectedJobId;
@@ -136,8 +231,8 @@ public class DispatcherTest extends TestLogger {
 				Configuration configuration,
 				RpcService rpcService,
 				HighAvailabilityServices highAvailabilityServices,
-				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
+				JobManagerServices jobManagerServices,
 				MetricRegistry metricRegistry,
 				OnCompletionActions onCompleteActions,
 				FatalErrorHandler fatalErrorHandler) throws Exception {

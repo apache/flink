@@ -103,12 +103,24 @@ Note that if you use the `MemoryStateBackend`, metadata *and* savepoint state wi
 #### Trigger a Savepoint
 
 ```sh
-$ bin/flink savepoint :jobId [:targetDirectory]
+$ bin/flink savepoint :jobId [:savepointDirectory]
 ```
 
-This will trigger a savepoint for the job with ID `:jobid`. Furthermore, you can specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
+This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
 
-If you don't specify a target directory, you need to have [configured a default directory](#configuration). Otherwise, triggering the savepoint will fail.
+Furthermore, you can optionally specify a target file system directory to store the savepoint in. The directory needs to be accessible by the JobManager.
+
+If you don't specify a target directory, you need to have [configured a default directory](#configuration) (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)). Otherwise, triggering the savepoint will fail.
+
+#### Trigger a Savepoint with YARN
+
+```sh
+$ bin/flink savepoint :jobId [:savepointDirectory] -yid :yarnAppId
+```
+
+This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
+
+Everything else is the same as described in the above **Trigger a Savepoint** section.
 
 #### Cancel Job with Savepoint
 
@@ -196,3 +208,5 @@ If you did not assign IDs, the auto generated IDs of the stateful operators will
 If the savepoint was triggered with Flink >= 1.2.0 and using no deprecated state API like `Checkpointed`, you can simply restore the program from a savepoint and specify a new parallelism.
 
 If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink >= 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({{ site.baseurl }}/ops/upgrading.html).
+
+{% top %}

@@ -19,7 +19,10 @@
 package org.apache.flink.table.runtime.stream
 
 import java.math.BigDecimal
+import java.lang.{Integer => JInt, Long => JLong}
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
@@ -33,6 +36,7 @@ import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.StreamITCase
+import org.apache.flink.table.utils.TestTableSourceWithTime
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -229,7 +233,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
     tEnv.registerTable("MyTable", table)
 
-    val t = tEnv.sql("SELECT COUNT(`rowtime`) FROM MyTable " +
+    val t = tEnv.sqlQuery("SELECT COUNT(`rowtime`) FROM MyTable " +
       "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
 
     val results = t.toAppendStream[Row]
@@ -292,7 +296,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     tEnv.registerTable("T1", table)
     val querySql = "select rowtime as ts, string as msg from T1"
 
-    val results = tEnv.sql(querySql).toAppendStream[Pojo1]
+    val results = tEnv.sqlQuery(querySql).toAppendStream[Pojo1]
     results.addSink(new StreamITCase.StringSink[Pojo1])
     env.execute()
 
@@ -367,6 +371,47 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       "1970-01-01 00:00:00.043,And me.,13",
       "1970-01-01 00:00:00.043,And me.,13",
       "1970-01-01 00:00:00.043,And me.,13")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testTableSourceWithTimeIndicators(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val rows = Seq(
+      Row.of(new JInt(1), "A", new JLong(1000L)),
+      Row.of(new JInt(2), "B", new JLong(2000L)),
+      Row.of(new JInt(3), "C", new JLong(3000L)),
+      Row.of(new JInt(4), "D", new JLong(4000L)),
+      Row.of(new JInt(5), "E", new JLong(5000L)),
+      Row.of(new JInt(6), "F", new JLong(6000L)))
+    val rowType = new RowTypeInfo(
+      Array(Types.INT, Types.STRING, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
+      Array("a", "b", "rowtime")
+    )
+
+    tEnv.registerTableSource(
+      "testTable",
+      new TestTableSourceWithTime(rows, rowType, "rowtime", "proctime"))
+    StreamITCase.clear
+
+    val result = tEnv
+      .scan("testTable")
+      .where('a % 2 === 1)
+      .select('rowtime, 'a, 'b)
+      .toAppendStream[Row]
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:01.0,1,A",
+      "1970-01-01 00:00:03.0,3,C",
+      "1970-01-01 00:00:05.0,5,E")
+
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

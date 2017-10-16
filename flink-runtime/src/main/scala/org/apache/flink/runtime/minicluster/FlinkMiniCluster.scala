@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.minicluster
 
-import java.net.URL
+import java.net.{URL, URLClassLoader}
 import java.util.UUID
 import java.util.concurrent.{Executors, TimeUnit}
 
@@ -32,8 +32,8 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.akka.{AkkaJobManagerGateway, AkkaUtils}
 import org.apache.flink.runtime.client.{JobClient, JobExecutionException}
-import org.apache.flink.runtime.concurrent.{FutureUtils, Executors => FlinkExecutors}
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader
+import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter, Executors => FlinkExecutors}
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders
 import org.apache.flink.runtime.highavailability.{HighAvailabilityServices, HighAvailabilityServicesUtils}
 import org.apache.flink.runtime.instance.{ActorGateway, AkkaActorGateway}
 import org.apache.flink.runtime.jobgraph.JobGraph
@@ -152,7 +152,11 @@ abstract class FlinkMiniCluster(
 
   def startResourceManager(index: Int, system: ActorSystem): ActorRef
 
-  def startJobManager(index: Int, system: ActorSystem): ActorRef
+  def startJobManager(
+    index: Int,
+    system: ActorSystem,
+    optRestAddress: Option[String])
+  : ActorRef
 
   def startTaskManager(index: Int, system: ActorSystem): ActorRef
 
@@ -328,7 +332,12 @@ abstract class FlinkMiniCluster(
         } else {
           startJobManagerActorSystem(i)
         }
-        (actorSystem, startJobManager(i, actorSystem))
+
+        if (i == 0) {
+          webMonitor = startWebServer(originalConfiguration, actorSystem)
+        }
+
+        (actorSystem, startJobManager(i, actorSystem, webMonitor.map(_.getRestAddress)))
       }).unzip
 
     jobManagerActorSystems = Some(jmActorSystems)
@@ -370,10 +379,6 @@ abstract class FlinkMiniCluster(
     taskManagerActorSystems = Some(tmActorSystems)
     taskManagerActors = Some(tmActors)
 
-    val jobManagerAkkaURL = AkkaUtils.getAkkaURL(jmActorSystems(0), jmActors(0))
-
-    webMonitor = startWebServer(originalConfiguration, jmActorSystems(0), jobManagerAkkaURL)
-
     if(waitForTaskManagerRegistration) {
       waitForTaskManagersToBeRegistered()
     }
@@ -383,8 +388,7 @@ abstract class FlinkMiniCluster(
 
   def startWebServer(
       config: Configuration,
-      actorSystem: ActorSystem,
-      jobManagerAkkaURL: String)
+      actorSystem: ActorSystem)
     : Option[WebMonitor] = {
     if(
       config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false) &&
@@ -399,13 +403,13 @@ abstract class FlinkMiniCluster(
         WebMonitorUtils.startWebRuntimeMonitor(
           config,
           highAvailabilityServices,
-          new AkkaJobManagerRetriever(actorSystem, flinkTimeout),
+          new AkkaJobManagerRetriever(actorSystem, flinkTimeout, 10, Time.milliseconds(50L)),
           new AkkaQueryServiceRetriever(actorSystem, flinkTimeout),
           flinkTimeout,
-          actorSystem.dispatcher)
+          new ScheduledExecutorServiceAdapter(futureExecutor))
       )
 
-      webServer.foreach(_.start(jobManagerAkkaURL))
+      webServer.foreach(_.start())
 
       webServer
     } else {
@@ -664,7 +668,7 @@ abstract class FlinkMiniCluster(
   private def createUserCodeClassLoader(
       jars: java.util.List[Path],
       classPaths: java.util.List[URL],
-      parentClassLoader: ClassLoader): FlinkUserCodeClassLoader = {
+      parentClassLoader: ClassLoader): URLClassLoader = {
 
     val urls = new Array[URL](jars.size() + classPaths.size())
 
@@ -682,6 +686,6 @@ abstract class FlinkMiniCluster(
       counter += 1
     }
 
-    new FlinkUserCodeClassLoader(urls, parentClassLoader)
+    FlinkUserCodeClassLoaders.parentFirst(urls, parentClassLoader)
   }
 }

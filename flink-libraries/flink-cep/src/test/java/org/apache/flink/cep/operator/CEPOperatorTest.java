@@ -259,12 +259,16 @@ public class CEPOperatorTest extends TestLogger {
 					null,
 					null,
 					new PatternSelectFunction<Event, Map<String, List<Event>>>() {
+						private static final long serialVersionUID = -5768297287711394420L;
+
 						@Override
 						public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 							return pattern;
 						}
 					},
 					new PatternTimeoutFunction<Event, Tuple2<Map<String, List<Event>>, Long>>() {
+						private static final long serialVersionUID = 2843329425823093249L;
+
 						@Override
 						public Tuple2<Map<String, List<Event>>, Long> timeout(
 							Map<String, List<Event>> pattern,
@@ -274,6 +278,8 @@ public class CEPOperatorTest extends TestLogger {
 					},
 					timedOut
 				), new KeySelector<Event, Integer>() {
+				private static final long serialVersionUID = 7219185117566268366L;
+
 				@Override
 				public Integer getKey(Event value) throws Exception {
 					return value.getId();
@@ -281,6 +287,11 @@ public class CEPOperatorTest extends TestLogger {
 			}, BasicTypeInfo.INT_TYPE_INFO);
 
 		try {
+			String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
+			RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+			rocksDBStateBackend.setDbStoragePath(rocksDbPath);
+
+			harness.setStateBackend(rocksDBStateBackend);
 			harness.setup(
 				new KryoSerializer<>(
 					(Class<Map<String, List<Event>>>) (Object) Map.class,
@@ -604,6 +615,7 @@ public class CEPOperatorTest extends TestLogger {
 			verifyWatermark(harness.getOutput().poll(), 11L);
 			verifyWatermark(harness.getOutput().poll(), 12L);
 
+			// this is a late event, because timestamp(12) = last watermark(12)
 			harness.processElement(new StreamRecord<Event>(middleEvent3, 12L));
 			harness.processElement(new StreamRecord<>(endEvent2, 13L));
 			harness.processWatermark(20L);
@@ -613,8 +625,9 @@ public class CEPOperatorTest extends TestLogger {
 			assertTrue(!operator2.hasNonEmptyPQ(42));
 			assertEquals(0L, harness.numEventTimeTimers());
 
+			assertEquals(3, harness.getOutput().size());
 			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent2, endEvent2);
-			verifyPattern(harness.getOutput().poll(), startEvent2, middleEvent3, endEvent2);
+
 			verifyWatermark(harness.getOutput().poll(), 20L);
 			verifyWatermark(harness.getOutput().poll(), 21L);
 		} finally {
@@ -871,9 +884,9 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<Event>(middleEvent2, 3));
 			harness.processElement(new StreamRecord<>(startEvent2, 4));
 			harness.processWatermark(5L);
-			harness.processElement(new StreamRecord<>(nextOne, 6));
+			harness.processElement(new StreamRecord<>(nextOne, 7));
 			harness.processElement(new StreamRecord<>(endEvent, 8));
-			harness.processElement(new StreamRecord<Event>(middleEvent4, 5));
+			harness.processElement(new StreamRecord<Event>(middleEvent4, 6));
 			harness.processWatermark(100L);
 
 			List<List<Event>> resultingPatterns = new ArrayList<>();

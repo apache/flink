@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.core.testutils.CheckedThread;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -27,12 +28,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.Files;
-import java.util.Random;
 
-import static org.junit.Assert.*;
-import static org.junit.Assume.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
+/**
+ * Tests for the {@link FileUtils}.
+ */
 public class FileUtilsTest {
 
 	@Rule
@@ -97,6 +101,21 @@ public class FileUtilsTest {
 			cannotDeleteParent.setWritable(true);
 			//noinspection ResultOfMethodCallIgnored
 			cannotDeleteChild.setWritable(true);
+		}
+	}
+
+	@Test
+	public void testDeleteDirectoryWhichIsAFile() throws Exception {
+
+		// deleting a directory that is actually a file should fails
+
+		File file = tmp.newFile();
+		try {
+			FileUtils.deleteDirectory(file);
+			fail("this should fail with an exception");
+		}
+		catch (IOException ignored) {
+			// this is what we expect
 		}
 	}
 

@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
@@ -30,7 +31,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
@@ -74,7 +74,7 @@ public class PartitionRequestClientHandlerTest {
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(bufferProvider.requestBuffer()).thenReturn(null);
 		when(bufferProvider.isDestroyed()).thenReturn(true);
-		when(bufferProvider.addListener(any(EventListener.class))).thenReturn(false);
+		when(bufferProvider.addBufferListener(any(BufferListener.class))).thenReturn(false);
 
 		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
@@ -179,14 +179,14 @@ public class PartitionRequestClientHandlerTest {
 		PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 		EmbeddedChannel channel = new EmbeddedChannel(handler);
 
-		final AtomicReference<EventListener<Buffer>> listener = new AtomicReference<>();
+		final AtomicReference<BufferListener> listener = new AtomicReference<>();
 
 		BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.addListener(any(EventListener.class))).thenAnswer(new Answer<Boolean>() {
+		when(bufferProvider.addBufferListener(any(BufferListener.class))).thenAnswer(new Answer<Boolean>() {
 			@Override
 			@SuppressWarnings("unchecked")
 			public Boolean answer(InvocationOnMock invocation) throws Throwable {
-				listener.set((EventListener<Buffer>) invocation.getArguments()[0]);
+				listener.set((BufferListener) invocation.getArguments()[0]);
 				return true;
 			}
 		});
@@ -221,11 +221,11 @@ public class PartitionRequestClientHandlerTest {
 
 		// Notify about buffer => handle 1st msg
 		Buffer availableBuffer = createBuffer(false);
-		listener.get().onEvent(availableBuffer);
+		listener.get().notifyBufferAvailable(availableBuffer);
 
 		// Start processing of staged buffers (in run pending tasks). Make
 		// sure that the buffer provider acts like it's destroyed.
-		when(bufferProvider.addListener(any(EventListener.class))).thenReturn(false);
+		when(bufferProvider.addBufferListener(any(BufferListener.class))).thenReturn(false);
 		when(bufferProvider.isDestroyed()).thenReturn(true);
 
 		// Execute all tasks that are scheduled in the event loop. Further
@@ -239,7 +239,7 @@ public class PartitionRequestClientHandlerTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private static Buffer createBuffer(boolean fill) {
-		MemorySegment segment = HeapMemorySegment.FACTORY.allocateUnpooledSegment(1024, null);
+		MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024, null);
 		if (fill) {
 			for (int i = 0; i < 1024; i++) {
 				segment.put(i, (byte) i);
@@ -264,12 +264,10 @@ public class PartitionRequestClientHandlerTest {
 		// Skip general header bytes
 		serialized.readBytes(NettyMessage.HEADER_LENGTH);
 
-		BufferResponse deserialized = new BufferResponse();
-
 		// Deserialize the bytes again. We have to go this way, because we only partly deserialize
 		// the header of the response and wait for a buffer from the buffer pool to copy the payload
 		// data into.
-		deserialized.readFrom(serialized);
+		BufferResponse deserialized = BufferResponse.readFrom(serialized);
 
 		return deserialized;
 	}

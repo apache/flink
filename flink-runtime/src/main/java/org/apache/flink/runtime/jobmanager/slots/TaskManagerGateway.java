@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -177,7 +177,7 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager log has been stored
 	 */
-	CompletableFuture<BlobKey> requestTaskManagerLog(final Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerLog(final Time timeout);
 
 	/**
 	 * Request the task manager stdout from the task manager.
@@ -185,5 +185,5 @@ public interface TaskManagerGateway {
 	 * @param timeout for the request
 	 * @return Future blob key under which the task manager stdout file has been stored
 	 */
-	CompletableFuture<BlobKey> requestTaskManagerStdout(final Time timeout);
+	CompletableFuture<TransientBlobKey> requestTaskManagerStdout(final Time timeout);
 }

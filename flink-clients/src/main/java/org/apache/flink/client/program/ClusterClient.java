@@ -40,8 +40,10 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobListeningContext;
+import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -53,6 +55,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
 import org.apache.flink.runtime.messages.accumulators.RequestAccumulatorResults;
+import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
@@ -63,13 +67,20 @@ import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 import scala.Option;
 import scala.Tuple2;
@@ -82,7 +93,7 @@ import scala.concurrent.duration.FiniteDuration;
  */
 public abstract class ClusterClient {
 
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** The optimizer used in the optimization of batch programs. */
 	final Optimizer compiler;
@@ -575,25 +586,46 @@ public abstract class ClusterClient {
 	 * @throws Exception In case an error occurred.
 	 */
 	public void cancel(JobID jobId) throws Exception {
-		final ActorGateway jobManagerGateway = getJobManagerGateway();
+		final ActorGateway jobManager = getJobManagerGateway();
 
-		final Future<Object> response;
-		try {
-			response = jobManagerGateway.ask(new JobManagerMessages.CancelJob(jobId), timeout);
-		} catch (final Exception e) {
-			throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
-		}
+		Object cancelMsg = new JobManagerMessages.CancelJob(jobId);
 
-		final Object result = Await.result(response, timeout);
+		Future<Object> response = jobManager.ask(cancelMsg, timeout);
+		final Object rc = Await.result(response, timeout);
 
-		if (result instanceof JobManagerMessages.CancellationSuccess) {
-			logAndSysout("Job cancellation with ID " + jobId + " succeeded.");
-		} else if (result instanceof JobManagerMessages.CancellationFailure) {
-			final Throwable t = ((JobManagerMessages.CancellationFailure) result).cause();
-			logAndSysout("Job cancellation with ID " + jobId + " failed because of " + t.getMessage());
-			throw new Exception("Failed to cancel the job with id " + jobId, t);
+		if (rc instanceof JobManagerMessages.CancellationSuccess) {
+			// no further action required
+		} else if (rc instanceof JobManagerMessages.CancellationFailure) {
+			throw new Exception("Canceling the job with ID " + jobId + " failed.",
+				((JobManagerMessages.CancellationFailure) rc).cause());
 		} else {
-			throw new Exception("Unknown message received while cancelling: " + result.getClass().getName());
+			throw new IllegalStateException("Unexpected response: " + rc);
+		}
+	}
+
+	/**
+	 * Cancels a job identified by the job id and triggers a savepoint.
+	 * @param jobId the job id
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return path where the savepoint is located
+	 * @throws Exception In case an error cocurred.
+	 */
+	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Object cancelMsg = new JobManagerMessages.CancelJobWithSavepoint(jobId, savepointDirectory);
+
+		Future<Object> response = jobManager.ask(cancelMsg, timeout);
+		final Object rc = Await.result(response, timeout);
+
+		if (rc instanceof JobManagerMessages.CancellationSuccess) {
+			JobManagerMessages.CancellationSuccess success = (JobManagerMessages.CancellationSuccess) rc;
+			return success.savepointPath();
+		} else if (rc instanceof JobManagerMessages.CancellationFailure) {
+			throw new Exception("Cancel & savepoint for the job with ID " + jobId + " failed.",
+				((JobManagerMessages.CancellationFailure) rc).cause());
+		} else {
+			throw new IllegalStateException("Unexpected response: " + rc);
 		}
 	}
 
@@ -610,26 +642,76 @@ public abstract class ClusterClient {
 	 *             failed. That might be due to an I/O problem, ie, the job-manager is unreachable.
 	 */
 	public void stop(final JobID jobId) throws Exception {
-		final ActorGateway jobManagerGateway = getJobManagerGateway();
+		final ActorGateway jobManager = getJobManagerGateway();
 
-		final Future<Object> response;
-		try {
-			response = jobManagerGateway.ask(new JobManagerMessages.StopJob(jobId), timeout);
-		} catch (final Exception e) {
-			throw new ProgramInvocationException("Failed to query the job manager gateway.", e);
-		}
+		Future<Object> response = jobManager.ask(new JobManagerMessages.StopJob(jobId), timeout);
 
-		final Object result = Await.result(response, timeout);
+		final Object rc = Await.result(response, timeout);
 
-		if (result instanceof JobManagerMessages.StoppingSuccess) {
-			log.info("Job stopping with ID " + jobId + " succeeded.");
-		} else if (result instanceof JobManagerMessages.StoppingFailure) {
-			final Throwable t = ((JobManagerMessages.StoppingFailure) result).cause();
-			log.info("Job stopping with ID " + jobId + " failed.", t);
-			throw new Exception("Failed to stop the job because of \n" + t.getMessage());
+		if (rc instanceof JobManagerMessages.StoppingSuccess) {
+			// no further action required
+		} else if (rc instanceof JobManagerMessages.StoppingFailure) {
+			throw new Exception("Stopping the job with ID " + jobId + " failed.",
+				((JobManagerMessages.StoppingFailure) rc).cause());
 		} else {
-			throw new Exception("Unknown message received while stopping: " + result.getClass().getName());
+			throw new IllegalStateException("Unexpected response: " + rc);
 		}
+	}
+
+	/**
+	 * Triggers a savepoint for the job identified by the job id. The savepoint will be written to the given savepoint
+	 * directory, or {@link org.apache.flink.configuration.CoreOptions#SAVEPOINT_DIRECTORY} if it is null.
+	 *
+	 * @param jobId job id
+	 * @param savepointDirectory directory the savepoint should be written to
+	 * @return path future where the savepoint is located
+	 * @throws Exception if  no connection to the cluster could be established
+	 */
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
+			new FiniteDuration(1, TimeUnit.HOURS));
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
+
+		return responseFuture.thenApply((responseMessage) -> {
+			if (responseMessage instanceof JobManagerMessages.TriggerSavepointSuccess) {
+				JobManagerMessages.TriggerSavepointSuccess success = (JobManagerMessages.TriggerSavepointSuccess) responseMessage;
+				return success.savepointPath();
+			} else if (responseMessage instanceof JobManagerMessages.TriggerSavepointFailure) {
+				JobManagerMessages.TriggerSavepointFailure failure = (JobManagerMessages.TriggerSavepointFailure) responseMessage;
+				throw new CompletionException(failure.cause());
+			} else {
+				throw new CompletionException(
+					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
+			}
+		});
+	}
+
+	/**
+	 * Lists the currently running and finished jobs on the cluster.
+	 *
+	 * @return future collection of running and finished jobs
+	 * @throws Exception if no connection to the cluster could be established
+	 */
+	public CompletableFuture<Collection<JobStatusMessage>> listJobs() throws Exception {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Future<Object> response = jobManager.ask(new RequestJobDetails(true, false), timeout);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(response);
+
+		return responseFuture.thenApply((responseMessage) -> {
+			if (responseMessage instanceof MultipleJobsDetails) {
+				MultipleJobsDetails details = (MultipleJobsDetails) responseMessage;
+				Collection<JobStatusMessage> flattenedDetails = new ArrayList<>(details.getRunning().size() + details.getFinished().size());
+				details.getRunning().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
+				details.getFinished().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
+				return flattenedDetails;
+			} else {
+				throw new CompletionException(
+					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
+			}
+		});
 	}
 
 	/**

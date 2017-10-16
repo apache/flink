@@ -82,6 +82,8 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 
 	private static final String RESOURCE_MANAGER_LEADER_PATH = "/resource_manager_lock";
 
+	private static final String DISPATCHER_LEADER_PATH = "/dispatcher_lock";
+
 	private static final String JOB_MANAGER_LEADER_PATH = "/job_manager_lock";
 
 	// ------------------------------------------------------------------------
@@ -125,6 +127,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
+	public LeaderRetrievalService getDispatcherLeaderRetriever() {
+		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, DISPATCHER_LEADER_PATH);
+	}
+
+	@Override
 	public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
 		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, getPathForJobManager(jobID));
 	}
@@ -137,6 +144,11 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	@Override
 	public LeaderElectionService getResourceManagerLeaderElectionService() {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, RESOURCE_MANAGER_LEADER_PATH);
+	}
+
+	@Override
+	public LeaderElectionService getDispatcherLeaderElectionService() {
+		return ZooKeeperUtils.createLeaderElectionService(client, configuration, DISPATCHER_LEADER_PATH);
 	}
 
 	@Override

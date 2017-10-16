@@ -44,6 +44,7 @@ import java.net.InetAddress;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -72,6 +73,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

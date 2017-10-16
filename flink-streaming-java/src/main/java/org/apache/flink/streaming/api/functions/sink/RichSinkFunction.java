@@ -27,7 +27,4 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 public abstract class RichSinkFunction<IN> extends AbstractRichFunction implements SinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;
-
-	public abstract void invoke(IN value) throws Exception;
-
 }

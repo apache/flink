@@ -269,7 +269,7 @@ window of processing time, as long as words are floating in.
   </div>
 
 * Words are counted in time windows of 5 seconds (processing time, tumbling
-  windows) and are printed to `stdout`. Monitor the JobManager's output file
+  windows) and are printed to `stdout`. Monitor the TaskManager's output file
   and write some text in `nc` (input is sent to Flink line by line after
   hitting <RETURN>):
 
@@ -284,7 +284,7 @@ window of processing time, as long as words are floating in.
   as words are floating in, e.g.:
 
   ~~~bash
-  $ tail -f log/flink-*-jobmanager-*.out
+  $ tail -f log/flink-*-taskmanager-*.out
   lorem : 1
   bye : 1
   ipsum : 4
@@ -299,3 +299,5 @@ window of processing time, as long as words are floating in.
 ## Next Steps
 
 Check out some more [examples]({{ site.baseurl }}/examples) to get a better feel for Flink's programming APIs. When you are done with that, go ahead and read the [streaming guide]({{ site.baseurl }}/dev/datastream_api.html).
+
+{% top %}

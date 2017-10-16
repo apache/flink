@@ -272,6 +272,7 @@ case class ScalarFunctionCall(
     relBuilder.call(
       createScalarSqlFunction(
         scalarFunction.functionIdentifier,
+        scalarFunction.toString,
         scalarFunction,
         typeFactory),
       parameters.map(_.toRexNode): _*)

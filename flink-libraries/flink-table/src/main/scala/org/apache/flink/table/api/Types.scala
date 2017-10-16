@@ -18,7 +18,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.{PrimitiveArrayTypeInfo, TypeInformation, Types => JTypes}
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 
@@ -109,5 +109,14 @@ object Types {
     */
   def MAP(keyType: TypeInformation[_], valueType: TypeInformation[_]): TypeInformation[_] = {
     new MapTypeInfo(keyType, valueType)
+  }
+
+  /**
+    * Generates type information for a Multiset.
+    *
+    * @param elementType type of the elements of the multiset e.g. Types.STRING
+    */
+  def MULTISET(elementType: TypeInformation[_]): TypeInformation[_] = {
+    new MultisetTypeInfo(elementType)
   }
 }

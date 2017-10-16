@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -31,7 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
  * @param <P> response message type
  * @param <M> message parameters type
  */
-public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> {
+public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M extends MessageParameters> extends RestHandlerSpecification {
 
 	/**
 	 * Returns the class of the request message.
@@ -39,20 +39,6 @@ public interface MessageHeaders<R extends RequestBody, P extends ResponseBody, M
 	 * @return class of the request message
 	 */
 	Class<R> getRequestClass();
-
-	/**
-	 * Returns the {@link HttpMethodWrapper} to be used for the request.
-	 *
-	 * @return http method to be used for the request
-	 */
-	HttpMethodWrapper getHttpMethod();
-
-	/**
-	 * Returns the generalized endpoint url that this request should be sent to, for example {@code /job/:jobid}.
-	 *
-	 * @return endpoint url that this request should be sent to
-	 */
-	String getTargetRestEndpointURL();
 
 	/**
 	 * Returns the class of the response message.

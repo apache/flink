@@ -24,6 +24,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -121,6 +122,16 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
 		Assert.assertEquals(2, parameter.getNumberOfParameters());
 		validate(parameter);
+
+		parameter = ParameterTool.fromPropertiesFile(propertiesFile);
+		Assert.assertEquals(2, parameter.getNumberOfParameters());
+		validate(parameter);
+
+		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
+			parameter = ParameterTool.fromPropertiesFile(fis);
+		}
+		Assert.assertEquals(2, parameter.getNumberOfParameters());
+		validate(parameter);
 	}
 
 	@Test
@@ -150,12 +161,6 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		System.setProperty("expectedCount", "15");
 		ParameterTool parameter2 = ParameterTool.fromSystemProperties();
 		ParameterTool parameter = parameter1.mergeWith(parameter2);
-		validate(parameter);
-	}
-
-	@Test
-	public void testFromGenericOptionsParser() throws IOException {
-		ParameterTool parameter = ParameterTool.fromGenericOptionsParser(new String[]{"-D", "input=myInput", "-DexpectedCount=15"});
 		validate(parameter);
 	}
 

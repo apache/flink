@@ -54,3 +54,4 @@ For local setups, we recommend using the JMX metric reporter and a tool like [Vi
   - Approach 1: Watermark stays late (indicated completeness), windows fire early
   - Approach 2: Watermark heuristic with maximum lateness, windows accept late data
 
+{% top %}

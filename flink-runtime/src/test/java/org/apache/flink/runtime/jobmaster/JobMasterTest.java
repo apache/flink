@@ -26,7 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -34,8 +34,10 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -49,16 +51,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.net.InetAddress;
 import java.net.URL;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BlobLibraryCacheManager.class)
@@ -77,7 +75,7 @@ public class JobMasterTest extends TestLogger {
 		final TestingFatalErrorHandler testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		final String jobManagerAddress = "jm";
-		final UUID jmLeaderId = UUID.randomUUID();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 
 		final String taskManagerAddress = "tm";
@@ -110,19 +108,22 @@ public class JobMasterTest extends TestLogger {
 				blobServer,
 				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
-				Time.of(10, TimeUnit.SECONDS),
+				testingTimeout,
 				null,
 				mock(OnCompletionActions.class),
 				testingFatalErrorHandler,
-				new FlinkUserCodeClassLoader(new URL[0]));
+				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()));
 
-			jobMaster.start(jmLeaderId);
+			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+
+			// wait for the start to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final JobMasterGateway jobMasterGateway = jobMaster.getSelfGateway(JobMasterGateway.class);
 
 			// register task manager will trigger monitor heartbeat target, schedule heartbeat request at interval time
 			CompletableFuture<RegistrationResponse> registrationResponse = jobMasterGateway
-				.registerTaskManager(taskManagerAddress, taskManagerLocation, jmLeaderId, testingTimeout);
+				.registerTaskManager(taskManagerAddress, taskManagerLocation, testingTimeout);
 
 			// wait for the completion of the registration
 			registrationResponse.get();
@@ -163,8 +164,8 @@ public class JobMasterTest extends TestLogger {
 	public void testHeartbeatTimeoutWithResourceManager() throws Exception {
 		final String resourceManagerAddress = "rm";
 		final String jobManagerAddress = "jm";
-		final UUID rmLeaderId = UUID.randomUUID();
-		final UUID jmLeaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+		final JobMasterId jobMasterId = JobMasterId.generate();
 		final ResourceID rmResourceId = new ResourceID(resourceManagerAddress);
 		final ResourceID jmResourceId = new ResourceID(jobManagerAddress);
 		final JobGraph jobGraph = new JobGraph();
@@ -183,14 +184,13 @@ public class JobMasterTest extends TestLogger {
 
 		final ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
 		when(resourceManagerGateway.registerJobManager(
-			any(UUID.class),
-			any(UUID.class),
+			any(JobMasterId.class),
 			any(ResourceID.class),
 			anyString(),
 			any(JobID.class),
 			any(Time.class)
 		)).thenReturn(CompletableFuture.completedFuture(new JobMasterRegistrationSuccess(
-			heartbeatInterval, rmLeaderId, rmResourceId)));
+			heartbeatInterval, resourceManagerId, rmResourceId)));
 
 		final TestingRpcService rpc = new TestingRpcService();
 		rpc.registerGateway(resourceManagerAddress, resourceManagerGateway);
@@ -209,21 +209,23 @@ public class JobMasterTest extends TestLogger {
 				mock(BlobServer.class),
 				mock(BlobLibraryCacheManager.class),
 				mock(RestartStrategyFactory.class),
-				Time.of(10, TimeUnit.SECONDS),
+				testingTimeout,
 				null,
 				mock(OnCompletionActions.class),
 				testingFatalErrorHandler,
-				new FlinkUserCodeClassLoader(new URL[0]));
+				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()));
 
-			jobMaster.start(jmLeaderId);
+			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
+
+			// wait for the start operation to complete
+			startFuture.get(testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			// define a leader and see that a registration happens
-			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, rmLeaderId);
+			rmLeaderRetrievalService.notifyListener(resourceManagerAddress, resourceManagerId.toUUID());
 
 			// register job manager success will trigger monitor heartbeat target between jm and rm
 			verify(resourceManagerGateway, timeout(testingTimeout.toMilliseconds())).registerJobManager(
-				eq(rmLeaderId),
-				eq(jmLeaderId),
+				eq(jobMasterId),
 				eq(jmResourceId),
 				anyString(),
 				eq(jobGraph.getJobID()),

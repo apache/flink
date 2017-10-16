@@ -46,9 +46,9 @@ extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 	private final ExecutionEnvironment env;
 
 	// Required configuration
-	private long vertexCount;
+	private final long vertexCount;
 
-	private long vertexDegree;
+	private final long vertexDegree;
 
 	/**
 	 * An undirected {@link Graph} whose vertices have the same degree.

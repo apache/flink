@@ -22,8 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +32,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Gateway for the Dispatcher component.
  */
-public interface DispatcherGateway extends RpcGateway {
+public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, RestfulGateway {
 
 	/**
 	 * Submit a job to the dispatcher.
@@ -45,11 +46,37 @@ public interface DispatcherGateway extends RpcGateway {
 		@RpcTimeout Time timeout);
 
 	/**
-	 * Lists the current set of submitted jobs.
+	 * List the current set of submitted jobs.
 	 *
 	 * @param timeout RPC timeout
 	 * @return A future collection of currently submitted jobs
 	 */
 	CompletableFuture<Collection<JobID>> listJobs(
 		@RpcTimeout Time timeout);
+
+	/**
+	 * Cancel the given job.
+	 *
+	 * @param jobId identifying the job to cancel
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the cancellation succeeded
+	 */
+	CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Stop the given job.
+	 *
+	 * @param jobId identifying the job to stop
+	 * @param timeout of the operation
+	 * @return A future acknowledge if the stopping succeeded
+	 */
+	CompletableFuture<Acknowledge> stopJob(JobID jobId, @RpcTimeout Time timeout);
+
+	/**
+	 * Returns the port of the blob server.
+	 *
+	 * @param timeout of the operation
+	 * @return A future integer of the blob server port
+	 */
+	CompletableFuture<Integer> getBlobServerPort(@RpcTimeout Time timeout);
 }

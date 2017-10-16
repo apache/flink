@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Internal;
@@ -30,6 +31,8 @@ import java.util.Map;
  */
 @Internal
 public class ArchivedExecutionConfig implements Serializable {
+
+	private static final long serialVersionUID = 2126156250920316528L;
 
 	private final String executionMode;
 	private final String restartStrategyDescription;

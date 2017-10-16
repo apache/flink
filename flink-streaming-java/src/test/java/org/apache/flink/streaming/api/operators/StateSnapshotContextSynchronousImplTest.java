@@ -120,11 +120,11 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 
 	static final class InsightCloseableRegistry extends CloseableRegistry {
 		public int size() {
-			return closeableToRef.size();
+			return getNumberOfRegisteredCloseables();
 		}
 
 		public boolean contains(Closeable closeable) {
-			return closeableToRef.containsKey(closeable);
+			return isCloseableRegistered(closeable);
 		}
 	}
 }

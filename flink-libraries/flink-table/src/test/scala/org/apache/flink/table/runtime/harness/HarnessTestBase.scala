@@ -355,6 +355,26 @@ object HarnessTestBase {
   }
 
   /**
+    * Return 0 for equal Rows and non zero for different rows
+    */
+  class RowResultSortComparatorWithWatermarks()
+    extends Comparator[Object] with Serializable {
+
+    override def compare(o1: Object, o2: Object): Int = {
+
+      (o1, o2) match {
+        case (w1: Watermark, w2: Watermark) =>
+          w1.getTimestamp.compareTo(w2.getTimestamp)
+        case (r1: StreamRecord[CRow], r2: StreamRecord[CRow]) =>
+          r1.getValue.toString.compareTo(r2.getValue.toString)
+        case (_: Watermark, _: StreamRecord[CRow]) => -1
+        case (_: StreamRecord[CRow], _: Watermark) => 1
+        case _ => -1
+      }
+    }
+  }
+
+  /**
     * Tuple row key selector that returns a specified field as the selector function
     */
   class TupleRowKeySelector[T](

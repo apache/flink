@@ -336,9 +336,12 @@ public class ContinuousFileMonitoringFunction<OUT>
 	@Override
 	public void close() throws Exception {
 		super.close();
-		synchronized (checkpointLock) {
-			globalModificationTime = Long.MAX_VALUE;
-			isRunning = false;
+
+		if (checkpointLock != null) {
+			synchronized (checkpointLock) {
+				globalModificationTime = Long.MAX_VALUE;
+				isRunning = false;
+			}
 		}
 
 		if (LOG.isDebugEnabled()) {

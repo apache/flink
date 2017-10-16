@@ -76,7 +76,6 @@ extends GeneratedGraph {
 
 	@Override
 	protected long vertexCount() {
-		// in Java 8 use Math.multiplyExact(long, long)
 		BigInteger vertexCount = BigInteger.ONE;
 		for (Dimension dimension : dimensions) {
 			vertexCount = vertexCount.multiply(BigInteger.valueOf(dimension.size));

@@ -21,7 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
-import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.util.HadoopUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -457,8 +457,13 @@ public final class Utils {
 			String fileLocation = System.getenv(UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION);
 			Method readTokenStorageFileMethod = Credentials.class.getMethod(
 				"readTokenStorageFile", File.class, org.apache.hadoop.conf.Configuration.class);
-			Credentials cred = (Credentials) readTokenStorageFileMethod.invoke(null, new File(fileLocation),
-				new SecurityUtils.SecurityConfiguration(flinkConfig).getHadoopConfiguration());
+
+			Credentials cred =
+				(Credentials) readTokenStorageFileMethod.invoke(
+					null,
+					new File(fileLocation),
+					HadoopUtils.getHadoopConfiguration(flinkConfig));
+
 			cred.writeTokenStorageToStream(dob);
 			ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 			ctx.setTokens(securityTokens);

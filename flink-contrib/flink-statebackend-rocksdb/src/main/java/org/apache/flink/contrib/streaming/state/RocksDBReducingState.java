@@ -140,6 +140,7 @@ public class RocksDBReducingState<K, N, V>
 
 					final byte[] sourceKey = keySerializationStream.toByteArray();
 					final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+					backend.db.delete(columnFamily, sourceKey);
 
 					if (valueBytes != null) {
 						V value = valueSerializer.deserialize(

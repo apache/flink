@@ -120,7 +120,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	public AbstractStreamOperatorTestHarness(
 		StreamOperator<OUT> operator,
 		int maxParallelism,
-		int numSubtasks,
+		int parallelism,
 		int subtaskIndex) throws Exception {
 
 		this(
@@ -133,7 +133,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				new Configuration(),
 				new ExecutionConfig(),
 				maxParallelism,
-				numSubtasks,
+				parallelism,
 				subtaskIndex));
 	}
 
@@ -220,7 +220,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 						environment,
 						operator.getClass().getSimpleName());
 
-					mockTask.getCancelables().registerClosable(osb);
+					mockTask.getCancelables().registerCloseable(osb);
 
 					if (null != stateHandles) {
 						osb.restore(stateHandles);

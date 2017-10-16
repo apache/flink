@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
-import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -51,14 +51,16 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.registration.RegistrationConnectionListener;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.registration.RegistrationConnectionListener;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -85,6 +87,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -231,7 +234,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		try {
 			haServices.getResourceManagerLeaderRetriever().start(new ResourceManagerLeaderListener());
 		} catch (Exception e) {
-			onFatalErrorAsync(e);
+			onFatalError(e);
 		}
 
 		// tell the task slot table who's responsible for the task slot actions
@@ -248,12 +251,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	public void postStop() throws Exception {
 		log.info("Stopping TaskManager {}.", getAddress());
 
-		Exception exception = null;
+		Throwable throwable = null;
 
 		taskSlotTable.stop();
 
 		if (isConnectedToResourceManager()) {
 			resourceManagerConnection.close();
+		}
+
+		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
+			try {
+				disassociateFromJobManager(jobManagerConnection, new FlinkException("The TaskExecutor is shutting down."));
+			} catch (Throwable t) {
+				throwable = ExceptionUtils.firstOrSuppressed(t, throwable);
+			}
 		}
 
 		jobManagerHeartbeatManager.stop();
@@ -270,12 +281,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		try {
 			super.postStop();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		} catch (Throwable e) {
+			throwable = ExceptionUtils.firstOrSuppressed(e, throwable);
 		}
 
-		if (exception != null) {
-			ExceptionUtils.rethrowException(exception, "Error while shutting the TaskExecutor down.");
+		if (throwable != null) {
+			ExceptionUtils.rethrowException(throwable, "Error while shutting the TaskExecutor down.");
 		}
 
 		log.info("Stopped TaskManager {}.", getAddress());
@@ -292,7 +303,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(
 			TaskDeploymentDescriptor tdd,
-			UUID jobManagerLeaderId,
+			JobMasterId jobMasterId,
 			Time timeout) {
 
 		try {
@@ -317,10 +328,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new TaskSubmissionException(message);
 			}
 
-			if (!Objects.equals(jobManagerConnection.getLeaderId(), jobManagerLeaderId)) {
+			if (!Objects.equals(jobManagerConnection.getJobMasterId(), jobMasterId)) {
 				final String message = "Rejecting the task submission because the job manager leader id " +
-					jobManagerLeaderId + " does not match the expected job manager leader id " +
-					jobManagerConnection.getLeaderId() + '.';
+					jobMasterId + " does not match the expected job manager leader id " +
+					jobManagerConnection.getJobMasterId() + '.';
 
 				log.debug(message);
 				throw new TaskSubmissionException(message);
@@ -343,16 +354,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				tdd.getAttemptNumber());
 
 			InputSplitProvider inputSplitProvider = new RpcInputSplitProvider(
-				jobManagerConnection.getLeaderId(),
 				jobManagerConnection.getJobManagerGateway(),
-				jobInformation.getJobId(),
 				taskInformation.getJobVertexId(),
 				tdd.getExecutionAttemptId(),
 				taskManagerConfiguration.getTimeout());
 
 			TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
 			CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
-			BlobCache blobCache = jobManagerConnection.getBlobCache();
+			BlobCacheService blobService = jobManagerConnection.getBlobService();
 			LibraryCacheManager libraryCache = jobManagerConnection.getLibraryCacheManager();
 			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
 			PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();
@@ -375,7 +384,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				taskManagerActions,
 				inputSplitProvider,
 				checkpointResponder,
-				blobCache,
+				blobService,
 				libraryCache,
 				fileCache,
 				taskManagerConfiguration,
@@ -576,29 +585,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// Slot allocation RPCs
 	// ----------------------------------------------------------------------
 
-	/**
-	 * Requests a slot from the TaskManager
-	 *
-	 * @param slotId identifying the requested slot
-	 * @param jobId identifying the job for which the request is issued
-	 * @param allocationId id for the request
-	 * @param targetAddress of the job manager requesting the slot
-	 * @param rmLeaderId current leader id of the ResourceManager
-	 * @throws SlotAllocationException if the slot allocation fails
-	 * @return answer to the slot request
-	 */
 	@Override
 	public CompletableFuture<Acknowledge> requestSlot(
 		final SlotID slotId,
 		final JobID jobId,
 		final AllocationID allocationId,
 		final String targetAddress,
-		final UUID rmLeaderId,
+		final ResourceManagerId resourceManagerId,
 		final Time timeout) {
 		// TODO: Filter invalid requests from the resource manager by using the instance/registration Id
 
 		log.info("Receive slot request {} for job {} from resource manager with leader id {}.",
-			allocationId, jobId, rmLeaderId);
+			allocationId, jobId, resourceManagerId);
 
 		try {
 			if (resourceManagerConnection == null) {
@@ -607,8 +605,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				throw new SlotAllocationException(message);
 			}
 
-			if (!resourceManagerConnection.getTargetLeaderId().equals(rmLeaderId)) {
-				final String message = "The leader id " + rmLeaderId +
+			if (!Objects.equals(resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) {
+				final String message = "The leader id " + resourceManagerId +
 					" does not match with the leader id of the connected resource manager " +
 					resourceManagerConnection.getTargetLeaderId() + '.';
 
@@ -683,7 +681,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	//  Internal resource manager connection methods
 	// ------------------------------------------------------------------------
 
-	private void notifyOfNewResourceManagerLeader(String newLeaderAddress, UUID newLeaderId) {
+	private void notifyOfNewResourceManagerLeader(String newLeaderAddress, ResourceManagerId newResourceManagerId) {
 		if (resourceManagerConnection != null) {
 			if (newLeaderAddress != null) {
 				// the resource manager switched to a new leader
@@ -714,7 +712,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					getResourceID(),
 					taskSlotTable.createSlotReport(getResourceID()),
 					newLeaderAddress,
-					newLeaderId,
+					newResourceManagerId,
 					getMainThreadExecutor(),
 					new ResourceManagerRegistrationListener());
 			resourceManagerConnection.start();
@@ -767,7 +765,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				final JobMasterGateway jobMasterGateway = jobManagerConnection.getJobManagerGateway();
 
 				final Iterator<TaskSlot> reservedSlotsIterator = taskSlotTable.getAllocatedSlots(jobId);
-				final UUID leaderId = jobManagerConnection.getLeaderId();
+				final JobMasterId jobMasterId = jobManagerConnection.getJobMasterId();
 
 				final Collection<SlotOffer> reservedSlots = new HashSet<>(2);
 
@@ -778,13 +776,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							// the slot is either free or releasing at the moment
 							final String message = "Could not mark slot " + jobId + " active.";
 							log.debug(message);
-							jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(),
-								leaderId, new Exception(message));
+							jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(), new Exception(message));
 						}
 					} catch (SlotNotFoundException e) {
 						final String message = "Could not mark slot " + jobId + " active.";
-						jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(),
-							leaderId, new Exception(message));
+						jobMasterGateway.failSlot(getResourceID(), offer.getAllocationId(), new Exception(message));
 						continue;
 					}
 					reservedSlots.add(offer);
@@ -793,7 +789,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture = jobMasterGateway.offerSlots(
 					getResourceID(),
 					reservedSlots,
-					leaderId,
 					taskManagerConfiguration.getTimeout());
 
 				acceptedSlotsFuture.whenCompleteAsync(
@@ -814,7 +809,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 							}
 						} else {
 							// check if the response is still valid
-							if (isJobManagerConnectionValid(jobId, leaderId)) {
+							if (isJobManagerConnectionValid(jobId, jobMasterId)) {
 								// mark accepted slots active
 								for (SlotOffer acceptedSlot : acceptedSlots) {
 									reservedSlots.remove(acceptedSlot);
@@ -840,22 +835,27 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, UUID jobManagerLeaderId, JMTMRegistrationSuccess registrationSuccess) {
-		log.info("Establish JobManager connection for job {}.", jobId);
+	private void establishJobManagerConnection(JobID jobId, final JobMasterGateway jobMasterGateway, JMTMRegistrationSuccess registrationSuccess) {
 
 		if (jobManagerTable.contains(jobId)) {
 			JobManagerConnection oldJobManagerConnection = jobManagerTable.get(jobId);
-			if (!oldJobManagerConnection.getLeaderId().equals(jobManagerLeaderId)) {
+
+			if (Objects.equals(oldJobManagerConnection.getJobMasterId(), jobMasterGateway.getFencingToken())) {
+				// we already are connected to the given job manager
+				log.debug("Ignore JobManager gained leadership message for {} because we are already connected to it.", jobMasterGateway.getFencingToken());
+				return;
+			} else {
 				closeJobManagerConnection(jobId, new Exception("Found new job leader for job id " + jobId + '.'));
 			}
 		}
+
+		log.info("Establish JobManager connection for job {}.", jobId);
 
 		ResourceID jobManagerResourceID = registrationSuccess.getResourceID();
 		JobManagerConnection newJobManagerConnection = associateWithJobManager(
 				jobId,
 				jobManagerResourceID,
 				jobMasterGateway,
-				jobManagerLeaderId,
 				registrationSuccess.getBlobPort());
 		jobManagerConnections.put(jobManagerResourceID, newJobManagerConnection);
 		jobManagerTable.put(jobId, newJobManagerConnection);
@@ -922,28 +922,27 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			JobID jobID,
 			ResourceID resourceID,
 			JobMasterGateway jobMasterGateway,
-			UUID jobManagerLeaderId,
 			int blobPort) {
 		Preconditions.checkNotNull(jobID);
 		Preconditions.checkNotNull(resourceID);
-		Preconditions.checkNotNull(jobManagerLeaderId);
 		Preconditions.checkNotNull(jobMasterGateway);
 		Preconditions.checkArgument(blobPort > 0 || blobPort < MAX_BLOB_PORT, "Blob server port is out of range.");
 
-		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobManagerLeaderId, jobMasterGateway);
+		TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
 
 		CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
 
 		InetSocketAddress blobServerAddress = new InetSocketAddress(jobMasterGateway.getHostname(), blobPort);
 
 		final LibraryCacheManager libraryCacheManager;
-		final BlobCache blobCache;
+		final BlobCacheService blobService;
 		try {
-			blobCache = new BlobCache(
+			blobService = new BlobCacheService(
 				blobServerAddress,
 				taskManagerConfiguration.getConfiguration(),
 				haServices.createBlobStore());
-			libraryCacheManager = new BlobLibraryCacheManager(blobCache);
+			libraryCacheManager = new BlobLibraryCacheManager(
+				blobService.getPermanentBlobService(), taskManagerConfiguration.getClassLoaderResolveOrder());
 		} catch (IOException e) {
 			// Can't pass the IOException up - we need a RuntimeException anyway
 			// two levels up where this is run asynchronously. Also, we don't
@@ -954,21 +953,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = new RpcResultPartitionConsumableNotifier(
-			jobManagerLeaderId,
 			jobMasterGateway,
 			getRpcService().getExecutor(),
 			taskManagerConfiguration.getTimeout());
 
-		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobManagerLeaderId, jobMasterGateway);
+		PartitionProducerStateChecker partitionStateChecker = new RpcPartitionStateChecker(jobMasterGateway);
 
 		return new JobManagerConnection(
 			jobID,
 			resourceID,
 			jobMasterGateway,
-			jobManagerLeaderId,
 			taskManagerActions,
 			checkpointResponder,
-			blobCache,
+			blobService,
 			libraryCacheManager,
 			resultPartitionConsumableNotifier,
 			partitionStateChecker);
@@ -979,7 +976,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
 		jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
 		jobManagerConnection.getLibraryCacheManager().shutdown();
-		jobManagerConnection.getBlobCache().close();
+		jobManagerConnection.getBlobService().close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1001,13 +998,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void updateTaskExecutionState(
-			final UUID jobMasterLeaderId,
 			final JobMasterGateway jobMasterGateway,
 			final TaskExecutionState taskExecutionState)
 	{
 		final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
-		CompletableFuture<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(jobMasterLeaderId, taskExecutionState);
+		CompletableFuture<Acknowledge> futureAcknowledge = jobMasterGateway.updateTaskExecutionState(taskExecutionState);
 
 		futureAcknowledge.whenCompleteAsync(
 			(ack, throwable) -> {
@@ -1019,7 +1015,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	}
 
 	private void unregisterTaskAndNotifyFinalState(
-			final UUID jobMasterLeaderId,
 			final JobMasterGateway jobMasterGateway,
 			final ExecutionAttemptID executionAttemptID) {
 
@@ -1039,7 +1034,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 
 			updateTaskExecutionState(
-					jobMasterLeaderId,
 					jobMasterGateway,
 					new TaskExecutionState(
 						task.getJobID(),
@@ -1064,7 +1058,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
 				resourceManagerGateway.notifySlotAvailable(
-					resourceManagerConnection.getTargetLeaderId(),
 					resourceManagerConnection.getRegistrationId(),
 					new SlotID(getResourceID(), freedSlotIndex),
 					allocationId);
@@ -1097,10 +1090,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		return (resourceManagerConnection != null && resourceManagerConnection.isConnected());
 	}
 
-	private boolean isJobManagerConnectionValid(JobID jobId, UUID leaderId) {
+	private boolean isJobManagerConnectionValid(JobID jobId, JobMasterId jobMasterId) {
 		JobManagerConnection jmConnection = jobManagerTable.get(jobId);
 
-		return jmConnection != null && Objects.equals(jmConnection.getLeaderId(), leaderId);
+		return jmConnection != null && Objects.equals(jmConnection.getJobMasterId(), jobMasterId);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1117,35 +1110,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	/**
 	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
-	 * This method should be used when asynchronous threads want to notify the
-	 * TaskExecutor of a fatal error.
-	 *
-	 * @param t The exception describing the fatal error
-	 */
-	void onFatalErrorAsync(final Throwable t) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				onFatalError(t);
-			}
-		});
-	}
-
-	/**
-	 * Notifies the TaskExecutor that a fatal error has occurred and it cannot proceed.
-	 * This method must only be called from within the TaskExecutor's main thread.
 	 *
 	 * @param t The exception describing the fatal error
 	 */
 	void onFatalError(final Throwable t) {
-		log.error("Fatal error occurred.", t);
-		// this could potentially be a blocking call -> call asynchronously:
-		getRpcService().execute(new Runnable() {
-			@Override
-			public void run() {
-				fatalErrorHandler.onFatalError(t);
-			}
-		});
+		try {
+			log.error("Fatal error occurred in TaskExecutor.", t);
+		} catch (Throwable ignored) {}
+
+		// The fatal error handler implementation should make sure that this call is non-blocking
+		fatalErrorHandler.onFatalError(t);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1167,23 +1141,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * The listener for leader changes of the resource manager
+	 * The listener for leader changes of the resource manager.
 	 */
 	private final class ResourceManagerLeaderListener implements LeaderRetrievalListener {
 
 		@Override
 		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					notifyOfNewResourceManagerLeader(leaderAddress, leaderSessionID);
-				}
-			});
+			runAsync(
+				() -> notifyOfNewResourceManagerLeader(
+					leaderAddress,
+					leaderSessionID != null ? new ResourceManagerId(leaderSessionID) : null));
 		}
 
 		@Override
 		public void handleError(Exception exception) {
-			onFatalErrorAsync(exception);
+			onFatalError(exception);
 		}
 	}
 
@@ -1193,23 +1165,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		public void jobManagerGainedLeadership(
 			final JobID jobId,
 			final JobMasterGateway jobManagerGateway,
-			final UUID jobLeaderId,
 			final JMTMRegistrationSuccess registrationMessage) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
+			runAsync(
+				() ->
 					establishJobManagerConnection(
 						jobId,
 						jobManagerGateway,
-						jobLeaderId,
-						registrationMessage);
-				}
-			});
+						registrationMessage));
 		}
 
 		@Override
-		public void jobManagerLostLeadership(final JobID jobId, final UUID jobLeaderId) {
-			log.info("JobManager for job {} with leader id {} lost leadership.", jobId, jobLeaderId);
+		public void jobManagerLostLeadership(final JobID jobId, final JobMasterId jobMasterId) {
+			log.info("JobManager for job {} with leader id {} lost leadership.", jobId, jobMasterId);
 
 			runAsync(new Runnable() {
 				@Override
@@ -1223,7 +1190,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void handleError(Throwable throwable) {
-			onFatalErrorAsync(throwable);
+			onFatalError(throwable);
 		}
 	}
 
@@ -1245,16 +1212,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void onRegistrationFailure(Throwable failure) {
-			onFatalErrorAsync(failure);
+			onFatalError(failure);
 		}
 	}
 
 	private final class TaskManagerActionsImpl implements TaskManagerActions {
-		private final UUID jobMasterLeaderId;
 		private final JobMasterGateway jobMasterGateway;
 
-		private TaskManagerActionsImpl(UUID jobMasterLeaderId, JobMasterGateway jobMasterGateway) {
-			this.jobMasterLeaderId = Preconditions.checkNotNull(jobMasterLeaderId);
+		private TaskManagerActionsImpl(JobMasterGateway jobMasterGateway) {
 			this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		}
 
@@ -1263,14 +1228,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			runAsync(new Runnable() {
 				@Override
 				public void run() {
-					unregisterTaskAndNotifyFinalState(jobMasterLeaderId, jobMasterGateway, executionAttemptID);
+					unregisterTaskAndNotifyFinalState(jobMasterGateway, executionAttemptID);
 				}
 			});
 		}
 
 		@Override
 		public void notifyFatalError(String message, Throwable cause) {
-			log.error(message, cause);
+			try {
+				log.error(message, cause);
+			} catch (Throwable ignored) {}
+
+			// The fatal error handler implementation should make sure that this call is non-blocking
 			fatalErrorHandler.onFatalError(cause);
 		}
 
@@ -1286,7 +1255,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		@Override
 		public void updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
-			TaskExecutor.this.updateTaskExecutionState(jobMasterLeaderId, jobMasterGateway, taskExecutionState);
+			TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
 		}
 	}
 

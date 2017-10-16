@@ -24,6 +24,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 
+import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -104,7 +105,27 @@ public class TestingRpcService extends AkkaRpcService {
 				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
 			}
 		} else {
-			return FutureUtils.completedExceptionally(new Exception("No gateway registered under " + address + '.'));
+			return super.connect(address, clazz);
+		}
+	}
+
+	@Override
+	public <F extends Serializable, C extends FencedRpcGateway<F>> CompletableFuture<C> connect(
+			String address,
+			F fencingToken,
+			Class<C> clazz) {
+		RpcGateway gateway = registeredConnections.get(address);
+
+		if (gateway != null) {
+			if (clazz.isAssignableFrom(gateway.getClass())) {
+				@SuppressWarnings("unchecked")
+				C typedGateway = (C) gateway;
+				return CompletableFuture.completedFuture(typedGateway);
+			} else {
+				return FutureUtils.completedExceptionally(new Exception("Gateway registered under " + address + " is not of type " + clazz));
+			}
+		} else {
+			return super.connect(address, fencingToken, clazz);
 		}
 	}
 

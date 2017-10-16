@@ -20,12 +20,13 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.util.SerializedValue;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Map;
@@ -68,6 +69,7 @@ public interface AccessExecutionGraph {
 	 *
 	 * @return failure causing exception, or null
 	 */
+	@Nullable
 	ErrorInfo getFailureCause();
 
 	/**
@@ -108,20 +110,13 @@ public interface AccessExecutionGraph {
 	long getStatusTimestamp(JobStatus status);
 
 	/**
-	 * Returns the {@link CheckpointCoordinator} for this execution graph.
-	 *
-	 * @return CheckpointCoordinator for this execution graph or <code>null</code>
-	 * if none is available.
-	 */
-	CheckpointCoordinator getCheckpointCoordinator();
-
-	/**
-	 * Returns the {@link JobCheckpointingSettings} or <code>null</code> if
+	 * Returns the {@link CheckpointCoordinatorConfiguration} or <code>null</code> if
 	 * checkpointing is disabled.
 	 *
-	 * @return JobSnapshottingSettings for this execution graph
+	 * @return JobCheckpointingConfiguration for this execution graph
 	 */
-	JobCheckpointingSettings getJobCheckpointingSettings();
+	@Nullable
+	CheckpointCoordinatorConfiguration getCheckpointCoordinatorConfiguration();
 
 	/**
 	 * Returns a snapshot of the checkpoint statistics or <code>null</code> if
@@ -129,6 +124,7 @@ public interface AccessExecutionGraph {
 	 *
 	 * @return Snapshot of the checkpoint statistics for this execution graph
 	 */
+	@Nullable
 	CheckpointStatsSnapshot getCheckpointStatsSnapshot();
 
 	/**
@@ -136,6 +132,7 @@ public interface AccessExecutionGraph {
 	 *
 	 * @return execution config summary for this execution graph, or null in case of errors
 	 */
+	@Nullable
 	ArchivedExecutionConfig getArchivedExecutionConfig();
 
 	/**

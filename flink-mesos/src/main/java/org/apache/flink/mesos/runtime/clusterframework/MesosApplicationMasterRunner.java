@@ -33,12 +33,14 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.process.ProcessReaper;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -154,16 +156,15 @@ public class MesosApplicationMasterRunner {
 			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
 			final Configuration config = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
 
-			// configure the default filesystem
+			// configure the filesystems
 			try {
-				FileSystem.setDefaultScheme(config);
+				FileSystem.initialize(config);
 			} catch (IOException e) {
-				throw new IOException("Error while setting the default " +
-					"filesystem scheme from configuration.", e);
+				throw new IOException("Error while configuring the filesystems.", e);
 			}
 
 			// configure security
-			SecurityUtils.SecurityConfiguration sc = new SecurityUtils.SecurityConfiguration(config);
+			SecurityConfiguration sc = new SecurityConfiguration(config);
 			SecurityUtils.install(sc);
 
 			// run the actual work in the installed security context
@@ -282,7 +283,25 @@ public class MesosApplicationMasterRunner {
 				ioExecutor,
 				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
-			// 1: the JobManager
+			// 1: the web monitor
+			LOG.debug("Starting Web Frontend");
+
+			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
+
+			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
+				config,
+				highAvailabilityServices,
+				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout, 10, Time.milliseconds(50L)),
+				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
+				webMonitorTimeout,
+				new ScheduledExecutorServiceAdapter(futureExecutor),
+				LOG);
+			if (webMonitor != null) {
+				final URL webMonitorURL = new URL(webMonitor.getRestAddress());
+				mesosConfig.frameworkInfo().setWebuiUrl(webMonitorURL.toExternalForm());
+			}
+
+			// 2: the JobManager
 			LOG.debug("Starting JobManager actor");
 
 			// we start the JobManager with its standard name
@@ -292,29 +311,11 @@ public class MesosApplicationMasterRunner {
 				futureExecutor,
 				ioExecutor,
 				highAvailabilityServices,
+				webMonitor != null ? Option.apply(webMonitor.getRestAddress()) : Option.empty(),
 				Option.apply(JobMaster.JOB_MANAGER_NAME),
 				Option.apply(JobMaster.ARCHIVE_NAME),
 				getJobManagerClass(),
 				getArchivistClass())._1();
-
-			// 2: the web monitor
-			LOG.debug("Starting Web Frontend");
-
-			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
-
-			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
-				config,
-				highAvailabilityServices,
-				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout),
-				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
-				webMonitorTimeout,
-				futureExecutor,
-				AkkaUtils.getAkkaURL(actorSystem, jobManager),
-				LOG);
-			if (webMonitor != null) {
-				final URL webMonitorURL = new URL("http", appMasterHostname, webMonitor.getServerPort(), "/");
-				mesosConfig.frameworkInfo().setWebuiUrl(webMonitorURL.toExternalForm());
-			}
 
 			// 3: Flink's Mesos ResourceManager
 			LOG.debug("Starting Mesos Flink Resource Manager");

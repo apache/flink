@@ -26,10 +26,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.FlinkFutureException;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -39,12 +39,13 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.Arrays;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -74,7 +75,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerRegistration() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
@@ -88,7 +89,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
 			assertTrue("The number registered slots does not equal the expected number.",2 == slotManager.getNumberRegisteredSlots());
@@ -103,7 +104,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerUnregistration() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final JobID jobId = new JobID();
 
@@ -113,7 +114,7 @@ public class SlotManagerTest extends TestLogger {
 			any(JobID.class),
 			any(AllocationID.class),
 			anyString(),
-			eq(leaderId),
+			eq(resourceManagerId),
 			any(Time.class))).thenReturn(new CompletableFuture<>());
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -134,7 +135,7 @@ public class SlotManagerTest extends TestLogger {
 			resourceProfile,
 			"foobar");
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
 			assertTrue("The number registered slots does not equal the expected number.",2 == slotManager.getNumberRegisteredSlots());
@@ -166,7 +167,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotRequestWithoutFreeSlots() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(
 			new JobID(),
@@ -176,7 +177,7 @@ public class SlotManagerTest extends TestLogger {
 
 		ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 
 			slotManager.registerSlotRequest(slotRequest);
 
@@ -189,7 +190,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotRequestWithResourceAllocationFailure() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceProfile resourceProfile = new ResourceProfile(42.0, 1337);
 		final SlotRequest slotRequest = new SlotRequest(
 			new JobID(),
@@ -200,7 +201,7 @@ public class SlotManagerTest extends TestLogger {
 		ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		doThrow(new ResourceManagerException("Test exception")).when(resourceManagerActions).allocateResource(any(ResourceProfile.class));
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 
 			slotManager.registerSlotRequest(slotRequest);
 
@@ -216,7 +217,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testSlotRequestWithFreeSlot() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceID resourceID = ResourceID.generate();
 		final JobID jobId = new JobID();
 		final SlotID slotId = new SlotID(resourceID, 0);
@@ -231,7 +232,7 @@ public class SlotManagerTest extends TestLogger {
 
 		ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 
 			// accept an incoming slot request
 			final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
@@ -240,7 +241,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(jobId),
 				eq(allocationId),
 				anyString(),
-				eq(leaderId),
+				eq(resourceManagerId),
 				any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 			final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -254,7 +255,7 @@ public class SlotManagerTest extends TestLogger {
 
 			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(slotRequest));
 
-			verify(taskExecutorGateway).requestSlot(eq(slotId), eq(jobId), eq(allocationId), eq(targetAddress), eq(leaderId), any(Time.class));
+			verify(taskExecutorGateway).requestSlot(eq(slotId), eq(jobId), eq(allocationId), eq(targetAddress), eq(resourceManagerId), any(Time.class));
 
 			TaskManagerSlot slot = slotManager.getSlot(slotId);
 
@@ -268,7 +269,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testUnregisterPendingSlotRequest() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final SlotID slotId = new SlotID(ResourceID.generate(), 0);
 		final AllocationID allocationId = new AllocationID();
@@ -279,7 +280,7 @@ public class SlotManagerTest extends TestLogger {
 			any(JobID.class),
 			any(AllocationID.class),
 			anyString(),
-			eq(leaderId),
+			eq(resourceManagerId),
 			any(Time.class))).thenReturn(new CompletableFuture<>());
 
 		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
@@ -290,7 +291,7 @@ public class SlotManagerTest extends TestLogger {
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
 			TaskManagerSlot slot = slotManager.getSlot(slotId);
@@ -315,7 +316,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testFulfillingPendingSlotRequest() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceID resourceID = ResourceID.generate();
 		final JobID jobId = new JobID();
 		final SlotID slotId = new SlotID(resourceID, 0);
@@ -337,7 +338,7 @@ public class SlotManagerTest extends TestLogger {
 			eq(jobId),
 			eq(allocationId),
 			anyString(),
-			eq(leaderId),
+			eq(resourceManagerId),
 			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -345,7 +346,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 
 			assertTrue("The slot request should be accepted", slotManager.registerSlotRequest(slotRequest));
 
@@ -355,7 +356,7 @@ public class SlotManagerTest extends TestLogger {
 				taskExecutorConnection,
 				slotReport);
 
-			verify(taskExecutorGateway).requestSlot(eq(slotId), eq(jobId), eq(allocationId), eq(targetAddress), eq(leaderId), any(Time.class));
+			verify(taskExecutorGateway).requestSlot(eq(slotId), eq(jobId), eq(allocationId), eq(targetAddress), eq(resourceManagerId), any(Time.class));
 
 			TaskManagerSlot slot = slotManager.getSlot(slotId);
 
@@ -368,7 +369,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testFreeSlot() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceID resourceID = ResourceID.generate();
 		final JobID jobId = new JobID();
 		final SlotID slotId = new SlotID(resourceID, 0);
@@ -385,7 +386,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile, jobId, allocationId);
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 
 			slotManager.registerTaskManager(
 				taskExecutorConnection,
@@ -414,8 +415,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testDuplicatePendingSlotRequest() throws Exception {
-
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 2);
@@ -423,7 +423,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotRequest slotRequest1 = new SlotRequest(new JobID(), allocationId, resourceProfile1, "foobar");
 		final SlotRequest slotRequest2 = new SlotRequest(new JobID(), allocationId, resourceProfile2, "barfoo");
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			assertTrue(slotManager.registerSlotRequest(slotRequest1));
 			assertFalse(slotManager.registerSlotRequest(slotRequest2));
 		}
@@ -439,7 +439,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testDuplicatePendingSlotRequestAfterSlotReport() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
@@ -454,7 +454,7 @@ public class SlotManagerTest extends TestLogger {
 
 		final SlotRequest slotRequest = new SlotRequest(jobId, allocationId, resourceProfile, "foobar");
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
 			assertFalse(slotManager.registerSlotRequest(slotRequest));
@@ -467,7 +467,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testDuplicatePendingSlotRequestAfterSuccessfulAllocation() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 2);
@@ -481,7 +481,7 @@ public class SlotManagerTest extends TestLogger {
 			any(JobID.class),
 			any(AllocationID.class),
 			anyString(),
-			eq(leaderId),
+			eq(resourceManagerId),
 			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -490,7 +490,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile1);
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 			assertTrue(slotManager.registerSlotRequest(slotRequest1));
 
@@ -512,7 +512,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testAcceptingDuplicateSlotRequestAfterAllocationRelease() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final AllocationID allocationId = new AllocationID();
 		final ResourceProfile resourceProfile1 = new ResourceProfile(1.0, 2);
@@ -526,7 +526,7 @@ public class SlotManagerTest extends TestLogger {
 			any(JobID.class),
 			any(AllocationID.class),
 			anyString(),
-			eq(leaderId),
+			eq(resourceManagerId),
 			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -535,7 +535,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus = new SlotStatus(slotId, new ResourceProfile(2.0, 2));
 		final SlotReport slotReport = new SlotReport(slotStatus);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 			assertTrue(slotManager.registerSlotRequest(slotRequest1));
 
@@ -565,7 +565,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testReceivingUnknownSlotReport() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
 		final InstanceID unknownInstanceID = new InstanceID();
@@ -574,7 +574,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus unknownSlotStatus = new SlotStatus(unknownSlotId, unknownResourceProfile);
 		final SlotReport unknownSlotReport = new SlotReport(unknownSlotStatus);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			// check that we don't have any slots registered
 			assertTrue(0 == slotManager.getNumberRegisteredSlots());
 
@@ -591,7 +591,7 @@ public class SlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testUpdateSlotReport() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
 		final JobID jobId = new JobID();
@@ -614,7 +614,7 @@ public class SlotManagerTest extends TestLogger {
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 			// check that we don't have any slots registered
 			assertTrue(0 == slotManager.getNumberRegisteredSlots());
 
@@ -651,7 +651,7 @@ public class SlotManagerTest extends TestLogger {
 		final long tmTimeout = 500L;
 
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -669,7 +669,7 @@ public class SlotManagerTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			Time.milliseconds(tmTimeout))) {
 
-			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
+			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
 			mainThreadExecutor.execute(new Runnable() {
 				@Override
@@ -693,7 +693,7 @@ public class SlotManagerTest extends TestLogger {
 		final long allocationTimeout = 50L;
 
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final JobID jobId = new JobID();
 		final AllocationID allocationId = new AllocationID();
 
@@ -708,7 +708,7 @@ public class SlotManagerTest extends TestLogger {
 			Time.milliseconds(allocationTimeout),
 			TestingUtils.infiniteTime())) {
 
-			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
+			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
 			final AtomicReference<Exception> atomicException = new AtomicReference<>(null);
 
@@ -740,7 +740,7 @@ public class SlotManagerTest extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testTaskManagerSlotRequestTimeoutHandling() throws Exception {
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
 		final JobID jobId = new JobID();
@@ -756,7 +756,7 @@ public class SlotManagerTest extends TestLogger {
 			any(JobID.class),
 			eq(allocationId),
 			anyString(),
-			any(UUID.class),
+			any(ResourceManagerId.class),
 			any(Time.class))).thenReturn(slotRequestFuture1, slotRequestFuture2);
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -768,7 +768,7 @@ public class SlotManagerTest extends TestLogger {
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
 
-		try (SlotManager slotManager = createSlotManager(leaderId, resourceManagerActions)) {
+		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
 
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
@@ -781,7 +781,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(jobId),
 				eq(allocationId),
 				anyString(),
-				eq(leaderId),
+				eq(resourceManagerId),
 				any(Time.class));
 
 			TaskManagerSlot failedSlot = slotManager.getSlot(slotIdCaptor.getValue());
@@ -794,7 +794,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(jobId),
 				eq(allocationId),
 				anyString(),
-				eq(leaderId),
+				eq(resourceManagerId),
 				any(Time.class));
 
 			// the second attempt succeeds
@@ -819,7 +819,7 @@ public class SlotManagerTest extends TestLogger {
 	@SuppressWarnings("unchecked")
 	public void testSlotReportWhileActiveSlotRequest() throws Exception {
 		final long verifyTimeout = 1000L;
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 
 		final JobID jobId = new JobID();
@@ -834,7 +834,7 @@ public class SlotManagerTest extends TestLogger {
 			any(JobID.class),
 			eq(allocationId),
 			anyString(),
-			any(UUID.class),
+			any(ResourceManagerId.class),
 			any(Time.class))).thenReturn(slotRequestFuture1, CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -854,7 +854,7 @@ public class SlotManagerTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
+			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
 			CompletableFuture<Void> registrationFuture = CompletableFuture.supplyAsync(
 				() -> {
@@ -882,7 +882,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(jobId),
 				eq(allocationId),
 				anyString(),
-				eq(leaderId),
+				eq(resourceManagerId),
 				any(Time.class));
 
 			final SlotID requestedSlotId = slotIdCaptor.getValue();
@@ -908,7 +908,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(jobId),
 				eq(allocationId),
 				anyString(),
-				eq(leaderId),
+				eq(resourceManagerId),
 				any(Time.class));
 
 			final SlotID requestedSlotId2 = slotIdCaptor.getValue();
@@ -935,7 +935,7 @@ public class SlotManagerTest extends TestLogger {
 		final long taskManagerTimeout = 50L;
 		final long verifyTimeout = taskManagerTimeout * 10L;
 
-		final UUID leaderId = UUID.randomUUID();
+		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
 		final ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
 		final ScheduledExecutor scheduledExecutor = TestingUtils.defaultScheduledExecutor();
 
@@ -952,7 +952,7 @@ public class SlotManagerTest extends TestLogger {
 			eq(jobId),
 			eq(allocationId),
 			anyString(),
-			eq(leaderId),
+			eq(resourceManagerId),
 			any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
@@ -971,14 +971,14 @@ public class SlotManagerTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))) {
 
-			slotManager.start(leaderId, mainThreadExecutor, resourceManagerActions);
+			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
 			CompletableFuture.supplyAsync(
 				() -> {
 					try {
 						return slotManager.registerSlotRequest(slotRequest);
 					} catch (SlotManagerException e) {
-						throw new FlinkFutureException(e);
+						throw new CompletionException(e);
 					}
 				},
 				mainThreadExecutor)
@@ -991,7 +991,7 @@ public class SlotManagerTest extends TestLogger {
 				eq(jobId),
 				eq(allocationId),
 				anyString(),
-				eq(leaderId),
+				eq(resourceManagerId),
 				any(Time.class));
 
 			CompletableFuture<Boolean> idleFuture = CompletableFuture.supplyAsync(
@@ -1023,14 +1023,14 @@ public class SlotManagerTest extends TestLogger {
 		}
 	}
 
-	private SlotManager createSlotManager(UUID leaderId, ResourceManagerActions resourceManagerActions) {
+	private SlotManager createSlotManager(ResourceManagerId resourceManagerId, ResourceManagerActions resourceManagerActions) {
 		SlotManager slotManager = new SlotManager(
 			TestingUtils.defaultScheduledExecutor(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
-		slotManager.start(leaderId, Executors.directExecutor(), resourceManagerActions);
+		slotManager.start(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
 
 		return slotManager;
 	}

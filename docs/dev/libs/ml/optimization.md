@@ -417,3 +417,5 @@ val trainingDS: DataSet[LabeledVector] = ...
 // Optimize the weights, according to the provided data
 val weightDS = sgd.optimize(trainingDS)
 {% endhighlight %}
+
+{% top %}

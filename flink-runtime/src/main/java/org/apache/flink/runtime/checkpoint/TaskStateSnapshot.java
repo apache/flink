@@ -47,7 +47,9 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
 	private static final long serialVersionUID = 1L;
 
-	/** Mapping from an operator id to the state of one subtask of this operator */
+	/**
+	 * Mapping from an operator id to the state of one subtask of this operator.
+	 */
 	private final Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID;
 
 	public TaskStateSnapshot() {
@@ -55,7 +57,7 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 	}
 
 	public TaskStateSnapshot(int size) {
-		this(new HashMap<OperatorID, OperatorSubtaskState>(size));
+		this(new HashMap<>(size));
 	}
 
 	public TaskStateSnapshot(Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID) {

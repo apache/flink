@@ -59,4 +59,9 @@ public class PageRankITCase extends DriverBaseITCase {
 
 		expectedCount(parameters(8, "print"), 233);
 	}
+
+	@Test
+	public void testParallelism() throws Exception {
+		TestUtils.verifyParallelism(parameters(8, "print"));
+	}
 }

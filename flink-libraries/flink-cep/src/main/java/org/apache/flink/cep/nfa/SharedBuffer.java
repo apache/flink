@@ -38,8 +38,6 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -829,40 +827,44 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			this.versionSerializer = versionSerializer;
 		}
 
+		public TypeSerializer<DeweyNumber> getVersionSerializer() {
+			return versionSerializer;
+		}
+
+		public TypeSerializer<K> getKeySerializer() {
+			return keySerializer;
+		}
+
+		public TypeSerializer<V> getValueSerializer() {
+			return valueSerializer;
+		}
+
 		@Override
 		public boolean isImmutableType() {
 			return false;
 		}
 
 		@Override
-		public TypeSerializer<SharedBuffer<K, V>> duplicate() {
-			return new SharedBufferSerializer<>(keySerializer, valueSerializer);
+		public SharedBufferSerializer<K, V> duplicate() {
+			return new SharedBufferSerializer<>(keySerializer.duplicate(), valueSerializer.duplicate());
 		}
 
 		@Override
 		public SharedBuffer<K, V> createInstance() {
-			return new SharedBuffer<>(new NonDuplicatingTypeSerializer<V>(valueSerializer));
+			return new SharedBuffer<>(new NonDuplicatingTypeSerializer<>(valueSerializer.duplicate()));
 		}
 
 		@Override
-		public SharedBuffer<K, V> copy(SharedBuffer from) {
+		public SharedBuffer<K, V> copy(SharedBuffer<K, V> from) {
 			try {
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-				serialize(from, new DataOutputViewStreamWrapper(oos));
-
-				oos.close();
+				serialize(from, new DataOutputViewStreamWrapper(baos));
 				baos.close();
 
 				byte[] data = baos.toByteArray();
 
 				ByteArrayInputStream bais = new ByteArrayInputStream(data);
-				ObjectInputStream ois = new ObjectInputStream(bais);
-
-				@SuppressWarnings("unchecked")
-				SharedBuffer<K, V> copy = deserialize(new DataInputViewStreamWrapper(ois));
-				ois.close();
+				SharedBuffer<K, V> copy = deserialize(new DataInputViewStreamWrapper(bais));
 				bais.close();
 
 				return copy;
@@ -872,7 +874,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		}
 
 		@Override
-		public SharedBuffer<K, V> copy(SharedBuffer from, SharedBuffer reuse) {
+		public SharedBuffer<K, V> copy(SharedBuffer<K, V> from, SharedBuffer<K, V> reuse) {
 			return copy(from);
 		}
 
@@ -882,7 +884,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		}
 
 		@Override
-		public void serialize(SharedBuffer record, DataOutputView target) throws IOException {
+		public void serialize(SharedBuffer<K, V> record, DataOutputView target) throws IOException {
 			Map<K, SharedBufferPage<K, V>> pages = record.pages;
 			Map<SharedBufferEntry<K, V>, Integer> entryIDs = new HashMap<>();
 
@@ -955,7 +957,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		}
 
 		@Override
-		public SharedBuffer deserialize(DataInputView source) throws IOException {
+		public SharedBuffer<K, V> deserialize(DataInputView source) throws IOException {
 			List<SharedBufferEntry<K, V>> entryList = new ArrayList<>();
 			Map<K, SharedBufferPage<K, V>> pages = new HashMap<>();
 
@@ -1013,11 +1015,11 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			// here we put the old NonDuplicating serializer because this needs to create a copy
 			// of the buffer, as created by the NFA. There, for compatibility reasons, we have left
 			// the old serializer.
-			return new SharedBuffer(new NonDuplicatingTypeSerializer(valueSerializer), pages);
+			return new SharedBuffer<>(new NonDuplicatingTypeSerializer<>(valueSerializer), pages);
 		}
 
 		@Override
-		public SharedBuffer deserialize(SharedBuffer reuse, DataInputView source) throws IOException {
+		public SharedBuffer<K, V> deserialize(SharedBuffer<K, V> reuse, DataInputView source) throws IOException {
 			return deserialize(source);
 		}
 
@@ -1068,11 +1070,19 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		@Override
 		public boolean equals(Object obj) {
-			return obj == this ||
-					(obj != null && obj.getClass().equals(getClass()) &&
-							keySerializer.equals(((SharedBufferSerializer<?, ?>) obj).keySerializer) &&
-							valueSerializer.equals(((SharedBufferSerializer<?, ?>) obj).valueSerializer) &&
-							versionSerializer.equals(((SharedBufferSerializer<?, ?>) obj).versionSerializer));
+			if (obj == this) {
+				return true;
+			}
+
+			if (obj == null || !Objects.equals(obj.getClass(), getClass())) {
+				return false;
+			}
+
+			SharedBufferSerializer other = (SharedBufferSerializer) obj;
+			return
+					Objects.equals(keySerializer, other.getKeySerializer()) &&
+					Objects.equals(valueSerializer, other.getValueSerializer()) &&
+					Objects.equals(versionSerializer, other.getVersionSerializer());
 		}
 
 		@Override

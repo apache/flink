@@ -35,12 +35,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link VertexDegree}.
  */
-public class VertexDegreeTest
-extends AsmTestBase {
+public class VertexDegreeTest extends AsmTestBase {
 
 	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
 		String expectedResult =
 			"(0,2)\n" +
 			"(1,3)\n" +
@@ -50,7 +48,8 @@ extends AsmTestBase {
 			"(5,1)";
 
 		DataSet<Vertex<IntValue, LongValue>> degreeOnSourceId = undirectedSimpleGraph
-			.run(new VertexDegree<>());
+			.run(new VertexDegree<IntValue, NullValue, NullValue>()
+				.setReduceOnTargetId(false));
 
 		TestBaseUtils.compareResultAsText(degreeOnSourceId.collect(), expectedResult);
 
@@ -62,12 +61,12 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
+	public void testWithCompleteGraph() throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
 
 		DataSet<Vertex<LongValue, LongValue>> degreeOnSourceId = completeGraph
-			.run(new VertexDegree<>());
+			.run(new VertexDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(false));
 
 		for (Vertex<LongValue, LongValue> vertex : degreeOnSourceId.collect()) {
 			assertEquals(expectedDegree, vertex.getValue().getValue());
@@ -83,17 +82,16 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithVertices() throws Exception {
 		DataSet<Vertex<LongValue, LongValue>> degree;
 
-		degree = emptyGraph
+		degree = emptyGraphWithVertices
 			.run(new VertexDegree<LongValue, NullValue, NullValue>()
 				.setIncludeZeroDegreeVertices(false));
 
 		assertEquals(0, degree.collect().size());
 
-		degree = emptyGraph
+		degree = emptyGraphWithVertices
 			.run(new VertexDegree<LongValue, NullValue, NullValue>()
 				.setIncludeZeroDegreeVertices(true));
 
@@ -106,10 +104,27 @@ extends AsmTestBase {
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		DataSet<Vertex<LongValue, LongValue>> degree;
+
+		degree = emptyGraphWithoutVertices
+			.run(new VertexDegree<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(false));
+
+		assertEquals(0, degree.collect().size());
+
+		degree = emptyGraphWithoutVertices
+			.run(new VertexDegree<LongValue, NullValue, NullValue>()
+				.setIncludeZeroDegreeVertices(true));
+
+		assertEquals(0, degree.collect().size());
+	}
+
+	@Test
+	public void testWithRMatGraph() throws Exception {
 		DataSet<Vertex<LongValue, LongValue>> degreeOnSourceId = undirectedRMatGraph(10, 16)
-			.run(new VertexDegree<>());
+			.run(new VertexDegree<LongValue, NullValue, NullValue>()
+				.setReduceOnTargetId(false));
 
 		Checksum checksumOnSourceId = new ChecksumHashCode<Vertex<LongValue, LongValue>>()
 			.run(degreeOnSourceId)

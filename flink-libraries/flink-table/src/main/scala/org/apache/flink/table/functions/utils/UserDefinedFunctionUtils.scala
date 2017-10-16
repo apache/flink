@@ -251,14 +251,15 @@ object UserDefinedFunctionUtils {
     */
   def createScalarSqlFunction(
       name: String,
+      displayName: String,
       function: ScalarFunction,
       typeFactory: FlinkTypeFactory)
     : SqlFunction = {
-    new ScalarSqlFunction(name, function, typeFactory)
+    new ScalarSqlFunction(name, displayName, function, typeFactory)
   }
 
   /**
-    * Create [[SqlFunction]]s for a [[TableFunction]]'s every eval method
+    * Create [[SqlFunction]] for a [[TableFunction]]
     *
     * @param name function name
     * @param tableFunction table function
@@ -266,19 +267,16 @@ object UserDefinedFunctionUtils {
     * @param typeFactory type factory
     * @return the TableSqlFunction
     */
-  def createTableSqlFunctions(
+  def createTableSqlFunction(
       name: String,
+      displayName: String,
       tableFunction: TableFunction[_],
       resultType: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
-    : Seq[SqlFunction] = {
+    : SqlFunction = {
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
-    val evalMethods = checkAndExtractMethods(tableFunction, "eval")
-
-    evalMethods.map { method =>
-      val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames, method)
-      TableSqlFunction(name, tableFunction, resultType, typeFactory, function)
-    }
+    val function = new FlinkTableFunctionImpl(resultType, fieldIndexes, fieldNames)
+    new TableSqlFunction(name, displayName, tableFunction, resultType, typeFactory, function)
   }
 
   /**
@@ -291,6 +289,7 @@ object UserDefinedFunctionUtils {
     */
   def createAggregateSqlFunction(
       name: String,
+      displayName: String,
       aggFunction: AggregateFunction[_, _],
       resultType: TypeInformation[_],
       accTypeInfo: TypeInformation[_],
@@ -301,6 +300,7 @@ object UserDefinedFunctionUtils {
 
     AggSqlFunction(
       name,
+      displayName,
       aggFunction,
       resultType,
       accTypeInfo,

@@ -266,7 +266,7 @@ public class HttpTestClient implements AutoCloseable {
 		@Override
 		public String toString() {
 			return "HttpResponse(status=" + status + ", type='" + type + "'" + ", content='" +
-					content + "')";
+					content + ", location = " + location + "')";
 		}
 	}
 

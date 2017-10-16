@@ -92,3 +92,5 @@ the following to your plugins section.
 ~~~
 
 Now when running `mvn clean package` the produced jar includes the required dependencies.
+
+{% top %}

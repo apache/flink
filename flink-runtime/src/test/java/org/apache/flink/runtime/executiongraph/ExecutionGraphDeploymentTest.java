@@ -59,6 +59,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
@@ -509,17 +510,19 @@ public class ExecutionGraphDeploymentTest {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test");
-		jobGraph.setSnapshotSettings(new JobCheckpointingSettings(
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			Collections.<JobVertexID>emptyList(),
-			100,
-			10 * 60 * 1000,
-			0,
-			1,
-			ExternalizedCheckpointSettings.none(),
-			null,
-			false));
+		jobGraph.setSnapshotSettings(
+			new JobCheckpointingSettings(
+				Collections.<JobVertexID>emptyList(),
+				Collections.<JobVertexID>emptyList(),
+				Collections.<JobVertexID>emptyList(),
+				new CheckpointCoordinatorConfiguration(
+					100,
+					10 * 60 * 1000,
+					0,
+					1,
+					ExternalizedCheckpointSettings.none(),
+					false),
+				null));
 
 		return ExecutionGraphBuilder.buildGraph(
 			null,

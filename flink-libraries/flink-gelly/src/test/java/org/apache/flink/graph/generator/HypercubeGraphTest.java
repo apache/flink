@@ -30,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link HypercubeGraph}.
  */
-public class HypercubeGraphTest
-extends GraphGeneratorTestBase {
+public class HypercubeGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		int dimensions = 3;
 
 		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
@@ -49,8 +47,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int dimensions = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, dimensions)
@@ -71,8 +68,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new HypercubeGraph(env, 4)

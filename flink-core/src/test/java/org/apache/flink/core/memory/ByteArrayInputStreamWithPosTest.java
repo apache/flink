@@ -24,12 +24,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+/**
+ * Tests for {@link ByteArrayInputStreamWithPos}.
+ */
 public class ByteArrayInputStreamWithPosTest {
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private byte[] data = new byte[] {'0','1','2','3','4','5','6','7','8','9'};
+	private byte[] data = new byte[] {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
 	private ByteArrayInputStreamWithPos stream;
 
@@ -39,7 +42,7 @@ public class ByteArrayInputStreamWithPosTest {
 	}
 
 	/**
-	 *  Test setting position on a {@link ByteArrayInputStreamWithPos}
+	 * Test setting position on a {@link ByteArrayInputStreamWithPos}.
 	 */
 	@Test
 	public void testSetPosition() throws Exception {
@@ -60,7 +63,7 @@ public class ByteArrayInputStreamWithPosTest {
 	}
 
 	/**
-	 * Test that the expected position exceeds the capacity of the byte array
+	 * Test that the expected position exceeds the capacity of the byte array.
 	 */
 	@Test
 	public void testSetTooLargePosition() throws Exception {
@@ -70,7 +73,7 @@ public class ByteArrayInputStreamWithPosTest {
 	}
 
 	/**
-	 * Test setting a negative position
+	 * Test setting a negative position.
 	 */
 	@Test
 	public void testSetNegativePosition() throws Exception {

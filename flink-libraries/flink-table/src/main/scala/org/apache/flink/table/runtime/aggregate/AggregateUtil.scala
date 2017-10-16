@@ -28,7 +28,7 @@ import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, AggregateFunction => DataStreamAggFunction, _}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.windowing.{AllWindowFunction, WindowFunction}
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
@@ -1200,8 +1200,8 @@ object AggregateUtil {
       } else {
         aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
       }
-      val sqlTypeName = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
-        .getSqlTypeName
+      val relDataType = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
+      val sqlTypeName = relDataType.getSqlTypeName
       aggregateCall.getAggregation match {
 
         case _: SqlSumAggFunction =>
@@ -1409,6 +1409,10 @@ object AggregateUtil {
 
         case _: SqlCountAggFunction =>
           aggregates(index) = new CountAggFunction
+
+        case collect: SqlAggFunction if collect.getKind == SqlKind.COLLECT =>
+          aggregates(index) = new CollectAggFunction(FlinkTypeFactory.toTypeInfo(relDataType))
+          accTypes(index) = aggregates(index).getAccumulatorType
 
         case udagg: AggSqlFunction =>
           aggregates(index) = udagg.getFunction

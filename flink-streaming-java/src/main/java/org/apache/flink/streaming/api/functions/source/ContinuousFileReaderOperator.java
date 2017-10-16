@@ -196,11 +196,14 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	public void close() throws Exception {
 		super.close();
 
+		// make sure that we hold the checkpointing lock
+		Thread.holdsLock(checkpointLock);
+
 		// close the reader to signal that no more splits will come. By doing this,
 		// the reader will exit as soon as it finishes processing the already pending splits.
 		// This method will wait until then. Further cleaning up is handled by the dispose().
 
-		if (reader != null && reader.isAlive() && reader.isRunning()) {
+		while (reader != null && reader.isAlive() && reader.isRunning()) {
 			reader.close();
 			checkpointLock.wait();
 		}

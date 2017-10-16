@@ -30,14 +30,16 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.process.ProcessReaper;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
@@ -62,6 +64,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -170,23 +173,20 @@ public class YarnApplicationMasterRunner {
 				flinkConfig.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
 			}
 
-			org.apache.hadoop.conf.Configuration hadoopConfiguration = null;
+			SecurityConfiguration sc;
 
 			//To support Yarn Secure Integration Test Scenario
 			File krb5Conf = new File(currDir, Utils.KRB5_FILE_NAME);
 			if (krb5Conf.exists() && krb5Conf.canRead()) {
 				String krb5Path = krb5Conf.getAbsolutePath();
 				LOG.info("KRB5 Conf: {}", krb5Path);
-				hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
+				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-			}
-
-			SecurityUtils.SecurityConfiguration sc;
-			if (hadoopConfiguration != null) {
-				sc = new SecurityUtils.SecurityConfiguration(flinkConfig, hadoopConfiguration);
+				sc = new SecurityConfiguration(flinkConfig,
+					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 			} else {
-				sc = new SecurityUtils.SecurityConfiguration(flinkConfig);
+				sc = new SecurityConfiguration(flinkConfig);
 			}
 
 			SecurityUtils.install(sc);
@@ -343,7 +343,21 @@ public class YarnApplicationMasterRunner {
 				ioExecutor,
 				HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
-			// 1: the JobManager
+			// 1: the web monitor
+			LOG.debug("Starting Web Frontend");
+
+			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
+
+			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
+				config,
+				highAvailabilityServices,
+				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout, 10, Time.milliseconds(50L)),
+				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
+				webMonitorTimeout,
+				new ScheduledExecutorServiceAdapter(futureExecutor),
+				LOG);
+
+			// 2: the JobManager
 			LOG.debug("Starting JobManager actor");
 
 			// we start the JobManager with its standard name
@@ -353,32 +367,13 @@ public class YarnApplicationMasterRunner {
 				futureExecutor,
 				ioExecutor,
 				highAvailabilityServices,
+				webMonitor == null ? Option.empty() : Option.apply(webMonitor.getRestAddress()),
 				new Some<>(JobMaster.JOB_MANAGER_NAME),
 				Option.<String>empty(),
 				getJobManagerClass(),
 				getArchivistClass())._1();
 
-			// 2: the web monitor
-			LOG.debug("Starting Web Frontend");
-
-			Time webMonitorTimeout = Time.milliseconds(config.getLong(WebOptions.TIMEOUT));
-
-			webMonitor = BootstrapTools.startWebMonitorIfConfigured(
-				config,
-				highAvailabilityServices,
-				new AkkaJobManagerRetriever(actorSystem, webMonitorTimeout),
-				new AkkaQueryServiceRetriever(actorSystem, webMonitorTimeout),
-				webMonitorTimeout,
-				futureExecutor,
-				AkkaUtils.getAkkaURL(actorSystem, jobManager),
-				LOG);
-
-			String protocol = "http://";
-			if (config.getBoolean(WebOptions.SSL_ENABLED) && SSLUtils.getSSLEnabled(config)) {
-				protocol = "https://";
-			}
-			final String webMonitorURL = webMonitor == null ? null :
-				protocol + appMasterHostname + ":" + webMonitor.getServerPort();
+			final String webMonitorURL = webMonitor == null ? null : webMonitor.getRestAddress();
 
 			// 3: Flink's Yarn ResourceManager
 			LOG.debug("Starting YARN Flink Resource Manager");

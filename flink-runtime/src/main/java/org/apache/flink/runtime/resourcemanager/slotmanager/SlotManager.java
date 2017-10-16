@@ -22,11 +22,12 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -36,6 +37,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +47,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -94,8 +95,8 @@ public class SlotManager implements AutoCloseable {
 	/** Map of pending/unfulfilled slot allocation requests */
 	private final HashMap<AllocationID, PendingSlotRequest> pendingSlotRequests;
 
-	/** Leader id of the containing component */
-	private UUID leaderId;
+	/** ResourceManager's id */
+	private ResourceManagerId resourceManagerId;
 
 	/** Executor for future callbacks which have to be "synchronized" */
 	private Executor mainThreadExecutor;
@@ -126,13 +127,21 @@ public class SlotManager implements AutoCloseable {
 		fulfilledSlotRequests = new HashMap<>(16);
 		pendingSlotRequests = new HashMap<>(16);
 
-		leaderId = null;
+		resourceManagerId = null;
 		resourceManagerActions = null;
 		mainThreadExecutor = null;
 		taskManagerTimeoutCheck = null;
 		slotRequestTimeoutCheck = null;
 
 		started = false;
+	}
+
+	public int getNumberRegisteredSlots() {
+		return slots.size();
+	}
+
+	public int getNumberFreeSlots() {
+		return freeSlots.size();
 	}
 
 	// ---------------------------------------------------------------------------------------------
@@ -142,13 +151,14 @@ public class SlotManager implements AutoCloseable {
 	/**
 	 * Starts the slot manager with the given leader id and resource manager actions.
 	 *
-	 * @param newLeaderId to use for communication with the task managers
+	 * @param newResourceManagerId to use for communication with the task managers
+	 * @param newMainThreadExecutor to use to run code in the ResourceManager's main thread
 	 * @param newResourceManagerActions to use for resource (de-)allocations
 	 */
-	public void start(UUID newLeaderId, Executor newMainThreadExecutor, ResourceManagerActions newResourceManagerActions) {
+	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor, ResourceManagerActions newResourceManagerActions) {
 		LOG.info("Starting the SlotManager.");
 
-		leaderId = Preconditions.checkNotNull(newLeaderId);
+		this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
 		mainThreadExecutor = Preconditions.checkNotNull(newMainThreadExecutor);
 		resourceManagerActions = Preconditions.checkNotNull(newResourceManagerActions);
 
@@ -204,7 +214,7 @@ public class SlotManager implements AutoCloseable {
 			unregisterTaskManager(registeredTaskManager);
 		}
 
-		leaderId = null;
+		resourceManagerId = null;
 		resourceManagerActions = null;
 		started = false;
 	}
@@ -643,7 +653,7 @@ public class SlotManager implements AutoCloseable {
 			pendingSlotRequest.getJobId(),
 			allocationId,
 			pendingSlotRequest.getTargetAddress(),
-			leaderId,
+			resourceManagerId,
 			taskManagerRequestTimeout);
 
 		requestFuture.whenComplete(
@@ -920,11 +930,6 @@ public class SlotManager implements AutoCloseable {
 	@VisibleForTesting
 	TaskManagerSlot getSlot(SlotID slotId) {
 		return slots.get(slotId);
-	}
-
-	@VisibleForTesting
-	int getNumberRegisteredSlots() {
-		return slots.size();
 	}
 
 	@VisibleForTesting

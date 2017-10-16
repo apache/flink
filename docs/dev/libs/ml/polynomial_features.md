@@ -106,3 +106,5 @@ val pipeline = polyFeatures.chainPredictor(mlr)
 // train the model
 pipeline.fit(trainingDS)
 {% endhighlight %}
+
+{% top %}

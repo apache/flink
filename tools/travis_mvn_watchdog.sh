@@ -71,6 +71,10 @@ flink-libraries/flink-table"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
+flink-filesystems/flink-hadoop-fs,\
+flink-filesystems/flink-mapr-fs,\
+flink-filesystems/flink-s3-fs-hadoop,\
+flink-filesystems/flink-s3-fs-presto,\
 flink-connectors/flink-avro,\
 flink-connectors/flink-hbase,\
 flink-connectors/flink-hcatalog,\
@@ -92,6 +96,10 @@ flink-connectors/flink-connector-twitter"
 
 MODULES_TESTS="\
 flink-tests"
+
+if [[ $PROFILE != *"scala-2.10"* ]]; then
+	MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.11"
+fi
 
 if [[ $PROFILE == *"include-kinesis"* ]]; then
 	case $TEST in
@@ -270,33 +278,57 @@ watchdog () {
 check_shaded_artifacts() {
 	jar tf build-target/lib/flink-dist*.jar > allClasses
 	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
-	if [ $ASM != "0" ]; then
+	if [ "$ASM" != "0" ]; then
 		echo "=============================================================================="
-		echo "Detected $ASM unshaded asm dependencies in fat jar"
+		echo "Detected '$ASM' unshaded asm dependencies in fat jar"
 		echo "=============================================================================="
 		return 1
 	fi
 
 	GUAVA=`cat allClasses | grep '^com/google/common' | wc -l`
-	if [ $GUAVA != "0" ]; then
+	if [ "$GUAVA" != "0" ]; then
 		echo "=============================================================================="
-		echo "Detected $GUAVA guava dependencies in fat jar"
+		echo "Detected '$GUAVA' guava dependencies in fat jar"
 		echo "=============================================================================="
 		return 1
 	fi
 
 	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
-	if [ $SNAPPY == "0" ]; then
+	if [ "$SNAPPY" == "0" ]; then
 		echo "=============================================================================="
 		echo "Missing snappy dependencies in fat jar"
 		echo "=============================================================================="
 		return 1
 	fi
 
-    NETTY=`cat allClasses | grep '^io/netty' | wc -1`
-	if [ $NETTY != "0" ]; then
+	NETTY=`cat allClasses | grep '^io/netty' | wc -l`
+	if [ "$NETTY" != "0" ]; then
 		echo "=============================================================================="
-		echo "Detected $NETTY unshaded netty dependencies in fat jar"
+		echo "Detected '$NETTY' unshaded netty dependencies in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	FLINK_PYTHON=`cat allClasses | grep '^org/apache/flink/python' | wc -l`
+	if [ "$FLINK_PYTHON" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected that the Flink Python artifact is in the dist jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	HADOOP=`cat allClasses | grep '^org/apache/hadoop' | wc -l`
+	if [ "$HADOOP" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$HADOOP' Hadoop classes in the dist jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	MAPR=`cat allClasses | grep '^com/mapr' | wc -l`
+	if [ "$MAPR" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$MAPR' MapR classes in the dist jar"
 		echo "=============================================================================="
 		return 1
 	fi
@@ -422,6 +454,12 @@ case $TEST in
 			printf "Running Kafka end-to-end test\n"
 			printf "==============================================================================\n"
 			test-infra/end-to-end-test/test_streaming_kafka010.sh build-target cluster
+			EXIT_CODE=$(($EXIT_CODE+$?))
+
+			printf "\n==============================================================================\n"
+			printf "Running class loading end-to-end test\n"
+			printf "==============================================================================\n"
+			test-infra/end-to-end-test/test_streaming_classloader.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
 			printf "\n==============================================================================\n"

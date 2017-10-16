@@ -21,8 +21,8 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
 import org.apache.flink.runtime.webmonitor.WebRuntimeMonitor;
-import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
 
 import org.junit.Assert;
 import org.junit.Rule;

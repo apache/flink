@@ -36,12 +36,14 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.InstanceManager;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -180,6 +182,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 		configuration.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
 		BlobServer blobServer = new BlobServer(configuration, new VoidBlobStore());
+		blobServer.start();
 		return Props.create(
 			TestingJobManager.class,
 			configuration,
@@ -188,7 +191,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 			new InstanceManager(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			blobServer,
-			new BlobLibraryCacheManager(blobServer),
+			new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
 			ActorRef.noSender(),
 			new NoRestartStrategy.NoRestartStrategyFactory(),
 			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
@@ -196,7 +199,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 			submittedJobGraphStore,
 			checkpointRecoveryFactory,
 			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
-			Option.apply(null)
-		);
+			Option.<MetricRegistry>empty(),
+			Option.<String>empty());
 	}
 }

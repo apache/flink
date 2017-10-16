@@ -273,6 +273,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       highAvailabilityServices.getSubmittedJobGraphStore(),
       highAvailabilityServices.getCheckpointRecoveryFactory(),
       components._9,
+      None,
       None)
 
     _system.actorOf(props)

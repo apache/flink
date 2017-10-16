@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 
 import org.apache.hadoop.conf.Configuration;
@@ -90,7 +89,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 
 		CompressionCodec codec = null;
 
-		Configuration conf = HadoopFileSystem.getHadoopConfiguration();
+		Configuration conf = fs.getConf();
 
 		if (!compressionCodecName.equals("None")) {
 			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);

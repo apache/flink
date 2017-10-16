@@ -126,7 +126,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.groupBy(0)
 			.reduce(new CountTriangles<>())
 			.setCombineHint(CombineHint.HASH)
-				.name("Count triangles");
+				.name("Count triangles")
+				.setParallelism(parallelism);
 
 		// u, deg(u)
 		DataSet<Vertex<K, LongValue>> vertexDegree = input

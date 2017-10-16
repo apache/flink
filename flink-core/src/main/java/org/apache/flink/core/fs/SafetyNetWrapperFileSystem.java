@@ -60,11 +60,6 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
-	public void initialize(URI name) throws IOException {
-		unsafeFileSystem.initialize(name);
-	}
-
-	@Override
 	public FileStatus getFileStatus(Path f) throws IOException {
 		return unsafeFileSystem.getFileStatus(f);
 	}

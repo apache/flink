@@ -36,19 +36,24 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the access and transfer methods of the HeapMemorySegment.
  */
 public abstract class MemorySegmentTestBase {
-	
+
 	private final Random random = new Random();
-	
+
 	private final int pageSize;
-	
-	
-	public MemorySegmentTestBase(int pageSize) {
+
+	MemorySegmentTestBase(int pageSize) {
 		this.pageSize = pageSize;
 	}
 
@@ -58,8 +63,8 @@ public abstract class MemorySegmentTestBase {
 
 	abstract MemorySegment createSegment(int size);
 
-	abstract MemorySegment createSegment(int size, Object owner);
-	
+	abstract MemorySegment createSegment(@SuppressWarnings("SameParameterValue") int size, Object owner);
+
 	// ------------------------------------------------------------------------
 	//  Access to primitives
 	// ------------------------------------------------------------------------
@@ -409,7 +414,7 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
+				occupied[pos + 1] = true;
 			}
 
 			segment.putChar(pos, (char) (random.nextInt(Character.MAX_VALUE)));
@@ -425,7 +430,7 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
+				occupied[pos + 1] = true;
 			}
 
 			assertEquals((char) (random.nextInt(Character.MAX_VALUE)), segment.getChar(pos));
@@ -544,7 +549,7 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
+				occupied[pos + 1] = true;
 			}
 
 			segment.putShort(pos, (short) random.nextInt());
@@ -560,7 +565,7 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
+				occupied[pos + 1] = true;
 			}
 
 			assertEquals((short) random.nextInt(), segment.getShort(pos));
@@ -695,9 +700,9 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
 			}
 
 			segment.putInt(pos, random.nextInt());
@@ -713,9 +718,9 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
 			}
 
 			assertEquals(random.nextInt(), segment.getInt(pos));
@@ -847,19 +852,18 @@ public abstract class MemorySegmentTestBase {
 			int pos = random.nextInt(pageSize - 7);
 
 			if (occupied[pos] || occupied[pos + 1] || occupied[pos + 2] || occupied[pos + 3] ||
-					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7])
-			{
+					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7]) {
 				continue;
 			}
 			else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
-				occupied[pos+4] = true;
-				occupied[pos+5] = true;
-				occupied[pos+6] = true;
-				occupied[pos+7] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
+				occupied[pos + 4] = true;
+				occupied[pos + 5] = true;
+				occupied[pos + 6] = true;
+				occupied[pos + 7] = true;
 			}
 
 			segment.putLong(pos, random.nextLong());
@@ -872,19 +876,18 @@ public abstract class MemorySegmentTestBase {
 			int pos = random.nextInt(pageSize - 7);
 
 			if (occupied[pos] || occupied[pos + 1] || occupied[pos + 2] || occupied[pos + 3] ||
-					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7])
-			{
+					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7]) {
 				continue;
 			}
 			else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
-				occupied[pos+4] = true;
-				occupied[pos+5] = true;
-				occupied[pos+6] = true;
-				occupied[pos+7] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
+				occupied[pos + 4] = true;
+				occupied[pos + 5] = true;
+				occupied[pos + 6] = true;
+				occupied[pos + 7] = true;
 			}
 
 			assertEquals(random.nextLong(), segment.getLong(pos));
@@ -1019,9 +1022,9 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
 			}
 
 			segment.putFloat(pos, random.nextFloat());
@@ -1037,9 +1040,9 @@ public abstract class MemorySegmentTestBase {
 				continue;
 			} else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
 			}
 
 			assertEquals(random.nextFloat(), segment.getFloat(pos), 0.0);
@@ -1170,19 +1173,18 @@ public abstract class MemorySegmentTestBase {
 			int pos = random.nextInt(pageSize - 7);
 
 			if (occupied[pos] || occupied[pos + 1] || occupied[pos + 2] || occupied[pos + 3] ||
-					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7])
-			{
+					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7]) {
 				continue;
 			}
 			else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
-				occupied[pos+4] = true;
-				occupied[pos+5] = true;
-				occupied[pos+6] = true;
-				occupied[pos+7] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
+				occupied[pos + 4] = true;
+				occupied[pos + 5] = true;
+				occupied[pos + 6] = true;
+				occupied[pos + 7] = true;
 			}
 
 			segment.putDouble(pos, random.nextDouble());
@@ -1195,19 +1197,18 @@ public abstract class MemorySegmentTestBase {
 			int pos = random.nextInt(pageSize - 7);
 
 			if (occupied[pos] || occupied[pos + 1] || occupied[pos + 2] || occupied[pos + 3] ||
-					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7])
-			{
+					occupied[pos + 4] || occupied[pos + 5] || occupied[pos + 6] || occupied[pos + 7]) {
 				continue;
 			}
 			else {
 				occupied[pos] = true;
-				occupied[pos+1] = true;
-				occupied[pos+2] = true;
-				occupied[pos+3] = true;
-				occupied[pos+4] = true;
-				occupied[pos+5] = true;
-				occupied[pos+6] = true;
-				occupied[pos+7] = true;
+				occupied[pos + 1] = true;
+				occupied[pos + 2] = true;
+				occupied[pos + 3] = true;
+				occupied[pos + 4] = true;
+				occupied[pos + 5] = true;
+				occupied[pos + 6] = true;
+				occupied[pos + 7] = true;
 			}
 
 			assertEquals(random.nextDouble(), segment.getDouble(pos), 0.0);
@@ -1222,7 +1223,7 @@ public abstract class MemorySegmentTestBase {
 	public void testBulkBytePutExceptions() {
 		final MemorySegment segment = createSegment(pageSize);
 
-		byte[] bytes = new byte[pageSize / 4 + (pageSize%4)];
+		byte[] bytes = new byte[pageSize / 4 + (pageSize % 4)];
 		random.nextBytes(bytes);
 
 		// wrong positions into memory segment
@@ -1884,7 +1885,7 @@ public abstract class MemorySegmentTestBase {
 		testByteBufferGet(false);
 		testByteBufferGet(true);
 	}
-	
+
 	private void testByteBufferGet(boolean directBuffer) {
 		MemorySegment seg = createSegment(pageSize);
 		byte[] bytes = new byte[pageSize];
@@ -1926,7 +1927,7 @@ public abstract class MemorySegmentTestBase {
 		ByteBuffer source = directBuffer ?
 			ByteBuffer.allocateDirect(pageSize) :
 			ByteBuffer.allocate(pageSize);
-		
+
 		source.put(bytes);
 		source.clear();
 
@@ -1969,9 +1970,9 @@ public abstract class MemorySegmentTestBase {
 		ByteBuffer target = directBuffer ?
 				ByteBuffer.allocateDirect(pageSize + 49) :
 				ByteBuffer.allocate(pageSize + 49);
-		
+
 		target.position(19).limit(19 + pageSize);
-		
+
 		ByteBuffer slicedTarget = target.slice();
 
 		// transfer the segment in chunks into the byte buffer
@@ -2004,7 +2005,7 @@ public abstract class MemorySegmentTestBase {
 		ByteBuffer source = directBuffer ?
 				ByteBuffer.allocateDirect(pageSize + 49) :
 				ByteBuffer.allocate(pageSize + 49);
-		
+
 		source.put(bytes);
 		source.position(19).limit(19 + pageSize);
 		ByteBuffer slicedSource = source.slice();
@@ -2048,8 +2049,7 @@ public abstract class MemorySegmentTestBase {
 
 		for (ByteBuffer bb : new ByteBuffer[] {
 						ByteBuffer.allocate(bbCapacity),
-						ByteBuffer.allocateDirect(bbCapacity) } )
-		{
+						ByteBuffer.allocateDirect(bbCapacity) }) {
 			for (int off : validOffsets) {
 				for (int len : invalidLengths) {
 					try {
@@ -2141,7 +2141,6 @@ public abstract class MemorySegmentTestBase {
 		assertEquals(0, bb.position());
 		assertEquals(bb.capacity(), bb.limit());
 
-
 		int pos = bb.capacity() / 3;
 		int limit = 2 * bb.capacity() / 3;
 		bb.limit(limit);
@@ -2167,7 +2166,7 @@ public abstract class MemorySegmentTestBase {
 		assertEquals(pos, bb.position());
 		assertEquals(limit, bb.limit());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Comparing and swapping
 	// ------------------------------------------------------------------------
@@ -2199,7 +2198,7 @@ public abstract class MemorySegmentTestBase {
 			int pos2 = random.nextInt(bytes2.length);
 
 			int len = Math.min(Math.min(bytes1.length - pos1, bytes2.length - pos2),
-					random.nextInt(pageSize / 50 ));
+					random.nextInt(pageSize / 50));
 
 			int cmp = seg1.compare(seg2, pos1, pos2, len);
 
@@ -2214,34 +2213,34 @@ public abstract class MemorySegmentTestBase {
 
 	@Test
 	public void testSwapBytes() {
-		final int HALF_SIZE = pageSize / 2;
+		final int halfPageSize = pageSize / 2;
 
 		final byte[] bytes1 = new byte[pageSize];
-		final byte[] bytes2 = new byte[HALF_SIZE];
+		final byte[] bytes2 = new byte[halfPageSize];
 
 		Arrays.fill(bytes2, (byte) 1);
 
 		MemorySegment seg1 = createSegment(pageSize);
-		MemorySegment seg2 = createSegment(HALF_SIZE);
+		MemorySegment seg2 = createSegment(halfPageSize);
 		seg1.put(0, bytes1);
 		seg2.put(0, bytes2);
 
 		// wap the second half of the first segment with the second segment
 
 		int pos = 0;
-		while (pos < HALF_SIZE) {
+		while (pos < halfPageSize) {
 			int len = random.nextInt(pageSize / 40);
-			len = Math.min(len, HALF_SIZE - pos);
-			seg1.swapBytes(new byte[len], seg2, pos + HALF_SIZE, pos, len);
+			len = Math.min(len, halfPageSize - pos);
+			seg1.swapBytes(new byte[len], seg2, pos + halfPageSize, pos, len);
 			pos += len;
 		}
 
 		// the second segment should now be all zeros, the first segment should have one in its second half
 
-		for (int i = 0; i < HALF_SIZE; i++) {
+		for (int i = 0; i < halfPageSize; i++) {
 			assertEquals((byte) 0, seg1.get(i));
 			assertEquals((byte) 0, seg2.get(i));
-			assertEquals((byte) 1, seg1.get(i + HALF_SIZE));
+			assertEquals((byte) 1, seg1.get(i + halfPageSize));
 		}
 	}
 
@@ -2300,9 +2299,9 @@ public abstract class MemorySegmentTestBase {
 			assertTrue(e instanceof IllegalStateException || e instanceof NullPointerException);
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	//  Miscellaneous 
+	//  Miscellaneous
 	// ------------------------------------------------------------------------
 
 	@Test
@@ -2389,26 +2388,26 @@ public abstract class MemorySegmentTestBase {
 	@Test
 	public void testSizeAndFreeing() {
 		// a segment without an owner has a null owner
-		final int SIZE = 651;
-		MemorySegment seg = createSegment(SIZE);
+		final int segmentSize = 651;
+		MemorySegment seg = createSegment(segmentSize);
 
-		assertEquals(SIZE, seg.size());
+		assertEquals(segmentSize, seg.size());
 		assertFalse(seg.isFreed());
 
 		seg.free();
 		assertTrue(seg.isFreed());
-		assertEquals(SIZE, seg.size());
+		assertEquals(segmentSize, seg.size());
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Parametrization to run with different segment sizes
 	// ------------------------------------------------------------------------
-	
+
 	@Parameterized.Parameters(name = "segment-size = {0}")
 	public static Collection<Object[]> executionModes(){
 		return Arrays.asList(
-				new Object[] { 32*1024 },
-				new Object[] { 4*1024 },
-				new Object[] { 512*1024 } );
+				new Object[] { 32 * 1024 },
+				new Object[] { 4 * 1024 },
+				new Object[] { 512 * 1024 });
 	}
 }

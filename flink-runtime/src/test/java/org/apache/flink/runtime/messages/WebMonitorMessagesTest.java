@@ -29,10 +29,12 @@ import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
@@ -51,7 +53,7 @@ public class WebMonitorMessagesTest {
 			GenericMessageTester.testMessageInstance(RequestJobsOverview.getInstance());
 
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(RequestJobDetails.class, rnd));
-			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(StatusOverview.class, rnd));
+			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(ClusterOverview.class, rnd));
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(JobsOverview.class, rnd));
 			
 			GenericMessageTester.testMessageInstance(new JobsWithIDsOverview(
@@ -85,8 +87,8 @@ public class WebMonitorMessagesTest {
 			JobID jid = GenericMessageTester.randomJobId(rnd);
 			JobStatus status = GenericMessageTester.randomJobStatus(rnd);
 			
-			JobDetails msg1 = new JobDetails(jid, name, time, endTime, status, lastModified, numVerticesPerState, numTotal);
-			JobDetails msg2 = new JobDetails(jid, name, time, endTime, status, lastModified, numVerticesPerState, numTotal);
+			JobDetails msg1 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
+			JobDetails msg2 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
 			
 			GenericMessageTester.testMessageInstances(msg1, msg2);
 		}
@@ -120,7 +122,7 @@ public class WebMonitorMessagesTest {
 		return ids;
 	}
 	
-	private JobDetails[] randomJobDetails(Random rnd) {
+	private Collection<JobDetails> randomJobDetails(Random rnd) {
 		final JobDetails[] details = new JobDetails[rnd.nextInt(10)];
 		for (int k = 0; k < details.length; k++) {
 			int[] numVerticesPerState = new int[ExecutionState.values().length];
@@ -140,8 +142,8 @@ public class WebMonitorMessagesTest {
 			JobID jid = new JobID();
 			JobStatus status = JobStatus.values()[rnd.nextInt(JobStatus.values().length)];
 
-			details[k] = new JobDetails(jid, name, time, endTime, status, lastModified, numVerticesPerState, numTotal);
+			details[k] = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
 		}
-		return details;
+		return Arrays.asList(details);
 	}
 }

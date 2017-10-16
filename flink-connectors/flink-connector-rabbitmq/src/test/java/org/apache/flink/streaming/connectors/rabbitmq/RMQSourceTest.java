@@ -53,6 +53,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -404,7 +405,7 @@ public class RMQSourceTest {
 			try {
 				Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
 				Mockito.when(connection.createChannel()).thenReturn(Mockito.mock(Channel.class));
-			} catch (IOException e) {
+			} catch (IOException | TimeoutException e) {
 				fail("Test environment couldn't be created.");
 			}
 			return connectionFactory;

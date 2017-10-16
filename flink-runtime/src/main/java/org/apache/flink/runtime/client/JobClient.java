@@ -32,9 +32,9 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobKey;
-import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoader;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -215,10 +215,10 @@ public class JobClient {
 			JobManagerMessages.ClassloadingProps props = optProps.get();
 
 			InetSocketAddress serverAddress = new InetSocketAddress(jobManager.getHostname(), props.blobManagerPort());
-			final BlobCache blobClient;
+			final PermanentBlobCache permanentBlobCache;
 			try {
-				// TODO: Fix lifecycle of BlobCache to properly close it upon usage
-				blobClient = new BlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
+				// TODO: Fix lifecycle of PermanentBlobCache to properly close it upon usage
+				permanentBlobCache = new PermanentBlobCache(serverAddress, config, highAvailabilityServices.createBlobStore());
 			} catch (IOException e) {
 				throw new JobRetrievalException(
 					jobID,
@@ -226,18 +226,18 @@ public class JobClient {
 					e);
 			}
 
-			final Collection<BlobKey> requiredJarFiles = props.requiredJarFiles();
+			final Collection<PermanentBlobKey> requiredJarFiles = props.requiredJarFiles();
 			final Collection<URL> requiredClasspaths = props.requiredClasspaths();
 
 			final URL[] allURLs = new URL[requiredJarFiles.size() + requiredClasspaths.size()];
 
 			int pos = 0;
-			for (BlobKey blobKey : props.requiredJarFiles()) {
+			for (PermanentBlobKey blobKey : props.requiredJarFiles()) {
 				try {
-					allURLs[pos++] = blobClient.getFile(jobID, blobKey).toURI().toURL();
+					allURLs[pos++] = permanentBlobCache.getFile(jobID, blobKey).toURI().toURL();
 				} catch (Exception e) {
 					try {
-						blobClient.close();
+						permanentBlobCache.close();
 					} catch (IOException ioe) {
 						LOG.warn("Could not properly close the BlobClient.", ioe);
 					}
@@ -250,7 +250,7 @@ public class JobClient {
 				allURLs[pos++] = url;
 			}
 
-			return new FlinkUserCodeClassLoader(allURLs, JobClient.class.getClassLoader());
+			return FlinkUserCodeClassLoaders.parentFirst(allURLs, JobClient.class.getClassLoader());
 		} else {
 			throw new JobRetrievalException(jobID, "Couldn't retrieve class loader. Job " + jobID + " not found");
 		}
@@ -450,7 +450,7 @@ public class JobClient {
 				"JobManager did not respond within " + timeout, e);
 		} catch (Throwable throwable) {
 			Throwable stripped = ExceptionUtils.stripExecutionException(throwable);
-			
+
 			try {
 				ExceptionUtils.tryDeserializeAndThrow(stripped, classLoader);
 			} catch (JobExecutionException jee) {

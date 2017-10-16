@@ -27,12 +27,13 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskmanager.Task;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -44,8 +45,11 @@ public interface TaskExecutorGateway extends RpcGateway {
 	 * Requests a slot from the TaskManager
 	 *
 	 * @param slotId slot id for the request
+	 * @param jobId for which to request a slot
 	 * @param allocationId id for the request
-	 * @param resourceManagerLeaderId current leader id of the ResourceManager
+	 * @param targetAddress to which to offer the requested slots
+	 * @param resourceManagerId current leader id of the ResourceManager
+	 * @param timeout for the operation
 	 * @return answer to the slot request
 	 */
 	CompletableFuture<Acknowledge> requestSlot(
@@ -53,20 +57,20 @@ public interface TaskExecutorGateway extends RpcGateway {
 		JobID jobId,
 		AllocationID allocationId,
 		String targetAddress,
-		UUID resourceManagerLeaderId,
+		ResourceManagerId resourceManagerId,
 		@RpcTimeout Time timeout);
 
 	/**
 	 * Submit a {@link Task} to the {@link TaskExecutor}.
 	 *
 	 * @param tdd describing the task to submit
-	 * @param leaderId of the job leader
+	 * @param jobMasterId identifying the submitting JobMaster
 	 * @param timeout of the submit operation
 	 * @return Future acknowledge of the successful operation
 	 */
 	CompletableFuture<Acknowledge> submitTask(
 		TaskDeploymentDescriptor tdd,
-		UUID leaderId,
+		JobMasterId jobMasterId,
 		@RpcTimeout Time timeout);
 
 	/**

@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.runtime.streamstatus;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -131,6 +133,16 @@ public class StatusWatermarkValve {
 			// if all input channels of the valve are now idle, we need to output an idle stream
 			// status from the valve (this also marks the valve as idle)
 			if (!InputChannelStatus.hasActiveChannels(channelStatuses)) {
+
+				// now that all input channels are idle and no channels will continue to advance its watermark,
+				// we should "flush" all watermarks across all channels; effectively, this means emitting
+				// the max watermark across all channels as the new watermark. Also, since we already try to advance
+				// the min watermark as channels individually become IDLE, here we only need to perform the flush
+				// if the watermark of the last active channel that just became idle is the current min watermark.
+				if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
+					findAndOutputMaxWatermarkAcrossAllChannels();
+				}
+
 				lastOutputStreamStatus = StreamStatus.IDLE;
 				outputHandler.handleStreamStatus(lastOutputStreamStatus);
 			} else if (channelStatuses[channelIndex].watermark == lastOutputWatermark) {
@@ -160,17 +172,33 @@ public class StatusWatermarkValve {
 
 	private void findAndOutputNewMinWatermarkAcrossAlignedChannels() {
 		long newMinWatermark = Long.MAX_VALUE;
+		boolean hasAlignedChannels = false;
 
 		// determine new overall watermark by considering only watermark-aligned channels across all channels
 		for (InputChannelStatus channelStatus : channelStatuses) {
 			if (channelStatus.isWatermarkAligned) {
+				hasAlignedChannels = true;
 				newMinWatermark = Math.min(channelStatus.watermark, newMinWatermark);
 			}
 		}
 
-		// we acknowledge and output the new overall watermark if it is larger than the last output watermark
-		if (newMinWatermark > lastOutputWatermark) {
+		// we acknowledge and output the new overall watermark if it really is aggregated
+		// from some remaining aligned channel, and is also larger than the last output watermark
+		if (hasAlignedChannels && newMinWatermark > lastOutputWatermark) {
 			lastOutputWatermark = newMinWatermark;
+			outputHandler.handleWatermark(new Watermark(lastOutputWatermark));
+		}
+	}
+
+	private void findAndOutputMaxWatermarkAcrossAllChannels() {
+		long maxWatermark = Long.MIN_VALUE;
+
+		for (InputChannelStatus channelStatus : channelStatuses) {
+			maxWatermark = Math.max(channelStatus.watermark, maxWatermark);
+		}
+
+		if (maxWatermark > lastOutputWatermark) {
+			lastOutputWatermark = maxWatermark;
 			outputHandler.handleWatermark(new Watermark(lastOutputWatermark));
 		}
 	}
@@ -184,13 +212,14 @@ public class StatusWatermarkValve {
 	 * <ul>
 	 *   <li>the current stream status of the channel is idle
 	 *   <li>the stream status has resumed to be active, but the watermark of the channel hasn't
-	 *   caught up to thelast output watermark from the valve yet.
+	 *   caught up to the last output watermark from the valve yet.
 	 * </ul>
 	 */
-	private static class InputChannelStatus {
-		private long watermark;
-		private StreamStatus streamStatus;
-		private boolean isWatermarkAligned;
+	@VisibleForTesting
+	protected static class InputChannelStatus {
+		protected long watermark;
+		protected StreamStatus streamStatus;
+		protected boolean isWatermarkAligned;
 
 		/**
 		 * Utility to check if at least one channel in a given array of input channels is active.
@@ -205,4 +234,12 @@ public class StatusWatermarkValve {
 		}
 	}
 
+	@VisibleForTesting
+	protected InputChannelStatus getInputChannelStatus(int channelIndex) {
+		Preconditions.checkArgument(
+			channelIndex >= 0 && channelIndex < channelStatuses.length,
+			"Invalid channel index. Number of input channels: " + channelStatuses.length);
+
+		return channelStatuses[channelIndex];
+	}
 }

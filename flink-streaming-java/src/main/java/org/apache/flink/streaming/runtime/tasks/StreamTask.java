@@ -277,10 +277,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			// we also need to make sure that no triggers fire concurrently with the close logic
 			// at the same time, this makes sure that during any "regular" exit where still
 			synchronized (lock) {
-				isRunning = false;
-
 				// this is part of the main logic, so if this fails, the task is considered failed
 				closeAllOperators();
+
+				// only set the StreamTask to not running after all operators have been closed!
+				// See FLINK-7430
+				isRunning = false;
 			}
 
 			LOG.debug("Closed operators for task {}", getName());
@@ -707,7 +709,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		OperatorStateBackend operatorStateBackend = stateBackend.createOperatorStateBackend(env, opId);
 
 		// let operator state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
-		cancelables.registerClosable(operatorStateBackend);
+		cancelables.registerCloseable(operatorStateBackend);
 
 		// restore if we have some old state
 		if (null != restoreStateHandles) {
@@ -740,7 +742,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				getEnvironment().getTaskKvStateRegistry());
 
 		// let keyed state backend participate in the operator lifecycle, i.e. make it responsive to cancelation
-		cancelables.registerClosable(keyedStateBackend);
+		cancelables.registerCloseable(keyedStateBackend);
 
 		// restore if we have some old state
 		Collection<KeyedStateHandle> restoreKeyedStateHandles = null;
@@ -931,7 +933,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
 			} finally {
-				owner.cancelables.unregisterClosable(this);
+				owner.cancelables.unregisterCloseable(this);
 				FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
 			}
 		}
@@ -1084,7 +1086,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					checkpointMetrics,
 					startAsyncPartNano);
 
-			owner.cancelables.registerClosable(asyncCheckpointRunnable);
+			owner.cancelables.registerCloseable(asyncCheckpointRunnable);
 			owner.asyncOperationsThreadPool.submit(asyncCheckpointRunnable);
 		}
 

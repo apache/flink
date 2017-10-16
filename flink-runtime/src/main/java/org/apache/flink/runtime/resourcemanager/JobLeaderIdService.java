@@ -22,14 +22,17 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -49,17 +52,17 @@ public class JobLeaderIdService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(JobLeaderIdService.class);
 
-	/** High availability services to use by this service */
+	/** High availability services to use by this service. */
 	private final HighAvailabilityServices highAvailabilityServices;
 
 	private final ScheduledExecutor scheduledExecutor;
 
 	private final Time jobTimeout;
 
-	/** Map of currently monitored jobs */
+	/** Map of currently monitored jobs. */
 	private final Map<JobID, JobLeaderIdListener> jobLeaderIdListeners;
 
-	/** Actions to call when the job leader changes */
+	/** Actions to call when the job leader changes. */
 	private JobLeaderIdActions jobLeaderIdActions;
 
 	public JobLeaderIdService(
@@ -178,14 +181,14 @@ public class JobLeaderIdService {
 		return jobLeaderIdListeners.containsKey(jobId);
 	}
 
-	public CompletableFuture<UUID> getLeaderId(JobID jobId) throws Exception {
+	public CompletableFuture<JobMasterId> getLeaderId(JobID jobId) throws Exception {
 		if (!jobLeaderIdListeners.containsKey(jobId)) {
 			addJob(jobId);
 		}
 
 		JobLeaderIdListener listener = jobLeaderIdListeners.get(jobId);
 
-		return listener.getLeaderIdFuture();
+		return listener.getLeaderIdFuture().thenApply((UUID id) -> id != null ? new JobMasterId(id) : null);
 	}
 
 	public boolean isValidTimeout(JobID jobId, UUID timeoutId) {
@@ -216,14 +219,13 @@ public class JobLeaderIdService {
 		private volatile CompletableFuture<UUID> leaderIdFuture;
 		private volatile boolean running = true;
 
-		/** Null if no timeout has been scheduled; otherwise non null */
+		/** Null if no timeout has been scheduled; otherwise non null. */
 		@Nullable
 		private  volatile ScheduledFuture<?> timeoutFuture;
 
-		/** Null if no timeout has been scheduled; otherwise non null */
+		/** Null if no timeout has been scheduled; otherwise non null. */
 		@Nullable
 		private volatile UUID timeoutId;
-
 
 		private JobLeaderIdListener(
 				JobID jobId,
@@ -279,7 +281,7 @@ public class JobLeaderIdService {
 
 				if (previousJobLeaderId != null && !previousJobLeaderId.equals(leaderSessionId)) {
 					// we had a previous job leader, so notify about his lost leadership
-					listenerJobLeaderIdActions.jobLeaderLostLeadership(jobId, previousJobLeaderId);
+					listenerJobLeaderIdActions.jobLeaderLostLeadership(jobId, new JobMasterId(previousJobLeaderId));
 
 					if (null == leaderSessionId) {
 						// No current leader active ==> Set a timeout for the job

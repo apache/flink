@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -53,7 +55,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.LeaderIdMismatchException;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotPool;
 import org.apache.flink.runtime.instance.SlotPoolGateway;
@@ -71,6 +72,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
@@ -81,8 +83,9 @@ import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.rpc.RpcEndpoint;
+import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -90,6 +93,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
@@ -109,7 +114,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -124,14 +128,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * given task</li>
  * </ul>
  */
-public class JobMaster extends RpcEndpoint implements JobMasterGateway {
+public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMasterGateway {
 
 	/** Default names for Flink's distributed components */
 	public static final String JOB_MANAGER_NAME = "jobmanager";
 	public static final String ARCHIVE_NAME = "archive";
-
-	private static final AtomicReferenceFieldUpdater<JobMaster, UUID> LEADER_ID_UPDATER =
-			AtomicReferenceFieldUpdater.newUpdater(JobMaster.class, UUID.class, "leaderSessionID");
 
 	// ------------------------------------------------------------------------
 
@@ -183,8 +184,6 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	private final SlotPool slotPool;
 
 	private final SlotPoolGateway slotPoolGateway;
-
-	private volatile UUID leaderSessionID;
 
 	// --------- ResourceManager --------
 
@@ -310,19 +309,36 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	/**
 	 * Start the rpc service and begin to run the job.
 	 *
-	 * @param leaderSessionID The necessary leader id for running the job.
+	 * @param newJobMasterId The necessary fencing token to run the job
+	 * @param timeout for the operation
+	 * @return Future acknowledge if the job could be started. Otherwise the future contains an exception
 	 */
-	public void start(final UUID leaderSessionID) throws Exception {
-		if (LEADER_ID_UPDATER.compareAndSet(this, null, leaderSessionID)) {
-			// make sure we receive RPC and async calls
-			super.start();
+	public CompletableFuture<Acknowledge> start(final JobMasterId newJobMasterId, final Time timeout) throws Exception {
+		// make sure we receive RPC and async calls
+		super.start();
 
-			log.info("JobManager started as leader {} for job {}", leaderSessionID, jobGraph.getJobID());
-			selfGateway.startJobExecution();
-		}
-		else {
-			log.warn("Job already started with leader ID {}, ignoring this start request.", leaderSessionID);
-		}
+		return callAsyncWithoutFencing(() -> startJobExecution(newJobMasterId), timeout);
+	}
+
+	/**
+	 * Suspending job, all the running tasks will be cancelled, and communication with other components
+	 * will be disposed.
+	 *
+	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
+	 * calling the {@link #start(JobMasterId, Time)} method once we take the leadership back again.
+	 *
+	 * <p>This method is executed asynchronously
+	 *
+	 * @param cause The reason of why this job been suspended.
+	 * @param timeout for this operation
+	 * @return Future acknowledge indicating that the job has been suspended. Otherwise the future contains an exception
+	 */
+	public CompletableFuture<Acknowledge> suspend(final Throwable cause, final Time timeout) {
+		CompletableFuture<Acknowledge> suspendFuture = callAsyncWithoutFencing(() -> suspendExecution(cause), timeout);
+
+		stop();
+
+		return suspendFuture;
 	}
 
 	/**
@@ -343,97 +359,23 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	// RPC methods
 	//----------------------------------------------------------------------------------------------
 
-	//-- job starting and stopping  -----------------------------------------------------------------
-
 	@Override
-	public void startJobExecution() {
-		// double check that the leader status did not change
-		if (leaderSessionID == null) {
-			log.info("Aborting job startup - JobManager lost leader status");
-			return;
-		}
+	public CompletableFuture<Acknowledge> cancel(Time timeout) {
+		executionGraph.cancel();
 
-		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
-
-		try {
-			// start the slot pool make sure the slot pool now accepts messages for this leader
-			log.debug("Staring SlotPool component");
-			slotPool.start(leaderSessionID, getAddress());
-		} catch (Exception e) {
-			log.error("Faild to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), e);
-
-			handleFatalError(new Exception("Could not start job execution: Failed to start the slot pool.", e));
-		}
-
-		try {
-			// job is ready to go, try to establish connection with resource manager
-			//   - activate leader retrieval for the resource manager
-			//   - on notification of the leader, the connection will be established and
-			//     the slot pool will start requesting slots
-			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
-		}
-		catch (Throwable t) {
-			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
-
-			handleFatalError(new Exception(
-					"Could not start job execution: Failed to start leader service for Resource Manager", t));
-
-			return;
-		}
-
-		// start scheduling job in another thread
-		executor.execute(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					executionGraph.scheduleForExecution();
-				}
-				catch (Throwable t) {
-					executionGraph.failGlobal(t);
-				}
-			}
-		});
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	/**
-	 * Suspending job, all the running tasks will be cancelled, and communication with other components
-	 * will be disposed.
-	 *
-	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
-	 * calling the {@link #start(UUID)} method once we take the leadership back again.
-	 *
-	 * @param cause The reason of why this job been suspended.
-	 */
 	@Override
-	public void suspendExecution(final Throwable cause) {
-		if (leaderSessionID == null) {
-			log.debug("Job has already been suspended or shutdown.");
-			return;
-		}
-
-		// not leader any more - should not accept any leader messages any more
-		leaderSessionID = null;
-
+	public CompletableFuture<Acknowledge> stop(Time timeout) {
 		try {
-			resourceManagerLeaderRetriever.stop();
-		} catch (Throwable t) {
-			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
+			executionGraph.stop();
+		} catch (StoppingException e) {
+			return FutureUtils.completedExceptionally(e);
 		}
 
-		// tell the execution graph (JobManager is still processing messages here) 
-		executionGraph.suspend(cause);
-
-		// receive no more messages until started again, should be called before we clear self leader id
-		stop();
-
-		// the slot pool stops receiving messages and clears its pooled slots 
-		slotPoolGateway.suspend();
-
-		// disconnect from resource manager:
-		closeResourceManagerConnection(new Exception("Execution was suspended.", cause));
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
-
-	//----------------------------------------------------------------------------------------------
 
 	/**
 	 * Updates the task execution state for a given task.
@@ -443,16 +385,9 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	 */
 	@Override
 	public CompletableFuture<Acknowledge> updateTaskExecutionState(
-			final UUID leaderSessionID,
 			final TaskExecutionState taskExecutionState)
 	{
 		checkNotNull(taskExecutionState, "taskExecutionState");
-
-		try {
-			validateLeaderSessionId(leaderSessionID);
-		} catch (LeaderIdMismatchException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
 
 		if (executionGraph.updateState(taskExecutionState)) {
 			return CompletableFuture.completedFuture(Acknowledge.get());
@@ -465,15 +400,8 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 	@Override
 	public CompletableFuture<SerializedInputSplit> requestNextInputSplit(
-			final UUID leaderSessionID,
 			final JobVertexID vertexID,
 			final ExecutionAttemptID executionAttempt) {
-
-		try {
-			validateLeaderSessionId(leaderSessionID);
-		} catch (LeaderIdMismatchException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
 
 		final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttempt);
 		if (execution == null) {
@@ -521,15 +449,8 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 	@Override
 	public CompletableFuture<ExecutionState> requestPartitionState(
-			final UUID leaderSessionID,
 			final IntermediateDataSetID intermediateResultId,
 			final ResultPartitionID resultPartitionId) {
-
-		try {
-			validateLeaderSessionId(leaderSessionID);
-		} catch (LeaderIdMismatchException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
 
 		final Execution execution = executionGraph.getRegisteredExecutions().get(resultPartitionId.getProducerId());
 		if (execution != null) {
@@ -560,12 +481,9 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> scheduleOrUpdateConsumers(
-			final UUID leaderSessionID,
 			final ResultPartitionID partitionID,
 			final Time timeout) {
 		try {
-			validateLeaderSessionId(leaderSessionID);
-
 			executionGraph.scheduleOrUpdateConsumers(partitionID);
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		} catch (Exception e) {
@@ -713,14 +631,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	public CompletableFuture<Collection<SlotOffer>> offerSlots(
 			final ResourceID taskManagerId,
 			final Iterable<SlotOffer> slots,
-			final UUID leaderId,
 			final Time timeout) {
-
-		try {
-			validateLeaderSessionId(leaderId);
-		} catch (LeaderIdMismatchException e) {
-			return FutureUtils.completedExceptionally(e);
-		}
 
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManager = registeredTaskManagers.get(taskManagerId);
 
@@ -734,7 +645,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 		final ArrayList<Tuple2<AllocatedSlot, SlotOffer>> slotsAndOffers = new ArrayList<>();
 
-		final RpcTaskManagerGateway rpcTaskManagerGateway = new RpcTaskManagerGateway(taskExecutorGateway, leaderId);
+		final RpcTaskManagerGateway rpcTaskManagerGateway = new RpcTaskManagerGateway(taskExecutorGateway, getFencingToken());
 
 		for (SlotOffer slotOffer : slots) {
 			final AllocatedSlot slot = new AllocatedSlot(
@@ -755,14 +666,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	public void failSlot(
 			final ResourceID taskManagerId,
 			final AllocationID allocationId,
-			final UUID leaderId,
 			final Exception cause) {
-
-		try {
-			validateLeaderSessionId(leaderSessionID);
-		} catch (LeaderIdMismatchException e) {
-			log.warn("Cannot fail slot " + allocationId + '.', e);
-		}
 
 		if (registeredTaskManagers.containsKey(taskManagerId)) {
 			slotPoolGateway.failAllocation(allocationId, cause);
@@ -776,16 +680,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	public CompletableFuture<RegistrationResponse> registerTaskManager(
 			final String taskManagerRpcAddress,
 			final TaskManagerLocation taskManagerLocation,
-			final UUID leaderId,
 			final Time timeout) {
-		if (!Objects.equals(leaderSessionID, leaderId)) {
-			log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
-							"leader session ID {} did not equal the received leader session ID {}.",
-					taskManagerLocation.getResourceID(), taskManagerRpcAddress, leaderSessionID, leaderId);
-			return FutureUtils.completedExceptionally(
-				new Exception("Leader id not match, expected: " +
-					leaderSessionID + ", actual: " + leaderId));
-		}
 
 		final ResourceID taskManagerId = taskManagerLocation.getResourceID();
 
@@ -800,13 +695,6 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					(TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
 						if (throwable != null) {
 							return new RegistrationResponse.Decline(throwable.getMessage());
-						}
-
-						if (!Objects.equals(leaderSessionID, leaderId)) {
-							log.warn("Discard registration from TaskExecutor {} at ({}) because the expected " +
-									"leader session ID {} did not equal the received leader session ID {}.",
-								taskManagerId, taskManagerRpcAddress, leaderSessionID, leaderId);
-							return new RegistrationResponse.Decline("Invalid leader session id");
 						}
 
 						slotPoolGateway.registerTaskManager(taskManagerId);
@@ -833,18 +721,11 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 	@Override
 	public void disconnectResourceManager(
-			final UUID jobManagerLeaderId,
-			final UUID resourceManagerLeaderId,
+			final ResourceManagerId resourceManagerId,
 			final Exception cause) {
 
-		try {
-			validateLeaderSessionId(jobManagerLeaderId);
-		} catch (LeaderIdMismatchException e) {
-			log.warn("Cannot disconnect resource manager " + resourceManagerLeaderId + '.', e);
-		}
-
 		if (resourceManagerConnection != null
-				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderId)) {
+				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerId)) {
 			closeResourceManagerConnection(cause);
 		}
 	}
@@ -859,25 +740,130 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		resourceManagerHeartbeatManager.requestHeartbeat(resourceID, null);
 	}
 
+	@Override
+	public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+		return CompletableFuture.supplyAsync(() -> WebMonitorUtils.createDetailsForJob(executionGraph), executor);
+	}
+
+	@Override
+	public CompletableFuture<AccessExecutionGraph> requestArchivedExecutionGraph(Time timeout) {
+		return CompletableFuture.completedFuture(executionGraph.archive());
+	}
+
+	@Override
+	public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+		return CompletableFuture.completedFuture(executionGraph.getState());
+	}
+
 	//----------------------------------------------------------------------------------------------
 	// Internal methods
 	//----------------------------------------------------------------------------------------------
 
-	private void handleFatalError(final Throwable cause) {
-		runAsync(new Runnable() {
-			@Override
-			public void run() {
-				log.error("Fatal error occurred on JobManager, cause: {}", cause.getMessage(), cause);
+	//-- job starting and stopping  -----------------------------------------------------------------
 
+	private Acknowledge startJobExecution(JobMasterId newJobMasterId) throws Exception {
+		validateRunsInMainThread();
+
+		Preconditions.checkNotNull(newJobMasterId, "The new JobMasterId must not be null.");
+
+		if (Objects.equals(getFencingToken(), newJobMasterId)) {
+			log.info("Already started the job execution with JobMasterId {}.", newJobMasterId);
+
+			return Acknowledge.get();
+		}
+
+		if (getFencingToken() != null) {
+			log.info("Restarting old job with JobMasterId {}. The new JobMasterId is {}.", getFencingToken(), newJobMasterId);
+
+			// first we have to suspend the current execution
+			suspendExecution(new FlinkException("Old job with JobMasterId " + getFencingToken() +
+				" is restarted with a new JobMasterId " + newJobMasterId + '.'));
+		}
+
+		// set new leader id
+		setFencingToken(newJobMasterId);
+
+		log.info("Starting execution of job {} ({})", jobGraph.getName(), jobGraph.getJobID());
+
+		try {
+			// start the slot pool make sure the slot pool now accepts messages for this leader
+			log.debug("Staring SlotPool component");
+			slotPool.start(getFencingToken(), getAddress());
+
+			// job is ready to go, try to establish connection with resource manager
+			//   - activate leader retrieval for the resource manager
+			//   - on notification of the leader, the connection will be established and
+			//     the slot pool will start requesting slots
+			resourceManagerLeaderRetriever.start(new ResourceManagerLeaderListener());
+		}
+		catch (Throwable t) {
+			log.error("Failed to start job {} ({})", jobGraph.getName(), jobGraph.getJobID(), t);
+
+			throw new Exception("Could not start job execution: Failed to start JobMaster services.", t);
+		}
+
+		// start scheduling job in another thread
+		executor.execute(
+			() -> {
 				try {
-					shutDown();
-				} catch (Exception e) {
-					cause.addSuppressed(e);
+					executionGraph.scheduleForExecution();
 				}
+				catch (Throwable t) {
+					executionGraph.failGlobal(t);
+				}
+			});
 
-				errorHandler.onFatalError(cause);
-			}
-		});
+		return Acknowledge.get();
+	}
+
+	/**
+	 * Suspending job, all the running tasks will be cancelled, and communication with other components
+	 * will be disposed.
+	 *
+	 * <p>Mostly job is suspended because of the leadership has been revoked, one can be restart this job by
+	 * calling the {@link #start(JobMasterId, Time)} method once we take the leadership back again.
+	 *
+	 * @param cause The reason of why this job been suspended.
+	 */
+	private Acknowledge suspendExecution(final Throwable cause) {
+		validateRunsInMainThread();
+
+		if (getFencingToken() == null) {
+			log.debug("Job has already been suspended or shutdown.");
+			return Acknowledge.get();
+		}
+
+		// not leader anymore --> set the JobMasterId to null
+		setFencingToken(null);
+
+		try {
+			resourceManagerLeaderRetriever.stop();
+		} catch (Throwable t) {
+			log.warn("Failed to stop resource manager leader retriever when suspending.", t);
+		}
+
+		// tell the execution graph (JobManager is still processing messages here)
+		executionGraph.suspend(cause);
+
+		// the slot pool stops receiving messages and clears its pooled slots
+		slotPoolGateway.suspend();
+
+		// disconnect from resource manager:
+		closeResourceManagerConnection(new Exception("Execution was suspended.", cause));
+
+		return Acknowledge.get();
+	}
+
+	//----------------------------------------------------------------------------------------------
+
+	private void handleFatalError(final Throwable cause) {
+
+		try {
+			log.error("Fatal error occurred on JobManager.", cause);
+		} catch (Throwable ignore) {}
+
+		// The fatal error handler implementation should make sure that this call is non-blocking
+		errorHandler.onFatalError(cause);
 	}
 
 	private void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
@@ -897,7 +883,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 						Map<String, Object> accumulatorResults = executionGraph.getAccumulators();
 						JobExecutionResult result = new JobExecutionResult(jobID, 0L, accumulatorResults); 
 
-						jobCompletionActions.jobFinished(result);
+						executor.execute(() -> jobCompletionActions.jobFinished(result));
 					}
 					catch (Exception e) {
 						log.error("Cannot fetch final accumulators for job {} ({})", jobName, jobID, e);
@@ -907,7 +893,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 								"The job is registered as 'FINISHED (successful), but this notification describes " +
 								"a failure, since the resulting accumulators could not be fetched.", e);
 
-						jobCompletionActions.jobFailed(exception);
+						executor.execute(() ->jobCompletionActions.jobFailed(exception));
 					}
 					break;
 
@@ -915,7 +901,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					final JobExecutionException exception = new JobExecutionException(
 						jobID, "Job was cancelled.", new Exception("The job was cancelled"));
 
-					jobCompletionActions.jobFailed(exception);
+					executor.execute(() -> jobCompletionActions.jobFailed(exception));
 					break;
 				}
 
@@ -923,7 +909,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					final Throwable unpackedError = SerializedThrowable.get(error, userCodeLoader);
 					final JobExecutionException exception = new JobExecutionException(
 							jobID, "Job execution failed.", unpackedError);
-					jobCompletionActions.jobFailed(exception);
+					executor.execute(() -> jobCompletionActions.jobFailed(exception));
 					break;
 				}
 
@@ -934,11 +920,11 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		}
 	}
 
-	private void notifyOfNewResourceManagerLeader(final String resourceManagerAddress, final UUID resourceManagerLeaderId) {
+	private void notifyOfNewResourceManagerLeader(final String resourceManagerAddress, final ResourceManagerId resourceManagerId) {
 		if (resourceManagerConnection != null) {
 			if (resourceManagerAddress != null) {
-				if (resourceManagerAddress.equals(resourceManagerConnection.getTargetAddress())
-					&& resourceManagerLeaderId.equals(resourceManagerConnection.getTargetLeaderId())) {
+				if (Objects.equals(resourceManagerAddress, resourceManagerConnection.getTargetAddress())
+					&& Objects.equals(resourceManagerId, resourceManagerConnection.getTargetLeaderId())) {
 					// both address and leader id are not changed, we can keep the old connection
 					return;
 				}
@@ -962,9 +948,9 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 				jobGraph.getJobID(),
 				resourceId,
 				getAddress(),
-				leaderSessionID,
+				getFencingToken(),
 				resourceManagerAddress,
-				resourceManagerLeaderId,
+				resourceManagerId,
 				executor);
 
 			resourceManagerConnection.start();
@@ -972,17 +958,17 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	}
 
 	private void establishResourceManagerConnection(final JobMasterRegistrationSuccess success) {
-		final UUID resourceManagerLeaderId = success.getResourceManagerLeaderId();
+		final ResourceManagerId resourceManagerId = success.getResourceManagerId();
 	
 		// verify the response with current connection
 		if (resourceManagerConnection != null
-				&& resourceManagerConnection.getTargetLeaderId().equals(resourceManagerLeaderId)) {
+				&& Objects.equals(resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) {
 
-			log.info("JobManager successfully registered at ResourceManager, leader id: {}.", resourceManagerLeaderId);
+			log.info("JobManager successfully registered at ResourceManager, leader id: {}.", resourceManagerId);
 
 			final ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
-			slotPoolGateway.connectToResourceManager(resourceManagerLeaderId, resourceManagerGateway);
+			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
 
 			resourceManagerHeartbeatManager.monitorTarget(success.getResourceManagerResourceId(), new HeartbeatTarget<Void>() {
 				@Override
@@ -995,6 +981,9 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 					// request heartbeat will never be called on the job manager side
 				}
 			});
+		} else {
+			log.debug("Ignoring resource manager connection to {} because its a duplicate or outdated.", resourceManagerId);
+
 		}
 	}
 
@@ -1014,12 +1003,6 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 		slotPoolGateway.disconnectResourceManager();
 	}
 
-	private void validateLeaderSessionId(UUID leaderSessionID) throws LeaderIdMismatchException {
-		if (this.leaderSessionID == null || !this.leaderSessionID.equals(leaderSessionID)) {
-			throw new LeaderIdMismatchException(this.leaderSessionID, leaderSessionID);
-		}
-	}
-
 	//----------------------------------------------------------------------------------------------
 	// Utility classes
 	//----------------------------------------------------------------------------------------------
@@ -1028,12 +1011,10 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 		@Override
 		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					notifyOfNewResourceManagerLeader(leaderAddress, leaderSessionID);
-				}
-			});
+			runAsync(
+				() -> notifyOfNewResourceManagerLeader(
+					leaderAddress,
+					leaderSessionID != null ? new ResourceManagerId(leaderSessionID) : null));
 		}
 
 		@Override
@@ -1045,7 +1026,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 	//----------------------------------------------------------------------------------------------
 
 	private class ResourceManagerConnection
-			extends RegisteredRpcConnection<ResourceManagerGateway, JobMasterRegistrationSuccess>
+			extends RegisteredRpcConnection<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>
 	{
 		private final JobID jobID;
 
@@ -1053,7 +1034,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 
 		private final String jobManagerRpcAddress;
 
-		private final UUID jobManagerLeaderID;
+		private final JobMasterId jobMasterId;
 
 		private ResourceID resourceManagerResourceID;
 
@@ -1062,33 +1043,32 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 				final JobID jobID,
 				final ResourceID jobManagerResourceID,
 				final String jobManagerRpcAddress,
-				final UUID jobManagerLeaderID,
+				final JobMasterId jobMasterId,
 				final String resourceManagerAddress,
-				final UUID resourceManagerLeaderID,
+				final ResourceManagerId resourceManagerId,
 				final Executor executor)
 		{
-			super(log, resourceManagerAddress, resourceManagerLeaderID, executor);
+			super(log, resourceManagerAddress, resourceManagerId, executor);
 			this.jobID = checkNotNull(jobID);
 			this.jobManagerResourceID = checkNotNull(jobManagerResourceID);
 			this.jobManagerRpcAddress = checkNotNull(jobManagerRpcAddress);
-			this.jobManagerLeaderID = checkNotNull(jobManagerLeaderID);
+			this.jobMasterId = checkNotNull(jobMasterId);
 		}
 
 		@Override
-		protected RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
-			return new RetryingRegistration<ResourceManagerGateway, JobMasterRegistrationSuccess>(
+		protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
+			return new RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
 					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
 					getTargetAddress(), getTargetLeaderId())
 			{
 				@Override
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
-						ResourceManagerGateway gateway, UUID leaderId, long timeoutMillis) throws Exception
+						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) throws Exception
 				{
 					Time timeout = Time.milliseconds(timeoutMillis);
 
 					return gateway.registerJobManager(
-						leaderId,
-						jobManagerLeaderID,
+						jobMasterId,
 						jobManagerResourceID,
 						jobManagerRpcAddress,
 						jobID,
@@ -1134,12 +1114,7 @@ public class JobMaster extends RpcEndpoint implements JobMasterGateway {
 				final Throwable error) {
 
 			// run in rpc thread to avoid concurrency
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					jobStatusChanged(newJobStatus, timestamp, error);
-				}
-			});
+			runAsync(() -> jobStatusChanged(newJobStatus, timestamp, error));
 		}
 	}
 

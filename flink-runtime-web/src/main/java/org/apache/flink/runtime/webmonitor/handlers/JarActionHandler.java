@@ -35,6 +35,8 @@ import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.util.ExceptionUtils;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -46,6 +48,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Abstract handler for fetching plan for a jar or running a jar.
@@ -54,7 +57,8 @@ public abstract class JarActionHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
-	public JarActionHandler(File jarDirectory) {
+	public JarActionHandler(Executor executor, File jarDirectory) {
+		super(executor);
 		jarDir = jarDirectory;
 	}
 

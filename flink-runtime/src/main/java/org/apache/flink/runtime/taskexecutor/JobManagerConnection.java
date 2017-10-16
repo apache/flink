@@ -19,17 +19,16 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.BlobCache;
+import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.Preconditions;
-
-import java.util.UUID;
 
 /**
  * Container class for JobManager specific communication utils used by the {@link TaskExecutor}.
@@ -42,9 +41,6 @@ public class JobManagerConnection {
 	// The unique id used for identifying the job manager
 	private final ResourceID resourceID;
 
-	// Job master leader session id
-	private final UUID leaderId;
-
 	// Gateway to the job master
 	private final JobMasterGateway jobMasterGateway;
 
@@ -55,7 +51,7 @@ public class JobManagerConnection {
 	private final CheckpointResponder checkpointResponder;
 
 	// BLOB cache connected to the BLOB server at the specific job manager
-	private final BlobCache blobCache;
+	private final BlobCacheService blobService;
 
 	// Library cache manager connected to the specific job manager
 	private final LibraryCacheManager libraryCacheManager;
@@ -70,19 +66,17 @@ public class JobManagerConnection {
 				JobID jobID,
 				ResourceID resourceID,
 				JobMasterGateway jobMasterGateway,
-				UUID leaderId,
 				TaskManagerActions taskManagerActions,
 				CheckpointResponder checkpointResponder,
-				BlobCache blobCache, LibraryCacheManager libraryCacheManager,
+				BlobCacheService blobService, LibraryCacheManager libraryCacheManager,
 				ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
 				PartitionProducerStateChecker partitionStateChecker) {
 		this.jobID = Preconditions.checkNotNull(jobID);
 		this.resourceID = Preconditions.checkNotNull(resourceID);
-		this.leaderId = Preconditions.checkNotNull(leaderId);
 		this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
 		this.taskManagerActions = Preconditions.checkNotNull(taskManagerActions);
 		this.checkpointResponder = Preconditions.checkNotNull(checkpointResponder);
-		this.blobCache = Preconditions.checkNotNull(blobCache);
+		this.blobService = Preconditions.checkNotNull(blobService);
 		this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
 		this.resultPartitionConsumableNotifier = Preconditions.checkNotNull(resultPartitionConsumableNotifier);
 		this.partitionStateChecker = Preconditions.checkNotNull(partitionStateChecker);
@@ -96,8 +90,8 @@ public class JobManagerConnection {
 		return resourceID;
 	}
 
-	public UUID getLeaderId() {
-		return leaderId;
+	public JobMasterId getJobMasterId() {
+		return jobMasterGateway.getFencingToken();
 	}
 
 	public JobMasterGateway getJobManagerGateway() {
@@ -121,8 +115,8 @@ public class JobManagerConnection {
 	 *
 	 * @return BLOB cache
 	 */
-	public BlobCache getBlobCache() {
-		return blobCache;
+	public BlobCacheService getBlobService() {
+		return blobService;
 	}
 
 	public ResultPartitionConsumableNotifier getResultPartitionConsumableNotifier() {

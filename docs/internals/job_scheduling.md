@@ -101,3 +101,5 @@ For that reason, the execution of an ExecutionVertex is tracked in an {% gh_link
 <div style="text-align: center;">
 <img src="{{ site.baseurl }}/fig/state_machine.svg" alt="States and Transitions of Task Executions" height="300px" style="text-align: center;"/>
 </div>
+
+{% top %}

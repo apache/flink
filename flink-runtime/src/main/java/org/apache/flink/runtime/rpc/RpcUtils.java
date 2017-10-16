@@ -18,13 +18,21 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.api.common.time.Time;
+
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Utility functions for Flink's RPC implementation
  */
 public class RpcUtils {
+
+	public static final Time INF_TIMEOUT = Time.milliseconds(Long.MAX_VALUE);
+
 	/**
 	 * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.
 	 *
@@ -45,6 +53,20 @@ public class RpcUtils {
 		}
 
 		return interfaces;
+	}
+
+	/**
+	 * Shuts the given {@link RpcEndpoint} down and awaits its termination.
+	 *
+	 * @param rpcEndpoint to terminate
+	 * @param timeout for this operation
+	 * @throws ExecutionException if a problem occurs
+	 * @throws InterruptedException if the operation has been interrupted
+	 * @throws TimeoutException if a timeout occurred
+	 */
+	public static void terminateRpcEndpoint(RpcEndpoint rpcEndpoint, Time timeout) throws ExecutionException, InterruptedException, TimeoutException {
+		rpcEndpoint.shutDown();
+		rpcEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 	}
 
 	// We don't want this class to be instantiable

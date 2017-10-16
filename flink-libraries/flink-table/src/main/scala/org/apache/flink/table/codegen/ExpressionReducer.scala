@@ -74,7 +74,8 @@ class ExpressionReducer(config: TableConfig)
       case (SqlTypeName.ANY, _) |
            (SqlTypeName.ROW, _) |
            (SqlTypeName.ARRAY, _) |
-           (SqlTypeName.MAP, _) => None
+           (SqlTypeName.MAP, _) |
+           (SqlTypeName.MULTISET, _) => None
 
       case (_, e) => Some(e)
     }
@@ -112,7 +113,11 @@ class ExpressionReducer(config: TableConfig)
       val unreduced = constExprs.get(i)
       unreduced.getType.getSqlTypeName match {
         // we insert the original expression for object literals
-        case SqlTypeName.ANY | SqlTypeName.ROW | SqlTypeName.ARRAY | SqlTypeName.MAP =>
+        case SqlTypeName.ANY |
+             SqlTypeName.ROW |
+             SqlTypeName.ARRAY |
+             SqlTypeName.MAP |
+             SqlTypeName.MULTISET =>
           reducedValues.add(unreduced)
         case _ =>
           val reducedValue = reduced.getField(reducedIdx)

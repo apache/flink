@@ -70,4 +70,27 @@ class SetOperatorsITCase extends StreamingMultipleProgramsTestBase {
     val expected = mutable.MutableList("Hi", "Hallo")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testUnionWithAnyType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    StreamITCase.testResults = mutable.MutableList()
+    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo)).toTable(tEnv, 'a, 'b)
+    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo)).toTable(tEnv, 'a, 'b)
+
+    val result = s1.unionAll(s2).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("1,{}", "2,{}", "3,{}", "4,{}")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  class NonPojo {
+    val x = new java.util.HashMap[String, String]()
+
+    override def toString: String = x.toString
+  }
 }

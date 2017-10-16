@@ -28,9 +28,7 @@ import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.EnumSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.cep.NonDuplicatingTypeSerializer;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
@@ -48,7 +46,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OptionalDataException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -489,7 +486,6 @@ public class NFA<T> implements Serializable {
 		}
 	}
 
-
 	/**
 	 * Computes the next computation states based on the given computation state, the current event,
 	 * its timestamp and the internal state machine. The algorithm is:
@@ -793,53 +789,6 @@ public class NFA<T> implements Serializable {
 		return result;
 	}
 
-	//////////////////////			Fault-Tolerance			//////////////////////
-
-	private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		ois.defaultReadObject();
-
-		int numberComputationStates = ois.readInt();
-
-		computationStates = new LinkedList<>();
-
-		final List<ComputationState<T>> readComputationStates = new ArrayList<>(numberComputationStates);
-
-		for (int i = 0; i < numberComputationStates; i++) {
-			ComputationState<T> computationState = readComputationState(ois);
-			readComputationStates.add(computationState);
-		}
-
-		this.computationStates.addAll(readComputationStates);
-		nonDuplicatingTypeSerializer.clearReferences();
-	}
-
-	@SuppressWarnings("unchecked")
-	private ComputationState<T> readComputationState(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-		final State<T> state = (State<T>) ois.readObject();
-		State<T> previousState;
-		try {
-			previousState = (State<T>) ois.readObject();
-		} catch (OptionalDataException e) {
-			previousState = null;
-		}
-
-		final long timestamp = ois.readLong();
-		final DeweyNumber version = (DeweyNumber) ois.readObject();
-		final long startTimestamp = ois.readLong();
-
-		final boolean hasEvent = ois.readBoolean();
-		final T event;
-
-		if (hasEvent) {
-			DataInputViewStreamWrapper input = new DataInputViewStreamWrapper(ois);
-			event = nonDuplicatingTypeSerializer.deserialize(input);
-		} else {
-			event = null;
-		}
-
-		return ComputationState.createState(this, state, previousState, event, 0, timestamp, version, startTimestamp);
-	}
-
 	//////////////////////			New Serialization			//////////////////////
 
 	/**
@@ -893,8 +842,8 @@ public class NFA<T> implements Serializable {
 		}
 
 		@Override
-		public TypeSerializer<NFA<T>> duplicate() {
-			return this;
+		public NFASerializer<T> duplicate() {
+			return new NFASerializer<>(eventSerializer.duplicate());
 		}
 
 		@Override
@@ -906,21 +855,13 @@ public class NFA<T> implements Serializable {
 		public NFA<T> copy(NFA<T> from) {
 			try {
 				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-				serialize(from, new DataOutputViewStreamWrapper(oos));
-
-				oos.close();
+				serialize(from, new DataOutputViewStreamWrapper(baos));
 				baos.close();
 
 				byte[] data = baos.toByteArray();
 
 				ByteArrayInputStream bais = new ByteArrayInputStream(data);
-				ObjectInputStream ois = new ObjectInputStream(bais);
-
-				@SuppressWarnings("unchecked")
-				NFA<T> copy = deserialize(new DataInputViewStreamWrapper(ois));
-				ois.close();
+				NFA<T> copy = deserialize(new DataInputViewStreamWrapper(bais));
 				bais.close();
 				return copy;
 			} catch (IOException e) {
@@ -1234,93 +1175,6 @@ public class NFA<T> implements Serializable {
 				return condition;
 			}
 			return null;
-		}
-	}
-
-	//////////////////			Old Serialization			//////////////////////
-
-	/**
-	 * A {@link TypeSerializer} for {@link NFA} that uses Java Serialization.
-	 */
-	public static class Serializer<T> extends TypeSerializerSingleton<NFA<T>> {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public boolean isImmutableType() {
-			return false;
-		}
-
-		@Override
-		public NFA<T> createInstance() {
-			return null;
-		}
-
-		@Override
-		public NFA<T> copy(NFA<T> from) {
-			try {
-				ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-				oos.writeObject(from);
-
-				oos.close();
-				baos.close();
-
-				byte[] data = baos.toByteArray();
-
-				ByteArrayInputStream bais = new ByteArrayInputStream(data);
-				ObjectInputStream ois = new ObjectInputStream(bais);
-
-				@SuppressWarnings("unchecked")
-				NFA<T> copy = (NFA<T>) ois.readObject();
-				ois.close();
-				bais.close();
-				return copy;
-			} catch (IOException | ClassNotFoundException e) {
-				throw new RuntimeException("Could not copy NFA.", e);
-			}
-		}
-
-		@Override
-		public NFA<T> copy(NFA<T> from, NFA<T> reuse) {
-			return copy(from);
-		}
-
-		@Override
-		public int getLength() {
-			return 0;
-		}
-
-		@Override
-		public void serialize(NFA<T> record, DataOutputView target) throws IOException {
-			throw new UnsupportedOperationException("This is the deprecated serialization strategy.");
-		}
-
-		@Override
-		public NFA<T> deserialize(DataInputView source) throws IOException {
-			try (ObjectInputStream ois = new ObjectInputStream(new DataInputViewStream(source))) {
-				return (NFA<T>) ois.readObject();
-			} catch (ClassNotFoundException e) {
-				throw new RuntimeException("Could not deserialize NFA.", e);
-			}
-		}
-
-		@Override
-		public NFA<T> deserialize(NFA<T> reuse, DataInputView source) throws IOException {
-			return deserialize(source);
-		}
-
-		@Override
-		public void copy(DataInputView source, DataOutputView target) throws IOException {
-			int size = source.readInt();
-			target.writeInt(size);
-			target.write(source, size);
-		}
-
-		@Override
-		public boolean canEqual(Object obj) {
-			return obj instanceof Serializer;
 		}
 	}
 }

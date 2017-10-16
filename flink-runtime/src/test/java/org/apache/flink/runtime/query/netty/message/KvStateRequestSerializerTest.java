@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -34,10 +33,6 @@ import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
-
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
-import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,17 +48,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
 /**
- * Tests for {@link KvStateRequestSerializer}.
+ * Tests for {@link KvStateSerializer}.
  */
 @RunWith(Parameterized.class)
 public class KvStateRequestSerializerTest {
-
-	private final ByteBufAllocator alloc = UnpooledByteBufAllocator.DEFAULT;
 
 	@Parameterized.Parameters
 	public static Collection<Boolean> parameters() {
@@ -72,155 +64,6 @@ public class KvStateRequestSerializerTest {
 
 	@Parameterized.Parameter
 	public boolean async;
-
-	/**
-	 * Tests KvState request serialization.
-	 */
-	@Test
-	public void testKvStateRequestSerialization() throws Exception {
-		long requestId = Integer.MAX_VALUE + 1337L;
-		KvStateID kvStateId = new KvStateID();
-		byte[] serializedKeyAndNamespace = randomByteArray(1024);
-
-		ByteBuf buf = KvStateRequestSerializer.serializeKvStateRequest(
-				alloc,
-				requestId,
-				kvStateId,
-				serializedKeyAndNamespace);
-
-		int frameLength = buf.readInt();
-		assertEquals(KvStateRequestType.REQUEST, KvStateRequestSerializer.deserializeHeader(buf));
-		KvStateRequest request = KvStateRequestSerializer.deserializeKvStateRequest(buf);
-		assertEquals(buf.readerIndex(), frameLength + 4);
-
-		assertEquals(requestId, request.getRequestId());
-		assertEquals(kvStateId, request.getKvStateId());
-		assertArrayEquals(serializedKeyAndNamespace, request.getSerializedKeyAndNamespace());
-	}
-
-	/**
-	 * Tests KvState request serialization with zero-length serialized key and namespace.
-	 */
-	@Test
-	public void testKvStateRequestSerializationWithZeroLengthKeyAndNamespace() throws Exception {
-		byte[] serializedKeyAndNamespace = new byte[0];
-
-		ByteBuf buf = KvStateRequestSerializer.serializeKvStateRequest(
-				alloc,
-				1823,
-				new KvStateID(),
-				serializedKeyAndNamespace);
-
-		int frameLength = buf.readInt();
-		assertEquals(KvStateRequestType.REQUEST, KvStateRequestSerializer.deserializeHeader(buf));
-		KvStateRequest request = KvStateRequestSerializer.deserializeKvStateRequest(buf);
-		assertEquals(buf.readerIndex(), frameLength + 4);
-
-		assertArrayEquals(serializedKeyAndNamespace, request.getSerializedKeyAndNamespace());
-	}
-
-	/**
-	 * Tests that we don't try to be smart about <code>null</code> key and namespace.
-	 * They should be treated explicitly.
-	 */
-	@Test(expected = NullPointerException.class)
-	public void testNullPointerExceptionOnNullSerializedKeyAndNamepsace() throws Exception {
-		new KvStateRequest(0, new KvStateID(), null);
-	}
-
-	/**
-	 * Tests KvState request result serialization.
-	 */
-	@Test
-	public void testKvStateRequestResultSerialization() throws Exception {
-		long requestId = Integer.MAX_VALUE + 72727278L;
-		byte[] serializedResult = randomByteArray(1024);
-
-		ByteBuf buf = KvStateRequestSerializer.serializeKvStateRequestResult(
-				alloc,
-				requestId,
-				serializedResult);
-
-		int frameLength = buf.readInt();
-		assertEquals(KvStateRequestType.REQUEST_RESULT, KvStateRequestSerializer.deserializeHeader(buf));
-		KvStateRequestResult request = KvStateRequestSerializer.deserializeKvStateRequestResult(buf);
-		assertEquals(buf.readerIndex(), frameLength + 4);
-
-		assertEquals(requestId, request.getRequestId());
-
-		assertArrayEquals(serializedResult, request.getSerializedResult());
-	}
-
-	/**
-	 * Tests KvState request result serialization with zero-length serialized result.
-	 */
-	@Test
-	public void testKvStateRequestResultSerializationWithZeroLengthSerializedResult() throws Exception {
-		byte[] serializedResult = new byte[0];
-
-		ByteBuf buf = KvStateRequestSerializer.serializeKvStateRequestResult(
-				alloc,
-				72727278,
-				serializedResult);
-
-		int frameLength = buf.readInt();
-
-		assertEquals(KvStateRequestType.REQUEST_RESULT, KvStateRequestSerializer.deserializeHeader(buf));
-		KvStateRequestResult request = KvStateRequestSerializer.deserializeKvStateRequestResult(buf);
-		assertEquals(buf.readerIndex(), frameLength + 4);
-
-		assertArrayEquals(serializedResult, request.getSerializedResult());
-	}
-
-	/**
-	 * Tests that we don't try to be smart about <code>null</code> results.
-	 * They should be treated explicitly.
-	 */
-	@Test(expected = NullPointerException.class)
-	public void testNullPointerExceptionOnNullSerializedResult() throws Exception {
-		new KvStateRequestResult(0, null);
-	}
-
-	/**
-	 * Tests KvState request failure serialization.
-	 */
-	@Test
-	public void testKvStateRequestFailureSerialization() throws Exception {
-		long requestId = Integer.MAX_VALUE + 1111222L;
-		IllegalStateException cause = new IllegalStateException("Expected test");
-
-		ByteBuf buf = KvStateRequestSerializer.serializeKvStateRequestFailure(
-				alloc,
-				requestId,
-				cause);
-
-		int frameLength = buf.readInt();
-		assertEquals(KvStateRequestType.REQUEST_FAILURE, KvStateRequestSerializer.deserializeHeader(buf));
-		KvStateRequestFailure request = KvStateRequestSerializer.deserializeKvStateRequestFailure(buf);
-		assertEquals(buf.readerIndex(), frameLength + 4);
-
-		assertEquals(requestId, request.getRequestId());
-		assertEquals(cause.getClass(), request.getCause().getClass());
-		assertEquals(cause.getMessage(), request.getCause().getMessage());
-	}
-
-	/**
-	 * Tests KvState server failure serialization.
-	 */
-	@Test
-	public void testServerFailureSerialization() throws Exception {
-		IllegalStateException cause = new IllegalStateException("Expected test");
-
-		ByteBuf buf = KvStateRequestSerializer.serializeServerFailure(alloc, cause);
-
-		int frameLength = buf.readInt();
-		assertEquals(KvStateRequestType.SERVER_FAILURE, KvStateRequestSerializer.deserializeHeader(buf));
-		Throwable request = KvStateRequestSerializer.deserializeServerFailure(buf);
-		assertEquals(buf.readerIndex(), frameLength + 4);
-
-		assertEquals(cause.getClass(), request.getClass());
-		assertEquals(cause.getMessage(), request.getMessage());
-	}
 
 	/**
 	 * Tests key and namespace serialization utils.
@@ -233,10 +76,10 @@ public class KvStateRequestSerializerTest {
 		long expectedKey = Integer.MAX_VALUE + 12323L;
 		String expectedNamespace = "knilf";
 
-		byte[] serializedKeyAndNamespace = KvStateRequestSerializer.serializeKeyAndNamespace(
+		byte[] serializedKeyAndNamespace = KvStateSerializer.serializeKeyAndNamespace(
 				expectedKey, keySerializer, expectedNamespace, namespaceSerializer);
 
-		Tuple2<Long, String> actual = KvStateRequestSerializer.deserializeKeyAndNamespace(
+		Tuple2<Long, String> actual = KvStateSerializer.deserializeKeyAndNamespace(
 				serializedKeyAndNamespace, keySerializer, namespaceSerializer);
 
 		assertEquals(expectedKey, actual.f0.longValue());
@@ -248,7 +91,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test(expected = IOException.class)
 	public void testKeyAndNamespaceDeserializationEmpty() throws Exception {
-		KvStateRequestSerializer.deserializeKeyAndNamespace(
+		KvStateSerializer.deserializeKeyAndNamespace(
 			new byte[] {}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
 	}
 
@@ -257,7 +100,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test(expected = IOException.class)
 	public void testKeyAndNamespaceDeserializationTooShort() throws Exception {
-		KvStateRequestSerializer.deserializeKeyAndNamespace(
+		KvStateSerializer.deserializeKeyAndNamespace(
 			new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
 	}
 
@@ -267,7 +110,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testKeyAndNamespaceDeserializationTooMany1() throws Exception {
 		// Long + null String + 1 byte
-		KvStateRequestSerializer.deserializeKeyAndNamespace(
+		KvStateSerializer.deserializeKeyAndNamespace(
 			new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2}, LongSerializer.INSTANCE,
 			StringSerializer.INSTANCE);
 	}
@@ -278,7 +121,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testKeyAndNamespaceDeserializationTooMany2() throws Exception {
 		// Long + null String + 2 bytes
-		KvStateRequestSerializer.deserializeKeyAndNamespace(
+		KvStateSerializer.deserializeKeyAndNamespace(
 			new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2, 2}, LongSerializer.INSTANCE,
 			StringSerializer.INSTANCE);
 	}
@@ -291,8 +134,8 @@ public class KvStateRequestSerializerTest {
 		TypeSerializer<Long> valueSerializer = LongSerializer.INSTANCE;
 		long expectedValue = Long.MAX_VALUE - 1292929292L;
 
-		byte[] serializedValue = KvStateRequestSerializer.serializeValue(expectedValue, valueSerializer);
-		long actualValue = KvStateRequestSerializer.deserializeValue(serializedValue, valueSerializer);
+		byte[] serializedValue = KvStateSerializer.serializeValue(expectedValue, valueSerializer);
+		long actualValue = KvStateSerializer.deserializeValue(serializedValue, valueSerializer);
 
 		assertEquals(expectedValue, actualValue);
 	}
@@ -302,7 +145,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test(expected = IOException.class)
 	public void testDeserializeValueEmpty() throws Exception {
-		KvStateRequestSerializer.deserializeValue(new byte[] {}, LongSerializer.INSTANCE);
+		KvStateSerializer.deserializeValue(new byte[] {}, LongSerializer.INSTANCE);
 	}
 
 	/**
@@ -311,7 +154,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeValueTooShort() throws Exception {
 		// 1 byte (incomplete Long)
-		KvStateRequestSerializer.deserializeValue(new byte[] {1}, LongSerializer.INSTANCE);
+		KvStateSerializer.deserializeValue(new byte[] {1}, LongSerializer.INSTANCE);
 	}
 
 	/**
@@ -320,7 +163,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeValueTooMany1() throws Exception {
 		// Long + 1 byte
-		KvStateRequestSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2},
+		KvStateSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2},
 			LongSerializer.INSTANCE);
 	}
 
@@ -330,7 +173,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeValueTooMany2() throws Exception {
 		// Long + 2 bytes
-		KvStateRequestSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+		KvStateSerializer.deserializeValue(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
 			LongSerializer.INSTANCE);
 	}
 
@@ -363,7 +206,7 @@ public class KvStateRequestSerializerTest {
 
 	/**
 	 * Verifies that the serialization of a list using the given list state
-	 * matches the deserialization with {@link KvStateRequestSerializer#deserializeList}.
+	 * matches the deserialization with {@link KvStateSerializer#deserializeList}.
 	 *
 	 * @param key
 	 * 		key of the list state
@@ -390,19 +233,19 @@ public class KvStateRequestSerializerTest {
 		}
 
 		final byte[] serializedKey =
-			KvStateRequestSerializer.serializeKeyAndNamespace(
+			KvStateSerializer.serializeKeyAndNamespace(
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
 
 		final byte[] serializedValues = listState.getSerializedValue(serializedKey);
 
-		List<Long> actualValues = KvStateRequestSerializer.deserializeList(serializedValues, valueSerializer);
+		List<Long> actualValues = KvStateSerializer.deserializeList(serializedValues, valueSerializer);
 		assertEquals(expectedValues, actualValues);
 
 		// Single value
 		long expectedValue = ThreadLocalRandom.current().nextLong();
-		byte[] serializedValue = KvStateRequestSerializer.serializeValue(expectedValue, valueSerializer);
-		List<Long> actualValue = KvStateRequestSerializer.deserializeList(serializedValue, valueSerializer);
+		byte[] serializedValue = KvStateSerializer.serializeValue(expectedValue, valueSerializer);
+		List<Long> actualValue = KvStateSerializer.deserializeList(serializedValue, valueSerializer);
 		assertEquals(1, actualValue.size());
 		assertEquals(expectedValue, actualValue.get(0).longValue());
 	}
@@ -412,7 +255,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test
 	public void testDeserializeListEmpty() throws Exception {
-		List<Long> actualValue = KvStateRequestSerializer
+		List<Long> actualValue = KvStateSerializer
 			.deserializeList(new byte[] {}, LongSerializer.INSTANCE);
 		assertEquals(0, actualValue.size());
 	}
@@ -423,7 +266,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeListTooShort1() throws Exception {
 		// 1 byte (incomplete Long)
-		KvStateRequestSerializer.deserializeList(new byte[] {1}, LongSerializer.INSTANCE);
+		KvStateSerializer.deserializeList(new byte[] {1}, LongSerializer.INSTANCE);
 	}
 
 	/**
@@ -432,7 +275,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeListTooShort2() throws Exception {
 		// Long + 1 byte (separator) + 1 byte (incomplete Long)
-		KvStateRequestSerializer.deserializeList(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3},
+		KvStateSerializer.deserializeList(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3},
 			LongSerializer.INSTANCE);
 	}
 
@@ -466,7 +309,7 @@ public class KvStateRequestSerializerTest {
 
 	/**
 	 * Verifies that the serialization of a map using the given map state
-	 * matches the deserialization with {@link KvStateRequestSerializer#deserializeList}.
+	 * matches the deserialization with {@link KvStateSerializer#deserializeList}.
 	 *
 	 * @param key
 	 * 		key of the map state
@@ -497,13 +340,13 @@ public class KvStateRequestSerializerTest {
 		mapState.put(0L, null);
 
 		final byte[] serializedKey =
-			KvStateRequestSerializer.serializeKeyAndNamespace(
+			KvStateSerializer.serializeKeyAndNamespace(
 				key, LongSerializer.INSTANCE,
 				VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE);
 
 		final byte[] serializedValues = mapState.getSerializedValue(serializedKey);
 
-		Map<Long, String> actualValues = KvStateRequestSerializer.deserializeMap(serializedValues, userKeySerializer, userValueSerializer);
+		Map<Long, String> actualValues = KvStateSerializer.deserializeMap(serializedValues, userKeySerializer, userValueSerializer);
 		assertEquals(expectedValues.size(), actualValues.size());
 		for (Map.Entry<Long, String> actualEntry : actualValues.entrySet()) {
 			assertEquals(expectedValues.get(actualEntry.getKey()), actualEntry.getValue());
@@ -515,12 +358,12 @@ public class KvStateRequestSerializerTest {
 		String expectedValue = Long.toString(expectedKey);
 		byte[] isNull = {0};
 
-		baos.write(KvStateRequestSerializer.serializeValue(expectedKey, userKeySerializer));
+		baos.write(KvStateSerializer.serializeValue(expectedKey, userKeySerializer));
 		baos.write(isNull);
-		baos.write(KvStateRequestSerializer.serializeValue(expectedValue, userValueSerializer));
+		baos.write(KvStateSerializer.serializeValue(expectedValue, userValueSerializer));
 		byte[] serializedValue = baos.toByteArray();
 
-		Map<Long, String> actualValue = KvStateRequestSerializer.deserializeMap(serializedValue, userKeySerializer, userValueSerializer);
+		Map<Long, String> actualValue = KvStateSerializer.deserializeMap(serializedValue, userKeySerializer, userValueSerializer);
 		assertEquals(1, actualValue.size());
 		assertEquals(expectedValue, actualValue.get(expectedKey));
 	}
@@ -530,7 +373,7 @@ public class KvStateRequestSerializerTest {
 	 */
 	@Test
 	public void testDeserializeMapEmpty() throws Exception {
-		Map<Long, String> actualValue = KvStateRequestSerializer
+		Map<Long, String> actualValue = KvStateSerializer
 			.deserializeMap(new byte[] {}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
 		assertEquals(0, actualValue.size());
 	}
@@ -541,7 +384,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeMapTooShort1() throws Exception {
 		// 1 byte (incomplete Key)
-		KvStateRequestSerializer.deserializeMap(new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+		KvStateSerializer.deserializeMap(new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
 	}
 
 	/**
@@ -550,7 +393,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeMapTooShort2() throws Exception {
 		// Long (Key) + 1 byte (incomplete Value)
-		KvStateRequestSerializer.deserializeMap(new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 0},
+		KvStateSerializer.deserializeMap(new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 0},
 				LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 	}
 
@@ -560,7 +403,7 @@ public class KvStateRequestSerializerTest {
 	@Test(expected = IOException.class)
 	public void testDeserializeMapTooShort3() throws Exception {
 		// Long (Key1) + Boolean (false) + Long (Value1) + 1 byte (incomplete Key2)
-		KvStateRequestSerializer.deserializeMap(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 3},
+		KvStateSerializer.deserializeMap(new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 3},
 			LongSerializer.INSTANCE, LongSerializer.INSTANCE);
 	}
 

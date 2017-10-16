@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.query.netty;
 
 /**
- * Simple statistics for {@link KvStateServer} monitoring.
+ * Simple statistics for
+ * {@link org.apache.flink.runtime.query.KvStateServer} and
+ * {@link org.apache.flink.runtime.query.KvStateClientProxy} monitoring.
  */
 public interface KvStateRequestStats {
 

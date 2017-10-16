@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import org.slf4j.Logger;
 
-import java.util.UUID;
+import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -43,10 +44,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The registration can be canceled, for example when the target where it tries to register
  * at looses leader status.
  *
- * @param <Gateway> The type of the gateway to connect to.
- * @param <Success> The type of the successful registration responses.
+ * @param <F> The type of the fencing token
+ * @param <G> The type of the gateway to connect to.
+ * @param <S> The type of the successful registration responses.
  */
-public abstract class RetryingRegistration<Gateway extends RpcGateway, Success extends RegistrationResponse.Success> {
+public abstract class RetryingRegistration<F extends Serializable, G extends RpcGateway, S extends RegistrationResponse.Success> {
 
 	// ------------------------------------------------------------------------
 	//  default configuration values
@@ -74,13 +76,13 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 
 	private final String targetName;
 
-	private final Class<Gateway> targetType;
+	private final Class<G> targetType;
 
 	private final String targetAddress;
 
-	private final UUID leaderId;
+	private final F fencingToken;
 
-	private final CompletableFuture<Tuple2<Gateway, Success>> completionFuture;
+	private final CompletableFuture<Tuple2<G, S>> completionFuture;
 
 	private final long initialRegistrationTimeout;
 
@@ -98,10 +100,10 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			Logger log,
 			RpcService rpcService,
 			String targetName,
-			Class<Gateway> targetType,
+			Class<G> targetType,
 			String targetAddress,
-			UUID leaderId) {
-		this(log, rpcService, targetName, targetType, targetAddress, leaderId,
+			F fencingToken) {
+		this(log, rpcService, targetName, targetType, targetAddress, fencingToken,
 				INITIAL_REGISTRATION_TIMEOUT_MILLIS, MAX_REGISTRATION_TIMEOUT_MILLIS,
 				ERROR_REGISTRATION_DELAY_MILLIS, REFUSED_REGISTRATION_DELAY_MILLIS);
 	}
@@ -110,9 +112,9 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			Logger log,
 			RpcService rpcService,
 			String targetName,
-			Class<Gateway> targetType,
+			Class<G> targetType,
 			String targetAddress,
-			UUID leaderId,
+			F fencingToken,
 			long initialRegistrationTimeout,
 			long maxRegistrationTimeout,
 			long delayOnError,
@@ -128,7 +130,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 		this.targetName = checkNotNull(targetName);
 		this.targetType = checkNotNull(targetType);
 		this.targetAddress = checkNotNull(targetAddress);
-		this.leaderId = checkNotNull(leaderId);
+		this.fencingToken = checkNotNull(fencingToken);
 		this.initialRegistrationTimeout = initialRegistrationTimeout;
 		this.maxRegistrationTimeout = maxRegistrationTimeout;
 		this.delayOnError = delayOnError;
@@ -141,7 +143,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	//  completion and cancellation
 	// ------------------------------------------------------------------------
 
-	public CompletableFuture<Tuple2<Gateway, Success>> getFuture() {
+	public CompletableFuture<Tuple2<G, S>> getFuture() {
 		return completionFuture;
 	}
 
@@ -149,6 +151,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	 * Cancels the registration procedure.
 	 */
 	public void cancel() {
+		completionFuture.cancel(false);
 		canceled = true;
 	}
 
@@ -165,7 +168,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	// ------------------------------------------------------------------------
 
 	protected abstract CompletableFuture<RegistrationResponse> invokeRegistration(
-			Gateway gateway, UUID leaderId, long timeoutMillis) throws Exception;
+		G gateway, F fencingToken, long timeoutMillis) throws Exception;
 
 	/**
 	 * This method resolves the target address to a callable gateway and starts the
@@ -173,13 +176,27 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	 */
 	@SuppressWarnings("unchecked")
 	public void startRegistration() {
+		if (canceled) {
+			// we already got canceled
+			return;
+		}
+
 		try {
 			// trigger resolution of the resource manager address to a callable gateway
-			CompletableFuture<Gateway> resourceManagerFuture = rpcService.connect(targetAddress, targetType);
+			final CompletableFuture<G> resourceManagerFuture;
+
+			if (FencedRpcGateway.class.isAssignableFrom(targetType)) {
+				resourceManagerFuture = (CompletableFuture<G>) rpcService.connect(
+					targetAddress,
+					fencingToken,
+					targetType.asSubclass(FencedRpcGateway.class));
+			} else {
+				resourceManagerFuture = rpcService.connect(targetAddress, targetType);
+			}
 
 			// upon success, start the registration attempts
 			CompletableFuture<Void> resourceManagerAcceptFuture = resourceManagerFuture.thenAcceptAsync(
-				(Gateway result) -> {
+				(G result) -> {
 					log.info("Resolved {} address, beginning registration", targetName);
 					register(result, 1, initialRegistrationTimeout);
 				},
@@ -188,16 +205,17 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 			// upon failure, retry, unless this is cancelled
 			resourceManagerAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
-					if (failure != null && !isCanceled()) {
-						log.warn("Could not resolve {} address {}, retrying...", targetName, targetAddress, failure);
-						startRegistration();
+					if (failure != null && !canceled) {
+						log.warn("Could not resolve {} address {}, retrying in {} ms", targetName, targetAddress, delayOnError, failure);
+
+						startRegistrationLater(delayOnError);
 					}
 				},
 				rpcService.getExecutor());
 		}
 		catch (Throwable t) {
-			cancel();
 			completionFuture.completeExceptionally(t);
+			cancel();
 		}
 	}
 
@@ -206,7 +224,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 	 * depending on the result.
 	 */
 	@SuppressWarnings("unchecked")
-	private void register(final Gateway gateway, final int attempt, final long timeoutMillis) {
+	private void register(final G gateway, final int attempt, final long timeoutMillis) {
 		// eager check for canceling to avoid some unnecessary work
 		if (canceled) {
 			return;
@@ -214,7 +232,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 
 		try {
 			log.info("Registration at {} attempt {} (timeout={}ms)", targetName, attempt, timeoutMillis);
-			CompletableFuture<RegistrationResponse> registrationFuture = invokeRegistration(gateway, leaderId, timeoutMillis);
+			CompletableFuture<RegistrationResponse> registrationFuture = invokeRegistration(gateway, fencingToken, timeoutMillis);
 
 			// if the registration was successful, let the TaskExecutor know
 			CompletableFuture<Void> registrationAcceptFuture = registrationFuture.thenAcceptAsync(
@@ -222,7 +240,7 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 					if (!isCanceled()) {
 						if (result instanceof RegistrationResponse.Success) {
 							// registration successful!
-							Success success = (Success) result;
+							S success = (S) result;
 							completionFuture.complete(Tuple2.of(gateway, success));
 						}
 						else {
@@ -269,17 +287,24 @@ public abstract class RetryingRegistration<Gateway extends RpcGateway, Success e
 				rpcService.getExecutor());
 		}
 		catch (Throwable t) {
-			cancel();
 			completionFuture.completeExceptionally(t);
+			cancel();
 		}
 	}
 
-	private void registerLater(final Gateway gateway, final int attempt, final long timeoutMillis, long delay) {
+	private void registerLater(final G gateway, final int attempt, final long timeoutMillis, long delay) {
 		rpcService.scheduleRunnable(new Runnable() {
 			@Override
 			public void run() {
 				register(gateway, attempt, timeoutMillis);
 			}
 		}, delay, TimeUnit.MILLISECONDS);
+	}
+
+	private void startRegistrationLater(final long delay) {
+		rpcService.scheduleRunnable(
+			this::startRegistration,
+			delay,
+			TimeUnit.MILLISECONDS);
 	}
 }

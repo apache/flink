@@ -37,13 +37,24 @@ abstract class FlinkTable[T](
 
   if (fieldIndexes.length != fieldNames.length) {
     throw new TableException(
-      "Number of field indexes and field names must be equal.")
+      s"Number of field names and field indexes must be equal.\n" +
+        s"Number of names is ${fieldNames.length}, number of indexes is ${fieldIndexes.length}.\n" +
+        s"List of column names: ${fieldNames.mkString("[", ", ", "]")}.\n" +
+        s"List of column indexes: ${fieldIndexes.mkString("[", ", ", "]")}.")
   }
 
   // check uniqueness of field names
   if (fieldNames.length != fieldNames.toSet.size) {
+    val duplicateFields = fieldNames
+      // count occurences of field names
+      .groupBy(identity).mapValues(_.length)
+      // filter for occurences > 1 and map to field name
+      .filter(g => g._2 > 1).keys
+
     throw new TableException(
-      "Table field names must be unique.")
+      s"Field names must be unique.\n" +
+        s"List of duplicate fields: ${duplicateFields.mkString("[", ", ", "]")}.\n" +
+        s"List of all fields: ${fieldNames.mkString("[", ", ", "]")}.")
   }
 
   val fieldTypes: Array[TypeInformation[_]] =

@@ -87,7 +87,8 @@ public class FeedbackTransformation<T> extends StreamTransformation<T> {
 			throw new UnsupportedOperationException(
 					"Parallelism of the feedback stream must match the parallelism of the original" +
 							" stream. Parallelism of original stream: " + this.getParallelism() +
-							"; parallelism of feedback stream: " + transform.getParallelism());
+							"; parallelism of feedback stream: " + transform.getParallelism() +
+							". Parallelism can be modified using DataStream#setParallelism() method");
 		}
 
 		feedbackEdges.add(transform);

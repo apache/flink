@@ -55,7 +55,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedStream;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 import org.apache.flink.shaded.netty4.io.netty.util.CharsetUtil;
 
-import org.jets3t.service.utils.Mimetypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -312,7 +311,7 @@ public class MesosArtifactServer implements MesosArtifactResolver {
 			HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
 			HttpHeaders.setHeader(response, CONNECTION, HttpHeaders.Values.CLOSE);
 			HttpHeaders.setHeader(response, CACHE_CONTROL, "private");
-			HttpHeaders.setHeader(response, CONTENT_TYPE, Mimetypes.MIMETYPE_OCTET_STREAM);
+			HttpHeaders.setHeader(response, CONTENT_TYPE, "application/octet-stream");
 			HttpHeaders.setContentLength(response, status.getLen());
 
 			ctx.write(response);

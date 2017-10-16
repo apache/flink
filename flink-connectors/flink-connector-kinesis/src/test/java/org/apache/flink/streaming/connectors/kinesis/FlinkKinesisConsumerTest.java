@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -31,8 +32,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -40,6 +39,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumbe
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -48,6 +48,7 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -60,6 +61,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +72,6 @@ import java.util.UUID;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -85,453 +86,6 @@ public class FlinkKinesisConsumerTest {
 
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
-
-	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.validateAwsConfiguration() tests
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testMissingAwsRegionInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("The AWS region ('" + AWSConfigConstants.AWS_REGION + "') must be set in the config.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKey");
-		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		KinesisConfigUtil.validateAwsConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnrecognizableAwsRegionInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid AWS region");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "wrongRegionId");
-		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		KinesisConfigUtil.validateAwsConfiguration(testConfig);
-	}
-
-	@Test
-	public void testCredentialProviderTypeSetToBasicButNoCredentialSetInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Please set values for AWS Access Key ID ('" + AWSConfigConstants.AWS_ACCESS_KEY_ID + "') " +
-			"and Secret Key ('" + AWSConfigConstants.AWS_SECRET_ACCESS_KEY + "') when using the BASIC AWS credential provider type.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-
-		KinesisConfigUtil.validateAwsConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnrecognizableCredentialProviderTypeInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid AWS Credential Provider Type");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "wrongProviderType");
-		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		KinesisConfigUtil.validateAwsConfiguration(testConfig);
-	}
-
-	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.validateConsumerConfiguration() tests
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testUnrecognizableStreamInitPositionTypeInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid initial position in stream");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "wrongInitPosition");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testStreamInitPositionTypeSetToAtTimestampButNoInitTimestampSetInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Please set value for initial timestamp ('"
-			+ ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableDateForInitialTimestampInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "unparsableDate");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testIllegalValueForInitialTimestampInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "-1.0");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testDateStringForValidateOptionDateProperty() {
-		String timestamp = "2016-04-04T19:58:46.480-00:00";
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, timestamp);
-
-		try {
-			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail();
-		}
-	}
-
-	@Test
-	public void testUnixTimestampForValidateOptionDateProperty() {
-		String unixTimestamp = "1459799926.480";
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
-
-		try {
-			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail();
-		}
-	}
-
-	@Test
-	public void testInvalidPatternForInitialTimestampInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "2016-03-14");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "InvalidPattern");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableDateForUserDefinedDateFormatForInitialTimestampInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "stillUnparsable");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "yyyy-MM-dd");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testDateStringForUserDefinedDateFormatForValidateOptionDateProperty() {
-		String unixTimestamp = "2016-04-04";
-		String pattern = "yyyy-MM-dd";
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, pattern);
-
-		try {
-			KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail();
-		}
-	}
-
-	@Test
-	public void testUnparsableLongForDescribeStreamBackoffBaseMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForDescribeStreamBackoffMaxMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableDoubleForDescribeStreamBackoffExponentialConstantInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableIntForGetRecordsRetriesInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum retry attempts for getRecords shard operation");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES, "unparsableInt");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableIntForGetRecordsMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum records per getRecords shard operation");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "unparsableInt");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForGetRecordsBackoffBaseMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for get records operation base backoff milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForGetRecordsBackoffMaxMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for get records operation max backoff milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableDoubleForGetRecordsBackoffExponentialConstantInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for get records operation backoff exponential constant");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForGetRecordsIntervalMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for getRecords sleep interval in milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableIntForGetShardIteratorRetriesInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum retry attempts for getShardIterator shard operation");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES, "unparsableInt");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForGetShardIteratorBackoffBaseMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for get shard iterator operation base backoff milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForGetShardIteratorBackoffMaxMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for get shard iterator operation max backoff milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableDoubleForGetShardIteratorBackoffExponentialConstantInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for get shard iterator operation backoff exponential constant");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForShardDiscoveryIntervalMillisInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for shard discovery sleep interval in milliseconds");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
-
-		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	// ----------------------------------------------------------------------
-	// FlinkKinesisConsumer.validateProducerConfiguration() tests
-	// ----------------------------------------------------------------------
-
-	@Test
-	public void testUnparsableLongForCollectionMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum number of items to pack into a PutRecords request");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ProducerConfigConstants.COLLECTION_MAX_COUNT, "unparsableLong");
-
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
-	}
-
-	@Test
-	public void testUnparsableLongForAggregationMaxCountInConfig() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Invalid value given for maximum number of items to pack into an aggregated record");
-
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ProducerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		testConfig.setProperty(ProducerConfigConstants.AGGREGATION_MAX_COUNT, "unparsableLong");
-
-		KinesisConfigUtil.validateProducerConfiguration(testConfig);
-	}
 
 	// ----------------------------------------------------------------------
 	// Tests related to state initialization
@@ -1029,5 +583,36 @@ public class FlinkKinesisConsumerTest {
 		}
 
 		return fakeRestoredState;
+	}
+
+	/**
+	 * A non-serializable {@link KinesisDeserializationSchema} (because it is a nested class with reference
+	 * to the enclosing class, which is not serializable) used for testing.
+	 */
+	private final class NonSerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
+		@Override
+		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
+			return new String(recordValue);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
+	}
+
+	/**
+	 * A static, serializable {@link KinesisDeserializationSchema}.
+	 */
+	private static final class SerializableDeserializationSchema implements KinesisDeserializationSchema<String> {
+		@Override
+		public String deserialize(byte[] recordValue, String partitionKey, String seqNum, long approxArrivalTimestamp, String stream, String shardId) throws IOException {
+			return new String(recordValue);
+		}
+
+		@Override
+		public TypeInformation<String> getProducedType() {
+			return BasicTypeInfo.STRING_TYPE_INFO;
+		}
 	}
 }

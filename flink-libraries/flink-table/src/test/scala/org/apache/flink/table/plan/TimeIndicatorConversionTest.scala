@@ -160,7 +160,8 @@ class TimeIndicatorConversionTest extends TableTestBase {
         streamTableNode(0),
         term("invocation",
           s"${func.functionIdentifier}(CAST($$0):TIMESTAMP(3) NOT NULL, PROCTIME($$3), '')"),
-        term("function", func),
+        term("correlate", s"table(TableFunc(CAST(rowtime), PROCTIME(proctime), ''))"),
+        term("select", "rowtime", "long", "int", "proctime", "s"),
         term("rowType", "RecordType(TIME ATTRIBUTE(ROWTIME) rowtime, BIGINT long, INTEGER int, " +
           "TIME ATTRIBUTE(PROCTIME) proctime, VARCHAR(65536) s)"),
         term("joinType", "INNER")
@@ -275,7 +276,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Int)]("MyTable" , 'long, 'int, 'proctime.proctime)
 
-    val result = util.tableEnv.sql("SELECT COUNT(long) FROM MyTable GROUP BY proctime")
+    val result = util.tableEnv.sqlQuery("SELECT COUNT(long) FROM MyTable GROUP BY proctime")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -300,7 +301,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Int)]("MyTable" , 'long, 'int, 'proctime.proctime)
 
-    val result = util.tableEnv.sql("SELECT MIN(proctime) FROM MyTable GROUP BY long")
+    val result = util.tableEnv.sqlQuery("SELECT MIN(proctime) FROM MyTable GROUP BY long")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -325,7 +326,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int)
 
-    val result = util.tableEnv.sql(
+    val result = util.tableEnv.sqlQuery(
       "SELECT TUMBLE_END(rowtime, INTERVAL '0.1' SECOND) AS `rowtime`, `long`, " +
         "SUM(`int`) FROM MyTable " +
         "GROUP BY `long`, TUMBLE(rowtime, INTERVAL '0.1' SECOND)")
@@ -355,7 +356,7 @@ class TimeIndicatorConversionTest extends TableTestBase {
     val util = streamTestUtil()
     util.addTable[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int)
 
-    val result = util.tableEnv.sql("SELECT MIN(rowtime), long FROM MyTable " +
+    val result = util.tableEnv.sqlQuery("SELECT MIN(rowtime), long FROM MyTable " +
       "GROUP BY long, TUMBLE(rowtime, INTERVAL '0.1' SECOND)")
 
     val expected = unaryNode(

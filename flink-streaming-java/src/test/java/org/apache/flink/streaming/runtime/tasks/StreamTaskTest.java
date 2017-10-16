@@ -27,8 +27,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCache;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -56,6 +57,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -73,6 +76,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskExecutionStateListener;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -105,18 +109,19 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -717,9 +722,95 @@ public class StreamTaskTest extends TestLogger {
 		Assert.assertNull(checkpointResult.get(0));
 	}
 
+	/**
+	 * Tests that the StreamTask first closes alls its operators before setting its
+	 * state to not running (isRunning == false)
+	 *
+	 * <p>See FLINK-7430.
+	 */
+	@Test
+	public void testOperatorClosingBeforeStopRunning() throws Throwable {
+		Configuration taskConfiguration = new Configuration();
+		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
+		streamConfig.setOperatorID(new OperatorID());
+
+		MockEnvironment mockEnvironment = new MockEnvironment(
+			"Test Task",
+			32L * 1024L,
+			new MockInputSplitProvider(),
+			1,
+			taskConfiguration,
+			new ExecutionConfig());
+		StreamTask<Void, BlockingCloseStreamOperator> streamTask = new NoOpStreamTask<>(mockEnvironment);
+		final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
+
+		CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
+			() -> {
+				try {
+					streamTask.invoke();
+				} catch (Exception e) {
+					atomicThrowable.set(e);
+				}
+			},
+			TestingUtils.defaultExecutor());
+
+		BlockingCloseStreamOperator.IN_CLOSE.await();
+
+		// check that the StreamTask is not yet in isRunning == false
+		assertTrue(streamTask.isRunning());
+
+		// let the operator finish its close operation
+		BlockingCloseStreamOperator.FINISH_CLOSE.trigger();
+
+		// wait until the invoke is complete
+		invokeFuture.get();
+
+		// now the StreamTask should no longer be running
+		assertFalse(streamTask.isRunning());
+
+		// check if an exception occurred
+		if (atomicThrowable.get() != null) {
+			throw atomicThrowable.get();
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Utilities
 	// ------------------------------------------------------------------------
+
+	private static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
+
+		public NoOpStreamTask(Environment environment) {
+			setEnvironment(environment);
+		}
+
+		@Override
+		protected void init() throws Exception {}
+
+		@Override
+		protected void run() throws Exception {}
+
+		@Override
+		protected void cleanup() throws Exception {}
+
+		@Override
+		protected void cancelTask() throws Exception {}
+	}
+
+	private static class BlockingCloseStreamOperator extends AbstractStreamOperator<Void> {
+		private static final long serialVersionUID = -9042150529568008847L;
+
+		public static final OneShotLatch IN_CLOSE = new OneShotLatch();
+		public static final OneShotLatch FINISH_CLOSE = new OneShotLatch();
+
+		@Override
+		public void close() throws Exception {
+			IN_CLOSE.trigger();
+			FINISH_CLOSE.await();
+			super.close();
+		}
+	}
 
 	private static class TestingExecutionStateListener implements TaskExecutionStateListener {
 
@@ -767,7 +858,9 @@ public class StreamTaskTest extends TestLogger {
 			StreamConfig taskConfig,
 			Configuration taskManagerConfig) throws Exception {
 
-		BlobCache blobCache = mock(BlobCache.class);
+		BlobCacheService blobService =
+			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
+
 		LibraryCacheManager libCache = mock(LibraryCacheManager.class);
 		when(libCache.getClassLoader(any(JobID.class))).thenReturn(StreamTaskTest.class.getClassLoader());
 
@@ -787,8 +880,8 @@ public class StreamTaskTest extends TestLogger {
 			"Job Name",
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 
 		TaskInformation taskInformation = new TaskInformation(
 			new JobVertexID(),
@@ -816,7 +909,7 @@ public class StreamTaskTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
-			blobCache,
+			blobService,
 			libCache,
 			mock(FileCache.class),
 			new TestingTaskManagerRuntimeInfo(taskManagerConfig, new String[] {System.getProperty("java.io.tmpdir")}),
@@ -1026,7 +1119,7 @@ public class StreamTaskTest extends TestLogger {
 			holder.start();
 			try {
 				// cancellation should try and cancel this
-				getCancelables().registerClosable(holder);
+				getCancelables().registerCloseable(holder);
 
 				// wait till the lock holder has the lock
 				latch.await();

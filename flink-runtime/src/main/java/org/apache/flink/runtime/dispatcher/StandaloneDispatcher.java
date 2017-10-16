@@ -26,10 +26,14 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import java.util.Optional;
 
 /**
  * Dispatcher implementation which spawns a {@link JobMaster} for each
@@ -42,19 +46,23 @@ public class StandaloneDispatcher extends Dispatcher {
 			String endpointId,
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
+			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			Optional<String> restAddress) throws Exception {
 		super(
 			rpcService,
 			endpointId,
 			configuration,
 			highAvailabilityServices,
+			resourceManagerGateway,
 			blobServer,
 			heartbeatServices,
 			metricRegistry,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			restAddress);
 	}
 
 	@Override
@@ -64,8 +72,8 @@ public class StandaloneDispatcher extends Dispatcher {
 			Configuration configuration,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
-			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
+			JobManagerServices jobManagerServices,
 			MetricRegistry metricRegistry,
 			OnCompletionActions onCompleteActions,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
@@ -76,8 +84,8 @@ public class StandaloneDispatcher extends Dispatcher {
 			configuration,
 			rpcService,
 			highAvailabilityServices,
-			blobServer,
 			heartbeatServices,
+			jobManagerServices,
 			metricRegistry,
 			onCompleteActions,
 			fatalErrorHandler);

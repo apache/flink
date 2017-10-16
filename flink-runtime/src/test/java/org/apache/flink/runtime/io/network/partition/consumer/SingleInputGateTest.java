@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
@@ -57,6 +59,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -370,6 +373,70 @@ public class SingleInputGateTest {
 
 			assertFalse(ch.increaseBackoff());
 		}
+	}
+
+	/**
+	 * Tests that input gate requests and assigns network buffers for remote input channel.
+	 */
+	@Test
+	public void testRequestBuffersWithRemoteInputChannel() throws Exception {
+		final SingleInputGate inputGate = new SingleInputGate(
+			"t1",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			0,
+			1,
+			mock(TaskActions.class),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		RemoteInputChannel remote = mock(RemoteInputChannel.class);
+		inputGate.setInputChannel(new IntermediateResultPartitionID(), remote);
+
+		final int buffersPerChannel = 2;
+		NetworkBufferPool network = mock(NetworkBufferPool.class);
+		// Trigger requests of segments from global pool and assign buffers to remote input channel
+		inputGate.assignExclusiveSegments(network, buffersPerChannel);
+
+		verify(network, times(1)).requestMemorySegments(buffersPerChannel);
+		verify(remote, times(1)).assignExclusiveSegments(anyListOf(MemorySegment.class));
+	}
+
+	/**
+	 * Tests that input gate requests and assigns network buffers when unknown input channel
+	 * updates to remote input channel.
+	 */
+	@Test
+	public void testRequestBuffersWithUnknownInputChannel() throws Exception {
+		final SingleInputGate inputGate = new SingleInputGate(
+			"t1",
+			new JobID(),
+			new IntermediateDataSetID(),
+			ResultPartitionType.PIPELINED_CREDIT_BASED,
+			0,
+			1,
+			mock(TaskActions.class),
+			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+
+		UnknownInputChannel unknown = mock(UnknownInputChannel.class);
+		final ResultPartitionID resultPartitionId = new ResultPartitionID();
+		inputGate.setInputChannel(resultPartitionId.getPartitionId(), unknown);
+
+		RemoteInputChannel remote = mock(RemoteInputChannel.class);
+		final ConnectionID connectionId = new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
+		when(unknown.toRemoteInputChannel(connectionId)).thenReturn(remote);
+
+		final int buffersPerChannel = 2;
+		NetworkBufferPool network = mock(NetworkBufferPool.class);
+		inputGate.assignExclusiveSegments(network, buffersPerChannel);
+
+		// Trigger updates to remote input channel from unknown input channel
+		inputGate.updateInputChannel(new InputChannelDeploymentDescriptor(
+			resultPartitionId,
+			ResultPartitionLocation.createRemote(connectionId)));
+
+		verify(network, times(1)).requestMemorySegments(buffersPerChannel);
+		verify(remote, times(1)).assignExclusiveSegments(anyListOf(MemorySegment.class));
 	}
 
 	// ---------------------------------------------------------------------------------------------
