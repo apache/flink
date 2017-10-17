@@ -71,6 +71,18 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 		@RpcTimeout Time timeout);
 
 	/**
+	 * Cancel the slot allocation requests from the resource manager.
+	 *
+	 * @param jobID JobID for which the JobManager was the leader
+	 * @param jobMasterId id of the JobMaster
+	 * @param allocationID The slot to request
+	 */
+	void cancelSlotRequest(
+		JobID jobID,
+		JobMasterId jobMasterId,
+		AllocationID allocationID);
+
+	/**
 	 * Register a {@link TaskExecutor} at the resource manager.
 	 *
 	 * @param taskExecutorAddress The address of the TaskExecutor that registers

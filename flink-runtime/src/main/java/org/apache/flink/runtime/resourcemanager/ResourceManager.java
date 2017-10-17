@@ -399,6 +399,26 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@Override
+	public void cancelSlotRequest(JobID jobID, JobMasterId jobMasterId, AllocationID allocationID) {
+
+		// As the slot allocations are async, it can not avoid all redundent slots, but should best effort.
+		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobID);
+
+		if (null != jobManagerRegistration) {
+			if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
+				log.info("Cancel slot request for job {} with allocation id {}.",
+						jobID, allocationID);
+
+				slotManager.unregisterSlotRequest(allocationID);
+			} else {
+				log.info("Job manager {} is not the leader of job {}.", jobMasterId, jobID);
+			}
+		} else {
+			log.warn("Could not find registered job manager for job {}.", jobID);
+		}
+	}
+
+	@Override
 	public void notifySlotAvailable(
 			final InstanceID instanceID,
 			final SlotID slotId,
@@ -874,6 +894,13 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	public abstract boolean stopWorker(ResourceID resourceID);
 
+	/**
+	 * Cancel the allocation of a resource. If the resource allocation has not fulfilled, should cancel it.
+	 *
+	 * @param resourceProfile The resource description of the previous allocation
+	 */
+	public abstract void cancelNewWorker(ResourceProfile resourceProfile);
+
 	// ------------------------------------------------------------------------
 	//  Static utility classes
 	// ------------------------------------------------------------------------
@@ -897,6 +924,16 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
 			validateRunsInMainThread();
 			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
+		}
+
+		@Override
+		public void cancelResourceAllocation(ResourceProfile resourceProfile) {
+			runAsync(new Runnable() {
+				@Override
+				public void run() {
+					cancelNewWorker(resourceProfile);
+				}
+			});
 		}
 	}
 

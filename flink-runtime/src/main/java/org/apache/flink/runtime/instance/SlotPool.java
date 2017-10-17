@@ -363,6 +363,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	private void checkTimeoutSlotAllocation(AllocationID allocationID) {
 		PendingRequest request = pendingRequests.remove(allocationID);
 		if (request != null && !request.getFuture().isDone()) {
+			if (resourceManagerGateway != null) {
+				resourceManagerGateway.cancelSlotRequest(jobId, jobMasterId, allocationID);
+			}
 			request.getFuture().completeExceptionally(new TimeoutException("Slot allocation request timed out"));
 		}
 	}

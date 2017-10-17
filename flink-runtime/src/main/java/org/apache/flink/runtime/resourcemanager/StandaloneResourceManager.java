@@ -85,4 +85,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 		return resourceID;
 	}
 
+	@Override
+	public void cancelNewWorker(ResourceProfile resourceProfile) {
+	}
+
 }

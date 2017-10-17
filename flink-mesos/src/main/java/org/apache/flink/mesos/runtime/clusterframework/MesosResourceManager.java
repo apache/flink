@@ -473,6 +473,11 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		}
 	}
 
+	@Override
+	public void cancelNewWorker(ResourceProfile resourceProfile) {
+
+	}
+
 	// ------------------------------------------------------------------------
 	//  Mesos specific methods
 	// ------------------------------------------------------------------------
