@@ -60,7 +60,13 @@ Use one of the following commands to __create a project__:
     $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
 {% endif %}
     {% endhighlight %}
+
     </div>
+    {% unless site.is_stable %}
+    <p style="border-radius: 5px; padding: 5px" class="bg-danger">
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+    </p>
+    {% endunless %}
 </div>
 
 ## Inspect Project
