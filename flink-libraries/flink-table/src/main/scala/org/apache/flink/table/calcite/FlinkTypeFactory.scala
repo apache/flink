@@ -149,19 +149,19 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
           createTypeFromTypeInfo(oa.getComponentInfo, isNullable = true),
           isNullable)
 
-      case mp: MapTypeInfo[_, _] =>
-        new MapRelDataType(
-          mp,
-          createTypeFromTypeInfo(mp.getKeyTypeInfo, isNullable = true),
-          createTypeFromTypeInfo(mp.getValueTypeInfo, isNullable = true),
-          isNullable)
-
       case mts: MultisetTypeInfo[_] =>
         new MultisetRelDataType(
           mts,
           createTypeFromTypeInfo(mts.getElementTypeInfo, isNullable = true),
           isNullable
         )
+
+      case mp: MapTypeInfo[_, _] =>
+        new MapRelDataType(
+          mp,
+          createTypeFromTypeInfo(mp.getKeyTypeInfo, isNullable = true),
+          createTypeFromTypeInfo(mp.getValueTypeInfo, isNullable = true),
+          isNullable)
 
       case ti: TypeInformation[_] =>
         new GenericRelDataType(

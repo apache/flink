@@ -34,17 +34,7 @@ class CRowKeySelector(
   with ResultTypeQueryable[Row] {
 
   override def getKey(value: CRow): Row = {
-    val row = value.row
-    val fields = keyFields
-
-    val newKey = new Row(fields.length)
-    var i = 0
-    while (i < fields.length) {
-      newKey.setField(i, row.getField(fields(i)))
-      i += 1
-    }
-
-    newKey
+    Row.project(value.row, keyFields)
   }
 
   override def getProducedType: TypeInformation[Row] = returnType
