@@ -45,7 +45,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
 import java.util.Optional;
@@ -63,6 +65,9 @@ import static org.mockito.Mockito.when;
  * Test for the {@link Dispatcher} component.
  */
 public class DispatcherTest extends TestLogger {
+
+	@Rule
+	public TestName name = new TestName();
 
 	private static RpcService rpcService;
 	private static final Time timeout = Time.seconds(10L);
@@ -103,7 +108,7 @@ public class DispatcherTest extends TestLogger {
 
 		final TestingDispatcher dispatcher = new TestingDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME,
+			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			new Configuration(),
 			haServices,
 			mock(ResourceManagerGateway.class),
@@ -163,7 +168,7 @@ public class DispatcherTest extends TestLogger {
 
 		final TestingDispatcher dispatcher = new TestingDispatcher(
 			rpcService,
-			Dispatcher.DISPATCHER_NAME,
+			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 			new Configuration(),
 			haServices,
 			mock(ResourceManagerGateway.class),
