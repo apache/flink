@@ -84,7 +84,6 @@ class MultipleLinearRegressionITSuite
     val weightList = mlr.weightsOption.get.collect()
 
     val WeightVector(weights, intercept) = weightList.head
-    println(weightList)
 
     RegressionData.expectedWeightsSparseInput.toIterator zip weights.valueIterator foreach {
       case (expectedWeight, weight) =>
