@@ -18,42 +18,29 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
-import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
-
-import java.util.Random;
-import java.util.UUID;
+import org.apache.flink.runtime.rest.messages.ConversionException;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.util.StringUtils;
 
 /**
- * Test for (un)marshalling of the {@link TaskManagerInfo}.
+ * TaskManager id path parameter used by TaskManager related handlers.
  */
-public class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskManagerInfo> {
+public class TaskManagerIdPathParameter extends MessagePathParameter<InstanceID> {
 
-	private static final Random random = new Random();
+	public static final String KEY = "taskmanagerid";
 
-	@Override
-	protected Class<TaskManagerInfo> getTestResponseClass() {
-		return TaskManagerInfo.class;
+	protected TaskManagerIdPathParameter() {
+		super(KEY);
 	}
 
 	@Override
-	protected TaskManagerInfo getTestResponseInstance() throws Exception {
-		return createRandomTaskManagerInfo();
+	protected InstanceID convertFromString(String value) throws ConversionException {
+		return new InstanceID(StringUtils.hexStringToByte(value));
 	}
 
-	static TaskManagerInfo createRandomTaskManagerInfo() {
-		return new TaskManagerInfo(
-			new InstanceID(),
-			UUID.randomUUID().toString(),
-			random.nextInt(),
-			random.nextLong(),
-			random.nextInt(),
-			random.nextInt(),
-			new HardwareDescription(
-				random.nextInt(),
-				random.nextLong(),
-				random.nextLong(),
-				random.nextLong()));
+	@Override
+	protected String convertToString(InstanceID value) {
+		return StringUtils.byteToHexString(value.getBytes());
 	}
 }
