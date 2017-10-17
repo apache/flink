@@ -184,6 +184,10 @@ public class PendingCheckpoint {
 		return this.notYetAcknowledgedTasks.isEmpty() && !discarded;
 	}
 
+	public boolean isAcknowledgedBy(ExecutionAttemptID executionAttemptId) {
+		return !notYetAcknowledgedTasks.containsKey(executionAttemptId);
+	}
+
 	public boolean isDiscarded() {
 		return discarded;
 	}

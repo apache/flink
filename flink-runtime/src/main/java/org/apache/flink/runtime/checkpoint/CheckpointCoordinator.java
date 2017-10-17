@@ -724,31 +724,11 @@ public class CheckpointCoordinator {
 				return;
 			}
 
-			checkpoint = pendingCheckpoints.get(checkpointId);
+			checkpoint = pendingCheckpoints.remove(checkpointId);
 
 			if (checkpoint != null && !checkpoint.isDiscarded()) {
-				LOG.info("Discarding checkpoint {} because of checkpoint decline from task {} : {}",
-						checkpointId, message.getTaskExecutionId(), reason);
-
-				pendingCheckpoints.remove(checkpointId);
-				checkpoint.abortDeclined();
-				rememberRecentCheckpointId(checkpointId);
-
-				// we don't have to schedule another "dissolving" checkpoint any more because the
-				// cancellation barriers take care of breaking downstream alignments
-				// we only need to make sure that suspended queued requests are resumed
-
-				boolean haveMoreRecentPending = false;
-				for (PendingCheckpoint p : pendingCheckpoints.values()) {
-					if (!p.isDiscarded() && p.getCheckpointId() >= checkpoint.getCheckpointId()) {
-						haveMoreRecentPending = true;
-						break;
-					}
-				}
-
-				if (!haveMoreRecentPending) {
-					triggerQueuedRequests();
-				}
+				LOG.info("Decline checkpoint {} by task {}.", checkpointId, message.getTaskExecutionId());
+				discardCheckpoint(checkpoint, message.getReason());
 			}
 			else if (checkpoint != null) {
 				// this should not happen
@@ -893,10 +873,10 @@ public class CheckpointCoordinator {
 				if (!pendingCheckpoint.isDiscarded()) {
 					pendingCheckpoint.abortError(e1);
 				}
-	
+
 				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.', e1);
 			}
-	
+
 			// the pending checkpoint must be discarded after the finalization
 			Preconditions.checkState(pendingCheckpoint.isDiscarded() && completedCheckpoint != null);
 
@@ -928,7 +908,7 @@ public class CheckpointCoordinator {
 
 			triggerQueuedRequests();
 		}
-		
+
 		rememberRecentCheckpointId(checkpointId);
 
 		// record the time when this was completed, to calculate
@@ -958,6 +938,28 @@ public class CheckpointCoordinator {
 			Execution ee = ev.getCurrentExecutionAttempt();
 			if (ee != null) {
 				ee.notifyCheckpointComplete(checkpointId, timestamp);
+			}
+		}
+	}
+
+	/**
+	 * Fails all pending checkpoints which have not been acknowledged by the given execution
+	 * attempt id.
+	 *
+	 * @param executionAttemptId for which to discard unaknowledged pending checkpoints
+	 * @param cause of the failure
+	 */
+	public void failUnacknowledgedPendingCheckpointsFor(ExecutionAttemptID executionAttemptId, Throwable cause) {
+		synchronized (lock) {
+			Iterator<PendingCheckpoint> pendingCheckpointIterator = pendingCheckpoints.values().iterator();
+
+			while (pendingCheckpointIterator.hasNext()) {
+				final PendingCheckpoint pendingCheckpoint = pendingCheckpointIterator.next();
+
+				if (!pendingCheckpoint.isAcknowledgedBy(executionAttemptId)) {
+					pendingCheckpointIterator.remove();
+					discardCheckpoint(pendingCheckpoint, cause);
+				}
 			}
 		}
 	}
@@ -1266,6 +1268,42 @@ public class CheckpointCoordinator {
 			catch (Exception e) {
 				LOG.error("Exception while triggering checkpoint.", e);
 			}
+		}
+	}
+
+	/**
+	 * Discards the given pending checkpoint because of the given cause.
+	 *
+	 * @param pendingCheckpoint to discard
+	 * @param cause for discarding the checkpoint
+	 */
+	private void discardCheckpoint(PendingCheckpoint pendingCheckpoint, @Nullable Throwable cause) {
+		assert(Thread.holdsLock(lock));
+		Preconditions.checkNotNull(pendingCheckpoint);
+
+		final long checkpointId = pendingCheckpoint.getCheckpointId();
+
+		final String reason = (cause != null) ? cause.getMessage() : "";
+
+		LOG.info("Discarding checkpoint {} because: {}", checkpointId, reason);
+
+		pendingCheckpoint.abortDeclined();
+		rememberRecentCheckpointId(checkpointId);
+
+		// we don't have to schedule another "dissolving" checkpoint any more because the
+		// cancellation barriers take care of breaking downstream alignments
+		// we only need to make sure that suspended queued requests are resumed
+
+		boolean haveMoreRecentPending = false;
+		for (PendingCheckpoint p : pendingCheckpoints.values()) {
+			if (!p.isDiscarded() && p.getCheckpointId() >= pendingCheckpoint.getCheckpointId()) {
+				haveMoreRecentPending = true;
+				break;
+			}
+		}
+
+		if (!haveMoreRecentPending) {
+			triggerQueuedRequests();
 		}
 	}
 
