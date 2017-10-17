@@ -92,6 +92,34 @@ public class TaskManagerInfo implements ResponseBody {
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
 	}
 
+	public InstanceID getInstanceId() {
+		return instanceId;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public int getDataPort() {
+		return dataPort;
+	}
+
+	public long getLastHeartbeat() {
+		return lastHeartbeat;
+	}
+
+	public int getNumberSlots() {
+		return numberSlots;
+	}
+
+	public int getNumberAvailableSlots() {
+		return numberAvailableSlots;
+	}
+
+	public HardwareDescription getHardwareDescription() {
+		return hardwareDescription;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

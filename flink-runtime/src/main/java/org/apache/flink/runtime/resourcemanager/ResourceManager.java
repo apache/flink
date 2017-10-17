@@ -514,6 +514,36 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@Override
+	public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(InstanceID instanceId, Time timeout) {
+
+		Map.Entry<ResourceID, WorkerRegistration<WorkerType>> taskExecutorEntry = null;
+
+		// TODO: Implement more efficiently
+		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerEntry : taskExecutors.entrySet()) {
+			if (Objects.equals(workerEntry.getValue().getInstanceID(), instanceId)) {
+				taskExecutorEntry = workerEntry;
+				break;
+			}
+		}
+
+		if (taskExecutorEntry == null) {
+			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskManager " + instanceId + " is not registered."));
+		} else {
+			WorkerRegistration<?> taskExecutor = taskExecutorEntry.getValue();
+			final TaskManagerInfo taskManagerInfo = new TaskManagerInfo(
+				taskExecutor.getInstanceID(),
+				taskExecutor.getTaskExecutorGateway().getAddress(),
+				taskExecutor.getDataPort(),
+				taskManagerHeartbeatManager.getLastHeartbeatFrom(taskExecutorEntry.getKey()),
+				slotManager.getNumberRegisteredSlotsOf(instanceId),
+				slotManager.getNumberFreeSlotsOf(instanceId),
+				taskExecutor.getHardwareDescription());
+
+			return CompletableFuture.completedFuture(taskManagerInfo);
+		}
+	}
+
+	@Override
 	public CompletableFuture<ResourceOverview> requestResourceOverview(Time timeout) {
 		final int numberSlots = slotManager.getNumberRegisteredSlots();
 		final int numberFreeSlots = slotManager.getNumberFreeSlots();

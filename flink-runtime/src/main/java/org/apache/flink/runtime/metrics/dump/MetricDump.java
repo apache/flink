@@ -47,6 +47,15 @@ public abstract class MetricDump {
 	 */
 	public abstract byte getCategory();
 
+	@Override
+	public String toString() {
+		return "MetricDump{" +
+			"scopeInfo=" + scopeInfo +
+			", name='" + name + '\'' +
+			", category='" + getCategory() + '\'' +
+			'}';
+	}
+
 	/**
 	 * Container for the value of a {@link org.apache.flink.metrics.Counter}.
 	 */
