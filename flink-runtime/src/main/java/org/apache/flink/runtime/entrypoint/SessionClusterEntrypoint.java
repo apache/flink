@@ -20,6 +20,7 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -38,10 +39,15 @@ import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.impl.AkkaQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+
+import akka.actor.ActorSystem;
 
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -92,11 +98,16 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			10,
 			Time.milliseconds(50L));
 
+		// TODO: Remove once we have ported the MetricFetcher to the RpcEndpoint
+		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
+		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+
 		dispatcherRestEndpoint = createDispatcherRestEndpoint(
 			configuration,
 			dispatcherGatewayRetriever,
 			resourceManagerGatewayRetriever,
-			rpcService.getExecutor());
+			rpcService.getExecutor(),
+			new AkkaQueryServiceRetriever(actorSystem, timeout));
 
 		LOG.debug("Starting Dispatcher REST endpoint.");
 		dispatcherRestEndpoint.start();
@@ -179,15 +190,19 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			Configuration configuration,
 			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
 			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			Executor executor) throws Exception {
+			Executor executor,
+			MetricQueryServiceRetriever metricQueryServiceRetriever) throws Exception {
+
+		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
 
 		return new DispatcherRestEndpoint(
 			RestServerEndpointConfiguration.fromConfiguration(configuration),
 			dispatcherGatewayRetriever,
 			configuration,
-			RestHandlerConfiguration.fromConfiguration(configuration),
+			restHandlerConfiguration,
 			resourceManagerGatewayRetriever,
-			executor);
+			executor,
+			metricQueryServiceRetriever);
 	}
 
 	protected Dispatcher createDispatcher(
