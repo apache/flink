@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.taskmanager;
+
+import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 import java.util.Arrays;
 
-import static org.apache.flink.runtime.rest.messages.TaskManagerInfoTest.createRandomTaskManagerInfo;
+import static org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfoTest.createRandomTaskManagerInfo;
 
 /**
  * Test for (un)marshalling of {@link TaskManagersInfo}.
