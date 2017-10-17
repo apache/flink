@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.InstanceIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.InstanceIDSerializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
