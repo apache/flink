@@ -62,4 +62,12 @@ class RowSchema(private val logicalRowType: RelDataType) {
     */
   def fieldNames: Seq[String] = logicalRowType.getFieldNames
 
+  /**
+    * Returns a projected [[TypeInformation]] of the schema.
+    */
+  def projectedTypeInfo(fields: Array[Int]): TypeInformation[Row] = {
+    val projectedTypes = fields.map(fieldTypeInfos(_))
+    val projectedNames = fields.map(fieldNames(_))
+    new RowTypeInfo(projectedTypes, projectedNames)
+  }
 }
