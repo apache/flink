@@ -200,6 +200,9 @@ object AkkaUtils {
 
     val logLevel = getLogLevel
 
+    val supervisorStrategy = classOf[StoppingSupervisorWithoutLoggingActorKilledExceptionStrategy]
+      .getCanonicalName
+
     val config =
       s"""
         |akka {
@@ -220,7 +223,7 @@ object AkkaUtils {
         | log-dead-letters-during-shutdown = $logLifecycleEvents
         |
         | actor {
-        |   guardian-supervisor-strategy = "akka.actor.StoppingSupervisorStrategy"
+        |   guardian-supervisor-strategy = $supervisorStrategy
         |   default-dispatcher {
         |     throughput = $akkaThroughput
         |
