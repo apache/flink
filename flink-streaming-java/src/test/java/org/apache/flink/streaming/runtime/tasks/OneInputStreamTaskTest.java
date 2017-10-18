@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
@@ -47,7 +46,6 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -61,7 +59,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -253,71 +250,14 @@ public class OneInputStreamTaskTest extends TestLogger {
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
-		// ------------------ setup the chain ------------------
-
 		TriggerableFailOnWatermarkTestOperator headOperator = new TriggerableFailOnWatermarkTestOperator();
-		StreamConfig headOperatorConfig = testHarness.getStreamConfig();
-
 		WatermarkGeneratingTestOperator watermarkOperator = new WatermarkGeneratingTestOperator();
-		StreamConfig watermarkOperatorConfig = new StreamConfig(new Configuration());
-
 		TriggerableFailOnWatermarkTestOperator tailOperator = new TriggerableFailOnWatermarkTestOperator();
-		StreamConfig tailOperatorConfig = new StreamConfig(new Configuration());
 
-		headOperatorConfig.setStreamOperator(headOperator);
-		headOperatorConfig.setOperatorID(new OperatorID(42L, 42L));
-		headOperatorConfig.setChainStart();
-		headOperatorConfig.setChainIndex(0);
-		headOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
-			new StreamNode(null, 0, null, null, null, null, null),
-			new StreamNode(null, 1, null, null, null, null, null),
-			0,
-			Collections.<String>emptyList(),
-			null,
-			null
-		)));
-
-		watermarkOperatorConfig.setStreamOperator(watermarkOperator);
-		watermarkOperatorConfig.setOperatorID(new OperatorID(4711L, 42L));
-		watermarkOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
-		watermarkOperatorConfig.setChainIndex(1);
-		watermarkOperatorConfig.setChainedOutputs(Collections.singletonList(new StreamEdge(
-			new StreamNode(null, 1, null, null, null, null, null),
-			new StreamNode(null, 2, null, null, null, null, null),
-			0,
-			Collections.<String>emptyList(),
-			null,
-			null
-		)));
-
-		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
-		outEdgesInOrder.add(new StreamEdge(
-			new StreamNode(null, 2, null, null, null, null, null),
-			new StreamNode(null, 3, null, null, null, null, null),
-			0,
-			Collections.<String>emptyList(),
-			new BroadcastPartitioner<Object>(),
-			null));
-
-		tailOperatorConfig.setStreamOperator(tailOperator);
-		tailOperatorConfig.setOperatorID(new OperatorID(123L, 123L));
-		tailOperatorConfig.setTypeSerializerIn1(StringSerializer.INSTANCE);
-		tailOperatorConfig.setBufferTimeout(0);
-		tailOperatorConfig.setChainIndex(2);
-		tailOperatorConfig.setChainEnd();
-		tailOperatorConfig.setOutputSelectors(Collections.<OutputSelector<?>>emptyList());
-		tailOperatorConfig.setNumberOfOutputs(1);
-		tailOperatorConfig.setOutEdgesInOrder(outEdgesInOrder);
-		tailOperatorConfig.setNonChainedOutputs(outEdgesInOrder);
-		tailOperatorConfig.setTypeSerializerOut(StringSerializer.INSTANCE);
-
-		Map<Integer, StreamConfig> chainedConfigs = new HashMap<>(2);
-		chainedConfigs.put(1, watermarkOperatorConfig);
-		chainedConfigs.put(2, tailOperatorConfig);
-		headOperatorConfig.setTransitiveChainedTaskConfigs(chainedConfigs);
-		headOperatorConfig.setOutEdgesInOrder(outEdgesInOrder);
-
-		// -----------------------------------------------------
+		testHarness.setupOperatorChain(new OperatorID(42L, 42L), headOperator)
+			.chain(new OperatorID(4711L, 42L), watermarkOperator, StringSerializer.INSTANCE)
+			.chain(new OperatorID(123L, 123L), tailOperator, StringSerializer.INSTANCE)
+			.finish();
 
 		// --------------------- begin test ---------------------
 

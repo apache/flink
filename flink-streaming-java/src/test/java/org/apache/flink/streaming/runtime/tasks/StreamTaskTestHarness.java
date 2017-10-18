@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
@@ -368,6 +369,10 @@ public class StreamTaskTestHarness<OUT> {
 		for (int i = 0; i < numInputGates; i++) {
 			inputGates[i].endInput();
 		}
+	}
+
+	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, OneInputStreamOperator<?, ?> headOperator) {
+		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
 	}
 
 	// ------------------------------------------------------------------------
