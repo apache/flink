@@ -34,6 +34,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -47,6 +48,8 @@ import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,6 +114,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
 
+		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
+		metricRegistry.startQueryService(actorSystem, resourceId);
+
 		taskManager = startTaskManager(
 			configuration,
 			resourceId,
@@ -144,7 +150,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				exception = e;
 			}
 
-			metricRegistry.shutdown();
+			try {
+				metricRegistry.shutdown();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
 
 			rpcService.stopService();
 
