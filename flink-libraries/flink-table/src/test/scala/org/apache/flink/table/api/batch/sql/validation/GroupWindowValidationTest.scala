@@ -79,4 +79,34 @@ class GroupWindowValidationTest extends TableTestBase {
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
     util.verifySql(sql, "n/a")
   }
+
+  @Test(expected = classOf[TableException])
+  def testWindowRowtime(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+
+    val sqlQuery =
+      "SELECT " +
+        "  TUMBLE_ROWTIME(ts, INTERVAL '4' MINUTE)" +
+        "FROM T " +
+        "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
+
+    // should fail because ROWTIME properties are not yet supported in batch
+    util.verifySql(sqlQuery, "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWindowProctime(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+
+    val sqlQuery =
+      "SELECT " +
+        "  TUMBLE_PROCTIME(ts, INTERVAL '4' MINUTE)" +
+        "FROM T " +
+        "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
+
+    // should fail because PROCTIME properties are not yet supported in batch
+    util.verifySql(sqlQuery, "FAIL")
+  }
 }

@@ -35,11 +35,11 @@ class LogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
+    indicatorFlag: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls) {
+  extends Aggregate(cluster, traitSet, child, indicatorFlag, groupSet, groupSets, aggCalls) {
 
   def getWindow: LogicalWindow = window
 
@@ -63,6 +63,19 @@ class LogicalWindowAggregate(
       indicator,
       groupSet,
       groupSets,
+      aggCalls)
+  }
+
+  def copy(namedProperties: Seq[NamedWindowProperty]): LogicalWindowAggregate = {
+    new LogicalWindowAggregate(
+      window,
+      namedProperties,
+      cluster,
+      traitSet,
+      input,
+      indicator,
+      getGroupSet,
+      getGroupSets,
       aggCalls)
   }
 

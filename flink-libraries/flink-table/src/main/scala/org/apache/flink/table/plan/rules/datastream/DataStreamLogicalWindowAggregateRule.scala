@@ -25,11 +25,12 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
-import org.apache.flink.table.api.{TableException, Window}
+import org.apache.flink.table.api.{TableException, ValidationException, Window}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.{Literal, ResolvedFieldReference, WindowReference}
 import org.apache.flink.table.plan.rules.common.LogicalWindowAggregateRule
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.validate.BasicOperatorTable
 
 class DataStreamLogicalWindowAggregateRule
   extends LogicalWindowAggregateRule("DataStreamLogicalWindowAggregateRule") {
@@ -47,7 +48,7 @@ class DataStreamLogicalWindowAggregateRule
 
       case _ =>
         throw TableException(
-          s"""Time attribute expected but ${timeAttribute.getType} encountered.""")
+          s"Time attribute expected but ${timeAttribute.getType} encountered.")
     }
   }
 
@@ -69,7 +70,7 @@ class DataStreamLogicalWindowAggregateRule
     def getOperandAsLong(call: RexCall, idx: Int): Long =
       call.getOperands.get(idx) match {
         case v: RexLiteral => v.getValue.asInstanceOf[JBigDecimal].longValue()
-        case _ => throw new TableException("Only constant window descriptors are supported.")
+        case _ => throw TableException("Only constant window descriptors are supported.")
       }
 
     def getOperandAsTimeIndicator(call: RexCall, idx: Int): ResolvedFieldReference =
@@ -79,18 +80,18 @@ class DataStreamLogicalWindowAggregateRule
             rowType.getFieldList.get(v.getIndex).getName,
             FlinkTypeFactory.toTypeInfo(v.getType))
         case _ =>
-          throw new TableException("Window can only be defined over a time attribute column.")
+          throw ValidationException("Window can only be defined over a time attribute column.")
       }
 
     windowExpr.getOperator match {
-      case SqlStdOperatorTable.TUMBLE =>
+      case BasicOperatorTable.TUMBLE =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
         val interval = getOperandAsLong(windowExpr, 1)
         val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
 
         w.on(time).as(WindowReference("w$"))
 
-      case SqlStdOperatorTable.HOP =>
+      case BasicOperatorTable.HOP =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         val w = Slide
@@ -99,7 +100,7 @@ class DataStreamLogicalWindowAggregateRule
 
         w.on(time).as(WindowReference("w$"))
 
-      case SqlStdOperatorTable.SESSION =>
+      case BasicOperatorTable.SESSION =>
         val time = getOperandAsTimeIndicator(windowExpr, 0)
         val gap = getOperandAsLong(windowExpr, 1)
         val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))

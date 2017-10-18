@@ -30,6 +30,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory.{isRowtimeIndicatorType, 
 import org.apache.flink.table.functions.sql.ProctimeSqlFunction
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.validate.BasicOperatorTable
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -400,7 +401,7 @@ class RexTimeIndicatorMaterializer(
     val materializedOperands = updatedCall.getOperator match {
 
       // skip materialization for special operators
-      case SqlStdOperatorTable.SESSION | SqlStdOperatorTable.HOP | SqlStdOperatorTable.TUMBLE =>
+      case BasicOperatorTable.SESSION | BasicOperatorTable.HOP | BasicOperatorTable.TUMBLE =>
         updatedCall.getOperands.toList
 
       case _ =>
@@ -426,6 +427,18 @@ class RexTimeIndicatorMaterializer(
       case SqlStdOperatorTable.AS if
       isTimeIndicatorType(updatedCall.getOperands.get(0).getType) =>
         updatedCall
+
+      // do not modify window time attributes
+      case BasicOperatorTable.TUMBLE_ROWTIME |
+          BasicOperatorTable.TUMBLE_PROCTIME |
+          BasicOperatorTable.HOP_ROWTIME |
+          BasicOperatorTable.HOP_PROCTIME |
+          BasicOperatorTable.SESSION_ROWTIME |
+          BasicOperatorTable.SESSION_PROCTIME
+          // since we materialize groupings on time indicators,
+          // we cannot check the operands anymore but the return type at least
+          if isTimeIndicatorType(updatedCall.getType) =>
+      updatedCall
 
       // materialize function's result and operands
       case _ if isTimeIndicatorType(updatedCall.getType) =>
