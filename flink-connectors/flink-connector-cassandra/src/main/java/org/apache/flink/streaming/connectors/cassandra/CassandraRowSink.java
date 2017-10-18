@@ -17,12 +17,7 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.Row;
-
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * Flink Sink to save data into a Cassandra cluster.
