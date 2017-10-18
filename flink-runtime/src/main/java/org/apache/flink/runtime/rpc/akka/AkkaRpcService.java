@@ -133,6 +133,10 @@ public class AkkaRpcService implements RpcService {
 		stopped = false;
 	}
 
+	public ActorSystem getActorSystem() {
+		return actorSystem;
+	}
+
 	@Override
 	public String getAddress() {
 		return address;

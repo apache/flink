@@ -28,6 +28,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
@@ -42,6 +43,8 @@ import akka.actor.Kill;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,7 +68,12 @@ public class MetricRegistry {
 
 	private List<MetricReporter> reporters;
 	private ScheduledExecutorService executor;
+
+	@Nullable
 	private ActorRef queryService;
+
+	@Nullable
+	private String metricQueryServicePath;
 
 	private ViewUpdater viewUpdater;
 
@@ -86,6 +94,9 @@ public class MetricRegistry {
 		List<Tuple2<String, Configuration>> reporterConfigurations = config.getReporterConfigurations();
 
 		this.executor = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-MetricRegistry"));
+
+		this.queryService = null;
+		this.metricQueryServicePath = null;
 
 		if (reporterConfigurations.isEmpty()) {
 			// no reporters defined
@@ -165,10 +176,21 @@ public class MetricRegistry {
 
 			try {
 				queryService = MetricQueryService.startMetricQueryService(actorSystem, resourceID);
+				metricQueryServicePath = AkkaUtils.getAkkaURL(actorSystem, queryService);
 			} catch (Exception e) {
 				LOG.warn("Could not start MetricDumpActor. No metrics will be submitted to the WebInterface.", e);
 			}
 		}
+	}
+
+	/**
+	 * Returns the address under which the {@link MetricQueryService} is reachable.
+	 *
+	 * @return address of the metric query service
+	 */
+	@Nullable
+	public String getMetricQueryServicePath() {
+		return metricQueryServicePath;
 	}
 
 	/**
@@ -368,6 +390,7 @@ public class MetricRegistry {
 	// ------------------------------------------------------------------------
 
 	@VisibleForTesting
+	@Nullable
 	public ActorRef getQueryService() {
 		return queryService;
 	}

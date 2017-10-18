@@ -50,4 +50,9 @@ public class AkkaQueryServiceGateway implements MetricQueryServiceGateway {
 				.mapTo(ClassTag$.MODULE$.apply(MetricDumpSerialization.MetricSerializationResult.class))
 		);
 	}
+
+	@Override
+	public String getAddress() {
+		return queryServiceActorRef.path().toString();
+	}
 }
