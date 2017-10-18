@@ -41,11 +41,14 @@ public class CheckVisibleForTestingUsage {
 
 	@Test
 	public void testCheckVisibleForTesting() throws Exception {
-		final Reflections reflections = new Reflections(new ConfigurationBuilder()
+		ConfigurationBuilder configurationBuilder = new ConfigurationBuilder()
 			.useParallelExecutor(Runtime.getRuntime().availableProcessors())
-			.addUrls(ClasspathHelper.forPackage("org.apache.flink"))
-			.addScanners(new MemberUsageScanner(),
-				new MethodAnnotationsScanner()));
+			.addUrls(ClasspathHelper.forPackage("org.apache.flink.core"))
+			.addScanners(
+				new MemberUsageScanner(),
+				new MethodAnnotationsScanner());
+
+		final Reflections reflections = new Reflections(configurationBuilder);
 
 		Set<Method> methods = reflections.getMethodsAnnotatedWith(VisibleForTesting.class);
 
@@ -53,9 +56,9 @@ public class CheckVisibleForTestingUsage {
 			Set<Member> usages = reflections.getMethodUsage(method);
 			for (Member member : usages) {
 				if (member instanceof Method) {
-					Method methodHopeWithTestAnnotation = (Method) member;
-					if (!methodHopeWithTestAnnotation.isAnnotationPresent(Test.class)) {
-						assertEquals("Unexpected calls: " + methodHopeWithTestAnnotation.getDeclaringClass() + "#" + methodHopeWithTestAnnotation.getName(),
+					Method visibleForTestingUsageScope = (Method) member;
+					if (!visibleForTestingUsageScope.isAnnotationPresent(Test.class)) {
+						assertEquals("Unexpected calls: " + visibleForTestingUsageScope.getDeclaringClass() + "#" + visibleForTestingUsageScope.getName(),
 							"Only Suggest used in tests.");
 					}
 				}
