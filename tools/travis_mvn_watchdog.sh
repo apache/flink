@@ -67,7 +67,8 @@ flink-libraries/flink-gelly-scala,\
 flink-libraries/flink-gelly-examples,\
 flink-libraries/flink-ml,\
 flink-libraries/flink-python,\
-flink-libraries/flink-table"
+flink-libraries/flink-table,\
+flink-queryable-state/flink-queryable-state-java"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
