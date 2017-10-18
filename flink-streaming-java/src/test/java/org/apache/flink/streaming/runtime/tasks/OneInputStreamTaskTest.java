@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -28,9 +27,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
@@ -610,43 +607,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 		@Override
 		public IN getKey(IN value) throws Exception {
 			return value;
-		}
-	}
-
-	private static class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
-		private volatile long checkpointId;
-		private volatile TaskStateSnapshot checkpointStateHandles;
-
-		private final OneShotLatch checkpointLatch = new OneShotLatch();
-
-		public long getCheckpointId() {
-			return checkpointId;
-		}
-
-		AcknowledgeStreamMockEnvironment(
-			Configuration jobConfig, Configuration taskConfig,
-			ExecutionConfig executionConfig, long memorySize,
-			MockInputSplitProvider inputSplitProvider, int bufferSize) {
-			super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
-		}
-
-		@Override
-		public void acknowledgeCheckpoint(
-			long checkpointId,
-			CheckpointMetrics checkpointMetrics,
-			TaskStateSnapshot checkpointStateHandles) {
-
-			this.checkpointId = checkpointId;
-			this.checkpointStateHandles = checkpointStateHandles;
-			checkpointLatch.trigger();
-		}
-
-		public OneShotLatch getCheckpointLatch() {
-			return checkpointLatch;
-		}
-
-		public TaskStateSnapshot getCheckpointStateHandles() {
-			return checkpointStateHandles;
 		}
 	}
 
