@@ -574,7 +574,7 @@ Table result = orders
       </td>
       <td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
-        <p><b>Note:</b> Currently the predicates for table function left outer join can only be empty or literal <code>true</code>.</p>
+        <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
         </p>
 {% highlight java %}
 // register function
@@ -585,7 +585,6 @@ tEnv.registerFunction("split", split);
 Table orders = tableEnv.scan("Orders");
 Table result = orders
     .leftOuterJoin(new Table(tEnv, "split(c)").as("s", "t", "v"))
-    .where("a > 5")
     .select("a, b, s, t, v");
 {% endhighlight %}
       </td>
@@ -689,7 +688,7 @@ val result: Table = table
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
         <p>Joins a table with a the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
-        <p><b>Note:</b> Currently the predicates for table function left outer join can only be empty or literal <code>true</code>.</p>
+        <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
         </p>
 {% highlight scala %}
 // instantiate function
@@ -698,7 +697,6 @@ val split: TableFunction[_] = new MySplitUDTF()
 // join
 val result: Table = table
     .leftOuterJoin(split('c) as ('s, 't, 'v))
-    .where('a > 5)
     .select('a, 'b, 's, 't, 'v)
 {% endhighlight %}
       </td>

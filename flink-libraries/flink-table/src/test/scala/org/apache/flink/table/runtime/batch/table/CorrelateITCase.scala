@@ -83,7 +83,7 @@ class CorrelateITCase(
   }
 
   /**
-    * Due to CALCITE-2004, common join predicates are temporarily forbidden.
+    * Common join predicates are temporarily forbidden (see FLINK-7865).
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
@@ -98,23 +98,6 @@ class CorrelateITCase(
       .toDataSet[Row]
     val results = result.collect()
     val expected = "John#19,19,2\n" + "nosharp,null,null"
-    TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
-
-  @Test
-  def testLeftOuterJoinWithWhere(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
-    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
-
-    val func2 = new TableFunc2
-    val result = in
-      .leftOuterJoin(func2('c) as ('s, 'l), true)
-      .where('a >= 'l) // The where clause should be evaluated after the join.
-      .select('c, 's, 'l)
-      .toDataSet[Row]
-    val results = result.collect()
-    val expected = "John#19,19,2\n" + "Anna#44,44,2"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

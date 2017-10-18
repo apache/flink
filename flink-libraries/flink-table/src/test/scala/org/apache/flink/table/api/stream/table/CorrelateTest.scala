@@ -74,12 +74,8 @@ class CorrelateTest extends TableTestBase {
     util.verifyTable(result2, expected2)
   }
 
-  /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicates can only be empty or literal true.
-    */
   @Test
-  def testLeftOuterJoinWithTrueLiteral(): Unit = {
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
@@ -102,21 +98,6 @@ class CorrelateTest extends TableTestBase {
     )
 
     util.verifyTable(result, expected)
-  }
-
-  /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicates can only be empty or literal true.
-    */
-  @Test (expected = classOf[ValidationException])
-  def testLeftOuterJoinWithPredicates(): Unit = {
-    val util = streamTestUtil()
-    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    val function = util.addFunction("func1", new TableFunc1)
-
-    val result = table.leftOuterJoin(function('c) as 's, 'c === 's).select('c, 's).where('a > 10)
-
-    util.verifyTable(result, "")
   }
 
   @Test

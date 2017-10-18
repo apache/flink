@@ -481,7 +481,7 @@ case class Join(
         } else {
           nonEquiJoinPredicateFound = true
         }
-      // The boolean literal should be valid condition type.
+      // The boolean literal should be a valid condition type.
       case x: Literal if x.resultType == Types.BOOLEAN =>
       case x => failValidation(
         s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
@@ -492,7 +492,7 @@ case class Join(
     // Due to CALCITE-2004, we cannot accept join predicates except literal true for TableFunction
     // left outer join.
     if (correlated && right.isInstanceOf[LogicalTableFunctionCall] && joinType != JoinType.INNER ) {
-      if (!alwaysTrue) failValidation("TableFunction left outer join predicates can only be " +
+      if (!alwaysTrue) failValidation("TableFunction left outer join predicate can only be " +
         "empty or literal true.")
     } else {
       if (!equiJoinPredicateFound) {

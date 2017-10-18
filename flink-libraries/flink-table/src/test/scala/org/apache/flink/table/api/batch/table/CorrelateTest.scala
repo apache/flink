@@ -74,10 +74,6 @@ class CorrelateTest extends TableTestBase {
     util.verifyTable(result2, expected2)
   }
 
-  /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicates can only be empty or literal true.
-    */
   @Test
   def testLeftOuterJoinWithoutJoinPredicates(): Unit = {
     val util = batchTestUtil()
@@ -105,18 +101,28 @@ class CorrelateTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
-  /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicates can only be empty or literal true.
-    */
-  @Test (expected = classOf[ValidationException])
-  def testLeftOuterJoinWithPredicates(): Unit = {
+  @Test
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
-    val result = table
-      .leftOuterJoin(function('c) as 's, 'c === 's)
-      .select('c, 's)
-    util.verifyTable(result, "")
+
+    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetCorrelate",
+        batchTableNode(0),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
+        term("select", "a", "b", "c", "s"),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
+        term("joinType", "LEFT")
+      ),
+      term("select", "c", "s"))
+
+    util.verifyTable(result, expected)
   }
 }

@@ -83,7 +83,7 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
   }
 
   /**
-    * Due to CALCITE-2004, common join predicates are temporarily forbidden.
+    * Common join predicates are temporarily forbidden (see FLINK-7865).
     */
   @Test (expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
@@ -100,24 +100,6 @@ class CorrelateITCase extends StreamingMultipleProgramsTestBase {
 
     val expected = "John#19,null,null\n" + "John#22,null,null\n" + "Anna44,null,null\n" +
       "nosharp,null,null"
-    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
-  }
-
-  @Test
-  def testLeftOuterJoinWithWhere(): Unit = {
-    val t = testData(env).toTable(tEnv).as('a, 'b, 'c)
-    val func0 = new TableFunc0
-
-    val result = t
-      .leftOuterJoin(func0('c) as('d, 'e), true)
-      .where('e < 40) // The filter clause will be evaluated after the join.
-      .select('c, 'd, 'e)
-      .toAppendStream[Row]
-
-    result.addSink(new StreamITCase.StringSink[Row])
-    env.execute()
-
-    val expected = mutable.MutableList("Jack#22,Jack,22", "John#19,John,19")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
