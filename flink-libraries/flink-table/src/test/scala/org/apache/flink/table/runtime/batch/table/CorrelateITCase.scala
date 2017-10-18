@@ -22,7 +22,7 @@ import java.sql.{Date, Timestamp}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func1, Func13, Func18, RichFunc2}
@@ -69,7 +69,7 @@ class CorrelateITCase(
   }
 
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithoutPredicates(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = TableEnvironment.getTableEnvironment(env, config)
     val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
@@ -79,6 +79,25 @@ class CorrelateITCase(
     val results = result.collect()
     val expected = "Jack#22,Jack,4\n" + "Jack#22,22,2\n" + "John#19,John,4\n" +
       "John#19,19,2\n" + "Anna#44,Anna,4\n" + "Anna#44,44,2\n" + "nosharp,null,null"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  /**
+    * Common join predicates are temporarily forbidden (see FLINK-7865).
+    */
+  @Test (expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+
+    val func2 = new TableFunc2
+    val result = in
+      .leftOuterJoin(func2('c) as ('s, 'l), 'a === 'l)
+      .select('c, 's, 'l)
+      .toDataSet[Row]
+    val results = result.collect()
+    val expected = "John#19,19,2\n" + "nosharp,null,null"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

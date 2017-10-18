@@ -21,7 +21,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
-import org.apache.flink.table.runtime.utils._
 import org.apache.flink.table.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
@@ -176,6 +175,22 @@ class CorrelateValidationTest extends TableTestBase {
       "Given parameters of function 'func2' do not match any signature.")
   }
 
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicate can only be empty or literal true (the restriction should be removed in
+    * FLINK-7865).
+    */
+  @Test (expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = util.addFunction("func1", new TableFunc1)
+
+    val result = table.leftOuterJoin(function('c) as 's, 'c === 's).select('c, 's).where('a > 10)
+
+    util.verifyTable(result, "")
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   private def expectExceptionThrown(
@@ -196,5 +211,4 @@ class CorrelateValidationTest extends TableTestBase {
       case e: Throwable => fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
     }
   }
-
 }

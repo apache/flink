@@ -18,6 +18,7 @@
 package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.Func13
 import org.apache.flink.table.utils.TableTestUtil._
@@ -74,12 +75,12 @@ class CorrelateTest extends TableTestBase {
   }
 
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.leftOuterJoin(function('c) as 's).select('c, 's)
+    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
 
     val expected = unaryNode(
       "DataStreamCalc",
