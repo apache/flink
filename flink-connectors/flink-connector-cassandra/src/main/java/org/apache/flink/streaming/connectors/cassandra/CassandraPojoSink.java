@@ -46,9 +46,18 @@ public class CassandraPojoSink<IN> extends CassandraSinkBase<IN, ResultSet> {
 	 *
 	 * @param clazz Class instance
 	 */
-	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder) {
-		super(builder);
+	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder, boolean isFlushOnCheckpoint) {
+		super(builder, isFlushOnCheckpoint);
 		this.clazz = clazz;
+	}
+
+	/**
+	 * The main constructor for creating CassandraPojoSink.
+	 *
+	 * @param clazz Class instance
+	 */
+	public CassandraPojoSink(Class<IN> clazz, ClusterBuilder builder) {
+		this(clazz, builder, true);
 	}
 
 	@Override

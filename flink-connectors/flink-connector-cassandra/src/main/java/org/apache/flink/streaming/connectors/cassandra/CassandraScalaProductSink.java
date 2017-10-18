@@ -26,6 +26,11 @@ import scala.Product;
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Product}
  */
 public class CassandraScalaProductSink<IN extends Product> extends AbstractCassandraTupleSink<IN> {
+
+	public CassandraScalaProductSink(String insertQuery, ClusterBuilder builder, boolean isFlushOnCheckpoint) {
+		super(insertQuery, builder, isFlushOnCheckpoint);
+	}
+
 	public CassandraScalaProductSink(String insertQuery, ClusterBuilder builder) {
 		super(insertQuery, builder);
 	}

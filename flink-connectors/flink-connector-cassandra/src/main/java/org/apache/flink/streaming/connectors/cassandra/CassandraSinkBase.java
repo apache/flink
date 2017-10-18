@@ -17,8 +17,12 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import com.datastax.driver.core.Cluster;
@@ -37,60 +41,88 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
+public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> implements CheckpointedFunction {
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 	protected transient Cluster cluster;
 	protected transient Session session;
 
-	protected transient volatile Throwable exception;
+	protected transient volatile Throwable asyncError;
 	protected transient FutureCallback<V> callback;
 
-	private final ClusterBuilder builder;
+	protected final ClusterBuilder builder;
 
-	private final AtomicInteger updatesPending = new AtomicInteger();
+	protected final AtomicInteger updatesPending = new AtomicInteger();
 
-	CassandraSinkBase(ClusterBuilder builder) {
+	/**
+	 * A default callback to a message sent to C*.
+	 * @param <V>
+	 */
+	protected class DefaultMessageCallback<V> implements FutureCallback<V> {
+		@Override
+		public void onSuccess(V ignored) {
+			int pending = updatesPending.decrementAndGet();
+
+			if (log.isTraceEnabled()) {
+				log.trace("onSuccess {} => {}", pending + 1, pending);
+			}
+
+			if (pending == 0) {
+				synchronized (updatesPending) {
+					updatesPending.notifyAll();
+				}
+			}
+		}
+
+		@Override
+		public void onFailure(Throwable t) {
+			int pending = updatesPending.decrementAndGet();
+
+			if (log.isTraceEnabled()) {
+				log.trace("onFailure {} => {}", pending + 1, pending);
+			}
+
+			if (pending == 0) {
+				synchronized (updatesPending) {
+					updatesPending.notifyAll();
+				}
+			}
+			asyncError = t;
+
+			log.error("Error while sending value.", t);
+		}
+	}
+
+	/**
+	 * If true, the producer will wait until all in-flight mutations have been sent to C* before performing a checkpoint.
+	 */
+	private final boolean flushOnCheckpoint;
+
+	CassandraSinkBase(ClusterBuilder builder, boolean isFlushOnCheckpoint) {
 		this.builder = builder;
+		this.flushOnCheckpoint = isFlushOnCheckpoint;
+		this.callback = new DefaultMessageCallback<>();
 		ClosureCleaner.clean(builder, true);
 	}
 
 	@Override
 	public void open(Configuration configuration) {
-		this.callback = new FutureCallback<V>() {
-			@Override
-			public void onSuccess(V ignored) {
-				int pending = updatesPending.decrementAndGet();
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
-			}
-
-			@Override
-			public void onFailure(Throwable t) {
-				int pending = updatesPending.decrementAndGet();
-				if (pending == 0) {
-					synchronized (updatesPending) {
-						updatesPending.notifyAll();
-					}
-				}
-				exception = t;
-
-				log.error("Error while sending value.", t);
-			}
-		};
 		this.cluster = builder.getCluster();
 		this.session = cluster.connect();
 	}
 
 	@Override
 	public void invoke(IN value) throws Exception {
-		if (exception != null) {
-			throw new IOException("Error while sending value.", exception);
+		//TODO: 1. asyncError was not reset. 2. Should unify error handling logic in CassandraSinkBase
+		if (asyncError != null) {
+			throw new IOException("Error while sending value.", asyncError);
 		}
 		ListenableFuture<V> result = send(value);
-		updatesPending.incrementAndGet();
+		int pending = updatesPending.incrementAndGet();
+
+		if (log.isTraceEnabled()) {
+			log.trace("invoke {} => {}", pending - 1, pending);
+		}
+
 		Futures.addCallback(result, callback);
 	}
 
@@ -99,18 +131,14 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 	@Override
 	public void close() throws Exception {
 		try {
-			if (exception != null) {
-				throw new IOException("Error while sending value.", exception);
+			if (asyncError != null) {
+				throw new IOException("Error while sending value.", asyncError);
 			}
 
-			while (updatesPending.get() > 0) {
-				synchronized (updatesPending) {
-					updatesPending.wait();
-				}
-			}
+			flushPending();
 
-			if (exception != null) {
-				throw new IOException("Error while sending value.", exception);
+			if (asyncError != null) {
+				throw new IOException("Error while sending value.", asyncError);
 			}
 		} finally {
 			try {
@@ -128,5 +156,57 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> {
 				log.error("Error while closing cluster.", e);
 			}
 		}
+	}
+
+	/**
+	 * Flush pending records.
+	 */
+	protected void flushPending() throws InterruptedException {
+		if (log.isTraceEnabled()) {
+			log.trace("flush pending records ...");
+		}
+
+		while (updatesPending.get() > 0) {
+			synchronized (updatesPending) {
+				updatesPending.wait();
+			}
+		}
+
+		if (log.isTraceEnabled()) {
+			log.trace("flush pending records ... DONE");
+		}
+	}
+
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		//currently nothing
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext ctx) throws Exception {
+		// check for asynchronous errors and fail the checkpoint if necessary
+		checkAsyncErrors();
+
+		//optionally flush the pending records iff the flag is enabled.
+		if (flushOnCheckpoint) {
+			flushPending();
+
+			// if the flushed requests has errors, we should propagate it also and fail the checkpoint
+			checkAsyncErrors();
+		}
+	}
+
+	private void checkAsyncErrors() throws Exception {
+		Throwable error = asyncError;
+		if (error != null) {
+			// prevent throwing duplicated error
+			asyncError = null;
+			throw new IllegalStateException("Failed to send data to Cassandra: " + error.getMessage(), error);
+		}
+	}
+
+	@VisibleForTesting
+	protected long getNumOfPendingRecords() {
+		return updatesPending.get();
 	}
 }

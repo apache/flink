@@ -25,6 +25,11 @@ import org.apache.flink.api.java.tuple.Tuple;
  * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
  */
 public class CassandraTupleSink<IN extends Tuple> extends AbstractCassandraTupleSink<IN> {
+
+	public CassandraTupleSink(String insertQuery, ClusterBuilder builder, boolean isFlushOnCheckpoint) {
+		super(insertQuery, builder, isFlushOnCheckpoint);
+	}
+
 	public CassandraTupleSink(String insertQuery, ClusterBuilder builder) {
 		super(insertQuery, builder);
 	}
