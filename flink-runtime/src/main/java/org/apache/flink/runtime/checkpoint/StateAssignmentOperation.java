@@ -219,7 +219,7 @@ public class StateAssignmentOperation {
 		}
 	}
 
-	private static OperatorSubtaskState operatorSubtaskStateFrom(
+	public static OperatorSubtaskState operatorSubtaskStateFrom(
 			OperatorInstanceID instanceID,
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subManagedOperatorState,
 			Map<OperatorInstanceID, List<OperatorStateHandle>> subRawOperatorState,
