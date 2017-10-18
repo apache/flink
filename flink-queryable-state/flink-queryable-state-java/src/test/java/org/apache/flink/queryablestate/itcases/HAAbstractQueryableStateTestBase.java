@@ -20,43 +20,57 @@ package org.apache.flink.queryablestate.itcases;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.QueryableStateOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 
+import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.rules.TemporaryFolder;
 
 import static org.junit.Assert.fail;
 
 /**
- * Base class with the cluster configuration for the tests on the HA mode.
+ * Base class with the cluster configuration for the tests on the NON-HA mode.
  */
-public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryableStateITCase {
+public abstract class HAAbstractQueryableStateTestBase extends AbstractQueryableStateTestBase {
 
+	private static final int NUM_JMS = 2;
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 4;
 
-	@BeforeClass
-	public static void setup() {
+	private static TestingServer zkServer;
+	private static TemporaryFolder temporaryFolder;
+
+	public static void setup(int proxyPortRangeStart, int serverPortRangeStart) {
 		try {
+			zkServer = new TestingServer();
+			temporaryFolder = new TemporaryFolder();
+			temporaryFolder.create();
+
 			Configuration config = new Configuration();
-			config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
+			config.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, NUM_JMS);
 			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
-			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 1);
 			config.setBoolean(QueryableStateOptions.SERVER_ENABLE, true);
-			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 1);
-			config.setString(QueryableStateOptions.PROXY_PORT_RANGE, "9069-" + (9069 + NUM_TMS));
-			config.setString(QueryableStateOptions.SERVER_PORT_RANGE, "9062-" + (9062 + NUM_TMS));
+			config.setInteger(QueryableStateOptions.CLIENT_NETWORK_THREADS, 2);
+			config.setInteger(QueryableStateOptions.SERVER_NETWORK_THREADS, 2);
+			config.setString(QueryableStateOptions.PROXY_PORT_RANGE, proxyPortRangeStart + "-" + (proxyPortRangeStart + NUM_TMS));
+			config.setString(QueryableStateOptions.SERVER_PORT_RANGE, serverPortRangeStart + "-" + (serverPortRangeStart + NUM_TMS));
+			config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().toString());
+			config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
+			config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
 			cluster = new TestingCluster(config, false);
-			cluster.start(true);
+			cluster.start();
 
-			// verify that we are not in HA mode
-			Assert.assertTrue(cluster.haMode() == HighAvailabilityMode.NONE);
+			client = new QueryableStateClient("localhost", proxyPortRangeStart);
+
+			// verify that we are in HA mode
+			Assert.assertTrue(cluster.haMode() == HighAvailabilityMode.ZOOKEEPER);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -66,11 +80,19 @@ public abstract class NonHAAbstractQueryableStateITCase extends AbstractQueryabl
 
 	@AfterClass
 	public static void tearDown() {
+		if (cluster != null) {
+			cluster.stop();
+			cluster.awaitTermination();
+		}
+
 		try {
-			cluster.shutdown();
+			zkServer.stop();
+			zkServer.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+
+		client.shutdown();
 	}
 }

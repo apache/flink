@@ -45,7 +45,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.QueryableStateOptions;
 import org.apache.flink.queryablestate.UnknownKeyOrNamespaceException;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -108,7 +107,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Base class for queryable state integration tests with a configurable state backend.
  */
-public abstract class AbstractQueryableStateITCase extends TestLogger {
+public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 	private static final int NO_OF_RETRIES = 100;
 	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10000L, TimeUnit.SECONDS);
@@ -127,6 +126,11 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 	 * available after your test finishes, e.g. cancel the job you submitted.
 	 */
 	protected static FlinkMiniCluster cluster;
+
+	/**
+	 * Client shared between all the test.
+	 */
+	protected static QueryableStateClient client;
 
 	protected static int maxParallelism;
 
@@ -163,10 +167,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 
@@ -276,8 +276,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -393,10 +391,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 		final long numElements = 1024L;
 
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
-
 		JobID jobId = null;
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -441,8 +435,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -456,10 +448,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -520,8 +508,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -540,10 +526,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -619,8 +601,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -638,10 +618,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -687,8 +663,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -705,10 +679,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final int numElements = 1024;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -787,8 +757,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -804,10 +772,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -884,8 +848,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -901,10 +863,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -998,8 +956,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -1016,10 +972,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -1124,8 +1076,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 
@@ -1135,10 +1085,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
 		final long numElements = 1024L;
-
-		final QueryableStateClient client = new QueryableStateClient(
-				"localhost",
-				Integer.parseInt(QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
 
 		JobID jobId = null;
 		try {
@@ -1217,8 +1163,6 @@ public abstract class AbstractQueryableStateITCase extends TestLogger {
 
 				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
-
-			client.shutdown();
 		}
 	}
 

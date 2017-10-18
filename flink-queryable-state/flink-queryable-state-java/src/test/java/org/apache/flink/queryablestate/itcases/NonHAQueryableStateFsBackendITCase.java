@@ -21,16 +21,22 @@ package org.apache.flink.queryablestate.itcases;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 /**
  * Several integration tests for queryable state using the {@link FsStateBackend}.
  */
-public class NonHAQueryableStateITCaseFsBackend extends NonHAAbstractQueryableStateITCase {
+public class NonHAQueryableStateFsBackendITCase extends NonHAAbstractQueryableStateTestBase {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void setup() {
+		setup(9084, 9089);
+	}
 
 	@Override
 	protected AbstractStateBackend createStateBackend() throws Exception {

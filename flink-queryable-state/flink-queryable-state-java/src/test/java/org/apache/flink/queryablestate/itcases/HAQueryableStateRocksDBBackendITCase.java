@@ -21,16 +21,22 @@ package org.apache.flink.queryablestate.itcases;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 /**
  * Several integration tests for queryable state using the {@link RocksDBStateBackend}.
  */
-public class HAQueryableStateITCaseRocksDBBackend extends HAAbstractQueryableStateITCase {
+public class HAQueryableStateRocksDBBackendITCase extends HAAbstractQueryableStateTestBase {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@BeforeClass
+	public static void setup() {
+		setup(9074, 9079);
+	}
 
 	@Override
 	protected AbstractStateBackend createStateBackend() throws Exception {
