@@ -121,6 +121,7 @@ public class ZooKeeperLeaderRetrievalService implements LeaderRetrievalService, 
 			running = false;
 		}
 
+		client.getUnhandledErrorListenable().removeListener(this);
 		client.getConnectionStateListenable().removeListener(connectionStateListener);
 
 		try {
