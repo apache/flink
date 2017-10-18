@@ -343,9 +343,15 @@ class TimeIndicatorConversionTest extends TableTestBase {
             WindowReference("w$"),
             'rowtime,
             100.millis)),
-        term("select", "long", "SUM(int) AS EXPR$2", "start('w$) AS w$start", "end('w$) AS w$end")
+        term("select",
+          "long",
+          "SUM(int) AS EXPR$2",
+          "start('w$) AS w$start",
+          "end('w$) AS w$end",
+          "rowtime('w$) AS w$rowtime",
+          "proctime('w$) AS w$proctime")
       ),
-      term("select", "w$end", "long", "EXPR$2")
+      term("select", "w$end AS rowtime", "long", "EXPR$2")
     )
 
     util.verifyTable(result, expected)

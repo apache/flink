@@ -146,6 +146,9 @@ class DataStreamGroupWindowAggregate(
       // copy the window rowtime attribute into the StreamRecord timestamp field
       val timeAttribute = window.timeAttribute.asInstanceOf[ResolvedFieldReference].name
       val timeIdx = inputSchema.fieldNames.indexOf(timeAttribute)
+      if (timeIdx < 0) {
+        throw TableException("Time attribute could not be found. This is a bug.")
+      }
 
       inputDS
         .process(
