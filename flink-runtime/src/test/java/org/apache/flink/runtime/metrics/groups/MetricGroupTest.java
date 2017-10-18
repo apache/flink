@@ -23,6 +23,7 @@ import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -131,7 +132,7 @@ public class MetricGroupTest extends TestLogger {
 	@Test
 	public void testCreateQueryServiceMetricInfo() {
 		JobID jid = new JobID();
-		AbstractID vid = new AbstractID();
+		JobVertexID vid = new JobVertexID();
 		AbstractID eid = new AbstractID();
 		MetricRegistry registry = new MetricRegistry(defaultMetricRegistryConfiguration);
 		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");

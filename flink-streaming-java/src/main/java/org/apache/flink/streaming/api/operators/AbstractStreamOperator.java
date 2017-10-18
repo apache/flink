@@ -33,6 +33,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -178,13 +179,20 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
-		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
-		if (config.isChainStart()) {
-			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseInputMetricsForTask();
-		}
-		if (config.isChainEnd()) {
-			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseOutputMetricsForTask();
+		try {
+			OperatorMetricGroup operatorMetricGroup = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorID(), config.getOperatorName());
+			this.output = new CountingOutput(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+			if (config.isChainStart()) {
+				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
+			}
+			if (config.isChainEnd()) {
+				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
+			}
+			this.metrics = operatorMetricGroup;
+		} catch (Exception e) {
+			LOG.warn("An error occurred while instantiating task metrics.", e);
+			this.metrics = new UnregisteredMetricsGroup();
+			this.output = output;
 		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
