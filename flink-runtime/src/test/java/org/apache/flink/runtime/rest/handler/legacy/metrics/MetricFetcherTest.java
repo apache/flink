@@ -28,9 +28,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -76,25 +74,22 @@ public class MetricFetcherTest extends TestLogger {
 		JobID jobID = new JobID();
 		InstanceID tmID = new InstanceID();
 		ResourceID tmRID = new ResourceID(tmID.toString());
-		TaskManagerGateway taskManagerGateway = mock(TaskManagerGateway.class);
-		when(taskManagerGateway.getAddress()).thenReturn("/tm/address");
-
-		Instance taskManager = mock(Instance.class);
-		when(taskManager.getTaskManagerGateway()).thenReturn(taskManagerGateway);
-		when(taskManager.getId()).thenReturn(tmID);
-		when(taskManager.getTaskManagerID()).thenReturn(tmRID);
 
 		// ========= setup JobManager ==================================================================================
 		JobDetails details = mock(JobDetails.class);
 		when(details.getJobId()).thenReturn(jobID);
 
+		final String jmMetricQueryServicePath = "/jm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME;
+		final String tmMetricQueryServicePath = "/tm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString();
+
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 
 		when(jobManagerGateway.requestJobDetails(anyBoolean(), anyBoolean(), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList(), Collections.emptyList())));
-		when(jobManagerGateway.requestTaskManagerInstances(any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(Collections.singleton(taskManager)));
-		when(jobManagerGateway.getAddress()).thenReturn("/jm/address");
+		when(jobManagerGateway.requestMetricQueryServicePaths(any(Time.class))).thenReturn(
+			CompletableFuture.completedFuture(Collections.singleton(jmMetricQueryServicePath)));
+		when(jobManagerGateway.requestTaskManagerMetricQueryServicePaths(any(Time.class))).thenReturn(
+			CompletableFuture.completedFuture(Collections.singleton(Tuple2.of(tmID, tmMetricQueryServicePath))));
 
 		GatewayRetriever<JobManagerGateway> retriever = mock(AkkaJobManagerRetriever.class);
 		when(retriever.getNow())
@@ -112,8 +107,8 @@ public class MetricFetcherTest extends TestLogger {
 			.thenReturn(CompletableFuture.completedFuture(requestMetricsAnswer));
 
 		MetricQueryServiceRetriever queryServiceRetriever = mock(MetricQueryServiceRetriever.class);
-		when(queryServiceRetriever.retrieveService(eq("/jm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME))).thenReturn(CompletableFuture.completedFuture(jmQueryService));
-		when(queryServiceRetriever.retrieveService(eq("/tm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString()))).thenReturn(CompletableFuture.completedFuture(tmQueryService));
+		when(queryServiceRetriever.retrieveService(eq(jmMetricQueryServicePath))).thenReturn(CompletableFuture.completedFuture(jmQueryService));
+		when(queryServiceRetriever.retrieveService(eq(tmMetricQueryServicePath))).thenReturn(CompletableFuture.completedFuture(tmQueryService));
 
 		// ========= start MetricFetcher testing =======================================================================
 		MetricFetcher fetcher = new MetricFetcher(

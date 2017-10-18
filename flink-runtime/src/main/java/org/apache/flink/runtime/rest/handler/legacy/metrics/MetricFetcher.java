@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
-import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -49,10 +49,10 @@ import static org.apache.flink.runtime.metrics.dump.MetricDumpSerialization.Metr
  * <p>Metrics will only be fetched when {@link MetricFetcher#update()} is called, provided that a sufficient time since
  * the last call has passed.
  */
-public class MetricFetcher {
+public class MetricFetcher<T extends RestfulGateway> {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricFetcher.class);
 
-	private final GatewayRetriever<JobManagerGateway> retriever;
+	private final GatewayRetriever<T> retriever;
 	private final MetricQueryServiceRetriever queryServiceRetriever;
 	private final Executor executor;
 	private final Time timeout;
@@ -63,7 +63,7 @@ public class MetricFetcher {
 	private long lastUpdateTime;
 
 	public MetricFetcher(
-			GatewayRetriever<JobManagerGateway> retriever,
+			GatewayRetriever<T> retriever,
 			MetricQueryServiceRetriever queryServiceRetriever,
 			Executor executor,
 			Time timeout) {
@@ -96,15 +96,20 @@ public class MetricFetcher {
 	}
 
 	private void fetchMetrics() {
+		LOG.debug("Start fetching metrics.");
+
 		try {
-			Optional<JobManagerGateway> optJobManagerGateway = retriever.getNow();
-			if (optJobManagerGateway.isPresent()) {
-				final JobManagerGateway jobManagerGateway = optJobManagerGateway.get();
+			Optional<T> optionalLeaderGateway = retriever.getNow();
+			if (optionalLeaderGateway.isPresent()) {
+				final T leaderGateway = optionalLeaderGateway.get();
 
 				/**
 				 * Remove all metrics that belong to a job that is not running and no longer archived.
 				 */
-				CompletableFuture<MultipleJobsDetails> jobDetailsFuture = jobManagerGateway.requestJobDetails(true, true, timeout);
+				CompletableFuture<MultipleJobsDetails> jobDetailsFuture = leaderGateway.requestJobDetails(
+					true,
+					true,
+					timeout);
 
 				jobDetailsFuture.whenCompleteAsync(
 					(MultipleJobsDetails jobDetails, Throwable throwable) -> {
@@ -123,35 +128,41 @@ public class MetricFetcher {
 					},
 					executor);
 
-				String jobManagerPath = jobManagerGateway.getAddress();
-				String jmQueryServicePath = jobManagerPath.substring(0, jobManagerPath.lastIndexOf('/') + 1) + MetricQueryService.METRIC_QUERY_SERVICE_NAME;
+				CompletableFuture<Collection<String>> queryServicePathsFuture = leaderGateway.requestMetricQueryServicePaths(timeout);
 
-				retrieveAndQueryMetrics(jmQueryServicePath);
-
-				/**
-				 * We first request the list of all registered task managers from the job manager, and then
-				 * request the respective metric dump from each task manager.
-				 *
-				 * <p>All stored metrics that do not belong to a registered task manager will be removed.
-				 */
-				CompletableFuture<Collection<Instance>> taskManagersFuture = jobManagerGateway.requestTaskManagerInstances(timeout);
-
-				taskManagersFuture.whenCompleteAsync(
-					(Collection<Instance> taskManagers, Throwable throwable) -> {
+				queryServicePathsFuture.whenCompleteAsync(
+					(Collection<String> queryServicePaths, Throwable throwable) -> {
 						if (throwable != null) {
-							LOG.debug("Fetching list of registered TaskManagers failed.", throwable);
+							LOG.warn("Requesting paths for query services failed.", throwable);
 						} else {
-							List<String> activeTaskManagers = taskManagers.stream().map(
-								taskManagerInstance -> {
-									final String taskManagerAddress = taskManagerInstance.getTaskManagerGateway().getAddress();
-									final String tmQueryServicePath = taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + taskManagerInstance.getTaskManagerID().getResourceIdString();
+							for (String queryServicePath : queryServicePaths) {
+								retrieveAndQueryMetrics(queryServicePath);
+							}
+						}
+					},
+					executor);
 
-									retrieveAndQueryMetrics(tmQueryServicePath);
+				// TODO: Once the old code has been ditched, remove the explicit TaskManager query service discovery
+				// TODO: and return it as part of requestQueryServicePaths. Moreover, change the MetricStore such that
+				// TODO: we don't have to explicitly retain the valid TaskManagers, e.g. letting it be a cache with expiry time
+				CompletableFuture<Collection<Tuple2<InstanceID, String>>> taskManagerQueryServicePathsFuture = leaderGateway
+					.requestTaskManagerMetricQueryServicePaths(timeout);
 
-									return taskManagerInstance.getId().toString();
-								}).collect(Collectors.toList());
+				taskManagerQueryServicePathsFuture.whenCompleteAsync(
+					(Collection<Tuple2<InstanceID, String>> queryServicePaths, Throwable throwable) -> {
+						if (throwable != null) {
+							LOG.warn("Requesting TaskManager's path for query services failed.", throwable);
+						} else {
+							List<String> taskManagersToRetain = queryServicePaths
+								.stream()
+								.map(
+									(Tuple2<InstanceID, String> tuple) -> {
+										retrieveAndQueryMetrics(tuple.f1);
+										return tuple.f0.toString();
+									}
+								).collect(Collectors.toList());
 
-							metrics.retainTaskManagers(activeTaskManagers);
+							metrics.retainTaskManagers(taskManagersToRetain);
 						}
 					},
 					executor);
@@ -167,6 +178,8 @@ public class MetricFetcher {
 	 * @param queryServicePath specifying the QueryServiceGateway
 	 */
 	private void retrieveAndQueryMetrics(String queryServicePath) {
+		LOG.debug("Retrieve metric query service gateway for {}", queryServicePath);
+
 		final CompletableFuture<MetricQueryServiceGateway> queryServiceGatewayFuture = queryServiceRetriever.retrieveService(queryServicePath);
 
 		queryServiceGatewayFuture.whenCompleteAsync(
@@ -186,6 +199,8 @@ public class MetricFetcher {
 	 * @param queryServiceGateway to query for metrics
 	 */
 	private void queryMetrics(final MetricQueryServiceGateway queryServiceGateway) {
+		LOG.debug("Query metrics for {}.", queryServiceGateway.getAddress());
+
 		queryServiceGateway
 			.queryMetrics(timeout)
 			.whenCompleteAsync(
