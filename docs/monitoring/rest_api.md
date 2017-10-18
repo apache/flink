@@ -134,7 +134,7 @@ Sample Result:
 
 **`/joboverview`**
 
-Jobs, groupes by status, each with a small summary of its status.
+Jobs, grouped by status, each with a small summary of its status.
 
 Sample Result:
 
