@@ -20,6 +20,8 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -40,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGroup> {
 
-	private final Map<String, OperatorMetricGroup> operators = new HashMap<>();
+	private final Map<OperatorID, OperatorMetricGroup> operators = new HashMap<>();
 
 	static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
@@ -50,7 +52,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	private final AbstractID executionId;
 
 	@Nullable
-	protected final AbstractID vertexId;
+	protected final JobVertexID vertexId;
 
 	@Nullable
 	private final String taskName;
@@ -64,7 +66,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	public TaskMetricGroup(
 			MetricRegistry registry,
 			TaskManagerJobMetricGroup parent,
-			@Nullable AbstractID vertexId,
+			@Nullable JobVertexID vertexId,
 			AbstractID executionId,
 			@Nullable String taskName,
 			int subtaskIndex,
@@ -124,7 +126,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	protected QueryScopeInfo.TaskQueryScopeInfo createQueryServiceMetricInfo(CharacterFilter filter) {
 		return new QueryScopeInfo.TaskQueryScopeInfo(
 			this.parent.jobId.toString(),
-			this.vertexId.toString(),
+			String.valueOf(this.vertexId),
 			this.subtaskIndex);
 	}
 
@@ -133,20 +135,24 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 	// ------------------------------------------------------------------------
 
 	public OperatorMetricGroup addOperator(String name) {
+		return addOperator(OperatorID.fromJobVertexID(vertexId), name);
+	}
+
+	public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
 		if (name != null && name.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
 			LOG.warn("The operator name {} exceeded the {} characters length limit and was truncated.", name, METRICS_OPERATOR_NAME_MAX_LENGTH);
 			name = name.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
 		}
-		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, name);
+		OperatorMetricGroup operator = new OperatorMetricGroup(this.registry, this, operatorID, name);
 
 		synchronized (this) {
-			OperatorMetricGroup previous = operators.put(name, operator);
+			OperatorMetricGroup previous = operators.put(operatorID, operator);
 			if (previous == null) {
 				// no operator group so far
 				return operator;
 			} else {
 				// already had an operator group. restore that one.
-				operators.put(name, previous);
+				operators.put(operatorID, previous);
 				return previous;
 			}
 		}

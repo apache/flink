@@ -292,7 +292,9 @@ or by assigning unique names to jobs and operators.
 - TaskManager: &lt;host&gt;, &lt;tm_id&gt;
 - Job: &lt;job_id&gt;, &lt;job_name&gt;
 - Task: &lt;task_id&gt;, &lt;task_name&gt;, &lt;task_attempt_id&gt;, &lt;task_attempt_num&gt;, &lt;subtask_index&gt;
-- Operator: &lt;operator_name&gt;, &lt;subtask_index&gt;
+- Operator: &lt;operator_id&gt;,&lt;operator_name&gt;, &lt;subtask_index&gt;
+
+**Important:** For the Batch API, &lt;operator_id&gt; is always equal to &lt;task_id&gt;.
 
 ## Reporter
 
