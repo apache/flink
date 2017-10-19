@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -45,19 +46,20 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.AsynchronousException;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.FutureUtil;
+import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -69,7 +71,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
@@ -92,7 +93,7 @@ import static org.mockito.Mockito.verify;
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 @SuppressWarnings("serial")
-public class RocksDBAsyncSnapshotTest {
+public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 	/**
 	 * This ensures that asynchronous state handles are actually materialized asynchronously.
@@ -209,7 +210,6 @@ public class RocksDBAsyncSnapshotTest {
 	 * @throws Exception
 	 */
 	@Test
-	@Ignore
 	public void testCancelFullyAsyncCheckpoints() throws Exception {
 		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
 
@@ -229,6 +229,29 @@ public class RocksDBAsyncSnapshotTest {
 
 		BlockingStreamMemoryStateBackend memoryStateBackend = new BlockingStreamMemoryStateBackend();
 
+		BlockerCheckpointStreamFactory blockerCheckpointStreamFactory =
+			new BlockerCheckpointStreamFactory(4 * 1024 * 1024) {
+
+			int count = 1;
+
+			@Override
+			public MemCheckpointStreamFactory.MemoryCheckpointOutputStream createCheckpointStateOutputStream(
+				long checkpointID,
+				long timestamp) throws Exception {
+
+				// we skip the first created stream, because it is used to checkpoint the timer service, which is
+				// currently not asynchronous.
+				if (count > 0) {
+					--count;
+					return new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(maxSize);
+				} else {
+					return super.createCheckpointStateOutputStream(checkpointID, timestamp);
+				}
+			}
+		};
+
+		BlockingStreamMemoryStateBackend.blockerCheckpointStreamFactory = blockerCheckpointStreamFactory;
+
 		RocksDBStateBackend backend = new RocksDBStateBackend(memoryStateBackend);
 		backend.setDbStoragePath(dbDir.getAbsolutePath());
 
@@ -244,8 +267,8 @@ public class RocksDBAsyncSnapshotTest {
 				new MockInputSplitProvider(),
 				testHarness.bufferSize);
 
-		BlockingStreamMemoryStateBackend.waitFirstWriteLatch = new OneShotLatch();
-		BlockingStreamMemoryStateBackend.unblockCancelLatch = new OneShotLatch();
+		blockerCheckpointStreamFactory.setBlockerLatch(new OneShotLatch());
+		blockerCheckpointStreamFactory.setWaiterLatch(new OneShotLatch());
 
 		testHarness.invoke(mockEnv);
 
@@ -259,39 +282,31 @@ public class RocksDBAsyncSnapshotTest {
 			}
 		}
 
-		task.triggerCheckpoint(new CheckpointMetaData(42, 17), CheckpointOptions.forFullCheckpoint());
-		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
-		BlockingStreamMemoryStateBackend.waitFirstWriteLatch.await();
-		task.cancel();
-		BlockingStreamMemoryStateBackend.unblockCancelLatch.trigger();
-		testHarness.endInput();
-		try {
+		task.triggerCheckpoint(
+			new CheckpointMetaData(42, 17),
+			CheckpointOptions.forFullCheckpoint());
 
+		testHarness.processElement(new StreamRecord<>("Wohoo", 0));
+		blockerCheckpointStreamFactory.getWaiterLatch().await();
+		task.cancel();
+		blockerCheckpointStreamFactory.getBlockerLatch().trigger();
+		testHarness.endInput();
+		Assert.assertTrue(blockerCheckpointStreamFactory.getLastCreatedStream().isClosed());
+
+		try {
 			ExecutorService threadPool = task.getAsyncOperationsThreadPool();
 			threadPool.shutdown();
 			Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 			testHarness.waitForTaskCompletion();
 
-			if (mockEnv.wasFailedExternally()) {
-				throw new AsynchronousException(new InterruptedException("Exception was thrown as expected."));
-			}
 			fail("Operation completed. Cancel failed.");
 		} catch (Exception expected) {
-			AsynchronousException asynchronousException = null;
 
-			if (expected instanceof AsynchronousException) {
-				asynchronousException = (AsynchronousException) expected;
-			} else if (expected.getCause() instanceof AsynchronousException) {
-				asynchronousException = (AsynchronousException) expected.getCause();
-			} else {
+			Throwable cause = expected.getCause();
+
+			if (!(cause instanceof CancelTaskException)) {
 				fail("Unexpected exception: " + expected);
 			}
-
-			// we expect the exception from canceling snapshots
-			Throwable innerCause = asynchronousException.getCause();
-			Assert.assertTrue("Unexpected inner cause: " + innerCause,
-					innerCause instanceof CancellationException //future canceled
-							|| innerCause instanceof InterruptedException); //thread interrupted
 		}
 	}
 
@@ -329,25 +344,31 @@ public class RocksDBAsyncSnapshotTest {
 			new KeyGroupRange(0, 0),
 			null);
 
-		keyedStateBackend.restore(null);
-
-		// register a state so that the state backend has to checkpoint something
-		keyedStateBackend.getPartitionedState(
-			"namespace",
-			StringSerializer.INSTANCE,
-			new ValueStateDescriptor<>("foobar", String.class));
-
-		RunnableFuture<KeyedStateHandle> snapshotFuture = keyedStateBackend.snapshot(
-			checkpointId, timestamp, checkpointStreamFactory, CheckpointOptions.forFullCheckpoint());
-
 		try {
-			FutureUtil.runIfNotDoneAndGet(snapshotFuture);
-			fail("Expected an exception to be thrown here.");
-		} catch (ExecutionException e) {
-			Assert.assertEquals(testException, e.getCause());
-		}
 
-		verify(outputStream).close();
+			keyedStateBackend.restore(null);
+
+			// register a state so that the state backend has to checkpoint something
+			keyedStateBackend.getPartitionedState(
+				"namespace",
+				StringSerializer.INSTANCE,
+				new ValueStateDescriptor<>("foobar", String.class));
+
+			RunnableFuture<KeyedStateHandle> snapshotFuture = keyedStateBackend.snapshot(
+				checkpointId, timestamp, checkpointStreamFactory, CheckpointOptions.forFullCheckpoint());
+
+			try {
+				FutureUtil.runIfNotDoneAndGet(snapshotFuture);
+				fail("Expected an exception to be thrown here.");
+			} catch (ExecutionException e) {
+				Assert.assertEquals(testException, e.getCause());
+			}
+
+			verify(outputStream).close();
+		} finally {
+			IOUtils.closeQuietly(keyedStateBackend);
+			keyedStateBackend.dispose();
+		}
 	}
 
 	@Test
@@ -379,55 +400,11 @@ public class RocksDBAsyncSnapshotTest {
 	 */
 	static class BlockingStreamMemoryStateBackend extends MemoryStateBackend {
 
-		public static volatile OneShotLatch waitFirstWriteLatch = null;
-
-		public static volatile OneShotLatch unblockCancelLatch = null;
-
-		private volatile boolean closed = false;
+		public static volatile BlockerCheckpointStreamFactory blockerCheckpointStreamFactory = null;
 
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-			return new MemCheckpointStreamFactory(4 * 1024 * 1024) {
-				@Override
-				public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
-
-					return new MemoryCheckpointOutputStream(4 * 1024 * 1024) {
-						@Override
-						public void write(int b) throws IOException {
-							waitFirstWriteLatch.trigger();
-							try {
-								unblockCancelLatch.await();
-							} catch (InterruptedException e) {
-								Thread.currentThread().interrupt();
-							}
-							if (closed) {
-								throw new IOException("Stream closed.");
-							}
-							super.write(b);
-						}
-
-						@Override
-						public void write(byte[] b, int off, int len) throws IOException {
-							waitFirstWriteLatch.trigger();
-							try {
-								unblockCancelLatch.await();
-							} catch (InterruptedException e) {
-								Thread.currentThread().interrupt();
-							}
-							if (closed) {
-								throw new IOException("Stream closed.");
-							}
-							super.write(b, off, len);
-						}
-
-						@Override
-						public void close() {
-							closed = true;
-							super.close();
-						}
-					};
-				}
-			};
+			return blockerCheckpointStreamFactory;
 		}
 	}
 

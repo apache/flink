@@ -27,12 +27,14 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -103,12 +105,17 @@ public class RocksDBStateBackendConfigTest {
 						new KeyGroupRange(0, 0),
 						env.getTaskKvStateRegistry());
 
-		File instanceBasePath = keyedBackend.getInstanceBasePath();
-		assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(testDir1.getAbsolutePath()), startsWith(testDir2.getAbsolutePath())));
+		try {
+			File instanceBasePath = keyedBackend.getInstanceBasePath();
+			assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(testDir1.getAbsolutePath()), startsWith(testDir2.getAbsolutePath())));
 
-		//noinspection NullArgumentToVariableArgMethod
-		rocksDbBackend.setDbStoragePaths(null);
-		assertNull(rocksDbBackend.getDbStoragePaths());
+			//noinspection NullArgumentToVariableArgMethod
+			rocksDbBackend.setDbStoragePaths(null);
+			assertNull(rocksDbBackend.getDbStoragePaths());
+		} finally {
+			IOUtils.closeQuietly(keyedBackend);
+			keyedBackend.dispose();
+		}
 	}
 
 	@Test(expected = IllegalArgumentException.class)
@@ -158,8 +165,13 @@ public class RocksDBStateBackendConfigTest {
 						new KeyGroupRange(0, 0),
 						env.getTaskKvStateRegistry());
 
-		File instanceBasePath = keyedBackend.getInstanceBasePath();
-		assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(dir1.getAbsolutePath()), startsWith(dir2.getAbsolutePath())));
+		try {
+			File instanceBasePath = keyedBackend.getInstanceBasePath();
+			assertThat(instanceBasePath.getAbsolutePath(), anyOf(startsWith(dir1.getAbsolutePath()), startsWith(dir2.getAbsolutePath())));
+		} finally {
+			IOUtils.closeQuietly(keyedBackend);
+			keyedBackend.dispose();
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -225,14 +237,17 @@ public class RocksDBStateBackendConfigTest {
 
 			try {
 				Environment env = getMockEnvironment();
-				rocksDbBackend.createKeyedStateBackend(
-						env,
-						env.getJobID(),
-						"foobar",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
+				AbstractKeyedStateBackend<Integer> keyedStateBackend = rocksDbBackend.createKeyedStateBackend(
+					env,
+					env.getJobID(),
+					"foobar",
+					IntSerializer.INSTANCE,
+					1,
+					new KeyGroupRange(0, 0),
+					new KvStateRegistry().createTaskRegistry(env.getJobID(), new JobVertexID()));
+
+				IOUtils.closeQuietly(keyedStateBackend);
+				keyedStateBackend.dispose();
 			}
 			catch (Exception e) {
 				e.printStackTrace();

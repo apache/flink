@@ -24,7 +24,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ResourceGuardTest {
+public class ResourceGuardTest extends TestLogger {
 
 	@Test
 	public void testClose() {
