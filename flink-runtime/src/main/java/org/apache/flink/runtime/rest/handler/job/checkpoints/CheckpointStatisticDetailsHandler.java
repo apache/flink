@@ -29,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -41,11 +42,20 @@ public class CheckpointStatisticDetailsHandler extends AbstractCheckpointHandler
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
+			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, CheckpointStatistics, CheckpointMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
 			CheckpointStatsCache checkpointStatsCache) {
-		super(localRestAddress, leaderRetriever, timeout, messageHeaders, executionGraphCache, executor, checkpointStatsCache);
+		super(
+			localRestAddress,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			messageHeaders,
+			executionGraphCache,
+			executor,
+			checkpointStatsCache);
 	}
 
 	@Override

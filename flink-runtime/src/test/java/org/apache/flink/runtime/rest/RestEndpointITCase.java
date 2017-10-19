@@ -222,6 +222,7 @@ public class RestEndpointITCase extends TestLogger {
 				localAddressFuture,
 				leaderRetriever,
 				timeout,
+				Collections.emptyMap(),
 				new TestHeaders());
 		}
 
