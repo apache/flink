@@ -68,6 +68,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.channels.FileChannel;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
@@ -124,7 +125,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 		Time timeout,
 		FileMode fileMode,
 		Configuration config) {
-		super(localJobManagerAddressPromise, retriever, timeout);
+		super(localJobManagerAddressPromise, retriever, timeout, Collections.emptyMap());
 
 		this.executor = checkNotNull(executor);
 		this.config = config;

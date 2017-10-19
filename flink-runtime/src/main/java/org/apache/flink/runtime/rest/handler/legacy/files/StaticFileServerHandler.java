@@ -64,6 +64,7 @@ import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Locale;
@@ -114,7 +115,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends RedirectH
 			Time timeout,
 			File rootPath) throws IOException {
 
-		super(localJobManagerAddressFuture, retriever, timeout);
+		super(localJobManagerAddressFuture, retriever, timeout, Collections.emptyMap());
 
 		this.rootPath = checkNotNull(rootPath).getCanonicalFile();
 	}

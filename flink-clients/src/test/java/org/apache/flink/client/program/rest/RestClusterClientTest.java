@@ -325,6 +325,7 @@ public class RestClusterClientTest extends TestLogger {
 				CompletableFuture.completedFuture(restAddress),
 				mockGatewayRetriever,
 				RpcUtils.INF_TIMEOUT,
+				Collections.emptyMap(),
 				headers);
 		}
 	}

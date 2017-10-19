@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -70,8 +71,9 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
+			Map<String, String> responseHeaders,
 			MessageHeaders<R, P, M> messageHeaders) {
-		super(localRestAddress, leaderRetriever, timeout);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders);
 		this.messageHeaders = messageHeaders;
 	}
 
@@ -92,7 +94,12 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
 				// FullHttpRequests.
 				log.error("Implementation error: Received a request that wasn't a FullHttpRequest.");
-				HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST);
+				HandlerUtils.sendErrorResponse(
+					ctx,
+					httpRequest,
+					new ErrorResponseBody("Bad request received."),
+					HttpResponseStatus.BAD_REQUEST,
+					responseHeaders);
 				return;
 			}
 
@@ -104,7 +111,12 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					request = mapper.readValue("{}", messageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
 					log.error("Request did not conform to expected format.", je);
-					HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Bad request received."), HttpResponseStatus.BAD_REQUEST);
+					HandlerUtils.sendErrorResponse(
+						ctx,
+						httpRequest,
+						new ErrorResponseBody("Bad request received."),
+						HttpResponseStatus.BAD_REQUEST,
+						responseHeaders);
 					return;
 				}
 			} else {
@@ -113,7 +125,12 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					request = mapper.readValue(in, messageHeaders.getRequestClass());
 				} catch (JsonParseException | JsonMappingException je) {
 					log.error("Failed to read request.", je);
-					HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody(String.format("Request did not match expected format %s.", messageHeaders.getRequestClass().getSimpleName())), HttpResponseStatus.BAD_REQUEST);
+					HandlerUtils.sendErrorResponse(
+						ctx,
+						httpRequest,
+						new ErrorResponseBody(String.format("Request did not match expected format %s.", messageHeaders.getRequestClass().getSimpleName())),
+						HttpResponseStatus.BAD_REQUEST,
+						responseHeaders);
 					return;
 				}
 			}
@@ -129,7 +146,8 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 					ctx,
 					httpRequest,
 					new ErrorResponseBody(String.format("Bad request, could not parse parameters: %s", hre.getMessage())),
-					HttpResponseStatus.BAD_REQUEST);
+					HttpResponseStatus.BAD_REQUEST,
+					responseHeaders);
 				return;
 			}
 
@@ -151,18 +169,38 @@ public abstract class AbstractRestHandler<T extends RestfulGateway, R extends Re
 
 						log.error("Exception occurred in REST handler.", error);
 
-						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody(rhe.getMessage()), rhe.getHttpResponseStatus());
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							httpRequest,
+							new ErrorResponseBody(rhe.getMessage()),
+							rhe.getHttpResponseStatus(),
+							responseHeaders);
 					} else {
 						log.error("Implementation error: Unhandled exception.", error);
-						HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+						HandlerUtils.sendErrorResponse(
+							ctx,
+							httpRequest,
+							new ErrorResponseBody("Internal server error."),
+							HttpResponseStatus.INTERNAL_SERVER_ERROR,
+							responseHeaders);
 					}
 				} else {
-					HandlerUtils.sendResponse(ctx, httpRequest, resp, messageHeaders.getResponseStatusCode());
+					HandlerUtils.sendResponse(
+						ctx,
+						httpRequest,
+						resp,
+						messageHeaders.getResponseStatusCode(),
+						responseHeaders);
 				}
 			});
 		} catch (Throwable e) {
 			log.error("Request processing failed.", e);
-			HandlerUtils.sendErrorResponse(ctx, httpRequest, new ErrorResponseBody("Internal server error."), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+			HandlerUtils.sendErrorResponse(
+				ctx,
+				httpRequest,
+				new ErrorResponseBody("Internal server error."),
+				HttpResponseStatus.INTERNAL_SERVER_ERROR,
+				responseHeaders);
 		}
 	}
 
