@@ -62,7 +62,9 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -206,7 +208,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				mySubmittedJobGraphStore,
 				checkpointStateFactory,
 				jobRecoveryTimeout,
-				Option.<MetricRegistry>empty(),
+				Option.<MetricRegistryImpl>empty(),
 				Option.<String>empty());
 
 			jobManager = system.actorOf(jobManagerProps);
@@ -217,6 +219,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				ResourceID.generate(),
 				system,
 				testingHighAvailabilityServices,
+				new NoOpMetricRegistry(),
 				"localhost",
 				Option.apply("taskmanager"),
 				true,
@@ -380,7 +383,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				submittedJobGraphStore,
 				mock(CheckpointRecoveryFactory.class),
 				jobRecoveryTimeout,
-				Option.<MetricRegistry>apply(null),
+				Option.<MetricRegistryImpl>apply(null),
 				recoveredJobs).withDispatcher(CallingThreadDispatcher.Id());
 
 			jobManager = system.actorOf(jobManagerProps);
@@ -418,7 +421,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			SubmittedJobGraphStore submittedJobGraphs,
 			CheckpointRecoveryFactory checkpointRecoveryFactory,
 			FiniteDuration jobRecoveryTimeout,
-			Option<MetricRegistry> metricsRegistry,
+			JobManagerMetricGroup jobManagerMetricGroup,
 			Collection<JobID> recoveredJobs) {
 			super(
 				flinkConfiguration,
@@ -435,7 +438,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				submittedJobGraphs,
 				checkpointRecoveryFactory,
 				jobRecoveryTimeout,
-				metricsRegistry,
+				jobManagerMetricGroup,
 				Option.empty());
 
 			this.recoveredJobs = recoveredJobs;

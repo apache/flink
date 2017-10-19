@@ -28,7 +28,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.NetUtils;
@@ -72,8 +71,6 @@ public class TaskManagerServicesConfiguration {
 
 	private final float memoryFraction;
 
-	private final MetricRegistryConfiguration metricRegistryConfiguration;
-
 	private final long timerServiceShutdownTimeout;
 
 	public TaskManagerServicesConfiguration(
@@ -85,7 +82,6 @@ public class TaskManagerServicesConfiguration {
 			long configuredMemory,
 			boolean preAllocateMemory,
 			float memoryFraction,
-			MetricRegistryConfiguration metricRegistryConfiguration,
 			long timerServiceShutdownTimeout) {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
@@ -97,8 +93,6 @@ public class TaskManagerServicesConfiguration {
 		this.configuredMemory = configuredMemory;
 		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
-
-		this.metricRegistryConfiguration = checkNotNull(metricRegistryConfiguration);
 
 		checkArgument(timerServiceShutdownTimeout >= 0L, "The timer " +
 			"service shutdown timeout must be greater or equal to 0.");
@@ -146,10 +140,6 @@ public class TaskManagerServicesConfiguration {
 
 	public boolean isPreAllocateMemory() {
 		return preAllocateMemory;
-	}
-
-	public MetricRegistryConfiguration getMetricRegistryConfiguration() {
-		return metricRegistryConfiguration;
 	}
 
 	public long getTimerServiceShutdownTimeout() {
@@ -211,8 +201,6 @@ public class TaskManagerServicesConfiguration {
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(),
 			"MemoryManager fraction of the free memory must be between 0.0 and 1.0");
 
-		final MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
-
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
 		return new TaskManagerServicesConfiguration(
@@ -224,7 +212,6 @@ public class TaskManagerServicesConfiguration {
 			configuredMemory,
 			preAllocateMemory,
 			memoryFraction,
-			metricRegistryConfiguration,
 			timerServiceShutdownTimeout);
 	}
 

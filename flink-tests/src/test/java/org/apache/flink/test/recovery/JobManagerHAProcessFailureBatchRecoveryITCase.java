@@ -37,6 +37,7 @@ import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.AkkaActorGateway;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -281,6 +282,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 					ResourceID.generate(),
 					tmActorSystem[i],
 					highAvailabilityServices,
+					new NoOpMetricRegistry(),
 					"localhost",
 					Option.<String>empty(),
 					false,

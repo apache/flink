@@ -34,7 +34,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -111,7 +111,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final HighAvailabilityServices haServices,
 			final HeartbeatServices heartbeatServices,
 			final JobManagerServices jobManagerServices,
-			final MetricRegistry metricRegistry,
+			final MetricRegistryImpl metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
 			final FatalErrorHandler errorHandler) throws Exception {
 

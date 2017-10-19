@@ -29,6 +29,7 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.StartupUtils;
 import org.apache.flink.util.NetUtils;
@@ -249,6 +250,7 @@ public class TaskManagerStartupTest extends TestLogger {
 				ResourceID.generate(),
 				null,
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				"localhost",
 				Option.<String>empty(),
 				false,

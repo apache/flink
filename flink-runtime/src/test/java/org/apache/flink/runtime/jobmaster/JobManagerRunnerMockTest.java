@@ -33,7 +33,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -115,7 +115,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 			haServices,
 			heartbeatServices,
 			JobManagerServices.fromConfiguration(new Configuration(), mock(BlobServer.class)),
-			new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
+			new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
 			jobCompletion,
 			jobCompletion));
 	}

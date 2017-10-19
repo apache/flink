@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
@@ -145,20 +145,20 @@ public class MetricFetcher<T extends RestfulGateway> {
 				// TODO: Once the old code has been ditched, remove the explicit TaskManager query service discovery
 				// TODO: and return it as part of requestQueryServicePaths. Moreover, change the MetricStore such that
 				// TODO: we don't have to explicitly retain the valid TaskManagers, e.g. letting it be a cache with expiry time
-				CompletableFuture<Collection<Tuple2<InstanceID, String>>> taskManagerQueryServicePathsFuture = leaderGateway
+				CompletableFuture<Collection<Tuple2<ResourceID, String>>> taskManagerQueryServicePathsFuture = leaderGateway
 					.requestTaskManagerMetricQueryServicePaths(timeout);
 
 				taskManagerQueryServicePathsFuture.whenCompleteAsync(
-					(Collection<Tuple2<InstanceID, String>> queryServicePaths, Throwable throwable) -> {
+					(Collection<Tuple2<ResourceID, String>> queryServicePaths, Throwable throwable) -> {
 						if (throwable != null) {
 							LOG.warn("Requesting TaskManager's path for query services failed.", throwable);
 						} else {
 							List<String> taskManagersToRetain = queryServicePaths
 								.stream()
 								.map(
-									(Tuple2<InstanceID, String> tuple) -> {
+									(Tuple2<ResourceID, String> tuple) -> {
 										retrieveAndQueryMetrics(tuple.f1);
-										return tuple.f0.toString();
+										return tuple.f0.getResourceIdString();
 									}
 								).collect(Collectors.toList());
 

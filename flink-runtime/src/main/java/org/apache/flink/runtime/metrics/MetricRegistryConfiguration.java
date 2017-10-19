@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Configuration object for {@link MetricRegistry}.
+ * Configuration object for {@link MetricRegistryImpl}.
  */
 public class MetricRegistryConfiguration {
 

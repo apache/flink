@@ -39,6 +39,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -200,6 +202,7 @@ public class MesosApplicationMasterRunner {
 		ExecutorService ioExecutor = null;
 		MesosServices mesosServices = null;
 		HighAvailabilityServices highAvailabilityServices = null;
+		MetricRegistryImpl metricRegistry = null;
 
 		try {
 			// ------- (1) load and parse / validate all configurations -------
@@ -304,6 +307,11 @@ public class MesosApplicationMasterRunner {
 			// 2: the JobManager
 			LOG.debug("Starting JobManager actor");
 
+			metricRegistry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.fromConfiguration(config));
+
+			metricRegistry.startQueryService(actorSystem, null);
+
 			// we start the JobManager with its standard name
 			ActorRef jobManager = JobManager.startJobManagerActors(
 				config,
@@ -311,6 +319,7 @@ public class MesosApplicationMasterRunner {
 				futureExecutor,
 				ioExecutor,
 				highAvailabilityServices,
+				metricRegistry,
 				webMonitor != null ? Option.apply(webMonitor.getRestAddress()) : Option.empty(),
 				Option.apply(JobMaster.JOB_MANAGER_NAME),
 				Option.apply(JobMaster.ARCHIVE_NAME),
@@ -420,6 +429,10 @@ public class MesosApplicationMasterRunner {
 			} catch (Throwable t) {
 				LOG.error("Could not properly stop the high availability services.");
 			}
+		}
+
+		if (metricRegistry != null) {
+			metricRegistry.shutdown();
 		}
 
 		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(

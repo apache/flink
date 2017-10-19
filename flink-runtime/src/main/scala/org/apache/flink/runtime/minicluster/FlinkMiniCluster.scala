@@ -40,6 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode
 import org.apache.flink.runtime.leaderretrieval.{LeaderRetrievalListener, LeaderRetrievalService}
 import org.apache.flink.runtime.messages.TaskManagerMessages.NotifyWhenRegisteredAtJobManager
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.util.{ExecutorThreadFactory, Hardware}
 import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
@@ -120,6 +121,9 @@ abstract class FlinkMiniCluster(
   val ioExecutor = Executors.newFixedThreadPool(
     Hardware.getNumberCPUCores(),
     new ExecutorThreadFactory("mini-cluster-io"))
+
+  protected val metricRegistry = new MetricRegistryImpl(
+    MetricRegistryConfiguration.fromConfiguration(originalConfiguration))
 
   def this(configuration: Configuration, useSingleActorSystem: Boolean) {
     this(
@@ -324,6 +328,10 @@ abstract class FlinkMiniCluster(
     LOG.info("Starting FlinkMiniCluster.")
 
     lazy val singleActorSystem = startJobManagerActorSystem(0)
+
+    if (originalConfiguration.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
+      metricRegistry.startQueryService(singleActorSystem, null)
+    }
 
     val (jmActorSystems, jmActors) =
       (for(i <- 0 until numJobManagers) yield {

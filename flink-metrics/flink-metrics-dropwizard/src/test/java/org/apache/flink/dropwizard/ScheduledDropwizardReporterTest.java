@@ -34,7 +34,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -92,7 +92,7 @@ public class ScheduledDropwizardReporterTest {
 
 		MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(configuration);
 
-		MetricRegistry metricRegistry = new MetricRegistry(metricRegistryConfiguration);
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(metricRegistryConfiguration);
 
 		char delimiter = metricRegistry.getDelimiter();
 

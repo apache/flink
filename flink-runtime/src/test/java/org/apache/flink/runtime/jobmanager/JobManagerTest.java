@@ -75,6 +75,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.messages.RegistrationMessages;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage.LookupKvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage.NotifyKvStateRegistered;
@@ -624,6 +625,7 @@ public class JobManagerTest extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
+			new NoOpMetricRegistry(),
 			Option.empty(),
 			TestingJobManager.class,
 			MemoryArchivist.class)._1();
@@ -645,6 +647,7 @@ public class JobManagerTest extends TestLogger {
 			ResourceID.generate(),
 			system,
 			highAvailabilityServices,
+			new NoOpMetricRegistry(),
 			"localhost",
 			scala.Option.<String>empty(),
 			true,
@@ -841,6 +844,7 @@ public class JobManagerTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				Option.empty(),
 				Option.apply("jm"),
 				Option.apply("arch"),
@@ -859,6 +863,7 @@ public class JobManagerTest extends TestLogger {
 				ResourceID.generate(),
 				actorSystem,
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				"localhost",
 				Option.apply("tm"),
 				true,
@@ -1051,6 +1056,7 @@ public class JobManagerTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				Option.empty(),
 				Option.apply("jm"),
 				Option.apply("arch"),
@@ -1069,6 +1075,7 @@ public class JobManagerTest extends TestLogger {
 				ResourceID.generate(),
 				actorSystem,
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				"localhost",
 				Option.apply("tm"),
 				true,
@@ -1164,6 +1171,7 @@ public class JobManagerTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				Option.empty(),
 				Option.apply("jm"),
 				Option.apply("arch"),
@@ -1182,6 +1190,7 @@ public class JobManagerTest extends TestLogger {
 				ResourceID.generate(),
 				actorSystem,
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				"localhost",
 				Option.apply("tm"),
 				true,
@@ -1275,6 +1284,7 @@ public class JobManagerTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				Option.empty(),
 				Option.apply("jm"),
 				Option.apply("arch"),
@@ -1296,6 +1306,7 @@ public class JobManagerTest extends TestLogger {
 				ResourceID.generate(),
 				actorSystem,
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				"localhost",
 				Option.apply("tm"),
 				true,

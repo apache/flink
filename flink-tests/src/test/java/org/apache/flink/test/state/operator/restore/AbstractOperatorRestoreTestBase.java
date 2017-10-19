@@ -34,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -112,6 +113,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
+			new NoOpMetricRegistry(),
 			Option.empty(),
 			Option.apply("jm"),
 			Option.apply("arch"),
@@ -133,6 +135,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			ResourceID.generate(),
 			actorSystem,
 			highAvailabilityServices,
+			new NoOpMetricRegistry(),
 			"localhost",
 			Option.apply("tm"),
 			true,

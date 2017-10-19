@@ -55,7 +55,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
@@ -135,7 +135,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	private final NetworkEnvironment networkEnvironment;
 
 	/** The metric registry in the task manager */
-	private final MetricRegistry metricRegistry;
+	private final MetricRegistryImpl metricRegistry;
 
 	/** The heartbeat manager for job manager in the task manager */
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
@@ -179,7 +179,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			NetworkEnvironment networkEnvironment,
 			HighAvailabilityServices haServices,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
+			MetricRegistryImpl metricRegistry,
 			TaskManagerMetricGroup taskManagerMetricGroup,
 			BroadcastVariableManager broadcastVariableManager,
 			FileCache fileCache,

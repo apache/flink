@@ -49,8 +49,9 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -62,7 +63,6 @@ import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
@@ -99,6 +99,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
@@ -168,7 +169,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				network,
 				numberOfSlots,
 				highAvailabilityServices,
-				new MetricRegistry(metricRegistryConfiguration));
+				new MetricRegistryImpl(metricRegistryConfiguration));
 
 			taskManager = actorSystem.actorOf(tmProps);
 

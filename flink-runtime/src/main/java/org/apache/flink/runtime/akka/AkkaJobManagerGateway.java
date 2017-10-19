@@ -21,11 +21,11 @@ package org.apache.flink.runtime.akka;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -177,10 +177,10 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	//--------------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<Optional<Instance>> requestTaskManagerInstance(InstanceID instanceId, Time timeout) {
+	public CompletableFuture<Optional<Instance>> requestTaskManagerInstance(ResourceID resourceId, Time timeout) {
 		return FutureUtils.toJava(
 			jobManagerGateway
-				.ask(new JobManagerMessages.RequestTaskManagerInstance(instanceId), FutureUtils.toFiniteDuration(timeout))
+				.ask(new JobManagerMessages.RequestTaskManagerInstance(resourceId), FutureUtils.toFiniteDuration(timeout))
 				.mapTo(ClassTag$.MODULE$.<JobManagerMessages.TaskManagerInstance>apply(JobManagerMessages.TaskManagerInstance.class)))
 			.thenApply(
 				(JobManagerMessages.TaskManagerInstance taskManagerResponse) -> {
@@ -265,7 +265,7 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<Collection<Tuple2<InstanceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
+	public CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
 		return requestTaskManagerInstances(timeout)
 			.thenApply(
 				(Collection<Instance> instances) ->
@@ -277,7 +277,7 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 								final String taskManagerMetricQuerServicePath = taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) +
 									MetricQueryService.METRIC_QUERY_SERVICE_NAME + '_' + instance.getTaskManagerID().getResourceIdString();
 
-								return Tuple2.of(instance.getId(), taskManagerMetricQuerServicePath);
+								return Tuple2.of(instance.getTaskManagerID(), taskManagerMetricQuerServicePath);
 							})
 						.collect(Collectors.toList()));
 	}

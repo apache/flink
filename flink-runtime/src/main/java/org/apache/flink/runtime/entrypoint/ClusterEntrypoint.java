@@ -30,8 +30,8 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
@@ -76,7 +76,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 	private final CompletableFuture<Boolean> terminationFuture;
 
 	@GuardedBy("lock")
-	private MetricRegistry metricRegistry = null;
+	private MetricRegistryImpl metricRegistry = null;
 
 	@GuardedBy("lock")
 	private HighAvailabilityServices haServices = null;
@@ -204,8 +204,8 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		return HeartbeatServices.fromConfiguration(configuration);
 	}
 
-	protected MetricRegistry createMetricRegistry(Configuration configuration) {
-		return new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
+	protected MetricRegistryImpl createMetricRegistry(Configuration configuration) {
+		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 	}
 
 	protected void shutDown(boolean cleanupHaData) throws FlinkException {
@@ -278,7 +278,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		HighAvailabilityServices highAvailabilityServices,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry) throws Exception;
+		MetricRegistryImpl metricRegistry) throws Exception;
 
 	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
 	}

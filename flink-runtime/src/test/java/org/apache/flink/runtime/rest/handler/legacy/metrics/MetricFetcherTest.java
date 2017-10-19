@@ -89,7 +89,7 @@ public class MetricFetcherTest extends TestLogger {
 		when(jobManagerGateway.requestMetricQueryServicePaths(any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(Collections.singleton(jmMetricQueryServicePath)));
 		when(jobManagerGateway.requestTaskManagerMetricQueryServicePaths(any(Time.class))).thenReturn(
-			CompletableFuture.completedFuture(Collections.singleton(Tuple2.of(tmID, tmMetricQueryServicePath))));
+			CompletableFuture.completedFuture(Collections.singleton(Tuple2.of(tmRID, tmMetricQueryServicePath))));
 
 		GatewayRetriever<JobManagerGateway> retriever = mock(AkkaJobManagerRetriever.class);
 		when(retriever.getNow())
@@ -99,7 +99,7 @@ public class MetricFetcherTest extends TestLogger {
 		MetricQueryServiceGateway jmQueryService = mock(MetricQueryServiceGateway.class);
 		MetricQueryServiceGateway tmQueryService = mock(MetricQueryServiceGateway.class);
 
-		MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer = createRequestDumpAnswer(tmID, jobID);
+		MetricDumpSerialization.MetricSerializationResult requestMetricsAnswer = createRequestDumpAnswer(tmRID, jobID);
 
 		when(jmQueryService.queryMetrics(any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(new MetricDumpSerialization.MetricSerializationResult(new byte[0], 0, 0, 0, 0)));
@@ -133,14 +133,14 @@ public class MetricFetcherTest extends TestLogger {
 			assertEquals("0.99", store.getJobManagerMetricStore().getMetric("abc.hist_p99"));
 			assertEquals("0.999", store.getJobManagerMetricStore().getMetric("abc.hist_p999"));
 
-			assertEquals("x", store.getTaskManagerMetricStore(tmID.toString()).metrics.get("abc.gauge"));
+			assertEquals("x", store.getTaskManagerMetricStore(tmRID.toString()).metrics.get("abc.gauge"));
 			assertEquals("5.0", store.getJobMetricStore(jobID.toString()).metrics.get("abc.jc"));
 			assertEquals("2", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.abc.tc"));
 			assertEquals("1", store.getTaskMetricStore(jobID.toString(), "taskid").metrics.get("2.opname.abc.oc"));
 		}
 	}
 
-	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(InstanceID tmID, JobID jobID) {
+	private static MetricDumpSerialization.MetricSerializationResult createRequestDumpAnswer(ResourceID tmRID, JobID jobID) {
 		Map<Counter, Tuple2<QueryScopeInfo, String>> counters = new HashMap<>();
 		Map<Gauge<?>, Tuple2<QueryScopeInfo, String>> gauges = new HashMap<>();
 		Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms = new HashMap<>();
@@ -178,7 +178,7 @@ public class MetricFetcherTest extends TestLogger {
 			public String getValue() {
 				return "x";
 			}
-		}, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmID.toString(), "abc"), "gauge"));
+		}, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"), "gauge"));
 		histograms.put(new TestingHistogram(), new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
 
 		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();

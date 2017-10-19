@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -49,7 +49,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
+			MetricRegistryImpl metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			Optional<String> restAddress) throws Exception {
 		super(
@@ -74,7 +74,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			JobManagerServices jobManagerServices,
-			MetricRegistry metricRegistry,
+			MetricRegistryImpl metricRegistry,
 			OnCompletionActions onCompleteActions,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 		// create the standard job manager runner

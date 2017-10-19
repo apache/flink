@@ -21,8 +21,8 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
@@ -107,11 +107,11 @@ public interface JobManagerGateway extends RestfulGateway {
 	 * Requests the TaskManager instance registered under the given instanceId from the JobManager.
 	 * If there is no Instance registered, then {@link Optional#empty()} is returned.
 	 *
-	 * @param instanceId for which to retrieve the Instance
+	 * @param resourceId identifying the TaskManager which shall be retrieved
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the TaskManager instance registered under instanceId, otherwise {@link Optional#empty()}
 	 */
-	CompletableFuture<Optional<Instance>> requestTaskManagerInstance(InstanceID instanceId, Time timeout);
+	CompletableFuture<Optional<Instance>> requestTaskManagerInstance(ResourceID resourceId, Time timeout);
 
 	/**
 	 * Requests all currently registered TaskManager instances from the JobManager.

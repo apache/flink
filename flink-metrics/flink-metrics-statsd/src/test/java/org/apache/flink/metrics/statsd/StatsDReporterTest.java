@@ -30,7 +30,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -89,7 +89,7 @@ public class StatsDReporterTest extends TestLogger {
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 		configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
-		MetricRegistry metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 
 		char delimiter = metricRegistry.getDelimiter();
 
@@ -133,7 +133,7 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testStatsDHistogramReporting() throws Exception {
-		MetricRegistry registry = null;
+		MetricRegistryImpl registry = null;
 		DatagramSocketReceiver receiver = null;
 		Thread receiverThread = null;
 		long timeout = 5000;
@@ -157,7 +157,7 @@ public class StatsDReporterTest extends TestLogger {
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
-			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
@@ -207,7 +207,7 @@ public class StatsDReporterTest extends TestLogger {
 	 */
 	@Test
 	public void testStatsDMetersReporting() throws Exception {
-		MetricRegistry registry = null;
+		MetricRegistryImpl registry = null;
 		DatagramSocketReceiver receiver = null;
 		Thread receiverThread = null;
 		long timeout = 5000;
@@ -231,7 +231,7 @@ public class StatsDReporterTest extends TestLogger {
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.host", "localhost");
 			config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.port", "" + port);
 
-			registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+			registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 			TestMeter meter = new TestMeter();
 			metricGroup.meter(meterName, meter);

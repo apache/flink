@@ -61,6 +61,9 @@ public class TaskManagerMetricsTest extends TestLogger {
 
 		HighAvailabilityServices highAvailabilityServices = new EmbeddedHaServices(TestingUtils.defaultExecutor());
 
+		final MetricRegistryImpl metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(new Configuration()));
+
 		try {
 			actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
@@ -73,6 +76,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				new NoOpMetricRegistry(),
 				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
@@ -89,9 +93,9 @@ public class TaskManagerMetricsTest extends TestLogger {
 			TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(config);
 
 			TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-					taskManagerServicesConfiguration, tmResourceID);
-
-			final MetricRegistry tmRegistry = taskManagerServices.getMetricRegistry();
+				taskManagerServicesConfiguration,
+				tmResourceID,
+				metricRegistry);
 
 			// create the task manager
 			final Props tmProps = TaskManager.getTaskManagerProps(
@@ -103,7 +107,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getIOManager(),
 				taskManagerServices.getNetworkEnvironment(),
 				highAvailabilityServices,
-				tmRegistry);
+				taskManagerServices.getTaskManagerMetricGroup());
 
 			final ActorRef taskManager = actorSystem.actorOf(tmProps);
 
@@ -135,7 +139,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 			}};
 
 			// verify that the registry was not shutdown due to the disconnect
-			Assert.assertFalse(tmRegistry.isShutdown());
+			Assert.assertFalse(metricRegistry.isShutdown());
 
 			// shut down the actors and the actor system
 			actorSystem.shutdown();
@@ -148,6 +152,8 @@ public class TaskManagerMetricsTest extends TestLogger {
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.closeAndCleanupAllData();
 			}
+
+			metricRegistry.shutdown();
 		}
 	}
 }

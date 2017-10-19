@@ -21,9 +21,9 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -259,7 +259,6 @@ public class TaskManagerServicesTest {
 			managedMemory,
 			false,
 			managedMemoryFraction,
-			mock(MetricRegistryConfiguration.class),
 			0);
 	}
 

@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.net.InetAddress
 import java.util
-import java.util.{Collections, UUID}
 import java.util.concurrent._
+import java.util.{Collections, UUID}
 
 import akka.actor.{ActorRef, ActorSystem, Kill, Props}
 import akka.pattern.{Patterns, ask}
@@ -38,13 +39,15 @@ import org.apache.flink.runtime.jobmanager.{JobManager, MemoryArchivist}
 import org.apache.flink.runtime.jobmaster.JobMaster
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService
 import org.apache.flink.runtime.messages.TaskManagerMessages.{NotifyWhenRegisteredAtJobManager, RegisteredAtJobManager}
+import org.apache.flink.runtime.metrics.{MetricRegistryImpl, MetricRegistryConfiguration}
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
+import org.apache.flink.runtime.taskexecutor.{TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.TaskManager
 import org.apache.flink.runtime.testutils.TestingResourceManager
 import org.apache.flink.runtime.util.LeaderRetrievalUtils
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
 
-import scala.concurrent.duration.TimeUnit
-import scala.concurrent.duration._
+import scala.concurrent.duration.{TimeUnit, _}
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 import scala.language.postfixOps
 
@@ -266,11 +269,17 @@ object TestingUtils {
 
     resultingConfiguration.addAll(configuration)
 
+    val metricRegistry = new MetricRegistryImpl(
+      MetricRegistryConfiguration.fromConfiguration(configuration))
+
+    val taskManagerResourceId = ResourceID.generate()
+
     val taskManager = TaskManager.startTaskManagerComponentsAndActor(
       resultingConfiguration,
-      ResourceID.generate(),
+      taskManagerResourceId,
       actorSystem,
       highAvailabilityServices,
+      metricRegistry,
       "localhost",
       None,
       useLocalCommunication,
@@ -471,12 +480,16 @@ object TestingUtils {
       HighAvailabilityOptions.HA_MODE,
       ConfigConstants.DEFAULT_HA_MODE)
 
+    val metricRegistry = new MetricRegistryImpl(
+      MetricRegistryConfiguration.fromConfiguration(configuration))
+
       val (actor, _) = JobManager.startJobManagerActors(
         configuration,
         actorSystem,
         futureExecutor,
         ioExecutor,
         highAvailabilityServices,
+        metricRegistry,
         None,
         Some(prefix + JobMaster.JOB_MANAGER_NAME),
         Some(prefix + JobMaster.ARCHIVE_NAME),

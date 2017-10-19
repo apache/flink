@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.minicluster
 
 import java.net.InetAddress
+import java.util.UUID
 import java.util.concurrent.{Executor, ScheduledExecutorService}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
@@ -46,7 +47,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService
 import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.groups.{JobManagerMetricGroup, TaskManagerMetricGroup}
+import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
@@ -82,6 +84,12 @@ class LocalFlinkMiniCluster(
   }
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
+
+  override def startInternalShutdown() {
+    metricRegistry.shutdown()
+
+    super.startInternalShutdown()
+  }
 
   // --------------------------------------------------------------------------
 
@@ -137,23 +145,20 @@ class LocalFlinkMiniCluster(
     }
 
     val (instanceManager,
-    scheduler,
-    blobServer,
-    libraryCacheManager,
-    restartStrategyFactory,
-    timeout,
-    archiveCount,
-    archivePath,
-    jobRecoveryTimeout,
-    metricsRegistry) = JobManager.createJobManagerComponents(
+      scheduler,
+      blobServer,
+      libraryCacheManager,
+      restartStrategyFactory,
+      timeout,
+      archiveCount,
+      archivePath,
+      jobRecoveryTimeout,
+      jobManagerMetricGroup) = JobManager.createJobManagerComponents(
       config,
       futureExecutor,
       ioExecutor,
-      highAvailabilityServices.createBlobStore())
-
-    if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
-      metricsRegistry.get.startQueryService(system, null)
-    }
+      highAvailabilityServices.createBlobStore(),
+      metricRegistry)
 
     val archive = system.actorOf(
       getArchiveProps(
@@ -180,7 +185,7 @@ class LocalFlinkMiniCluster(
         highAvailabilityServices.getSubmittedJobGraphStore(),
         highAvailabilityServices.getCheckpointRecoveryFactory(),
         jobRecoveryTimeout,
-        metricsRegistry,
+        jobManagerMetricGroup,
         optRestAddress),
       jobManagerName)
   }
@@ -248,9 +253,8 @@ class LocalFlinkMiniCluster(
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID)
-
-    val metricRegistry = taskManagerServices.getMetricRegistry()
+      resourceID,
+      metricRegistry)
 
     val props = getTaskManagerProps(
       taskManagerClass,
@@ -260,7 +264,7 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
-      metricRegistry)
+      taskManagerServices.getTaskManagerMetricGroup)
 
     if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
       metricRegistry.startQueryService(system, resourceID)
@@ -296,7 +300,7 @@ class LocalFlinkMiniCluster(
       submittedJobGraphStore: SubmittedJobGraphStore,
       checkpointRecoveryFactory: CheckpointRecoveryFactory,
       jobRecoveryTimeout: FiniteDuration,
-      metricsRegistry: Option[MetricRegistry],
+      jobManagerMetricGroup: JobManagerMetricGroup,
       optRestAddress: Option[String])
     : Props = {
 
@@ -316,7 +320,7 @@ class LocalFlinkMiniCluster(
       submittedJobGraphStore,
       checkpointRecoveryFactory,
       jobRecoveryTimeout,
-      metricsRegistry,
+      jobManagerMetricGroup,
       optRestAddress)
   }
 
@@ -328,7 +332,7 @@ class LocalFlinkMiniCluster(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
-    metricsRegistry: MetricRegistry): Props = {
+    taskManagerMetricGroup: TaskManagerMetricGroup): Props = {
 
     TaskManager.getTaskManagerProps(
       taskManagerClass,
@@ -339,7 +343,7 @@ class LocalFlinkMiniCluster(
       ioManager,
       networkEnvironment,
       highAvailabilityServices,
-      metricsRegistry)
+      taskManagerMetricGroup)
   }
 
   def getResourceManagerProps(

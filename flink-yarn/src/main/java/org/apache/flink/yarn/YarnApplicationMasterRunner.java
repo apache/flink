@@ -36,6 +36,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.process.ProcessReaper;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -219,6 +221,7 @@ public class YarnApplicationMasterRunner {
 		ActorSystem actorSystem = null;
 		WebMonitor webMonitor = null;
 		HighAvailabilityServices highAvailabilityServices = null;
+		MetricRegistryImpl metricRegistry = null;
 
 		int numberProcessors = Hardware.getNumberCPUCores();
 
@@ -357,6 +360,11 @@ public class YarnApplicationMasterRunner {
 				new ScheduledExecutorServiceAdapter(futureExecutor),
 				LOG);
 
+			metricRegistry = new MetricRegistryImpl(
+				MetricRegistryConfiguration.fromConfiguration(config));
+
+			metricRegistry.startQueryService(actorSystem, null);
+
 			// 2: the JobManager
 			LOG.debug("Starting JobManager actor");
 
@@ -367,6 +375,7 @@ public class YarnApplicationMasterRunner {
 				futureExecutor,
 				ioExecutor,
 				highAvailabilityServices,
+				metricRegistry,
 				webMonitor == null ? Option.empty() : Option.apply(webMonitor.getRestAddress()),
 				new Some<>(JobMaster.JOB_MANAGER_NAME),
 				Option.<String>empty(),
@@ -453,6 +462,10 @@ public class YarnApplicationMasterRunner {
 			} catch (Throwable t) {
 				LOG.error("Failed to stop the high availability services.", t);
 			}
+		}
+
+		if (metricRegistry != null) {
+			metricRegistry.shutdown();
 		}
 
 		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(

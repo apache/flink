@@ -30,7 +30,7 @@ import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.metrics.MetricRegistry
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -53,7 +53,7 @@ class TestingJobManager(
     submittedJobGraphs : SubmittedJobGraphStore,
     checkpointRecoveryFactory : CheckpointRecoveryFactory,
     jobRecoveryTimeout : FiniteDuration,
-    metricRegistry : Option[MetricRegistry],
+    jobManagerMetricGroup : JobManagerMetricGroup,
     optRestAddress: Option[String])
   extends JobManager(
     flinkConfiguration,
@@ -70,6 +70,6 @@ class TestingJobManager(
     submittedJobGraphs,
     checkpointRecoveryFactory,
     jobRecoveryTimeout,
-    metricRegistry,
+    jobManagerMetricGroup,
     optRestAddress)
   with TestingJobManagerLike {}

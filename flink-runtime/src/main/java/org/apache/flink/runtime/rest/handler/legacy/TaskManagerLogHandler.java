@@ -31,8 +31,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.WebHandler;
@@ -166,13 +166,13 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 		//fetch TaskManager logs if no other process is currently doing it
 		if (lastRequestPending.putIfAbsent(taskManagerID, true) == null) {
 			try {
-				InstanceID instanceID = new InstanceID(StringUtils.hexStringToByte(taskManagerID));
-				CompletableFuture<Optional<Instance>> taskManagerFuture = jobManagerGateway.requestTaskManagerInstance(instanceID, timeout);
+				ResourceID resourceId = new ResourceID(new String(StringUtils.hexStringToByte(taskManagerID)));
+				CompletableFuture<Optional<Instance>> taskManagerFuture = jobManagerGateway.requestTaskManagerInstance(resourceId, timeout);
 
 				CompletableFuture<TransientBlobKey> blobKeyFuture = taskManagerFuture.thenCompose(
 					(Optional<Instance> optTMInstance) -> {
 						Instance taskManagerInstance = optTMInstance.orElseThrow(
-							() -> new CompletionException(new FlinkException("Could not find instance with " + instanceID + '.')));
+							() -> new CompletionException(new FlinkException("Could not find instance with " + resourceId + '.')));
 						switch (fileMode) {
 							case LOG:
 								return taskManagerInstance.getTaskManagerGateway().requestTaskManagerLog(timeout);

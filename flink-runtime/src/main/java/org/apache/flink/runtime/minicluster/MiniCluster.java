@@ -32,7 +32,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -68,7 +68,7 @@ public class MiniCluster {
 	private final MiniClusterConfiguration miniClusterConfiguration;
 
 	@GuardedBy("lock") 
-	private MetricRegistry metricRegistry;
+	private MetricRegistryImpl metricRegistry;
 
 	@GuardedBy("lock")
 	private RpcService commonRpcService;
@@ -464,8 +464,8 @@ public class MiniCluster {
 	 * 
 	 * @param config The configuration of the mini cluster
 	 */
-	protected MetricRegistry createMetricRegistry(Configuration config) {
-		return new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+	protected MetricRegistryImpl createMetricRegistry(Configuration config) {
+		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 	}
 
 	/**
@@ -502,7 +502,7 @@ public class MiniCluster {
 			Configuration configuration,
 			HighAvailabilityServices haServices,
 			HeartbeatServices heartbeatServices,
-			MetricRegistry metricRegistry,
+			MetricRegistryImpl metricRegistry,
 			int numResourceManagers,
 			RpcService[] resourceManagerRpcServices) throws Exception {
 
@@ -528,7 +528,7 @@ public class MiniCluster {
 	protected TaskExecutor[] startTaskManagers(
 			Configuration configuration,
 			HighAvailabilityServices haServices,
-			MetricRegistry metricRegistry,
+			MetricRegistryImpl metricRegistry,
 			int numTaskManagers,
 			RpcService[] taskManagerRpcServices) throws Exception {
 

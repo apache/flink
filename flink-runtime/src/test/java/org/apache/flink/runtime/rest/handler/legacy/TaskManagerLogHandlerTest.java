@@ -105,7 +105,7 @@ public class TaskManagerLogHandlerTest {
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 		when(jobManagerGateway.requestBlobServerPort(any(Time.class))).thenReturn(CompletableFuture.completedFuture(1337));
 		when(jobManagerGateway.getHostname()).thenReturn("localhost");
-		when(jobManagerGateway.requestTaskManagerInstance(any(InstanceID.class), any(Time.class))).thenReturn(
+		when(jobManagerGateway.requestTaskManagerInstance(any(ResourceID.class), any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(Optional.of(taskManager)));
 
 		GatewayRetriever<JobManagerGateway> retriever = mock(GatewayRetriever.class);

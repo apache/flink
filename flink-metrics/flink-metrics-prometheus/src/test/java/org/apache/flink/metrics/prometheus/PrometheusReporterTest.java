@@ -28,8 +28,8 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
@@ -69,13 +69,13 @@ public class PrometheusReporterTest extends TestLogger {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private MetricRegistry registry;
+	private MetricRegistryImpl registry;
 	private FrontMetricGroup<TaskManagerMetricGroup> metricGroup;
 	private PrometheusReporter reporter;
 
 	@Before
 	public void setupReporter() {
-		registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
 		metricGroup = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
 		reporter = (PrometheusReporter) registry.getReporters().get(0);
 	}
@@ -158,7 +158,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void endpointIsUnavailableAfterReporterIsClosed() throws UnirestException {
-		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
 		PrometheusReporter reporter = (PrometheusReporter) registry.getReporters().get(0);
 		reporter.close();
 		thrown.expect(UnirestException.class);
@@ -244,12 +244,12 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void cannotStartTwoReportersOnSamePort() {
-		final MetricRegistry fixedPort1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		final MetricRegistryImpl fixedPort1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
 		assertThat(fixedPort1.getReporters(), hasSize(1));
 
 		PrometheusReporter firstReporter = (PrometheusReporter) fixedPort1.getReporters().get(0);
 
-		final MetricRegistry fixedPort2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", String.valueOf(firstReporter.getPort()))));
+		final MetricRegistryImpl fixedPort2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", String.valueOf(firstReporter.getPort()))));
 		assertThat(fixedPort2.getReporters(), hasSize(0));
 
 		fixedPort1.shutdown();
@@ -258,8 +258,8 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void canStartTwoReportersWhenUsingPortRange() {
-		final MetricRegistry portRange1 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9200-9300")));
-		final MetricRegistry portRange2 = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9200-9300")));
+		final MetricRegistryImpl portRange1 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9200-9300")));
+		final MetricRegistryImpl portRange2 = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test2", "9200-9300")));
 
 		assertThat(portRange1.getReporters(), hasSize(1));
 		assertThat(portRange2.getReporters(), hasSize(1));

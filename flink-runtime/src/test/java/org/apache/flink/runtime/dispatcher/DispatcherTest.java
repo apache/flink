@@ -34,7 +34,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -114,7 +114,7 @@ public class DispatcherTest extends TestLogger {
 			mock(ResourceManagerGateway.class),
 			mock(BlobServer.class),
 			heartbeatServices,
-			mock(MetricRegistry.class),
+			mock(MetricRegistryImpl.class),
 			fatalErrorHandler,
 			jobManagerRunner,
 			jobId);
@@ -174,7 +174,7 @@ public class DispatcherTest extends TestLogger {
 			mock(ResourceManagerGateway.class),
 			mock(BlobServer.class),
 			heartbeatServices,
-			mock(MetricRegistry.class),
+			mock(MetricRegistryImpl.class),
 			fatalErrorHandler,
 			mock(JobManagerRunner.class),
 			jobId);
@@ -209,7 +209,7 @@ public class DispatcherTest extends TestLogger {
 				ResourceManagerGateway resourceManagerGateway,
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
-				MetricRegistry metricRegistry,
+				MetricRegistryImpl metricRegistry,
 				FatalErrorHandler fatalErrorHandler,
 				JobManagerRunner jobManagerRunner,
 				JobID expectedJobId) throws Exception {
@@ -238,7 +238,7 @@ public class DispatcherTest extends TestLogger {
 				HighAvailabilityServices highAvailabilityServices,
 				HeartbeatServices heartbeatServices,
 				JobManagerServices jobManagerServices,
-				MetricRegistry metricRegistry,
+				MetricRegistryImpl metricRegistry,
 				OnCompletionActions onCompleteActions,
 				FatalErrorHandler fatalErrorHandler) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());

@@ -24,8 +24,9 @@ import java.util.UUID
 import akka.actor.ActorRef
 import org.apache.flink.api.common.JobID
 import org.apache.flink.runtime.akka.ListeningBehaviour
-import org.apache.flink.runtime.blob.{PermanentBlobKey}
+import org.apache.flink.runtime.blob.PermanentBlobKey
 import org.apache.flink.runtime.client.{JobStatusMessage, SerializedJobExecutionResult}
+import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.executiongraph.{AccessExecutionGraph, ExecutionAttemptID, ExecutionGraph}
 import org.apache.flink.runtime.instance.{Instance, InstanceID}
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID
@@ -419,9 +420,9 @@ object JobManagerMessages {
   /**
    * Requests the [[Instance]] object of the task manager with the given instance ID
    *
-   * @param instanceID Instance ID of the task manager
+   * @param resourceId identifying the TaskManager which shall be retrieved
    */
-  case class RequestTaskManagerInstance(instanceID: InstanceID)
+  case class RequestTaskManagerInstance(resourceId: ResourceID)
 
   /**
    * Returns the [[Instance]] object of the requested task manager. This is in response to

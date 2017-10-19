@@ -29,8 +29,8 @@ import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingHistogram;
@@ -53,7 +53,7 @@ public class Slf4jReporterTest extends TestLogger {
 	private static final String TASK_MANAGER_ID = "tm01";
 	private static final String JOB_NAME = "jn01";
 	private static final String TASK_NAME = "tn01";
-	private static MetricRegistry registry;
+	private static MetricRegistryImpl registry;
 	private static char delimiter;
 	private static TaskMetricGroup taskMetricGroup;
 	private static Slf4jReporter reporter;
@@ -68,7 +68,7 @@ public class Slf4jReporterTest extends TestLogger {
 			ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, Slf4jReporter.class.getName());
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
 
-		registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
+		registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 		delimiter = registry.getDelimiter();
 
 		taskMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER_ID)
