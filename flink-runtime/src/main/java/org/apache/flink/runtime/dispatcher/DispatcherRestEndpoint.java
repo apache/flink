@@ -74,6 +74,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -116,11 +117,13 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		ArrayList<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>(3);
 
 		final Time timeout = restConfiguration.getTimeout();
+		final Map<String, String> responseHeaders = restConfiguration.getResponseHeaders();
 
 		LegacyRestHandlerAdapter<DispatcherGateway, ClusterOverviewWithVersion, EmptyMessageParameters> clusterOverviewHandler = new LegacyRestHandlerAdapter<>(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			ClusterOverviewHeaders.getInstance(),
 			new ClusterOverviewHandler(
 				executor,
@@ -130,6 +133,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			DashboardConfigurationHeaders.getInstance(),
 			new DashboardConfigHandler(
 				executor,
@@ -139,6 +143,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			CurrentJobsOverviewHandlerHeaders.getInstance(),
 			new CurrentJobsOverviewHandler(
 				executor,
@@ -150,6 +155,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			ClusterConfigurationInfoHeaders.getInstance(),
 			new ClusterConfigHandler(
 				executor,
@@ -159,12 +165,14 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			JobTerminationHeaders.getInstance());
 
 		JobConfigHandler jobConfigHandler = new JobConfigHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			JobConfigHeaders.getInstance(),
 			executionGraphCache,
 			executor);
@@ -173,6 +181,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			CheckpointConfigHeaders.getInstance(),
 			executionGraphCache,
 			executor);
@@ -181,6 +190,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			CheckpointingStatisticsHeaders.getInstance(),
 			executionGraphCache,
 			executor);
@@ -189,6 +199,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			CheckpointStatisticDetailsHeaders.getInstance(),
 			executionGraphCache,
 			executor,
@@ -198,6 +209,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			JobPlanHeaders.getInstance(),
 			executionGraphCache,
 			executor);
@@ -206,6 +218,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			TaskCheckpointStatisticsHeaders.getInstance(),
 			executionGraphCache,
 			executor,
@@ -215,6 +228,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			JobExceptionsHeaders.getInstance(),
 			executionGraphCache,
 			executor);
@@ -223,9 +237,22 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			JobVertexAccumulatorsHeaders.getInstance(),
 			executionGraphCache,
 			executor);
+
+		BlobServerPortHandler blobServerPortHandler = new BlobServerPortHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders);
+
+		JobSubmitHandler jobSubmitHandler = new JobSubmitHandler(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders);
 
 		final File tmpDir = restConfiguration.getTmpDir();
 
@@ -255,11 +282,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		handlers.add(Tuple2.of(TaskCheckpointStatisticsHeaders.getInstance(), taskCheckpointStatisticDetailsHandler));
 		handlers.add(Tuple2.of(JobExceptionsHeaders.getInstance(), jobExceptionsHandler));
 		handlers.add(Tuple2.of(JobVertexAccumulatorsHeaders.getInstance(), jobVertexAccumulatorsHandler));
-
-		BlobServerPortHandler blobServerPortHandler = new BlobServerPortHandler(restAddressFuture, leaderRetriever, timeout);
 		handlers.add(Tuple2.of(blobServerPortHandler.getMessageHeaders(), blobServerPortHandler));
-
-		JobSubmitHandler jobSubmitHandler = new JobSubmitHandler(restAddressFuture, leaderRetriever, timeout);
 		handlers.add(Tuple2.of(jobSubmitHandler.getMessageHeaders(), jobSubmitHandler));
 
 		// This handler MUST be added last, as it otherwise masks all subsequent GET handlers

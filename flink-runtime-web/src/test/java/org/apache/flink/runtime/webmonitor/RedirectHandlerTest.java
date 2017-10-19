@@ -40,6 +40,7 @@ import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -143,7 +144,7 @@ public class RedirectHandlerTest extends TestLogger {
 				@Nonnull CompletableFuture<String> localAddressFuture,
 				@Nonnull GatewayRetriever<RestfulGateway> leaderRetriever,
 				@Nonnull Time timeout) {
-			super(localAddressFuture, leaderRetriever, timeout);
+			super(localAddressFuture, leaderRetriever, timeout, Collections.emptyMap());
 		}
 
 		@Override
