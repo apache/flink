@@ -60,9 +60,9 @@ div(ng-if="metrics.id")
         td {{ metrics.metrics.nonHeapMax | humanizeBytes }}
       tr
         td Total
-        td {{ metrics.metrics.totalCommitted | humanizeBytes }}
-        td {{ metrics.metrics.totalUsed | humanizeBytes }}
-        td {{ metrics.metrics.totalMax | humanizeBytes }}
+        td {{ metrics.metrics.heapCommitted + metrics.metrics.nonHeapCommitted | humanizeBytes }}
+        td {{ metrics.metrics.heapUsed + metrics.metrics.nonHeapUsed | humanizeBytes }}
+        td {{ metrics.metrics.heapMax + metrics.metrics.nonHeapMax | humanizeBytes }}
 
   h2 Outside JVM
   table.table.table-properties
