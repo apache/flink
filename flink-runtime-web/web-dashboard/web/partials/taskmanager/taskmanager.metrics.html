@@ -69,9 +69,9 @@ limitations under the License.
       </tr>
       <tr>
         <td>Total</td>
-        <td>{{ metrics.metrics.totalCommitted | humanizeBytes }}</td>
-        <td>{{ metrics.metrics.totalUsed | humanizeBytes }}</td>
-        <td>{{ metrics.metrics.totalMax | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapCommitted + metrics.metrics.nonHeapCommitted | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapUsed + metrics.metrics.nonHeapUsed | humanizeBytes }}</td>
+        <td>{{ metrics.metrics.heapMax + metrics.metrics.nonHeapMax | humanizeBytes }}</td>
       </tr>
     </tbody>
   </table>
