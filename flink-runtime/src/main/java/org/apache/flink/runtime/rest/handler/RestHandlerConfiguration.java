@@ -24,6 +24,7 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.io.File;
+import java.util.UUID;
 
 /**
  * Configuration object containing values for the rest handler configuration.
@@ -75,7 +76,8 @@ public class RestHandlerConfiguration {
 
 		final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
 
-		final File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR));
+		final String rootDir = "flink-web-" + UUID.randomUUID();
+		final File tmpDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
 
 		return new RestHandlerConfiguration(refreshInterval, maxCheckpointStatisticCacheEntries, timeout, tmpDir);
 	}
