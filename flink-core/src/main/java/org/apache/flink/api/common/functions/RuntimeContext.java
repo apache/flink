@@ -230,7 +230,7 @@ public interface RuntimeContext {
 	/**
 	 * Gets a handle to the system's key/value state. The key/value state is only accessible
 	 * if the function is executed on a KeyedStream. On each access, the state exposes the value
-	 * for the the key of the element currently processed by the function.
+	 * for the key of the element currently processed by the function.
 	 * Each function may have multiple partitioned states, addressed with different names.
 	 *
 	 * <p>Because the scope of each value is the key of the currently processed element,
@@ -277,7 +277,7 @@ public interface RuntimeContext {
 	/**
 	 * Gets a handle to the system's key/value list state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
-	 * holds lists. One can adds elements to the list, or retrieve the list as a whole. 
+	 * holds lists. One can add elements to the list, or retrieve the list as a whole.
 	 * 
 	 * <p>This state is only accessible if the function is executed on a KeyedStream.
 	 *
