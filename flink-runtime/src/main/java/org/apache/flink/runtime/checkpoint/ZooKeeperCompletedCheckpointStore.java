@@ -70,16 +70,20 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperCompletedCheckpointStore.class);
 
-	/** Curator ZooKeeper client */
+	/** Curator ZooKeeper client. */
 	private final CuratorFramework client;
 
-	/** Completed checkpoints in ZooKeeper */
+	/** Completed checkpoints in ZooKeeper. */
 	private final ZooKeeperStateHandleStore<CompletedCheckpoint> checkpointsInZooKeeper;
 
 	/** The maximum number of checkpoints to retain (at least 1). */
 	private final int maxNumberOfCheckpointsToRetain;
 
-	/** Local completed checkpoints. */
+	/**
+	 * Local copy of the completed checkpoints in ZooKeeper. This is restored from ZooKeeper
+	 * when recovering and is maintained in parallel to the state in ZooKeeper during normal
+	 * operations.
+	 */
 	private final ArrayDeque<CompletedCheckpoint> completedCheckpoints;
 
 	/**
@@ -122,7 +126,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		this.checkpointsInZooKeeper = new ZooKeeperStateHandleStore<>(this.client, stateStorage, executor);
 
 		this.completedCheckpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-		
+
 		LOG.info("Initialized in '{}'.", checkpointsPath);
 	}
 
@@ -167,18 +171,13 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 			CompletedCheckpoint completedCheckpoint = null;
 
-			try {
-				completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
-				if (completedCheckpoint != null) {
-					completedCheckpoints.add(completedCheckpoint);
-				}
-			} catch (Exception e) {
-				LOG.warn("Could not retrieve checkpoint. Removing it from the completed " +
-					"checkpoint store.", e);
+			completedCheckpoint = retrieveCompletedCheckpoint(checkpointStateHandle);
 
-				// remove the checkpoint with broken state handle
-				removeBrokenStateHandle(checkpointStateHandle.f1, checkpointStateHandle.f0);
+			if (completedCheckpoint == null) {
+				throw new FlinkException("Retrieved checkpoint is null, retrievable state handle: " + checkpointStateHandle.f0);
 			}
+
+			completedCheckpoints.add(completedCheckpoint);
 		}
 	}
 
@@ -190,7 +189,7 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 	@Override
 	public void addCheckpoint(final CompletedCheckpoint checkpoint) throws Exception {
 		checkNotNull(checkpoint, "Checkpoint");
-		
+
 		final String path = checkpointIdToPath(checkpoint.getCheckpointID());
 
 		// Now add the new one. If it fails, we don't want to loose existing data.
@@ -268,10 +267,13 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Removes a subsumed checkpoint from ZooKeeper and drops the state.
+	 */
 	private void removeSubsumed(
 		final CompletedCheckpoint completedCheckpoint) throws Exception {
 
-		if(completedCheckpoint == null) {
+		if (completedCheckpoint == null) {
 			return;
 		}
 
@@ -294,11 +296,14 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 			action);
 	}
 
+	/**
+	 * Removes a checkpoint from ZooKeeper because of Job shutdown and drops the state.
+	 */
 	private void removeShutdown(
 			final CompletedCheckpoint completedCheckpoint,
 			final JobStatus jobStatus) throws Exception {
 
-		if(completedCheckpoint == null) {
+		if (completedCheckpoint == null) {
 			return;
 		}
 
@@ -316,21 +321,6 @@ public class ZooKeeperCompletedCheckpointStore implements CompletedCheckpointSto
 		checkpointsInZooKeeper.releaseAndTryRemove(
 			checkpointIdToPath(completedCheckpoint.getCheckpointID()),
 			removeAction);
-	}
-
-	private void removeBrokenStateHandle(
-		final String pathInZooKeeper,
-		final RetrievableStateHandle<CompletedCheckpoint> retrievableStateHandle) throws Exception {
-		checkpointsInZooKeeper.releaseAndTryRemove(pathInZooKeeper, new ZooKeeperStateHandleStore.RemoveCallback<CompletedCheckpoint>() {
-			@Override
-			public void apply(@Nullable RetrievableStateHandle<CompletedCheckpoint> value) throws FlinkException {
-				try {
-					retrievableStateHandle.discardState();
-				} catch (Exception e) {
-					throw new FlinkException("Could not discard state handle.", e);
-				}
-			}
-		});
 	}
 
 	/**
