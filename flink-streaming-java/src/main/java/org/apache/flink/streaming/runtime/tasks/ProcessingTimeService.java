@@ -29,7 +29,7 @@ import java.util.concurrent.ScheduledFuture;
  * <p>The registration of timers follows a life cycle of three phases:
  * <ol>
  *     <li>In the initial state, it accepts timer registrations and triggers when the time is reached.</li>
- *     <li>After calling {@link #quiesceAndAwaitPending()}, further calls to
+ *     <li>After calling {@link #quiesce()}, further calls to
  *         {@link #registerTimer(long, ProcessingTimeCallback)} will not register any further timers, and will
  *         return a "dummy" future as a result. This is used for clean shutdown, where currently firing
  *         timers are waited for and no future timers can be scheduled, without causing hard exceptions.</li>
@@ -73,14 +73,19 @@ public abstract class ProcessingTimeService {
 	/**
 	 * This method puts the service into a state where it does not register new timers, but
 	 * returns for each call to {@link #registerTimer(long, ProcessingTimeCallback)} only a "mock" future.
-	 * Furthermore, the method clears all not yet started timers, and awaits the completion
-	 * of currently executing timers.
+	 * Furthermore, the method clears all not yet started timers.
 	 *
 	 * <p>This method can be used to cleanly shut down the timer service. The using components
 	 * will not notice that the service is shut down (as for example via exceptions when registering
 	 * a new timer), but the service will simply not fire any timer any more.
 	 */
-	public abstract void quiesceAndAwaitPending() throws InterruptedException;
+	public abstract void quiesce() throws InterruptedException;
+
+	/**
+	 * This method can be used after calling {@link #quiesce()}, and awaits the completion
+	 * of currently executing timers.
+	 */
+	public abstract void awaitPendingAfterQuiesce() throws InterruptedException;
 
 	/**
 	 * Shuts down and clean up the timer service provider hard and immediately. This does not wait

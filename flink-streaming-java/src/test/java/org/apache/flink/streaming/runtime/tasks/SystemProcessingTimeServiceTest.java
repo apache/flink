@@ -180,7 +180,8 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			assertFalse(scheduledFuture.isDone());
 
 			// this should cancel our future
-			timer.quiesceAndAwaitPending();
+			timer.quiesce();
+			timer.awaitPendingAfterQuiesce();
 
 			// it may be that the cancelled status is not immediately visible after the
 			// termination (not necessary a volatile update), so we need to "get()" the cancellation
@@ -297,7 +298,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 			final ReentrantLock scopeLock = new ReentrantLock();
 
-			timer.registerTimer(System.currentTimeMillis() + 20, new ProcessingTimeCallback() {
+			timer.registerTimer(timer.getCurrentProcessingTime() + 20L, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
 					scopeLock.lock();
@@ -313,13 +314,14 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 			// after the task triggered, shut the timer down cleanly, waiting for the task to finish
 			latch.await();
-			timer.quiesceAndAwaitPending();
+			timer.quiesce();
+			timer.awaitPendingAfterQuiesce();
 
 			// should be able to immediately acquire the lock, since the task must have exited by now
 			assertTrue(scopeLock.tryLock());
 
 			// should be able to schedule more tasks (that never get executed)
-			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() - 5, new ProcessingTimeCallback() {
+			ScheduledFuture<?> future = timer.registerTimer(timer.getCurrentProcessingTime() - 5L, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
 					throw new Exception("test");
@@ -328,7 +330,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			assertNotNull(future);
 
 			// nothing should be scheduled right now
-			assertEquals(0, timer.getNumTasksScheduled());
+			assertEquals(0L, timer.getNumTasksScheduled());
 
 			// check that no asynchronous error was reported - that ensures that the newly scheduled
 			// triggerable did, in fact, not trigger

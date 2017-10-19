@@ -541,6 +541,53 @@ public class OneInputStreamTaskTest extends TestLogger {
 		TestingStreamOperator.numberRestoreCalls = 0;
 	}
 
+	@Test
+	public void testQuiesceTimerServiceAfterOpClose() throws Exception {
+
+		final OneInputStreamTask<String, String> task = new OneInputStreamTask<>();
+
+		SystemProcessingTimeService timeService = new SystemProcessingTimeService(task, task.getCheckpointLock());
+		task.setProcessingTimeService(timeService);
+
+		// verify that the timer service is running
+		Assert.assertTrue(((SystemProcessingTimeService) task.getProcessingTimeService()).isAlive());
+
+		final OneInputStreamTaskTestHarness<String, String> testHarness = new OneInputStreamTaskTestHarness<String, String>(
+				task, 2, 2, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness.setupOutputForSingletonOperatorChain();
+
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setStreamOperator(new TestOperator());
+		streamConfig.setOperatorID(new OperatorID());
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
+		timeService.shutdownService();
+	}
+
+	private static class TestOperator
+			extends AbstractStreamOperator<String>
+			implements OneInputStreamOperator<String, String> {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public void processElement(StreamRecord<String> element) throws Exception {
+			output.collect(element);
+		}
+
+		@Override
+		public void close() throws Exception {
+
+			// verify that the timer service is still running
+			Assert.assertTrue(
+					((SystemProcessingTimeService) getContainingTask().getProcessingTimeService())
+					.isAlive());
+			super.close();
+		}
+	}
 
 	//==============================================================================================
 	// Utility functions and classes

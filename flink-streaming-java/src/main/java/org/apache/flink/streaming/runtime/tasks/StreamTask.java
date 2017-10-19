@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -194,6 +195,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner WindowAssigners}
 	 * and {@link org.apache.flink.streaming.api.windowing.triggers.Trigger Triggers}.
 	 * */
+	@VisibleForTesting
 	public void setProcessingTimeService(ProcessingTimeService timeProvider) {
 		if (timeProvider == null) {
 			throw new RuntimeException("The timeProvider cannot be set to null.");
@@ -266,9 +268,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				throw new CancelTaskException();
 			}
 
-			// make sure all timers finish and no new timers can come
-			timerService.quiesceAndAwaitPending();
-
 			LOG.debug("Finished task {}", getName());
 
 			// make sure no further checkpoint and notification actions happen.
@@ -280,10 +279,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// this is part of the main logic, so if this fails, the task is considered failed
 				closeAllOperators();
 
+				// make sure no new timers can come
+				timerService.quiesce();
+
 				// only set the StreamTask to not running after all operators have been closed!
 				// See FLINK-7430
 				isRunning = false;
 			}
+
+			// make sure all timers finish
+			timerService.awaitPendingAfterQuiesce();
 
 			LOG.debug("Closed operators for task {}", getName());
 

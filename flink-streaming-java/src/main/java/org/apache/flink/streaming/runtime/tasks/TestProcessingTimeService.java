@@ -117,11 +117,16 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 	}
 
 	@Override
-	public void quiesceAndAwaitPending() {
+	public void quiesce() {
 		if (!isTerminated) {
 			isQuiesced = true;
 			priorityQueue.clear();
 		}
+	}
+
+	@Override
+	public void awaitPendingAfterQuiesce() throws InterruptedException {
+		// do nothing.
 	}
 
 	@Override
