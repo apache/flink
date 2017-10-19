@@ -105,8 +105,14 @@ class CsvTableSource(
   /** Returns a copy of [[TableSource]] with ability to project fields */
   override def projectFields(fields: Array[Int]): CsvTableSource = {
 
-    val newFieldNames: Array[String] = fields.map(fieldNames(_))
-    val newFieldTypes: Array[TypeInformation[_]] = fields.map(fieldTypes(_))
+    val (newFields, newFieldNames, newFieldTypes) = if (fields.nonEmpty) {
+      (fields, fields.map(fieldNames(_)), fields.map(fieldTypes(_)))
+    } else {
+      // reporting number of records only, we must read some columns to get row count.
+      // (e.g. SQL: select count(1) from csv_table)
+      // We choose the first column here.
+      (Array(0), Array(fieldNames.head), Array[TypeInformation[_]](fieldTypes.head))
+    }
 
     val source = new CsvTableSource(path,
       newFieldNames,
@@ -117,7 +123,7 @@ class CsvTableSource(
       ignoreFirstLine,
       ignoreComments,
       lenient)
-    source.selectedFields = fields
+    source.selectedFields = newFields
     source
   }
 
