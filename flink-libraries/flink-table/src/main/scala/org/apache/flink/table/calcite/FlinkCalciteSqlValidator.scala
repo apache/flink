@@ -51,17 +51,25 @@ class FlinkCalciteSqlValidator(
   }
 
   override def validateJoin(join: SqlJoin, scope: SqlValidatorScope): Unit = {
-    // Due to the improperly translation of lateral table left outer join (see CALCITE-2004), we
-    // need to temporarily forbid the common predicates until the problem is fixed.
-    // The check for join with a lateral table is actually quite tricky.
+    // Due to the improper translation of lateral table left outer join in Calcite, we need to
+    // temporarily forbid the common predicates until the problem is fixed (see FLINK-7865).
     if (join.getJoinType == JoinType.LEFT &&
-      join.getRight.toString.startsWith("TABLE(")) { // TABLE (`func`(`foo`)) AS...
+      isCollectionTable(join.getRight)) {
       join.getCondition match {
         case c: SqlLiteral if c.getValue.equals(true) => // only accept literal true
-        case c => throw new ValidationException(s"$c is not a valid predicate for " +
+        case c => if (null != c) throw new ValidationException(s"$c is not a valid predicate for " +
           s"lateral table outer join. Can only accept literal TRUE.")
       }
     }
     super.validateJoin(join, scope)
+  }
+
+  private def isCollectionTable(node: SqlNode): Boolean = {
+    // TABLE (`func`(`foo`)) AS bar
+    node match {
+      case n: SqlCall if n.getKind == SqlKind.AS =>
+        n.getOperandList.get(0).getKind == SqlKind.COLLECTION_TABLE
+      case _ => false
+    }
   }
 }

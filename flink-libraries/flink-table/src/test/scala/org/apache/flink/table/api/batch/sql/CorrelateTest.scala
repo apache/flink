@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVarsArgTableFunc0
 import org.apache.flink.table.utils.TableTestUtil._
@@ -76,12 +75,8 @@ class CorrelateTest extends TableTestBase {
     util.verifySql(sqlQuery2, expected2)
   }
 
-  /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we can
-    * only accept literal true as the predicate for lateral table left outer join.
-    */
   @Test
-  def testLeftOuterJoinWithTruePredicates(): Unit = {
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
     val util = batchTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -107,21 +102,44 @@ class CorrelateTest extends TableTestBase {
     util.verifySql(sqlQuery, expected)
   }
 
-  /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), we can
-    * only accept literal true as the predicate for lateral table left outer join.
-    */
-  @Test (expected = classOf[ValidationException])
-  def testLeftOuterJoinWithPredicates(): Unit = {
+  @Test
+  def testLeftOuterJoinAsSubQuery(): Unit = {
     val util = batchTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTable[(Int, Long, String)]("MyTable2", 'a2, 'b2, 'c2)
     util.addFunction("func1", func1)
 
-    val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON s > '1'" +
-      " where c = s"
+    val sqlQuery =
+    """
+      | SELECT *
+      | FROM MyTable2 LEFT OUTER JOIN
+      |  (SELECT c, s
+      |   FROM MyTable LEFT OUTER JOIN LATERAL TABLE(func1(c)) AS T(s) on true)
+      | ON c2 = s """.stripMargin
 
-    util.verifySql(sqlQuery, "")
+    val expected = binaryNode(
+      "DataSetJoin",
+      batchTableNode(1),
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+         "DataSetCorrelate",
+          batchTableNode(0),
+          term("invocation", "func1($cor0.c)"),
+          term("correlate", "table(func1($cor0.c))"),
+          term("select", "a", "b", "c", "f0"),
+          term("rowType", "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) f0)"),
+          term("joinType","LEFT")
+        ),
+        term("select", "c", "f0 AS s")
+      ),
+      term("where", "=(c2, s)"),
+      term("join", "a2", "b2", "c2", "c", "s"),
+      term("joinType", "LeftOuterJoin")
+    )
+
+    util.verifySql(sqlQuery, expected)
   }
 
   @Test
