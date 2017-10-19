@@ -59,7 +59,7 @@ After creating your cluster, you can [connect to the master node](http://docs.aw
 2. Extract the Flink distribution and you are ready to deploy [Flink jobs via YARN](yarn_setup.html) after **setting the Hadoop config directory**:
 
 ```bash
-HADOOP_CONF_DIR=/etc/hadoop/conf bin/flink run -m yarn-cluster examples/streaming/WordCount.jar
+HADOOP_CONF_DIR=/etc/hadoop/conf bin/flink run -m yarn-cluster -yn 1 examples/streaming/WordCount.jar
 ```
 
 {% top %}
