@@ -36,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -55,10 +56,11 @@ public abstract class AbstractExecutionGraphHandler<R extends ResponseBody, M ex
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
+			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
-		super(localRestAddress, leaderRetriever, timeout, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders);
 
 		this.executionGraphCache = Preconditions.checkNotNull(executionGraphCache);
 		this.executor = Preconditions.checkNotNull(executor);
