@@ -34,6 +34,6 @@ under the License.
 			checks="IllegalImport"/>
 		<!-- Kinesis producer has to use guava directly -->
 		<suppress
-			files="FlinkKinesisProducer.java"
+			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
 			checks="IllegalImport"/>
 </suppressions>
