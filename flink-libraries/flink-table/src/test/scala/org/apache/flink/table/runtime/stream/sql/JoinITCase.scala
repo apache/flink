@@ -492,9 +492,12 @@ class JoinITCase extends StreamingWithStateTestBase {
     tEnv.registerTable("T2", t2)
 
     val sqlQuery =
-      "SELECT t2.a, t2.c, t1.c " +
-      "FROM T1 as t1 JOIN T2 as t2 " +
-        "ON t1.a = t2.a AND t1.b > t2.b "
+      """
+        |SELECT t2.a, t2.c, t1.c
+        |FROM T1 as t1 JOIN T2 as t2 ON
+        |  t1.a = t2.a AND
+        |  t1.b > t2.b
+        |""".stripMargin
 
     val result = tEnv.sql(sqlQuery).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])

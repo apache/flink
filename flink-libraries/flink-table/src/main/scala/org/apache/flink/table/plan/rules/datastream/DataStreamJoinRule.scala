@@ -20,14 +20,16 @@ package org.apache.flink.table.plan.rules.datastream
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamJoin
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
 import org.apache.flink.table.runtime.join.WindowJoinUtil
+
 import scala.collection.JavaConverters._
 
 class DataStreamJoinRule
@@ -36,6 +38,27 @@ class DataStreamJoinRule
     FlinkConventions.LOGICAL,
     FlinkConventions.DATASTREAM,
     "DataStreamJoinRule") {
+
+  /**
+    * Checks if an expression accesses a time attribute.
+    *
+    * @param expr The expression to check.
+    * @param inputType The input type of the expression.
+    * @return True, if the expression accesses a time attribute. False otherwise.
+    */
+  def accessesTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
+    expr match {
+      case i: RexInputRef =>
+        val accessedType = inputType.getFieldList.get(i.getIndex).getType
+        accessedType match {
+          case _: TimeIndicatorRelDataType => true
+          case _ => false
+        }
+      case c: RexCall =>
+        c.operands.asScala.exists(accessesTimeAttribute(_, inputType))
+      case _ => false
+    }
+  }
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0).asInstanceOf[FlinkLogicalJoin]
@@ -50,13 +73,9 @@ class DataStreamJoinRule
 
     // remaining predicate must not access time attributes
     val remainingPredsAccessTime = remainingPreds.isDefined &&
-      WindowJoinUtil.accessesTimeAttribute(remainingPreds.get, join.getRowType)
+      accessesTimeAttribute(remainingPreds.get, join.getRowType)
 
-    // Check that no event-time attributes are in the input.
-    val rowTimeAttrInOutput = join.getRowType.getFieldList.asScala
-      .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
-
-    if (!windowBounds.isDefined && !remainingPredsAccessTime && !rowTimeAttrInOutput) {
+    if (!windowBounds.isDefined && !remainingPredsAccessTime) {
       true
     } else {
       false

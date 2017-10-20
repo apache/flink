@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComp
 import org.apache.flink.table.runtime.join.DataStreamInnerJoin
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 class JoinHarnessTest extends HarnessTestBase {
@@ -451,7 +451,7 @@ class JoinHarnessTest extends HarnessTestBase {
       joinReturnType,
       "TestJoinFunction",
       funcCode,
-      joinReturnType.rowType)
+      queryConfig)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -532,7 +532,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(2: JInt, "bbb", 2: JInt, "Hello1"), true)))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verify(expectedOutput, result, new RowResultSortComparator())
 
     testHarness.close()
   }
@@ -550,8 +550,8 @@ class JoinHarnessTest extends HarnessTestBase {
       Array("a", "b", "c", "d")))
 
     val joinProcessFunc = new DataStreamInnerJoin(
-      rT,
-      rT,
+      rowType,
+      rowType,
       joinReturnType,
       "TestJoinFunction",
       funcCode,
@@ -633,7 +633,7 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new StreamRecord(
       CRow(Row.of(2: JInt, "bbb", 2: JInt, "Hello1"), true)))
 
-    verify(expectedOutput, result, new RowResultSortComparator(6))
+    verify(expectedOutput, result, new RowResultSortComparator())
 
     testHarness.close()
   }

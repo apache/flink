@@ -110,18 +110,4 @@ class JoinValidationTest extends TableTestBase {
 
     streamUtil.verifySql(sql, "n/a")
   }
-
-  /** Validates that no rowtime attribute is in the output schema **/
-  @Test(expected = classOf[TableException])
-  def testNoRowtimeAttributeInResultForNonWindowInnerJoin(): Unit = {
-    val sql =
-      """
-        |SELECT *
-        |FROM MyTable t1, MyTable2 t2
-        |WHERE t1.a = t2.a
-        | """.stripMargin
-
-    streamUtil.verifySql(sql, "n/a")
-  }
-
 }

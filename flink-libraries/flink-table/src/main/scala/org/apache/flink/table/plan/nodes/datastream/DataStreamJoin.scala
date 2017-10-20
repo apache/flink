@@ -55,7 +55,7 @@ class DataStreamJoin(
           with CommonJoin
           with DataStreamRel {
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def needsUpdatesAsRetraction: Boolean = true
 
@@ -80,7 +80,7 @@ class DataStreamJoin(
 
   override def toString: String = {
     joinToString(
-      schema.logicalType,
+      schema.relDataType,
       joinCondition,
       joinType,
       getExpressionString)
@@ -89,7 +89,7 @@ class DataStreamJoin(
   override def explainTerms(pw: RelWriter): RelWriter = {
     joinExplainTerms(
       super.explainTerms(pw),
-      schema.logicalType,
+      schema.relDataType,
       joinCondition,
       joinType,
       getExpressionString)
@@ -100,7 +100,7 @@ class DataStreamJoin(
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     val config = tableEnv.getConfig
-    val returnType = schema.physicalTypeInfo
+    val returnType = schema.typeInfo
     val keyPairs = joinInfo.pairs().toList
 
     // get the equality keys
@@ -112,7 +112,7 @@ class DataStreamJoin(
         "Joins should have at least one equality condition.\n" +
           s"\tLeft: ${left.toString},\n" +
           s"\tRight: ${right.toString},\n" +
-          s"\tCondition: (${joinConditionToString(schema.logicalType,
+          s"\tCondition: (${joinConditionToString(schema.relDataType,
              joinCondition, getExpressionString)})"
       )
     }
@@ -135,7 +135,7 @@ class DataStreamJoin(
             "Equality join predicate on incompatible types.\n" +
               s"\tLeft: ${left.toString},\n" +
               s"\tRight: ${right.toString},\n" +
-              s"\tCondition: (${joinConditionToString(schema.logicalType,
+              s"\tCondition: (${joinConditionToString(schema.relDataType,
                 joinCondition, getExpressionString)})"
           )
         }
@@ -160,11 +160,11 @@ class DataStreamJoin(
     val generator = new FunctionCodeGenerator(
       config,
       nullCheck,
-      leftSchema.physicalTypeInfo,
-      Some(rightSchema.physicalTypeInfo))
+      leftSchema.typeInfo,
+      Some(rightSchema.typeInfo))
     val conversion = generator.generateConverterResultExpression(
-      schema.physicalTypeInfo,
-      schema.physicalFieldNames)
+      schema.typeInfo,
+      schema.fieldNames)
 
 
     val body = if (joinInfo.isEqui) {
@@ -196,8 +196,8 @@ class DataStreamJoin(
 
     val coMapFun =
       new DataStreamInnerJoin(
-        leftSchema.physicalTypeInfo,
-        rightSchema.physicalTypeInfo,
+        leftSchema.typeInfo,
+        rightSchema.typeInfo,
         CRowTypeInfo(returnType),
         genFunction.name,
         genFunction.code,
