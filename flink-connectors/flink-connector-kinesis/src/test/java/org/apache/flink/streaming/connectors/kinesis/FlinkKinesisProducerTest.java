@@ -95,7 +95,7 @@ public class FlinkKinesisProducerTest {
 	}
 
 	@Test
-	public void testConsumerIsSerializable() {
+	public void testProducerIsSerializable() {
 		FlinkKinesisProducer<String> consumer = new FlinkKinesisProducer<>(new SimpleStringSchema(), getStandardProperties());
 		assertTrue(InstantiationUtil.isSerializable(consumer));
 	}
