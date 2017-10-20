@@ -831,8 +831,7 @@ object AggregateUtil {
       inputType: RelDataType,
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       outputType: RelDataType,
-      groupings: Array[Int],
-      inGroupingSet: Boolean): (Option[DataSetPreAggFunction],
+      groupings: Array[Int]): (Option[DataSetPreAggFunction],
         Option[TypeInformation[Row]],
         RichGroupReduceFunction[Row, Row]) = {
 
@@ -849,17 +848,7 @@ object AggregateUtil {
       outputType
     )
 
-    val constantFlags: Option[Array[(Int, Boolean)]] =
-    if (inGroupingSet) {
-
-      val groupingSetsMapping = getGroupingSetsIndicatorMapping(inputType, outputType)
-      val nonNullKeysFields = gkeyOutMapping.map(_._1)
-      val flags = for ((in, out) <- groupingSetsMapping) yield
-        (out, !nonNullKeysFields.contains(in))
-      Some(flags)
-    } else {
-      None
-    }
+    val constantFlags: Option[Array[(Int, Boolean)]] = None
 
     val aggOutFields = aggOutMapping.map(_._1)
 
