@@ -47,7 +47,6 @@ import org.junit.rules.ExpectedException;
 import java.util.Arrays;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporter.ARG_PORT;
-import static org.apache.flink.runtime.metrics.scope.ScopeFormat.SCOPE_SEPARATOR;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -262,10 +261,6 @@ public class PrometheusReporterTest extends TestLogger {
 
 	static HttpResponse<String> pollMetrics() throws UnirestException {
 		return Unirest.get("http://localhost:" + NON_DEFAULT_PORT + "/metrics").asString();
-	}
-
-	private static String getFullMetricName(String metricName) {
-		return HOST_NAME + SCOPE_SEPARATOR + "taskmanager" + SCOPE_SEPARATOR + TASK_MANAGER + SCOPE_SEPARATOR + metricName;
 	}
 
 	static Configuration createConfigWithOneReporter(String reporterName, String portString) {

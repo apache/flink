@@ -49,7 +49,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -74,7 +73,7 @@ public class PrometheusReporter implements MetricReporter {
 	private static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
 
 	private HTTPServer httpServer;
-	private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>> collectorsWithCountByMetricName = new ConcurrentHashMap<>();
+	private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>> collectorsWithCountByMetricName = new HashMap<>();
 
 	@VisibleForTesting
 	static String replaceInvalidChars(final String input) {
@@ -126,61 +125,79 @@ public class PrometheusReporter implements MetricReporter {
 		final Collector collector;
 		Integer count = 0;
 
-		if (!collectorsWithCountByMetricName.containsKey(scopedMetricName)) {
-			if (metric instanceof Gauge) {
-				collector = newGauge(scopedMetricName, helpString, dimensionKeys, dimensionValues, gaugeFrom((Gauge) metric));
-			} else if (metric instanceof Counter) {
-				collector = newGauge(scopedMetricName, helpString, dimensionKeys, dimensionValues, gaugeFrom((Counter) metric));
-			} else if (metric instanceof Meter) {
-				collector = newGauge(scopedMetricName, helpString, dimensionKeys, dimensionValues, gaugeFrom((Meter) metric));
-			} else if (metric instanceof Histogram) {
-				collector = new HistogramSummaryProxy((Histogram) metric, scopedMetricName, helpString, dimensionKeys, dimensionValues);
+		synchronized (this) {
+			if (collectorsWithCountByMetricName.containsKey(scopedMetricName)) {
+				final AbstractMap.SimpleImmutableEntry<Collector, Integer> collectorWithCount = collectorsWithCountByMetricName.get(scopedMetricName);
+				collector = collectorWithCount.getKey();
+				count = collectorWithCount.getValue();
 			} else {
-				LOG.warn("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
-					metric.getClass().getName());
-				return;
+				collector = createCollector(metric, dimensionKeys, dimensionValues, scopedMetricName, helpString);
+				try {
+					collector.register();
+				} catch (Exception e) {
+					LOG.warn("There was a problem registering metric {}.", metricName, e);
+				}
 			}
-			try {
-				collector.register();
-			} catch (Exception e) {
-				LOG.warn("There was a problem registering metric {}.", metricName, e);
-			}
-		} else {
-			final AbstractMap.SimpleImmutableEntry<Collector, Integer> collectorWithCount = collectorsWithCountByMetricName.get(scopedMetricName);
-			collector = collectorWithCount.getKey();
-			count = collectorWithCount.getValue();
-			if (metric instanceof Gauge) {
-				((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Gauge) metric), toArray(dimensionValues));
-			} else if (metric instanceof Counter) {
-				((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
-			} else if (metric instanceof Meter) {
-				((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Meter) metric), toArray(dimensionValues));
-			} else if (metric instanceof Histogram) {
-				((HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
-			}
+			addMetric(metric, dimensionValues, collector);
+			collectorsWithCountByMetricName.put(scopedMetricName, new AbstractMap.SimpleImmutableEntry<>(collector, count + 1));
 		}
-		collectorsWithCountByMetricName.put(scopedMetricName, new AbstractMap.SimpleImmutableEntry<>(collector, count + 1));
 	}
 
 	private static String getScopedName(String metricName, MetricGroup group) {
 		return SCOPE_PREFIX + getLogicalScope(group) + SCOPE_SEPARATOR + CHARACTER_FILTER.filterCharacters(metricName);
 	}
 
+	private static Collector createCollector(Metric metric, List<String> dimensionKeys, List<String> dimensionValues, String scopedMetricName, String helpString) {
+		Collector collector;
+		if (metric instanceof Gauge || metric instanceof Counter || metric instanceof Meter) {
+			collector = io.prometheus.client.Gauge
+				.build()
+				.name(scopedMetricName)
+				.help(helpString)
+				.labelNames(toArray(dimensionKeys))
+				.create();
+		} else if (metric instanceof Histogram) {
+			collector = new HistogramSummaryProxy((Histogram) metric, scopedMetricName, helpString, dimensionKeys, dimensionValues);
+		} else {
+			LOG.warn("Cannot create collector for unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+				metric.getClass().getName());
+			collector = null;
+		}
+		return collector;
+	}
+
+	private static void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+		if (metric instanceof Gauge) {
+			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Gauge) metric), toArray(dimensionValues));
+		} else if (metric instanceof Counter) {
+			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Counter) metric), toArray(dimensionValues));
+		} else if (metric instanceof Meter) {
+			((io.prometheus.client.Gauge) collector).setChild(gaugeFrom((Meter) metric), toArray(dimensionValues));
+		} else if (metric instanceof Histogram) {
+			((HistogramSummaryProxy) collector).addChild((Histogram) metric, dimensionValues);
+		} else {
+			LOG.warn("Cannot add unknown metric type: {}. This indicates that the metric type is not supported by this reporter.",
+				metric.getClass().getName());
+		}
+	}
+
 	@Override
 	public void notifyOfRemovedMetric(final Metric metric, final String metricName, final MetricGroup group) {
 		final String scopedMetricName = getScopedName(metricName, group);
-		final AbstractMap.SimpleImmutableEntry<Collector, Integer> collectorWithCount = collectorsWithCountByMetricName.get(scopedMetricName);
-		final Integer count = collectorWithCount.getValue();
-		final Collector collector = collectorWithCount.getKey();
-		if (count == 1) {
-			try {
-				CollectorRegistry.defaultRegistry.unregister(collector);
-			} catch (Exception e) {
-				LOG.warn("There was a problem unregistering metric {}.", scopedMetricName, e);
+		synchronized (this) {
+			final AbstractMap.SimpleImmutableEntry<Collector, Integer> collectorWithCount = collectorsWithCountByMetricName.get(scopedMetricName);
+			final Integer count = collectorWithCount.getValue();
+			final Collector collector = collectorWithCount.getKey();
+			if (count == 1) {
+				try {
+					CollectorRegistry.defaultRegistry.unregister(collector);
+				} catch (Exception e) {
+					LOG.warn("There was a problem unregistering metric {}.", scopedMetricName, e);
+				}
+				collectorsWithCountByMetricName.remove(scopedMetricName);
+			} else {
+				collectorsWithCountByMetricName.put(scopedMetricName, new AbstractMap.SimpleImmutableEntry<>(collector, count - 1));
 			}
-			collectorsWithCountByMetricName.remove(scopedMetricName);
-		} else {
-			collectorsWithCountByMetricName.put(scopedMetricName, new AbstractMap.SimpleImmutableEntry<>(collector, count - 1));
 		}
 	}
 
@@ -220,7 +237,7 @@ public class PrometheusReporter implements MetricReporter {
 		};
 	}
 
-	private io.prometheus.client.Gauge.Child gaugeFrom(Meter meter) {
+	private static io.prometheus.client.Gauge.Child gaugeFrom(Meter meter) {
 		return new io.prometheus.client.Gauge.Child() {
 			@Override
 			public double get() {
@@ -229,16 +246,7 @@ public class PrometheusReporter implements MetricReporter {
 		};
 	}
 
-	private static Collector newGauge(String name, String identifier, List<String> labelNames, List<String> labelValues, io.prometheus.client.Gauge.Child child) {
-		return io.prometheus.client.Gauge
-			.build()
-			.name(name)
-			.help(identifier)
-			.labelNames(toArray(labelNames))
-			.create()
-			.setChild(child, toArray(labelValues));
-	}
-
+	@VisibleForTesting
 	static class HistogramSummaryProxy extends Collector {
 		static final List<Double> QUANTILES = Arrays.asList(.5, .75, .95, .98, .99, .999);
 
