@@ -90,7 +90,7 @@ import java.io.Serializable;
  * @see org.apache.flink.streaming.api.TimeCharacteristic
  */
 @Public
-public interface SourceFunction<T> extends Function, Serializable {
+public interface SourceFunction<T> extends Function{
 
 	/**
 	 * Starts the source. Implementations can use the {@link SourceContext} emit
