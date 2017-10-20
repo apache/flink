@@ -1043,7 +1043,7 @@ final OutputTag<T> lateOutputTag = new OutputTag<T>("late-data"){};
 
 DataStream<T> input = ...;
 
-DataStream<T> result = input
+SingleOutputStreamOperator<T> result = input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .allowedLateness(<time>)
