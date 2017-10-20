@@ -527,7 +527,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * stream of the iterative part.
    *
    * The input stream of the iterate operator and the feedback stream will be treated
-   * as a ConnectedStreams where the the input is connected with the feedback stream.
+   * as a ConnectedStreams where the input is connected with the feedback stream.
    *
    * This allows the user to distinguish standard input from feedback inputs.
    *

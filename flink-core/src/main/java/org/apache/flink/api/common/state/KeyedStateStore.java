@@ -29,7 +29,7 @@ public interface KeyedStateStore {
 	/**
 	 * Gets a handle to the system's key/value state. The key/value state is only accessible
 	 * if the function is executed on a KeyedStream. On each access, the state exposes the value
-	 * for the the key of the element currently processed by the function.
+	 * for the key of the element currently processed by the function.
 	 * Each function may have multiple partitioned states, addressed with different names.
 	 *
 	 * <p>Because the scope of each value is the key of the currently processed element,

@@ -420,7 +420,7 @@ public class ElasticsearchSinkBaseTest {
 		/**
 		 * On non-manual flushes, i.e. when flush is called in the snapshot method implementation,
 		 * usages need to explicitly call this to allow the flush to continue. This is useful
-		 * to make sure that specific requests get added to the the next bulk request for flushing.
+		 * to make sure that specific requests get added to the next bulk request for flushing.
 		 */
 		public void continueFlush() {
 			flushLatch.trigger();

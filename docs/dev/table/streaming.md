@@ -549,7 +549,7 @@ val stream: DataStream[Row] = result.toAppendStream[Row](qConfig)
 </div>
 </div>
 
-In the the following we describe the parameters of the `QueryConfig` and how they affect the accuracy and resource consumption of a query.
+In the following we describe the parameters of the `QueryConfig` and how they affect the accuracy and resource consumption of a query.
 
 ### Idle State Retention Time
 
