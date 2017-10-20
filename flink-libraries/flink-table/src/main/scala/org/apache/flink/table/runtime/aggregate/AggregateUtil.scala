@@ -50,7 +50,6 @@ import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 object AggregateUtil {
 
@@ -103,7 +102,6 @@ object AggregateUtil {
       aggMapping,
       partialResults = false,
       forwardMapping,
-      None,
       None,
       outputArity,
       needRetract = false,
@@ -184,7 +182,6 @@ object AggregateUtil {
       partialResults = false,
       groupings,
       None,
-      None,
       outputArity,
       consumeRetraction,
       needMerge = false,
@@ -249,7 +246,6 @@ object AggregateUtil {
       aggMapping,
       partialResults = false,
       forwardMapping,
-      None,
       None,
       outputArity,
       needRetract,
@@ -358,7 +354,7 @@ object AggregateUtil {
       case SlidingGroupWindow(_, time, size, slide) =>
         val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
         size match {
-          case Literal(value: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+          case Literal(_: Long, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
             // pre-tumble incremental aggregates on time-windows
             val timeFieldPos = getTimeFieldPosition(time, inputType, isParserCaseSensitive)
             val preTumblingSize = determineLargestTumblingSize(asLong(size), asLong(slide))
@@ -381,7 +377,6 @@ object AggregateUtil {
       aggMapping,
       partialResults = true,
       groupings,
-      None,
       None,
       outputArity,
       needRetract,
@@ -461,7 +456,6 @@ object AggregateUtil {
           partialResults = true,
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
-          None,
           keysAndAggregatesArity + 1,
           needRetract,
           needMerge = true,
@@ -565,7 +559,6 @@ object AggregateUtil {
       partialResults = true,
       groupings,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
-      None,
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -582,7 +575,6 @@ object AggregateUtil {
       partialResults = false,
       groupings.indices.toArray,
       Some(aggregates.indices.map(_ + groupings.length).toArray),
-      None,
       outputType.getFieldCount,
       needRetract,
       needMerge = true,
@@ -730,7 +722,6 @@ object AggregateUtil {
           partialResults = true,
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
-          None,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
@@ -805,7 +796,6 @@ object AggregateUtil {
           partialResults = true,
           groupings.indices.toArray,
           Some(aggregates.indices.map(_ + groupings.length).toArray),
-          None,
           groupings.length + aggregates.length + 2,
           needRetract,
           needMerge = true,
@@ -837,8 +827,7 @@ object AggregateUtil {
       inputType: RelDataType,
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       outputType: RelDataType,
-      groupings: Array[Int],
-      inGroupingSet: Boolean): (Option[DataSetPreAggFunction],
+      groupings: Array[Int]): (Option[DataSetPreAggFunction],
         Option[TypeInformation[Row]],
         RichGroupReduceFunction[Row, Row]) = {
 
@@ -854,18 +843,6 @@ object AggregateUtil {
       inputType,
       outputType
     )
-
-    val constantFlags: Option[Array[(Int, Boolean)]] =
-    if (inGroupingSet) {
-
-      val groupingSetsMapping = getGroupingSetsIndicatorMapping(inputType, outputType)
-      val nonNullKeysFields = gkeyOutMapping.map(_._1)
-      val flags = for ((in, out) <- groupingSetsMapping) yield
-        (out, !nonNullKeysFields.contains(in))
-      Some(flags)
-    } else {
-      None
-    }
 
     val aggOutFields = aggOutMapping.map(_._1)
 
@@ -885,7 +862,6 @@ object AggregateUtil {
         aggregates.indices.map(_ + groupings.length).toArray,
         partialResults = true,
         groupings,
-        None,
         None,
         groupings.length + aggregates.length,
         needRetract,
@@ -913,7 +889,6 @@ object AggregateUtil {
         partialResults = false,
         gkeyMapping,
         Some(aggregates.indices.map(_ + groupings.length).toArray),
-        constantFlags,
         outputType.getFieldCount,
         needRetract,
         needMerge = true,
@@ -937,7 +912,6 @@ object AggregateUtil {
         partialResults = false,
         groupings,
         None,
-        constantFlags,
         outputType.getFieldCount,
         needRetract,
         needMerge = false,
@@ -1035,7 +1009,6 @@ object AggregateUtil {
       partialResults = false,
       groupingKeys,
       None,
-      None,
       outputArity,
       needRetract,
       needMerge,
@@ -1097,50 +1070,6 @@ object AggregateUtil {
       aggNames.map(a => (outputType.getField(a._1, false, false).getIndex, a._2)).toArray
 
     (groupOutMapping, aggOutMapping)
-  }
-
-  /**
-    * Determines the mapping of grouping keys to boolean indicators that describe the
-    * current grouping set.
-    *
-    * E.g.: Given we group on f1 and f2 of the input type, the output type contains two
-    * boolean indicator fields i$f1 and i$f2.
-    */
-  private def getGroupingSetsIndicatorMapping(
-    inputType: RelDataType,
-    outputType: RelDataType): Array[(Int, Int)] = {
-
-    val inputFields = inputType.getFieldList.map(_.getName)
-
-    // map from field -> i$field or field -> i$field_0
-    val groupingFields = inputFields.map(inputFieldName => {
-      val base = "i$" + inputFieldName
-      var name = base
-      var i = 0
-      while (inputFields.contains(name)) {
-          name = base + "_" + i // if i$XXX is already a field it will be suffixed by _NUMBER
-          i = i + 1
-        }
-        inputFieldName -> name
-      }).toMap
-
-    val outputFields = outputType.getFieldList
-
-    var mappingsBuffer = ArrayBuffer[(Int, Int)]()
-    for (i <- outputFields.indices) {
-      for (j <- outputFields.indices) {
-        val possibleKey = outputFields(i).getName
-        val possibleIndicator1 = outputFields(j).getName
-        // get indicator for output field
-        val possibleIndicator2 = groupingFields.getOrElse(possibleKey, null)
-
-        // check if indicator names match
-        if (possibleIndicator1 == possibleIndicator2) {
-          mappingsBuffer += ((i, j))
-        }
-      }
-    }
-    mappingsBuffer.toArray
   }
 
   private def isTimeWindow(window: LogicalWindow) = {

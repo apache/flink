@@ -77,9 +77,6 @@ class DataSetFinalAggFunction(
     // get final aggregate value and set to output.
     function.setAggregationResults(accumulators, output)
 
-    // set grouping set flags to output
-    function.setConstantFlags(output)
-
     out.collect(output)
   }
 }

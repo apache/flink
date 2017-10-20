@@ -79,8 +79,7 @@ class DataSetAggregateWithNullValuesRule
       agg.getNamedAggCalls,
       rel.getRowType,
       agg.getInput.getRowType,
-      agg.getGroupSet.toArray,
-      inGroupingSet = false
+      agg.getGroupSet.toArray
     )
   }
 }

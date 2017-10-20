@@ -78,8 +78,6 @@ class AggregationCodeGenerator(
     * @param fwdMapping  The mapping of input fields to output fields
     * @param mergeMapping An optional mapping to specify the accumulators to merge. If not set, we
     *                     assume that both rows have the accumulators at the same position.
-    * @param constantFlags An optional parameter to define where to set constant boolean flags in
-    *                      the output row.
     * @param outputArity The number of fields in the output row.
     * @param needRetract a flag to indicate if the aggregate needs the retract method
     * @param needMerge a flag to indicate if the aggregate needs the merge method
@@ -97,7 +95,6 @@ class AggregationCodeGenerator(
       partialResults: Boolean,
       fwdMapping: Array[Int],
       mergeMapping: Option[Array[Int]],
-      constantFlags: Option[Array[(Int, Boolean)]],
       outputArity: Int,
       needRetract: Boolean,
       needMerge: Boolean,
@@ -468,30 +465,6 @@ class AggregationCodeGenerator(
          |  }""".stripMargin
     }
 
-    def genSetConstantFlags: String = {
-
-      val sig: String =
-        j"""
-           |  public final void setConstantFlags(org.apache.flink.types.Row output)
-           |    """.stripMargin
-
-      val setFlags: String = if (constantFlags.isDefined) {
-        {
-          for (cf <- constantFlags.get) yield {
-            j"""
-               |    output.setField(${cf._1}, ${if (cf._2) "true" else "false"});"""
-            .stripMargin
-          }
-        }.mkString("\n")
-      } else {
-        ""
-      }
-
-      j"""$sig {
-         |$setFlags
-         |  }""".stripMargin
-    }
-
     def genCreateOutputRow: String = {
       j"""
          |  public final org.apache.flink.types.Row createOutputRow() {
@@ -585,7 +558,6 @@ class AggregationCodeGenerator(
       genRetract,
       genCreateAccumulators,
       genSetForwardedFields,
-      genSetConstantFlags,
       genCreateOutputRow,
       genMergeAccumulatorsPair,
       genResetAccumulator).mkString("\n")

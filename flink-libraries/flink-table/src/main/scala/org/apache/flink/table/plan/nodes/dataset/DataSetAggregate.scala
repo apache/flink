@@ -45,8 +45,7 @@ class DataSetAggregate(
     namedAggregates: Seq[CalcitePair[AggregateCall, String]],
     rowRelDataType: RelDataType,
     inputType: RelDataType,
-    grouping: Array[Int],
-    inGroupingSet: Boolean)
+    grouping: Array[Int])
   extends SingleRel(cluster, traitSet, inputNode) with CommonAggregate with DataSetRel {
 
   override def deriveRowType(): RelDataType = rowRelDataType
@@ -59,8 +58,7 @@ class DataSetAggregate(
       namedAggregates,
       getRowType,
       inputType,
-      grouping,
-      inGroupingSet)
+      grouping)
   }
 
   override def toString: String = {
@@ -111,8 +109,7 @@ class DataSetAggregate(
         input.getRowType,
         inputDS.getType.asInstanceOf[RowTypeInfo].getFieldTypes,
         rowRelDataType,
-        grouping,
-        inGroupingSet)
+        grouping)
 
     val aggString = aggregationToString(inputType, grouping, getRowType, namedAggregates, Nil)
 

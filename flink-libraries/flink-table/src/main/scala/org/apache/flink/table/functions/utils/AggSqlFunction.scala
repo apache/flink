@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.functions.utils
 
+import java.util
+import java.util.Collections
+
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.sql
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -58,7 +62,8 @@ class AggSqlFunction(
     // will be generated when translating the calcite relnode to flink runtime execution plan
     null,
     false,
-    requiresOver
+    requiresOver,
+    typeFactory
   ) {
 
   def getFunction: AggregateFunction[_, _] = aggregateFunction
@@ -66,6 +71,8 @@ class AggSqlFunction(
   override def isDeterministic: Boolean = aggregateFunction.isDeterministic
 
   override def toString: String = displayName
+
+  override def getParamTypes: util.List[RelDataType] = null
 }
 
 object AggSqlFunction {

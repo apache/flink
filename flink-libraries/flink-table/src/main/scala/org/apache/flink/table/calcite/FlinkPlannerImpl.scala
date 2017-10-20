@@ -19,8 +19,10 @@
 package org.apache.flink.table.calcite
 
 import java.util
+import java.util.Properties
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.config.{CalciteConnectionConfig, CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -157,9 +159,10 @@ class FlinkPlannerImpl(
     val rootSchema: SchemaPlus = FlinkPlannerImpl.rootSchema(defaultSchema)
     new CalciteCatalogReader(
       CalciteSchema.from(rootSchema),
-      parserConfig.caseSensitive,
       CalciteSchema.from(defaultSchema).path(null),
-      typeFactory)
+      typeFactory,
+      CalciteConfig.connectionConfig(parserConfig)
+    )
   }
 
   private def createRexBuilder: RexBuilder = {
