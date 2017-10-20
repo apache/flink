@@ -25,10 +25,10 @@ import org.apache.flink.api.common.JobID;
  */
 public class JobIDPathParameter extends MessagePathParameter<JobID> {
 
-	private static final String JOB_ID = "jobid";
+	public static final String KEY = "jobid";
 
 	public JobIDPathParameter() {
-		super(JOB_ID);
+		super(KEY);
 	}
 
 	@Override

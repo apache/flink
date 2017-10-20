@@ -26,11 +26,15 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * Message headers for the {@link JobVertexAccumulatorsHandler}.
  */
-public class JobVertexAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, JobVertexAccumulatorsInfo, JobMessageParameters> {
+public class JobVertexAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, JobVertexAccumulatorsInfo, JobVertexMessageParameters> {
 
 	private static final JobVertexAccumulatorsHeaders INSTANCE = new JobVertexAccumulatorsHeaders();
 
-	public static final String URL = "/jobs/:jobid/vertices/:vertexid/accumulators";
+	public static final String URL = "/jobs" +
+		"/:" + JobIDPathParameter.KEY +
+		"/vertices" +
+		"/:" + JobVertexIdPathParameter.KEY +
+		"/accumulators";
 
 	private JobVertexAccumulatorsHeaders() {}
 
@@ -50,8 +54,8 @@ public class JobVertexAccumulatorsHeaders implements MessageHeaders<EmptyRequest
 	}
 
 	@Override
-	public JobMessageParameters getUnresolvedMessageParameters() {
-		return new JobMessageParameters();
+	public JobVertexMessageParameters getUnresolvedMessageParameters() {
+		return new JobVertexMessageParameters();
 	}
 
 	@Override

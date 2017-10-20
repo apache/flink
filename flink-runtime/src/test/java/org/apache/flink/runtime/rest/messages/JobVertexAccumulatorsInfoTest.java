@@ -32,7 +32,7 @@ public class JobVertexAccumulatorsInfoTest extends RestResponseMarshallingTestBa
 
 	@Override
 	protected JobVertexAccumulatorsInfo getTestResponseInstance() throws Exception {
-		List<JobVertexAccumulatorsInfo.UserAccumulator> userAccumulatorList = new ArrayList<>();
+		List<JobVertexAccumulatorsInfo.UserAccumulator> userAccumulatorList = new ArrayList<>(3);
 		userAccumulatorList.add(new JobVertexAccumulatorsInfo.UserAccumulator(
 			"test name1",
 			"test type1",

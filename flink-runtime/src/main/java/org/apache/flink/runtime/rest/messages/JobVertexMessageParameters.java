@@ -18,26 +18,24 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Path parameter specifying a {@link JobVertexID}.
+ * Message parameters for job vertex REST handlers.
  */
-public class JobVertexIdPathParameter extends MessagePathParameter<JobVertexID> {
+public class JobVertexMessageParameters extends JobMessageParameters {
 
-	public static final String KEY = "vertexid";
+	protected final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
 
-	public JobVertexIdPathParameter() {
-		super(KEY);
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Arrays.asList(jobPathParameter, jobVertexIdPathParameter);
 	}
 
 	@Override
-	protected JobVertexID convertFromString(String value) throws ConversionException {
-		return JobVertexID.fromHexString(value);
-	}
-
-	@Override
-	protected String convertToString(JobVertexID value) {
-		return value.toString();
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptySet();
 	}
 }

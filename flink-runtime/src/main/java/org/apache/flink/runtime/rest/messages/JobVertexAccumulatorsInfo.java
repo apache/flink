@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -38,14 +39,14 @@ public class JobVertexAccumulatorsInfo implements ResponseBody {
 	private String id;
 
 	@JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
-	private List<UserAccumulator> userAccumulatorList;
+	private Collection<UserAccumulator> userAccumulatorList;
 
 	@JsonCreator
 	public JobVertexAccumulatorsInfo(
 			@JsonProperty(FIELD_NAME_ID) String id,
-			@JsonProperty(FIELD_NAME_USER_ACCUMULATORS) List<UserAccumulator> userAccumulatorList) {
-		this.id = id;
-		this.userAccumulatorList = userAccumulatorList;
+			@JsonProperty(FIELD_NAME_USER_ACCUMULATORS) Collection<UserAccumulator> userAccumulatorList) {
+		this.id = Preconditions.checkNotNull(id);
+		this.userAccumulatorList = Preconditions.checkNotNull(userAccumulatorList);
 	}
 
 	@Override
@@ -93,9 +94,9 @@ public class JobVertexAccumulatorsInfo implements ResponseBody {
 				@JsonProperty(FIELD_NAME_ACC_NAME) String name,
 				@JsonProperty(FIELD_NAME_ACC_TYPE) String type,
 				@JsonProperty(FIELD_NAME_ACC_VALUE) String value) {
-			this.name = name;
-			this.type = type;
-			this.value = value;
+			this.name = Preconditions.checkNotNull(name);
+			this.type = Preconditions.checkNotNull(type);
+			this.value = Preconditions.checkNotNull(value);
 		}
 
 		@Override
