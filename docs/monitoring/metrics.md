@@ -519,10 +519,11 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 25%">Infix</th>
-      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
       <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -531,10 +532,12 @@ Thus, in order to infer the metric identifier:
       <td rowspan="2">Status.JVM.CPU</td>
       <td>Load</td>
       <td>The recent CPU usage of the JVM.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Time</td>
       <td>The CPU time used by the JVM.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -543,10 +546,11 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">                               
   <thead>                                                          
     <tr>                                                           
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 25%">Infix</th>          
-      <th class="text-left" style="width: 23%">Metrics</th>                           
-      <th class="text-left" style="width: 32%">Description</th>                       
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>          
+      <th class="text-left" style="width: 20%">Metrics</th>                           
+      <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>                       
     </tr>                                                          
   </thead>                                                         
   <tbody>                                                          
@@ -554,51 +558,63 @@ Thus, in order to infer the metric identifier:
       <th rowspan="12"><strong>Job-/TaskManager</strong></th>
       <td rowspan="12">Status.JVM.Memory</td>
       <td>Heap.Used</td>
-      <td>The amount of heap memory currently used.</td>
+      <td>The amount of heap memory currently used (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Heap.Committed</td>
-      <td>The amount of heap memory guaranteed to be available to the JVM.</td>
+      <td>The amount of heap memory guaranteed to be available to the JVM (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Heap.Max</td>
-      <td>The maximum amount of heap memory that can be used for memory management.</td>
+      <td>The maximum amount of heap memory that can be used for memory management (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>NonHeap.Used</td>
-      <td>The amount of non-heap memory currently used.</td>
+      <td>The amount of non-heap memory currently used (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>NonHeap.Committed</td>
-      <td>The amount of non-heap memory guaranteed to be available to the JVM.</td>
+      <td>The amount of non-heap memory guaranteed to be available to the JVM (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>NonHeap.Max</td>
-      <td>The maximum amount of non-heap memory that can be used for memory management.</td>
+      <td>The maximum amount of non-heap memory that can be used for memory management (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Direct.Count</td>
-      <td>The number of buffers in the direct buffer pool.</td>
+      <td>The number of buffers in the direct buffer pool (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Direct.MemoryUsed</td>
-      <td>The amount of memory used by the JVM for the direct buffer pool.</td>
+      <td>The amount of memory used by the JVM for the direct buffer pool (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Direct.TotalCapacity</td>
-      <td>The total capacity of all buffers in the direct buffer pool.</td>
+      <td>The total capacity of all buffers in the direct buffer pool (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Mapped.Count</td>
-      <td>The number of buffers in the mapped buffer pool.</td>
+      <td>The number of buffers in the mapped buffer pool (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Mapped.MemoryUsed</td>
-      <td>The amount of memory used by the JVM for the mapped buffer pool.</td>
+      <td>The amount of memory used by the JVM for the mapped buffer pool (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>Mapped.TotalCapacity</td>
-      <td>The number of buffers in the mapped buffer pool.</td>
+      <td>The number of buffers in the mapped buffer pool (in bytes).</td>
+      <td>Gauge</td>
     </tr>                                                         
   </tbody>                                                         
 </table>
@@ -607,10 +623,11 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 25%">Infix</th>
-      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
       <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -619,6 +636,7 @@ Thus, in order to infer the metric identifier:
       <td rowspan="1">Status.JVM.ClassLoader</td>
       <td>Threads.Count</td>
       <td>The total number of live threads.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -627,10 +645,11 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 25%">Infix</th>
-      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
       <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -639,10 +658,12 @@ Thus, in order to infer the metric identifier:
       <td rowspan="2">Status.JVM.GarbageCollector</td>
       <td>&lt;GarbageCollector&gt;.Count</td>
       <td>The total number of collections that have occurred.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>&lt;GarbageCollector&gt;.Time</td>
       <td>The total time spent performing garbage collection.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -651,10 +672,11 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 25%">Infix</th>
-      <th class="text-left" style="width: 23%">Metrics</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 20%">Metrics</th>
       <th class="text-left" style="width: 32%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -663,10 +685,12 @@ Thus, in order to infer the metric identifier:
       <td rowspan="2">Status.JVM.ClassLoader</td>
       <td>ClassesLoaded</td>
       <td>The total number of classes loaded since the start of the JVM.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>ClassesUnloaded</td>
       <td>The total number of classes unloaded since the start of the JVM.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -675,10 +699,11 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 25%">Infix</th>
-      <th class="text-left" style="width: 25%">Metrics</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Infix</th>
+      <th class="text-left" style="width: 22%">Metrics</th>
       <th class="text-left" style="width: 30%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -687,46 +712,56 @@ Thus, in order to infer the metric identifier:
       <td rowspan="2">Status.Network</td>
       <td>AvailableMemorySegments</td>
       <td>The number of unused memory segments.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>TotalMemorySegments</td>
       <td>The number of allocated memory segments.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="8">Task</th>
       <td rowspan="4">buffers</td>
       <td>inputQueueLength</td>
       <td>The number of queued input buffers.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>outputQueueLength</td>
       <td>The number of queued output buffers.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>inPoolUsage</td>
       <td>An estimate of the input buffers usage.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>outPoolUsage</td>
       <td>An estimate of the output buffers usage.</td>
+      <td>Gauge</td>      
     </tr>
     <tr>
       <td rowspan="4">Network.&lt;Input|Output&gt;.&lt;gate&gt;<br />
         <strong>(only available if <tt>taskmanager.net.detailed-metrics</tt> config option is set)</strong></td>
       <td>totalQueueLen</td>
       <td>Total number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>minQueueLen</td>
       <td>Minimum number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>maxQueueLen</td>
       <td>Maximum number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>avgQueueLen</td>
       <td>Average number of queued buffers in all input/output channels.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -735,9 +770,10 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 30%">Metrics</th>
-      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -745,18 +781,22 @@ Thus, in order to infer the metric identifier:
       <th rowspan="4"><strong>JobManager</strong></th>
       <td>numRegisteredTaskManagers</td>
       <td>The number of registered taskmanagers.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>numRunningJobs</td>
       <td>The number of running jobs.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>taskSlotsAvailable</td>
       <td>The number of available task slots.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>taskSlotsTotal</td>
       <td>The total number of task slots.</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -765,34 +805,42 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 30%">Metrics</th>
-      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="4"><strong>Job (only available on JobManager)</strong></th>
       <td>restartingTime</td>
-      <td>The time it took to restart the job, or how long the current restart has been in progress.</td>
+      <td>
+        The time it took to restart the job,
+        <p>or how long the current restart has been in progress (in milliseconds).</p>
+      </td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>uptime</td>
       <td>
         The time that the job has been running without interruption.
-        <p>Returns -1 for completed jobs.</p>
+        <p>Returns -1 for completed jobs (in milliseconds).</p>
       </td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>downtime</td>
       <td>
         For jobs currently in a failing/recovering situation, the time elapsed during this outage.
-        <p>Returns 0 for running jobs and -1 for completed jobs.</p>
+        <p>Returns 0 for running jobs and -1 for completed jobs (in milliseconds).</p>
       </td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>fullRestarts</td>
-      <td>The total number of full restarts since this job was submitted.</td>
+      <td>The total number of full restarts since this job was submitted (in milliseconds).</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -801,53 +849,67 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 30%">Metrics</th>
-      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="9"><strong>Job (only available on JobManager)</strong></th>
       <td>lastCheckpointDuration</td>
-      <td>The time it took to complete the last checkpoint.</td>
+      <td>The time it took to complete the last checkpoint (in milliseconds).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>lastCheckpointSize</td>
-      <td>The total size of the last checkpoint.</td>
+      <td>The total size of the last checkpoint (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>lastCheckpointExternalPath</td>
       <td>The path where the last external checkpoint was stored.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>lastCheckpointRestoreTimestamp</td>
-      <td>Timestamp when the last checkpoint was restored at the coordinator.</td>
+      <td>Timestamp when the last checkpoint was restored at the coordinator (in milliseconds).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>lastCheckpointAlignmentBuffered</td>
-      <td>The number of buffered bytes during alignment over all subtasks for the last checkpoint.</td>
+      <td>The number of buffered bytes during alignment over all subtasks for the last checkpoint (in bytes).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>numberOfInProgressCheckpoints</td>
       <td>The number of in progress checkpoints.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>numberOfCompletedCheckpoints</td>
       <td>The number of successfully completed checkpoints.</td>
+      <td>Gauge</td>
     </tr>            
     <tr>
       <td>numberOfFailedCheckpoints</td>
       <td>The number of failed checkpoints.</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>totalNumberOfCheckpoints</td>
       <td>The number of total checkpoints (in progress, completed, failed).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="1">Task</th>
       <td>checkpointAlignmentTime</td>
-      <td>The time in nanoseconds that the last barrier alignment took to complete, or how long the current alignment has taken so far.</td>
+      <td>
+        The time that the last barrier alignment took to complete,
+        <p>or how long the current alignment has taken so far (in nanoseconds).</p>
+      </td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -856,66 +918,80 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 30%">Metrics</th>
-      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="7"><strong>Task</strong></th>
       <td>currentLowWatermark</td>
-      <td>The lowest watermark this task has received.</td>
+      <td>The lowest watermark this task has received (in milliseconds).</td>
+      <td>Gauge</td>
     </tr>
     <tr>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesInLocalPerSecond</td>
       <td>The number of bytes this task reads from a local source per second.</td>
+      <td>Meter</td>
     </tr>
     <tr>
       <td>numBytesInRemote</td>
       <td>The total number of bytes this task has read from a remote source.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesInRemotePerSecond</td>
       <td>The number of bytes this task reads from a remote source per second.</td>
+      <td>Meter</td>
     </tr>
     <tr>
       <td>numBytesOut</td>
       <td>The total number of bytes this task has emitted.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <td>numBytesOutPerSecond</td>
       <td>The number of bytes this task emits per second.</td>
+      <td>Meter</td>
     </tr>
     <tr>
       <th rowspan="4"><strong>Task/Operator</strong></th>
       <td>numRecordsIn</td>
       <td>The total number of records this operator/task has received.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <td>numRecordsInPerSecond</td>
       <td>The number of records this operator/task receives per second.</td>
+      <td>Meter</td>
     </tr>
     <tr>
       <td>numRecordsOut</td>
       <td>The total number of records this operator/task has emitted.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <td>numRecordsOutPerSecond</td>
       <td>The number of records this operator/task sends per second.</td>
+      <td>Meter</td>
     </tr>
     <tr>
       <th rowspan="2"><strong>Operator</strong></th>
       <td>latency</td>
       <td>The latency distributions from all incoming sources.</td>
+      <td>Histogram</td>
     </tr>
     <tr>
       <td>numSplitsProcessed</td>
       <td>The total number of InputSplits this data source has processed (if the operator is a data source).</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
@@ -926,9 +1002,10 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 20%">Scope</th>
-      <th class="text-left" style="width: 30%">Metrics</th>
-      <th class="text-left" style="width: 50%">Description</th>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
     </tr>
   </thead>
   <tbody>
@@ -936,11 +1013,13 @@ Thus, in order to infer the metric identifier:
       <th rowspan="1">Operator</th>
       <td>commitsSucceeded</td>
       <td>Kafka offset commit success count if Kafka commit is turned on and checkpointing is enabled.</td>
+      <td>Counter</td>
     </tr>
     <tr>
        <th rowspan="1">Operator</th>
        <td>commitsFailed</td>
        <td>Kafka offset commit failure count if Kafka commit is turned on and checkpointing is enabled.</td>
+       <td>Counter</td>
     </tr>
   </tbody>
 </table>
