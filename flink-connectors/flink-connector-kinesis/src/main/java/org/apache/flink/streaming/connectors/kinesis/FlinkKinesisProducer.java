@@ -17,7 +17,11 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
@@ -48,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <OUT> Data type to produce into Kinesis Streams
  */
-public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
+public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisProducer.class);
 
@@ -172,13 +176,16 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		// check and pass the configuration properties
 		KinesisProducerConfiguration producerConfig = KinesisConfigUtil.getValidatedProducerConfiguration(configProps);
 
-		producer = new KinesisProducer(producerConfig);
+		producer = getKinesisProducer(producerConfig);
 		callback = new FutureCallback<UserRecordResult>() {
 			@Override
 			public void onSuccess(UserRecordResult result) {
 				if (!result.isSuccessful()) {
 					if (failOnError) {
-						thrownException = new RuntimeException("Record was not sent successful");
+						// only remember the first thrown exception
+						if (thrownException == null) {
+							thrownException = new RuntimeException("Record was not sent successful");
+						}
 					} else {
 						LOG.warn("Record was not sent successful");
 					}
@@ -207,23 +214,8 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		if (this.producer == null) {
 			throw new RuntimeException("Kinesis producer has been closed");
 		}
-		if (thrownException != null) {
-			String errorMessages = "";
-			if (thrownException instanceof UserRecordFailedException) {
-				List<Attempt> attempts = ((UserRecordFailedException) thrownException).getResult().getAttempts();
-				for (Attempt attempt: attempts) {
-					if (attempt.getErrorMessage() != null) {
-						errorMessages += attempt.getErrorMessage() + "\n";
-					}
-				}
-			}
-			if (failOnError) {
-				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
-			} else {
-				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
-				thrownException = null; // reset
-			}
-		}
+
+		checkAndPropagateAsyncError();
 
 		String stream = defaultStream;
 		String partition = defaultPartition;
@@ -265,19 +257,86 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> {
 		if (kp != null) {
 			LOG.info("Flushing outstanding {} records", kp.getOutstandingRecordsCount());
 			// try to flush all outstanding records
-			while (kp.getOutstandingRecordsCount() > 0) {
-				kp.flush();
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					LOG.warn("Flushing was interrupted.");
-					// stop the blocking flushing and destroy producer immediately
-					break;
-				}
-			}
+			flushSync(kp);
+
 			LOG.info("Flushing done. Destroying producer instance.");
 			kp.destroy();
 		}
+
+		// make sure we propagate pending errors
+		checkAndPropagateAsyncError();
 	}
 
+	@Override
+	public void initializeState(FunctionInitializationContext context) throws Exception {
+		// nothing to do
+	}
+
+	@Override
+	public void snapshotState(FunctionSnapshotContext context) throws Exception {
+		// check for asynchronous errors and fail the checkpoint if necessary
+		checkAndPropagateAsyncError();
+
+		flushSync(producer);
+		if (producer.getOutstandingRecordsCount() > 0) {
+			throw new IllegalStateException(
+				"Number of outstanding records must be zero at this point: " + producer.getOutstandingRecordsCount());
+		}
+
+		// if the flushed requests has errors, we should propagate it also and fail the checkpoint
+		checkAndPropagateAsyncError();
+	}
+
+	// --------------------------- Utilities ---------------------------
+
+	/**
+	 * Creates a {@link KinesisProducer}.
+	 * Exposed so that tests can inject mock producers easily.
+	 */
+	@VisibleForTesting
+	protected KinesisProducer getKinesisProducer(KinesisProducerConfiguration producerConfig) {
+		return new KinesisProducer(producerConfig);
+	}
+
+	/**
+	 * Check if there are any asynchronous exceptions. If so, rethrow the exception.
+	 */
+	private void checkAndPropagateAsyncError() throws Exception {
+		if (thrownException != null) {
+			String errorMessages = "";
+			if (thrownException instanceof UserRecordFailedException) {
+				List<Attempt> attempts = ((UserRecordFailedException) thrownException).getResult().getAttempts();
+				for (Attempt attempt: attempts) {
+					if (attempt.getErrorMessage() != null) {
+						errorMessages += attempt.getErrorMessage() + "\n";
+					}
+				}
+			}
+			if (failOnError) {
+				throw new RuntimeException("An exception was thrown while processing a record: " + errorMessages, thrownException);
+			} else {
+				LOG.warn("An exception was thrown while processing a record: {}", thrownException, errorMessages);
+
+				// reset, prevent double throwing
+				thrownException = null;
+			}
+		}
+	}
+
+	/**
+	 * A reimplementation of {@link KinesisProducer#flushSync()}.
+	 * This implementation releases the block on flushing if an interruption occurred.
+	 */
+	private void flushSync(KinesisProducer producer) throws Exception {
+		while (producer.getOutstandingRecordsCount() > 0) {
+			producer.flush();
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				LOG.warn("Flushing was interrupted.");
+
+				break;
+			}
+		}
+	}
 }

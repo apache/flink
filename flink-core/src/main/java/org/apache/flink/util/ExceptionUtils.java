@@ -302,6 +302,30 @@ public final class ExceptionUtils {
 	}
 
 	/**
+	 * Checks whether a throwable chain contains a specific error message and returns the corresponding throwable.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchMessage the error message to search for in the chain.
+	 * @return Optional throwable containing the search message if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowableWithMessage(Throwable throwable, String searchMessage) {
+		if (throwable == null || searchMessage == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (t.getMessage().contains(searchMessage)) {
+				return Optional.of(t);
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
 	 * Unpacks an {@link ExecutionException} and returns its cause. Otherwise the given
 	 * Throwable is returned.
 	 *
