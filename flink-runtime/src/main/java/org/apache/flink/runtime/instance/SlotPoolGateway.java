@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -86,10 +87,29 @@ public interface SlotPoolGateway extends RpcGateway {
 	// ------------------------------------------------------------------------
 
 	CompletableFuture<SimpleSlot> allocateSlot(
+			AllocationID allocationID,
 			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences,
 			@RpcTimeout Time timeout);
 
 	void returnAllocatedSlot(Slot slot);
+
+	/**
+	 * Cancel a slot allocation.
+	 * This method should be called when the CompletableFuture returned by allocateSlot completed exceptionally.
+	 *
+	 * @param allocationID the unique id for the previous allocation
+	 */
+	void cancelSlotAllocation(AllocationID allocationID);
+
+	// ------------------------------------------------------------------------
+	//  exposing internal statistic, mainly for testing
+	// ------------------------------------------------------------------------
+
+	@VisibleForTesting
+	CompletableFuture<Integer> getNumberOfWaitingForResourceRequests();
+
+	@VisibleForTesting
+	CompletableFuture<Integer> getNumberOfPendingRequests();
 }
