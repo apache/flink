@@ -23,6 +23,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}.
@@ -35,6 +36,22 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 	 * The {@code FSDataOutputStream} for the current part file.
 	 */
 	private transient FSDataOutputStream outStream;
+
+	private boolean syncOnFlush;
+
+	public StreamWriterBase() {
+	}
+
+	protected StreamWriterBase(StreamWriterBase<T> other) {
+		this.syncOnFlush = other.syncOnFlush;
+	}
+
+	/**
+	 * Controls whether to sync {@link FSDataOutputStream} on flush.
+	 */
+	public void setSyncOnFlush(boolean syncOnFlush) {
+		this.syncOnFlush = syncOnFlush;
+	}
 
 	/**
 	 * Returns the current output stream, if the stream is open.
@@ -59,7 +76,12 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 		if (outStream == null) {
 			throw new IllegalStateException("Writer is not open");
 		}
-		outStream.hflush();
+		if (syncOnFlush) {
+			outStream.hsync();
+		}
+		else {
+			outStream.hflush();
+		}
 		return outStream.getPos();
 	}
 
@@ -78,5 +100,26 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 			outStream.close();
 			outStream = null;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Boolean.hashCode(syncOnFlush);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (this == other) {
+			return true;
+		}
+		if (other == null) {
+			return false;
+		}
+		if (getClass() != other.getClass()) {
+			return false;
+		}
+		StreamWriterBase<T> writer = (StreamWriterBase<T>) other;
+		// field comparison
+		return Objects.equals(syncOnFlush, writer.syncOnFlush);
 	}
 }

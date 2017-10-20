@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 
 /**
 * Implementation of AvroKeyValue writer that can be used in Sink.
@@ -86,7 +87,16 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 	@SuppressWarnings("deprecation")
 	public AvroKeyValueSinkWriter(Map<String, String> properties) {
 		this.properties = properties;
+		validateProperties();
+	}
 
+	protected AvroKeyValueSinkWriter(AvroKeyValueSinkWriter<K, V> other) {
+		super(other);
+		this.properties = other.properties;
+		validateProperties();
+	}
+
+	private void validateProperties() {
 		String keySchemaString = properties.get(CONF_OUTPUT_KEY_SCHEMA);
 		if (keySchemaString == null) {
 			throw new IllegalStateException("No key schema provided, set '" + CONF_OUTPUT_KEY_SCHEMA + "' property");
@@ -183,7 +193,7 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 
 	@Override
 	public Writer<Tuple2<K, V>> duplicate() {
-		return new AvroKeyValueSinkWriter<K, V>(properties);
+		return new AvroKeyValueSinkWriter<>(this);
 	}
 
 	// taken from m/r avro lib to remove dependency on it
@@ -311,5 +321,27 @@ public class AvroKeyValueSinkWriter<K, V> extends StreamWriterBase<Tuple2<K, V>>
 					valueSchema, "The value", null)));
 			return schema;
 		}
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), properties);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (this == other) {
+			return true;
+		}
+		if (other == null) {
+			return false;
+		}
+		if (getClass() != other.getClass()) {
+			return false;
+		}
+		AvroKeyValueSinkWriter<K, V> writer = (AvroKeyValueSinkWriter<K, V>) other;
+		// field comparison
+		return Objects.equals(properties, writer.properties)
+			&& super.equals(other);
 	}
 }
