@@ -400,15 +400,15 @@ FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
       <td>
         <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires a special join condition that bounds the time on both sides. This can be done by either two appropriate range predicates (<code> &lt;, &lt;=, &gt;=, &gt;</code>) or a <code>BETWEEN</code> predicate that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
+        <p>A time-windowed join requires at least one equi-join predicate and a special join 
+        condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a <code>BETWEEN</code> predicate (which is not available in Table API yet) that compares the <a href="streaming.html#time-attributes">time attributes</a> of both input tables. The following rules apply for time predicates:
           <ul>
-            <li>Time predicates must compare time attributes of both input tables.</li>
-            <li>Time predicates must compare only time attributes of the same type, i.e., processing time with processing time or event time with event time.</li>
-            <li>Only range predicates are valid time predicates.</li>
+            <li>The time attribute of a table must be compared to a bounded interval on a time attribute of the opposite table.</li>
+            <li>The compared time attributes must be of the same type, i.e., both are processing time or event time.</li>
           </ul>
         </p>
 
-        <p><b>Note:</b> Currently, only <code>INNER</code> joins are supported.</p>
+        <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
 
 {% highlight sql %}
 SELECT *
