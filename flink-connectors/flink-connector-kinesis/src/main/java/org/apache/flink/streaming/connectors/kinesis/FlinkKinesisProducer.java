@@ -54,6 +54,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
 
+	private static final long serialVersionUID = 6447077318449477846L;
+
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisProducer.class);
 
 	/** Properties to parametrize settings such as AWS service region, access key etc. */

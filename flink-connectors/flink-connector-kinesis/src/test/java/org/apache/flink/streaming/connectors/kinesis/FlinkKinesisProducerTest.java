@@ -279,6 +279,9 @@ public class FlinkKinesisProducerTest {
 	 * to the enclosing class, which is not serializable) used for testing.
 	 */
 	private final class NonSerializableSerializationSchema implements KinesisSerializationSchema<String> {
+
+		private static final long serialVersionUID = 3361337188490178780L;
+
 		@Override
 		public ByteBuffer serialize(String element) {
 			return ByteBuffer.wrap(element.getBytes());
@@ -294,6 +297,9 @@ public class FlinkKinesisProducerTest {
 	 * A static, serializable {@link KinesisSerializationSchema}.
 	 */
 	private static final class SerializableSerializationSchema implements KinesisSerializationSchema<String> {
+
+		private static final long serialVersionUID = 6298573834520052886L;
+
 		@Override
 		public ByteBuffer serialize(String element) {
 			return ByteBuffer.wrap(element.getBytes());
@@ -310,6 +316,9 @@ public class FlinkKinesisProducerTest {
 	 * to the enclosing class, which is not serializable) used for testing.
 	 */
 	private final class NonSerializableCustomPartitioner extends KinesisPartitioner<String> {
+
+		private static final long serialVersionUID = -5961578876056779161L;
+
 		@Override
 		public String getPartitionId(String element) {
 			return "test-partition";
@@ -320,6 +329,9 @@ public class FlinkKinesisProducerTest {
 	 * A static, serializable {@link KinesisPartitioner}.
 	 */
 	private static final class SerializableCustomPartitioner extends KinesisPartitioner<String> {
+
+		private static final long serialVersionUID = -4996071893997035695L;
+
 		@Override
 		public String getPartitionId(String element) {
 			return "test-partition";
