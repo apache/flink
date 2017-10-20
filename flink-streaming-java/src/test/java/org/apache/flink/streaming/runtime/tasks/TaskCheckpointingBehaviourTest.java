@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -53,16 +53,16 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -70,36 +70,64 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * This test checks that task checkpoints that block and do not react to thread interrupts.
+ * This test checks that task checkpoints that block and do not react to thread interrupts. It also checks correct
+ * working of different policies how tasks deal with checkpoint failures (fail task, decline checkpoint and continue).
  */
-public class BlockingCheckpointsTest {
+public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 	private static final OneShotLatch IN_CHECKPOINT_LATCH = new OneShotLatch();
 
 	@Test
+	public void testDeclineOnCheckpointErrorInSyncPart() throws Exception {
+		runTestDeclineOnCheckpointError(new SyncFailureInducingStateBackend());
+	}
+
+	@Test
+	public void testDeclineOnCheckpointErrorInAsyncPart() throws Exception {
+		runTestDeclineOnCheckpointError(new AsyncFailureInducingStateBackend());
+	}
+
+	@Test
+	public void testTaskFailingOnCheckpointErrorInSyncPart() throws Exception {
+		Throwable failureCause = runTestTaskFailingOnCheckpointError(new SyncFailureInducingStateBackend());
+		assertNotNull(failureCause);
+
+		String expectedMessageStart = "Could not perform checkpoint";
+		assertEquals(expectedMessageStart, failureCause.getMessage().substring(0, expectedMessageStart.length()));
+	}
+
+	@Test
+	public void testTaskFailingOnCheckpointErrorInAsyncPart() throws Exception {
+		Throwable failureCause = runTestTaskFailingOnCheckpointError(new AsyncFailureInducingStateBackend());
+		assertEquals(AsynchronousException.class, failureCause.getClass());
+	}
+
+	@Test
 	public void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
-		Configuration taskConfig = new Configuration();
-		StreamConfig cfg = new StreamConfig(taskConfig);
-		cfg.setStreamOperator(new TestOperator());
-		cfg.setOperatorID(new OperatorID());
-		cfg.setStateBackend(new LockingStreamStateBackend());
-
-		Task task = createTask(taskConfig);
+		Task task =
+			createTask(new TestOperator(), new LockingStreamStateBackend(), mock(CheckpointResponder.class), true);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -114,16 +142,61 @@ public class BlockingCheckpointsTest {
 		assertNull(task.getFailureCause());
 	}
 
+	private void runTestDeclineOnCheckpointError(AbstractStateBackend backend) throws Exception{
+
+		TestDeclinedCheckpointResponder checkpointResponder = new TestDeclinedCheckpointResponder();
+
+		Task task =
+			createTask(new FilterOperator(), backend, checkpointResponder, false);
+
+		// start the task and wait until it is in "restore"
+		task.startTaskThread();
+
+		checkpointResponder.declinedLatch.await();
+
+		Assert.assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+
+		task.cancelExecution();
+		task.getExecutingThread().join();
+	}
+
+	private Throwable runTestTaskFailingOnCheckpointError(AbstractStateBackend backend) throws Exception {
+
+		Task task =
+			createTask(new FilterOperator(), backend, mock(CheckpointResponder.class), true);
+
+		// start the task and wait until it is in "restore"
+		task.startTaskThread();
+
+		task.getExecutingThread().join();
+
+		assertEquals(ExecutionState.FAILED, task.getExecutionState());
+		return task.getFailureCause();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	private static Task createTask(Configuration taskConfig) throws IOException {
+	private static Task createTask(
+		StreamOperator<?> op,
+		AbstractStateBackend backend,
+		CheckpointResponder checkpointResponder,
+		boolean failOnCheckpointErrors) throws IOException {
+
+		Configuration taskConfig = new Configuration();
+		StreamConfig cfg = new StreamConfig(taskConfig);
+		cfg.setStreamOperator(op);
+		cfg.setOperatorID(new OperatorID());
+		cfg.setStateBackend(backend);
+
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.setFailTaskOnCheckpointError(failOnCheckpointErrors);
 
 		JobInformation jobInformation = new JobInformation(
 				new JobID(),
 				"test job name",
-				new SerializedValue<>(new ExecutionConfig()),
+				new SerializedValue<>(executionConfig),
 				new Configuration(),
 				Collections.emptyList(),
 				Collections.emptyList());
@@ -160,7 +233,7 @@ public class BlockingCheckpointsTest {
 				mock(BroadcastVariableManager.class),
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
-				mock(CheckpointResponder.class),
+				checkpointResponder,
 				blobService,
 				new BlobLibraryCacheManager(
 					blobService.getPermanentBlobService(),
@@ -175,30 +248,100 @@ public class BlockingCheckpointsTest {
 	}
 
 	// ------------------------------------------------------------------------
-	//  state backend with locking output stream
+	//  checkpoint responder that records a call to decline.
+	// ------------------------------------------------------------------------
+	private static class TestDeclinedCheckpointResponder implements CheckpointResponder {
+
+		OneShotLatch declinedLatch = new OneShotLatch();
+
+		@Override
+		public void acknowledgeCheckpoint(
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			long checkpointId,
+			CheckpointMetrics checkpointMetrics,
+			TaskStateSnapshot subtaskState) {
+
+			throw new RuntimeException("Unexpected call.");
+		}
+
+		@Override
+		public void declineCheckpoint(
+			JobID jobID,
+			ExecutionAttemptID executionAttemptID,
+			long checkpointId,
+			Throwable cause) {
+
+			declinedLatch.trigger();
+		}
+
+		public OneShotLatch getDeclinedLatch() {
+			return declinedLatch;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  state backends that trigger errors in checkpointing.
 	// ------------------------------------------------------------------------
 
-	private static class LockingStreamStateBackend extends AbstractStateBackend {
+	private static class SyncFailureInducingStateBackend extends MemoryStateBackend {
+
+		@Override
+		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
+			return new DefaultOperatorStateBackend(
+				env.getUserClassLoader(),
+				env.getExecutionConfig(),
+				true) {
+				@Override
+				public RunnableFuture<OperatorStateHandle> snapshot(
+					long checkpointId,
+					long timestamp,
+					CheckpointStreamFactory streamFactory,
+					CheckpointOptions checkpointOptions) throws Exception {
+
+					throw new Exception("Sync part snapshot exception.");
+				}
+			};
+		}
+	}
+
+	private static class AsyncFailureInducingStateBackend extends MemoryStateBackend {
+
+		@Override
+		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
+			return new DefaultOperatorStateBackend(
+				env.getUserClassLoader(),
+				env.getExecutionConfig(),
+				true) {
+				@Override
+				public RunnableFuture<OperatorStateHandle> snapshot(
+					long checkpointId,
+					long timestamp,
+					CheckpointStreamFactory streamFactory,
+					CheckpointOptions checkpointOptions) throws Exception {
+
+					return new FutureTask<>(new Callable<OperatorStateHandle>() {
+						@Override
+						public OperatorStateHandle call() throws Exception {
+							throw new Exception("Async part snapshot exception.");
+						}
+					});
+				}
+			};
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  state backend with locking output stream.
+	// ------------------------------------------------------------------------
+
+	private static class LockingStreamStateBackend extends MemoryStateBackend {
 
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
 			return new LockingOutputStreamFactory();
-		}
-
-		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId, String operatorIdentifier, String targetLocation) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-				Environment env, JobID jobID, String operatorIdentifier,
-				TypeSerializer<K> keySerializer, int numberOfKeyGroups,
-				KeyGroupRange keyGroupRange, TaskKvStateRegistry kvStateRegistry) {
-
-			throw new UnsupportedOperationException();
 		}
 
 		@Override
@@ -265,8 +408,22 @@ public class BlockingCheckpointsTest {
 	}
 
 	// ------------------------------------------------------------------------
-	//  test source operator that calls into the locking checkpoint output stream
+	//  test source operator that calls into the locking checkpoint output stream.
 	// ------------------------------------------------------------------------
+
+	@SuppressWarnings("serial")
+	private static final class FilterOperator extends StreamFilter<Object> {
+		private static final long serialVersionUID = 1L;
+
+		public FilterOperator() {
+			super(new FilterFunction<Object>() {
+				@Override
+				public boolean filter(Object value) {
+					return false;
+				}
+			});
+		}
+	}
 
 	@SuppressWarnings("serial")
 	private static final class TestOperator extends StreamFilter<Object> {
@@ -302,7 +459,17 @@ public class BlockingCheckpointsTest {
 
 		@Override
 		protected void run() throws Exception {
-			triggerCheckpointOnBarrier(new CheckpointMetaData(11L, System.currentTimeMillis()), CheckpointOptions.forCheckpoint(), new CheckpointMetrics());
+
+			triggerCheckpointOnBarrier(
+				new CheckpointMetaData(
+					11L,
+					System.currentTimeMillis()),
+				CheckpointOptions.forCheckpoint(),
+				new CheckpointMetrics());
+
+			while (isRunning()) {
+				Thread.sleep(1L);
+			}
 		}
 
 		@Override

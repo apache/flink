@@ -344,10 +344,20 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
 
+		CheckpointExceptionHandlerFactory checkpointExceptionHandlerFactory = new CheckpointExceptionHandlerFactory();
+		CheckpointExceptionHandler checkpointExceptionHandler =
+			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(true, mockEnvironment);
+		Whitebox.setInternalState(streamTask, "synchronousCheckpointExceptionHandler", checkpointExceptionHandler);
+
+		StreamTask.AsyncCheckpointExceptionHandler asyncCheckpointExceptionHandler =
+			new StreamTask.AsyncCheckpointExceptionHandler(streamTask);
+		Whitebox.setInternalState(streamTask, "asynchronousCheckpointExceptionHandler", asyncCheckpointExceptionHandler);
+
 		try {
 			streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint());
 			fail("Expected test exception here.");
 		} catch (Exception e) {
+			e.printStackTrace();
 			assertEquals(testException, e.getCause());
 		}
 
@@ -411,6 +421,15 @@ public class StreamTaskTest extends TestLogger {
 		Whitebox.setInternalState(streamTask, "cancelables", new CloseableRegistry());
 		Whitebox.setInternalState(streamTask, "asyncOperationsThreadPool", new DirectExecutorService());
 		Whitebox.setInternalState(streamTask, "configuration", new StreamConfig(new Configuration()));
+
+		CheckpointExceptionHandlerFactory checkpointExceptionHandlerFactory = new CheckpointExceptionHandlerFactory();
+		CheckpointExceptionHandler checkpointExceptionHandler =
+			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(true, mockEnvironment);
+		Whitebox.setInternalState(streamTask, "synchronousCheckpointExceptionHandler", checkpointExceptionHandler);
+
+		StreamTask.AsyncCheckpointExceptionHandler asyncCheckpointExceptionHandler =
+			new StreamTask.AsyncCheckpointExceptionHandler(streamTask);
+		Whitebox.setInternalState(streamTask, "asynchronousCheckpointExceptionHandler", asyncCheckpointExceptionHandler);
 
 		streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint());
 

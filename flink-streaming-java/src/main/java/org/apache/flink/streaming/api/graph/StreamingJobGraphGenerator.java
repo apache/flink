@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -574,10 +575,15 @@ public class StreamingJobGraphGenerator {
 
 		long interval = cfg.getCheckpointInterval();
 		if (interval > 0) {
+
+			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+			// propagate the expected behaviour for checkpoint errors to task.
+			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
+
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
-			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
+			if (executionConfig.getRestartStrategy() == null) {
 				// if the user enabled checkpointing, the default number of exec retries is infinite.
-				streamGraph.getExecutionConfig().setRestartStrategy(
+				executionConfig.setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
 		} else {

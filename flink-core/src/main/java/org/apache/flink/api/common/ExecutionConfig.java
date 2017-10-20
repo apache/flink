@@ -150,6 +150,9 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
 	private boolean useSnapshotCompression = false;
 
+	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
+	private boolean failTaskOnCheckpointError = true;
+
 	// ------------------------------- User code values --------------------------------------------
 
 	private GlobalJobParameters globalJobParameters;
@@ -858,6 +861,26 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	public void setUseSnapshotCompression(boolean useSnapshotCompression) {
 		this.useSnapshotCompression = useSnapshotCompression;
+	}
+
+	/**
+	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
+	 * the task. This should not be called by the user, please use CheckpointConfig.isFailTaskOnCheckpointError()
+	 * instead.
+	 */
+	@Internal
+	public boolean isFailTaskOnCheckpointError() {
+		return failTaskOnCheckpointError;
+	}
+
+	/**
+	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
+	 * the task. This should not be called by the user, please use CheckpointConfig.setFailOnCheckpointingErrors(...)
+	 * instead.
+	 */
+	@Internal
+	public void setFailTaskOnCheckpointError(boolean failTaskOnCheckpointError) {
+		this.failTaskOnCheckpointError = failTaskOnCheckpointError;
 	}
 
 	@Override
