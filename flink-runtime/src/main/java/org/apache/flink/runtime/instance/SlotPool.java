@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -262,13 +263,12 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(
-			ScheduledUnit task,
+	public CompletableFuture<SimpleSlot> allocateSlot(AllocationID allocationID,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences,
 			Time timeout) {
 
-		return internalAllocateSlot(task, resources, locationPreferences);
+		return internalAllocateSlot(allocationID, resources, locationPreferences);
 	}
 
 	@Override
@@ -276,9 +276,23 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		internalReturnAllocatedSlot(slot);
 	}
 
+	@Override
+	public void cancelSlotAllocation(AllocationID allocationID) {
+		waitingForResourceManager.remove(allocationID);
+		
+		removePendingRequestWithException(allocationID, new CancellationException("Allocation " + allocationID + " cancelled"));
+
+		if (allocatedSlots.contains(allocationID)) {
+			Slot slot = allocatedSlots.get(allocationID);
+			LOG.info("Return allocated slot {} by cancelling allocation {}.", slot, allocationID);
+			if (slot.markCancelled()) {
+				internalReturnAllocatedSlot(slot);
+			}
+		}
+	}
 
 	CompletableFuture<SimpleSlot> internalAllocateSlot(
-			ScheduledUnit task,
+			AllocationID allocationID,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences) {
 
@@ -291,7 +305,6 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		// the request will be completed by a future
-		final AllocationID allocationID = new AllocationID();
 		final CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 
 		// (2) need to request a slot
@@ -368,9 +381,19 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	}
 
 	private void checkTimeoutSlotAllocation(AllocationID allocationID) {
+		removePendingRequestWithException(allocationID, new TimeoutException("Slot allocation request " + allocationID + " timed out"));
+	}
+
+	private void removePendingRequestWithException(AllocationID allocationID, Exception e) {
 		PendingRequest request = pendingRequests.remove(allocationID);
-		if (request != null && !request.getFuture().isDone()) {
-			request.getFuture().completeExceptionally(new TimeoutException("Slot allocation request timed out"));
+		if (request != null && (!request.getFuture().isDone() || request.getFuture().isCompletedExceptionally())) {
+			//TODO: the following line depends on the pr: https://github.com/apache/flink/pull/4887
+			//if (resourceManagerGateway != null) {
+			//	resourceManagerGateway.cancelSlotRequest(jobId, jobMasterId, allocationID);
+			//}
+			if (!request.getFuture().isDone()) {
+				request.getFuture().completeExceptionally(e);
+			}
 		}
 	}
 
@@ -650,6 +673,21 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	@VisibleForTesting
 	AllocatedSlots getAllocatedSlots() {
 		return allocatedSlots;
+	}
+
+	@VisibleForTesting
+	AvailableSlots getAvailableSlots() {
+		return availableSlots;
+	}
+
+	@VisibleForTesting
+	int getNumOfWaitingForResourceRequests() {
+		return waitingForResourceManager.size();
+	}
+
+	@VisibleForTesting
+	int getNumOfPendingRequests() {
+		return pendingRequests.size();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1014,7 +1052,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 				boolean allowQueued,
 				Collection<TaskManagerLocation> preferredLocations) {
 
-			return gateway.allocateSlot(task, ResourceProfile.UNKNOWN, preferredLocations, timeout);
+			final AllocationID allocationID = new AllocationID();
+			CompletableFuture<SimpleSlot> slotFuture = gateway.allocateSlot(allocationID, ResourceProfile.UNKNOWN, preferredLocations, timeout);
+			slotFuture.exceptionally((Throwable failure) -> {
+					gateway.cancelSlotAllocation(allocationID);
+					return null;
+			});
+			return slotFuture;
 		}
 	}
 

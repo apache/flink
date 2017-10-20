@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -86,10 +85,16 @@ public interface SlotPoolGateway extends RpcGateway {
 	// ------------------------------------------------------------------------
 
 	CompletableFuture<SimpleSlot> allocateSlot(
-			ScheduledUnit task,
+			AllocationID allocationID,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences,
 			@RpcTimeout Time timeout);
 
 	void returnAllocatedSlot(Slot slot);
+
+	/**
+	 * Cancel a slot allocation.
+	 * This method should be called when the CompletableFuture returned by allocateSlot completed exceptionally.
+	 */
+	void cancelSlotAllocation(AllocationID allocationID);
 }
