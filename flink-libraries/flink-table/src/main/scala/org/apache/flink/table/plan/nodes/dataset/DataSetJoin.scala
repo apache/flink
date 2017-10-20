@@ -267,8 +267,8 @@ class DataSetJoin(
     // (groupBy->join->groupBy)
     val partitionedSortedLeft: DataSet[Row] = partitionAndSort(left, leftKeys)
 
-    // deduplicate the rows of the left input
-    val deduplicatedRowsLeft: DataSet[Row] = deduplicateRows(partitionedSortedLeft, leftType)
+    // fold identical rows of the left input
+    val foldedRowsLeft: DataSet[Row] = foldIdenticalRows(partitionedSortedLeft, leftType)
 
     // create JoinFunction to evaluate join predicate
     val predFun = generatePredicateFunction(leftType, rightType, config)
@@ -277,7 +277,7 @@ class DataSetJoin(
 
     // join left and right inputs, evaluate join predicate, and emit join pairs
     val nestedLeftKeys = leftKeys.map(i => s"f0.f$i")
-    val joinPairs = deduplicatedRowsLeft.leftOuterJoin(right, JoinHint.REPARTITION_SORT_MERGE)
+    val joinPairs = foldedRowsLeft.leftOuterJoin(right, JoinHint.REPARTITION_SORT_MERGE)
       .where(nestedLeftKeys: _*)
       .equalTo(rightKeys: _*)
       .`with`(joinFun)
@@ -323,8 +323,8 @@ class DataSetJoin(
     // (groupBy->join->groupBy)
     val partitionedSortedRight: DataSet[Row] = partitionAndSort(right, rightKeys)
 
-    // deduplicate the rows of the right input
-    val deduplicatedRowsRight: DataSet[Row] = deduplicateRows(partitionedSortedRight, rightType)
+    // fold identical rows of the right input
+    val foldedRowsRight: DataSet[Row] = foldIdenticalRows(partitionedSortedRight, rightType)
 
     // create JoinFunction to evaluate join predicate
     val predFun = generatePredicateFunction(leftType, rightType, config)
@@ -333,7 +333,7 @@ class DataSetJoin(
 
     // join left and right inputs, evaluate join predicate, and emit join pairs
     val nestedRightKeys = rightKeys.map(i => s"f0.f$i")
-    val joinPairs = left.rightOuterJoin(deduplicatedRowsRight, JoinHint.REPARTITION_SORT_MERGE)
+    val joinPairs = left.rightOuterJoin(foldedRowsRight, JoinHint.REPARTITION_SORT_MERGE)
       .where(leftKeys: _*)
       .equalTo(nestedRightKeys: _*)
       .`with`(joinFun)
@@ -380,9 +380,9 @@ class DataSetJoin(
     val partitionedSortedLeft: DataSet[Row] = partitionAndSort(left, leftKeys)
     val partitionedSortedRight: DataSet[Row] = partitionAndSort(right, rightKeys)
 
-    // deduplicate the rows of the left and right input
-    val deduplicatedRowsLeft: DataSet[Row] = deduplicateRows(partitionedSortedLeft, leftType)
-    val deduplicatedRowsRight: DataSet[Row] = deduplicateRows(partitionedSortedRight, rightType)
+    // fold identical rows of the left and right input
+    val foldedRowsLeft: DataSet[Row] = foldIdenticalRows(partitionedSortedLeft, leftType)
+    val foldedRowsRight: DataSet[Row] = foldIdenticalRows(partitionedSortedRight, rightType)
 
     // create JoinFunction to evaluate join predicate
     val predFun = generatePredicateFunction(leftType, rightType, config)
@@ -392,8 +392,8 @@ class DataSetJoin(
     // join left and right inputs, evaluate join predicate, and emit join pairs
     val nestedLeftKeys = leftKeys.map(i => s"f0.f$i")
     val nestedRightKeys = rightKeys.map(i => s"f0.f$i")
-    val joinPairs = deduplicatedRowsLeft
-      .fullOuterJoin(deduplicatedRowsRight, JoinHint.REPARTITION_SORT_MERGE)
+    val joinPairs = foldedRowsLeft
+      .fullOuterJoin(foldedRowsRight, JoinHint.REPARTITION_SORT_MERGE)
       .where(nestedLeftKeys: _*)
       .equalTo(nestedRightKeys: _*)
       .`with`(joinFun)
@@ -444,7 +444,7 @@ class DataSetJoin(
   /** Returns an array of indicies with some indicies being a prefix. */
   private def getFullIndiciesWithPrefix(keys: Array[Int], numFields: Int): Array[Int] = {
     // get indicies of all fields which are not keys
-    val nonKeys = (0 until numFields).filter(i => !keys.contains(i))
+    val nonKeys = (0 until numFields).filter(!keys.contains(_))
     // return all field indicies prefixed by keys
     keys ++ nonKeys
   }
@@ -468,10 +468,9 @@ class DataSetJoin(
   }
 
   /**
-    * Deduplicates the rows of a data set and emits a row for each unique row with with the first
-    * field being the unique row and the second field being the number of duplicates of the row.
+    * Folds identical rows of a data set into a single row with a duplicate count.
     */
-  private def deduplicateRows(
+  private def foldIdenticalRows(
       dataSet: DataSet[Row],
       dataSetType: TypeInformation[Row]): DataSet[Row] = {
 
@@ -481,7 +480,7 @@ class DataSetJoin(
     dataSet
       // group on all fields of the input row
       .groupBy(groupKeys: _*)
-      // remove duplicates
+      // fold identical rows
       .reduceGroup(new GroupReduceFunction[Row, Row] {
         val outTuple = new Row(2)
         override def reduce(values: Iterable[Row], out: Collector[Row]): Unit = {
@@ -495,13 +494,13 @@ class DataSetJoin(
           }
           // set count
           outTuple.setField(1, cnt)
-          // emit deduplicated row with count
+          // emit folded row with count
           out.collect(outTuple)
         }
       })
       .returns(resultType)
       .withForwardedFields("*->f0")
-      .name("deduplicate")
+      .name("fold identical rows")
   }
 
   /**
