@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.types.Either;
+import org.apache.flink.util.SerializedValue;
 
 import org.junit.After;
 import org.junit.Before;
@@ -36,7 +38,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -53,7 +54,7 @@ public class ExecutionGraphDeploymentWithBlobServerTest extends ExecutionGraphDe
 	public void setupBlobServer() throws IOException {
 		Configuration config = new Configuration();
 		// always offload the serialized job and task information
-		config.setInteger(JobManagerOptions.TDD_OFFLOAD_MINSIZE, 0);
+		config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
 		blobServer = Mockito.spy(new BlobServer(config, new VoidBlobStore()));
 
 		seenHashes.clear();
@@ -81,19 +82,21 @@ public class ExecutionGraphDeploymentWithBlobServerTest extends ExecutionGraphDe
 
 	@Override
 	protected void checkJobOffloaded(ExecutionGraph eg) throws Exception {
-		PermanentBlobKey jobInformationBlobKey = eg.getJobInformationBlobKey();
-		assertNotNull(jobInformationBlobKey);
+		Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey = eg.getJobInformationOrBlobKey();
+
+		assertTrue(jobInformationOrBlobKey.isRight());
 
 		// must not throw:
-		blobServer.getFile(eg.getJobID(), jobInformationBlobKey);
+		blobServer.getFile(eg.getJobID(), jobInformationOrBlobKey.right());
 	}
 
 	@Override
 	protected void checkTaskOffloaded(ExecutionGraph eg, JobVertexID jobVertexId) throws Exception {
-		PermanentBlobKey taskInformationBlobKey = eg.getJobVertex(jobVertexId).getTaskInformationBlobKey();
-		assertNotNull(taskInformationBlobKey);
+		Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = eg.getJobVertex(jobVertexId).getTaskInformationOrBlobKey();
+
+		assertTrue(taskInformationOrBlobKey.isRight());
 
 		// must not throw:
-		blobServer.getFile(eg.getJobID(), taskInformationBlobKey);
+		blobServer.getFile(eg.getJobID(), taskInformationOrBlobKey.right());
 	}
 }

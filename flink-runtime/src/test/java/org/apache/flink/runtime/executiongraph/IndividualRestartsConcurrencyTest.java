@@ -291,9 +291,7 @@ public class IndividualRestartsConcurrencyTest {
 			Time.seconds(10),
 			restartStrategy,
 			failoverStrategy,
-			slotProvider,
-			getClass().getClassLoader(),
-			null);
+			slotProvider);
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

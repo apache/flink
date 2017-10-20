@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -41,7 +41,7 @@ public class ExecutionGraphDeploymentWithBlobCacheTest extends ExecutionGraphDep
 	public void setupBlobServer() throws IOException {
 		Configuration config = new Configuration();
 		// always offload the serialized job and task information
-		config.setInteger(JobManagerOptions.TDD_OFFLOAD_MINSIZE, 0);
+		config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
 		blobServer = new BlobServer(config, new VoidBlobStore());
 		blobServer.start();
 

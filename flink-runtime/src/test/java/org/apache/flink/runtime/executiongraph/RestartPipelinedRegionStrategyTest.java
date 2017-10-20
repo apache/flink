@@ -89,10 +89,12 @@ public class RestartPipelinedRegionStrategyTest {
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+        final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobId,
-				jobName),
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
@@ -171,10 +173,12 @@ public class RestartPipelinedRegionStrategyTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+        final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobId,
-				jobName),
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
@@ -258,10 +262,12 @@ public class RestartPipelinedRegionStrategyTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobId,
-				jobName),
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
@@ -336,10 +342,12 @@ public class RestartPipelinedRegionStrategyTest {
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4));
 
         Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
         ExecutionGraph eg = new ExecutionGraph(
-        	new DummyJobInformation(
-        		jobId,
-				jobName),
+        	jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),

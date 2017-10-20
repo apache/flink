@@ -133,9 +133,7 @@ public class FailoverRegionTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new InfiniteDelayRestartStrategy(10),
 			new FailoverPipelinedRegionWithDirectExecutor(),
-			slotProvider,
-			ExecutionGraph.class.getClassLoader(),
-			null);
+			slotProvider);
 
 		eg.attachJobGraph(ordered);
 
@@ -257,9 +255,7 @@ public class FailoverRegionTest extends TestLogger {
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new RestartPipelinedRegionStrategy.Factory(),
-				scheduler,
-				ExecutionGraph.class.getClassLoader(),
-				null);
+				scheduler);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -331,9 +327,7 @@ public class FailoverRegionTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			new InfiniteDelayRestartStrategy(10),
 			new FailoverPipelinedRegionWithDirectExecutor(),
-			scheduler,
-			ExecutionGraph.class.getClassLoader(),
-			null);
+			scheduler);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -441,9 +435,7 @@ public class FailoverRegionTest extends TestLogger {
 			AkkaUtils.getDefaultTimeout(),
 			restartStrategy,
 			new FailoverPipelinedRegionWithDirectExecutor(),
-			scheduler,
-			ExecutionGraph.class.getClassLoader(),
-			null);
+			scheduler);
 		try {
 			eg.attachJobGraph(ordered);
 		}

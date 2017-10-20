@@ -24,9 +24,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -884,8 +886,8 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 *
 	 * @return configuration
 	 */
-	public final Configuration getConfiguration() {
-		return blobServiceConfiguration;
+	public final int getMinOffloadingSize() {
+		return blobServiceConfiguration.getInteger(BlobServerOptions.OFFLOAD_MINSIZE);
 	}
 
 	/**
@@ -939,6 +941,39 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	List<BlobServerConnection> getCurrentActiveConnections() {
 		synchronized (activeConnections) {
 			return new ArrayList<>(activeConnections);
+		}
+	}
+
+	/**
+	 * Serializes the given value and offloads it to the BlobServer if its size exceeds the minimum
+	 * offloading size of the BlobServer.
+	 *
+	 * @param value to serialize
+	 * @param jobId to which the value belongs.
+	 * @param blobServer
+	 * @param <T>
+	 * @return
+	 * @throws IOException
+	 */
+	public static <T> Either<SerializedValue<T>, PermanentBlobKey> tryOffload(
+		T value,
+		JobID jobId,
+		@Nullable BlobServer blobServer) throws IOException {
+
+		final SerializedValue<T> serializedValue = new SerializedValue<>(value);
+
+		if (blobServer == null || serializedValue.getByteArray().length < blobServer.getMinOffloadingSize()) {
+			return Either.Left(new SerializedValue<>(value));
+		} else {
+			try {
+				final PermanentBlobKey permanentBlobKey = blobServer.putPermanent(jobId, serializedValue.getByteArray());
+
+				return Either.Right(permanentBlobKey);
+			} catch (IOException e) {
+				LOG.warn("Failed to offload value " + value + " for job " + jobId + " to BLOB store.", e);
+
+				return Either.Left(serializedValue);
+			}
 		}
 	}
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -54,7 +54,7 @@ import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
@@ -68,7 +68,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static junit.framework.TestCase.assertNull;
+import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -78,7 +78,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link ExecutionGraph} deployment.
  */
-public class ExecutionGraphDeploymentTest {
+public class ExecutionGraphDeploymentTest extends TestLogger {
 
 	/**
 	 * BLOB server instance to use for the job graph (may be <tt>null</tt>).
@@ -98,7 +98,7 @@ public class ExecutionGraphDeploymentTest {
 	 * @param eg           the execution graph that was created
 	 */
 	protected void checkJobOffloaded(ExecutionGraph eg) throws Exception {
-		assertNull(eg.getJobInformationBlobKey());
+		assertTrue(eg.getJobInformationOrBlobKey().isLeft());
 	}
 
 	/**
@@ -109,7 +109,7 @@ public class ExecutionGraphDeploymentTest {
 	 * @param jobVertexId  job vertex ID
 	 */
 	protected void checkTaskOffloaded(ExecutionGraph eg, JobVertexID jobVertexId) throws Exception {
-		assertNull(eg.getJobVertex(jobVertexId).getTaskInformationBlobKey());
+		assertTrue(eg.getJobVertex(jobVertexId).getTaskInformationOrBlobKey().isLeft());
 	}
 
 	@Test
@@ -141,17 +141,21 @@ public class ExecutionGraphDeploymentTest {
 			v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 			v4.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-			ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			final JobInformation expectedJobInformation = new DummyJobInformation(
 				jobId,
-				"some job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
+				"some job");
+
+			ExecutionGraph eg = new ExecutionGraph(
+				expectedJobInformation,
+				TestingUtils.defaultExecutor(),
+				TestingUtils.defaultExecutor(),
 				AkkaUtils.getDefaultTimeout(),
 				new NoRestartStrategy(),
+				new RestartAllStrategy.Factory(),
 				new Scheduler(TestingUtils.defaultExecutionContext()),
+				ExecutionGraph.class.getClassLoader(),
 				blobServer);
+
 			checkJobOffloaded(eg);
 
 			List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
@@ -387,12 +391,12 @@ public class ExecutionGraphDeploymentTest {
 		}
 	}
 
-	@Test
 	/**
 	 * Tests that a blocking batch job fails if there are not enough resources left to schedule the
 	 * succeeding tasks. This test case is related to [FLINK-4296] where finished producing tasks
 	 * swallow the fail exception when scheduling a consumer task.
 	 */
+	@Test
 	public void testNoResourceAvailableFailure() throws Exception {
 		final JobID jobId = new JobID();
 		JobVertex v1 = new JobVertex("source");
@@ -418,18 +422,22 @@ public class ExecutionGraphDeploymentTest {
 							TestingUtils.directExecutionContext()))));
 		}
 
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			"failing test job");
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
+			jobInformation,
 			new DirectScheduledExecutorService(),
 			TestingUtils.defaultExecutor(),
-			jobId,
-			"failing test job",
-			new Configuration(),
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
+			new RestartAllStrategy.Factory(),
 			scheduler,
+			ExecutionGraph.class.getClassLoader(),
 			blobServer);
+
 		checkJobOffloaded(eg);
 
 		eg.setQueuedSchedulingAllowed(false);
@@ -495,17 +503,20 @@ public class ExecutionGraphDeploymentTest {
 											TestingUtils.directExecutionContext()))));
 		}
 
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			"some job");
+
 		// execution graph that executes actions synchronously
 		ExecutionGraph eg = new ExecutionGraph(
+			jobInformation,
 			new DirectScheduledExecutorService(),
 			TestingUtils.defaultExecutor(),
-			jobId, 
-			"some job",
-			new Configuration(),
-			new SerializedValue<>(new ExecutionConfig()),
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
+			new RestartAllStrategy.Factory(),
 			scheduler,
+			ExecutionGraph.class.getClassLoader(),
 			blobServer);
 		checkJobOffloaded(eg);
 		

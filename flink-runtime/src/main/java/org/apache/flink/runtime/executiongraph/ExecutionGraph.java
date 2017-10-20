@@ -27,7 +27,6 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -58,17 +57,17 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.SerializedValue;
@@ -78,6 +77,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -174,17 +174,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** Job specific information like the job id, job name, job configuration, etc. */
 	private final JobInformation jobInformation;
 
-	/** Serialized version of the job specific information. This is done to avoid multiple
-	 * serializations of the same data when creating a TaskDeploymentDescriptor.
-	 */
-	private final SerializedValue<JobInformation> serializedJobInformation;
-
-	/**
-	 * The key of the offloaded job information BLOB containing {@link #serializedJobInformation} or
-	 * <tt>null</tt> if not offloaded.
-	 */
-	@Nullable
-	private final PermanentBlobKey jobInformationBlobKey;
+	private final Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey;
 
 	/** The executor which is used to execute futures. */
 	private final ScheduledExecutorService futureExecutor;
@@ -245,10 +235,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** The total number of vertices currently in the execution graph */
 	private int numVerticesTotal;
 
-	/** Blob server reference for offloading large RPC messages. */
-	@Nullable
-	private final BlobServer blobServer;
-
 	// ------ Configuration of the Execution -------
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
@@ -290,6 +276,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
 
+	@Nullable
+	private BlobServer blobServer;
+
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -307,27 +296,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			SerializedValue<ExecutionConfig> serializedConfig,
 			Time timeout,
 			RestartStrategy restartStrategy,
-			SlotProvider slotProvider) {
+			SlotProvider slotProvider) throws IOException {
 
-		this(futureExecutor, ioExecutor, jobId, jobName, jobConfig, serializedConfig, timeout,
-			restartStrategy, slotProvider, null);
-	}
-
-	/**
-	 * This constructor is for tests only, because it does not include class loading information.
-	 */
-	@VisibleForTesting
-	ExecutionGraph(
-			ScheduledExecutorService futureExecutor,
-			Executor ioExecutor,
-			JobID jobId,
-			String jobName,
-			Configuration jobConfig,
-			SerializedValue<ExecutionConfig> serializedConfig,
-			Time timeout,
-			RestartStrategy restartStrategy,
-			SlotProvider slotProvider,
-			@Nullable BlobServer blobServer) {
 		this(
 			new JobInformation(
 				jobId,
@@ -340,11 +310,49 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			ioExecutor,
 			timeout,
 			restartStrategy,
+			slotProvider);
+	}
+
+	/**
+	 * This constructor is for tests only, because it does not include class loading information.
+	 */
+	@VisibleForTesting
+	ExecutionGraph(
+			JobInformation jobInformation,
+			ScheduledExecutorService futureExecutor,
+			Executor ioExecutor,
+			Time timeout,
+			RestartStrategy restartStrategy,
+			SlotProvider slotProvider) throws IOException {
+		this(
+			jobInformation,
+			futureExecutor,
+			ioExecutor,
+			timeout,
+			restartStrategy,
 			new RestartAllStrategy.Factory(),
+			slotProvider);
+	}
+
+	@VisibleForTesting
+	ExecutionGraph(
+			JobInformation jobInformation,
+			ScheduledExecutorService futureExecutor,
+			Executor ioExecutor,
+			Time timeout,
+			RestartStrategy restartStrategy,
+			FailoverStrategy.Factory failoverStrategy,
+			SlotProvider slotProvider) throws IOException {
+		this(
+			jobInformation,
+			futureExecutor,
+			ioExecutor,
+			timeout,
+			restartStrategy,
+			failoverStrategy,
 			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
-			blobServer
-		);
+			null);
 	}
 
 	public ExecutionGraph(
@@ -356,21 +364,13 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			FailoverStrategy.Factory failoverStrategyFactory,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
-			@Nullable BlobServer blobServer) {
+			@Nullable BlobServer blobServer) throws IOException {
 
 		checkNotNull(futureExecutor);
 
 		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
-		// serialize the job information to do the serialisation work only once
-		try {
-			this.serializedJobInformation = new SerializedValue<>(jobInformation);
-		}
-		catch (IOException e) {
-			// this cannot happen because 'JobInformation' is perfectly serializable
-			// rethrow unchecked, because this indicates a bug, not a recoverable situation
-			throw new FlinkRuntimeException("Bug: Cannot serialize JobInformation", e);
-		}
+		this.jobInformationOrBlobKey = BlobServer.tryOffload(jobInformation, jobInformation.getJobId(), blobServer);
 
 		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
@@ -405,50 +405,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 
 		this.blobServer = blobServer;
-		this.jobInformationBlobKey = tryOffLoadJobInformation();
-	}
-
-	/**
-	 * Tries to store {@link #serializedJobInformation} and in the graph's {@link
-	 * ExecutionGraph#blobServer} (if not <tt>null</tt>) so that RPC messages do not need to include
-	 * it.
-	 *
-	 * @return the BLOB key of the uploaded job information or <tt>null</tt> if the upload failed
-	 */
-	@Nullable
-	private PermanentBlobKey tryOffLoadJobInformation() {
-		if (blobServer == null) {
-			return null;
-		}
-
-		// If the serialized job information inside serializedJobInformation is larger than this,
-		// we try to offload it to the BLOB server.
-		final int rpcOffloadMinSize =
-			blobServer.getConfiguration().getInteger(JobManagerOptions.TDD_OFFLOAD_MINSIZE);
-
-		if (serializedJobInformation.getByteArray().length > rpcOffloadMinSize) {
-			LOG.info("Storing job {} information at the BLOB server", getJobID());
-
-			// TODO: do not overwrite existing job info and thus speed up recovery?
-			try {
-				return blobServer.putPermanent(getJobID(), serializedJobInformation.getByteArray());
-			} catch (IOException e) {
-				LOG.warn("Failed to offload job " + getJobID() + " information data to BLOB store", e);
-			}
-		}
-
-		return null;
-	}
-
-	/**
-	 * Returns the key of the offloaded job information BLOB containing {@link
-	 * #serializedJobInformation}.
-	 *
-	 * @return the BLOB key or <tt>null</tt> if not offloaded
-	 */
-	@Nullable
-	public PermanentBlobKey getJobInformationBlobKey() {
-		return jobInformationBlobKey;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -633,8 +589,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return slotProvider;
 	}
 
-	public SerializedValue<JobInformation> getSerializedJobInformation() {
-		return serializedJobInformation;
+	public Either<SerializedValue<JobInformation>, PermanentBlobKey> getJobInformationOrBlobKey() {
+		return jobInformationOrBlobKey;
 	}
 
 	@Override
@@ -749,6 +705,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return this.stateTimestamps[status.ordinal()];
 	}
 
+	@Nullable
 	public final BlobServer getBlobServer() {
 		return blobServer;
 	}
@@ -843,8 +800,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			}
 
 			// create the execution job vertex and attach it to the graph
-			ExecutionJobVertex ejv =
-					new ExecutionJobVertex(this, jobVertex, 1, rpcCallTimeout, globalModVersion, createTimestamp);
+			ExecutionJobVertex ejv = new ExecutionJobVertex(
+				this,
+				jobVertex,
+				1,
+				rpcCallTimeout,
+				globalModVersion,
+				createTimestamp);
+
 			ejv.connectToPredecessors(this.intermediateResults);
 
 			ExecutionJobVertex previousTask = this.tasks.putIfAbsent(jobVertex.getID(), ejv);

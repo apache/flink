@@ -46,8 +46,10 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -131,6 +133,8 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	@Nullable
 	private PermanentBlobKey taskInformationBlobKey = null;
 
+	private Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey = null;
+
 	private InputSplitAssigner splitAssigner;
 
 	/**
@@ -147,12 +151,12 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 	}
 
 	public ExecutionJobVertex(
-		ExecutionGraph graph,
-		JobVertex jobVertex,
-		int defaultParallelism,
-		Time timeout,
-		long initialGlobalModVersion,
-		long createTimestamp) throws JobException {
+			ExecutionGraph graph,
+			JobVertex jobVertex,
+			int defaultParallelism,
+			Time timeout,
+			long initialGlobalModVersion,
+			long createTimestamp) throws JobException {
 
 		if (graph == null || jobVertex == null) {
 			throw new NullPointerException();
@@ -359,80 +363,29 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		return inputs;
 	}
 
-	public SerializedValue<TaskInformation> getSerializedTaskInformation() throws IOException {
-
+	public Either<SerializedValue<TaskInformation>, PermanentBlobKey> getTaskInformationOrBlobKey() throws IOException {
 		// only one thread should offload the task information, so let's also let only one thread
 		// serialize the task information!
 		synchronized (stateMonitor) {
-			if (null == serializedTaskInformation) {
+			if (taskInformationOrBlobKey == null) {
+				final BlobServer blobServer = graph.getBlobServer();
 
-				int parallelism = getParallelism();
-				int maxParallelism = getMaxParallelism();
+				final TaskInformation taskInformation = new TaskInformation(
+					jobVertex.getID(),
+					jobVertex.getName(),
+					parallelism,
+					maxParallelism,
+					jobVertex.getInvokableClassName(),
+					jobVertex.getConfiguration());
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Creating task information for " + generateDebugString());
-				}
-
-				serializedTaskInformation = new SerializedValue<>(
-					new TaskInformation(
-						jobVertex.getID(),
-						jobVertex.getName(),
-						parallelism,
-						maxParallelism,
-						jobVertex.getInvokableClassName(),
-						jobVertex.getConfiguration()));
-
-				taskInformationBlobKey = tryOffLoadTaskInformation();
+				taskInformationOrBlobKey = BlobServer.tryOffload(
+					taskInformation,
+					getJobId(),
+					blobServer);
 			}
 		}
 
-		return serializedTaskInformation;
-	}
-
-	/**
-	 * Returns the key of the offloaded task information BLOB containing {@link
-	 * #serializedTaskInformation}.
-	 * <p>
-	 * This may be true after the first call to {@link #getSerializedTaskInformation()}.
-	 *
-	 * @return the BLOB key or <tt>null</tt> if not offloaded
-	 */
-	@Nullable
-	public PermanentBlobKey getTaskInformationBlobKey() {
-		return taskInformationBlobKey;
-	}
-
-	/**
-	 * Tries to store {@link #serializedTaskInformation} and in the graph's {@link
-	 * ExecutionGraph#blobServer} (if not <tt>null</tt>) so that RPC messages do not need to include
-	 * it.
-	 *
-	 * @return the BLOB key of the uploaded task information or <tt>null</tt> if the upload failed
-	 */
-	@Nullable
-	private PermanentBlobKey tryOffLoadTaskInformation() {
-		BlobServer blobServer = graph.getBlobServer();
-		if (blobServer == null) {
-			return null;
-		}
-
-		// If the serialized task information inside #serializedTaskInformation is larger than this,
-		// we try to offload it to the BLOB server.
-		final int rpcOffloadMinSize =
-			blobServer.getConfiguration().getInteger(JobManagerOptions.TDD_OFFLOAD_MINSIZE);
-
-		if (serializedTaskInformation.getByteArray().length > rpcOffloadMinSize) {
-			LOG.info("Storing task {} information at the BLOB server", getJobVertexId());
-
-			// TODO: do not overwrite existing task info and thus speed up recovery?
-			try {
-				return blobServer.putPermanent(getJobId(), serializedTaskInformation.getByteArray());
-			} catch (IOException e) {
-				LOG.warn("Failed to offload task " + getJobVertexId() + " information data to BLOB store", e);
-			}
-		}
-
-		return null;
+		return taskInformationOrBlobKey;
 	}
 
 	@Override

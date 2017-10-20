@@ -103,24 +103,31 @@ public class ExecutionGraphBuilder {
 		final FailoverStrategy.Factory failoverStrategy =
 				FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
 
+		final JobInformation jobInformation = new JobInformation(
+			jobId,
+			jobName,
+			jobGraph.getSerializedExecutionConfig(),
+			jobGraph.getJobConfiguration(),
+			jobGraph.getUserJarBlobKeys(),
+			jobGraph.getClasspaths());
+
 		// create a new execution graph, if none exists so far
-		final ExecutionGraph executionGraph = (prior != null) ? prior :
-				new ExecutionGraph(
-					new JobInformation(
-						jobId,
-						jobName,
-						jobGraph.getSerializedExecutionConfig(),
-						jobGraph.getJobConfiguration(),
-						jobGraph.getUserJarBlobKeys(),
-						jobGraph.getClasspaths()),
-					futureExecutor,
-					ioExecutor,
-					timeout,
-					restartStrategy,
-					failoverStrategy,
-					slotProvider,
-					classLoader,
-					blobServer);
+		final ExecutionGraph executionGraph;
+		try {
+			executionGraph = (prior != null) ? prior :
+                new ExecutionGraph(
+                    jobInformation,
+                    futureExecutor,
+                    ioExecutor,
+                    timeout,
+                    restartStrategy,
+                    failoverStrategy,
+                    slotProvider,
+                    classLoader,
+                    blobServer);
+		} catch (IOException e) {
+			throw new JobException("Could not create the ExecutionGraph.", e);
+		}
 
 		// set the basic properties
 

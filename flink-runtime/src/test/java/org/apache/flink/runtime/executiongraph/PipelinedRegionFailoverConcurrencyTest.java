@@ -303,11 +303,13 @@ public class PipelinedRegionFailoverConcurrencyTest {
 			SlotProvider slotProvider,
 			int parallelism) throws Exception {
 
+		final JobInformation jobInformation = new DummyJobInformation(
+			jid,
+			"test job");
+
 		// build a simple execution graph with on job vertex, parallelism 2
 		final ExecutionGraph graph = new ExecutionGraph(
-			new DummyJobInformation(
-				jid,
-				"test job"),
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			Time.seconds(10),

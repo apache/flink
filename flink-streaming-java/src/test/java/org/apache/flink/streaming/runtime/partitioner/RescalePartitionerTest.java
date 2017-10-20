@@ -29,6 +29,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionEdge;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -140,10 +141,12 @@ public class RescalePartitionerTest extends TestLogger {
 		assertEquals(4, mapVertex.getParallelism());
 		assertEquals(2, sinkVertex.getParallelism());
 
+		final JobInformation jobInformation = new DummyJobInformation(
+			jobId,
+			jobName);
+
 		ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobId,
-				jobName),
+			jobInformation,
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			AkkaUtils.getDefaultTimeout(),
