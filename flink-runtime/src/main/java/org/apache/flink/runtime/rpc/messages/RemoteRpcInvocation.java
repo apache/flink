@@ -31,7 +31,7 @@ import java.io.Serializable;
  * message has to be serialized.
  * <p>
  * In order to fail fast and report an appropriate error message to the user, the method name, the
- * parameter types and the arguments are eagerly serialized. In case the the invocation call
+ * parameter types and the arguments are eagerly serialized. In case the invocation call
  * contains a non-serializable object, then an {@link IOException} is thrown.
  */
 public class RemoteRpcInvocation implements RpcInvocation, Serializable {

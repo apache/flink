@@ -42,7 +42,7 @@ import static java.util.Objects.requireNonNull;
  * <p>To finalize the join operation you also need to specify a {@link KeySelector} for
  * both the first and second input and a {@link WindowAssigner}.
  *
- * <p>Note: Right now, the the join is being evaluated in memory so you need to ensure that the number
+ * <p>Note: Right now, the join is being evaluated in memory so you need to ensure that the number
  * of elements per key does not get too high. Otherwise the JVM might crash.
  *
  * <p>Example:

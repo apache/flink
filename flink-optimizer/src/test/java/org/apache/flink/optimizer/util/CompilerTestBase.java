@@ -45,7 +45,7 @@ import org.junit.Before;
 /**
  * Base class for Optimizer tests. Offers utility methods to trigger optimization
  * of a program and to fetch the nodes in an optimizer plan that correspond
- * the the node in the program plan.
+ * the node in the program plan.
  */
 public abstract class CompilerTestBase extends TestLogger implements java.io.Serializable {
 

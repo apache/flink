@@ -697,8 +697,8 @@ object AkkaUtils {
     * @param fn The function to retry
     * @param stopCond Flag to signal termination
     * @param maxSleepBetweenRetries Max random sleep time between retries
-    * @tparam T Return type of the the function to retry
-    * @return Return value of the the function to retry
+    * @tparam T Return type of the function to retry
+    * @return Return value of the function to retry
     */
   @tailrec
   def retryOnBindException[T](

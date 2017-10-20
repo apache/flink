@@ -906,7 +906,7 @@ public abstract class FileSystem {
 	private static HashMap<String, FileSystemFactory> loadFileSystems() {
 		final HashMap<String, FileSystemFactory> map = new HashMap<>();
 
-		// by default, we always have the the local file system factory
+		// by default, we always have the local file system factory
 		map.put("file", new LocalFileSystemFactory());
 
 		LOG.debug("Loading extension file systems via services");
