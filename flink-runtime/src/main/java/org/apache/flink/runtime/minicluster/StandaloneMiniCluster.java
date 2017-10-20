@@ -95,6 +95,8 @@ public class StandaloneMiniCluster {
 		metricRegistry = new MetricRegistryImpl(
 			MetricRegistryConfiguration.fromConfiguration(configuration));
 
+		metricRegistry.startQueryService(actorSystem, null);
+
 		JobManager.startJobManagerActors(
 			configuration,
 			actorSystem,
@@ -141,6 +143,12 @@ public class StandaloneMiniCluster {
 
 	public void close() throws Exception {
 		Exception exception = null;
+
+		try {
+			metricRegistry.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
 
 		actorSystem.shutdown();
 		actorSystem.awaitTermination();

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -59,7 +59,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistryImpl metricRegistry) throws Exception {
+			MetricRegistry metricRegistry) throws Exception {
 
 		resourceManager = createResourceManager(
 			configuration,
@@ -96,7 +96,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			JobManagerServices jobManagerServices,
 			HeartbeatServices heartbeatServices,
-			MetricRegistryImpl metricRegistry,
+			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		JobGraph jobGraph = retrieveJobGraph(configuration);
@@ -163,7 +163,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
-		MetricRegistryImpl metricRegistry,
+		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;

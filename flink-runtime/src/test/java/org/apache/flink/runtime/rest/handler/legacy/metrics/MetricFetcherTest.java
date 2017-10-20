@@ -28,7 +28,6 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -72,8 +71,7 @@ public class MetricFetcherTest extends TestLogger {
 
 		// ========= setup TaskManager =================================================================================
 		JobID jobID = new JobID();
-		InstanceID tmID = new InstanceID();
-		ResourceID tmRID = new ResourceID(tmID.toString());
+		ResourceID tmRID = ResourceID.generate();
 
 		// ========= setup JobManager ==================================================================================
 		JobDetails details = mock(JobDetails.class);

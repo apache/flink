@@ -30,7 +30,7 @@ import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
@@ -69,7 +69,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistryImpl metricRegistry) throws Exception {
+			MetricRegistry metricRegistry) throws Exception {
 
 		dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
 
@@ -173,7 +173,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		ResourceManagerGateway resourceManagerGateway,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
-		MetricRegistryImpl metricRegistry,
+		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
 		Optional<String> restAddress) throws Exception {
 
@@ -197,6 +197,6 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
-		MetricRegistryImpl metricRegistry,
+		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
 }

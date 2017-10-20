@@ -19,13 +19,12 @@
 package org.apache.flink.runtime.minicluster
 
 import java.net.InetAddress
-import java.util.UUID
 import java.util.concurrent.{Executor, ScheduledExecutorService}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.api.common.io.FileOutputFormat
-import org.apache.flink.configuration.{ConfigConstants, Configuration, JobManagerOptions, QueryableStateOptions, ResourceManagerOptions, TaskManagerOptions}
+import org.apache.flink.configuration._
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.blob.BlobServer
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
@@ -48,14 +47,14 @@ import org.apache.flink.runtime.memory.MemoryManager
 import org.apache.flink.runtime.messages.JobManagerMessages
 import org.apache.flink.runtime.messages.JobManagerMessages.{RunningJobsStatus, StoppingFailure, StoppingResponse}
 import org.apache.flink.runtime.metrics.groups.{JobManagerMetricGroup, TaskManagerMetricGroup}
-import org.apache.flink.runtime.metrics.{MetricRegistryConfiguration, MetricRegistryImpl}
+import org.apache.flink.runtime.metrics.util.MetricUtils
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.taskmanager.{TaskManager, TaskManagerLocation}
 import org.apache.flink.runtime.util.EnvironmentInformation
 import org.apache.flink.util.NetUtils
 
-import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, ExecutionContext}
 
 /**
  * Local Flink mini cluster which executes all [[TaskManager]]s and the [[JobManager]] in the same
@@ -84,12 +83,6 @@ class LocalFlinkMiniCluster(
   }
 
   def this(userConfiguration: Configuration) = this(userConfiguration, true)
-
-  override def startInternalShutdown() {
-    metricRegistry.shutdown()
-
-    super.startInternalShutdown()
-  }
 
   // --------------------------------------------------------------------------
 
@@ -158,7 +151,7 @@ class LocalFlinkMiniCluster(
       futureExecutor,
       ioExecutor,
       highAvailabilityServices.createBlobStore(),
-      metricRegistry)
+      metricRegistryOpt.get)
 
     val archive = system.actorOf(
       getArchiveProps(
@@ -253,8 +246,12 @@ class LocalFlinkMiniCluster(
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID,
-      metricRegistry)
+      resourceID)
+
+    val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+      metricRegistryOpt.get,
+      taskManagerServices.getTaskManagerLocation(),
+      taskManagerServices.getNetworkEnvironment())
 
     val props = getTaskManagerProps(
       taskManagerClass,
@@ -264,11 +261,7 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
-      taskManagerServices.getTaskManagerMetricGroup)
-
-    if (config.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
-      metricRegistry.startQueryService(system, resourceID)
-    }
+      taskManagerMetricGroup)
 
     system.actorOf(props, taskManagerActorName)
   }

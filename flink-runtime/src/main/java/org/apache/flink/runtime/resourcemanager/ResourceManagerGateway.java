@@ -174,7 +174,7 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	 * Requests the paths for the TaskManager's {@link MetricQueryService} to query.
 	 *
 	 * @param timeout for the asynchronous operation
-	 * @return Future containing the collection of instance ids and the corresponding metric query service path
+	 * @return Future containing the collection of resource ids and the corresponding metric query service path
 	 */
 	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
 }

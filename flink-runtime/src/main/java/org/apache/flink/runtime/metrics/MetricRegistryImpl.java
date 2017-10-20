@@ -188,6 +188,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 	 *
 	 * @return address of the metric query service
 	 */
+	@Override
 	@Nullable
 	public String getMetricQueryServicePath() {
 		return metricQueryServicePath;
@@ -238,7 +239,16 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 			if (queryService != null) {
 				stopTimeout = new FiniteDuration(1L, TimeUnit.SECONDS);
-				stopFuture = Patterns.gracefulStop(queryService, stopTimeout);
+
+				try {
+					stopFuture = Patterns.gracefulStop(queryService, stopTimeout);
+				} catch (IllegalStateException ignored) {
+					// this can happen if the underlying actor system has been stopped before shutting
+					// the metric registry down
+					// TODO: Pull the MetricQueryService actor out of the MetricRegistry
+					LOG.debug("The metric query service actor has already been stopped because the " +
+						"underlying ActorSystem has already been shut down.");
+				}
 			}
 
 			if (reporters != null) {

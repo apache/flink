@@ -38,7 +38,6 @@ import org.apache.flink.runtime.rest.handler.RedirectHandler;
 import org.apache.flink.runtime.rest.handler.WebHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
@@ -66,7 +65,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Objects;
@@ -160,14 +161,22 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 				executor);
 		}
 
-		final String taskManagerID = routed.pathParams().get(TaskManagersHandler.TASK_MANAGER_ID_KEY);
+		final String taskManagerId = routed.pathParams().get(TaskManagersHandler.TASK_MANAGER_ID_KEY);
 		final HttpRequest request = routed.request();
 
 		//fetch TaskManager logs if no other process is currently doing it
-		if (lastRequestPending.putIfAbsent(taskManagerID, true) == null) {
+		if (lastRequestPending.putIfAbsent(taskManagerId, true) == null) {
 			try {
-				ResourceID resourceId = new ResourceID(new String(StringUtils.hexStringToByte(taskManagerID)));
-				CompletableFuture<Optional<Instance>> taskManagerFuture = jobManagerGateway.requestTaskManagerInstance(resourceId, timeout);
+				final String unescapedString;
+
+				try {
+					unescapedString = URLDecoder.decode(taskManagerId, "UTF-8");
+				} catch (UnsupportedEncodingException e) {
+					throw new FlinkException("Could not decode task manager id: " + taskManagerId + '.', e);
+				}
+
+				final ResourceID resourceId = new ResourceID(unescapedString);
+				final CompletableFuture<Optional<Instance>> taskManagerFuture = jobManagerGateway.requestTaskManagerInstance(resourceId, timeout);
 
 				CompletableFuture<TransientBlobKey> blobKeyFuture = taskManagerFuture.thenCompose(
 					(Optional<Instance> optTMInstance) -> {
@@ -189,18 +198,18 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 						(blobKey, blobCache) -> {
 							//delete previous log file, if it is different than the current one
 							HashMap<String, TransientBlobKey> lastSubmittedFile = fileMode == FileMode.LOG ? lastSubmittedLog : lastSubmittedStdout;
-							if (lastSubmittedFile.containsKey(taskManagerID)) {
+							if (lastSubmittedFile.containsKey(taskManagerId)) {
 								// the BlobKey will almost certainly be different but the old file
 								// may not exist anymore so we cannot rely on it and need to
 								// download the new file anyway, even if the hashes match
-								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerID))) {
-									if (!blobCache.deleteFromCache(lastSubmittedFile.get(taskManagerID))) {
-										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerID + '.'));
+								if (!Objects.equals(blobKey, lastSubmittedFile.get(taskManagerId))) {
+									if (!blobCache.deleteFromCache(lastSubmittedFile.get(taskManagerId))) {
+										throw new CompletionException(new FlinkException("Could not delete file for " + taskManagerId + '.'));
 									}
-									lastSubmittedFile.put(taskManagerID, blobKey);
+									lastSubmittedFile.put(taskManagerId, blobKey);
 								}
 							} else {
-								lastSubmittedFile.put(taskManagerID, blobKey);
+								lastSubmittedFile.put(taskManagerId, blobKey);
 							}
 							try {
 								return blobCache.getFile(blobKey).getAbsolutePath();
@@ -214,7 +223,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 					failure -> {
 						display(ctx, request, "Fetching TaskManager log failed.");
 						LOG.error("Fetching TaskManager log failed.", failure);
-						lastRequestPending.remove(taskManagerID);
+						lastRequestPending.remove(taskManagerId);
 
 						return null;
 					});
@@ -261,7 +270,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 						// write the content.
 						ChannelFuture lastContentFuture;
 						final GenericFutureListener<Future<? super Void>> completionListener = future -> {
-							lastRequestPending.remove(taskManagerID);
+							lastRequestPending.remove(taskManagerId);
 							fc.close();
 							raf.close();
 						};
@@ -294,7 +303,7 @@ public class TaskManagerLogHandler extends RedirectHandler<JobManagerGateway> im
 			} catch (Exception e) {
 				display(ctx, request, "Error: " + e.getMessage());
 				LOG.error("Fetching TaskManager log failed.", e);
-				lastRequestPending.remove(taskManagerID);
+				lastRequestPending.remove(taskManagerId);
 			}
 		} else {
 			display(ctx, request, "loading...");

@@ -432,7 +432,11 @@ public class MesosApplicationMasterRunner {
 		}
 
 		if (metricRegistry != null) {
-			metricRegistry.shutdown();
+			try {
+				metricRegistry.shutdown();
+			} catch (Throwable t) {
+				LOG.error("Could not shut down metric registry.", t);
+			}
 		}
 
 		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(

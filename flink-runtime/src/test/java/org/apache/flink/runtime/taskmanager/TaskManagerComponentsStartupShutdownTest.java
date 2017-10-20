@@ -18,14 +18,6 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import static org.junit.Assert.*;
-
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Kill;
-import akka.actor.Props;
-import akka.testkit.JavaTestKit;
-
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
@@ -49,21 +41,28 @@ import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
 import org.apache.flink.util.TestLogger;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Kill;
+import akka.actor.Props;
+import akka.testkit.JavaTestKit;
 import org.junit.Test;
+
+import java.net.InetAddress;
+import java.util.concurrent.TimeUnit;
 
 import scala.Option;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.net.InetAddress;
-import java.util.concurrent.TimeUnit;
+import static org.junit.Assert.assertTrue;
 
 public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
@@ -169,7 +168,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				network,
 				numberOfSlots,
 				highAvailabilityServices,
-				new MetricRegistryImpl(metricRegistryConfiguration));
+				new TaskManagerMetricGroup(new NoOpMetricRegistry(), connectionInfo.getHostname(), connectionInfo.getResourceID().getResourceIdString()));
 
 			taskManager = actorSystem.actorOf(tmProps);
 

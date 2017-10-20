@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+
+import javax.annotation.Nullable;
 
 /**
  * Interface for a metric registry.
@@ -65,5 +68,18 @@ public interface MetricRegistry {
 	 */
 	void unregister(Metric metric, String metricName, AbstractMetricGroup group);
 
+	/**
+	 * Returns the scope formats.
+	 *
+	 * @return scope formats
+	 */
 	ScopeFormats getScopeFormats();
+
+	/**
+	 * Returns the path of the {@link MetricQueryService} or null, if none is started.
+	 *
+	 * @return Path of the MetricQueryService or null, if none is started
+	 */
+	@Nullable
+	String getMetricQueryServicePath();
 }

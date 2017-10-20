@@ -153,7 +153,6 @@ public class TaskExecutorITCase extends TestLogger {
 			networkEnvironment,
 			testingHAServices,
 			heartbeatServices,
-			metricRegistry,
 			taskManagerMetricGroup,
 			broadcastVariableManager,
 			fileCache,

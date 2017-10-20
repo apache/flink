@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
@@ -75,7 +75,7 @@ public class MiniClusterJobDispatcher {
 	private final JobManagerServices jobManagerServices;
 
 	/** Registry for all metrics in the mini cluster */
-	private final MetricRegistryImpl metricRegistry;
+	private final MetricRegistry metricRegistry;
 
 	/** The number of JobManagers to launch (more than one simulates a high-availability setup) */
 	private final int numJobManagers;
@@ -104,7 +104,7 @@ public class MiniClusterJobDispatcher {
 			HighAvailabilityServices haServices,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistryImpl metricRegistry) throws Exception {
+			MetricRegistry metricRegistry) throws Exception {
 		this(
 			config,
 			haServices,
@@ -132,7 +132,7 @@ public class MiniClusterJobDispatcher {
 			HighAvailabilityServices haServices,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistryImpl metricRegistry,
+			MetricRegistry metricRegistry,
 			int numJobManagers,
 			RpcService[] rpcServices) throws Exception {
 		

@@ -45,19 +45,16 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-
-import akka.actor.ActorSystem;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -88,7 +85,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final ResourceManagerGateway resourceManagerGateway;
 	private final JobManagerServices jobManagerServices;
 	private final HeartbeatServices heartbeatServices;
-	private final MetricRegistryImpl metricRegistry;
+	private final MetricRegistry metricRegistry;
 
 	private final FatalErrorHandler fatalErrorHandler;
 
@@ -106,7 +103,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			ResourceManagerGateway resourceManagerGateway,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
-			MetricRegistryImpl metricRegistry,
+			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
 			Optional<String> restAddress) throws Exception {
 		super(rpcService, endpointId);
@@ -162,12 +159,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 
 		try {
-			metricRegistry.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
 			super.postStop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -181,11 +172,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public void start() throws Exception {
 		super.start();
-
-		// start the MetricQueryService
-		// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
-		final ActorSystem actorSystem = ((AkkaRpcService) getRpcService()).getActorSystem();
-		metricRegistry.startQueryService(actorSystem, null);
 
 		leaderElectionService.start(this);
 	}
@@ -479,7 +465,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
 		JobManagerServices jobManagerServices,
-		MetricRegistryImpl metricRegistry,
+		MetricRegistry metricRegistry,
 		OnCompletionActions onCompleteActions,
 		FatalErrorHandler fatalErrorHandler) throws Exception;
 

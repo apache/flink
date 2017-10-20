@@ -122,8 +122,7 @@ abstract class FlinkMiniCluster(
     Hardware.getNumberCPUCores(),
     new ExecutorThreadFactory("mini-cluster-io"))
 
-  protected val metricRegistry = new MetricRegistryImpl(
-    MetricRegistryConfiguration.fromConfiguration(originalConfiguration))
+  protected var metricRegistryOpt: Option[MetricRegistryImpl] = None
 
   def this(configuration: Configuration, useSingleActorSystem: Boolean) {
     this(
@@ -329,6 +328,11 @@ abstract class FlinkMiniCluster(
 
     lazy val singleActorSystem = startJobManagerActorSystem(0)
 
+    val metricRegistry = new MetricRegistryImpl(
+      MetricRegistryConfiguration.fromConfiguration(originalConfiguration))
+
+    metricRegistryOpt = Some(metricRegistry)
+
     if (originalConfiguration.getBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false)) {
       metricRegistry.startQueryService(singleActorSystem, null)
     }
@@ -463,6 +467,8 @@ abstract class FlinkMiniCluster(
 
     Await.ready(Future.sequence(jmFutures ++ tmFutures ++ rmFutures), timeout)
 
+    metricRegistryOpt.foreach(_.shutdown())
+
     if (!useSingleActorSystem) {
       taskManagerActorSystems foreach {
         _ foreach(_.shutdown())
@@ -476,7 +482,6 @@ abstract class FlinkMiniCluster(
     jobManagerActorSystems foreach {
       _ foreach(_.shutdown())
     }
-
   }
 
   def awaitTermination(): Unit = {

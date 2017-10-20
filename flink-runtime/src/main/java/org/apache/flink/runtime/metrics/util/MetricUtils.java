@@ -21,6 +21,10 @@ package org.apache.flink.runtime.metrics.util;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import org.apache.commons.lang3.text.WordUtils;
 import org.slf4j.Logger;
@@ -45,6 +49,21 @@ public class MetricUtils {
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
 
 	private MetricUtils() {
+	}
+
+	public static TaskManagerMetricGroup instantiateTaskManagerMetricGroup(
+			MetricRegistry metricRegistry,
+			TaskManagerLocation taskManagerLocation,
+			NetworkEnvironment network) {
+		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
+			metricRegistry,
+			taskManagerLocation.getHostname(),
+			taskManagerLocation.getResourceID().toString());
+
+		// Initialize the TM metrics
+		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, network);
+
+		return taskManagerMetricGroup;
 	}
 
 	public static void instantiateNetworkMetrics(

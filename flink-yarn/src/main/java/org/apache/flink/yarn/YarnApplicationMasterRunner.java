@@ -465,7 +465,11 @@ public class YarnApplicationMasterRunner {
 		}
 
 		if (metricRegistry != null) {
-			metricRegistry.shutdown();
+			try {
+				metricRegistry.shutdown();
+			} catch (Throwable t) {
+				LOG.error("Could not properly shut down the metric registry.", t);
+			}
 		}
 
 		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(

@@ -42,7 +42,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterRegistrationSuccess;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
@@ -118,7 +118,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	private final HeartbeatManager<Void, Void> jobManagerHeartbeatManager;
 
 	/** Registry to use for metrics. */
-	private final MetricRegistryImpl metricRegistry;
+	private final MetricRegistry metricRegistry;
 
 	/** Fatal error handler. */
 	private final FatalErrorHandler fatalErrorHandler;
@@ -140,7 +140,7 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			SlotManager slotManager,
-			MetricRegistryImpl metricRegistry,
+			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
 			FatalErrorHandler fatalErrorHandler) {
 

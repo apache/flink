@@ -29,8 +29,11 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
@@ -75,7 +78,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	private final Configuration configuration;
 
-	private final ResourceID resourceID;
+	private final ResourceID resourceId;
 
 	private final Time timeout;
 
@@ -92,7 +95,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	public TaskManagerRunner(Configuration configuration, ResourceID resourceId) throws Exception {
 		this.configuration = Preconditions.checkNotNull(configuration);
-		this.resourceID = Preconditions.checkNotNull(resourceId);
+		this.resourceId = Preconditions.checkNotNull(resourceId);
 
 		timeout = AkkaUtils.getTimeoutAsTime(configuration);
 
@@ -111,12 +114,13 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
 
+		// TODO: Temporary hack until the MetricQueryService has been ported to RpcEndpoint
 		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
 		metricRegistry.startQueryService(actorSystem, resourceId);
 
 		taskManager = startTaskManager(
-			configuration,
-			resourceId,
+			this.configuration,
+			this.resourceId,
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
@@ -242,14 +246,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	// --------------------------------------------------------------------------------------------
 
 	public static TaskExecutor startTaskManager(
-		Configuration configuration,
-		ResourceID resourceID,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		MetricRegistryImpl metricRegistry,
-		boolean localCommunicationOnly,
-		FatalErrorHandler fatalErrorHandler) throws Exception {
+			Configuration configuration,
+			ResourceID resourceID,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			MetricRegistry metricRegistry,
+			boolean localCommunicationOnly,
+			FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		Preconditions.checkNotNull(configuration);
 		Preconditions.checkNotNull(resourceID);
@@ -266,8 +270,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
 			taskManagerServicesConfiguration,
-			resourceID,
-			metricRegistry);
+			resourceID);
+
+		TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
+			metricRegistry,
+			taskManagerServices.getTaskManagerLocation(),
+			taskManagerServices.getNetworkEnvironment());
 
 		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
@@ -280,8 +288,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
 			heartbeatServices,
-			metricRegistry,
-			taskManagerServices.getTaskManagerMetricGroup(),
+			taskManagerMetricGroup,
 			taskManagerServices.getBroadcastVariableManager(),
 			taskManagerServices.getFileCache(),
 			taskManagerServices.getTaskSlotTable(),

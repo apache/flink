@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -180,6 +181,11 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		blobServer.start();
 		heartbeatServices = createHeartbeatServices(configuration);
 		metricRegistry = createMetricRegistry(configuration);
+
+		// TODO: This is a temporary hack until we have ported the MetricQueryService to the new RpcEndpoint
+		// start the MetricQueryService
+		final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
+		metricRegistry.startQueryService(actorSystem, null);
 	}
 
 	protected RpcService createRpcService(
@@ -278,7 +284,7 @@ public abstract class ClusterEntrypoint implements FatalErrorHandler {
 		HighAvailabilityServices highAvailabilityServices,
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
-		MetricRegistryImpl metricRegistry) throws Exception;
+		MetricRegistry metricRegistry) throws Exception;
 
 	protected void stopClusterComponents(boolean cleanupHaData) throws Exception {
 	}
