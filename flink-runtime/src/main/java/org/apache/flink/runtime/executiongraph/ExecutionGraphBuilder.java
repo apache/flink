@@ -106,20 +106,21 @@ public class ExecutionGraphBuilder {
 		// create a new execution graph, if none exists so far
 		final ExecutionGraph executionGraph = (prior != null) ? prior :
 				new ExecutionGraph(
-						futureExecutor,
-						ioExecutor,
+					new JobInformation(
 						jobId,
 						jobName,
-						jobGraph.getJobConfiguration(),
 						jobGraph.getSerializedExecutionConfig(),
-						timeout,
-						restartStrategy,
-						failoverStrategy,
+						jobGraph.getJobConfiguration(),
 						jobGraph.getUserJarBlobKeys(),
-						jobGraph.getClasspaths(),
-						slotProvider,
-						classLoader,
-						blobServer);
+						jobGraph.getClasspaths()),
+					futureExecutor,
+					ioExecutor,
+					timeout,
+					restartStrategy,
+					failoverStrategy,
+					slotProvider,
+					classLoader,
+					blobServer);
 
 		// set the basic properties
 

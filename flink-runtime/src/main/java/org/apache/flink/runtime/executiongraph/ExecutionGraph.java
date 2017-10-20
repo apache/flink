@@ -316,6 +316,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/**
 	 * This constructor is for tests only, because it does not include class loading information.
 	 */
+	@VisibleForTesting
 	ExecutionGraph(
 			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
@@ -328,17 +329,18 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			SlotProvider slotProvider,
 			@Nullable BlobServer blobServer) {
 		this(
+			new JobInformation(
+				jobId,
+				jobName,
+				serializedConfig,
+				jobConfig,
+				Collections.emptyList(),
+				Collections.emptyList()),
 			futureExecutor,
 			ioExecutor,
-			jobId,
-			jobName,
-			jobConfig,
-			serializedConfig,
 			timeout,
 			restartStrategy,
 			new RestartAllStrategy.Factory(),
-			Collections.emptyList(),
-			Collections.emptyList(),
 			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
 			blobServer
@@ -346,33 +348,19 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	}
 
 	public ExecutionGraph(
+			JobInformation jobInformation,
 			ScheduledExecutorService futureExecutor,
 			Executor ioExecutor,
-			JobID jobId,
-			String jobName,
-			Configuration jobConfig,
-			SerializedValue<ExecutionConfig> serializedConfig,
 			Time timeout,
 			RestartStrategy restartStrategy,
 			FailoverStrategy.Factory failoverStrategyFactory,
-			List<PermanentBlobKey> requiredJarFiles,
-			List<URL> requiredClasspaths,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
 			@Nullable BlobServer blobServer) {
 
 		checkNotNull(futureExecutor);
-		checkNotNull(jobId);
-		checkNotNull(jobName);
-		checkNotNull(jobConfig);
 
-		this.jobInformation = new JobInformation(
-			jobId,
-			jobName,
-			serializedConfig,
-			jobConfig,
-			requiredJarFiles,
-			requiredClasspaths);
+		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
 		// serialize the job information to do the serialisation work only once
 		try {
@@ -405,7 +393,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		this.scheduleAllocationTimeout = checkNotNull(timeout);
 
 		this.restartStrategy = restartStrategy;
-		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobId, getAllVertices());
+		this.kvStateLocationRegistry = new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
 
 		this.verticesFinished = new AtomicInteger();
 

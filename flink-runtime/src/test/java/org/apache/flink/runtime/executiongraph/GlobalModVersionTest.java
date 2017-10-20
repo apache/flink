@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
@@ -32,18 +30,17 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.Random;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionState;
-
 import static org.junit.Assert.assertEquals;
-
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 public class GlobalModVersionTest {
 
@@ -163,20 +160,17 @@ public class GlobalModVersionTest {
 
 		// build a simple execution graph with on job vertex, parallelism 2
 		final ExecutionGraph graph = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jid,
-				"test job",
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				Time.seconds(10),
-				new InfiniteDelayRestartStrategy(),
-				new CustomStrategy(failoverStrategy),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				slotProvider,
-				getClass().getClassLoader(),
-				null);
+				"test job"),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			Time.seconds(10),
+			new InfiniteDelayRestartStrategy(),
+			new CustomStrategy(failoverStrategy),
+			slotProvider,
+			getClass().getClassLoader(),
+			null);
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

@@ -18,11 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -43,7 +41,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Ignore;
@@ -51,7 +48,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -129,20 +125,17 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jobId,
-				jobName,
-				new Configuration(),
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				new InfiniteDelayRestartStrategy(10),
-				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				slotProvider,
-				ExecutionGraph.class.getClassLoader(),
-				null);
+				jobName),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			AkkaUtils.getDefaultTimeout(),
+			new InfiniteDelayRestartStrategy(10),
+			new FailoverPipelinedRegionWithDirectExecutor(),
+			slotProvider,
+			ExecutionGraph.class.getClassLoader(),
+			null);
 
 		eg.attachJobGraph(ordered);
 
@@ -233,7 +226,6 @@ public class FailoverRegionTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -257,17 +249,14 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = Arrays.asList(v1, v2, v3, v4);
 
 		ExecutionGraph eg = new ExecutionGraph(
+				new DummyJobInformation(
+					jobId,
+					jobName),
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
-				jobId,
-				jobName,
-				cfg,
-				new SerializedValue<>(new ExecutionConfig()),
 				AkkaUtils.getDefaultTimeout(),
 				new InfiniteDelayRestartStrategy(10),
 				new RestartPipelinedRegionStrategy.Factory(),
-				Collections.emptyList(),
-				Collections.emptyList(),
 				scheduler,
 				ExecutionGraph.class.getClassLoader(),
 				null);
@@ -319,7 +308,6 @@ public class FailoverRegionTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -335,20 +323,17 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jobId,
-				jobName,
-				cfg,
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				new InfiniteDelayRestartStrategy(10),
-				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				scheduler,
-				ExecutionGraph.class.getClassLoader(),
-				null);
+				jobName),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			AkkaUtils.getDefaultTimeout(),
+			new InfiniteDelayRestartStrategy(10),
+			new FailoverPipelinedRegionWithDirectExecutor(),
+			scheduler,
+			ExecutionGraph.class.getClassLoader(),
+			null);
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -429,7 +414,6 @@ public class FailoverRegionTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final String jobName = "Test Job Sample Name";
-		final Configuration cfg = new Configuration();
 
 		JobVertex v1 = new JobVertex("vertex1");
 		JobVertex v2 = new JobVertex("vertex2");
@@ -449,20 +433,17 @@ public class FailoverRegionTest extends TestLogger {
 		List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
 
 		ExecutionGraph eg = new ExecutionGraph(
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
+			new DummyJobInformation(
 				jobId,
-				jobName,
-				cfg,
-				new SerializedValue<>(new ExecutionConfig()),
-				AkkaUtils.getDefaultTimeout(),
-				restartStrategy,
-				new FailoverPipelinedRegionWithDirectExecutor(),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				scheduler,
-				ExecutionGraph.class.getClassLoader(),
-				null);
+				jobName),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			AkkaUtils.getDefaultTimeout(),
+			restartStrategy,
+			new FailoverPipelinedRegionWithDirectExecutor(),
+			scheduler,
+			ExecutionGraph.class.getClassLoader(),
+			null);
 		try {
 			eg.attachJobGraph(ordered);
 		}
