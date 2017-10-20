@@ -113,11 +113,12 @@ public class TaskManagerSlot {
 	}
 
 	public void completeAllocation(AllocationID allocationId) {
+		Preconditions.checkNotNull(allocationId, "Allocation id must not be null.");
 		Preconditions.checkState(state == State.PENDING, "In order to complete an allocation, the slot has to be allocated.");
 		Preconditions.checkState(Objects.equals(allocationId, assignedSlotRequest.getAllocationId()), "Mismatch between allocation id of the pending slot request.");
 
 		state = State.ALLOCATED;
-		this.allocationId = Preconditions.checkNotNull(allocationId);
+		this.allocationId = allocationId;
 		assignedSlotRequest = null;
 	}
 

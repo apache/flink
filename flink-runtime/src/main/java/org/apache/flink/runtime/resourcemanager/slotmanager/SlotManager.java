@@ -425,7 +425,7 @@ public class SlotManager implements AutoCloseable {
 							slot.getInstanceId() + " which has not been registered.");
 					}
 
-					updateSlotInternal(slot, taskManagerRegistration, null);
+					updateSlotState(slot, taskManagerRegistration, null);
 				} else {
 					LOG.debug("Received request to free slot {} with expected allocation id {}, " +
 						"but actual allocation id {} differs. Ignoring the request.", slotId, allocationId, slot.getAllocationId());
@@ -543,7 +543,7 @@ public class SlotManager implements AutoCloseable {
 			final TaskManagerRegistration taskManagerRegistration = taskManagerRegistrations.get(slot.getInstanceId());
 
 			if (taskManagerRegistration != null) {
-				updateSlotInternal(slot, taskManagerRegistration, allocationId);
+				updateSlotState(slot, taskManagerRegistration, allocationId);
 
 				return true;
 			} else {
@@ -557,7 +557,7 @@ public class SlotManager implements AutoCloseable {
 		}
 	}
 
-	private void updateSlotInternal(TaskManagerSlot slot, TaskManagerRegistration taskManagerRegistration, @Nullable AllocationID allocationId) {
+	private void updateSlotState(TaskManagerSlot slot, TaskManagerRegistration taskManagerRegistration, @Nullable AllocationID allocationId) {
 		if (null != allocationId) {
 			switch (slot.getState()) {
 				case PENDING:
@@ -792,7 +792,7 @@ public class SlotManager implements AutoCloseable {
 				// clear the pending slot request
 				taskManagerSlot.clearPendingSlotRequest();
 
-				updateSlotInternal(taskManagerSlot, taskManagerRegistration, null);
+				updateSlotState(taskManagerSlot, taskManagerRegistration, null);
 			} else {
 				LOG.debug("Ignore slot request removal for slot {}.", slotId);
 			}
