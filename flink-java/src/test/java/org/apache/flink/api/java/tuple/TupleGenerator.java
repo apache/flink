@@ -26,6 +26,10 @@ import java.util.Scanner;
 
 /**
  * Source code generator for tuple classes and classes which depend on the arity of tuples.
+ *
+ * <p>This class is responsible for generating tuple-size dependent code in the {@link org.apache.flink.api.java.io.CsvReader},
+ * {@link org.apache.flink.api.java.operators.ProjectOperator}, {@link org.apache.flink.api.java.operators.JoinOperator.JoinProjection}
+ * and {@link org.apache.flink.api.java.operators.CrossOperator.CrossProjection}.
  */
 class TupleGenerator {
 
