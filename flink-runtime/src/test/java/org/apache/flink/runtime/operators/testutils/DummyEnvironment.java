@@ -53,6 +53,7 @@ public class DummyEnvironment implements Environment {
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
+	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, numSubTasks, subTaskIndex, numSubTasks, 0);
@@ -143,7 +144,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public AccumulatorRegistry getAccumulatorRegistry() {
-		return null;
+		return accumulatorRegistry;
 	}
 
 	@Override
