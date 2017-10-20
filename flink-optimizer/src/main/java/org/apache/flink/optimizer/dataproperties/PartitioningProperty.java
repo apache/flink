@@ -19,7 +19,7 @@
 package org.apache.flink.optimizer.dataproperties;
 
 /**
- * An enumeration of the the different types of distributing data across partitions or
+ * An enumeration of the different types of distributing data across partitions or
  * parallel workers.
  */
 public enum PartitioningProperty {

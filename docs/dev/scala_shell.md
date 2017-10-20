@@ -66,7 +66,7 @@ Scala-Flink> benv.execute("MyProgram")
 
 ### DataStream API
 
-Similar to the the batch program above, we can execute a streaming program through the DataStream API:
+Similar to the batch program above, we can execute a streaming program through the DataStream API:
 
 ~~~scala
 Scala-Flink> val textStreaming = senv.fromElements(

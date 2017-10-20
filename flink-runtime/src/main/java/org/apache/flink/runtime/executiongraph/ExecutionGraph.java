@@ -938,7 +938,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 				},
 				futureExecutor);
 
-			// from now on, slots will be rescued by the the futures and their completion, or by the timeout
+			// from now on, slots will be rescued by the futures and their completion, or by the timeout
 			successful = true;
 		}
 		finally {
@@ -1211,7 +1211,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 *
 	 * @param errorIfNoCheckpoint Fail if there is no checkpoint available
 	 * @param allowNonRestoredState Allow to skip checkpoint state that cannot be mapped
-	 * to the the ExecutionGraph vertices (if the checkpoint contains state for a
+	 * to the ExecutionGraph vertices (if the checkpoint contains state for a
 	 * job vertex that is not part of this ExecutionGraph).
 	 */
 	public void restoreLatestCheckpointedState(boolean errorIfNoCheckpoint, boolean allowNonRestoredState) throws Exception {

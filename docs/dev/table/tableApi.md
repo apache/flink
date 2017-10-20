@@ -1445,7 +1445,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 
         <ul>
           <li><code>CURRENT_ROW</code> sets the upper bound of the window to the current row.</li>
-          <li><code>CURRENT_RANGE</code> sets the upper bound of the window to sort key of the the current row, i.e., all rows with the same sort key as the current row are included in the window.</li>
+          <li><code>CURRENT_RANGE</code> sets the upper bound of the window to sort key of the current row, i.e., all rows with the same sort key as the current row are included in the window.</li>
         </ul>
 
         <p>If the <code>following</code> clause is omitted, the upper bound of a time interval window is defined as <code>CURRENT_RANGE</code> and the upper bound of a row-count interval window is defined as <code>CURRENT_ROW</code>.</p>
