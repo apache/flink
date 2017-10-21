@@ -21,6 +21,9 @@ package org.apache.flink.runtime.clusterframework.types;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.resourcemanager.slotmanager.PendingSlotRequest;
+import org.apache.flink.util.Preconditions;
+
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,17 +48,23 @@ public class TaskManagerSlot {
 	/** Assigned slot request if there is currently an ongoing request */
 	private PendingSlotRequest assignedSlotRequest;
 
+	private State state;
+
 	public TaskManagerSlot(
 			SlotID slotId,
 			ResourceProfile resourceProfile,
-			TaskExecutorConnection taskManagerConnection,
-			AllocationID allocationId) {
+			TaskExecutorConnection taskManagerConnection) {
 		this.slotId = checkNotNull(slotId);
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.taskManagerConnection = checkNotNull(taskManagerConnection);
 
-		this.allocationId = allocationId;
+		this.state = State.FREE;
+		this.allocationId = null;
 		this.assignedSlotRequest = null;
+	}
+
+	public State getState() {
+		return state;
 	}
 
 	public SlotID getSlotId() {
@@ -74,20 +83,50 @@ public class TaskManagerSlot {
 		return allocationId;
 	}
 
-	public void setAllocationId(AllocationID allocationId) {
-		this.allocationId = allocationId;
-	}
-
 	public PendingSlotRequest getAssignedSlotRequest() {
 		return assignedSlotRequest;
 	}
 
-	public void setAssignedSlotRequest(PendingSlotRequest assignedSlotRequest) {
-		this.assignedSlotRequest = assignedSlotRequest;
-	}
-
 	public InstanceID getInstanceId() {
 		return taskManagerConnection.getInstanceID();
+	}
+
+	public void freeSlot() {
+		Preconditions.checkState(state == State.ALLOCATED, "Slot must be allocated before freeing it.");
+
+		state = State.FREE;
+		allocationId = null;
+	}
+
+	public void clearPendingSlotRequest() {
+		Preconditions.checkState(state == State.PENDING, "No slot request to clear.");
+
+		state = State.FREE;
+		assignedSlotRequest = null;
+	}
+
+	public void assignPendingSlotRequest(PendingSlotRequest pendingSlotRequest) {
+		Preconditions.checkState(state == State.FREE, "Slot must be free to be assigned a slot request.");
+
+		state = State.PENDING;
+		assignedSlotRequest = Preconditions.checkNotNull(pendingSlotRequest);
+	}
+
+	public void completeAllocation(AllocationID allocationId) {
+		Preconditions.checkNotNull(allocationId, "Allocation id must not be null.");
+		Preconditions.checkState(state == State.PENDING, "In order to complete an allocation, the slot has to be allocated.");
+		Preconditions.checkState(Objects.equals(allocationId, assignedSlotRequest.getAllocationId()), "Mismatch between allocation id of the pending slot request.");
+
+		state = State.ALLOCATED;
+		this.allocationId = allocationId;
+		assignedSlotRequest = null;
+	}
+
+	public void updateAllocation(AllocationID allocationId) {
+		Preconditions.checkState(state == State.FREE, "The slot has to be free in order to set an allocation id.");
+
+		state = State.ALLOCATED;
+		this.allocationId = Preconditions.checkNotNull(allocationId);
 	}
 
 	/**
@@ -100,15 +139,9 @@ public class TaskManagerSlot {
 		return resourceProfile.isMatching(required);
 	}
 
-	public boolean isFree() {
-		return !isAllocated() && !hasPendingSlotRequest();
-	}
-
-	public boolean isAllocated() {
-		return null != allocationId;
-	}
-
-	public boolean hasPendingSlotRequest() {
-		return null != assignedSlotRequest;
+	public enum State {
+		FREE,
+		PENDING,
+		ALLOCATED
 	}
 }
