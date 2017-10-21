@@ -85,7 +85,7 @@ public class SlotProtocolTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
+			ResourceActions resourceManagerActions = mock(ResourceActions.class);
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 
@@ -147,7 +147,7 @@ public class SlotProtocolTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime())) {
 
-			ResourceManagerActions resourceManagerActions = mock(ResourceManagerActions.class);
+			ResourceActions resourceManagerActions = mock(ResourceActions.class);
 
 			slotManager.start(rmLeaderID, Executors.directExecutor(), resourceManagerActions);
 

@@ -421,8 +421,9 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 	}
 
 	@Override
-	public void stopWorker(ResourceID resourceID) {
+	public boolean stopWorker(ResourceID resourceID) {
 		LOG.info("Stopping worker {}.", resourceID);
+
 		try {
 
 			if (workersInLaunch.containsKey(resourceID)) {
@@ -449,6 +450,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		catch (Exception e) {
 			onFatalError(new ResourceManagerException("Unable to release a worker.", e));
 		}
+
+		return true;
 	}
 
 	/**

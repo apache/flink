@@ -866,14 +866,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		errorHandler.onFatalError(cause);
 	}
 
-	private void jobStatusChanged(final JobStatus newJobStatus, long timestamp, final Throwable error) {
+	private void jobStatusChanged(
+			final JobStatus newJobStatus,
+			long timestamp,
+			@Nullable final Throwable error) {
 		validateRunsInMainThread();
 
 		final JobID jobID = executionGraph.getJobID();
 		final String jobName = executionGraph.getJobName();
-
-		log.info("Status of job {} ({}) changed to {}.", jobID, jobName, newJobStatus, error);
-
+		
 		if (newJobStatus.isGloballyTerminalState()) {
 			switch (newJobStatus) {
 				case FINISHED:
