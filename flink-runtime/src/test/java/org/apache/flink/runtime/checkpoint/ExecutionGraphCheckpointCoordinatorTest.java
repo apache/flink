@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
@@ -86,7 +87,7 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			new RestartAllStrategy.Factory(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			ClassLoader.getSystemClassLoader(),
-			null);
+			VoidBlobWriter.getInstance());
 
 		executionGraph.enableCheckpointing(
 				100,

@@ -50,12 +50,16 @@ public class ExecutionGraphDeploymentWithBlobServerTest extends ExecutionGraphDe
 
 	private Set<byte[]> seenHashes = Collections.newSetFromMap(new ConcurrentHashMap<byte[], Boolean>());
 
+	protected BlobServer blobServer = null;
+
 	@Before
 	public void setupBlobServer() throws IOException {
 		Configuration config = new Configuration();
 		// always offload the serialized job and task information
 		config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
 		blobServer = Mockito.spy(new BlobServer(config, new VoidBlobStore()));
+		blobWriter = blobServer;
+		blobCache = blobServer;
 
 		seenHashes.clear();
 

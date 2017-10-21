@@ -28,8 +28,9 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobService;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -81,9 +82,9 @@ import static org.junit.Assert.fail;
 public class ExecutionGraphDeploymentTest extends TestLogger {
 
 	/**
-	 * BLOB server instance to use for the job graph (may be <tt>null</tt>).
+	 * BLOB server instance to use for the job graph.
 	 */
-	protected BlobServer blobServer = null;
+	protected BlobWriter blobWriter = VoidBlobWriter.getInstance();
 
 	/**
 	 * Permanent BLOB cache instance to use for the actor gateway that handles the {@link
@@ -154,7 +155,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				new RestartAllStrategy.Factory(),
 				new Scheduler(TestingUtils.defaultExecutionContext()),
 				ExecutionGraph.class.getClassLoader(),
-				blobServer);
+				blobWriter);
 
 			checkJobOffloaded(eg);
 
@@ -168,7 +169,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			ExecutionGraphTestUtils.SimpleActorGatewayWithTDD instanceGateway =
 				new ExecutionGraphTestUtils.SimpleActorGatewayWithTDD(
 					TestingUtils.directExecutionContext(),
-					blobCache == null ? blobServer : blobCache);
+					blobCache);
 
 			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
 
@@ -436,7 +437,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new RestartAllStrategy.Factory(),
 			scheduler,
 			ExecutionGraph.class.getClassLoader(),
-			blobServer);
+			blobWriter);
 
 		checkJobOffloaded(eg);
 
@@ -517,7 +518,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new RestartAllStrategy.Factory(),
 			scheduler,
 			ExecutionGraph.class.getClassLoader(),
-			blobServer);
+			blobWriter);
 		checkJobOffloaded(eg);
 		
 		eg.setQueuedSchedulingAllowed(false);
@@ -599,7 +600,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
 			1,
-			blobServer,
+			blobWriter,
 			LoggerFactory.getLogger(getClass()));
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
@@ -95,20 +96,20 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 		final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
 		final ExecutionGraph eg = ExecutionGraphBuilder.buildGraph(
-				null,
-				copy,
-				new Configuration(),
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				mock(SlotProvider.class),
-				classLoader,
-				new StandaloneCheckpointRecoveryFactory(),
-				Time.seconds(10),
-				new NoRestartStrategy(),
-				new UnregisteredMetricsGroup(),
-				10,
-				null,
-				log);
+			null,
+			copy,
+			new Configuration(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			mock(SlotProvider.class),
+			classLoader,
+			new StandaloneCheckpointRecoveryFactory(),
+			Time.seconds(10),
+			new NoRestartStrategy(),
+			new UnregisteredMetricsGroup(),
+			10,
+			VoidBlobWriter.getInstance(),
+			log);
 
 		assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
 		assertTrue(jobGraph.getCheckpointingSettings().getDefaultStateBackend().deserializeValue(classLoader) instanceof CustomStateBackend);

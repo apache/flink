@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.PermanentBlobService;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -330,20 +331,20 @@ public class ExecutionGraphTestUtils {
 		checkNotNull(vertices);
 
 		return ExecutionGraphBuilder.buildGraph(
-				null,
-				new JobGraph(jid, "test job", vertices),
-				new Configuration(),
-				executor,
-				executor,
-				slotProvider,
-				ExecutionGraphTestUtils.class.getClassLoader(),
-				new StandaloneCheckpointRecoveryFactory(),
-				Time.seconds(10),
-				restartStrategy,
-				new UnregisteredMetricsGroup(),
-				1,
-				null,
-				TEST_LOGGER);
+			null,
+			new JobGraph(jid, "test job", vertices),
+			new Configuration(),
+			executor,
+			executor,
+			slotProvider,
+			ExecutionGraphTestUtils.class.getClassLoader(),
+			new StandaloneCheckpointRecoveryFactory(),
+			Time.seconds(10),
+			restartStrategy,
+			new UnregisteredMetricsGroup(),
+			1,
+			VoidBlobWriter.getInstance(),
+			TEST_LOGGER);
 	}
 
 	public static JobVertex createNoOpVertex(int parallelism) {

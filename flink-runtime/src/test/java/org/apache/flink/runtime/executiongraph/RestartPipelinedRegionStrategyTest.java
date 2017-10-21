@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
 import org.apache.flink.runtime.executiongraph.failover.RestartPipelinedRegionStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
@@ -102,7 +103,7 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			null);
+			VoidBlobWriter.getInstance());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -186,7 +187,7 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			null);
+			VoidBlobWriter.getInstance());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -275,7 +276,7 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			null);
+			VoidBlobWriter.getInstance());
 		try {
 			eg.attachJobGraph(ordered);
 		}
@@ -355,7 +356,7 @@ public class RestartPipelinedRegionStrategyTest {
             new RestartPipelinedRegionStrategy.Factory(),
             scheduler,
             ExecutionGraph.class.getClassLoader(),
-			null);
+			VoidBlobWriter.getInstance());
 		try {
 			eg.attachJobGraph(ordered);
 		}

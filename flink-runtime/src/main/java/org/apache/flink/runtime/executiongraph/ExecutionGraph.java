@@ -31,8 +31,9 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.StoppingException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -75,8 +76,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URL;
@@ -174,6 +173,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** Job specific information like the job id, job name, job configuration, etc. */
 	private final JobInformation jobInformation;
 
+	/** Serialized job information or a blob key pointing to the offloaded job information */
 	private final Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey;
 
 	/** The executor which is used to execute futures. */
@@ -232,6 +232,9 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	/** Registered KvState instances reported by the TaskManagers. */
 	private final KvStateLocationRegistry kvStateLocationRegistry;
 
+	/** Blob writer used to offload RPC messages */
+	private final BlobWriter blobWriter;
+
 	/** The total number of vertices currently in the execution graph */
 	private int numVerticesTotal;
 
@@ -275,9 +278,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 
 	// ------ Fields that are only relevant for archived execution graphs ------------
 	private String jsonPlan;
-
-	@Nullable
-	private BlobServer blobServer;
 
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
@@ -352,7 +352,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			failoverStrategy,
 			slotProvider,
 			ExecutionGraph.class.getClassLoader(),
-			null);
+			VoidBlobWriter.getInstance());
 	}
 
 	public ExecutionGraph(
@@ -364,13 +364,15 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			FailoverStrategy.Factory failoverStrategyFactory,
 			SlotProvider slotProvider,
 			ClassLoader userClassLoader,
-			@Nullable BlobServer blobServer) throws IOException {
+			BlobWriter blobWriter) throws IOException {
 
 		checkNotNull(futureExecutor);
 
 		this.jobInformation = Preconditions.checkNotNull(jobInformation);
 
-		this.jobInformationOrBlobKey = BlobServer.tryOffload(jobInformation, jobInformation.getJobId(), blobServer);
+		this.blobWriter = Preconditions.checkNotNull(blobWriter);
+
+		this.jobInformationOrBlobKey = BlobWriter.serializeAndTryOffload(jobInformation, jobInformation.getJobId(), blobWriter);
 
 		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
@@ -403,8 +405,6 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		// is ready by the time the failover strategy sees it
 		this.failoverStrategy = checkNotNull(failoverStrategyFactory.create(this), "null failover strategy");
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
-
-		this.blobServer = blobServer;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -705,9 +705,8 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		return this.stateTimestamps[status.ordinal()];
 	}
 
-	@Nullable
-	public final BlobServer getBlobServer() {
-		return blobServer;
+	public final BlobWriter getBlobWriter() {
+		return blobWriter;
 	}
 
 	/**

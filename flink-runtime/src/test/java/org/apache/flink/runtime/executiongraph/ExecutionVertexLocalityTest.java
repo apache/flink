@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -220,7 +221,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 			new FixedDelayRestartStrategy(10, 0L),
 			new UnregisteredMetricsGroup(),
 			1,
-			null,
+			VoidBlobWriter.getInstance(),
 			log);
 	}
 

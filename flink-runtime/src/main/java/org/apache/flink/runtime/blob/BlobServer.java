@@ -24,11 +24,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.net.SSLUtils;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +66,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * spawning threads to handle these requests. Furthermore, it takes care of creating the directory structure to store
  * the BLOBs or temporarily cache them.
  */
-public class BlobServer extends Thread implements BlobService, PermanentBlobService, TransientBlobService {
+public class BlobServer extends Thread implements BlobService, BlobWriter, PermanentBlobService, TransientBlobService {
 
 	/** The log object used for debugging. */
 	private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
@@ -565,41 +563,13 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 		return (TransientBlobKey) putInputStream(jobId, inputStream, TRANSIENT_BLOB);
 	}
 
-	/**
-	 * Uploads the data of the given byte array for the given job to the BLOB server and makes it
-	 * a permanent BLOB.
-	 *
-	 * @param jobId
-	 * 		the ID of the job the BLOB belongs to
-	 * @param value
-	 * 		the buffer to upload
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while writing it to a local file, or uploading it to the HA
-	 * 		store
-	 */
+	@Override
 	public PermanentBlobKey putPermanent(JobID jobId, byte[] value) throws IOException {
 		checkNotNull(jobId);
 		return (PermanentBlobKey) putBuffer(jobId, value, PERMANENT_BLOB);
 	}
 
-	/**
-	 * Uploads the data from the given input stream for the given job to the BLOB server and makes it
-	 * a permanent BLOB.
-	 *
-	 * @param jobId
-	 * 		ID of the job this blob belongs to
-	 * @param inputStream
-	 * 		the input stream to read the data from
-	 *
-	 * @return the computed BLOB key identifying the BLOB on the server
-	 *
-	 * @throws IOException
-	 * 		thrown if an I/O error occurs while reading the data from the input stream, writing it to a
-	 * 		local file, or uploading it to the HA store
-	 */
+	@Override
 	public PermanentBlobKey putPermanent(JobID jobId, InputStream inputStream) throws IOException {
 		checkNotNull(jobId);
 		return (PermanentBlobKey) putInputStream(jobId, inputStream, PERMANENT_BLOB);
@@ -886,6 +856,7 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	 *
 	 * @return configuration
 	 */
+	@Override
 	public final int getMinOffloadingSize() {
 		return blobServiceConfiguration.getInteger(BlobServerOptions.OFFLOAD_MINSIZE);
 	}
@@ -941,39 +912,6 @@ public class BlobServer extends Thread implements BlobService, PermanentBlobServ
 	List<BlobServerConnection> getCurrentActiveConnections() {
 		synchronized (activeConnections) {
 			return new ArrayList<>(activeConnections);
-		}
-	}
-
-	/**
-	 * Serializes the given value and offloads it to the BlobServer if its size exceeds the minimum
-	 * offloading size of the BlobServer.
-	 *
-	 * @param value to serialize
-	 * @param jobId to which the value belongs.
-	 * @param blobServer
-	 * @param <T>
-	 * @return
-	 * @throws IOException
-	 */
-	public static <T> Either<SerializedValue<T>, PermanentBlobKey> tryOffload(
-		T value,
-		JobID jobId,
-		@Nullable BlobServer blobServer) throws IOException {
-
-		final SerializedValue<T> serializedValue = new SerializedValue<>(value);
-
-		if (blobServer == null || serializedValue.getByteArray().length < blobServer.getMinOffloadingSize()) {
-			return Either.Left(new SerializedValue<>(value));
-		} else {
-			try {
-				final PermanentBlobKey permanentBlobKey = blobServer.putPermanent(jobId, serializedValue.getByteArray());
-
-				return Either.Right(permanentBlobKey);
-			} catch (IOException e) {
-				LOG.warn("Failed to offload value " + value + " for job " + jobId + " to BLOB store.", e);
-
-				return Either.Left(serializedValue);
-			}
 		}
 	}
 }

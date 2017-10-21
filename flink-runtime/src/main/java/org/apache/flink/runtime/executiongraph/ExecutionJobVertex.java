@@ -32,7 +32,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -368,7 +368,7 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 		// serialize the task information!
 		synchronized (stateMonitor) {
 			if (taskInformationOrBlobKey == null) {
-				final BlobServer blobServer = graph.getBlobServer();
+				final BlobWriter blobWriter = graph.getBlobWriter();
 
 				final TaskInformation taskInformation = new TaskInformation(
 					jobVertex.getID(),
@@ -378,10 +378,10 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 					jobVertex.getInvokableClassName(),
 					jobVertex.getConfiguration());
 
-				taskInformationOrBlobKey = BlobServer.tryOffload(
+				taskInformationOrBlobKey = BlobWriter.serializeAndTryOffload(
 					taskInformation,
 					getJobId(),
-					blobServer);
+					blobWriter);
 			}
 		}
 
