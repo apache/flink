@@ -158,6 +158,10 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
+			if (outputTag == null) {
+				throw new IllegalArgumentException("OutputTag must not be null.");
+			}
+
 			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
 		}
 
