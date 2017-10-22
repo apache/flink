@@ -151,8 +151,8 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 	 * Cancels the registration procedure.
 	 */
 	public void cancel() {
-		completionFuture.cancel(false);
 		canceled = true;
+		completionFuture.cancel(false);
 	}
 
 	/**

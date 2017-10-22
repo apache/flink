@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.slf4j.Logger;
 
 import java.io.Serializable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -91,9 +92,15 @@ public abstract class RegisteredRpcConnection<F extends Serializable, G extends 
 
 		future.whenCompleteAsync(
 			(Tuple2<G, S> result, Throwable failure) -> {
-				// this future should only ever fail if there is a bug, not if the registration is declined
 				if (failure != null) {
-					onRegistrationFailure(failure);
+					if (failure instanceof CancellationException) {
+						// we ignore cancellation exceptions because they originate from cancelling
+						// the RetryingRegistration
+						log.debug("Retrying registration towards {} was cancelled.", targetAddress);
+					} else {
+						// this future should only ever fail if there is a bug, not if the registration is declined
+						onRegistrationFailure(failure);
+					}
 				} else {
 					targetGateway = result.f0;
 					onRegistrationSuccess(result.f1);
