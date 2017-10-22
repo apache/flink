@@ -498,7 +498,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 	}
 
 	/**
-	 * Test CoProcessFunction side output on keyed streams.
+	 * Test keyed CoProcessFunction side output.
 	 */
 	@Test
 	public void testKeyedCoProcessFunctionSideOutput() throws Exception {
@@ -543,7 +543,7 @@ public class SideOutputITCase extends StreamingMultipleProgramsTestBase implemen
 	}
 
 	/**
-	 * Test CoProcessFunction side output on keyed streams with multiple consumers.
+	 * Test keyed CoProcessFunction side output with multiple consumers.
 	 */
 	@Test
 	public void testKeyedCoProcessFunctionSideOutputWithMultipleConsumers() throws Exception {
