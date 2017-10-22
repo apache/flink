@@ -42,6 +42,7 @@ for the rest of the page.
           [.allowedLateness(...)]    <-  optional: "lateness" (else zero)
           [.sideOutputLateData(...)] <-  optional: "output tag" (else no side output for late data)
            .reduce/aggregate/fold/apply()      <-  required: "function"
+          [.getSideOutput(...)]      <-  optional: "output tag"
 
 **Non-Keyed Windows**
 
@@ -52,6 +53,7 @@ for the rest of the page.
           [.allowedLateness(...)]    <-  optional: "lateness" (else zero)
           [.sideOutputLateData(...)] <-  optional: "output tag" (else no side output for late data)
            .reduce/aggregate/fold/apply()      <-  required: "function"
+          [.getSideOutput(...)]      <-  optional: "output tag"
 
 In the above, the commands in square brackets ([...]) are optional. This reveals that Flink allows you to customize your
 windowing logic in many different ways so that it best fits your needs.
@@ -1235,7 +1237,7 @@ final OutputTag<T> lateOutputTag = new OutputTag<T>("late-data"){};
 
 DataStream<T> input = ...;
 
-DataStream<T> result = input
+SingleOutputStreamOperator<T> result = input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .allowedLateness(<time>)
