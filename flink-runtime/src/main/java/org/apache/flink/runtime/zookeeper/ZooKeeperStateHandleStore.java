@@ -326,7 +326,8 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 
 	/**
 	 * Gets all available state handles from ZooKeeper sorted by name (ascending) and locks the
-	 * respective state nodes.
+	 * respective state nodes. The result tuples contain the retrieved state and the path to the
+	 * node in ZooKeeper.
 	 *
 	 * <p>If there is a concurrent modification, the operation is retried until it succeeds.
 	 *
