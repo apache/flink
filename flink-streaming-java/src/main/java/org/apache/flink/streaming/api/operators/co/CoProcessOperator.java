@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.OutputTag;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -130,6 +131,15 @@ public class CoProcessOperator<IN1, IN2, OUT>
 		@Override
 		public TimerService timerService() {
 			return this;
+		}
+
+		@Override
+		public <X> void output(OutputTag<X> outputTag, X value) {
+			if (outputTag == null) {
+				throw new IllegalArgumentException("OutputTag must not be null.");
+			}
+
+			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
 		}
 	}
 }
