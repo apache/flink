@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.TestLogger;
@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -57,7 +58,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
@@ -85,10 +85,25 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 	public void testCheckpointRecovery() throws Exception {
 		final List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointsInZooKeeper = new ArrayList<>(4);
 
-		final CompletedCheckpoint completedCheckpoint1 = mock(CompletedCheckpoint.class);
-		when(completedCheckpoint1.getCheckpointID()).thenReturn(1L);
-		final CompletedCheckpoint completedCheckpoint2 = mock(CompletedCheckpoint.class);
-		when(completedCheckpoint2.getCheckpointID()).thenReturn(2L);
+		final CompletedCheckpoint completedCheckpoint1 = new CompletedCheckpoint(
+			new JobID(),
+			1L,
+			1L,
+			1L,
+			new HashMap<>(),
+			null,
+			CheckpointProperties.forStandardCheckpoint(),
+			null, null);
+
+		final CompletedCheckpoint completedCheckpoint2 = new CompletedCheckpoint(
+			new JobID(),
+			2L,
+			2L,
+			2L,
+			new HashMap<>(),
+			null,
+			CheckpointProperties.forStandardCheckpoint(),
+			null, null);
 
 		final Collection<Long> expectedCheckpointIds = new HashSet<>(2);
 		expectedCheckpointIds.add(1L);
@@ -180,12 +195,13 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
 		assertEquals(expectedCheckpointIds, actualCheckpointIds);
 
-		// check that we did not discard any of the state handles which were retrieved
+		// check that we did not discard any of the state handles
 		verify(retrievableStateHandle1, never()).discardState();
 		verify(retrievableStateHandle2, never()).discardState();
 
-		// check that we have discarded the state handles which could not be retrieved
-		verify(failingRetrievableStateHandle, times(2)).discardState();
+		// Make sure that we also didn't discard any of the broken handles. Only when checkpoints
+		// are subsumed should they be discarded.
+		verify(failingRetrievableStateHandle, never()).discardState();
 	}
 	
 	/**
