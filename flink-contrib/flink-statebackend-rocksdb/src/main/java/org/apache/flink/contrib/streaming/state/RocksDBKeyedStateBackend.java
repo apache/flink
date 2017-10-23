@@ -239,10 +239,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			// Clear the base directory when the backend is created
 			// in case something crashed and the backend never reached dispose()
 			cleanInstanceBasePath();
-		} else {
-			if (!instanceBasePath.mkdirs()) {
-				throw new IOException("Could not create RocksDB data directory.");
-			}
+		}
+
+		if (!instanceBasePath.mkdirs()) {
+			throw new IOException("Could not create RocksDB data directory.");
 		}
 
 		this.keyGroupPrefixBytes = getNumberOfKeyGroups() > (Byte.MAX_VALUE + 1) ? 2 : 1;
