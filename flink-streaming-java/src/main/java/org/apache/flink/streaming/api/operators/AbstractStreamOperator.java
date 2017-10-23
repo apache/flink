@@ -192,6 +192,7 @@ public abstract class AbstractStreamOperator<OUT>
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating task metrics.", e);
 			this.metrics = new UnregisteredMetricsGroup();
+			this.output = output;
 		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
