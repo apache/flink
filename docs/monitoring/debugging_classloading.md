@@ -57,9 +57,21 @@ YARN classloading differs between single job deployments and sessions:
 
 **Mesos**
 
-Mesos setups following [this documentation](../ops/deployment/mesos.html) currently behave very much like the a 
+Mesos setups following [this documentation](../ops/deployment/mesos.html) currently behave very much like the a
 YARN session: The TaskManager and JobManager processes are started with the Flink framework classes in classpath, job
 classes are loaded dynamically when the jobs are submitted.
+
+## Configuring ClassLoader Resolution Order
+
+Flink uses a hierarchy of ClassLoaders for loading classes from the user-code jar(s). The user-code
+ClassLoader has a reference to the parent ClassLoader, which is the default Java ClassLoader in most
+cases. By default, Java ClassLoaders will first look for classes in the parent ClassLoader and then in
+the child ClassLoader for cases where we have a hierarchy of ClassLoaders. This is problematic if you
+have in your user jar a version of a library that conflicts with a version that comes with Flink. You can
+change this behaviour by configuring the ClassLoader resolution order via
+`classloader.resolve-order: child-first` in the Flink config. However, Flink classes will still
+be resolved through the parent ClassLoader first, although you can also configure this via
+`classloader.parent-first-patterns` (see [config](../ops/config.html))
 
 
 ## Avoiding Dynamic Classloading
@@ -68,11 +80,11 @@ All components (JobManger, TaskManager, Client, ApplicationMaster, ...) log thei
 They can be found as part of the environment information at the beginning of the log.
 
 When running a setup where the Flink JobManager and TaskManagers are exclusive to one particular job, one can put JAR files
-directly into the `/lib` folder to make sure they are part of the classpath and not loaded dynamically. 
+directly into the `/lib` folder to make sure they are part of the classpath and not loaded dynamically.
 
 It usually works to put the job's JAR file into the `/lib` directory. The JAR will be part of both the classpath
 (the *AppClassLoader*) and the dynamic class loader (*FlinkUserCodeClassLoader*).
-Because the AppClassLoader is the parent of the FlinkUserCodeClassLoader (and Java loads parent-first), this should
+Because the AppClassLoader is the parent of the FlinkUserCodeClassLoader (and Java loads parent-first, by default), this should
 result in classes being loaded only once.
 
 For setups where the job's JAR file cannot be put to the `/lib` folder (for example because the setup is a session that is
