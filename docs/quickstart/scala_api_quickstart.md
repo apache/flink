@@ -41,7 +41,7 @@ These templates help you to set up the project structure and to create the initi
 
 ### Create Project
 
-You can scafold a new project via either of the following two methods:
+You can scaffold a new project via either of the following two methods:
 
 <ul class="nav nav-tabs" style="border-bottom: none;">
     <li class="active"><a href="#sbt_template" data-toggle="tab">Use the <strong>sbt template</strong></a></li>
@@ -53,7 +53,7 @@ You can scafold a new project via either of the following two methods:
     {% highlight bash %}
     $ sbt new tillrohrmann/flink-project.g8
     {% endhighlight %}
-    This will will prompt you for a couple of parameters (project name, flink version...) and then create a Flink project from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
+    This will prompt you for a couple of parameters (project name, flink version...) and then create a Flink project from the <a href="https://github.com/tillrohrmann/flink-project.g8">flink-project template</a>.
     You need sbt >= 0.13.13 to execute this command. You can follow this <a href="http://www.scala-sbt.org/download.html">installation guide</a> to obtain it if necessary.
     </div>
     <div class="tab-pane" id="quickstart-script-sbt">

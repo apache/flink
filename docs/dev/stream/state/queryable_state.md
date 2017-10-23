@@ -261,7 +261,7 @@ val keySerializer = createTypeInformation[Long]
   .createSerializer(new ExecutionConfig)
 ```
 
-If you don't do this, you can run into mismatches between the serializers used in the Flink job and in your client code, because types like `scala.Long` cannot be caputured at runtime.
+If you don't do this, you can run into mismatches between the serializers used in the Flink job and in your client code, because types like `scala.Long` cannot be captured at runtime.
 
 ## Configuration
 
