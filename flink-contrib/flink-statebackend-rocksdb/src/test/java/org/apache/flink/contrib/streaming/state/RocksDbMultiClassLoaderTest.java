@@ -47,8 +47,8 @@ public class RocksDbMultiClassLoaderTest {
 		final URL codePath2 = RocksDB.class.getProtectionDomain().getCodeSource().getLocation();
 
 		final ClassLoader parent = getClass().getClassLoader();
-		final ClassLoader loader1 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent);
-		final ClassLoader loader2 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent);
+		final ClassLoader loader1 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent, new String[0]);
+		final ClassLoader loader2 = FlinkUserCodeClassLoaders.childFirst(new URL[] { codePath1, codePath2 }, parent, new String[0]);
 
 		final String className = RocksDBStateBackend.class.getName();
 

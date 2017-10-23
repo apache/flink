@@ -161,7 +161,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 			blobService,
 			new BlobLibraryCacheManager(
 				blobService.getPermanentBlobService(),
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
+				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+				new String[0]),
 			mock(FileCache.class),
 			taskManagerRuntimeInfo,
 			new UnregisteredTaskMetricsGroup(),

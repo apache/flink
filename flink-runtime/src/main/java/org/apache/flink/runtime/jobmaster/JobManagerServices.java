@@ -116,8 +116,15 @@ public class JobManagerServices {
 		final String classLoaderResolveOrder =
 			config.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
+		final String alwaysParentFirstLoaderString =
+			config.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
+		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
+
 		final BlobLibraryCacheManager libraryCacheManager =
-			new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder));
+			new BlobLibraryCacheManager(
+				blobServer,
+				FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
+				alwaysParentFirstLoaderPatterns);
 
 		final FiniteDuration timeout;
 		try {

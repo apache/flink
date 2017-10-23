@@ -191,7 +191,7 @@ public class JobManagerLeaderElectionTest extends TestLogger {
 			new InstanceManager(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
 			blobServer,
-			new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
+			new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST, new String[0]),
 			ActorRef.noSender(),
 			new NoRestartStrategy.NoRestartStrategyFactory(),
 			AkkaUtils.getDefaultTimeoutAsFiniteDuration(),
