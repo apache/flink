@@ -148,8 +148,7 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 		}
 	}
 
-	private static class OnTimerContextImpl<IN1, IN2, OUT>
-			extends CoProcessFunction<IN1, IN2, OUT>.OnTimerContext {
+	private class OnTimerContextImpl<IN1, IN2, OUT> extends CoProcessFunction<IN1, IN2, OUT>.OnTimerContext {
 
 		private final TimerService timerService;
 
@@ -160,12 +159,6 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 		OnTimerContextImpl(CoProcessFunction<IN1, IN2, OUT> function, TimerService timerService) {
 			function.super();
 			this.timerService = checkNotNull(timerService);
-		}
-
-		@Override
-		public TimeDomain timeDomain() {
-			checkState(timeDomain != null);
-			return timeDomain;
 		}
 
 		@Override
@@ -181,7 +174,17 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 
 		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
-			output(outputTag, value);
+			if (outputTag == null) {
+				throw new IllegalArgumentException("OutputTag must not be null.");
+			}
+
+			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
+		}
+
+		@Override
+		public TimeDomain timeDomain() {
+			checkState(timeDomain != null);
+			return timeDomain;
 		}
 	}
 }
