@@ -265,7 +265,8 @@ public class InterruptSensitiveRestoreTest {
 			blobService,
 			new BlobLibraryCacheManager(
 				blobService.getPermanentBlobService(),
-				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
+				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+				new String[0]),
 			new FileCache(new String[] { EnvironmentInformation.getTemporaryFileDirectory() }),
 			new TestingTaskManagerRuntimeInfo(),
 			new UnregisteredTaskMetricsGroup(),

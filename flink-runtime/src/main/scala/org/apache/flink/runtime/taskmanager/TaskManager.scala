@@ -968,7 +968,9 @@ class TaskManager(
       blobCache = Option(blobcache)
       libraryCacheManager = Some(
         new BlobLibraryCacheManager(
-            blobcache.getPermanentBlobService, config.getClassLoaderResolveOrder()))
+          blobcache.getPermanentBlobService,
+          config.getClassLoaderResolveOrder(),
+          config.getAlwaysParentFirstLoaderPatterns))
     }
     catch {
       case e: Exception =>

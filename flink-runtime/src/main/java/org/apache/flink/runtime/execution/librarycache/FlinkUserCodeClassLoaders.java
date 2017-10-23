@@ -31,24 +31,23 @@ import java.util.List;
  */
 public class FlinkUserCodeClassLoaders {
 
-	public static URLClassLoader parentFirst(URL[] urls) {
-		return new ParentFirstClassLoader(urls);
-	}
-
 	public static URLClassLoader parentFirst(URL[] urls, ClassLoader parent) {
 		return new ParentFirstClassLoader(urls, parent);
 	}
 
-	public static URLClassLoader childFirst(URL[] urls, ClassLoader parent) {
-		return new ChildFirstClassLoader(urls, parent);
+	public static URLClassLoader childFirst(
+		URL[] urls,
+		ClassLoader parent,
+		String[] alwaysParentFirstPatterns) {
+		return new ChildFirstClassLoader(urls, parent, alwaysParentFirstPatterns);
 	}
 
 	public static URLClassLoader create(
-		ResolveOrder resolveOrder, URL[] urls, ClassLoader parent) {
+		ResolveOrder resolveOrder, URL[] urls, ClassLoader parent, String[] alwaysParentFirstPatterns) {
 
 		switch (resolveOrder) {
 			case CHILD_FIRST:
-				return childFirst(urls, parent);
+				return childFirst(urls, parent, alwaysParentFirstPatterns);
 			case PARENT_FIRST:
 				return parentFirst(urls, parent);
 			default:
@@ -95,13 +94,27 @@ public class FlinkUserCodeClassLoaders {
 	 */
 	static final class ChildFirstClassLoader extends URLClassLoader {
 
-		public ChildFirstClassLoader(URL[] urls, ClassLoader parent) {
+		/**
+		 * The classes that should always go through the parent ClassLoader. This is relevant
+		 * for Flink classes, for example, to avoid loading Flink classes that cross the
+		 * user-code/system-code barrier in the user-code ClassLoader.
+		 */
+		private final String[] alwaysParentFirstPatterns;
+
+		public ChildFirstClassLoader(URL[] urls, ClassLoader parent, String[] alwaysParentFirstPatterns) {
 			super(urls, parent);
+			this.alwaysParentFirstPatterns = alwaysParentFirstPatterns;
 		}
 
 		@Override
 		protected synchronized Class<?> loadClass(
 			String name, boolean resolve) throws ClassNotFoundException {
+
+			for (String alwaysParentFirstPattern : alwaysParentFirstPatterns) {
+				if (name.startsWith(alwaysParentFirstPattern)) {
+					return super.loadClass(name, resolve);
+				}
+			}
 
 			// First, check if the class has already been loaded
 			Class<?> c = findLoadedClass(name);
