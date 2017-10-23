@@ -20,11 +20,13 @@ package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -165,6 +167,34 @@ public class RichAsyncFunctionTest {
 		} catch (UnsupportedOperationException e) {
 			// expected
 		}
+
+		try {
+			runtimeContext.getAggregatingState(new AggregatingStateDescriptor<>("foobar", new AggregateFunction<Integer, Integer, Integer>() {
+
+				@Override
+				public Integer createAccumulator() {
+					return null;
+				}
+
+				@Override
+				public Integer add(Integer value, Integer accumulator) {
+					return null;
+				}
+
+				@Override
+				public Integer getResult(Integer accumulator) {
+					return null;
+				}
+
+				@Override
+				public Integer merge(Integer a, Integer b) {
+					return null;
+				}
+			}, Integer.class));
+		} catch (UnsupportedOperationException e) {
+			// expected
+		}
+
 		try {
 			runtimeContext.getFoldingState(new FoldingStateDescriptor<>("foobar", 0, new FoldFunction<Integer, Integer>() {
 				@Override
