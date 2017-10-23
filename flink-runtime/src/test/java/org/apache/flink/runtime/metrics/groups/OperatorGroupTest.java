@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -61,6 +64,35 @@ public class OperatorGroupTest extends TestLogger {
 				opGroup.getMetricIdentifier("name"));
 
 		registry.shutdown();
+	}
+
+	@Test
+	public void testGenerateScopeCustom() {
+		Configuration cfg = new Configuration();
+		cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "<tm_id>.<job_id>.<task_id>.<operator_name>.<operator_id>");
+		MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(cfg));
+		try {
+			String tmID = "test-tm-id";
+			JobID jid = new JobID();
+			JobVertexID vertexId = new JobVertexID();
+			OperatorID operatorID = new OperatorID();
+			String operatorName = "operatorName";
+
+			OperatorMetricGroup operatorGroup =
+				new TaskManagerMetricGroup(registry, "theHostName", tmID)
+					.addTaskForJob(jid, "myJobName", vertexId, new ExecutionAttemptID(), "aTaskname", 13, 2)
+					.addOperator(operatorID, operatorName);
+
+			assertArrayEquals(
+				new String[]{tmID, jid.toString(), vertexId.toString(), operatorName, operatorID.toString()},
+				operatorGroup.getScopeComponents());
+
+			assertEquals(
+				String.format("%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID),
+				operatorGroup.getMetricIdentifier("name"));
+		} finally {
+			registry.shutdown();
+		}
 	}
 
 	@Test
