@@ -113,26 +113,31 @@ fi
 MVN_COMPILE_MODULES=""
 MVN_COMPILE_OPTIONS=""
 MVN_TEST_MODULES=""
+MVN_TEST_OPTIONS=""
 case $TEST in
 	(core)
 		MVN_COMPILE_MODULES="-pl $MODULES_CORE -am"
 		MVN_TEST_MODULES="-pl $MODULES_CORE"
 		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
+		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(libraries)
 		MVN_COMPILE_MODULES="-pl $MODULES_LIBRARIES -am"
 		MVN_TEST_MODULES="-pl $MODULES_LIBRARIES"
 		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
+		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(connectors)
 		MVN_COMPILE_MODULES="-pl $MODULES_CONNECTORS -am"
 		MVN_TEST_MODULES="-pl $MODULES_CONNECTORS"
 		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
+		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(tests)
 		MVN_COMPILE_MODULES="-pl $MODULES_TESTS -am"
 		MVN_TEST_MODULES="-pl $MODULES_TESTS"
 		MVN_COMPILE_OPTIONS="-Dcheckstyle.skip=true -Djapicmp.skip=true -Drat.skip=true"
+		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 	(misc)
 		NEGATED_CORE=\!${MODULES_CORE//,/,\!}
@@ -143,6 +148,7 @@ case $TEST in
 		MVN_COMPILE_MODULES=""
 		MVN_TEST_MODULES="-pl $NEGATED_CORE,$NEGATED_LIBRARIES,$NEGATED_CONNECTORS,$NEGATED_TESTS"
 		MVN_COMPILE_OPTIONS="-Dspotbugs"
+		MVN_TEST_OPTIONS="-Dcheckstyle.skip=true"
 	;;
 esac
 
@@ -157,7 +163,7 @@ MVN_COMMON_OPTIONS="-nsu -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dma
 MVN_COMPILE_OPTIONS="$MVN_COMPILE_OPTIONS -DskipTests"
 
 MVN_COMPILE="mvn $MVN_COMMON_OPTIONS $MVN_COMPILE_OPTIONS $PROFILE $MVN_COMPILE_MODULES clean install"
-MVN_TEST="mvn $MVN_COMMON_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
+MVN_TEST="mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify"
 
 MVN_PID="${ARTIFACTS_DIR}/watchdog.mvn.pid"
 MVN_EXIT="${ARTIFACTS_DIR}/watchdog.mvn.exit"
