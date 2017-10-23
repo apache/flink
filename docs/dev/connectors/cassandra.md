@@ -76,7 +76,7 @@ database in an inconsitent state since part of the first attempt may already be 
 The write-ahead log guarantees that the replayed checkpoint is identical to the first attempt.
 Note that that enabling this feature will have an adverse impact on latency.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: The write-ahead log functionality is currently experimental. In many cases it is sufficent to use the connector without enabling it. Please report problems to the development mailing list.</p>
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: The write-ahead log functionality is currently experimental. In many cases it is sufficient to use the connector without enabling it. Please report problems to the development mailing list.</p>
 
 
 #### Example
