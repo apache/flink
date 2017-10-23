@@ -100,6 +100,18 @@ public class PrometheusReporterTest extends TestLogger {
 	}
 
 	@Test
+	public void nullGaugeDoesNotBreakReporter() throws UnirestException {
+		Gauge<Integer> testGauge = new Gauge<Integer>() {
+			@Override
+			public Integer getValue() {
+				return null;
+			}
+		};
+
+		assertThatGaugeIsExported(testGauge, "testGauge", "0.0");
+	}
+
+	@Test
 	public void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
 		Meter testMeter = new TestMeter();
 

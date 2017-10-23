@@ -212,18 +212,22 @@ public class PrometheusReporter implements MetricReporter {
 			@Override
 			public double get() {
 				final Object value = gauge.getValue();
+				if (value == null) {
+					LOG.debug("Gauge {} is null-valued, defaulting to 0.", gauge);
+					return 0;
+				}
 				if (value instanceof Double) {
 					return (double) value;
 				}
 				if (value instanceof Number) {
 					return ((Number) value).doubleValue();
-				} else if (value instanceof Boolean) {
-					return ((Boolean) value) ? 1 : 0;
-				} else {
-					LOG.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
-						gauge, value.getClass().getName());
-					return 0;
 				}
+				if (value instanceof Boolean) {
+					return ((Boolean) value) ? 1 : 0;
+				}
+				LOG.debug("Invalid type for Gauge {}: {}, only number types and booleans are supported by this reporter.",
+					gauge, value.getClass().getName());
+				return 0;
 			}
 		};
 	}
