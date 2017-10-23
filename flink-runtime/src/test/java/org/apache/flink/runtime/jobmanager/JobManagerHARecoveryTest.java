@@ -622,16 +622,16 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			}
 		}
 
-		public static void initializeStaticHelpers(int numSubtasks) {
+		static void initializeStaticHelpers(int numSubtasks) {
 			completedCheckpointsLatch = new CountDownLatch(numSubtasks);
 			recoveredStates = new long[numSubtasks];
 		}
 
-		public static void awaitCompletedCheckpoints() throws InterruptedException {
+		static void awaitCompletedCheckpoints() throws InterruptedException {
 			completedCheckpointsLatch.await();
 		}
 
-		public static long[] getRecoveredStates() {
+		static long[] getRecoveredStates() {
 			return recoveredStates;
 		}
 
