@@ -1057,7 +1057,7 @@ public class SlotManagerTest extends TestLogger {
 			assertEquals(1, slotManager.getNumberRegisteredSlots());
 
 			// wait for the timeout call to happen
-			verify(resourceActions, timeout(taskManagerTimeout.toMilliseconds() * 3L).atLeast(1)).releaseResource(eq(taskExecutorConnection.getInstanceID()));
+			verify(resourceActions, timeout(taskManagerTimeout.toMilliseconds() * 20L).atLeast(1)).releaseResource(eq(taskExecutorConnection.getInstanceID()));
 
 			assertEquals(1, slotManager.getNumberRegisteredSlots());
 
