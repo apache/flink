@@ -235,9 +235,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.instanceBasePath = Preconditions.checkNotNull(instanceBasePath);
 		this.instanceRocksDBPath = new File(instanceBasePath, "db");
 
-		// Clear the base directory when the backend is created
-		// in case something crashed and the backend never reached dispose()
 		if (instanceBasePath.exists()) {
+			// Clear the base directory when the backend is created
+			// in case something crashed and the backend never reached dispose()
 			cleanInstanceBasePath();
 		} else {
 			if (!instanceBasePath.mkdirs()) {
