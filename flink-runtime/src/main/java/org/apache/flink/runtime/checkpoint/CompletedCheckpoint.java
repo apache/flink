@@ -302,4 +302,28 @@ public class CompletedCheckpoint implements Serializable {
 	public String toString() {
 		return String.format("Checkpoint %d @ %d for %s", checkpointID, timestamp, job);
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+
+		CompletedCheckpoint that = (CompletedCheckpoint) o;
+
+		if (checkpointID != that.checkpointID) {
+			return false;
+		}
+		return job.equals(that.job);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = job.hashCode();
+		result = 31 * result + (int) (checkpointID ^ (checkpointID >>> 32));
+		return result;
+	}
 }
