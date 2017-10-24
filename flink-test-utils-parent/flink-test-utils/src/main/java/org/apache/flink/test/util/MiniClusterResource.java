@@ -19,6 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -60,11 +61,13 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void before() throws Exception {
+		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
+
+		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.numberSlotsPerTaskManager);
+
 		localFlinkMiniCluster = TestBaseUtils.startCluster(
-			miniClusterResourceConfiguration.getNumberTaskManagers(),
-			miniClusterResourceConfiguration.getNumberSlotsPerTaskManager(),
-			false,
-			false,
+			configuration,
 			true);
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();

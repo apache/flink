@@ -22,7 +22,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.elasticsearch.client.Client;
@@ -31,6 +31,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Collections;
@@ -44,7 +46,9 @@ import static org.junit.Assert.fail;
 /**
  * Environment preparation and suite of tests for version-specific {@link ElasticsearchSinkBase} implementations.
  */
-public abstract class ElasticsearchSinkTestBase extends StreamingMultipleProgramsTestBase {
+public abstract class ElasticsearchSinkTestBase extends AbstractTestBase {
+
+	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkTestBase.class);
 
 	protected static final String CLUSTER_NAME = "test-cluster";
 

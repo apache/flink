@@ -32,9 +32,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.MiniClusterResource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Type;
@@ -83,13 +84,14 @@ import java.util.Map;
  * @deprecated should be removed with the {@link RollingSink}.
  */
 @Deprecated
-public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
+public class RollingSinkITCase extends TestLogger {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(RollingSinkITCase.class);
 
 	@ClassRule
 	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
+	protected static MiniClusterResource miniClusterResource;
 	protected static MiniDFSCluster hdfsCluster;
 	protected static org.apache.hadoop.fs.FileSystem dfs;
 	protected static String hdfsURI;
@@ -98,7 +100,7 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	protected static File dataDir;
 
 	@BeforeClass
-	public static void createHDFS() throws IOException {
+	public static void setup() throws Exception {
 
 		LOG.info("In RollingSinkITCase: Starting MiniDFSCluster ");
 
@@ -113,12 +115,22 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 		hdfsURI = "hdfs://"
 				+ NetUtils.hostAndPortToUrlString(hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort())
 				+ "/";
+
+		miniClusterResource = new MiniClusterResource(
+			new MiniClusterResource.MiniClusterResourceConfiguration(
+				new org.apache.flink.configuration.Configuration(),
+				1,
+				4));
 	}
 
 	@AfterClass
-	public static void destroyHDFS() {
+	public static void teardown() throws Exception {
 		LOG.info("In RollingSinkITCase: tearing down MiniDFSCluster ");
 		hdfsCluster.shutdown();
+
+		if (miniClusterResource != null) {
+			miniClusterResource.after();
+		}
 	}
 
 	/**
@@ -926,6 +938,8 @@ public class RollingSinkITCase extends StreamingMultipleProgramsTestBase {
 	}
 
 	private static class StreamWriterWithConfigCheck<T> extends StringWriter<T> {
+		private static final long serialVersionUID = 761584896826819477L;
+
 		private String key;
 		private String expect;
 		public StreamWriterWithConfigCheck(String key, String expect) {

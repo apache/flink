@@ -24,8 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -40,7 +40,7 @@ import static org.junit.Assert.assertEquals;
  * Integration tests for co-streams.
  */
 @SuppressWarnings("serial")
-public class CoStreamITCase extends StreamingMultipleProgramsTestBase {
+public class CoStreamITCase extends AbstractTestBase {
 
 	@Test
 	public void test() throws Exception {

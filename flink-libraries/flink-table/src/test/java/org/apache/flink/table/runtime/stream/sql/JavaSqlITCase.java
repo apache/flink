@@ -25,12 +25,12 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.runtime.utils.JavaStreamTestData;
 import org.apache.flink.table.runtime.utils.StreamITCase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
@@ -41,7 +41,7 @@ import java.util.List;
 /**
  * Integration tests for streaming SQL.
  */
-public class JavaSqlITCase extends StreamingMultipleProgramsTestBase {
+public class JavaSqlITCase extends AbstractTestBase {
 
 	@Test
 	public void testRowRegisterRowWithNames() throws Exception {

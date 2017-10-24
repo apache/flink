@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
 
 import org.junit.After;
@@ -48,7 +48,7 @@ import java.util.Map;
  * End to end tests of both CEP operators and {@link NFA}.
  */
 @SuppressWarnings("serial")
-public class CEPITCase extends StreamingMultipleProgramsTestBase {
+public class CEPITCase extends AbstractTestBase {
 
 	private String resultPath;
 	private String expected;

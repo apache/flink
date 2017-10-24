@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.stream
 
-import java.math.BigDecimal
 import java.lang.{Integer => JInt, Long => JLong}
+import java.math.BigDecimal
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -28,15 +28,15 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
-import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
+import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
+import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.utils.{MemoryTableSinkUtil, TestTableSourceWithTime}
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.Test
@@ -46,7 +46,7 @@ import scala.collection.mutable
 /**
   * Tests for access and materialization of time attributes.
   */
-class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
+class TimeAttributesITCase extends AbstractTestBase {
 
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),
