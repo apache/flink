@@ -36,8 +36,13 @@ public class TestUtils {
 	private static TestAppender testAppender;
 
 	public static void addTestAppenderForRootLogger() {
+		org.apache.log4j.Logger.getRootLogger().removeAllAppenders();
+
+		org.apache.log4j.Logger logger = org.apache.log4j.LogManager.getLogger(Slf4jReporter.class);
+		logger.setLevel(org.apache.log4j.Level.INFO);
+
 		testAppender = new TestAppender();
-		org.apache.log4j.Logger.getRootLogger().addAppender(testAppender);
+		logger.addAppender(testAppender);
 	}
 
 	public static void checkForLogString(String expected) {

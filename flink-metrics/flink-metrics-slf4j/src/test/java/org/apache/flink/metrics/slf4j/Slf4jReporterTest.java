@@ -24,12 +24,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -43,7 +43,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test for {@link Slf4jReporter}.
  */
-
 public class Slf4jReporterTest extends TestLogger {
 
 	private static final String HOST_NAME = "localhost";
@@ -70,7 +69,7 @@ public class Slf4jReporterTest extends TestLogger {
 
 		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER_ID);
 		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(registry, tmMetricGroup, new JobID(), JOB_NAME);
-		taskMetricGroup = new TaskMetricGroup(registry, tmJobMetricGroup, new AbstractID(), new AbstractID(), TASK_NAME, 0, 0);
+		taskMetricGroup = new TaskMetricGroup(registry, tmJobMetricGroup, new JobVertexID(), new JobVertexID(), TASK_NAME, 0, 0);
 		reporter = (Slf4jReporter) registry.getReporters().get(0);
 	}
 
@@ -123,6 +122,6 @@ public class Slf4jReporterTest extends TestLogger {
 
 		assertThat(reporter.filterCharacters(""), equalTo(""));
 		assertThat(reporter.filterCharacters("abc"), equalTo("abc"));
-		assertThat(reporter.filterCharacters("a:b::"), equalTo("a-b--"));
+		assertThat(reporter.filterCharacters("a:b$%^::"), equalTo("a:b$%^::"));
 	}
 }

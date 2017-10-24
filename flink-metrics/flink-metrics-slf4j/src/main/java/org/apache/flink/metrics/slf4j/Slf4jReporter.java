@@ -108,28 +108,6 @@ public class Slf4jReporter extends AbstractReporter implements Scheduled {
 
 	@Override
 	public String filterCharacters(String input) {
-		char[] chars = null;
-		final int strLen = input.length();
-		int pos = 0;
-
-		for (int i = 0; i < strLen; i++) {
-			final char c = input.charAt(i);
-			switch (c) {
-				case ':':
-					if (chars == null) {
-						chars = input.toCharArray();
-					}
-					chars[pos++] = '-';
-					break;
-
-				default:
-					if (chars != null) {
-						chars[pos] = c;
-					}
-					pos++;
-			}
-		}
-
-		return chars == null ? input : new String(chars, 0, pos);
+		return input;
 	}
 }
