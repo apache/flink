@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
@@ -46,7 +46,7 @@ import static org.junit.Assert.fail;
 /**
  * Integration tests for {@link OperatorStateBackend}.
  */
-public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
+public class StateBackendITCase extends AbstractTestBase {
 
 	/**
 	 * Verify that the user-specified state backend is used even if checkpointing is disabled.

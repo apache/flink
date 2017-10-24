@@ -24,7 +24,6 @@ import org.apache.commons.io.FileUtils
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
 import org.apache.flink.streaming.examples.ml.util.IncrementalLearningSkeletonData
 import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
@@ -37,7 +36,6 @@ import org.apache.flink.streaming.scala.examples.twitter.TwitterExample
 import org.apache.flink.streaming.scala.examples.windowing.{SessionWindowing, WindowWordCount}
 import org.apache.flink.streaming.scala.examples.wordcount.WordCount
 import org.apache.flink.streaming.test.examples.join.WindowJoinData
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.junit.Test
@@ -45,12 +43,12 @@ import org.junit.Test
 /**
  * Integration test for streaming programs in Scala examples.
  */
-class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
+class StreamingExamplesITCase extends AbstractTestBase {
 
   @Test
   def testIterateExample(): Unit = {
-    val inputPath = AbstractTestBase.createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS)
-    val resultPath = AbstractTestBase.getTempDirPath("result")
+    val inputPath = createTempFile("fibonacciInput.txt", IterateExampleData.INPUT_PAIRS)
+    val resultPath = getTempDirPath("result")
 
     // the example is inherently non-deterministic. The iteration timeout of 5000 ms
     // is frequently not enough to make the test run stable on CI infrastructure
@@ -99,14 +97,14 @@ class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testIncrementalLearningSkeleton(): Unit = {
-    val resultPath = AbstractTestBase.getTempDirPath("result")
+    val resultPath = getTempDirPath("result")
     IncrementalLearningSkeleton.main(Array("--output", resultPath))
     TestBaseUtils.compareResultsByLinesInMemory(IncrementalLearningSkeletonData.RESULTS, resultPath)
   }
 
   @Test
   def testTwitterExample(): Unit = {
-    val resultPath = AbstractTestBase.getTempDirPath("result")
+    val resultPath = getTempDirPath("result")
     TwitterExample.main(Array("--output", resultPath))
     TestBaseUtils.compareResultsByLinesInMemory(
       TwitterExampleData.STREAMING_COUNTS_AS_TUPLES,
@@ -115,7 +113,7 @@ class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testSessionWindowing(): Unit = {
-    val resultPath = AbstractTestBase.getTempDirPath("result")
+    val resultPath = getTempDirPath("result")
     SessionWindowing.main(Array("--output", resultPath))
     TestBaseUtils.compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath)
   }
@@ -124,8 +122,8 @@ class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
   def testWindowWordCount(): Unit = {
     val windowSize = "250"
     val slideSize = "150"
-    val textPath = AbstractTestBase.createTempFile("text.txt", WordCountData.TEXT)
-    val resultPath = AbstractTestBase.getTempDirPath("result")
+    val textPath = createTempFile("text.txt", WordCountData.TEXT)
+    val resultPath = getTempDirPath("result")
 
     WindowWordCount.main(Array(
       "--input", textPath,
@@ -142,8 +140,8 @@ class StreamingExamplesITCase extends StreamingMultipleProgramsTestBase {
 
   @Test
   def testWordCount(): Unit = {
-    val textPath = AbstractTestBase.createTempFile("text.txt", WordCountData.TEXT)
-    val resultPath = AbstractTestBase.getTempDirPath("result")
+    val textPath = createTempFile("text.txt", WordCountData.TEXT)
+    val resultPath = getTempDirPath("result")
 
     WordCount.main(Array(
       "--input", textPath,

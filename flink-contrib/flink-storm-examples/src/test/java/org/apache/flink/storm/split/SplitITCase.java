@@ -19,7 +19,7 @@ package org.apache.flink.storm.split;
 
 import org.apache.flink.storm.split.SpoutSplitExample.Enrich;
 import org.apache.flink.storm.split.operators.VerifyAndEnrichBolt;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -32,7 +32,7 @@ import java.io.IOException;
 /**
  * Tests for split examples.
  */
-public class SplitITCase extends StreamingMultipleProgramsTestBase {
+public class SplitITCase extends AbstractTestBase {
 
 	private String output;
 

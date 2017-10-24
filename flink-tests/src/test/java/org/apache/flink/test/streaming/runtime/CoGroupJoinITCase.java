@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit;
  * Integration tests for windowed join / coGroup operators.
  */
 @SuppressWarnings("serial")
-public class CoGroupJoinITCase extends StreamingMultipleProgramsTestBase {
+public class CoGroupJoinITCase extends AbstractTestBase {
 
 	private static List<String> testResults;
 

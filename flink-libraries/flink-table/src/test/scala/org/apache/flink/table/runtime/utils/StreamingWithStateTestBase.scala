@@ -18,11 +18,11 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
+import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 
-class StreamingWithStateTestBase extends StreamingMultipleProgramsTestBase {
+class StreamingWithStateTestBase extends AbstractTestBase {
 
   val _tempFolder = new TemporaryFolder
 

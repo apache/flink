@@ -23,9 +23,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -44,11 +42,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 
 /**
  * Integration tests for Hadoop IO formats.
@@ -58,14 +54,14 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
 	private static final int NUM_PROGRAMS = 2;
 
-	private int curProgId = config.getInteger("ProgramId", -1);
+	private final int curProgId;
 	private String[] resultPath;
 	private String[] expectedResult;
 	private String sequenceFileInPath;
 	private String sequenceFileInPathNull;
 
-	public HadoopIOFormatsITCase(Configuration config) {
-		super(config);
+	public HadoopIOFormatsITCase(int curProgId) {
+		this.curProgId = curProgId;
 	}
 
 	@Before
@@ -143,17 +139,15 @@ public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 	}
 
 	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+		Collection<Object[]> programIds = new ArrayList<>(NUM_PROGRAMS);
 
 		for (int i = 1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
+			programIds.add(new Object[]{i});
 		}
 
-		return TestBaseUtils.toParameterList(tConfigs);
+		return programIds;
 	}
 
 	private static class HadoopIOFormatPrograms {
