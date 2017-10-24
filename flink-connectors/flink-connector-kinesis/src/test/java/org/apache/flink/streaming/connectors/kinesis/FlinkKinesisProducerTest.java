@@ -154,7 +154,7 @@ public class FlinkKinesisProducerTest {
 		try {
 			testHarness.snapshot(123L, 123L);
 		} catch (Exception e) {
-			// the next invoke should rethrow the async exception
+			// the next checkpoint should rethrow the async exception
 			Assert.assertTrue(ExceptionUtils.findThrowableWithMessage(e, "artificial async exception").isPresent());
 
 			// test succeeded
@@ -172,7 +172,7 @@ public class FlinkKinesisProducerTest {
 	 * The test for that is covered in testAtLeastOnceProducer.
 	 */
 	@SuppressWarnings("ResultOfMethodCallIgnored")
-	@Test
+	@Test(timeout = 10000)
 	public void testAsyncErrorRethrownAfterFlush() throws Throwable {
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
 
@@ -206,8 +206,7 @@ public class FlinkKinesisProducerTest {
 		try {
 			snapshotThread.sync();
 		} catch (Exception e) {
-			// the next invoke should rethrow the async exception
-			e.printStackTrace();
+			// after the flush, the async exception should have been rethrown
 			Assert.assertTrue(ExceptionUtils.findThrowableWithMessage(e, "artificial async failure for 2nd message").isPresent());
 
 			// test succeeded
@@ -221,7 +220,7 @@ public class FlinkKinesisProducerTest {
 	 * Test ensuring that the producer is not dropping buffered records;
 	 * we set a timeout because the test will not finish if the logic is broken.
 	 */
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "ResultOfMethodCallIgnored"})
 	@Test(timeout = 10000)
 	public void testAtLeastOnceProducer() throws Throwable {
 		final DummyFlinkKinesisProducer<String> producer = new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
