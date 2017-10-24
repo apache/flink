@@ -441,7 +441,7 @@ an accumulator. We will see how this works in the example below.
 Same as with `ReduceFunction`, Flink will incrementally aggregate input elements of a window as they
 arrive.
 
-A `AggregateFunction` can be defined and used like this:
+An `AggregateFunction` can be defined and used like this:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -459,8 +459,7 @@ private static class AverageAggregate
   }
 
   @Override
-  public Tuple2<Long, Long> add(
-    Tuple2<String, Long> value, Tuple2<Long, Long> accumulator) {
+  public Tuple2<Long, Long> add(Tuple2<String, Long> value, Tuple2<Long, Long> accumulator) {
     return new Tuple2<>(accumulator.f0 + value.f1, accumulator.f1 + 1L);
   }
 
@@ -470,8 +469,7 @@ private static class AverageAggregate
   }
 
   @Override
-  public Tuple2<Long, Long> merge(
-    Tuple2<Long, Long> a, Tuple2<Long, Long> b) {
+  public Tuple2<Long, Long> merge(Tuple2<Long, Long> a, Tuple2<Long, Long> b) {
     return new Tuple2<>(a.f0 + b.f0, a.f1 + b.f1);
   }
 }
@@ -840,8 +838,7 @@ private static class AverageAggregate
   }
 
   @Override
-  public Tuple2<Long, Long> add(
-    Tuple2<String, Long> value, Tuple2<Long, Long> accumulator) {
+  public Tuple2<Long, Long> add(Tuple2<String, Long> value, Tuple2<Long, Long> accumulator) {
     return new Tuple2<>(accumulator.f0 + value.f1, accumulator.f1 + 1L);
   }
 
@@ -851,8 +848,7 @@ private static class AverageAggregate
   }
 
   @Override
-  public Tuple2<Long, Long> merge(
-    Tuple2<Long, Long> a, Tuple2<Long, Long> b) {
+  public Tuple2<Long, Long> merge(Tuple2<Long, Long> a, Tuple2<Long, Long> b) {
     return new Tuple2<>(a.f0 + b.f0, a.f1 + b.f1);
   }
 }
