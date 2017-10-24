@@ -70,8 +70,8 @@ the child ClassLoader for cases where we have a hierarchy of ClassLoaders. This 
 have in your user jar a version of a library that conflicts with a version that comes with Flink. You can
 change this behaviour by configuring the ClassLoader resolution order via
 `classloader.resolve-order: child-first` in the Flink config. However, Flink classes will still
-be resolved through the parent ClassLoader first, altough you can also configure this via
-`classloader.always-parent-first-patterns`, which is `org.apache.flink`, by default.
+be resolved through the parent ClassLoader first, although you can also configure this via
+`classloader.parent-first-patterns`, which is `org.apache.flink`, by default.
 
 
 ## Avoiding Dynamic Classloading
