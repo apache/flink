@@ -2473,7 +2473,7 @@ object JobManager {
     val classLoaderResolveOrder = configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER)
     val alwaysParentFirstLoaderString =
       configuration.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER)
-    val alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(',')
+    val alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(';')
 
     val restartStrategy = RestartStrategyFactory.createRestartStrategyFactory(configuration)
 

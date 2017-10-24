@@ -118,7 +118,7 @@ public class JobManagerServices {
 
 		final String alwaysParentFirstLoaderString =
 			config.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
-		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(",");
+		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
 
 		final BlobLibraryCacheManager libraryCacheManager =
 			new BlobLibraryCacheManager(

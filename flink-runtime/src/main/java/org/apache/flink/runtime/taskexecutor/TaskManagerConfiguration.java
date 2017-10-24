@@ -235,7 +235,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final String alwaysParentFirstLoaderString =
 			configuration.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
-		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(",");
+		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
 
 		return new TaskManagerConfiguration(
 			numberSlots,

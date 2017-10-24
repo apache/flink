@@ -77,11 +77,12 @@ without explicit scheme definition, such as `/user/USERNAME/in.txt`, is going to
 - `classloader.resolve-order`: Whether Flink should use a child-first `ClassLoader` when loading
 user-code classes or a parent-first `ClassLoader`. Can be one of `parent-first` or `child-first`. (default: `child-first`)
 
-- `classloader.parent-first-patterns`: A (comma-separated) list of patterns that specifies which
+- `classloader.parent-first-patterns`: A (semicolon-separated) list of patterns that specifies which
 classes should always be resolved through the parent `ClassLoader` first. A pattern is a simple
 prefix that is checked against the fully qualified class name. By default, this is set to
-`org.apache.flink`. If you want to change this setting you have to make sure to also include
-`org.apache.flink` in your list of patterns if you want to keep that default behaviour.
+`java.;org.apache.flink.;javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback`.
+If you want to change this setting you have to make sure to also include the default patterns in
+your list of patterns if you want to keep that default behaviour.
 
 ## Advanced Options
 
