@@ -86,13 +86,13 @@ class CorrelateValidationTest extends TableTestBase {
 
     // table function call limit
     expectExceptionThrown(
-      func1('c).orderBy('f0).limit(3),
+      func1('c).orderBy('f0).offset(3),
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
     // table function call limit
     expectExceptionThrown(
-      func1('c).orderBy('f0).limit(0, 3),
+      func1('c).orderBy('f0).fetch(3),
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
