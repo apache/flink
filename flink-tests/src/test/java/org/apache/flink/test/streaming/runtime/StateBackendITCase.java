@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 
@@ -62,8 +63,8 @@ public class StateBackendITCase extends StreamingMultipleProgramsTestBase {
 		see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
 		see.setStateBackend(new FailingStateBackend());
 
-		see.fromElements(new Tuple2<>("Hello", 1))
-			.keyBy(0)
+		DataStream<Tuple2<String, Integer>> source = see.fromElements(new Tuple2<>("Hello", 1));
+		source.keyBy(0)
 			.map(new RichMapFunction<Tuple2<String, Integer>, String>() {
 				private static final long serialVersionUID = 1L;
 

@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.examples.java8.wordcount;
+package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 
 import java.util.Arrays;
@@ -41,7 +41,7 @@ import java.util.Arrays;
  * </ul>
  *
  */
-public class WordCount {
+public class WordCountLambda {
 
 	// *************************************************************************
 	//     PROGRAM

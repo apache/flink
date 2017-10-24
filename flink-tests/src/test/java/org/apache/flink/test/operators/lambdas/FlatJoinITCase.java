@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,35 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.api.java.operators.lambdas;
+package org.apache.flink.test.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda map functions.
+ * IT cases for lambda join functions.
  */
-public class MapITCase extends JavaProgramTestBase {
+public class FlatJoinITCase extends JavaProgramTestBase {
 
-	private static class Trade {
-
-		public String v;
-
-		public Trade(String v) {
-			this.v = v;
-		}
-
-		@Override
-		public String toString() {
-			return v;
-		}
-	}
-
-	private static final String EXPECTED_RESULT = "22\n" +
-			"22\n" +
-			"23\n" +
-			"24\n";
+	private static final String EXPECTED_RESULT = "2,what's really\n" +
+			"2,up really\n" +
+			"1,hello not\n" +
+			"1,hello much\n";
 
 	private String resultPath;
 
@@ -53,17 +40,24 @@ public class MapITCase extends JavaProgramTestBase {
 		resultPath = getTempDirPath("result");
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Integer> stringDs = env.fromElements(11, 12, 13, 14);
-		DataSet<String> mappedDs = stringDs
-			.map(Object::toString)
-			.map (s -> s.replace("1", "2"))
-			.map(Trade::new)
-			.map(Trade::toString);
-		mappedDs.writeAsText(resultPath);
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+				new Tuple2<Integer, String>(1, "hello"),
+				new Tuple2<Integer, String>(2, "what's"),
+				new Tuple2<Integer, String>(2, "up")
+				);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+				new Tuple2<Integer, String>(1, "not"),
+				new Tuple2<Integer, String>(1, "much"),
+				new Tuple2<Integer, String>(2, "really")
+				);
+		DataSet<Tuple2<Integer, String>> joined = left.join(right).where(0).equalTo(0)
+				.with((t, s, out) -> out.collect(new Tuple2<Integer, String>(t.f0, t.f1 + " " + s.f1)));
+		joined.writeAsCsv(resultPath);
 		env.execute();
 	}
 

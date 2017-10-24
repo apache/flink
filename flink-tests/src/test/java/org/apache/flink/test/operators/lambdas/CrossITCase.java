@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,21 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.api.java.operators.lambdas;
+package org.apache.flink.test.operators.lambdas;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * IT cases for lambda flatmap functions.
+ * IT cases for lambda cross functions.
  */
-public class FlatMapITCase extends JavaProgramTestBase {
+public class CrossITCase extends JavaProgramTestBase {
 
-	private static final String EXPECTED_RESULT = "bb\n" +
-			"bb\n" +
-			"bc\n" +
-			"bd\n";
+	private static final String EXPECTED_RESULT = "2,hello not\n" +
+			"3,what's not\n" +
+			"3,up not\n" +
+			"2,hello much\n" +
+			"3,what's much\n" +
+			"3,up much\n" +
+			"3,hello really\n" +
+			"4,what's really\n" +
+			"4,up really";
 
 	private String resultPath;
 
@@ -39,13 +45,24 @@ public class FlatMapITCase extends JavaProgramTestBase {
 		resultPath = getTempDirPath("result");
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void testProgram() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> stringDs = env.fromElements("aa", "ab", "ac", "ad");
-		DataSet<String> flatMappedDs = stringDs.flatMap((s, out) -> out.collect(s.replace("a", "b")));
-		flatMappedDs.writeAsText(resultPath);
+		DataSet<Tuple2<Integer, String>> left = env.fromElements(
+				new Tuple2<Integer, String>(1, "hello"),
+				new Tuple2<Integer, String>(2, "what's"),
+				new Tuple2<Integer, String>(2, "up")
+				);
+		DataSet<Tuple2<Integer, String>> right = env.fromElements(
+				new Tuple2<Integer, String>(1, "not"),
+				new Tuple2<Integer, String>(1, "much"),
+				new Tuple2<Integer, String>(2, "really")
+				);
+		DataSet<Tuple2<Integer, String>> joined = left.cross(right)
+				.with((t, s) -> new Tuple2<> (t.f0 + s.f0, t.f1 + " " + s.f1));
+		joined.writeAsCsv(resultPath);
 		env.execute();
 	}
 
