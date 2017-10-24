@@ -254,15 +254,15 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	public void close() throws Exception {
 		LOG.info("Closing producer");
 		super.close();
-		KinesisProducer kp = this.producer;
-		this.producer = null;
-		if (kp != null) {
-			LOG.info("Flushing outstanding {} records", kp.getOutstandingRecordsCount());
+
+		if (producer != null) {
+			LOG.info("Flushing outstanding {} records", producer.getOutstandingRecordsCount());
 			// try to flush all outstanding records
-			flushSync(kp);
+			flushSync();
 
 			LOG.info("Flushing done. Destroying producer instance.");
-			kp.destroy();
+			producer.destroy();
+			producer = null;
 		}
 
 		// make sure we propagate pending errors
@@ -279,7 +279,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 		// check for asynchronous errors and fail the checkpoint if necessary
 		checkAndPropagateAsyncError();
 
-		flushSync(producer);
+		flushSync();
 		if (producer.getOutstandingRecordsCount() > 0) {
 			throw new IllegalStateException(
 				"Number of outstanding records must be zero at this point: " + producer.getOutstandingRecordsCount());
@@ -329,7 +329,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 * A reimplementation of {@link KinesisProducer#flushSync()}.
 	 * This implementation releases the block on flushing if an interruption occurred.
 	 */
-	private void flushSync(KinesisProducer producer) throws Exception {
+	private void flushSync() throws Exception {
 		while (producer.getOutstandingRecordsCount() > 0) {
 			producer.flush();
 			try {
