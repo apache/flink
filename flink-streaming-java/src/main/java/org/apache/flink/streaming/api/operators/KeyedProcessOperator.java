@@ -118,16 +118,16 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 
 		@Override
+		public TimerService timerService() {
+			return timerService;
+		}
+
+		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
 			if (outputTag == null) {
 				throw new IllegalArgumentException("OutputTag must not be null.");
 			}
 			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
-		}
-
-		@Override
-		public TimerService timerService() {
-			return timerService;
 		}
 	}
 
@@ -145,25 +145,29 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 
 		@Override
-		public TimeDomain timeDomain() {
-			checkState(timeDomain != null);
-			return timeDomain;
-		}
-
-		@Override
 		public Long timestamp() {
 			checkState(timer != null);
 			return timer.getTimestamp();
 		}
 
 		@Override
+		public TimerService timerService() {
+			return timerService;
+		}
+
+		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
+			if (outputTag == null) {
+				throw new IllegalArgumentException("OutputTag must not be null.");
+			}
+
 			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
 		}
 
 		@Override
-		public TimerService timerService() {
-			return timerService;
+		public TimeDomain timeDomain() {
+			checkState(timeDomain != null);
+			return timeDomain;
 		}
 	}
 }
