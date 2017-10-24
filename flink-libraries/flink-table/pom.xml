@@ -224,16 +224,18 @@ under the License.
 										<exclude>properties.dtd</exclude>
 										<exclude>PropertyList-1.0.dtd</exclude>
 										<exclude>digesterRules.xml</exclude>
-										<!-- not excluded for now -->
-										<!-- <exclude>org.codehaus.commons.compiler.properties</exclude> -->
+										<!-- not relocated for now, because it is needed by Calcite -->
+										<!--<exclude>org.codehaus.commons.compiler.properties</exclude>-->
 									</excludes>
 								</filter>
 							</filters>
 							<artifactSet>
 								<includes combine.children="append">
-									<!-- Calcite and its dependencies -->
-									<include>org.apache.calcite:*</include>
-									<include>org.apache.calcite.avatica:*</include>
+									<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
+									<!--<include>org.apache.calcite:*</include>
+									<include>org.apache.calcite.avatica:*</include>-->
+
+									<!-- Calcite's dependencies -->
 									<include>com.google.guava:guava</include>
 									<include>org.eigenbase:*</include>
 									<include>net.hydromatic:*</include>
@@ -248,11 +250,13 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
-								<!-- Calcite and its dependencies -->
-								<relocation>
+								<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
+								<!--<relocation>
 									<pattern>org.apache.calcite</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
-								</relocation>
+								</relocation>-->
+
+								<!-- Calcite's dependencies -->
 								<relocation>
 									<pattern>com.google</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
@@ -279,7 +283,7 @@ under the License.
 									<pattern>org.joda.time</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
 								</relocation>
-								<!-- not relocated for now -->
+								<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
 								<!--<relocation>
 									<pattern>org.codehaus</pattern>
 									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
