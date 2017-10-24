@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
+package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,22 +31,22 @@ import java.util.Set;
 /**
  * This class represents serialized checkpoint data for a collection of elements.
  */
-public class SerializedCheckpointData implements java.io.Serializable {
+class SerializedCheckpointData implements java.io.Serializable {
 
 	private static final long serialVersionUID = -8783744683896503488L;
-	
-	/** ID of the checkpoint for which the IDs are stored */
+
+	/** ID of the checkpoint for which the IDs are stored. */
 	private final long checkpointId;
 
-	/** The serialized elements */
+	/** The serialized elements. */
 	private final byte[] serializedData;
 
-	/** The number of elements in the checkpoint */
+	/** The number of elements in the checkpoint. */
 	private final int numIds;
 
 	/**
 	 * Creates a SerializedCheckpointData object for the given serialized data.
-	 * 
+	 *
 	 * @param checkpointId The checkpointId of the checkpoint.
 	 * @param serializedData The serialized IDs in this checkpoint.
 	 * @param numIds The number of IDs in the checkpoint.
@@ -87,16 +87,17 @@ public class SerializedCheckpointData implements java.io.Serializable {
 
 	/**
 	 * Converts a list of checkpoints with elements into an array of SerializedCheckpointData.
-	 * 
+	 *
 	 * @param checkpoints The checkpoints to be converted into IdsCheckpointData.
 	 * @param serializer The serializer to serialize the IDs.
 	 * @param <T> The type of the ID.
-	 * @return An array of serializable SerializedCheckpointData, one per entry in the 
-	 * 
+	 * @return An array of serializable SerializedCheckpointData, one per entry in the queue.
+	 *
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> SerializedCheckpointData[] fromDeque(ArrayDeque<Tuple2<Long, Set<T>>> checkpoints,
-												TypeSerializer<T> serializer) throws IOException {
+	public static <T> SerializedCheckpointData[] fromDeque(
+			ArrayDeque<Tuple2<Long, Set<T>>> checkpoints,
+			TypeSerializer<T> serializer) throws IOException {
 		return fromDeque(checkpoints, serializer, new DataOutputSerializer(128));
 	}
 
@@ -107,20 +108,22 @@ public class SerializedCheckpointData implements java.io.Serializable {
 	 * @param serializer The serializer to serialize the IDs.
 	 * @param outputBuffer The reusable serialization buffer.
 	 * @param <T> The type of the ID.
-	 * @return An array of serializable SerializedCheckpointData, one per entry in the 
+	 * @return An array of serializable SerializedCheckpointData, one per entry in the queue.
 	 *
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
-	public static <T> SerializedCheckpointData[] fromDeque(ArrayDeque<Tuple2<Long, Set<T>>> checkpoints,
-												TypeSerializer<T> serializer,
-												DataOutputSerializer outputBuffer) throws IOException {
+	public static <T> SerializedCheckpointData[] fromDeque(
+			ArrayDeque<Tuple2<Long, Set<T>>> checkpoints,
+			TypeSerializer<T> serializer,
+			DataOutputSerializer outputBuffer) throws IOException {
+
 		SerializedCheckpointData[] serializedCheckpoints = new SerializedCheckpointData[checkpoints.size()];
-		
+
 		int pos = 0;
 		for (Tuple2<Long, Set<T>> checkpoint : checkpoints) {
 			outputBuffer.clear();
 			Set<T> checkpointIds = checkpoint.f1;
-			
+
 			for (T id : checkpointIds) {
 				serializer.serialize(id, outputBuffer);
 			}
@@ -128,7 +131,7 @@ public class SerializedCheckpointData implements java.io.Serializable {
 			serializedCheckpoints[pos++] = new SerializedCheckpointData(
 					checkpoint.f0, outputBuffer.getCopyOfBuffer(), checkpointIds.size());
 		}
-		
+
 		return serializedCheckpoints;
 	}
 
@@ -138,19 +141,21 @@ public class SerializedCheckpointData implements java.io.Serializable {
 
 	/**
 	 * De-serializes an array of SerializedCheckpointData back into an ArrayDeque of element checkpoints.
-	 * 
+	 *
 	 * @param data The data to be deserialized.
 	 * @param serializer The serializer used to deserialize the data.
 	 * @param <T> The type of the elements.
 	 * @return An ArrayDeque of element checkpoints.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the serialization fails.
 	 */
 	public static <T> ArrayDeque<Tuple2<Long, Set<T>>> toDeque(
-			SerializedCheckpointData[] data, TypeSerializer<T> serializer) throws IOException {
+			SerializedCheckpointData[] data,
+			TypeSerializer<T> serializer) throws IOException {
+
 		ArrayDeque<Tuple2<Long, Set<T>>> deque = new ArrayDeque<>(data.length);
 		DataInputDeserializer deser = null;
-		
+
 		for (SerializedCheckpointData checkpoint : data) {
 			byte[] serializedData = checkpoint.getSerializedData();
 			if (deser == null) {
@@ -159,17 +164,17 @@ public class SerializedCheckpointData implements java.io.Serializable {
 			else {
 				deser.setBuffer(serializedData, 0, serializedData.length);
 			}
-			
+
 			final Set<T> ids = new HashSet<>(checkpoint.getNumIds());
 			final int numIds = checkpoint.getNumIds();
-			
+
 			for (int i = 0; i < numIds; i++) {
 				ids.add(serializer.deserialize(deser));
 			}
 
 			deque.addLast(new Tuple2<Long, Set<T>>(checkpoint.checkpointId, ids));
 		}
-		
+
 		return deque;
 	}
 }
