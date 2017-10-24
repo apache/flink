@@ -170,7 +170,8 @@ public class TestEnvironment extends ExecutionEnvironment {
 				return new TestEnvironment(
 					miniCluster,
 					parallelism,
-					false, jarFiles,
+					false,
+					jarFiles,
 					classPaths
 				);
 			}
