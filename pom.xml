@@ -68,6 +68,7 @@ under the License.
 		<module>flink-connectors</module>
 		<module>flink-examples</module>
 		<module>flink-clients</module>
+		<module>flink-queryable-state</module>
 		<module>flink-tests</module>
 		<module>flink-end-to-end-tests</module>
 		<module>flink-test-utils-parent</module>
@@ -81,7 +82,6 @@ under the License.
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
-		<module>flink-queryable-state</module>
 	</modules>
 
 	<properties>

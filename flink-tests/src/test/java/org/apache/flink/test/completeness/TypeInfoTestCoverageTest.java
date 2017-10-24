@@ -50,7 +50,8 @@ public class TypeInfoTestCoverageTest extends TestLogger {
 					typeInfo.getName().contains("Test$") ||
 					typeInfo.getName().contains("TestBase$") ||
 					typeInfo.getName().contains("ITCase$") ||
-					typeInfo.getName().contains("$$anon")) {
+					typeInfo.getName().contains("$$anon") ||
+					typeInfo.getName().contains("queryablestate")) {
 				continue;
 			}
 			boolean found = false;

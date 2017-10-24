@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.checkpoint.CheckpointDeclineReason;
@@ -74,12 +75,10 @@ import org.apache.flink.runtime.messages.JobManagerMessages.SubmitJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
 import org.apache.flink.runtime.messages.RegistrationMessages;
-import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage.LookupKvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage.NotifyKvStateRegistered;
 import org.apache.flink.runtime.query.KvStateMessage.NotifyKvStateUnregistered;
-import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -119,6 +118,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -717,7 +717,7 @@ public class JobManagerTest extends TestLogger {
 				new KeyGroupRange(0, 0),
 				"any-name",
 				new KvStateID(),
-				new KvStateServerAddress(InetAddress.getLocalHost(), 1233));
+				new InetSocketAddress(InetAddress.getLocalHost(), 1233));
 
 		jobManager.tell(registerNonExistingJob);
 
@@ -742,7 +742,7 @@ public class JobManagerTest extends TestLogger {
 				new KeyGroupRange(0, 0),
 				"register-me",
 				new KvStateID(),
-				new KvStateServerAddress(InetAddress.getLocalHost(), 1293));
+				new InetSocketAddress(InetAddress.getLocalHost(), 1293));
 
 		jobManager.tell(registerForExistingJob);
 
@@ -797,7 +797,7 @@ public class JobManagerTest extends TestLogger {
 				new KeyGroupRange(0, 0),
 				"duplicate-me",
 				new KvStateID(),
-				new KvStateServerAddress(InetAddress.getLocalHost(), 1293));
+				new InetSocketAddress(InetAddress.getLocalHost(), 1293));
 
 		NotifyKvStateRegistered duplicate = new NotifyKvStateRegistered(
 				jobGraph.getJobID(),
@@ -805,7 +805,7 @@ public class JobManagerTest extends TestLogger {
 				new KeyGroupRange(0, 0),
 				"duplicate-me", // ...same name
 				new KvStateID(),
-				new KvStateServerAddress(InetAddress.getLocalHost(), 1293));
+				new InetSocketAddress(InetAddress.getLocalHost(), 1293));
 
 		Future<TestingJobManagerMessages.JobStatusIs> failedFuture = jobManager
 				.ask(new NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.FAILED), deadline.timeLeft())

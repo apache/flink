@@ -35,8 +35,9 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-queryable-state-java</module>
-	   <!-- <module>flink-state-client-scala</module>-->
+		<module>flink-queryable-state-runtime</module>
+		<module>flink-queryable-state-client-java</module>
+		<!-- <module>flink-state-client-scala</module>-->
 	</modules>
 
 	<dependencies>

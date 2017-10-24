@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.query;
 
-import org.apache.flink.runtime.query.netty.KvStateRequestStats;
+import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -74,7 +74,8 @@ public final class QueryableStateUtils {
 			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, stats);
 		} catch (ClassNotFoundException e) {
 			LOG.warn("Could not load Queryable State Client Proxy. " +
-					"Probable reason: flink-queryable-state is not in the classpath");
+					"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
+					"Please put the corresponding jar from the opt to the lib folder.");
 			LOG.debug("Caught exception", e);
 			return null;
 		} catch (InvocationTargetException e) {
@@ -128,7 +129,8 @@ public final class QueryableStateUtils {
 			return constructor.newInstance(address, ports, eventLoopThreads, queryThreads, kvStateRegistry, stats);
 		} catch (ClassNotFoundException e) {
 			LOG.warn("Could not load Queryable State Server. " +
-					"Probable reason: flink-queryable-state is not in the classpath");
+					"Probable reason: flink-queryable-state-runtime is not in the classpath. " +
+					"Please put the corresponding jar from the opt to the lib folder.");
 			LOG.debug("Caught exception", e);
 			return null;
 		} catch (InvocationTargetException e) {
