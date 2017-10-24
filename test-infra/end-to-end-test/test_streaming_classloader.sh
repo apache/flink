@@ -45,7 +45,7 @@ GIT_REMOTE_URL=`grep "git\.remote\.origin\.url" $TEST_INFRA_DIR/../../flink-runt
 
 # remove any leftover classloader settings
 sed -i -e 's/classloader.resolve-order: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-sed -i -e 's/classloader.always-parent-first-patterns: .*//' $FLINK_DIR/conf/flink-conf.yaml
+sed -i -e 's/classloader.parent-first-patterns: .*//' $FLINK_DIR/conf/flink-conf.yaml
 echo "classloader.resolve-order: parent-first" >> "$FLINK_DIR/conf/flink-conf.yaml"
 
 start_cluster
@@ -70,12 +70,12 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
 fi
 
 # This verifies that Flink classes are still resolved from the parent because the default
-# "parent-always" pattern is "org.apache.flink"
+# "parent-first-pattern" is "org.apache.flink"
 echo "Testing child-first class loading with Flink classes loaded via parent"
 
 # remove any leftover classloader settings
 sed -i -e 's/classloader.resolve-order: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
-sed -i -e 's/classloader.always-parent-first-patterns: .*//' $FLINK_DIR/conf/flink-conf.yaml
+sed -i -e 's/classloader.parent-first-patterns: .*//' $FLINK_DIR/conf/flink-conf.yaml
 echo "classloader.resolve-order: child-first" >> "$FLINK_DIR/conf/flink-conf.yaml"
 
 start_cluster
@@ -104,7 +104,7 @@ echo "Testing child-first class loading"
 # remove any leftover classloader settings
 sed -i -e 's/classloader.resolve-order: .*//' "$FLINK_DIR/conf/flink-conf.yaml"
 echo "classloader.resolve-order: child-first" >> "$FLINK_DIR/conf/flink-conf.yaml"
-echo "classloader.always-parent-first-patterns: foo.bar" >> "$FLINK_DIR/conf/flink-conf.yaml"
+echo "classloader.parent-first-patterns: foo.bar" >> "$FLINK_DIR/conf/flink-conf.yaml"
 
 start_cluster
 
@@ -114,7 +114,7 @@ stop_cluster
 
 # remove classloader settings again
 sed -i -e 's/classloader.resolve-order: .*//' $FLINK_DIR/conf/flink-conf.yaml
-sed -i -e 's/classloader.always-parent-first-patterns: .*//' $FLINK_DIR/conf/flink-conf.yaml
+sed -i -e 's/classloader.parent-first-patterns: .*//' $FLINK_DIR/conf/flink-conf.yaml
 
 OUTPUT=`cat $TEST_DATA_DIR/out/cl_out_cf`
 # first field: whether we found the method on TaskManager

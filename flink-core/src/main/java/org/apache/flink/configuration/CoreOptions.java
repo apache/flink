@@ -32,7 +32,7 @@ public class CoreOptions {
 		.defaultValue("child-first");
 
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
-		.key("classloader.always-parent-first-patterns")
+		.key("classloader.parent-first-patterns")
 		.defaultValue("org.apache.flink");
 
 
