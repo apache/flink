@@ -660,7 +660,7 @@ For SQL on batch tables, the `time_attr` argument of the group window function m
 
 #### Selecting Group Window Start and End Timestamps
 
-The start and end timestamps of group windows can be selected with the following auxiliary functions:
+The start and end timestamps of group windows as well as time attributes can be selected with the following auxiliary functions:
 
 <table class="table table-bordered">
   <thead>
@@ -677,7 +677,7 @@ The start and end timestamps of group windows can be selected with the following
         <code>HOP_START(time_attr, interval, interval)</code><br/>
         <code>SESSION_START(time_attr, interval)</code><br/>
       </td>
-      <td>Returns the start timestamp of the corresponding tumbling, hopping, and session window.</td>
+      <td><p>Returns the timestamp of the inclusive lower bound of the corresponding tumbling, hopping, or session window.</p></td>
     </tr>
     <tr>
       <td>
@@ -685,7 +685,25 @@ The start and end timestamps of group windows can be selected with the following
         <code>HOP_END(time_attr, interval, interval)</code><br/>
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
-      <td>Returns the end timestamp of the corresponding tumbling, hopping, and session window.</td>
+      <td><p>Returns the timestamp of the <i>exclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
+        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="streaming.html#time-attributes">rowtime attribute</a> in subsequent time-based operations, such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+    </tr>
+    <tr>
+      <td>
+        <code>TUMBLE_ROWTIME(time_attr, interval)</code><br/>
+        <code>HOP_ROWTIME(time_attr, interval, interval)</code><br/>
+        <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
+      </td>
+      <td><p>Returns the timestamp of the <i>inclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
+      <p>The resulting attribute is a <a href="streaming.html#time-attributes">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
+    </tr>
+    <tr>
+      <td>
+        <code>TUMBLE_PROCTIME(time_attr, interval)</code><br/>
+        <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
+        <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
+      </td>
+      <td><p>Returns a <a href="streaming.html#time-attributes">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="#joins">time-windowed joins</a> and <a href="#aggregations">group window or over window aggregations</a>.</p></td>
     </tr>
   </tbody>
 </table>
@@ -724,7 +742,7 @@ Table result3 = tableEnv.sqlQuery(
 Table result4 = tableEnv.sqlQuery(
   "SELECT user, " +
   "  SESSION_START(rowtime, INTERVAL '12' HOUR) AS sStart, " +
-  "  SESSION_END(rowtime, INTERVAL '12' HOUR) AS snd, " +
+  "  SESSION_ROWTIME(rowtime, INTERVAL '12' HOUR) AS snd, " +
   "  SUM(amount) " +
   "FROM Orders " +
   "GROUP BY SESSION(rowtime, INTERVAL '12' HOUR), user");
