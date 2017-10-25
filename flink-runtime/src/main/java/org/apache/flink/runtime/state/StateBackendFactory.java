@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
 import java.io.IOException;
-import java.io.Serializable;
 
 /**
  * A factory to create a specific state backend. The state backend creation gets a Configuration
@@ -35,7 +34,7 @@ import java.io.Serializable;
  * @param <T> The type of the state backend created.
  */
 @PublicEvolving
-public interface StateBackendFactory<T extends StateBackend> extends Serializable {
+public interface StateBackendFactory<T extends StateBackend> {
 
 	/**
 	 * Creates the state backend, optionally using the given configuration.
