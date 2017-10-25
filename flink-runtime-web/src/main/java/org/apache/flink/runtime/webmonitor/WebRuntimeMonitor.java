@@ -63,10 +63,14 @@ import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsD
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsDetailsSubtasksHandler;
 import org.apache.flink.runtime.rest.handler.legacy.checkpoints.CheckpointStatsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.AggregatingJobsMetricsHandler;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.AggregatingSubtasksMetricsHandler;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.AggregatingTaskManagersMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.JobManagerMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.JobMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.SubtaskMetricsHandler;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.TaskManagerMetricsHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarAccessDeniedHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarDeleteHandler;
@@ -261,6 +265,20 @@ public class WebRuntimeMonitor implements WebMonitor {
 		// job manager configuration
 		get(router, new ClusterConfigHandler(scheduledExecutor, config));
 
+		// metrics
+		get(router, new JobManagerMetricsHandler(scheduledExecutor, metricFetcher));
+
+		get(router, new AggregatingTaskManagersMetricsHandler(scheduledExecutor, metricFetcher));
+		get(router, new TaskManagerMetricsHandler(scheduledExecutor, metricFetcher));
+
+		get(router, new AggregatingJobsMetricsHandler(scheduledExecutor, metricFetcher));
+		get(router, new JobMetricsHandler(scheduledExecutor, metricFetcher));
+
+		get(router, new JobVertexMetricsHandler(scheduledExecutor, metricFetcher));
+
+		get(router, new AggregatingSubtasksMetricsHandler(scheduledExecutor, metricFetcher));
+		get(router, new SubtaskMetricsHandler(scheduledExecutor, metricFetcher));
+
 		// overview over jobs
 		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, true, true));
 		get(router, new CurrentJobsOverviewHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, true, false));
@@ -275,7 +293,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new JobVertexTaskManagersHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new JobVertexAccumulatorsHandler(executionGraphCache, scheduledExecutor));
 		get(router, new JobVertexBackPressureHandler(executionGraphCache, scheduledExecutor, backPressureStatsTracker, refreshInterval));
-		get(router, new JobVertexMetricsHandler(scheduledExecutor, metricFetcher));
 		get(router, new SubtasksAllAccumulatorsHandler(executionGraphCache, scheduledExecutor));
 		get(router, new SubtaskCurrentAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
 		get(router, new SubtaskExecutionAttemptDetailsHandler(executionGraphCache, scheduledExecutor, metricFetcher));
@@ -285,7 +302,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new JobConfigHandler(executionGraphCache, scheduledExecutor));
 		get(router, new JobExceptionsHandler(executionGraphCache, scheduledExecutor));
 		get(router, new JobAccumulatorsHandler(executionGraphCache, scheduledExecutor));
-		get(router, new JobMetricsHandler(scheduledExecutor, metricFetcher));
 
 		get(router, new TaskManagersHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, metricFetcher));
 		get(router,
@@ -304,7 +320,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 				timeout,
 				TaskManagerLogHandler.FileMode.STDOUT,
 				config));
-		get(router, new TaskManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
 		router
 			// log and stdout
@@ -317,8 +332,6 @@ public class WebRuntimeMonitor implements WebMonitor {
 
 			.GET("/jobmanager/stdout", logFiles.stdOutFile == null ? new ConstantTextHandler("(stdout file unavailable)") :
 				new StaticFileServerHandler<>(retriever, localRestAddress, timeout, logFiles.stdOutFile));
-
-		get(router, new JobManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
 		// Cancel a job via GET (for proper integration with YARN this has to be performed via GET)
 		get(router, new JobCancellationHandler(scheduledExecutor, timeout));

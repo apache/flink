@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
-import org.apache.flink.runtime.rest.handler.legacy.TaskManagersHandler;
+import org.apache.flink.runtime.rest.handler.legacy.SubtaskExecutionAttemptDetailsHandler;
 
 import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
- * Request handler that returns for a given task manager a list of all available metrics or the values for a set of metrics.
+ * Request handler that returns, aggregated across all subtasks of a single tasks, a list of all available metrics or the
+ * values for a set of metrics.
  *
  * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
@@ -33,27 +34,37 @@ import java.util.concurrent.Executor;
  * {@code /metrics?get=X,Y}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
+ *
+ * <p>The "agg" query parameter is used to define which aggregates should be calculated. Available aggregations are
+ * "sum", "max", "min" and "avg".
  */
-public class TaskManagerMetricsHandler extends AbstractMetricsHandler {
+public class SubtaskMetricsHandler extends AbstractMetricsHandler {
+	private static final String SUBTASK_METRICS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/metrics";
 
-	private static final String TASKMANAGER_METRICS_REST_PATH = "/taskmanagers/:taskmanagerid/metrics";
-
-	public TaskManagerMetricsHandler(Executor executor, MetricFetcher fetcher) {
+	public SubtaskMetricsHandler(Executor executor, MetricFetcher fetcher) {
 		super(executor, fetcher);
 	}
 
 	@Override
 	public String[] getPaths() {
-		return new String[]{TASKMANAGER_METRICS_REST_PATH};
+		return new String[]{SUBTASK_METRICS_REST_PATH};
 	}
 
 	@Override
 	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.ComponentMetricStore taskManager = metrics.getTaskManagerMetricStore(pathParams.get(TaskManagersHandler.TASK_MANAGER_ID_KEY));
-		if (taskManager == null) {
+		String subtaskNumString = pathParams.get(SubtaskExecutionAttemptDetailsHandler.PARAMETER_SUBTASK_INDEX);
+		int subtaskNum;
+		try {
+			subtaskNum = Integer.valueOf(subtaskNumString);
+		} catch (NumberFormatException nfe) {
 			return null;
-		} else {
-			return taskManager.metrics;
 		}
+		MetricStore.ComponentMetricStore subtask = metrics.getSubtaskMetricStore(
+			pathParams.get(JobMetricsHandler.PARAMETER_JOB_ID),
+			pathParams.get(JobVertexMetricsHandler.PARAMETER_VERTEX_ID),
+			subtaskNum);
+		return subtask != null
+			? subtask.metrics
+			: null;
 	}
 }
