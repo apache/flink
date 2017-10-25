@@ -283,6 +283,123 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  def testMultiWindowSqlNoAggregation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val window1 = tEnv.sqlQuery(
+      s"""SELECT
+          TUMBLE_ROWTIME(rowtime, INTERVAL '0.002' SECOND) AS rowtime,
+          TUMBLE_END(rowtime, INTERVAL '0.002' SECOND) AS endtime
+        FROM $table
+        GROUP BY TUMBLE(rowtime, INTERVAL '0.002' SECOND)""")
+
+    val window2 = tEnv.sqlQuery(
+      s"""SELECT
+          TUMBLE_ROWTIME(rowtime, INTERVAL '0.004' SECOND),
+          TUMBLE_END(rowtime, INTERVAL '0.004' SECOND)
+        FROM $window1
+        GROUP BY TUMBLE(rowtime, INTERVAL '0.004' SECOND)""")
+
+    val results = window2.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.003,1970-01-01 00:00:00.004",
+      "1970-01-01 00:00:00.007,1970-01-01 00:00:00.008",
+      "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012",
+      "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMultiWindowSqlWithAggregation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val window = tEnv.sqlQuery(
+      s"""SELECT
+          TUMBLE_ROWTIME(rowtime, INTERVAL '0.004' SECOND),
+          TUMBLE_END(rowtime, INTERVAL '0.004' SECOND),
+          COUNT(`int`) AS `int`
+        FROM (
+          SELECT
+            COUNT(`int`) AS `int`,
+            TUMBLE_ROWTIME(rowtime, INTERVAL '0.002' SECOND) AS `rowtime`
+          FROM $table
+          GROUP BY TUMBLE(rowtime, INTERVAL '0.002' SECOND)
+        )
+        GROUP BY TUMBLE(rowtime, INTERVAL '0.004' SECOND)""")
+
+    val results = window.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.003,1970-01-01 00:00:00.004,2",
+      "1970-01-01 00:00:00.007,1970-01-01 00:00:00.008,2",
+      "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
+      "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMultiWindowSqlWithAggregation2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime1.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+
+    val window = tEnv.sqlQuery(
+      s"""SELECT
+          TUMBLE_ROWTIME(rowtime2, INTERVAL '0.004' SECOND),
+          TUMBLE_END(rowtime2, INTERVAL '0.004' SECOND),
+          COUNT(`int`) as `int`
+        FROM (
+          SELECT
+            TUMBLE_ROWTIME(rowtime1, INTERVAL '0.002' SECOND) AS rowtime2,
+            COUNT(`int`) as `int`
+          FROM $table
+          GROUP BY TUMBLE(rowtime1, INTERVAL '0.002' SECOND)
+        )
+        GROUP BY TUMBLE(rowtime2, INTERVAL '0.004' SECOND)""")
+
+    val results = window.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.003,1970-01-01 00:00:00.004,2",
+      "1970-01-01 00:00:00.007,1970-01-01 00:00:00.008,2",
+      "1970-01-01 00:00:00.011,1970-01-01 00:00:00.012,1",
+      "1970-01-01 00:00:00.019,1970-01-01 00:00:00.02,1"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testCalcMaterializationWithPojoType(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -412,6 +529,35 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       "1970-01-01 00:00:03.0,3,C",
       "1970-01-01 00:00:05.0,5,E")
 
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSqlWindowRowtime(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(data)
+      .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+    tEnv.registerTable("MyTable", table)
+
+    val t = tEnv.sqlQuery("SELECT TUMBLE_ROWTIME(rowtime, INTERVAL '0.003' SECOND) FROM MyTable " +
+      "GROUP BY TUMBLE(rowtime, INTERVAL '0.003' SECOND)")
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.002",
+      "1970-01-01 00:00:00.005",
+      "1970-01-01 00:00:00.008",
+      "1970-01-01 00:00:00.017"
+    )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }

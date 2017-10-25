@@ -147,8 +147,8 @@ object FlinkRuleSets {
 
     // Transform window to LogicalWindowAggregate
     DataSetLogicalWindowAggregateRule.INSTANCE,
-    WindowStartEndPropertiesRule.INSTANCE,
-    WindowStartEndPropertiesHavingRule.INSTANCE
+    WindowPropertiesRule.INSTANCE,
+    WindowPropertiesHavingRule.INSTANCE
   )
 
   /**
@@ -179,8 +179,8 @@ object FlinkRuleSets {
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
     // Transform window to LogicalWindowAggregate
     DataStreamLogicalWindowAggregateRule.INSTANCE,
-    WindowStartEndPropertiesRule.INSTANCE,
-    WindowStartEndPropertiesHavingRule.INSTANCE,
+    WindowPropertiesRule.INSTANCE,
+    WindowPropertiesHavingRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,

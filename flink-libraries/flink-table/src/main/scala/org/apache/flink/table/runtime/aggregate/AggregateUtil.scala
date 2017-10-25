@@ -1145,27 +1145,32 @@ object AggregateUtil {
     }
   }
 
+  /**
+    * Computes the positions of (window start, window end, rowtime).
+    */
   private[flink] def computeWindowPropertyPos(
       properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
 
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
-      case (p, (s, e, t, i)) => p match {
+      case (p, (s, e, rt, i)) => p match {
         case NamedWindowProperty(_, prop) =>
           prop match {
             case WindowStart(_) if s.isDefined =>
-              throw new TableException("Duplicate WindowStart property encountered. This is a bug.")
+              throw TableException("Duplicate window start property encountered. This is a bug.")
             case WindowStart(_) =>
-              (Some(i), e, t, i - 1)
+              (Some(i), e, rt, i - 1)
             case WindowEnd(_) if e.isDefined =>
-              throw new TableException("Duplicate WindowEnd property encountered. This is a bug.")
+              throw TableException("Duplicate window end property encountered. This is a bug.")
             case WindowEnd(_) =>
-              (s, Some(i), t, i - 1)
-            case RowtimeAttribute(_) if t.isDefined =>
-              throw new TableException(
-                "Duplicate Window rowtime property encountered. This is a bug.")
+              (s, Some(i), rt, i - 1)
+            case RowtimeAttribute(_) if rt.isDefined =>
+              throw TableException("Duplicate window rowtime property encountered. This is a bug.")
             case RowtimeAttribute(_) =>
               (s, e, Some(i), i - 1)
+            case ProctimeAttribute(_) =>
+              // ignore this property, it will be null at the position later
+              (s, e, rt, i - 1)
           }
       }
     }

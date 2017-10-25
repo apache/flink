@@ -21,6 +21,7 @@ package org.apache.flink.table.api.batch.sql
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.logical._
@@ -79,7 +80,7 @@ class GroupWindowTest extends TableTestBase {
           term("select", "c, SUM(a) AS sumA, MIN(b) AS minB, " +
             "start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "CAST(w$start) AS w$start, CAST(w$end) AS w$end, c, sumA, minB")
+        term("select", "CAST(w$start) AS EXPR$0, CAST(w$end) AS EXPR$1, c, sumA, minB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -165,7 +166,7 @@ class GroupWindowTest extends TableTestBase {
           term("select", "c, d, SUM(a) AS sumA, AVG(b) AS avgB, " +
             "start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "c, CAST(w$end) AS w$end, CAST(w$start) AS w$start, sumA, avgB")
+        term("select", "c, CAST(w$end) AS EXPR$1, CAST(w$start) AS EXPR$2, sumA, avgB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -220,7 +221,7 @@ class GroupWindowTest extends TableTestBase {
           term("select", "c, d, SUM(a) AS sumA, MIN(b) AS minB, " +
             "start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "c, d, CAST(w$start) AS w$start, CAST(w$end) AS w$end, sumA, minB")
+        term("select", "c, d, CAST(w$start) AS EXPR$2, CAST(w$end) AS EXPR$3, sumA, minB")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -251,7 +252,7 @@ class GroupWindowTest extends TableTestBase {
           term("window", TumblingGroupWindow('w$, 'ts, 240000.millis)),
           term("select", "c, start('w$) AS w$start, end('w$) AS w$end")
         ),
-        term("select", "CAST(w$end) AS w$end")
+        term("select", "CAST(w$end) AS EXPR$0")
       )
 
     util.verifySql(sqlQuery, expected)
@@ -289,7 +290,7 @@ class GroupWindowTest extends TableTestBase {
             "start('w$) AS w$start",
             "end('w$) AS w$end")
         ),
-        term("select", "EXPR$0", "CAST(w$start) AS w$start"),
+        term("select", "EXPR$0", "CAST(w$start) AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
             "=(EXTRACT_DATE(FLAG(QUARTER), /INT(Reinterpret(CAST(w$start)), 86400000)), 1))")
