@@ -1054,4 +1054,34 @@ object concat_ws {
   }
 }
 
+/**
+  * Returns the MD5 of the string srgument
+  * Returns NULL if string is NULL
+  */
+object md5 {
+  def apply(string: Expression): Expression = {
+    new Md5(string)
+  }
+}
+
+/**
+  * Returns the SHA-1 of the string srgument
+  * Returns NULL if string is NULL
+  */
+object sha1 {
+  def apply(string: Expression): Expression = {
+    new Sha1(string)
+  }
+}
+
+/**
+  * Returns the SHA-256 of the string srgument
+  * Returns NULL if string is NULL
+  */
+object sha256 {
+  def apply(string: Expression): Expression = {
+    new Sha256(string)
+  }
+}
+
 // scalastyle:on object.name
