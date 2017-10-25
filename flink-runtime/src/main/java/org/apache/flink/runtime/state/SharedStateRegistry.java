@@ -43,12 +43,7 @@ public class SharedStateRegistry implements AutoCloseable {
 	private static final Logger LOG = LoggerFactory.getLogger(SharedStateRegistry.class);
 
 	/** A singleton object for the default implementation of a {@link SharedStateRegistryFactory} */
-	public static final SharedStateRegistryFactory DEFAULT_FACTORY = new SharedStateRegistryFactory() {
-		@Override
-		public SharedStateRegistry create(Executor deleteExecutor) {
-			return new SharedStateRegistry(deleteExecutor);
-		}
-	};
+	public static final SharedStateRegistryFactory DEFAULT_FACTORY = SharedStateRegistry::new;
 
 	/** All registered state objects by an artificial key */
 	private final Map<SharedStateRegistryKey, SharedStateRegistry.SharedStateEntry> registeredStates;
