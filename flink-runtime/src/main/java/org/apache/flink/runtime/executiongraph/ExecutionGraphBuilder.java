@@ -115,16 +115,16 @@ public class ExecutionGraphBuilder {
 		final ExecutionGraph executionGraph;
 		try {
 			executionGraph = (prior != null) ? prior :
-                new ExecutionGraph(
-                    jobInformation,
-                    futureExecutor,
-                    ioExecutor,
-                    timeout,
-                    restartStrategy,
-                    failoverStrategy,
-                    slotProvider,
-                    classLoader,
-                    blobWriter);
+				new ExecutionGraph(
+					jobInformation,
+					futureExecutor,
+					ioExecutor,
+					timeout,
+					restartStrategy,
+					failoverStrategy,
+					slotProvider,
+					classLoader,
+					blobWriter);
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}

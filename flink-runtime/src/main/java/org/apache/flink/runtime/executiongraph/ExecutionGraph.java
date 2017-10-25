@@ -452,7 +452,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			String checkpointDir,
-			StateBackend metadataStore,
+			StateBackend checkpointStateBackend,
 			CheckpointStatsTracker statsTracker) {
 
 		// simple sanity checks
@@ -482,6 +482,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 			checkpointIDCounter,
 			checkpointStore,
 			checkpointDir,
+			checkpointStateBackend,
 			ioExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY);
 
