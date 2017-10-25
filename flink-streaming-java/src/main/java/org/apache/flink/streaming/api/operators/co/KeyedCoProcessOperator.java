@@ -162,12 +162,6 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 		}
 
 		@Override
-		public TimeDomain timeDomain() {
-			checkState(timeDomain != null);
-			return timeDomain;
-		}
-
-		@Override
 		public Long timestamp() {
 			checkState(timer != null);
 			return timer.getTimestamp();
@@ -185,6 +179,12 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
 			}
 
 			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
+		}
+
+		@Override
+		public TimeDomain timeDomain() {
+			checkState(timeDomain != null);
+			return timeDomain;
 		}
 	}
 }
