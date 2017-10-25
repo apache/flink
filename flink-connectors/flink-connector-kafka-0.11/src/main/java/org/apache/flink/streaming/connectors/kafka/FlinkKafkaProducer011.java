@@ -483,11 +483,6 @@ public class FlinkKafkaProducer011<IN>
 	 */
 	@Override
 	public void open(Configuration configuration) throws Exception {
-		if (semantic != Semantic.NONE && !((StreamingRuntimeContext) this.getRuntimeContext()).isCheckpointingEnabled()) {
-			LOG.warn("Using {} semantic, but checkpointing is not enabled. Switching to {} semantic.", semantic, Semantic.NONE);
-			semantic = Semantic.NONE;
-		}
-
 		if (logFailuresOnly) {
 			callback = new Callback() {
 				@Override
@@ -745,6 +740,11 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
+		if (semantic != Semantic.NONE && !((StreamingRuntimeContext) this.getRuntimeContext()).isCheckpointingEnabled()) {
+			LOG.warn("Using {} semantic, but checkpointing is not enabled. Switching to {} semantic.", semantic, Semantic.NONE);
+			semantic = Semantic.NONE;
+		}
+
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
 
