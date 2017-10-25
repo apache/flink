@@ -217,7 +217,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forFullCheckpoint());
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		try {
@@ -272,7 +272,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			682375462378L,
 			2,
 			streamFactory,
-			CheckpointOptions.forFullCheckpoint()));
+			CheckpointOptions.forCheckpoint()));
 
 		backend.dispose();
 

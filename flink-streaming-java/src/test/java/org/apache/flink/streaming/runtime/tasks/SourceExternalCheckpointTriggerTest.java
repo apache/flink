@@ -72,7 +72,7 @@ public class SourceExternalCheckpointTriggerTest {
 		ready.await();
 
 		// now send an external trigger that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forFullCheckpoint()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forCheckpoint()));
 
 		// step by step let the source thread emit elements
 		sync.trigger();
@@ -88,7 +88,7 @@ public class SourceExternalCheckpointTriggerTest {
 		verifyNextElement(testHarness.getOutput(), 4L);
 
 		// now send an regular trigger command that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forFullCheckpoint()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forCheckpoint()));
 
 		sync.trigger();
 		verifyNextElement(testHarness.getOutput(), 5L);

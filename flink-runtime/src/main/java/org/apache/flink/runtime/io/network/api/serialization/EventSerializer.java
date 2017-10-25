@@ -70,7 +70,7 @@ public class EventSerializer {
 			CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
 			ByteBuffer buf;
-			if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+			if (checkpointType == CheckpointType.CHECKPOINT) {
 				buf = ByteBuffer.allocate(24);
 				buf.putInt(0, CHECKPOINT_BARRIER_EVENT);
 				buf.putLong(4, barrier.getId());
@@ -209,8 +209,8 @@ public class EventSerializer {
 				Preconditions.checkElementIndex(type, CheckpointType.values().length, "Illegal CheckpointType ordinal");
 				CheckpointType checkpointType = CheckpointType.values()[checkpointTypeOrdinal];
 
-				if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
-					checkpointOptions = CheckpointOptions.forFullCheckpoint();
+				if (checkpointType == CheckpointType.CHECKPOINT) {
+					checkpointOptions = CheckpointOptions.forCheckpoint();
 				} else if (checkpointType == CheckpointType.SAVEPOINT) {
 					int len = buffer.getInt();
 					byte[] bytes = new byte[len];

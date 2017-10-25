@@ -453,7 +453,7 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Returns a checkpoint stream factory for the provided options.
 	 *
-	 * <p>For {@link CheckpointType#FULL_CHECKPOINT} this returns the shared
+	 * <p>For {@link CheckpointType#CHECKPOINT} this returns the shared
 	 * factory of this operator.
 	 *
 	 * <p>For {@link CheckpointType#SAVEPOINT} it creates a custom factory per
@@ -466,7 +466,7 @@ public abstract class AbstractStreamOperator<OUT>
 	@VisibleForTesting
 	CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
 		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+		if (checkpointType == CheckpointType.CHECKPOINT) {
 			return checkpointStreamFactory;
 		} else if (checkpointType == CheckpointType.SAVEPOINT) {
 			return container.createSavepointStreamFactory(this, checkpointOptions.getTargetLocation());

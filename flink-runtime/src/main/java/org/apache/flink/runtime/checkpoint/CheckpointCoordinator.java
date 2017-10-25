@@ -435,7 +435,7 @@ public class CheckpointCoordinator {
 			case SAVEPOINT:
 				return triggerSavepoint(timestamp, options.getTargetLocation());
 
-			case FULL_CHECKPOINT:
+			case CHECKPOINT:
 				CheckpointTriggerResult triggerResult =
 					triggerCheckpoint(timestamp, checkpointProperties, checkpointDirectory, false);
 
@@ -666,7 +666,7 @@ public class CheckpointCoordinator {
 
 				CheckpointOptions checkpointOptions;
 				if (!props.isSavepoint()) {
-					checkpointOptions = CheckpointOptions.forFullCheckpoint();
+					checkpointOptions = CheckpointOptions.forCheckpoint();
 				} else {
 					checkpointOptions = CheckpointOptions.forSavepoint(targetDirectory);
 				}

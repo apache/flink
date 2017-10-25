@@ -221,7 +221,7 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 				NotifyingInfiniteTupleSource.countDownLatch.await();
 
 				externalCheckpoint =
-					cluster.requestCheckpoint(submissionResult.getJobID(), CheckpointOptions.forFullCheckpoint());
+					cluster.requestCheckpoint(submissionResult.getJobID(), CheckpointOptions.forCheckpoint());
 
 				cluster.cancelJob(submissionResult.getJobID());
 			}
