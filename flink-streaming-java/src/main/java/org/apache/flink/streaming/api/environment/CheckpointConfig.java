@@ -267,7 +267,7 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * (terminating with job status {@link JobStatus#CANCELED}).
 	 *
 	 * <p>The target directory for externalized checkpoints is configured
-	 * via {@link CoreOptions#CHECKPOINTS_DIRECTORY}.
+	 * via {@link org.apache.flink.configuration.CheckpointingOptions#CHECKPOINTS_DIRECTORY}.
 	 *
 	 * @param cleanupMode Externalized checkpoint cleanup behaviour.
 	 */
