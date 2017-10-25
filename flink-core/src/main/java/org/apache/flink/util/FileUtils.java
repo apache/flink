@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
+import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,10 +56,11 @@ public final class FileUtils {
 	 * @return the generated random filename with the given prefix
 	 */
 	public static String getRandomFilename(final String prefix) {
+		final Random rnd = new Random();
 		final StringBuilder stringBuilder = new StringBuilder(prefix);
 
 		for (int i = 0; i < RANDOM_FILE_NAME_LENGTH; i++) {
-			stringBuilder.append(ALPHABET[(int) Math.floor(Math.random() * (double) ALPHABET.length)]);
+			stringBuilder.append(ALPHABET[rnd.nextInt(ALPHABET.length)]);
 		}
 
 		return stringBuilder.toString();
@@ -198,7 +200,7 @@ public final class FileUtils {
 	 *                     the directory could not be cleaned for some reason, for example
 	 *                     due to missing access/write permissions.
 	 */
-	public static void cleanDirectory(File directory) throws IOException, FileNotFoundException {
+	public static void cleanDirectory(File directory) throws IOException {
 		checkNotNull(directory, "directory");
 
 		if (directory.isDirectory()) {
@@ -243,22 +245,35 @@ public final class FileUtils {
 	 * @throws IOException if the delete operation fails
 	 */
 	public static boolean deletePathIfEmpty(FileSystem fileSystem, Path path) throws IOException {
-		FileStatus[] fileStatuses = null;
+		final FileStatus[] fileStatuses;
 
 		try {
 			fileStatuses = fileSystem.listStatus(path);
-		} catch (Exception ignored) {}
+		}
+		catch (FileNotFoundException e) {
+			// path already deleted
+			return true;
+		}
+		catch (Exception e) {
+			// could not access directory, cannot delete
+			return false;
+		}
 
 		// if there are no more files or if we couldn't list the file status try to delete the path
-		if (fileStatuses == null || fileStatuses.length == 0) {
+		if (fileStatuses == null) {
+			// another indicator of "file not found"
+			return true;
+		}
+		else if (fileStatuses.length == 0) {
 			// attempt to delete the path (will fail and be ignored if the path now contains
 			// some files (possibly added concurrently))
 			return fileSystem.delete(path, false);
-		} else {
+		}
+		else {
 			return false;
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
 
 	/**
