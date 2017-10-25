@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
@@ -37,33 +38,29 @@ public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBSt
 
 	protected static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackendFactory.class);
 
-	private static final long serialVersionUID = 4906988360901930371L;
-
-	/** The key under which the config stores the directory where checkpoints should be stored. */
-	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
-	/** The key under which the config stores the directory where RocksDB should be stored. */
-	public static final String ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.rocksdb.checkpointdir";
-
 	@Override
 	public RocksDBStateBackend createFromConfig(Configuration config)
 			throws IllegalConfigurationException, IOException {
 
-		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-		final String rocksdbLocalPath = config.getString(ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
+		final String checkpointDirURI = config.getString(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
+		final String rocksdbLocalPaths = config.getString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES);
+		final boolean incrementalCheckpoints = config.getBoolean(CheckpointingOptions.ROCKSDB_INCREMENTAL_CHECKPOINTS);
 
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
 				"Cannot create the RocksDB state backend: The configuration does not specify the " +
-				"checkpoint directory '" + CHECKPOINT_DIRECTORY_URI_CONF_KEY + '\'');
+				"checkpoint directory '" + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key() + '\'');
 		}
 
 		try {
-			Path path = new Path(checkpointDirURI);
-			RocksDBStateBackend backend = new RocksDBStateBackend(path.toUri());
-			if (rocksdbLocalPath != null) {
-				String[] directories = rocksdbLocalPath.split(",|" + File.pathSeparator);
+			final Path path = new Path(checkpointDirURI);
+			final RocksDBStateBackend backend = new RocksDBStateBackend(path.toUri(), incrementalCheckpoints);
+
+			if (rocksdbLocalPaths != null) {
+				String[] directories = rocksdbLocalPaths.split(",|" + File.pathSeparator);
 				backend.setDbStoragePaths(directories);
 			}
+
 			LOG.info("State backend is set to RocksDB (configured DB storage paths {}, checkpoints to filesystem {} ) ",
 					backend.getDbStoragePaths(), path);
 
