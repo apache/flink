@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -66,8 +67,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 public class ArchivedExecutionGraphTest extends TestLogger {
-	private static JobVertexID v1ID = new JobVertexID();
-	private static JobVertexID v2ID = new JobVertexID();
 
 	private static ExecutionGraph runtimeGraph;
 
@@ -77,8 +76,8 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		// Setup
 		// -------------------------------------------------------------------------------------------------------------
 
-		v1ID = new JobVertexID();
-		v2ID = new JobVertexID();
+		JobVertexID v1ID = new JobVertexID();
+		JobVertexID v2ID = new JobVertexID();
 
 		JobVertex v1 = new JobVertex("v1", v1ID);
 		JobVertex v2 = new JobVertex("v2", v2ID);
@@ -89,7 +88,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 		v1.setInvokableClass(AbstractInvokable.class);
 		v2.setInvokableClass(AbstractInvokable.class);
 
-		List<JobVertex> vertices = new ArrayList<JobVertex>(Arrays.asList(v1, v2));
+		List<JobVertex> vertices = new ArrayList<>(Arrays.asList(v1, v2));
 
 		ExecutionConfig config = new ExecutionConfig();
 
@@ -135,7 +134,7 @@ public class ArchivedExecutionGraphTest extends TestLogger {
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
 			null,
-			null,
+			new MemoryStateBackend(),
 			statsTracker);
 
 		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();

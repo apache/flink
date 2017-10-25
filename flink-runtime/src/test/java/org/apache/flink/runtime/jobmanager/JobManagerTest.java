@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
@@ -149,16 +150,16 @@ import static org.apache.flink.runtime.testingUtils.TestingUtils.DEFAULT_AKKA_AS
 import static org.apache.flink.runtime.testingUtils.TestingUtils.TESTING_TIMEOUT;
 import static org.apache.flink.runtime.testingUtils.TestingUtils.startTestingCluster;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
 import static org.mockito.Mockito.mock;
 
 public class JobManagerTest extends TestLogger {
 
 	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	private static ActorSystem system;
 
@@ -830,7 +831,7 @@ public class JobManagerTest extends TestLogger {
 
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 		Configuration config = new Configuration();
-		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.getAbsolutePath());
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.toURI().toString());
 
 		ActorSystem actorSystem = null;
 		ActorGateway jobManager = null;
@@ -932,13 +933,13 @@ public class JobManagerTest extends TestLogger {
 			}
 
 			// Verify savepoint path
-			assertNotEquals("Savepoint not triggered", null, savepointPath);
+			assertNotNull("Savepoint not triggered", savepointPath);
 
 			// Wait for job status change
 			Await.ready(cancelled, timeout);
 
-			File savepointFile = new File(savepointPath);
-			assertEquals(true, savepointFile.exists());
+			File savepointFile = new File(new Path(savepointPath).getPath());
+			assertTrue(savepointFile.exists());
 		} finally {
 			if (actorSystem != null) {
 				actorSystem.shutdown();
@@ -1157,7 +1158,7 @@ public class JobManagerTest extends TestLogger {
 
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 		Configuration config = new Configuration();
-		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.getAbsolutePath());
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.toURI().toString());
 
 		ActorSystem actorSystem = null;
 		ActorGateway jobManager = null;

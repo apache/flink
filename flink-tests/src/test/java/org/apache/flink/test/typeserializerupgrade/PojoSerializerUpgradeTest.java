@@ -32,15 +32,15 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -70,7 +70,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import static org.apache.flink.runtime.state.filesystem.FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -85,9 +84,9 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 	@Parameterized.Parameters(name = "StateBackend: {0}")
 	public static Collection<String> parameters () {
 		return Arrays.asList(
-			AbstractStateBackend.MEMORY_STATE_BACKEND_NAME,
-			AbstractStateBackend.FS_STATE_BACKEND_NAME,
-			AbstractStateBackend.ROCKSDB_STATE_BACKEND_NAME);
+				StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
+				StateBackendLoader.FS_STATE_BACKEND_NAME,
+				StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME);
 	}
 
 	@ClassRule
@@ -97,9 +96,9 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 
 	public PojoSerializerUpgradeTest(String backendType) throws IOException, DynamicCodeLoadingException {
 		Configuration config = new Configuration();
-		config.setString(CoreOptions.STATE_BACKEND, backendType);
-		config.setString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, temporaryFolder.newFolder().toURI().toString());
-		stateBackend = AbstractStateBackend.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
+		config.setString(CheckpointingOptions.STATE_BACKEND, backendType);
+		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.newFolder().toURI().toString());
+		stateBackend = StateBackendLoader.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
 	}
 
 	private static final String POJO_NAME = "Pojo";
