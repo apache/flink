@@ -186,7 +186,8 @@ public class JvmExitOnFatalErrorTest {
 						blobService,
 						new BlobLibraryCacheManager(
 							blobService.getPermanentBlobService(),
-							FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
+							FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+							new String[0]),
 						new FileCache(tmInfo.getTmpDirectories()),
 						tmInfo,
 						new UnregisteredTaskMetricsGroup(),

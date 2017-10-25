@@ -62,6 +62,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
 
+	private final String[] alwaysParentFirstLoaderPatterns;
+
 	public TaskManagerConfiguration(
 		int numberSlots,
 		String[] tmpDirectories,
@@ -73,7 +75,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		long cleanupInterval,
 		Configuration configuration,
 		boolean exitJvmOnOutOfMemory,
-		FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder) {
+		FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+		String[] alwaysParentFirstLoaderPatterns) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -85,6 +88,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
 		this.classLoaderResolveOrder = classLoaderResolveOrder;
+		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 	}
 
 	public int getNumberSlots() {
@@ -128,6 +132,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
 		return classLoaderResolveOrder;
+	}
+
+	public String[] getAlwaysParentFirstLoaderPatterns() {
+		return alwaysParentFirstLoaderPatterns;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -225,6 +233,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final String classLoaderResolveOrder =
 			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 
+		final String alwaysParentFirstLoaderString =
+			configuration.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
+		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
 
 		return new TaskManagerConfiguration(
 			numberSlots,
@@ -237,6 +248,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			cleanupInterval,
 			configuration,
 			exitOnOom,
-			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder));
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
+			alwaysParentFirstLoaderPatterns);
 	}
 }
