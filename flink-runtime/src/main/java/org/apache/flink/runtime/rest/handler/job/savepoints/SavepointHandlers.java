@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -79,7 +79,7 @@ import static java.util.Objects.requireNonNull;
  * { "target-directory": "/tmp" }
  * </pre>
  * If the body is omitted, or the field {@code target-property} is {@code null}, the default
- * savepoint directory as specified by {@link CoreOptions#SAVEPOINT_DIRECTORY} will be used.
+ * savepoint directory as specified by {@link CheckpointingOptions#SAVEPOINT_DIRECTORY} will be used.
  * As written above, the response will contain a request id, e.g.,
  * <pre>
  * { "request-id": "7d273f5a62eb4730b9dea8e833733c1e" }
@@ -146,7 +146,7 @@ public class SavepointHandlers {
 				return FutureUtils.completedExceptionally(
 					new RestHandlerException(
 						String.format("Config key [%s] is not set. Property [%s] must be provided.",
-							CoreOptions.SAVEPOINT_DIRECTORY.key(),
+							CheckpointingOptions.SAVEPOINT_DIRECTORY.key(),
 							SavepointTriggerRequestBody.FIELD_NAME_TARGET_DIRECTORY),
 						HttpResponseStatus.BAD_REQUEST));
 			}

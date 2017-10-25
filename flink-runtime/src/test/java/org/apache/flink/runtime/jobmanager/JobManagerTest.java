@@ -20,9 +20,9 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.queryablestate.KvStateID;
@@ -830,7 +830,7 @@ public class JobManagerTest extends TestLogger {
 
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 		Configuration config = new Configuration();
-		config.setString(CoreOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.getAbsolutePath());
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.getAbsolutePath());
 
 		ActorSystem actorSystem = null;
 		ActorGateway jobManager = null;
@@ -1157,7 +1157,7 @@ public class JobManagerTest extends TestLogger {
 
 		FiniteDuration timeout = new FiniteDuration(30, TimeUnit.SECONDS);
 		Configuration config = new Configuration();
-		config.setString(CoreOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.getAbsolutePath());
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, defaultSavepointDir.getAbsolutePath());
 
 		ActorSystem actorSystem = null;
 		ActorGateway jobManager = null;

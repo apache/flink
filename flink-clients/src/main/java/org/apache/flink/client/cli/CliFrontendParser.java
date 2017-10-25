@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.CheckpointingOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -93,7 +93,7 @@ public class CliFrontendParser {
 	static final Option CANCEL_WITH_SAVEPOINT_OPTION = new Option(
 			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
 			"directory is optional. If no directory is specified, the configured default " +
-			"directory (" + CoreOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
+			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
 	static {
 		HELP_OPTION.setRequired(false);

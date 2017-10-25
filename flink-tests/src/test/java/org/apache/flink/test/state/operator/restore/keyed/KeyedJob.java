@@ -25,8 +25,8 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -59,7 +59,7 @@ public class KeyedJob {
 		String savepointsPath = pt.getRequired("savepoint-path");
 
 		Configuration config = new Configuration();
-		config.setString(CoreOptions.SAVEPOINT_DIRECTORY, savepointsPath);
+		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointsPath);
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
 		env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
