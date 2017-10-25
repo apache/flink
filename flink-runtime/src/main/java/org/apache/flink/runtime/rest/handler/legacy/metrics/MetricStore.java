@@ -61,7 +61,7 @@ public class MetricStore {
 	 *
 	 * @param activeTaskManagers to retain.
 	 */
-	public synchronized void retainTaskManagers(List<String> activeTaskManagers) {
+	synchronized void retainTaskManagers(List<String> activeTaskManagers) {
 		taskManagers.keySet().retainAll(activeTaskManagers);
 	}
 
@@ -70,7 +70,7 @@ public class MetricStore {
 	 *
 	 * @param activeJobs to retain.
 	 */
-	public synchronized void retainJobs(List<String> activeJobs) {
+	synchronized void retainJobs(List<String> activeJobs) {
 		jobs.keySet().retainAll(activeJobs);
 	}
 
@@ -79,7 +79,7 @@ public class MetricStore {
 	 *
 	 * @param metricDumps to add.
 	 */
-	public synchronized void addAll(List<MetricDump> metricDumps) {
+	synchronized void addAll(List<MetricDump> metricDumps) {
 		for (MetricDump metric : metricDumps) {
 			add(metric);
 		}
@@ -90,9 +90,9 @@ public class MetricStore {
 	// -----------------------------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the {@link ComponentMetricStore}.
+	 * Returns the {@link ComponentMetricStore} for the JobManager.
 	 *
-	 * @return JobManagerMetricStore
+	 * @return ComponentMetricStore
 	 */
 	public synchronized ComponentMetricStore getJobManagerMetricStore() {
 		return ComponentMetricStore.unmodifiable(jobManager);
@@ -275,7 +275,7 @@ public class MetricStore {
 	public static class ComponentMetricStore {
 		public final Map<String, String> metrics;
 
-		public ComponentMetricStore() {
+		private ComponentMetricStore() {
 			this(new ConcurrentHashMap<>());
 		}
 
@@ -294,7 +294,7 @@ public class MetricStore {
 				: defaultValue;
 		}
 
-		public static ComponentMetricStore unmodifiable(ComponentMetricStore source) {
+		private static ComponentMetricStore unmodifiable(ComponentMetricStore source) {
 			if (source == null) {
 				return null;
 			}
@@ -309,20 +309,20 @@ public class MetricStore {
 	public static class TaskManagerMetricStore extends ComponentMetricStore {
 		public final Set<String> garbageCollectorNames;
 
-		public TaskManagerMetricStore() {
+		private TaskManagerMetricStore() {
 			this(new ConcurrentHashMap<>(), ConcurrentHashMap.newKeySet());
 		}
 
-		public TaskManagerMetricStore(Map<String, String> metrics, Set<String> garbageCollectorNames) {
+		private TaskManagerMetricStore(Map<String, String> metrics, Set<String> garbageCollectorNames) {
 			super(metrics);
 			this.garbageCollectorNames = checkNotNull(garbageCollectorNames);
 		}
 
-		public void addGarbageCollectorName(String name) {
+		private void addGarbageCollectorName(String name) {
 			garbageCollectorNames.add(name);
 		}
 
-		public static TaskManagerMetricStore unmodifiable(TaskManagerMetricStore source) {
+		private static TaskManagerMetricStore unmodifiable(TaskManagerMetricStore source) {
 			if (source == null) {
 				return null;
 			}
