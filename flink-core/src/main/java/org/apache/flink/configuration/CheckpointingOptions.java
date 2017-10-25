@@ -65,4 +65,17 @@ public class CheckpointingOptions {
 	public static final ConfigOption<Integer> FS_SMALL_FILE_THRESHOLD = ConfigOptions
 			.key("state.backend.fs.memory-threshold")
 			.defaultValue(1024);
+
+	/** The minimum size of state data files. All state chunks smaller than that
+	 * are stored inline in the root checkpoint metadata file. */
+	public static final ConfigOption<String> ROCKSDB_LOCAL_DIRECTORIES = ConfigOptions
+			.key("state.backend.rocksdb.localdir")
+			.noDefaultValue()
+			.withDeprecatedKeys("state.backend.rocksdb.checkpointdir");
+
+	/** The minimum size of state data files. All state chunks smaller than that
+	 * are stored inline in the root checkpoint metadata file. */
+	public static final ConfigOption<Boolean> ROCKSDB_INCREMENTAL_CHECKPOINTS = ConfigOptions
+			.key("state.backend.rocksdb.incremental")
+			.defaultValue(false);
 }

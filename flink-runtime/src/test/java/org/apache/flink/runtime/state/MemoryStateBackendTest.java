@@ -93,7 +93,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Test
 	public void testOversizedState() {
 		try {
-			MemoryStateBackend backend = new MemoryStateBackend(10);
+			MemoryStateBackend backend = new MemoryStateBackend(null, null, 10, true);
 			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
 
 			HashMap<String, Integer> state = new HashMap<>();
