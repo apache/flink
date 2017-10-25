@@ -217,7 +217,7 @@ public abstract class KryoRegistrationSerializerConfigSnapshot<T> extends Generi
 	/**
 	 * Placeholder dummy for a previously registered class that can no longer be found in classpath on restore.
 	 */
-	public static class DummyRegisteredClass {}
+	public static class DummyRegisteredClass implements Serializable {}
 
 	/**
 	 * Placeholder dummmy for a previously registered Kryo serializer that is no longer valid or in classpath on restore.
