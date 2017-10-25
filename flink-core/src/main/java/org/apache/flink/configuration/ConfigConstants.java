@@ -651,7 +651,7 @@ public final class ConfigConstants {
 	/**
 	 * The port for the runtime monitor web-frontend server.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_PORT} instead.
+	 * @deprecated Use {@link WebOptions#PORT} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_PORT_KEY = "jobmanager.web.port";
@@ -659,7 +659,7 @@ public final class ConfigConstants {
 	/**
 	 * Config parameter to override SSL support for the JobManager Web UI
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_SSL_ENABLED} instead.
+	 * @deprecated Use {@link WebOptions#SSL_ENABLED} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_SSL_ENABLED = "jobmanager.web.ssl.enabled";
@@ -667,7 +667,7 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the flink web directory to be used by the webmonitor.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_TMP_DIR} instead.
+	 * @deprecated Use {@link WebOptions#TMP_DIR} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_TMPDIR_KEY = "jobmanager.web.tmpdir";
@@ -676,7 +676,7 @@ public final class ConfigConstants {
 	 * The config parameter defining the directory for uploading the job jars. If not specified a dynamic directory
 	 * will be used under the directory specified by JOB_MANAGER_WEB_TMPDIR_KEY.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_UPLOAD_DIR} instead.
+	 * @deprecated Use {@link WebOptions#UPLOAD_DIR} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_UPLOAD_DIR_KEY = "jobmanager.web.upload.dir";
@@ -684,7 +684,7 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the number of archived jobs for the jobmanager
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_ARCHIVE_COUNT} instead.
+	 * @deprecated Use {@link WebOptions#ARCHIVE_COUNT} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_ARCHIVE_COUNT = "jobmanager.web.history";
@@ -692,7 +692,7 @@ public final class ConfigConstants {
 	/**
 	 * The log file location (may be in /log for standalone but under log directory when using YARN)
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_LOG_PATH} instead.
+	 * @deprecated Use {@link WebOptions#LOG_PATH} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_LOG_PATH_KEY = "jobmanager.web.log.path";
@@ -700,7 +700,7 @@ public final class ConfigConstants {
 	/**
 	 * Config parameter indicating whether jobs can be uploaded and run from the web-frontend.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_SUBMIT_ENABLE} instead.
+	 * @deprecated Use {@link WebOptions#SUBMIT_ENABLE} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_SUBMIT_ENABLED_KEY = "jobmanager.web.submit.enable";
@@ -716,7 +716,7 @@ public final class ConfigConstants {
 	/**
 	 * Config parameter defining the number of checkpoints to remember for recent history.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_CHECKPOINTS_HISTORY_SIZE} instead.
+	 * @deprecated Use {@link WebOptions#CHECKPOINTS_HISTORY_SIZE} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = "jobmanager.web.checkpoints.history";
@@ -724,7 +724,7 @@ public final class ConfigConstants {
 	/**
 	 * Time after which cached stats are cleaned up if not accessed.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead.
+	 * @deprecated Use {@link WebOptions#BACKPRESSURE_CLEANUP_INTERVAL} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = "jobmanager.web.backpressure.cleanup-interval";
@@ -732,7 +732,7 @@ public final class ConfigConstants {
 	/**
 	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_REFRESH_INTERVAL} instead.
+	 * @deprecated Use {@link WebOptions#BACKPRESSURE_REFRESH_INTERVAL} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = "jobmanager.web.backpressure.refresh-interval";
@@ -740,7 +740,7 @@ public final class ConfigConstants {
 	/**
 	 * Number of stack trace samples to take to determine back pressure.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_NUM_SAMPLES} instead.
+	 * @deprecated Use {@link WebOptions#BACKPRESSURE_NUM_SAMPLES} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = "jobmanager.web.backpressure.num-samples";
@@ -748,7 +748,7 @@ public final class ConfigConstants {
 	/**
 	 * Delay between stack trace samples to determine back pressure.
 	 *
-	 * @deprecated Use {@link JobManagerOptions#WEB_BACKPRESSURE_DELAY} instead.
+	 * @deprecated Use {@link WebOptions#BACKPRESSURE_DELAY} instead.
 	 */
 	@Deprecated
 	public static final String JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = "jobmanager.web.backpressure.delay-between-samples";
@@ -944,7 +944,7 @@ public final class ConfigConstants {
 	/**
 	 * State backend for checkpoints
 	 * 
-	 * @deprecated Use {@link CoreOptions#STATE_BACKEND} instead.
+	 * @deprecated Use {@link CheckpointingOptions#STATE_BACKEND} instead.
 	 */
 	@Deprecated
 	public static final String STATE_BACKEND = "state.backend";
@@ -1214,7 +1214,7 @@ public final class ConfigConstants {
 
 	/**
 	 * The default directory for savepoints.
-	 * @deprecated Use {@link CoreOptions#SAVEPOINT_DIRECTORY} instead.
+	 * @deprecated Use {@link CheckpointingOptions#SAVEPOINT_DIRECTORY} instead.
 	 */
 	@PublicEvolving
 	@Deprecated
@@ -1222,7 +1222,7 @@ public final class ConfigConstants {
 
 	/**
 	 * The default directory used for persistent checkpoints.
-	 * @deprecated Use {@link CoreOptions#CHECKPOINTS_DIRECTORY} instead.
+	 * @deprecated Use {@link CheckpointingOptions#CHECKPOINTS_DIRECTORY} instead.
 	 */
 	@PublicEvolving
 	@Deprecated
@@ -1231,7 +1231,7 @@ public final class ConfigConstants {
 	/**
 	 * @deprecated This key was used in Flink versions <= 1.1.X with the savepoint backend
 	 * configuration. We now always use the FileSystem for savepoints. For this,
-	 * the only relevant config key is {@link CoreOptions#SAVEPOINT_DIRECTORY}.
+	 * the only relevant config key is {@link CheckpointingOptions#SAVEPOINT_DIRECTORY}.
 	 */
 	@Deprecated
 	public static final String SAVEPOINT_FS_DIRECTORY_KEY = "savepoints.state.backend.fs.dir";
@@ -1540,7 +1540,7 @@ public final class ConfigConstants {
 	/**
 	 * The config key for the address of the JobManager web frontend.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_FRONTEND_ADDRESS} instead
+	 * @deprecated use {@link WebOptions#ADDRESS} instead
 	 */
 	@Deprecated
 	public static final ConfigOption<String> DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS =
@@ -1551,7 +1551,7 @@ public final class ConfigConstants {
 	 * The config key for the port of the JobManager web frontend.
 	 * Setting this value to {@code -1} disables the web frontend.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_PORT} instead
+	 * @deprecated use {@link WebOptions#PORT} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_FRONTEND_PORT = 8081;
@@ -1559,7 +1559,7 @@ public final class ConfigConstants {
 	/**
 	 * Default value to override SSL support for the JobManager web UI
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_SSL_ENABLED} instead
+	 * @deprecated use {@link WebOptions#SSL_ENABLED} instead
 	 */
 	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SSL_ENABLED = true;
@@ -1567,7 +1567,7 @@ public final class ConfigConstants {
 	/**
 	 * The default number of archived jobs for the jobmanager
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_ARCHIVE_COUNT} instead
+	 * @deprecated use {@link WebOptions#ARCHIVE_COUNT} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_ARCHIVE_COUNT = 5;
@@ -1575,7 +1575,7 @@ public final class ConfigConstants {
 	/**
 	 * By default, submitting jobs from the web-frontend is allowed.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_SUBMIT_ENABLE} instead
+	 * @deprecated use {@link WebOptions#SUBMIT_ENABLE} instead
 	 */
 	@Deprecated
 	public static final boolean DEFAULT_JOB_MANAGER_WEB_SUBMIT_ENABLED = true;
@@ -1587,7 +1587,7 @@ public final class ConfigConstants {
 	/**
 	 * Default number of checkpoints to remember for recent history.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_CHECKPOINTS_HISTORY_SIZE} instead
+	 * @deprecated use {@link WebOptions#CHECKPOINTS_HISTORY_SIZE} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE = 10;
@@ -1595,7 +1595,7 @@ public final class ConfigConstants {
 	/**
 	 * Time after which cached stats are cleaned up.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_CLEANUP_INTERVAL} instead
+	 * @deprecated use {@link WebOptions#BACKPRESSURE_CLEANUP_INTERVAL} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL = 10 * 60 * 1000;
@@ -1603,7 +1603,7 @@ public final class ConfigConstants {
 	/**
 	 * Time after which available stats are deprecated and need to be refreshed (by resampling).
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_REFRESH_INTERVAL} instead
+	 * @deprecated use {@link WebOptions#BACKPRESSURE_REFRESH_INTERVAL} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL = 60 * 1000;
@@ -1611,7 +1611,7 @@ public final class ConfigConstants {
 	/**
 	 * Number of samples to take to determine back pressure.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_NUM_SAMPLES} instead
+	 * @deprecated use {@link WebOptions#BACKPRESSURE_NUM_SAMPLES} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES = 100;
@@ -1619,7 +1619,7 @@ public final class ConfigConstants {
 	/**
 	 * Delay between samples to determine back pressure.
 	 *
-	 * @deprecated use {@link JobManagerOptions#WEB_BACKPRESSURE_DELAY} instead
+	 * @deprecated use {@link WebOptions#BACKPRESSURE_DELAY} instead
 	 */
 	@Deprecated
 	public static final int DEFAULT_JOB_MANAGER_WEB_BACK_PRESSURE_DELAY = 50;
