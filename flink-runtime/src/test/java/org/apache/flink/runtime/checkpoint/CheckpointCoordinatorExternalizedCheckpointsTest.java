@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -54,7 +55,7 @@ import static org.junit.Assert.assertTrue;
 public class CheckpointCoordinatorExternalizedCheckpointsTest {
 
 	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+	public final TemporaryFolder tmp = new TemporaryFolder();
 
 	/**
 	 * Triggers multiple externalized checkpoints and verifies that the metadata
@@ -69,6 +70,7 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 			ExternalizedCheckpointSettings.externalizeCheckpoints(false);
 
 		final File checkpointDir = tmp.newFolder();
+		final FsStateBackend stateBackend = new FsStateBackend(checkpointDir.toURI());
 
 		// create some mock Execution vertices that receive the checkpoint trigger messages
 		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
@@ -94,6 +96,7 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 			new StandaloneCheckpointIDCounter(),
 			new StandaloneCompletedCheckpointStore(1),
 			checkpointDir.getAbsolutePath(),
+			stateBackend,
 			Executors.directExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY);
 
@@ -109,8 +112,7 @@ public class CheckpointCoordinatorExternalizedCheckpointsTest {
 
 			coord.triggerCheckpoint(timestamp1, false);
 
-			long checkpointId1 = coord.getPendingCheckpoints().entrySet().iterator().next()
-				.getKey();
+			long checkpointId1 = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointId1));
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID2, checkpointId1));

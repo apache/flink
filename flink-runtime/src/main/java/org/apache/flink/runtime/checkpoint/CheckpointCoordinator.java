@@ -41,6 +41,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -115,6 +116,10 @@ public class CheckpointCoordinator {
 	/** Completed checkpoints. Implementations can be blocking. Make sure calls to methods
 	 * accessing this don't block the job manager actor and run asynchronously. */
 	private final CompletedCheckpointStore completedCheckpointStore;
+
+	/** The root checkpoint state backend, which is responsible for initializing the
+	 * checkpoint, storing the metadata, and cleaning up the checkpoint */
+	private final StateBackend checkpointStateBackend;
 
 	/** Default directory for persistent checkpoints; <code>null</code> if none configured.
 	 * THIS WILL BE REPLACED BY PROPER STATE-BACKEND METADATA WRITING */
@@ -196,6 +201,7 @@ public class CheckpointCoordinator {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore completedCheckpointStore,
 			@Nullable String checkpointDirectory,
+			StateBackend checkpointStateBackend,
 			Executor executor,
 			SharedStateRegistryFactory sharedStateRegistryFactory) {
 
@@ -233,6 +239,7 @@ public class CheckpointCoordinator {
 		this.pendingCheckpoints = new LinkedHashMap<>();
 		this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
 		this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
+		this.checkpointStateBackend = checkNotNull(checkpointStateBackend);
 		this.checkpointDirectory = checkpointDirectory;
 		this.executor = checkNotNull(executor);
 		this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
