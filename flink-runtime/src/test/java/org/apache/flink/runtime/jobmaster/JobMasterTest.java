@@ -108,7 +108,10 @@ public class JobMasterTest extends TestLogger {
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
 				blobServer,
-				new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
+				new BlobLibraryCacheManager(
+					blobServer,
+					FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+					new String[0]),
 				mock(RestartStrategyFactory.class),
 				testingTimeout,
 				null,
@@ -212,7 +215,10 @@ public class JobMasterTest extends TestLogger {
 				heartbeatServices,
 				Executors.newScheduledThreadPool(1),
 				blobServer,
-				new BlobLibraryCacheManager(blobServer, FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST),
+				new BlobLibraryCacheManager(
+					blobServer,
+					FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+					new String[0]),
 				mock(RestartStrategyFactory.class),
 				testingTimeout,
 				null,
