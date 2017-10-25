@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.api.scala.batch.sql
 
-import java.sql.Timestamp
-
+import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala.batch.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.api.scala._
@@ -312,7 +311,7 @@ class AggregationsITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
-      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
     tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
@@ -345,7 +344,7 @@ class AggregationsITCase(
 
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
-      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
     tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
@@ -380,7 +379,7 @@ class AggregationsITCase(
     val ds = CollectionDataSets.get3TupleDataSet(env)
       // create timestamps
       .filter(x => (x._2 % 2) == 0)
-      .map(x => (x._1, x._2, x._3, new Timestamp(x._1 * 1000)))
+      .map(x => (x._1, x._2, x._3, toTimestamp(x._1 * 1000)))
     tEnv.registerDataSet("T", ds, 'a, 'b, 'c, 'ts)
 
     val result = tEnv.sql(sqlQuery).toDataSet[Row].collect()
