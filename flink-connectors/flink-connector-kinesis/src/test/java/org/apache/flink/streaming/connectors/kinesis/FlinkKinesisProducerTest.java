@@ -31,11 +31,11 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.SettableFuture;
-
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
+
+import com.google.common.util.concurrent.SettableFuture;
 
 import org.junit.Assert;
 import org.junit.Rule;
