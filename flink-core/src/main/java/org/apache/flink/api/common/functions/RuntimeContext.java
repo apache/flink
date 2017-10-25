@@ -378,7 +378,7 @@ public interface RuntimeContext {
 	 *
 	 *     public void open(Configuration cfg) {
 	 *         state = getRuntimeContext().getAggregatingState(
-	 *                 new AggregatingStateDescriptor<>("sum", 0L, aggregateFunction, Long.class));
+	 *                 new AggregatingStateDescriptor<>("sum", aggregateFunction, Long.class));
 	 *     }
 	 *
 	 *     public Tuple2<MyType, Long> map(MyType value) {
