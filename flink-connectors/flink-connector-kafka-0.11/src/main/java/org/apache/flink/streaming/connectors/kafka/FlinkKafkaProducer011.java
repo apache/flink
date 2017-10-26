@@ -958,25 +958,25 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * State for handling transactions.
 	 */
-	public static class KafkaTransactionState {
+	static class KafkaTransactionState {
 
 		private final transient FlinkKafkaProducer<byte[], byte[]> producer;
 
 		@Nullable
-		public final String transactionalId;
+		final String transactionalId;
 
-		public final long producerId;
+		final long producerId;
 
-		public final short epoch;
+		final short epoch;
 
-		public KafkaTransactionState(String transactionalId, FlinkKafkaProducer<byte[], byte[]> producer) {
+		KafkaTransactionState(String transactionalId, FlinkKafkaProducer<byte[], byte[]> producer) {
 			this.producer = producer;
 			this.transactionalId = transactionalId;
 			this.producerId = producer.getProducerId();
 			this.epoch = producer.getEpoch();
 		}
 
-		public KafkaTransactionState(FlinkKafkaProducer<byte[], byte[]> producer) {
+		KafkaTransactionState(FlinkKafkaProducer<byte[], byte[]> producer) {
 			this.producer = producer;
 			this.transactionalId = null;
 			this.producerId = -1;
@@ -993,13 +993,15 @@ public class FlinkKafkaProducer011<IN>
 	 * Context associated to this instance of the {@link FlinkKafkaProducer011}. User for keeping track of the
 	 * transactionalIds.
 	 */
-	public static class KafkaTransactionContext {
-		public final Set<String> transactionalIds;
+	static class KafkaTransactionContext {
+		final Set<String> transactionalIds;
 
-		public KafkaTransactionContext(Set<String> transactionalIds) {
+		KafkaTransactionContext(Set<String> transactionalIds) {
 			this.transactionalIds = transactionalIds;
 		}
 	}
+
+
 
 	static class ProducersPool implements Closeable {
 		private final LinkedBlockingDeque<FlinkKafkaProducer<byte[], byte[]>> pool = new LinkedBlockingDeque<>();
