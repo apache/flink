@@ -47,7 +47,7 @@ public class JobVertexMetricsHandler extends AbstractMetricsHandler {
 
 	@Override
 	protected Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics) {
-		MetricStore.TaskMetricStore task = metrics.getTaskMetricStore(
+		MetricStore.ComponentMetricStore task = metrics.getTaskMetricStore(
 			pathParams.get(JobMetricsHandler.PARAMETER_JOB_ID),
 			pathParams.get(PARAMETER_VERTEX_ID));
 		return task != null

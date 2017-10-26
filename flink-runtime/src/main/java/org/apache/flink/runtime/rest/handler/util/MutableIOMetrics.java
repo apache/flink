@@ -77,58 +77,56 @@ public class MutableIOMetrics extends IOMetrics {
 		} else { // execAttempt is still running, use MetricQueryService instead
 			if (fetcher != null) {
 				fetcher.update();
-				MetricStore metricStore = fetcher.getMetricStore();
-				synchronized (metricStore) {
-					MetricStore.SubtaskMetricStore metrics = metricStore.getSubtaskMetricStore(jobID, taskID, attempt.getParallelSubtaskIndex());
-					if (metrics != null) {
-						/**
-						 * We want to keep track of missing metrics to be able to make a difference between 0 as a value
-						 * and a missing value.
-						 * In case a metric is missing for a parallel instance of a task, we set the complete flag as
-						 * false.
-						 */
-						if (metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL) == null){
-							this.numBytesInLocalComplete = false;
-						}
-						else {
-							this.numBytesInLocal += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL));
-						}
-
-						if (metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE) == null){
-							this.numBytesInRemoteComplete = false;
-						}
-						else {
-							this.numBytesInRemote += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE));
-						}
-
-						if (metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT) == null){
-							this.numBytesOutComplete = false;
-						}
-						else {
-							this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT));
-						}
-
-						if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN) == null){
-							this.numRecordsInComplete = false;
-						}
-						else {
-							this.numRecordsIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN));
-						}
-
-						if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT) == null){
-							this.numRecordsOutComplete = false;
-						}
-						else {
-							this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT));
-						}
+				MetricStore.ComponentMetricStore metrics = fetcher.getMetricStore()
+					.getSubtaskMetricStore(jobID, taskID, attempt.getParallelSubtaskIndex());
+				if (metrics != null) {
+					/**
+					 * We want to keep track of missing metrics to be able to make a difference between 0 as a value
+					 * and a missing value.
+					 * In case a metric is missing for a parallel instance of a task, we set the complete flag as
+					 * false.
+					 */
+					if (metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL) == null){
+						this.numBytesInLocalComplete = false;
 					}
 					else {
-						this.numBytesInLocalComplete = false;
+						this.numBytesInLocal += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL));
+					}
+
+					if (metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE) == null){
 						this.numBytesInRemoteComplete = false;
+					}
+					else {
+						this.numBytesInRemote += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE));
+					}
+
+					if (metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT) == null){
 						this.numBytesOutComplete = false;
+					}
+					else {
+						this.numBytesOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_BYTES_OUT));
+					}
+
+					if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN) == null){
 						this.numRecordsInComplete = false;
+					}
+					else {
+						this.numRecordsIn += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_IN));
+					}
+
+					if (metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT) == null){
 						this.numRecordsOutComplete = false;
 					}
+					else {
+						this.numRecordsOut += Long.valueOf(metrics.getMetric(MetricNames.IO_NUM_RECORDS_OUT));
+					}
+				}
+				else {
+					this.numBytesInLocalComplete = false;
+					this.numBytesInRemoteComplete = false;
+					this.numBytesOutComplete = false;
+					this.numRecordsInComplete = false;
+					this.numRecordsOutComplete = false;
 				}
 			}
 		}

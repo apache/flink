@@ -58,9 +58,9 @@ public class MetricStoreTest extends TestLogger {
 		store.add(cd);
 
 		//-----verify that no side effects occur
-		assertEquals(0, store.jobManager.metrics.size());
-		assertEquals(0, store.taskManagers.size());
-		assertEquals(0, store.jobs.size());
+		assertEquals(0, store.getJobManager().metrics.size());
+		assertEquals(0, store.getTaskManagers().size());
+		assertEquals(0, store.getJobs().size());
 	}
 
 	public static MetricStore setupStore(MetricStore store) {
