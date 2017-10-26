@@ -77,6 +77,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -346,7 +347,7 @@ public class YarnResourceManagerTest extends TestLogger {
 			final SlotReport slotReport = new SlotReport(
 				new SlotStatus(
 					new SlotID(taskManagerResourceId, 1),
-					new ResourceProfile(10, 1, 1, 1)));
+					new ResourceProfile(10, 1, 1, 1, Collections.emptyMap())));
 
 			CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
 				.registerTaskExecutor(
