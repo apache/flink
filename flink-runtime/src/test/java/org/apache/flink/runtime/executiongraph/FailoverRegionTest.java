@@ -422,6 +422,7 @@ public class FailoverRegionTest extends TestLogger {
 		v2.setInvokableClass(AbstractInvokable.class);
 		v3.setInvokableClass(AbstractInvokable.class);
 
+		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v3.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 		v3.connectNewDataSetAsInput(v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
