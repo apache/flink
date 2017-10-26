@@ -17,11 +17,23 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.CompatibilityUtil;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeDeserializerAdapter;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -32,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -40,6 +53,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -79,19 +93,18 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	 * TwoPhaseCommitSinkFunction(TypeInformation.of(new TypeHint<State<TXN, CONTEXT>>() {}));
 	 * }
 	 * </pre>
-	 * @param stateTypeInformation {@link TypeInformation} for POJO holding state of opened transactions.
-	 */
-	public TwoPhaseCommitSinkFunction(TypeInformation<State<TXN, CONTEXT>> stateTypeInformation) {
-		this(new ListStateDescriptor<State<TXN, CONTEXT>>("state", stateTypeInformation));
-	}
-
-	/**
-	 * Instantiate {@link TwoPhaseCommitSinkFunction} with custom state descriptors.
 	 *
-	 * @param stateDescriptor descriptor for transactions POJO.
+	 * @param transactionSerializer {@link TypeSerializer} for the transaction type of this sink
+	 * @param contextSerializer {@link TypeSerializer} for the context type of this sink
 	 */
-	public TwoPhaseCommitSinkFunction(ListStateDescriptor<State<TXN, CONTEXT>> stateDescriptor) {
-		this.stateDescriptor = requireNonNull(stateDescriptor, "stateDescriptor is null");
+	public TwoPhaseCommitSinkFunction(
+			TypeSerializer<TXN> transactionSerializer,
+			TypeSerializer<CONTEXT> contextSerializer) {
+
+		this.stateDescriptor =
+			new ListStateDescriptor<>(
+					"state",
+					new StateSerializer<>(transactionSerializer, contextSerializer));
 	}
 
 	protected Optional<CONTEXT> initializeUserContext() {
@@ -324,7 +337,9 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	/**
 	 * State POJO class coupling pendingTransaction, context and pendingCommitTransactions.
 	 */
-	public static class State<TXN, CONTEXT> {
+	@VisibleForTesting
+	@Internal
+	public static final class State<TXN, CONTEXT> {
 		protected TXN pendingTransaction;
 		protected List<TXN> pendingCommitTransactions = new ArrayList<>();
 		protected Optional<CONTEXT> context;
@@ -360,6 +375,248 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 
 		public void setContext(Optional<CONTEXT> context) {
 			this.context = context;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			State<?, ?> state = (State<?, ?>) o;
+
+			if (pendingTransaction != null ? !pendingTransaction.equals(state.pendingTransaction) : state.pendingTransaction != null) {
+				return false;
+			}
+			if (pendingCommitTransactions != null ? !pendingCommitTransactions.equals(state.pendingCommitTransactions) : state.pendingCommitTransactions != null) {
+				return false;
+			}
+			return context != null ? context.equals(state.context) : state.context == null;
+		}
+
+		@Override
+		public int hashCode() {
+			int result = pendingTransaction != null ? pendingTransaction.hashCode() : 0;
+			result = 31 * result + (pendingCommitTransactions != null ? pendingCommitTransactions.hashCode() : 0);
+			result = 31 * result + (context != null ? context.hashCode() : 0);
+			return result;
+		}
+	}
+
+	/**
+	 * Custom {@link TypeSerializer} for the sink state.
+	 */
+	@VisibleForTesting
+	@Internal
+	public static final class StateSerializer<TXN, CONTEXT> extends TypeSerializer<State<TXN, CONTEXT>> {
+
+		private static final long serialVersionUID = 1L;
+
+		private final TypeSerializer<TXN> transactionSerializer;
+		private final TypeSerializer<CONTEXT> contextSerializer;
+
+		public StateSerializer(
+				TypeSerializer<TXN> transactionSerializer,
+				TypeSerializer<CONTEXT> contextSerializer) {
+			this.transactionSerializer = checkNotNull(transactionSerializer);
+			this.contextSerializer = checkNotNull(contextSerializer);
+		}
+
+		@Override
+		public boolean isImmutableType() {
+			return transactionSerializer.isImmutableType() && contextSerializer.isImmutableType();
+		}
+
+		@Override
+		public TypeSerializer<State<TXN, CONTEXT>> duplicate() {
+			return new StateSerializer<>(
+					transactionSerializer.duplicate(), contextSerializer.duplicate());
+		}
+
+		@Override
+		public State<TXN, CONTEXT> createInstance() {
+			return null;
+		}
+
+		@Override
+		public State<TXN, CONTEXT> copy(State<TXN, CONTEXT> from) {
+			TXN copiedPendingTransaction = transactionSerializer.copy(from.getPendingTransaction());
+			List<TXN> copiedPendingCommitTransactions = new ArrayList<>();
+			for (TXN txn : from.getPendingCommitTransactions()) {
+				copiedPendingCommitTransactions.add(transactionSerializer.copy(txn));
+			}
+			Optional<CONTEXT> copiedContext = from.getContext().map(contextSerializer::copy);
+			return new State<>(copiedPendingTransaction, copiedPendingCommitTransactions, copiedContext);
+		}
+
+		@Override
+		public State<TXN, CONTEXT> copy(
+				State<TXN, CONTEXT> from,
+				State<TXN, CONTEXT> reuse) {
+			return copy(from);
+		}
+
+		@Override
+		public int getLength() {
+			return -1;
+		}
+
+		@Override
+		public void serialize(
+				State<TXN, CONTEXT> record,
+				DataOutputView target) throws IOException {
+			transactionSerializer.serialize(record.getPendingTransaction(), target);
+			List<TXN> pendingCommitTransactions = record.getPendingCommitTransactions();
+			target.writeInt(pendingCommitTransactions.size());
+			for (TXN pendingTxn : pendingCommitTransactions) {
+				transactionSerializer.serialize(pendingTxn, target);
+			}
+			Optional<CONTEXT> context = record.getContext();
+			if (context.isPresent()) {
+				target.writeBoolean(true);
+				contextSerializer.serialize(context.get(), target);
+			} else {
+				target.writeBoolean(false);
+			}
+		}
+
+		@Override
+		public State<TXN, CONTEXT> deserialize(DataInputView source) throws IOException {
+			TXN pendingTxn = transactionSerializer.deserialize(source);
+			int numPendingCommitTxns = source.readInt();
+			List<TXN> pendingCommitTxns = new ArrayList<>(numPendingCommitTxns);
+			for (int i = 0; i < numPendingCommitTxns; i++) {
+				pendingCommitTxns.add(transactionSerializer.deserialize(source));
+			}
+			Optional<CONTEXT> context = Optional.empty();
+			boolean hasContext = source.readBoolean();
+			if (hasContext) {
+				context = Optional.of(contextSerializer.deserialize(source));
+			}
+			return new State<>(pendingTxn, pendingCommitTxns, context);
+		}
+
+		@Override
+		public State<TXN, CONTEXT> deserialize(
+				State<TXN, CONTEXT> reuse,
+				DataInputView source) throws IOException {
+			return deserialize(source);
+		}
+
+		@Override
+		public void copy(
+				DataInputView source, DataOutputView target) throws IOException {
+			TXN pendingTxn = transactionSerializer.deserialize(source);
+			transactionSerializer.serialize(pendingTxn, target);
+			int numPendingCommitTxns = source.readInt();
+			target.writeInt(numPendingCommitTxns);
+			for (int i = 0; i < numPendingCommitTxns; i++) {
+				TXN pendingCommitTxn = transactionSerializer.deserialize(source);
+				transactionSerializer.serialize(pendingCommitTxn, target);
+			}
+			boolean hasContext = source.readBoolean();
+			target.writeBoolean(hasContext);
+			if (hasContext) {
+				CONTEXT context = contextSerializer.deserialize(source);
+				contextSerializer.serialize(context, target);
+			}
+		}
+
+		@Override
+		public boolean canEqual(Object obj) {
+			return obj instanceof StateSerializer;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+
+			StateSerializer<?, ?> that = (StateSerializer<?, ?>) o;
+
+			if (!transactionSerializer.equals(that.transactionSerializer)) {
+				return false;
+			}
+			return contextSerializer.equals(that.contextSerializer);
+		}
+
+		@Override
+		public int hashCode() {
+			int result = transactionSerializer.hashCode();
+			result = 31 * result + contextSerializer.hashCode();
+			return result;
+		}
+
+		@Override
+		public TypeSerializerConfigSnapshot snapshotConfiguration() {
+			return new StateSerializerConfigSnapshot<>(transactionSerializer, contextSerializer);
+		}
+
+		@Override
+		public CompatibilityResult<State<TXN, CONTEXT>> ensureCompatibility(
+				TypeSerializerConfigSnapshot configSnapshot) {
+			if (configSnapshot instanceof StateSerializerConfigSnapshot) {
+				List<Tuple2<TypeSerializer<?>, TypeSerializerConfigSnapshot>> previousSerializersAndConfigs =
+						((StateSerializerConfigSnapshot) configSnapshot).getNestedSerializersAndConfigs();
+
+				CompatibilityResult<TXN> txnCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						previousSerializersAndConfigs.get(0).f0,
+						UnloadableDummyTypeSerializer.class,
+						previousSerializersAndConfigs.get(0).f1,
+						transactionSerializer);
+
+				CompatibilityResult<CONTEXT> contextCompatResult = CompatibilityUtil.resolveCompatibilityResult(
+						previousSerializersAndConfigs.get(1).f0,
+						UnloadableDummyTypeSerializer.class,
+						previousSerializersAndConfigs.get(1).f1,
+						contextSerializer);
+
+				if (!txnCompatResult.isRequiresMigration() && !contextCompatResult.isRequiresMigration()) {
+					return CompatibilityResult.compatible();
+				} else {
+					if (txnCompatResult.getConvertDeserializer() != null && contextCompatResult.getConvertDeserializer() != null) {
+						return CompatibilityResult.requiresMigration(
+								new StateSerializer<>(
+										new TypeDeserializerAdapter<>(txnCompatResult.getConvertDeserializer()),
+										new TypeDeserializerAdapter<>(contextCompatResult.getConvertDeserializer())));
+					}
+				}
+			}
+
+			return CompatibilityResult.requiresMigration();
+		}
+	}
+
+	/**
+	 * {@link TypeSerializerConfigSnapshot} for sink state. This has to be public so that
+	 * it can be deserialized/instantiated, should not be used anywhere outside
+	 * {@code TwoPhaseCommitSinkFunction}.
+	 */
+	@Internal
+	public static final class StateSerializerConfigSnapshot<TXN, CONTEXT>
+			extends CompositeTypeSerializerConfigSnapshot {
+
+		private static final int VERSION = 1;
+
+		/** This empty nullary constructor is required for deserializing the configuration. */
+		public StateSerializerConfigSnapshot() {}
+
+		public StateSerializerConfigSnapshot(
+				TypeSerializer<TXN> transactionSerializer,
+				TypeSerializer<CONTEXT> contextSerializer) {
+			super(transactionSerializer, contextSerializer);
+		}
+
+		@Override
+		public int getVersion() {
+			return VERSION;
 		}
 	}
 }
