@@ -588,7 +588,7 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>Direct.Count</td>
-      <td>The number of buffers in the direct buffer pool (in bytes).</td>
+      <td>The number of buffers in the direct buffer pool.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -603,7 +603,7 @@ Thus, in order to infer the metric identifier:
     </tr>
     <tr>
       <td>Mapped.Count</td>
-      <td>The number of buffers in the mapped buffer pool (in bytes).</td>
+      <td>The number of buffers in the mapped buffer pool.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -979,7 +979,7 @@ Thus, in order to infer the metric identifier:
     <tr>
       <th rowspan="2"><strong>Operator</strong></th>
       <td>latency</td>
-      <td>The latency distributions from all incoming sources.</td>
+      <td>The latency distributions from all incoming sources (in milliseconds).</td>
       <td>Histogram</td>
     </tr>
     <tr>
