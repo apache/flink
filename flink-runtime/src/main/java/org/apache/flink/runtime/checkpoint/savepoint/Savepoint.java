@@ -34,8 +34,7 @@ import java.util.Collection;
  * we allow different savepoint implementations (see subclasses of this
  * interface).
  *
- * <p>Savepoints are serialized via a {@link SavepointSerializer} and stored
- * via a {@link SavepointStore}.
+ * <p>Savepoints are serialized via a {@link SavepointSerializer}.
  */
 public interface Savepoint extends Versioned {
 

@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
@@ -55,7 +55,7 @@ public class CheckpointConfigHandlerTest {
 		AccessExecutionGraph graph = graphAndSettings.graph;
 		when(graph.getJobID()).thenReturn(new JobID());
 		CheckpointCoordinatorConfiguration chkConfig = graphAndSettings.jobCheckpointingConfiguration;
-		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
+		CheckpointRetentionPolicy retentionPolicy = graphAndSettings.retentionPolicy;
 
 		Collection<ArchivedJson> archives = archivist.archiveJsonWithPath(graph);
 		Assert.assertEquals(1, archives.size());
@@ -73,8 +73,8 @@ public class CheckpointConfigHandlerTest {
 
 		JsonNode externalizedNode = rootNode.get("externalization");
 		Assert.assertNotNull(externalizedNode);
-		Assert.assertEquals(externalizedSettings.externalizeCheckpoints(), externalizedNode.get("enabled").asBoolean());
-		Assert.assertEquals(externalizedSettings.deleteOnCancellation(), externalizedNode.get("delete_on_cancellation").asBoolean());
+		Assert.assertEquals(retentionPolicy != CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION, externalizedNode.get("enabled").asBoolean());
+		Assert.assertEquals(retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION, externalizedNode.get("delete_on_cancellation").asBoolean());
 
 	}
 
@@ -139,7 +139,7 @@ public class CheckpointConfigHandlerTest {
 		GraphAndSettings graphAndSettings = createGraphAndSettings(true, false);
 
 		AccessExecutionGraph graph = graphAndSettings.graph;
-		ExternalizedCheckpointSettings externalizedSettings = graphAndSettings.externalizedSettings;
+		CheckpointRetentionPolicy retentionPolicy = graphAndSettings.retentionPolicy;
 
 		CheckpointConfigHandler handler = new CheckpointConfigHandler(mock(ExecutionGraphCache.class), Executors.directExecutor());
 		String json = handler.handleRequest(graph, Collections.<String, String>emptyMap()).get();
@@ -147,8 +147,8 @@ public class CheckpointConfigHandlerTest {
 		ObjectMapper mapper = new ObjectMapper();
 		JsonNode externalizedNode = mapper.readTree(json).get("externalization");
 		assertNotNull(externalizedNode);
-		assertEquals(externalizedSettings.externalizeCheckpoints(), externalizedNode.get("enabled").asBoolean());
-		assertEquals(externalizedSettings.deleteOnCancellation(), externalizedNode.get("delete_on_cancellation").asBoolean());
+		assertEquals(retentionPolicy != CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION, externalizedNode.get("enabled").asBoolean());
+		assertEquals(retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION, externalizedNode.get("delete_on_cancellation").asBoolean());
 	}
 
 	private static GraphAndSettings createGraphAndSettings(boolean externalized, boolean exactlyOnce) {
@@ -156,36 +156,37 @@ public class CheckpointConfigHandlerTest {
 		long timeout = 996979L;
 		long minPause = 119191919L;
 		int maxConcurrent = 12929329;
-		ExternalizedCheckpointSettings externalizedSetting = externalized
-			? ExternalizedCheckpointSettings.externalizeCheckpoints(true)
-			: ExternalizedCheckpointSettings.none();
+
+		CheckpointRetentionPolicy retentionPolicy = externalized
+			? CheckpointRetentionPolicy.RETAIN_ON_FAILURE
+			: CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			interval,
 			timeout,
 			minPause,
 			maxConcurrent,
-			externalizedSetting,
+			retentionPolicy,
 			exactlyOnce);
 
 		AccessExecutionGraph graph = mock(AccessExecutionGraph.class);
 		when(graph.getCheckpointCoordinatorConfiguration()).thenReturn(chkConfig);
 
-		return new GraphAndSettings(graph, chkConfig, externalizedSetting);
+		return new GraphAndSettings(graph, chkConfig, retentionPolicy);
 	}
 
 	private static class GraphAndSettings {
 		public final AccessExecutionGraph graph;
 		public final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
-		public final ExternalizedCheckpointSettings externalizedSettings;
+		public final CheckpointRetentionPolicy retentionPolicy;
 
 		public GraphAndSettings(
 				AccessExecutionGraph graph,
 				CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
-				ExternalizedCheckpointSettings externalizedSettings) {
+				CheckpointRetentionPolicy retentionPolicy) {
 			this.graph = graph;
 			this.jobCheckpointingConfiguration = jobCheckpointingConfiguration;
-			this.externalizedSettings = externalizedSettings;
+			this.retentionPolicy = retentionPolicy;
 		}
 	}
 }

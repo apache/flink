@@ -27,7 +27,6 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -95,14 +94,13 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				100,
 				100,
 				1,
-				ExternalizedCheckpointSettings.none(),
+				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 				Collections.emptyList(),
 				Collections.emptyList(),
 				Collections.emptyList(),
 				Collections.emptyList(),
 				counter,
 				store,
-				null,
 				new MemoryStateBackend(),
 				CheckpointStatsTrackerTest.createTestTracker());
 

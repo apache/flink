@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint.savepoint;
+package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.MasterState;
-import org.apache.flink.runtime.checkpoint.OperatorState;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,10 +44,14 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class SavepointLoaderTest {
+/**
+ * A test that checks that checkpoint metadata loading works properly, including validation
+ * of resumed state and dropped state.
+ */
+public class CheckpointMetadataLoadingTest {
 
 	@Rule
-	public TemporaryFolder tmpFolder = new TemporaryFolder();
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	/**
 	 * Tests loading and validation of savepoints with correct setup,
@@ -64,10 +67,10 @@ public class SavepointLoaderTest {
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);
 
 		OperatorSubtaskState subtaskState = new OperatorSubtaskState(
-			new OperatorStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("testHandler", new byte[0])),
-			null,
-			null,
-			null);
+				new OperatorStateHandle(Collections.emptyMap(), new ByteStreamStateHandle("testHandler", new byte[0])),
+				null,
+				null,
+				null);
 
 		OperatorState state = new OperatorState(operatorID, parallelism, parallelism);
 		state.putState(0, subtaskState);
@@ -78,8 +81,13 @@ public class SavepointLoaderTest {
 		JobID jobId = new JobID();
 
 		// Store savepoint
-		SavepointV2 savepoint = new SavepointV2(checkpointId, taskStates.values(), Collections.<MasterState>emptyList());
-		String path = SavepointStore.storeSavepoint(tmp.getAbsolutePath(), savepoint);
+		final SavepointV2 savepoint = new SavepointV2(checkpointId, taskStates.values(), Collections.emptyList());
+		final StreamStateHandle serializedMetadata;
+
+		try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+			Checkpoints.storeCheckpointMetadata(savepoint, os);
+			serializedMetadata = new ByteStreamStateHandle("checkpoint", os.toByteArray());
+		}
 
 		ExecutionJobVertex vertex = mock(ExecutionJobVertex.class);
 		when(vertex.getParallelism()).thenReturn(parallelism);
@@ -92,7 +100,7 @@ public class SavepointLoaderTest {
 		ClassLoader ucl = Thread.currentThread().getContextClassLoader();
 
 		// 1) Load and validate: everything correct
-		CompletedCheckpoint loaded = SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
+		CompletedCheckpoint loaded = Checkpoints.loadAndValidateCheckpoint(jobId, tasks, "fake/path", serializedMetadata, ucl, false);
 
 		assertEquals(jobId, loaded.getJobId());
 		assertEquals(checkpointId, loaded.getCheckpointID());
@@ -102,7 +110,7 @@ public class SavepointLoaderTest {
 		when(vertex.isMaxParallelismConfigured()).thenReturn(true);
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
+			Checkpoints.loadAndValidateCheckpoint(jobId, tasks, "fake/path", serializedMetadata, ucl, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
@@ -112,13 +120,13 @@ public class SavepointLoaderTest {
 		assertNotNull(tasks.remove(jobVertexID));
 
 		try {
-			SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, false);
+			Checkpoints.loadAndValidateCheckpoint(jobId, tasks, "fake/path", serializedMetadata, ucl, false);
 			fail("Did not throw expected Exception");
 		} catch (IllegalStateException expected) {
 			assertTrue(expected.getMessage().contains("allowNonRestoredState"));
 		}
 
 		// 4) Load and validate: ignore missing vertex
-		SavepointLoader.loadAndValidateSavepoint(jobId, tasks, path, ucl, true);
+		Checkpoints.loadAndValidateCheckpoint(jobId, tasks, "fake/path", serializedMetadata, ucl, true);
 	}
 }

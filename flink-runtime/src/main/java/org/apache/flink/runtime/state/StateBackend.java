@@ -25,6 +25,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -73,8 +74,7 @@ import java.io.IOException;
  * states stores that provide access to the persistent storage and hold the keyed- and operator
  * state data structures. That way, the State Backend can be very lightweight (contain only
  * configurations) which makes it easier to be serializable.
- * 
- * 
+ *
  * <h2>Thread Safety</h2>
  * 
  * State backend implementations have to be thread-safe. Multiple threads may be creating
@@ -84,12 +84,43 @@ import java.io.IOException;
 public interface StateBackend extends java.io.Serializable {
 
 	// ------------------------------------------------------------------------
-	//  Persistent Bytes Storage
+	//  Checkpoint storage - the durable persistence of checkpoint data
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Resolves the given pointer to a checkpoint/savepoint into a state handle from which the
+	 * checkpoint metadata can be read. If the state backend cannot understand the format of
+	 * the pointer (for example because it was created by a different state backend) this method
+	 * should throw an {@code IOException}.
+	 *
+	 * @param pointer The pointer to resolve.
+	 * @return The state handler from which one can read the checkpoint metadata.
+	 *
+	 * @throws IOException Thrown, if the state backend does not understand the pointer, or if
+	 *                     the pointer could not be resolved due to an I/O error.
+	 */
+	StreamStateHandle resolveCheckpoint(String pointer) throws IOException;
+
+	/**
+	 * Creates a storage for checkpoints for the given job. The checkpoint storage is
+	 * used to write checkpoint data and metadata.
+	 *
+	 * @param jobId The job to store checkpoint data for.
+	 * @return A checkpoint storage for the given job.
+	 *
+	 * @throws IOException Thrown if the checkpoint storage cannot be initialized.
+	 */
+	CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException;
+
+	// ------------------------------------------------------------------------
+	//  Persistent bytes storage for checkpoint data
 	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a {@link CheckpointStreamFactory} that can be used to create streams
 	 * that should end up in a checkpoint.
+	 *
+	 * <p>NOTE: This method will probably go into the {@link CheckpointStorage} in the future.
 	 *
 	 * @param jobId              The {@link JobID} of the job for which we are creating checkpoint streams.
 	 * @param operatorIdentifier An identifier of the operator for which we create streams.
@@ -103,6 +134,8 @@ public interface StateBackend extends java.io.Serializable {
 	 * <p>This is only called if the triggered checkpoint is a savepoint. Commonly
 	 * this will return the same factory as for regular checkpoints, but maybe
 	 * slightly adjusted.
+	 *
+	 * <p>NOTE: This method will probably go into the {@link CheckpointStorage} in the future.
 	 *
 	 * @param jobId The {@link JobID} of the job for which we are creating checkpoint streams.
 	 * @param operatorIdentifier An identifier of the operator for which we create streams.
@@ -124,21 +157,13 @@ public interface StateBackend extends java.io.Serializable {
 	/**
 	 * Creates a new {@link AbstractKeyedStateBackend} that is responsible for holding <b>keyed state</b>
 	 * and checkpointing it.
-	 * 
+	 *
 	 * <p><i>Keyed State</i> is state where each value is bound to a key.
-	 * 
-	 * @param env
-	 * @param jobID
-	 * @param operatorIdentifier
-	 * @param keySerializer
-	 * @param numberOfKeyGroups
-	 * @param keyGroupRange
-	 * @param kvStateRegistry
-	 * 
+	 *
 	 * @param <K> The type of the keys by which the state is organized.
-	 *     
+	 *
 	 * @return The Keyed State Backend for the given job, operator, and key group range.
-	 * 
+	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
 	<K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -149,18 +174,18 @@ public interface StateBackend extends java.io.Serializable {
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws Exception;
-
+	
 	/**
 	 * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.
-	 * 
+	 *
 	 * <p>Operator state is state that is associated with parallel operator (or function) instances,
 	 * rather than with keys.
-	 * 
+	 *
 	 * @param env The runtime environment of the executing task.
 	 * @param operatorIdentifier The identifier of the operator whose state should be stored.
-	 * 
+	 *
 	 * @return The OperatorStateBackend for operator identified by the job and operator identifier.
-	 * 
+	 *
 	 * @throws Exception This method may forward all exceptions that occur while instantiating the backend.
 	 */
 	OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception;

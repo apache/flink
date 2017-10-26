@@ -18,15 +18,17 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.io.DataInputStream
 import java.util.function.BiFunction
 
 import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
+import org.apache.flink.core.fs.FSDataInputStream
 import org.apache.flink.runtime.FlinkActor
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
+import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
+import org.apache.flink.runtime.checkpoint.{Checkpoints, CompletedCheckpoint}
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
@@ -37,6 +39,8 @@ import org.apache.flink.runtime.messages.JobManagerMessages._
 import org.apache.flink.runtime.messages.Messages.Disconnect
 import org.apache.flink.runtime.messages.RegistrationMessages.RegisterTaskManager
 import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
+import org.apache.flink.runtime.state.memory.MemoryStateBackend
+import org.apache.flink.runtime.state.{StateBackend, StateBackendLoader, StreamStateHandle}
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages._
 import org.apache.flink.runtime.testingUtils.TestingMessages._
 import org.apache.flink.runtime.testingUtils.TestingTaskManagerMessages.AccumulatorsChanged
@@ -314,11 +318,22 @@ trait TestingJobManagerLike extends FlinkActor {
 
     case RequestSavepoint(savepointPath) =>
       try {
-        //TODO user class loader ?
-        val savepoint = SavepointStore.loadSavepoint(
-          savepointPath,
-          Thread.currentThread().getContextClassLoader)
-        
+        val classloader = Thread.currentThread().getContextClassLoader
+
+        val loadedBackend = StateBackendLoader.loadStateBackendFromConfig(
+          flinkConfiguration, classloader, null)
+        val backend = if (loadedBackend != null) loadedBackend else new MemoryStateBackend()
+
+        val metadataHandle = backend.resolveCheckpoint(savepointPath)
+
+        val stream = new DataInputStream(metadataHandle.openInputStream())
+        val savepoint = try {
+          Checkpoints.loadCheckpointMetadata(stream, classloader)
+        }
+        finally {
+          stream.close()
+        }
+
         sender ! ResponseSavepoint(savepoint)
       }
       catch {

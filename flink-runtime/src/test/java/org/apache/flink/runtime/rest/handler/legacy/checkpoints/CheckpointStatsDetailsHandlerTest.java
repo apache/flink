@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
@@ -167,7 +168,8 @@ public class CheckpointStatsDetailsHandlerTest {
 		PendingCheckpointStats checkpoint = mock(PendingCheckpointStats.class);
 		when(checkpoint.getCheckpointId()).thenReturn(1992139L);
 		when(checkpoint.getStatus()).thenReturn(CheckpointStatsStatus.IN_PROGRESS);
-		when(checkpoint.getProperties()).thenReturn(CheckpointProperties.forStandardCheckpoint());
+		when(checkpoint.getProperties()).thenReturn(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		when(checkpoint.getTriggerTimestamp()).thenReturn(1919191900L);
 		when(checkpoint.getLatestAckTimestamp()).thenReturn(1977791901L);
 		when(checkpoint.getStateSize()).thenReturn(111939272822L);
@@ -234,7 +236,7 @@ public class CheckpointStatsDetailsHandlerTest {
 		CompletedCheckpointStats checkpoint = mock(CompletedCheckpointStats.class);
 		when(checkpoint.getCheckpointId()).thenReturn(1818213L);
 		when(checkpoint.getStatus()).thenReturn(CheckpointStatsStatus.COMPLETED);
-		when(checkpoint.getProperties()).thenReturn(CheckpointProperties.forStandardSavepoint());
+		when(checkpoint.getProperties()).thenReturn(CheckpointProperties.forSavepoint());
 		when(checkpoint.getTriggerTimestamp()).thenReturn(1818L);
 		when(checkpoint.getLatestAckTimestamp()).thenReturn(11029222L);
 		when(checkpoint.getStateSize()).thenReturn(925281L);
@@ -275,7 +277,7 @@ public class CheckpointStatsDetailsHandlerTest {
 		FailedCheckpointStats checkpoint = mock(FailedCheckpointStats.class);
 		when(checkpoint.getCheckpointId()).thenReturn(1818214L);
 		when(checkpoint.getStatus()).thenReturn(CheckpointStatsStatus.FAILED);
-		when(checkpoint.getProperties()).thenReturn(CheckpointProperties.forStandardSavepoint());
+		when(checkpoint.getProperties()).thenReturn(CheckpointProperties.forSavepoint());
 		when(checkpoint.getTriggerTimestamp()).thenReturn(1818L);
 		when(checkpoint.getLatestAckTimestamp()).thenReturn(11029222L);
 		when(checkpoint.getStateSize()).thenReturn(925281L);

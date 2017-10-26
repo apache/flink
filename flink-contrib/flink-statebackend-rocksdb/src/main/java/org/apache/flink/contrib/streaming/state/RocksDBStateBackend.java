@@ -28,12 +28,14 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
 
@@ -41,7 +43,6 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -300,7 +301,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	private void lazyInitializeForJob(
 			Environment env,
-			String operatorIdentifier) throws IOException {
+			@SuppressWarnings("unused") String operatorIdentifier) throws IOException {
 
 		if (isInitialized) {
 			return;
@@ -352,9 +353,22 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		return initializedDbBasePaths[ni];
 	}
 
+	// ------------------------------------------------------------------------
+	//  Checkpoint initialization and persistent storage
+	// ------------------------------------------------------------------------
+
 	@Override
-	public CheckpointStreamFactory createStreamFactory(JobID jobId,
-			String operatorIdentifier) throws IOException {
+	public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+		return checkpointStreamBackend.resolveCheckpoint(pointer);
+	}
+
+	@Override
+	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+		return checkpointStreamBackend.createCheckpointStorage(jobId);
+	}
+
+	@Override
+	public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
 		return checkpointStreamBackend.createStreamFactory(jobId, operatorIdentifier);
 	}
 
@@ -366,6 +380,10 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 		return checkpointStreamBackend.createSavepointStreamFactory(jobId, operatorIdentifier, targetLocation);
 	}
+
+	// ------------------------------------------------------------------------
+	//  State holding data structures
+	// ------------------------------------------------------------------------
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(

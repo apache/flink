@@ -37,13 +37,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.TestBaseUtils;
 
 import org.apache.commons.io.FileUtils;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

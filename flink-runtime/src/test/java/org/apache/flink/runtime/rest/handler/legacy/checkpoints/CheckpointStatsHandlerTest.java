@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.checkpoints;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsCounts;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -173,7 +174,7 @@ public class CheckpointStatsHandlerTest {
 		RestoredCheckpointStats latestRestored = mock(RestoredCheckpointStats.class);
 		when(latestRestored.getCheckpointId()).thenReturn(1199L);
 		when(latestRestored.getRestoreTimestamp()).thenReturn(434242L);
-		when(latestRestored.getProperties()).thenReturn(CheckpointProperties.forStandardSavepoint());
+		when(latestRestored.getProperties()).thenReturn(CheckpointProperties.forSavepoint());
 		when(latestRestored.getExternalPath()).thenReturn("restored savepoint path");
 
 		// History
@@ -183,7 +184,8 @@ public class CheckpointStatsHandlerTest {
 		PendingCheckpointStats inProgress = mock(PendingCheckpointStats.class);
 		when(inProgress.getCheckpointId()).thenReturn(1992141L);
 		when(inProgress.getStatus()).thenReturn(CheckpointStatsStatus.IN_PROGRESS);
-		when(inProgress.getProperties()).thenReturn(CheckpointProperties.forStandardCheckpoint());
+		when(inProgress.getProperties()).thenReturn(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		when(inProgress.getTriggerTimestamp()).thenReturn(1919191900L);
 		when(inProgress.getLatestAckTimestamp()).thenReturn(1977791901L);
 		when(inProgress.getStateSize()).thenReturn(111939272822L);
@@ -195,7 +197,7 @@ public class CheckpointStatsHandlerTest {
 		CompletedCheckpointStats completedSavepoint = mock(CompletedCheckpointStats.class);
 		when(completedSavepoint.getCheckpointId()).thenReturn(1322139L);
 		when(completedSavepoint.getStatus()).thenReturn(CheckpointStatsStatus.COMPLETED);
-		when(completedSavepoint.getProperties()).thenReturn(CheckpointProperties.forStandardSavepoint());
+		when(completedSavepoint.getProperties()).thenReturn(CheckpointProperties.forSavepoint());
 		when(completedSavepoint.getTriggerTimestamp()).thenReturn(191900L);
 		when(completedSavepoint.getLatestAckTimestamp()).thenReturn(197791901L);
 		when(completedSavepoint.getStateSize()).thenReturn(1119822L);
@@ -209,7 +211,8 @@ public class CheckpointStatsHandlerTest {
 		FailedCheckpointStats failed = mock(FailedCheckpointStats.class);
 		when(failed.getCheckpointId()).thenReturn(110719L);
 		when(failed.getStatus()).thenReturn(CheckpointStatsStatus.FAILED);
-		when(failed.getProperties()).thenReturn(CheckpointProperties.forStandardCheckpoint());
+		when(failed.getProperties()).thenReturn(
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 		when(failed.getTriggerTimestamp()).thenReturn(191900L);
 		when(failed.getLatestAckTimestamp()).thenReturn(197791901L);
 		when(failed.getStateSize()).thenReturn(1119822L);

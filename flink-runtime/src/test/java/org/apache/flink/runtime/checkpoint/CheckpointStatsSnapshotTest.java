@@ -45,7 +45,11 @@ public class CheckpointStatsSnapshotTest {
 		summary.updateSummary(createCompletedCheckpointsStats(2221, 3333, 9122));
 
 		CheckpointStatsHistory history = new CheckpointStatsHistory(1);
-		RestoredCheckpointStats restored = new RestoredCheckpointStats(1, CheckpointProperties.forStandardCheckpoint(), 99119, null);
+		RestoredCheckpointStats restored = new RestoredCheckpointStats(
+				1,
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+				99119,
+				null);
 
 		CheckpointStatsSnapshot snapshot = new CheckpointStatsSnapshot(
 			counts,

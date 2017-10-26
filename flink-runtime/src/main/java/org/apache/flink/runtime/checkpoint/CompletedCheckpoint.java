@@ -25,10 +25,12 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,32 +46,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and that is considered successful. The CompletedCheckpoint class contains all the metadata of the
  * checkpoint, i.e., checkpoint ID, timestamps, and the handles to all states that are part of the
  * checkpoint.
- * 
+ *
  * <h2>Size the CompletedCheckpoint Instances</h2>
- * 
- * In most cases, the CompletedCheckpoint objects are very small, because the handles to the checkpoint
+ *
+ * <p>In most cases, the CompletedCheckpoint objects are very small, because the handles to the checkpoint
  * states are only pointers (such as file paths). However, the some state backend implementations may
  * choose to store some payload data directly with the metadata (for example to avoid many small files).
  * If those thresholds are increased to large values, the memory consumption of the CompletedCheckpoint
  * objects can be significant.
- * 
- * <h2>Externalized Metadata</h2>
- * 
- * The metadata of the CompletedCheckpoint is optionally also persisted in an external storage
- * system. In that case, the checkpoint is called <i>externalized</i>.
- * 
- * <p>Externalized checkpoints have an external pointer, which points to the metadata. For example
- * when externalizing to a file system, that pointer is the file path to the checkpoint's folder
+ *
+ * <h2>Metadata Persistence</h2>
+ *
+ * <p>The metadata of the CompletedCheckpoint is also persisted in an external storage
+ * system. Checkpoints have an external pointer, which points to the metadata. For example
+ * when storing a checkpoint in a file system, that pointer is the file path to the checkpoint's folder
  * or the metadata file. For a state backend that stores metadata in database tables, the pointer
  * could be the table name and row key. The pointer is encoded as a String.
- * 
- * <h2>Externalized Metadata and High-availability</h2>
- * 
- * For high availability setups, the checkpoint metadata must be stored persistent and available
- * as well. The high-availability services that stores the checkpoint ground-truth (meaning what are
- * the latest completed checkpoints in what order) often rely on checkpoints being externalized. That
- * way, those services only store pointers to the externalized metadata, rather than the complete
- * metadata itself (for example ZooKeeper's ZNode payload should ideally be less than megabytes).
  */
 public class CompletedCheckpoint implements Serializable {
 
@@ -79,10 +71,10 @@ public class CompletedCheckpoint implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-	/** The ID of the job that the checkpoint belongs to */
+	/** The ID of the job that the checkpoint belongs to. */
 	private final JobID job;
 
-	/** The ID (logical timestamp) of the checkpoint */
+	/** The ID (logical timestamp) of the checkpoint. */
 	private final long checkpointID;
 
 	/** The timestamp when the checkpoint was triggered. */
@@ -91,21 +83,19 @@ public class CompletedCheckpoint implements Serializable {
 	/** The duration of the checkpoint (completion timestamp - trigger timestamp). */
 	private final long duration;
 
-	/** States of the different operator groups belonging to this checkpoint */
+	/** States of the different operator groups belonging to this checkpoint. */
 	private final Map<OperatorID, OperatorState> operatorStates;
 
 	/** Properties for this checkpoint. */
 	private final CheckpointProperties props;
 
-	/** States that were created by a hook on the master (in the checkpoint coordinator) */
+	/** States that were created by a hook on the master (in the checkpoint coordinator). */
 	private final Collection<MasterState> masterHookStates;
 
-	/** The state handle to the externalized meta data, if the metadata has been externalized */
-	@Nullable
-	private final StreamStateHandle externalizedMetadata;
+	/** The state handle to the externalized meta data. */
+	private final StreamStateHandle metadataHandle;
 
-	/** External pointer to the completed checkpoint (for example file path) if externalized; null otherwise. */
-	@Nullable
+	/** External pointer to the completed checkpoint (for example file path). */
 	private final String externalPointer;
 
 	/** Optional stats tracker callback for discard. */
@@ -122,18 +112,12 @@ public class CompletedCheckpoint implements Serializable {
 			Map<OperatorID, OperatorState> operatorStates,
 			@Nullable Collection<MasterState> masterHookStates,
 			CheckpointProperties props,
-			@Nullable StreamStateHandle externalizedMetadata,
-			@Nullable String externalPointer) {
+			StreamStateHandle metadataHandle,
+			String externalPointer) {
 
 		checkArgument(checkpointID >= 0);
 		checkArgument(timestamp >= 0);
 		checkArgument(completionTimestamp >= 0);
-
-		checkArgument((externalPointer == null) == (externalizedMetadata == null),
-				"external pointer without externalized metadata must be both null or both non-null");
-
-		checkArgument(!props.externalizeCheckpoint() || externalPointer != null,
-			"Checkpoint properties require externalized checkpoint, but checkpoint is not externalized");
 
 		this.job = checkNotNull(job);
 		this.checkpointID = checkpointID;
@@ -148,8 +132,8 @@ public class CompletedCheckpoint implements Serializable {
 				new ArrayList<>(masterHookStates);
 
 		this.props = checkNotNull(props);
-		this.externalizedMetadata = externalizedMetadata;
-		this.externalPointer = externalPointer;
+		this.metadataHandle = checkNotNull(metadataHandle);
+		this.externalPointer = checkNotNull(externalPointer);
 	}
 
 	// ------------------------------------------------------------------------
@@ -216,12 +200,10 @@ public class CompletedCheckpoint implements Serializable {
 			Exception exception = null;
 
 			// drop the metadata, if we have some
-			if (externalizedMetadata != null) {
-				try {
-					externalizedMetadata.discardState();
-				} catch (Exception e) {
-					exception = e;
-				}
+			try {
+				metadataHandle.discardState();
+			} catch (Exception e) {
+				exception = e;
 			}
 
 			// discard private state objects
@@ -263,16 +245,10 @@ public class CompletedCheckpoint implements Serializable {
 		return Collections.unmodifiableCollection(masterHookStates);
 	}
 
-	public boolean isExternalized() {
-		return externalizedMetadata != null;
+	public StreamStateHandle getMetadataHandle() {
+		return metadataHandle;
 	}
 
-	@Nullable
-	public StreamStateHandle getExternalizedMetadata() {
-		return externalizedMetadata;
-	}
-
-	@Nullable
 	public String getExternalPointer() {
 		return externalPointer;
 	}
@@ -314,10 +290,7 @@ public class CompletedCheckpoint implements Serializable {
 
 		CompletedCheckpoint that = (CompletedCheckpoint) o;
 
-		if (checkpointID != that.checkpointID) {
-			return false;
-		}
-		return job.equals(that.job);
+		return checkpointID == that.checkpointID && job.equals(that.job);
 	}
 
 	@Override

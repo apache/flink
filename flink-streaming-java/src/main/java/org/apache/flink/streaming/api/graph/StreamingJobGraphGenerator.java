@@ -27,6 +27,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
@@ -615,16 +615,18 @@ public class StreamingJobGraphGenerator {
 
 		//  --- configure options ---
 
-		ExternalizedCheckpointSettings externalizedCheckpointSettings;
+		CheckpointRetentionPolicy retentionAfterTermination;
 		if (cfg.isExternalizedCheckpointsEnabled()) {
 			CheckpointConfig.ExternalizedCheckpointCleanup cleanup = cfg.getExternalizedCheckpointCleanup();
 			// Sanity check
 			if (cleanup == null) {
 				throw new IllegalStateException("Externalized checkpoints enabled, but no cleanup mode configured.");
 			}
-			externalizedCheckpointSettings = ExternalizedCheckpointSettings.externalizeCheckpoints(cleanup.deleteOnCancellation());
+			retentionAfterTermination = cleanup.deleteOnCancellation() ?
+					CheckpointRetentionPolicy.RETAIN_ON_FAILURE :
+					CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
 		} else {
-			externalizedCheckpointSettings = ExternalizedCheckpointSettings.none();
+			retentionAfterTermination = CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 		}
 
 		CheckpointingMode mode = cfg.getCheckpointingMode();
@@ -697,7 +699,7 @@ public class StreamingJobGraphGenerator {
 				cfg.getCheckpointTimeout(),
 				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
-				externalizedCheckpointSettings,
+				retentionAfterTermination,
 				isExactlyOnce),
 			serializedStateBackend,
 			serializedHooks);

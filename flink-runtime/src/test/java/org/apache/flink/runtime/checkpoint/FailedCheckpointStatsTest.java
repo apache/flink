@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.Test;
 
 import java.io.NotSerializableException;
@@ -47,7 +48,7 @@ public class FailedCheckpointStatsTest {
 		FailedCheckpointStats failed = new FailedCheckpointStats(
 			0,
 			triggerTimestamp,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			1,
 			taskStats,
 			0,
@@ -73,7 +74,7 @@ public class FailedCheckpointStatsTest {
 		FailedCheckpointStats failed = new FailedCheckpointStats(
 			123123123L,
 			triggerTimestamp,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			1337,
 			taskStats,
 			3,

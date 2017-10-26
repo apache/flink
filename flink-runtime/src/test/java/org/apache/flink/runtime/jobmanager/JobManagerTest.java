@@ -34,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.messages.NotifyResourceStarted;
 import org.apache.flink.runtime.clusterframework.messages.RegisterResourceManager;
@@ -61,7 +62,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -893,7 +893,7 @@ public class JobManagerTest extends TestLogger {
 					3600000,
 					0,
 					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
+					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					true),
 					null);
 
@@ -921,7 +921,7 @@ public class JobManagerTest extends TestLogger {
 				if (cancelResp instanceof CancellationFailure) {
 					CancellationFailure failure = (CancellationFailure) cancelResp;
 					if (failure.cause().getMessage().contains(CheckpointDeclineReason.NOT_ALL_REQUIRED_TASKS_RUNNING.message())) {
-						Thread.sleep(200); // wait and retry
+						Thread.sleep(10); // wait and retry
 					} else {
 						failure.cause().printStackTrace();
 						fail("Failed to cancel job: " + failure.cause().getMessage());
@@ -983,7 +983,7 @@ public class JobManagerTest extends TestLogger {
 			3600000,
 			0,
 			Integer.MAX_VALUE,
-			ExternalizedCheckpointSettings.none(),
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true);
 
 		JobCheckpointingSettings snapshottingSettings = new JobCheckpointingSettings(
@@ -1105,7 +1105,7 @@ public class JobManagerTest extends TestLogger {
 					3600000,
 					0,
 					Integer.MAX_VALUE,
-					ExternalizedCheckpointSettings.none(),
+					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					true),
 				null);
 
@@ -1220,7 +1220,7 @@ public class JobManagerTest extends TestLogger {
 						360000,
 						0,
 						Integer.MAX_VALUE,
-						ExternalizedCheckpointSettings.none(),
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true),
 					null);
 
@@ -1336,7 +1336,7 @@ public class JobManagerTest extends TestLogger {
 						360000,
 						0,
 						Integer.MAX_VALUE,
-						ExternalizedCheckpointSettings.none(),
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true),
 					null);
 
@@ -1384,7 +1384,7 @@ public class JobManagerTest extends TestLogger {
 						360000,
 						0,
 						Integer.MAX_VALUE,
-						ExternalizedCheckpointSettings.none(),
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true),
 					null);
 

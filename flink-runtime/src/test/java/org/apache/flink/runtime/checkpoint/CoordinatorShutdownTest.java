@@ -29,15 +29,14 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
 import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import scala.concurrent.Await;
@@ -80,7 +79,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 						60000,
 						0L,
 						Integer.MAX_VALUE,
-						ExternalizedCheckpointSettings.none(),
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true),
 					null));
 			
@@ -149,7 +148,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 						60000,
 						0L,
 						Integer.MAX_VALUE,
-						ExternalizedCheckpointSettings.none(),
+						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 						true),
 					null));
 			
