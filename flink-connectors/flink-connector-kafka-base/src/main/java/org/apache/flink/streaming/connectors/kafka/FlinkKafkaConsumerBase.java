@@ -534,7 +534,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 			@Override
 			public void onException(Throwable cause) {
-				LOG.error("Async Kafka commit failed.", cause);
+				LOG.warn("Async Kafka commit failed.", cause);
 				failedCommits.inc();
 			}
 		};
