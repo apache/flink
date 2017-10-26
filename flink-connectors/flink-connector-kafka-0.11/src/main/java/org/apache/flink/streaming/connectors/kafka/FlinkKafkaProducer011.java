@@ -129,7 +129,7 @@ public class FlinkKafkaProducer011<IN>
 		NONE
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducer011.class);
 
 	private static final long serialVersionUID = 1L;
 
