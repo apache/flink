@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -61,9 +62,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.File;
 import java.io.IOException;
@@ -90,8 +88,6 @@ import static org.mockito.Mockito.verify;
 /**
  * Tests for asynchronous RocksDB Key/Value state checkpoints.
  */
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "com.sun.jndi.*", "org.apache.log4j.*"})
 @SuppressWarnings("serial")
 public class RocksDBAsyncSnapshotTest extends TestLogger {
 
@@ -405,6 +401,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
 			return blockerCheckpointStreamFactory;
+		}
+
+		@Override
+		public BlockingStreamMemoryStateBackend configure(Configuration config) {
+			// retain this instance, no re-configuration!
+			return this;
 		}
 	}
 
