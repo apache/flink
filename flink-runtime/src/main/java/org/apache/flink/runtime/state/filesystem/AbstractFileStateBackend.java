@@ -25,11 +25,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
 import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.net.URI;
 
 /**
@@ -45,8 +45,8 @@ import java.net.URI;
  *
  * <h1>Checkpoint Layout</h1>
  *
- * The state backend is configured with a base directory and persists the checkpoint data of specific
- * checkpoints in specific subdirectories. For example, if the base directory was set to 
+ * <p>The state backend is configured with a base directory and persists the checkpoint data of specific
+ * checkpoints in specific subdirectories. For example, if the base directory was set to
  * {@code hdfs://namenode:port/flink-checkpoints/}, the state backend will create a subdirectory with
  * the job's ID that will contain the actual checkpoints:
  * ({@code hdfs://namenode:port/flink-checkpoints/1b080b6e710aabbef8993ab18c6de98b})
@@ -56,16 +56,26 @@ import java.net.URI;
  *
  * <h1>Savepoint Layout</h1>
  *
- * A savepoint that is set to be stored in path {@code hdfs://namenode:port/flink-savepoints/}, will create
+ * <p>A savepoint that is set to be stored in path {@code hdfs://namenode:port/flink-savepoints/}, will create
  * a subdirectory {@code savepoint-jobId(0, 6)-randomDigits} in which it stores all savepoint data.
  * The random digits are added as "entropy" to avoid directory collisions.
+ *
+ * <h1>Metadata and Success Files</h1>
+ *
+ * <p>A completed checkpoint writes its metadata into a file '{@value AbstractFsCheckpointStorage#METADATA_FILE_NAME}'.
+ * After that is complete (i.e., the file complete), it writes an additional file
+ * '{@value AbstractFsCheckpointStorage#SUCCESS_FILE_NAME}'.
+ *
+ * <p>Ideally that would not be necessary, and one would write the metadata file to a temporary file and
+ * then issue a atomic (or at least constant time) rename. But some of the file systems (like S3) do
+ * not support that: A rename is a copy process which, when failing, leaves corrupt half written
+ * files/objects. The success file is hence needed as a signal that the
+ * '{@value AbstractFsCheckpointStorage#METADATA_FILE_NAME}'file is complete.
  */
 @PublicEvolving
 public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = 1L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractFileStateBackend.class);
 
 	// ------------------------------------------------------------------------
 	//  State Backend Properties
@@ -118,7 +128,7 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	 *
 	 * @param baseCheckpointPath The checkpoint base directory to use (or null).
 	 * @param baseSavepointPath The default savepoint directory to use (or null).
-	 * @param configuration The configuration to read values from 
+	 * @param configuration The configuration to read values from.
 	 */
 	protected AbstractFileStateBackend(
 			@Nullable Path baseCheckpointPath,
@@ -154,10 +164,18 @@ public abstract class AbstractFileStateBackend extends AbstractStateBackend {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Initialization and metadata storage
+	// ------------------------------------------------------------------------
+
+	@Override
+	public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+		return AbstractFsCheckpointStorage.resolveCheckpointPointer(pointer);
+	}
+
+	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
 
-	// 
 	/**
 	 * Checks the validity of the path's scheme and path.
 	 *

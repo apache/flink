@@ -53,11 +53,13 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -109,7 +111,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
 		final NoOpStreamOperator<Long> noOpStreamOperator = new NoOpStreamOperator<>();
 
-		final AbstractStateBackend blockingStateBackend = new BlockingStateBackend();
+		final StateBackend blockingStateBackend = new BlockingStateBackend();
 
 		streamConfig.setStreamOperator(noOpStreamOperator);
 		streamConfig.setOperatorID(new OperatorID());
@@ -245,9 +247,19 @@ public class StreamTaskTerminationTest extends TestLogger {
 		private static final long serialVersionUID = 4517845269225218312L;
 	}
 
-	static class BlockingStateBackend extends AbstractStateBackend {
+	static class BlockingStateBackend implements StateBackend {
 
 		private static final long serialVersionUID = -5053068148933314100L;
+
+		@Override
+		public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+			throw new UnsupportedOperationException();
+		}
 
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {

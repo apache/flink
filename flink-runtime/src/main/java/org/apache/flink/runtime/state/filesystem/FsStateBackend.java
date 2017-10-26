@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -55,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <h1>State Size Considerations</h1>
  *
- * Working state is kept on the TaskManager heap. If a TaskManager executes multiple
+ * <p>Working state is kept on the TaskManager heap. If a TaskManager executes multiple
  * tasks concurrently (if the TaskManager has multiple slots, or if slot-sharing is used)
  * then the aggregate state of all tasks needs to fit into that TaskManager's memory.
  *
@@ -67,13 +68,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <h1>Persistence Guarantees</h1>
  *
- * Checkpoints from this state backend are as persistent and available as filesystem that is written to.
+ * <p>Checkpoints from this state backend are as persistent and available as filesystem that is written to.
  * If the file system is a persistent distributed file system, this state backend supports
  * highly available setups. The backend additionally supports savepoints and externalized checkpoints.
  *
  * <h1>Configuration</h1>
  *
- * As for all state backends, this backend can either be configured within the application (by creating
+ * <p>As for all state backends, this backend can either be configured within the application (by creating
  * the backend with the respective constructor parameters and setting it on the execution environment)
  * or by specifying it in the Flink configuration.
  *
@@ -88,7 +89,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 	private static final long serialVersionUID = -8191916350224044011L;
 
-	/** Maximum size of state that is stored with the metadata, rather than in files (1 MiByte) */
+	/** Maximum size of state that is stored with the metadata, rather than in files (1 MiByte). */
 	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
 	// ------------------------------------------------------------------------
@@ -299,7 +300,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * @param fileStateSizeThreshold     State below this size will be stored as part of the metadata,
 	 *                                   rather than in files. If null, the value configured in the
 	 *                                   runtime configuration will be used, or the default value (1KB)
-	 *                                   if nothing is configured. 
+	 *                                   if nothing is configured.
 	 * @param asynchronousSnapshots      Flag to switch between synchronous and asynchronous
 	 *                                   snapshot mode. If null, the value configured in the
 	 *                                   runtime configuration will be used.
@@ -312,7 +313,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 		super(checkNotNull(checkpointDirectory, "checkpoint directory is null"), defaultSavepointDirectory);
 
-		checkArgument(fileStateSizeThreshold == null || 
+		checkArgument(fileStateSizeThreshold == null ||
 					fileStateSizeThreshold >= 0 && fileStateSizeThreshold <= MAX_FILE_STATE_THRESHOLD,
 				"The threshold for file state size must be in [0, %s]", MAX_FILE_STATE_THRESHOLD);
 
@@ -403,7 +404,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 	/**
 	 * Gets whether the key/value data structures are asynchronously snapshotted.
-	 * 
+	 *
 	 * <p>If not explicitly configured, this is the default value of
 	 * {@link CheckpointingOptions#HEAP_KV_ASYNC_SNAPSHOTS}.
 	 */
@@ -434,6 +435,12 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	// ------------------------------------------------------------------------
 
 	@Override
+	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+		checkNotNull(jobId, "jobId");
+		return new FsCheckpointStorage(getCheckpointPath(), getSavepointPath(), jobId);
+	}
+
+	@Override
 	public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
 		return new FsCheckpointStreamFactory(getCheckpointPath(), jobId, getMinFileSizeThreshold());
 	}
@@ -446,6 +453,10 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 		return new FsSavepointStreamFactory(new Path(targetLocation), jobId, getMinFileSizeThreshold());
 	}
+
+	// ------------------------------------------------------------------------
+	//  state holding structures
+	// ------------------------------------------------------------------------
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(

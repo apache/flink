@@ -257,7 +257,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	private static class TestDeclinedCheckpointResponder implements CheckpointResponder {
 
-		OneShotLatch declinedLatch = new OneShotLatch();
+		final OneShotLatch declinedLatch = new OneShotLatch();
 
 		@Override
 		public void acknowledgeCheckpoint(

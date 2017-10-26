@@ -29,10 +29,13 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -50,8 +53,6 @@ public class StateBackendITCase extends AbstractTestBase {
 
 	/**
 	 * Verify that the user-specified state backend is used even if checkpointing is disabled.
-	 *
-	 * @throws Exception
 	 */
 	@Test
 	public void testStateBackendWithoutCheckpointing() throws Exception {
@@ -70,7 +71,7 @@ public class StateBackendITCase extends AbstractTestBase {
 				@Override
 				public void open(Configuration parameters) throws Exception {
 					super.open(parameters);
-					getRuntimeContext().getState(new ValueStateDescriptor<Integer>("Test", Integer.class, 0));
+					getRuntimeContext().getState(new ValueStateDescriptor<>("Test", Integer.class));
 				}
 
 				@Override
@@ -90,8 +91,18 @@ public class StateBackendITCase extends AbstractTestBase {
 		}
 	}
 
-	private static class FailingStateBackend extends AbstractStateBackend {
+	private static class FailingStateBackend implements StateBackend {
 		private static final long serialVersionUID = 1L;
+
+		@Override
+		public StreamStateHandle resolveCheckpoint(String pointer) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+			return new MemoryBackendCheckpointStorage(jobId);
+		}
 
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId,

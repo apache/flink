@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -281,14 +282,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	// ------------------------------------------------------------------------
 
 	@Override
-	public OperatorStateBackend createOperatorStateBackend(
-		Environment env,
-		String operatorIdentifier) throws Exception {
-
-		return new DefaultOperatorStateBackend(
-			env.getUserClassLoader(),
-			env.getExecutionConfig(),
-			isUsingAsynchronousSnapshots());
+	public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
+		return new MemoryBackendCheckpointStorage(jobId, getCheckpointPath(), getSavepointPath());
 	}
 
 	@Override
@@ -307,8 +302,19 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	}
 
 	// ------------------------------------------------------------------------
-	//  checkpoint state persistence
+	//  state holding structures
 	// ------------------------------------------------------------------------
+
+	@Override
+	public OperatorStateBackend createOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier) throws Exception {
+
+		return new DefaultOperatorStateBackend(
+				env.getUserClassLoader(),
+				env.getExecutionConfig(),
+				isUsingAsynchronousSnapshots());
+	}
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(

@@ -23,13 +23,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.jmx.JMXReporter;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages;
@@ -56,10 +56,9 @@ import static org.junit.Assert.assertEquals;
  * Tests to verify JMX reporter functionality on the JobManager.
  */
 public class JMXJobManagerMetricTest {
+
 	/**
 	 * Tests that metrics registered on the JobManager are actually accessible via JMX.
-	 *
-	 * @throws Exception
 	 */
 	@Test
 	public void testJobManagerJMXMetricAccess() throws Exception {
@@ -89,7 +88,7 @@ public class JMXJobManagerMetricTest {
 					500,
 					50,
 					5,
-					ExternalizedCheckpointSettings.none(),
+					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					true),
 				null));
 

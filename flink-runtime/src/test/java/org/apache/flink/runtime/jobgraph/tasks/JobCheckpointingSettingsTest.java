@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.SerializedValue;
@@ -47,7 +48,7 @@ public class JobCheckpointingSettingsTest {
 				1231,
 				112,
 				12,
-				ExternalizedCheckpointSettings.externalizeCheckpoints(true),
+				CheckpointRetentionPolicy.RETAIN_ON_FAILURE,
 				false),
 			new SerializedValue<>(new MemoryStateBackend()));
 

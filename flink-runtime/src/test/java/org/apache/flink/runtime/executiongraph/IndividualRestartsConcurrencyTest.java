@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.ManuallyTriggeredDirectExecutor;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
@@ -77,7 +77,7 @@ import static org.mockito.Mockito.when;
 /**
  * These tests make sure that global failover (restart all) always takes precedence over
  * local recovery strategies.
- * 
+ *
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
@@ -312,7 +312,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 			100000L,
 			1L,
 			3,
-			ExternalizedCheckpointSettings.none(),
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true);
 
 		final ExecutionGraph graph = createSampleGraph(
@@ -330,14 +330,13 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 			checkpointCoordinatorConfiguration.getCheckpointTimeout(),
 			checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
 			checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
-			checkpointCoordinatorConfiguration.getExternalizedCheckpointSettings(),
+			checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy(),
 			allVertices,
 			allVertices,
 			allVertices,
 			Collections.emptyList(),
 			standaloneCheckpointIDCounter,
 			new StandaloneCompletedCheckpointStore(1),
-			"",
 			new MemoryStateBackend(),
 			new CheckpointStatsTracker(
 				1,

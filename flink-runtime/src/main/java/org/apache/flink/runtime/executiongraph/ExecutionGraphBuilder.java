@@ -186,7 +186,7 @@ public class ExecutionGraphBuilder {
 		// configure the state checkpointing
 		JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
 		if (snapshotSettings != null) {
-			List<ExecutionJobVertex> triggerVertices = 
+			List<ExecutionJobVertex> triggerVertices =
 					idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
 
 			List<ExecutionJobVertex> ackVertices =
@@ -242,7 +242,7 @@ public class ExecutionGraphBuilder {
 				try {
 					applicationConfiguredBackend = serializedAppConfigured.deserializeValue(classLoader);
 				} catch (IOException | ClassNotFoundException e) {
-					throw new JobExecutionException(jobId, 
+					throw new JobExecutionException(jobId,
 							"Could not deserialize application-defined state backend.", e);
 				}
 			}
@@ -295,14 +295,13 @@ public class ExecutionGraphBuilder {
 				chkConfig.getCheckpointTimeout(),
 				chkConfig.getMinPauseBetweenCheckpoints(),
 				chkConfig.getMaxConcurrentCheckpoints(),
-				chkConfig.getExternalizedCheckpointSettings(),
+				chkConfig.getCheckpointRetentionPolicy(),
 				triggerVertices,
 				ackVertices,
 				confirmVertices,
 				hooks,
 				checkpointIdCounter,
 				completedCheckpoints,
-				externalizedCheckpointsDir,
 				rootBackend,
 				checkpointStatsTracker);
 		}
@@ -331,7 +330,7 @@ public class ExecutionGraphBuilder {
 			} else {
 				throw new IllegalArgumentException(
 						"The snapshot checkpointing settings refer to non-existent vertex " + id);
-			} 
+			}
 		}
 
 		return result;
@@ -339,6 +338,6 @@ public class ExecutionGraphBuilder {
 
 	// ------------------------------------------------------------------------
 
-	/** This class is not supposed to be instantiated */
+	/** This class is not supposed to be instantiated. */
 	private ExecutionGraphBuilder() {}
 }

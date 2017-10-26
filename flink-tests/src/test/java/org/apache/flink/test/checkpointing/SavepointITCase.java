@@ -235,15 +235,6 @@ public class SavepointITCase extends TestLogger {
 				fail("Savepoint not created in expected directory");
 			}
 
-			// We currently have the following directory layout: checkpointDir/jobId/chk-ID
-			File jobCheckpoints = new File(checkpointDir, jobId.toString());
-
-			if (jobCheckpoints.exists()) {
-				files = jobCheckpoints.listFiles();
-				assertNotNull("Checkpoint directory empty", files);
-				assertEquals("Checkpoints directory not clean: " + Arrays.toString(files), 0, files.length);
-			}
-
 			// - Verification END ---------------------------------------------
 
 			// Restart the cluster
