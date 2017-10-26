@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction.TransactionHolder;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -59,42 +60,43 @@ public class FlinkKafkaProducer011StateSerializerTest
 	protected TwoPhaseCommitSinkFunction.State<
 		FlinkKafkaProducer011.KafkaTransactionState,
 		FlinkKafkaProducer011.KafkaTransactionContext>[] getTestData() {
+		//noinspection unchecked
 		return new TwoPhaseCommitSinkFunction.State[] {
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer011.KafkaTransactionState,
 				FlinkKafkaProducer011.KafkaTransactionContext>(
-					new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null),
+					new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0),
 					Collections.emptyList(),
 					Optional.empty()),
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer011.KafkaTransactionState,
 				FlinkKafkaProducer011.KafkaTransactionContext>(
-				new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null),
-				Collections.singletonList(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null)),
+				new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 2711),
+				Collections.singletonList(new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 42)),
 				Optional.empty()),
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer011.KafkaTransactionState,
 				FlinkKafkaProducer011.KafkaTransactionContext>(
-				new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null),
+				new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0),
 				Collections.emptyList(),
 				Optional.of(new FlinkKafkaProducer011.KafkaTransactionContext(Collections.emptySet()))),
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer011.KafkaTransactionState,
 				FlinkKafkaProducer011.KafkaTransactionContext>(
-				new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null),
+				new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0),
 				Collections.emptyList(),
 				Optional.of(new FlinkKafkaProducer011.KafkaTransactionContext(Collections.singleton("hello")))),
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer011.KafkaTransactionState,
 				FlinkKafkaProducer011.KafkaTransactionContext>(
-				new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null),
-				Collections.singletonList(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null)),
+				new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0),
+				Collections.singletonList(new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0)),
 				Optional.of(new FlinkKafkaProducer011.KafkaTransactionContext(Collections.emptySet()))),
 			new TwoPhaseCommitSinkFunction.State<
 				FlinkKafkaProducer011.KafkaTransactionState,
 				FlinkKafkaProducer011.KafkaTransactionContext>(
-				new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null),
-				Collections.singletonList(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null)),
+				new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0),
+				Collections.singletonList(new TransactionHolder(new FlinkKafkaProducer011.KafkaTransactionState("fake", 1L, (short) 42, null), 0)),
 				Optional.of(new FlinkKafkaProducer011.KafkaTransactionContext(Collections.singleton("hello"))))
 		};
 	}
