@@ -62,41 +62,15 @@ class DataSetAggregateRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASET)
     val convInput: RelNode = RelOptRule.convert(agg.getInput, FlinkConventions.DATASET)
 
-    if (agg.indicator) {
-        agg.groupSets.map(set =>
-          new DataSetAggregate(
-            rel.getCluster,
-            traitSet,
-            convInput,
-            agg.getNamedAggCalls,
-            rel.getRowType,
-            agg.getInput.getRowType,
-            set.toArray,
-            inGroupingSet = true
-          ).asInstanceOf[RelNode]
-        ).reduce(
-          (rel1, rel2) => {
-            new DataSetUnion(
-              rel.getCluster,
-              traitSet,
-              rel1,
-              rel2,
-              rel.getRowType
-            )
-          }
-        )
-    } else {
-      new DataSetAggregate(
-        rel.getCluster,
-        traitSet,
-        convInput,
-        agg.getNamedAggCalls,
-        rel.getRowType,
-        agg.getInput.getRowType,
-        agg.getGroupSet.toArray,
-        inGroupingSet = false
-      )
-    }
+    new DataSetAggregate(
+      rel.getCluster,
+      traitSet,
+      convInput,
+      agg.getNamedAggCalls,
+      rel.getRowType,
+      agg.getInput.getRowType,
+      agg.getGroupSet.toArray
+    )
   }
 }
 

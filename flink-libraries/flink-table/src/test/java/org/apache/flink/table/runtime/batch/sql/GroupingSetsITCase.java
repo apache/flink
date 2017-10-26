@@ -89,33 +89,33 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 				" GROUP BY GROUPING SETS (f1, f2)";
 
 		String expected =
-			"1,null,1,1,0,1,0,1,1\n" +
-			"6,null,18,1,0,1,0,1,1\n" +
-			"2,null,2,1,0,1,0,1,1\n" +
-			"4,null,8,1,0,1,0,1,1\n" +
-			"5,null,13,1,0,1,0,1,1\n" +
-			"3,null,5,1,0,1,0,1,1\n" +
-			"null,Comment#11,17,2,1,0,1,0,2\n" +
-			"null,Comment#8,14,2,1,0,1,0,2\n" +
-			"null,Comment#2,8,2,1,0,1,0,2\n" +
-			"null,Comment#1,7,2,1,0,1,0,2\n" +
-			"null,Comment#14,20,2,1,0,1,0,2\n" +
-			"null,Comment#7,13,2,1,0,1,0,2\n" +
-			"null,Comment#6,12,2,1,0,1,0,2\n" +
-			"null,Comment#3,9,2,1,0,1,0,2\n" +
-			"null,Comment#12,18,2,1,0,1,0,2\n" +
-			"null,Comment#5,11,2,1,0,1,0,2\n" +
-			"null,Comment#15,21,2,1,0,1,0,2\n" +
-			"null,Comment#4,10,2,1,0,1,0,2\n" +
-			"null,Hi,1,2,1,0,1,0,2\n" +
-			"null,Comment#10,16,2,1,0,1,0,2\n" +
-			"null,Hello world,3,2,1,0,1,0,2\n" +
-			"null,I am fine.,5,2,1,0,1,0,2\n" +
-			"null,Hello world, how are you?,4,2,1,0,1,0,2\n" +
-			"null,Comment#9,15,2,1,0,1,0,2\n" +
-			"null,Comment#13,19,2,1,0,1,0,2\n" +
-			"null,Luke Skywalker,6,2,1,0,1,0,2\n" +
-			"null,Hello,2,2,1,0,1,0,2";
+			"1,null,1,1,1,0,1,0,2\n" +
+			"6,null,18,1,1,0,1,0,2\n" +
+			"2,null,2,1,1,0,1,0,2\n" +
+			"4,null,8,1,1,0,1,0,2\n" +
+			"5,null,13,1,1,0,1,0,2\n" +
+			"3,null,5,1,1,0,1,0,2\n" +
+			"null,Comment#11,17,2,0,1,0,1,1\n" +
+			"null,Comment#8,14,2,0,1,0,1,1\n" +
+			"null,Comment#2,8,2,0,1,0,1,1\n" +
+			"null,Comment#1,7,2,0,1,0,1,1\n" +
+			"null,Comment#14,20,2,0,1,0,1,1\n" +
+			"null,Comment#7,13,2,0,1,0,1,1\n" +
+			"null,Comment#6,12,2,0,1,0,1,1\n" +
+			"null,Comment#3,9,2,0,1,0,1,1\n" +
+			"null,Comment#12,18,2,0,1,0,1,1\n" +
+			"null,Comment#5,11,2,0,1,0,1,1\n" +
+			"null,Comment#15,21,2,0,1,0,1,1\n" +
+			"null,Comment#4,10,2,0,1,0,1,1\n" +
+			"null,Hi,1,2,0,1,0,1,1\n" +
+			"null,Comment#10,16,2,0,1,0,1,1\n" +
+			"null,Hello world,3,2,0,1,0,1,1\n" +
+			"null,I am fine.,5,2,0,1,0,1,1\n" +
+			"null,Hello world, how are you?,4,2,0,1,0,1,1\n" +
+			"null,Comment#9,15,2,0,1,0,1,1\n" +
+			"null,Comment#13,19,2,0,1,0,1,1\n" +
+			"null,Luke Skywalker,6,2,0,1,0,1,1\n" +
+			"null,Hello,2,2,0,1,0,1,1";
 
 		checkSql(query, expected);
 	}

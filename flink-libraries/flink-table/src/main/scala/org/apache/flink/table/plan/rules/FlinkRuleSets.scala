@@ -145,6 +145,8 @@ object FlinkRuleSets {
     ReduceExpressionsRule.JOIN_INSTANCE,
     ProjectToWindowRule.PROJECT,
 
+    // Transform grouping sets
+    DecomposeGroupingSetRule.INSTANCE,
     // Transform window to LogicalWindowAggregate
     DataSetLogicalWindowAggregateRule.INSTANCE,
     WindowPropertiesRule.INSTANCE,

@@ -94,9 +94,7 @@ class ExternalCatalogSchema(
 
   override def getTableNames: JSet[String] = JCollections.emptySet[String]
 
-  override def contentsHaveChangedSince(lastCheck: Long, now: Long): Boolean = true
-
-  override def snapshot(l: Long): Schema = this
+  override def snapshot(v: SchemaVersion): Schema = this
 
   /**
     * Registers sub-Schemas to current schema plus
