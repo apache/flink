@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.queryablestate.itcases;
+package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -28,7 +28,6 @@ import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
-import org.apache.flink.queryablestate.network.KvStateRequestSerializerTest;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -124,6 +123,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
 		KvStateRequestSerializerTest.testListSerialization(key, listState);
+		longHeapKeyedStateBackend.dispose();
 	}
 
 	/**
@@ -163,5 +163,6 @@ public final class KVStateRequestSerializerRocksDBTest {
 						new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
 
 		KvStateRequestSerializerTest.testMapSerialization(key, mapState);
+		longHeapKeyedStateBackend.dispose();
 	}
 }
