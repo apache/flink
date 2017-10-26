@@ -110,10 +110,10 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	public boolean enableIncrementalCheckpointing;
 
 	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
 	// Store it because we need it for the cleanup test.
-	String dbPath;
+	private String dbPath;
 
 	@Override
 	protected RocksDBStateBackend getStateBackend() throws IOException {

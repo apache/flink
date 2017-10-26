@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -415,6 +416,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		@Override
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
 			return blockerCheckpointStreamFactory;
+		}
+
+		@Override
+		public BlockingStreamMemoryStateBackend configure(Configuration config) {
+			// retain this instance, no re-configuration!
+			return this;
 		}
 	}
 
