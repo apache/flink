@@ -37,6 +37,7 @@ import org.apache.flink.util.AbstractID;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -62,7 +63,6 @@ public class PrometheusReporterTaskScopeTest {
 	private static final int SUBTASK_INDEX_1 = 0;
 	private static final int SUBTASK_INDEX_2 = 1;
 
-	private final MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9429")));
 
 	private final JobID jobId = new JobID();
 	private final JobVertexID taskId1 = new JobVertexID();
@@ -72,10 +72,29 @@ public class PrometheusReporterTaskScopeTest {
 	private final AbstractID taskAttemptId2 = new AbstractID();
 	private final String[] labelValues2 = {jobId.toString(), taskId2.toString(), taskAttemptId2.toString(), TASK_MANAGER_HOST, TASK_NAME, "" + ATTEMPT_NUMBER, JOB_NAME, TASK_MANAGER_ID, "" + SUBTASK_INDEX_2};
 
-	private final TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(registry, TASK_MANAGER_HOST, TASK_MANAGER_ID);
-	private final TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(registry, tmMetricGroup, jobId, JOB_NAME);
-	private final TaskMetricGroup taskMetricGroup1 = new TaskMetricGroup(registry, tmJobMetricGroup, taskId1, taskAttemptId1, TASK_NAME, SUBTASK_INDEX_1, ATTEMPT_NUMBER);
-	private final TaskMetricGroup taskMetricGroup2 = new TaskMetricGroup(registry, tmJobMetricGroup, taskId2, taskAttemptId2, TASK_NAME, SUBTASK_INDEX_2, ATTEMPT_NUMBER);
+	private TaskMetricGroup taskMetricGroup1;
+	private TaskMetricGroup taskMetricGroup2;
+
+	private MetricRegistry registry;
+	private PrometheusReporter reporter;
+
+	@Before
+	public void setupReporter() {
+		registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		reporter = (PrometheusReporter) registry.getReporters().get(0);
+
+		TaskManagerMetricGroup tmMetricGroup = new TaskManagerMetricGroup(registry, TASK_MANAGER_HOST, TASK_MANAGER_ID);
+		TaskManagerJobMetricGroup tmJobMetricGroup = new TaskManagerJobMetricGroup(registry, tmMetricGroup, jobId, JOB_NAME);
+		taskMetricGroup1 = new TaskMetricGroup(registry, tmJobMetricGroup, taskId1, taskAttemptId1, TASK_NAME, SUBTASK_INDEX_1, ATTEMPT_NUMBER);
+		taskMetricGroup2 = new TaskMetricGroup(registry, tmJobMetricGroup, taskId2, taskAttemptId2, TASK_NAME, SUBTASK_INDEX_2, ATTEMPT_NUMBER);
+	}
+
+	@After
+	public void shutdownRegistry() {
+		if (registry != null) {
+			registry.shutdown();
+		}
+	}
 
 	@Test
 	public void countersCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
@@ -137,7 +156,7 @@ public class PrometheusReporterTaskScopeTest {
 		taskMetricGroup1.histogram("my_histogram", histogram);
 		taskMetricGroup2.histogram("my_histogram", histogram);
 
-		final String exportedMetrics = pollMetrics().getBody();
+		final String exportedMetrics = pollMetrics(reporter.getPort()).getBody();
 		assertThat(exportedMetrics, containsString("subtask_index=\"0\",quantile=\"0.5\",} 0.5")); // histogram
 		assertThat(exportedMetrics, containsString("subtask_index=\"1\",quantile=\"0.5\",} 0.5")); // histogram
 
@@ -179,10 +198,4 @@ public class PrometheusReporterTaskScopeTest {
 		labelNames[LABEL_NAMES.length] = element;
 		return labelNames;
 	}
-
-	@After
-	public void shutdownRegistry() {
-		registry.shutdown();
-	}
-
 }

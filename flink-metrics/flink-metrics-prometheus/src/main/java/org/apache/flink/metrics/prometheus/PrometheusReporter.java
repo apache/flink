@@ -32,6 +32,7 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
@@ -73,7 +74,14 @@ public class PrometheusReporter implements MetricReporter {
 	private static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
 
 	private HTTPServer httpServer;
+	private int port;
 	private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>> collectorsWithCountByMetricName = new HashMap<>();
+
+	@VisibleForTesting
+	int getPort() {
+		Preconditions.checkState(httpServer != null, "Server has not been initialized.");
+		return port;
+	}
 
 	@VisibleForTesting
 	static String replaceInvalidChars(final String input) {
@@ -91,6 +99,7 @@ public class PrometheusReporter implements MetricReporter {
 			int port = ports.next();
 			try {
 				httpServer = new HTTPServer(port);
+				this.port = port;
 				LOG.info("Started PrometheusReporter HTTP server on port {}.", port);
 				break;
 			} catch (IOException ioe) { //assume port conflict
