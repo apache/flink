@@ -20,14 +20,14 @@ package org.apache.flink.runtime.akka
 
 import java.net.InetSocketAddress
 
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
-import org.apache.flink.runtime.jobmanager.JobManager
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
 import org.apache.flink.util.NetUtils
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 
 @RunWith(classOf[JUnitRunner])
 class AkkaUtilsTest
@@ -135,5 +135,16 @@ class AkkaUtilsTest
     val result = AkkaUtils.getInetSockeAddressFromAkkaURL(url)
 
     result should equal(address)
+  }
+
+  test("getAkkaConfig should normalize the hostname") {
+    val configuration = new Configuration()
+    val hostname = "AbC123foOBaR"
+    val port = 1234
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port)
+
+    akkaConfig.getString("akka.remote.netty.tcp.hostname") should
+      equal(NetUtils.unresolvedHostToNormalizedString(hostname))
   }
 }

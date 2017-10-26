@@ -42,7 +42,7 @@ import org.apache.flink.runtime.blob.{BlobServer, BlobStore}
 import org.apache.flink.runtime.checkpoint._
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.client._
-import org.apache.flink.runtime.clusterframework.FlinkResourceManager
+import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
@@ -2167,32 +2167,12 @@ object JobManager {
       externalHostname: String,
       port: Int): ActorSystem = {
 
-    val hostPort = NetUtils.unresolvedHostAndPortToNormalizedString(externalHostname, port)
-
     // Bring up the job manager actor system first, bind it to the given address.
-    LOG.info(s"Starting JobManager actor system reachable at $hostPort")
-
-    val jobManagerSystem = try {
-      val akkaConfig = AkkaUtils.getAkkaConfig(
-        configuration,
-        Some((externalHostname, port))
-      )
-      if (LOG.isDebugEnabled) {
-        LOG.debug("Using akka configuration\n " + akkaConfig)
-      }
-      AkkaUtils.createActorSystem(akkaConfig)
-    }
-    catch {
-      case t: Throwable =>
-        if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
-          val cause = t.getCause()
-          if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            throw new Exception("Unable to create JobManager at address " + hostPort +
-                                  " - " + cause.getMessage(), t)
-          }
-        }
-        throw new Exception("Could not create JobManager actor system", t)
-    }
+    val jobManagerSystem = BootstrapTools.startActorSystem(
+      configuration,
+      externalHostname,
+      port,
+      LOG.logger)
 
     val address = AkkaUtils.getAddress(jobManagerSystem)
 

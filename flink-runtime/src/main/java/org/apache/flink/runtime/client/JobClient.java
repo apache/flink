@@ -18,14 +18,6 @@
 
 package org.apache.flink.runtime.client;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Address;
-import akka.actor.Identify;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -34,6 +26,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -41,21 +34,20 @@ import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobClientMessages;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializedThrowable;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.actor.Identify;
+import akka.actor.PoisonPill;
+import akka.actor.Props;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Option;
-import scala.Some;
-import scala.Tuple2;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collection;
@@ -63,6 +55,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -75,20 +72,11 @@ public class JobClient {
 	private static final Logger LOG = LoggerFactory.getLogger(JobClient.class);
 
 	public static ActorSystem startJobClientActorSystem(Configuration config, String hostname)
-			throws IOException {
+			throws Exception {
 		LOG.info("Starting JobClient actor system");
 
-		Option<Tuple2<String, Object>> remoting = new Some<>(new Tuple2<String, Object>(hostname, 0));
-
 		// start a remote actor system to listen on an arbitrary port
-		ActorSystem system = AkkaUtils.createActorSystem(config, remoting);
-		Address address = system.provider().getDefaultAddress();
-
-		String hostAddress = address.host().isDefined() ?
-				NetUtils.ipAddressToUrlString(InetAddress.getByName(address.host().get())) :
-				"(unknown)";
-		int port = address.port().isDefined() ? ((Integer) address.port().get()) : -1;
-		LOG.info("Started JobClient actor system at " + hostAddress + ':' + port);
+		ActorSystem system = BootstrapTools.startActorSystem(config, hostname, 0, LOG);
 
 		return system;
 	}

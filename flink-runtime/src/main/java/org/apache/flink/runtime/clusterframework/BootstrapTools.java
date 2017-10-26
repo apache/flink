@@ -34,6 +34,8 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
+
 import akka.actor.ActorSystem;
 import com.typesafe.config.Config;
 import org.apache.commons.cli.CommandLine;
@@ -53,6 +55,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import scala.Some;
+import scala.Tuple2;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
@@ -140,13 +144,13 @@ public class BootstrapTools {
 				int listeningPort,
 				Logger logger) throws Exception {
 
-		String hostPortUrl = listeningAddress + ':' + listeningPort;
+		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);
 
 		try {
 			Config akkaConfig = AkkaUtils.getAkkaConfig(
 				configuration,
-				new scala.Some<>(new scala.Tuple2<String, Object>(listeningAddress, listeningPort))
+				new Some<>(new Tuple2<>(listeningAddress, listeningPort))
 			);
 
 			logger.debug("Using akka configuration\n {}", akkaConfig);
@@ -157,9 +161,9 @@ public class BootstrapTools {
 			return actorSystem;
 		}
 		catch (Throwable t) {
-			if (t instanceof org.jboss.netty.channel.ChannelException) {
+			if (t instanceof ChannelException) {
 				Throwable cause = t.getCause();
-				if (cause != null && t.getCause() instanceof java.net.BindException) {
+				if (cause != null && t.getCause() instanceof BindException) {
 					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
 							" : " + cause.getMessage(), t);
 				}

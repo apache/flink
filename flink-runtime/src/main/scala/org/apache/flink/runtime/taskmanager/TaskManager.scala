@@ -35,8 +35,9 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
-import org.apache.flink.runtime.blob.{BlobClient, BlobService, BlobCacheService}
+import org.apache.flink.runtime.blob.{BlobCacheService, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
+import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.concurrent.{Executors, FutureUtils}
@@ -1825,27 +1826,11 @@ object TaskManager {
 
     LOG.info(s"Starting TaskManager actor system at $taskManagerHostname:$actorSystemPort.")
 
-    val taskManagerSystem = try {
-      val akkaConfig = AkkaUtils.getAkkaConfig(
-        configuration,
-        Some((taskManagerHostname, actorSystemPort))
-      )
-      if (LOG.isDebugEnabled) {
-        LOG.debug("Using akka configuration\n " + akkaConfig)
-      }
-      AkkaUtils.createActorSystem(akkaConfig)
-    }
-    catch {
-      case t: Throwable =>
-        if (t.isInstanceOf[org.jboss.netty.channel.ChannelException]) {
-          val cause = t.getCause()
-          if (cause != null && t.getCause().isInstanceOf[java.net.BindException]) {
-            throw new IOException("Unable to bind TaskManager actor system to address " +
-              taskManagerHostname + ':' + actorSystemPort + " - " + cause.getMessage(), t)
-          }
-        }
-        throw new Exception("Could not create TaskManager actor system", t)
-    }
+    val taskManagerSystem = BootstrapTools.startActorSystem(
+      configuration,
+      taskManagerHostname,
+      actorSystemPort,
+      LOG.logger)
 
     // start all the TaskManager services (network stack,  library cache, ...)
     // and the TaskManager actor

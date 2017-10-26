@@ -41,6 +41,7 @@ import org.apache.flink.runtime.client.JobClient;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobListeningContext;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -83,7 +84,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
-import scala.Tuple2;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -239,9 +239,11 @@ public abstract class ClusterClient {
 				}
 
 				try {
-					actorSystem = AkkaUtils.createActorSystem(
+					actorSystem = BootstrapTools.startActorSystem(
 						configuration,
-						Option.apply(new Tuple2<String, Object>(ownHostname.getCanonicalHostName(), 0)));
+						ownHostname.getCanonicalHostName(),
+						0,
+						log);
 				} catch (Exception e) {
 					throw new FlinkException("Could not start the ActorSystem lazily.", e);
 				}
