@@ -416,6 +416,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
 			return blockerCheckpointStreamFactory;
 		}
+
+		@Override
+		public BlockingStreamMemoryStateBackend configure(Configuration config) {
+			// retain this instance, no re-configuration!
+			return this;
+		}
 	}
 
 	private static class AsyncCheckpointOperator
