@@ -491,6 +491,22 @@ metrics.reporter.dghttp.tags: myflinkapp,prod
 
 {% endhighlight %}
 
+
+### Slf4j (org.apache.flink.metrics.slf4j.Slf4jReporter)
+
+In order to use this reporter you must copy `/opt/flink-metrics-slf4j-{{site.version}}.jar` into the `/lib` folder
+of your Flink distribution.
+
+Example configuration:
+
+{% highlight yaml %}
+
+metrics.reporters: slf4j
+metrics.reporter.slf4j.class: org.apache.flink.metrics.slf4j.Slf4jReporter
+metrics.reporter.slf4j.interval: 60 SECONDS
+
+{% endhighlight %}
+
 ## System metrics
 
 By default Flink gathers several metrics that provide deep insights on the current state.
