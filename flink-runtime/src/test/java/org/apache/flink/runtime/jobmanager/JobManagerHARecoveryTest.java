@@ -470,14 +470,6 @@ public class JobManagerHARecoveryTest extends TestLogger {
 		}
 
 		@Override
-		public void start() {
-		}
-
-		@Override
-		public void stop() {
-		}
-
-		@Override
 		public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader) throws Exception {
 			return store;
 		}

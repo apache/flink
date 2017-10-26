@@ -205,14 +205,6 @@ class JobManager(
         throw new RuntimeException("Could not start the submitted job graphs service.", e)
     }
 
-    try {
-      checkpointRecoveryFactory.start()
-    } catch {
-      case e: Exception =>
-        log.error("Could not start the checkpoint recovery service.", e)
-        throw new RuntimeException("Could not start the checkpoint recovery service.", e)
-    }
-
     jobManagerMetricGroup match {
       case Some(group) =>
         instantiateMetrics(group)
@@ -252,12 +244,6 @@ class JobManager(
       submittedJobGraphs.stop()
     } catch {
       case e: Exception => log.error("Could not properly stop the submitted job graphs service.")
-    }
-
-    try {
-      checkpointRecoveryFactory.stop()
-    } catch {
-      case e: Exception => log.error("Could not properly stop the checkpoint recovery service.")
     }
 
     if (archive != ActorRef.noSender) {
