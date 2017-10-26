@@ -27,7 +27,6 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -40,6 +39,7 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -56,7 +56,6 @@ import static org.junit.Assert.assertThat;
  * Basic test for {@link PrometheusReporter}.
  */
 public class PrometheusReporterTest extends TestLogger {
-	private static final int NON_DEFAULT_PORT = 9429;
 
 	private static final String HOST_NAME = "hostname";
 	private static final String TASK_MANAGER = "tm";
@@ -70,9 +69,25 @@ public class PrometheusReporterTest extends TestLogger {
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
-	private final MetricRegistry registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "" + NON_DEFAULT_PORT)));
-	private final FrontMetricGroup<TaskManagerMetricGroup> metricGroup = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
-	private final MetricReporter reporter = registry.getReporters().get(0);
+	private MetricRegistry registry;
+	private FrontMetricGroup<TaskManagerMetricGroup> metricGroup;
+	private PrometheusReporter reporter;
+	private int port;
+
+	@Before
+	public void setupReporter() {
+		registry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(createConfigWithOneReporter("test1", "9400-9500")));
+		metricGroup = new FrontMetricGroup<>(0, new TaskManagerMetricGroup(registry, HOST_NAME, TASK_MANAGER));
+		reporter = (PrometheusReporter) registry.getReporters().get(0);
+		port = reporter.getPort();
+	}
+
+	@After
+	public void shutdownRegistry() {
+		if (registry != null) {
+			registry.shutdown();
+		}
+	}
 
 	/**
 	 * {@link io.prometheus.client.Counter} may not decrease, so report {@link Counter} as {@link io.prometheus.client.Gauge}.
@@ -147,7 +162,7 @@ public class PrometheusReporterTest extends TestLogger {
 	public void endpointIsUnavailableAfterReporterIsClosed() throws UnirestException {
 		reporter.close();
 		thrown.expect(UnirestException.class);
-		pollMetrics();
+		pollMetrics(port);
 	}
 
 	@Test
@@ -268,11 +283,11 @@ public class PrometheusReporterTest extends TestLogger {
 
 	private String addMetricAndPollResponse(Metric metric, String metricName) throws UnirestException {
 		reporter.notifyOfAddedMetric(metric, metricName, metricGroup);
-		return pollMetrics().getBody();
+		return pollMetrics(port).getBody();
 	}
 
-	static HttpResponse<String> pollMetrics() throws UnirestException {
-		return Unirest.get("http://localhost:" + NON_DEFAULT_PORT + "/metrics").asString();
+	static HttpResponse<String> pollMetrics(int port) throws UnirestException {
+		return Unirest.get("http://localhost:" + port + "/metrics").asString();
 	}
 
 	static Configuration createConfigWithOneReporter(String reporterName, String portString) {
