@@ -146,9 +146,4 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		return lastCreatedStream;
 	}
-
-	@Override
-	public void close() throws Exception {
-
-	}
 }
