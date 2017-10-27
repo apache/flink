@@ -37,12 +37,12 @@ import java.util.List;
 @PublicEvolving
 public interface ListState<T> extends MergingState<T, Iterable<T>> {
 	/**
-	* Updates the state of the current key for the given source namespaces into the state of
-	* the target namespace.
-	*
-	* @param values The target namespace where the merged state should be stored.
-	*
-	* @throws Exception The method may forward exception thrown internally (by I/O or functions).
-	*/
+	 * Updates the state of the current key for the given source namespaces into the state of
+	 * the target namespace.
+	 *
+	 * @param values The target namespace where the merged state should be stored.
+	 *
+	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+	 */
 	void update(List<T> values) throws Exception;
 }
