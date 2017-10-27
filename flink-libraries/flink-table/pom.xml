@@ -243,6 +243,7 @@ under the License.
 									<include>commons-configuration:*</include>
 									<include>commons-lang:*</include>
 									<include>commons-codec:*</include>
+									<include>org.apache.commons:commons-lang3</include>
 									<include>org.codehaus.janino:*</include>
 									<include>org.reflections:*</include>
 									<include>joda-time:*</include>
