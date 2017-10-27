@@ -199,11 +199,9 @@ case class BatchTableTestUtil() extends TableTestUtil {
   def printSql(query: String): Unit = {
     printTable(tableEnv.sqlQuery(query))
   }
-
 }
 
 case class StreamTableTestUtil() extends TableTestUtil {
-
   val javaEnv = mock(classOf[JStreamExecutionEnvironment])
   when(javaEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
   val javaTableEnv = TableEnvironment.getTableEnvironment(javaEnv)
