@@ -18,20 +18,26 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{BatchTableSource, TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
 
-/** Table which defines an external table via a [[TableSource]] */
 class BatchTableSourceTable[T](
     tableSource: BatchTableSource[T],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
   extends TableSourceTable[T](
     tableSource,
-    TableSourceUtil.computeIndexMapping(tableSource, isStreamTable = false, None),
-    tableSource.getTableSchema.getColumnNames,
     statistic) {
 
-  TableSourceUtil.validateTimeAttributes(tableSource)
+  TableSourceUtil.validateTableSource(tableSource)
 
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    TableSourceUtil.getRelDataType(
+      tableSource,
+      None,
+      streaming = false,
+      typeFactory.asInstanceOf[FlinkTypeFactory])
+  }
 }
 

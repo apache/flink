@@ -48,13 +48,57 @@ object TableSourceUtil {
     getProctimeAttributes(tableSource).nonEmpty
 
   /**
-    * Validates that the time attributes of a [[TableSource]] are correctly configured.
+    * Validates a TableSource.
+    *
+    * - checks that all fields of the schema can be resolved
+    * - checks that resolved fields have the correct type
+    * - checks that the time attributes are correctly configured.
     *
     * @param tableSource The [[TableSource]] for which the time attributes are checked.
     */
-  def validateTimeAttributes(tableSource: TableSource[_]): Unit = {
+  def validateTableSource(tableSource: TableSource[_]): Unit = {
 
     val schema = tableSource.getTableSchema
+    val tableFieldNames = schema.getColumnNames
+    val tableFieldTypes = schema.getTypes
+
+    // get rowtime and proctime attributes
+    val rowtimeAttributes = getRowtimeAttributes(tableSource)
+    val proctimeAttributes = getProctimeAttributes(tableSource)
+
+    // validate that schema fields can be resolved to a return type field of correct type
+    var mappedFieldCnt = 0
+    tableFieldTypes.zip(tableFieldNames).foreach {
+      case (t: SqlTimeTypeInfo[_], name: String)
+        if t.getTypeClass == classOf[Timestamp] && proctimeAttributes.contains(name) =>
+        // OK, field was mapped to proctime attribute
+      case (t: SqlTimeTypeInfo[_], name: String)
+        if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
+        // OK, field was mapped to rowtime attribute
+      case (t: TypeInformation[_], name) =>
+        // check if field is registered as time indicator
+        if (getProctimeAttributes(tableSource).contains(name)) {
+          throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
+            s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
+        }
+        if (getRowtimeAttributes(tableSource).contains(name)) {
+          throw new ValidationException(s"Rowtime field '$name' has invalid type $t. " +
+            s"Rowtime attributes must be of type ${Types.SQL_TIMESTAMP}.")
+        }
+        // check that field can be resolved in input type
+        val (physicalName, _, tpe) = resolveInputField(name, tableSource)
+        // validate that mapped fields are are same type
+        if (tpe != t) {
+          throw ValidationException(s"Type $t of table field '$name' does not " +
+            s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
+        }
+        mappedFieldCnt += 1
+    }
+    // ensure that only one field is mapped to an atomic type
+    if (tableSource.getReturnType.isInstanceOf[AtomicType[_]] && mappedFieldCnt > 1) {
+      throw ValidationException(
+        s"More than one table field matched to atomic input type ${tableSource.getReturnType}.")
+    }
 
     // validate rowtime attributes
     tableSource match {

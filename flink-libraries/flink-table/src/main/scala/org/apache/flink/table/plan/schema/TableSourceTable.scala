@@ -18,17 +18,22 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.calcite.schema.Statistic
+import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource
 
 /** Table which defines an external table via a [[TableSource]] */
 abstract class TableSourceTable[T](
     val tableSource: TableSource[T],
-    fieldIndexes: Array[Int],
-    fieldNames: Array[String],
-    override val statistic: FlinkStatistic)
-  extends FlinkTable[T](
-    typeInfo = tableSource.getReturnType,
-    fieldIndexes,
-    fieldNames,
-    statistic)
+    val statistic: FlinkStatistic)
+  extends AbstractTable {
+
+  /**
+    * Returns statistics of current table
+    *
+    * @return statistics of current table
+    */
+  override def getStatistic: Statistic = statistic
+
+}

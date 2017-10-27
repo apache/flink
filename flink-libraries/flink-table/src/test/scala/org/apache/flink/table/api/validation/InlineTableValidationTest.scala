@@ -23,7 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Test
 
-class FlinkTableValidationTest extends TableTestBase {
+class InlineTableValidationTest extends TableTestBase {
 
   @Test
   def testFieldNamesDuplicate() {

@@ -28,7 +28,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
-abstract class FlinkTable[T](
+abstract class InlineTable[T](
     val typeInfo: TypeInformation[T],
     val fieldIndexes: Array[Int],
     val fieldNames: Array[String],

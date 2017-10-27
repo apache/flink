@@ -18,17 +18,25 @@
 
 package org.apache.flink.table.plan.schema
 
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources._
+import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
 
 class StreamTableSourceTable[T](
     tableSource: StreamTableSource[T],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
   extends TableSourceTable[T](
     tableSource,
-    TableSourceUtil.computeIndexMapping(tableSource, isStreamTable = true, None),
-    tableSource.getTableSchema.getColumnNames,
     statistic) {
 
-  TableSourceUtil.validateTimeAttributes(tableSource)
+  TableSourceUtil.validateTableSource(tableSource)
+
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    TableSourceUtil.getRelDataType(
+      tableSource,
+      None,
+      streaming = true,
+      typeFactory.asInstanceOf[FlinkTypeFactory])
+  }
 }
