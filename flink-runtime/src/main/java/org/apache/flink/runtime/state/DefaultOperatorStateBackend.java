@@ -497,6 +497,15 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			return partitionOffsets;
 		}
+
+		@Override
+		public void update(List<S> values) throws Exception {
+			internalList.clear();
+
+			if (values != null && !values.isEmpty()) {
+				internalList.addAll(values);
+			}
+		}
 	}
 
 	private <S> ListState<S> getListState(

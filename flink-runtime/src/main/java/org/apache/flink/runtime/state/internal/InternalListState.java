@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state.internal;
 
 import org.apache.flink.api.common.state.ListState;
 
+import java.util.List;
+
 /**
  * The peer to the {@link ListState} in the internal state type hierarchy.
  * 
@@ -28,4 +30,14 @@ import org.apache.flink.api.common.state.ListState;
  * @param <N> The type of the namespace
  * @param <T> The type of elements in the list
  */
-public interface InternalListState<N, T> extends InternalMergingState<N, T, Iterable<T>>, ListState<T> {}
+public interface InternalListState<N, T> extends InternalMergingState<N, T, Iterable<T>>, ListState<T> {
+	/**
+	 * Updates the state of the current key for the given source namespaces into the state of
+	 * the target namespace.
+	 *
+	 * @param values The target namespace where the merged state should be stored.
+	 *
+	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+	 */
+	void update(List<T> values) throws Exception;
+}

@@ -95,10 +95,10 @@ for each key that the operation sees). The value can be set using `update(T)` an
 
 * `ListState<T>`: This keeps a list of elements. You can append elements and retrieve an `Iterable`
 over all currently stored elements. Elements are added using `add(T)`, the Iterable can
-be retrieved using `Iterable<T> get()`.
+be retrieved using `Iterable<T> get()`. You can also override the existing list with `update(List<T>)`
 
 * `ReducingState<T>`: This keeps a single value that represents the aggregation of all values
-added to the state. The interface is the same as for `ListState` but elements added using
+added to the state. The interface is similar to `ListState` but elements added using
 `add(T)` are reduced to an aggregate using a specified `ReduceFunction`.
 
 * `AggregatingState<IN, OUT>`: This keeps a single value that represents the aggregation of all values
@@ -108,7 +108,7 @@ added using `add(IN)` are aggregated using a specified `AggregateFunction`.
 
 * `FoldingState<T, ACC>`: This keeps a single value that represents the aggregation of all values
 added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
-of elements that are added to the state. The interface is the same as for `ListState` but elements
+of elements that are added to the state. The interface is similar to `ListState` but elements
 added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
 
 * `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and

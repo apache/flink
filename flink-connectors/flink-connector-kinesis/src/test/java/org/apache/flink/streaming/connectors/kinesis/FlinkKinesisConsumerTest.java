@@ -48,7 +48,6 @@ import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -138,12 +137,12 @@ public class FlinkKinesisConsumerTest {
 		// arbitrary checkpoint id and timestamp
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(123, 123));
 
-		Assert.assertTrue(listState.isClearCalled());
+		assertTrue(listState.isClearCalled());
 
 		// the checkpointed list state should contain only the shards that it should subscribe to
-		Assert.assertEquals(globalUnionState.size() / 2, listState.getList().size());
-		Assert.assertTrue(listState.getList().contains(globalUnionState.get(0)));
-		Assert.assertTrue(listState.getList().contains(globalUnionState.get(2)));
+		assertEquals(globalUnionState.size() / 2, listState.getList().size());
+		assertTrue(listState.getList().contains(globalUnionState.get(0)));
+		assertTrue(listState.getList().contains(globalUnionState.get(2)));
 	}
 
 	@Test
@@ -543,6 +542,15 @@ public class FlinkKinesisConsumerTest {
 
 		public boolean isClearCalled() {
 			return clearCalled;
+		}
+
+		@Override
+		public void update(List<T> values) throws Exception {
+			list.clear();
+
+			if (values != null || !values.isEmpty()) {
+				list.addAll(values);
+			}
 		}
 	}
 
