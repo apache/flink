@@ -124,4 +124,39 @@ class JoinTest extends TableTestBase {
     util.verifyTable(resultTable, expected)
   }
 
+  /**
+    * The equi-predicate is not required in stream time-windowed join.
+    */
+  @Test
+  def testInnerJoinWithoutEquiPredicate(): Unit = {
+    val util = streamTestUtil()
+    val left = util.addTable[(Long, Int, String)]('a, 'b, 'c, 'ltime.rowtime)
+    val right = util.addTable[(Long, Int, String)]('d, 'e, 'f, 'rtime.rowtime)
+
+    val resultTable = left.join(right, 'ltime >= 'rtime - 5.minutes && 'ltime < 'rtime + 3.seconds)
+      .select('a, 'e, 'ltime)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "ltime")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "e", "rtime")
+          ),
+          term("where", "AND(>=(ltime, -(rtime, 300000)), <(ltime, DATETIME_PLUS(rtime, 3000)))"),
+          term("join", "a", "ltime", "e", "rtime"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "e", "ltime"))
+    util.verifyTable(resultTable, expected)
+  }
+
 }

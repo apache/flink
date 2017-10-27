@@ -21,10 +21,10 @@ package org.apache.flink.table.plan.rules.dataSet
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.dataset.DataSetJoin
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
+import org.apache.flink.table.plan.util.JoinPlanUtil
 
 import scala.collection.JavaConversions._
 
@@ -41,7 +41,9 @@ class DataSetJoinRule
     val joinInfo = join.analyzeCondition
 
     // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    !joinInfo.pairs().isEmpty
+    JoinPlanUtil.hasEqualityPredicates(joinInfo)
+    // We need to support single row join without equi-condition in the future.
+    // JoinPlanUtil.isSingleRowJoin(join.getJoinType, join.getLeft, join.getRight)
   }
 
   override def convert(rel: RelNode): RelNode = {

@@ -38,6 +38,7 @@ import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableExce
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonJoin
+import org.apache.flink.table.plan.util.JoinPlanUtil
 import org.apache.flink.table.runtime._
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -124,7 +125,7 @@ class DataSetJoin(
     // get the equality keys
     val leftKeys = ArrayBuffer.empty[Int]
     val rightKeys = ArrayBuffer.empty[Int]
-    if (keyPairs.isEmpty) {
+    if (!JoinPlanUtil.hasEqualityPredicates(joinInfo)) {
       // if no equality keys => not supported
       throw TableException(
         "Joins should have at least one equality condition.\n" +

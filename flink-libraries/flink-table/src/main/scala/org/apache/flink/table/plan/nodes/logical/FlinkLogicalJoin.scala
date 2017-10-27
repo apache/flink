@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.nodes.logical
 
 import org.apache.calcite.plan._
-import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.core._
@@ -27,6 +26,7 @@ import org.apache.calcite.rel.logical.LogicalJoin
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.table.plan.nodes.FlinkConventions
+import org.apache.flink.table.plan.util.JoinPlanUtil
 
 import scala.collection.JavaConverters._
 
@@ -74,10 +74,17 @@ private class FlinkLogicalJoinConverter
     "FlinkLogicalJoinConverter") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val join: LogicalJoin = call.rel(0).asInstanceOf[LogicalJoin]
-    val joinInfo = join.analyzeCondition
-
-    hasEqualityPredicates(joinInfo) || isSingleRowJoin(join)
+    val logicalJoin = call.rels(0).asInstanceOf[LogicalJoin]
+    val joinInfo = logicalJoin.analyzeCondition()
+    JoinPlanUtil.hasEqualityPredicates(joinInfo) ||
+      JoinPlanUtil.isSingleRowJoin(
+        logicalJoin.getJoinType,
+        logicalJoin.getLeft,
+        logicalJoin.getRight) ||
+      // When there's no equi-join predicate and it's not single row, we must ensure that the
+      // predicates cannot be replaced with some equi-ones.
+      !JoinPlanUtil.canBeReplacedWithEquiPreds(
+        joinInfo.getRemaining(logicalJoin.getCluster.getRexBuilder))
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -93,35 +100,6 @@ private class FlinkLogicalJoinConverter
       newRight,
       join.getCondition,
       join.getJoinType)
-  }
-
-  private def hasEqualityPredicates(joinInfo: JoinInfo): Boolean = {
-    // joins require an equi-condition or a conjunctive predicate with at least one equi-condition
-    !joinInfo.pairs().isEmpty
-  }
-
-  private def isSingleRowJoin(join: LogicalJoin): Boolean = {
-    join.getJoinType match {
-      case JoinRelType.INNER if isSingleRow(join.getRight) || isSingleRow(join.getLeft) => true
-      case JoinRelType.LEFT if isSingleRow(join.getRight) => true
-      case JoinRelType.RIGHT if isSingleRow(join.getLeft) => true
-      case _ => false
-    }
-  }
-
-  /**
-    * Recursively checks if a [[RelNode]] returns at most a single row.
-    * Input must be a global aggregation possibly followed by projections or filters.
-    */
-  private def isSingleRow(node: RelNode): Boolean = {
-    node match {
-      case ss: RelSubset => isSingleRow(ss.getOriginal)
-      case lp: Project => isSingleRow(lp.getInput)
-      case lf: Filter => isSingleRow(lf.getInput)
-      case lc: Calc => isSingleRow(lc.getInput)
-      case la: Aggregate => la.getGroupSet.isEmpty
-      case _ => false
-    }
   }
 }
 

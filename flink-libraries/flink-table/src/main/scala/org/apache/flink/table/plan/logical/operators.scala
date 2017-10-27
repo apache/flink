@@ -437,11 +437,12 @@ case class Join(
       failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }
 
-    resolvedJoin.condition.foreach(testJoinCondition)
+    val streamEnv = tableEnv.isInstanceOf[StreamTableEnvironment]
+    resolvedJoin.condition.foreach(testJoinCondition(_, streamEnv))
     resolvedJoin
   }
 
-  private def testJoinCondition(expression: Expression): Unit = {
+  private def testJoinCondition(expression: Expression, streamEnv: Boolean): Unit = {
 
     def checkIfJoinCondition(exp: BinaryComparison) = exp.children match {
       case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil
@@ -485,7 +486,8 @@ case class Join(
       if (!alwaysTrue) failValidation("TableFunction left outer join predicate can only be " +
         "empty or literal true.")
     } else {
-      if (!equiJoinPredicateFound) {
+      // We now support stream time-windowed joins without equi-predicates.
+      if (!streamEnv && !equiJoinPredicateFound) {
         failValidation(
           s"Invalid join condition: $expression. At least one equi-join predicate is " +
             s"required.")

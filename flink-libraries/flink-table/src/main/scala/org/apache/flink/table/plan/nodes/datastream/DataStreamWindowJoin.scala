@@ -233,6 +233,7 @@ class DataStreamWindowJoin(
         .name(operatorName)
         .returns(returnTypeInfo)
     } else {
+      // Without keys for grouping, the join operator's parallelism can only be 1.
       leftDataStream.connect(rightDataStream)
         .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow]())
         .process(procInnerJoinFunc)
@@ -278,6 +279,7 @@ class DataStreamWindowJoin(
             rowTimeInnerJoinFunc.getMaxOutputDelay)
         )
     } else {
+      // Without keys for grouping, the join operator's parallelism can only be 1.
       leftDataStream.connect(rightDataStream)
         .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow])
         .transform(
