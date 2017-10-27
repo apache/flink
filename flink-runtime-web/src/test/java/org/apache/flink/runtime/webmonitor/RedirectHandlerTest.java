@@ -29,17 +29,24 @@ import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.DefaultFullHttpRequest;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+import org.apache.flink.shaded.netty4.io.netty.util.ReferenceCountUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -137,6 +144,35 @@ public class RedirectHandlerTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests the approach of using the redirect handler as a standalone handler.
+	 */
+	@Test
+	public void testUserEvent() {
+		final String correctAddress = "foobar:21345";
+		final CompletableFuture<String> localAddressFuture = CompletableFuture.completedFuture(correctAddress);
+		final Time timeout = Time.seconds(10L);
+
+		final RestfulGateway localGateway = mock(RestfulGateway.class);
+		when(localGateway.requestRestAddress(any(Time.class))).thenReturn(CompletableFuture.completedFuture(correctAddress));
+		final GatewayRetriever<RestfulGateway> gatewayRetriever = mock(GatewayRetriever.class);
+		when(gatewayRetriever.getNow()).thenReturn(Optional.of(localGateway));
+
+		final RedirectHandler<RestfulGateway> redirectHandler = new RedirectHandler<>(
+			localAddressFuture,
+			gatewayRetriever,
+			timeout);
+		final UserEventHandler eventHandler = new UserEventHandler();
+		EmbeddedChannel channel = new EmbeddedChannel(redirectHandler, eventHandler);
+
+		// write a (routed) HTTP request, then validate that a user event was propagated
+		DefaultFullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
+		Routed routed = new Routed(null, false, request, "/", new HashMap<>(), new HashMap<>());
+		channel.writeInbound(routed);
+		Assert.assertNotNull(eventHandler.gateway);
+		Assert.assertNotNull(eventHandler.routed);
+	}
+
 	private static class TestingHandler extends RedirectHandler<RestfulGateway> {
 
 		protected TestingHandler(
@@ -154,4 +190,25 @@ public class RedirectHandlerTest extends TestLogger {
 		}
 	}
 
+	private static class UserEventHandler<T extends RestfulGateway> extends ChannelInboundHandlerAdapter {
+
+		public volatile T gateway;
+
+		public volatile Routed routed;
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+			if (evt instanceof RedirectHandler.GatewayRetrieved) {
+				gateway = ((RedirectHandler.GatewayRetrieved<T>) evt).getGateway();
+			}
+			super.userEventTriggered(ctx, evt);
+		}
+
+		@Override
+		public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+			routed = (Routed) msg;
+			ReferenceCountUtil.release(msg);
+		}
+	}
 }

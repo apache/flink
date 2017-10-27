@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Marker interface for all requests of the REST API. This class represents the http body of a request.
+ * Marker interface for all requests of the REST API. This class represents the body of an HTTP request or WebSocket message.
  *
  * <p>Subclass instances are converted to JSON using jackson-databind. Subclasses must have a constructor that accepts
  * all fields of the JSON request, that should be annotated with {@code @JsonCreator}.

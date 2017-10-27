@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
+import org.apache.flink.runtime.rest.handler.AbstractWebSocketHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -33,7 +34,10 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.WebSocketSpecification;
 import org.apache.flink.runtime.rest.util.RestClientException;
+import org.apache.flink.runtime.rest.websocket.KeyedChannelRouter;
+import org.apache.flink.runtime.rest.websocket.WebSocket;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
@@ -42,8 +46,14 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
+import org.apache.flink.shaded.netty4.io.netty.channel.group.ChannelGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.group.DefaultChannelGroup;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
+import org.apache.flink.shaded.netty4.io.netty.util.concurrent.GlobalEventExecutor;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -55,11 +65,14 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -78,6 +91,8 @@ public class RestEndpointITCase extends TestLogger {
 	private RestServerEndpoint serverEndpoint;
 	private RestClient clientEndpoint;
 
+	private TestEventProvider eventProvider;
+
 	@Before
 	public void setup() throws Exception {
 		Configuration config = new Configuration();
@@ -91,12 +106,22 @@ public class RestEndpointITCase extends TestLogger {
 		GatewayRetriever<RestfulGateway> mockGatewayRetriever = mock(GatewayRetriever.class);
 		when(mockGatewayRetriever.getNow()).thenReturn(Optional.of(mockRestfulGateway));
 
+		// a REST operation
 		TestHandler testHandler = new TestHandler(
 			CompletableFuture.completedFuture(restAddress),
 			mockGatewayRetriever,
 			RpcUtils.INF_TIMEOUT);
 
-		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler);
+		// a WebSocket operation
+		ChannelGroup eventChannelGroup = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+		eventProvider = new TestEventProvider(eventChannelGroup);
+		TestWebSocketOperation.WsRestHandler testWebSocketHandler = new TestWebSocketOperation.WsRestHandler(
+			CompletableFuture.completedFuture(restAddress),
+			mockGatewayRetriever,
+			eventProvider,
+			RpcUtils.INF_TIMEOUT);
+
+		serverEndpoint = new TestRestServerEndpoint(serverConfig, testHandler, testWebSocketHandler);
 		clientEndpoint = new TestRestClient(clientConfig);
 
 		serverEndpoint.start();
@@ -194,19 +219,74 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that a web socket operation works end-to-end.
+	 */
+	@Test
+	public void testWebSocketEndToEnd() throws Exception {
+		TestWebSocketOperation.WsParameters parameters = new TestWebSocketOperation.WsParameters();
+		parameters.jobIDPathParameter.resolve(PATH_JOB_ID);
+
+		final LinkedBlockingQueue<TestMessage> messageQueue = new LinkedBlockingQueue<>();
+		final InetSocketAddress serverAddress = serverEndpoint.getServerAddress();
+
+		// open a websocket connection with a listener that simply enqueues incoming messages
+		CompletableFuture<WebSocket<TestMessage, TestMessage>> response = clientEndpoint.sendWebSocketRequest(
+			serverAddress.getHostName(),
+			serverAddress.getPort(),
+			new TestWebSocketOperation.WsHeaders(),
+			parameters,
+			(event) -> {
+				try {
+					messageQueue.put(event);
+				}
+				catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			});
+
+		// wait for the connection to be established
+		WebSocket<TestMessage, TestMessage> webSocket = response.get();
+		try {
+			// wait for the server to register the channel (happens asynchronously after handshake complete)
+			TestWebSocketOperation.WsRestHandler.LATCH.await();
+
+			// play ping-pong (server goes first)
+			eventProvider.writeAndFlush(PATH_JOB_ID, new TestMessage(42));
+			TestMessage received = messageQueue.take();
+			Assert.assertEquals(42, received.sequenceNumber);
+			webSocket.send(received.incr());
+			received = messageQueue.take();
+			Assert.assertEquals(44, received.sequenceNumber);
+		}
+		finally {
+			webSocket.close();
+		}
+	}
+
 	private static class TestRestServerEndpoint extends RestServerEndpoint {
 
 		private final TestHandler testHandler;
+		private final TestWebSocketOperation.WsRestHandler testWebSocketHandler;
 
-		TestRestServerEndpoint(RestServerEndpointConfiguration configuration, TestHandler testHandler) {
+		TestRestServerEndpoint(RestServerEndpointConfiguration configuration, TestHandler testHandler, TestWebSocketOperation.WsRestHandler testWebSocketHandler) {
 			super(configuration);
 
 			this.testHandler = Preconditions.checkNotNull(testHandler);
+			this.testWebSocketHandler = Preconditions.checkNotNull(testWebSocketHandler);
 		}
 
 		@Override
 		protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return Collections.singleton(Tuple2.of(new TestHeaders(), testHandler));
+			return Arrays.asList(
+				Tuple2.of(new TestHeaders(), testHandler),
+				Tuple2.of(new TestWebSocketOperation.WsHeaders(), testWebSocketHandler));
+		}
+	}
+
+	private static class TestEventProvider extends KeyedChannelRouter<JobID> {
+		public TestEventProvider(ChannelGroup channelGroup) {
+			super(AttributeKey.valueOf("jobID"), channelGroup);
 		}
 	}
 
@@ -325,6 +405,88 @@ public class RestEndpointITCase extends TestLogger {
 		}
 	}
 
+	private static class TestWebSocketOperation {
+
+		private static class WsParameters extends MessageParameters {
+			private final JobIDPathParameter jobIDPathParameter = new JobIDPathParameter();
+
+			@Override
+			public Collection<MessagePathParameter<?>> getPathParameters() {
+				return Collections.singleton(jobIDPathParameter);
+			}
+
+			@Override
+			public Collection<MessageQueryParameter<?>> getQueryParameters() {
+				return Collections.emptyList();
+			}
+		}
+
+		static class WsHeaders implements WebSocketSpecification<WsParameters, TestMessage, TestMessage> {
+
+			@Override
+			public String getTargetRestEndpointURL() {
+				return "/test/:jobid/subscribe";
+			}
+
+			@Override
+			public String getSubprotocol() {
+				return "test";
+			}
+
+			@Override
+			public Class<TestMessage> getServerClass() {
+				return TestMessage.class;
+			}
+
+			@Override
+			public Class<TestMessage> getClientClass() {
+				return TestMessage.class;
+			}
+
+			@Override
+			public WsParameters getUnresolvedMessageParameters() {
+				return new WsParameters();
+			}
+		}
+
+		static class WsRestHandler extends AbstractWebSocketHandler<RestfulGateway, WsParameters, TestMessage, TestMessage> {
+
+			public static final CountDownLatch LATCH = new CountDownLatch(1);
+
+			private final TestEventProvider eventProvider;
+
+			WsRestHandler(
+				CompletableFuture<String> localAddressFuture,
+				GatewayRetriever<RestfulGateway> leaderRetriever,
+				TestEventProvider eventProvider,
+				Time timeout) {
+				super(localAddressFuture, leaderRetriever, timeout, new WsHeaders());
+				this.eventProvider = eventProvider;
+			}
+
+			@Override
+			protected CompletableFuture<Void> handshakeInitiated(ChannelHandlerContext ctx, WsParameters parameters) throws Exception {
+				// validate request before completing the handshake
+				JobID jobID = parameters.getPathParameter(JobIDPathParameter.class);
+				Assert.assertEquals(PATH_JOB_ID, jobID);
+				return CompletableFuture.completedFuture(null);
+			}
+
+			@Override
+			protected void handshakeCompleted(ChannelHandlerContext ctx, WsParameters parameters) throws Exception {
+				// handshake complete; register for server events
+				JobID jobID = parameters.getPathParameter(JobIDPathParameter.class);
+				eventProvider.register(ctx.channel(), jobID);
+				LATCH.countDown();
+			}
+
+			@Override
+			protected void messageReceived(ChannelHandlerContext ctx, WsParameters parameters, TestMessage msg) throws Exception {
+				ctx.channel().writeAndFlush(msg.incr()).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+			}
+		}
+	}
+
 	static class JobIDPathParameter extends MessagePathParameter<JobID> {
 		JobIDPathParameter() {
 			super(JOB_ID_KEY);
@@ -371,6 +533,19 @@ public class RestEndpointITCase extends TestLogger {
 		@Override
 		public String convertStringToValue(JobID value) {
 			return value.toString();
+		}
+	}
+
+	static class TestMessage implements ResponseBody, RequestBody {
+		public final int sequenceNumber;
+
+		@JsonCreator
+		public TestMessage(@JsonProperty("sequenceNumber") int sequenceNumber) {
+			this.sequenceNumber = sequenceNumber;
+		}
+
+		public TestMessage incr() {
+			return new TestMessage(sequenceNumber + 1);
 		}
 	}
 }

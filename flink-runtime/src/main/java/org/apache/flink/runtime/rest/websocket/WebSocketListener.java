@@ -16,17 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.websocket;
+
+import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.util.event.EventListener;
 
 /**
- * Marker interface for all responses of the REST API. This class represents the body of an HTTP response or WebSocket message.
+ * A listener for WebSocket messages.
  *
- * <p>Subclass instances are converted to JSON using jackson-databind. Subclasses must have a constructor that accepts
- * all fields of the JSON response, that should be annotated with {@code @JsonCreator}.
- *
- * <p>All fields that should part of the JSON response must be accessible either by being public or having a getter.
- *
- * <p>When adding methods that are prefixed with {@code get} make sure to annotate them with {@code @JsonIgnore}.
+ * @param <T> type of the server-to-client messages.
  */
-public interface ResponseBody {
-}
+public interface WebSocketListener<T extends ResponseBody> extends EventListener<T> { }
