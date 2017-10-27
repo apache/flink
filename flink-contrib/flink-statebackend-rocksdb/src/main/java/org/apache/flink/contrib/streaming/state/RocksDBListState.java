@@ -158,4 +158,27 @@ public class RocksDBListState<K, N, V>
 			throw new Exception("Error while merging state in RocksDB", e);
 		}
 	}
+
+	@Override
+	public void update(List<V> values) throws Exception {
+		clear();
+
+		if (values == null) {
+			return;
+		}
+
+		try {
+			writeCurrentKeyWithGroupAndNamespace();
+			byte[] key = keySerializationStream.toByteArray();
+			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
+
+			for (V value : values) {
+				keySerializationStream.reset();
+				valueSerializer.serialize(value, out);
+				backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+			}
+		} catch (IOException | RocksDBException e) {
+			throw new RuntimeException("Error while updating data to RocksDB", e);
+		}
+	}
 }
