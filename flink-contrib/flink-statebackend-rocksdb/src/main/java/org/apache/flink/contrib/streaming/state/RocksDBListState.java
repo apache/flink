@@ -163,22 +163,20 @@ public class RocksDBListState<K, N, V>
 	public void update(List<V> values) throws Exception {
 		clear();
 
-		if (values == null) {
-			return;
-		}
+		if (values != null) {
+			try {
+				writeCurrentKeyWithGroupAndNamespace();
+				byte[] key = keySerializationStream.toByteArray();
+				DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 
-		try {
-			writeCurrentKeyWithGroupAndNamespace();
-			byte[] key = keySerializationStream.toByteArray();
-			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
-
-			for (V value : values) {
-				keySerializationStream.reset();
-				valueSerializer.serialize(value, out);
-				backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+				for (V value : values) {
+					keySerializationStream.reset();
+					valueSerializer.serialize(value, out);
+					backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+				}
+			} catch (IOException | RocksDBException e) {
+				throw new RuntimeException("Error while updating data to RocksDB", e);
 			}
-		} catch (IOException | RocksDBException e) {
-			throw new RuntimeException("Error while updating data to RocksDB", e);
 		}
 	}
 }

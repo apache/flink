@@ -126,9 +126,11 @@ public class HeapListState<K, N, V>
 	public void update(List<V> values) throws Exception {
 		clear();
 
-		final N namespace = currentNamespace;
-		final StateTable<K, N, ArrayList<V>> map = stateTable;
+		if(values != null) {
+			final N namespace = currentNamespace;
+			final StateTable<K, N, ArrayList<V>> map = stateTable;
 
-		map.put(namespace, new ArrayList<>(values));
+			map.put(namespace, new ArrayList<>(values));
+		}
 	}
 }

@@ -501,7 +501,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		@Override
 		public void update(List<S> values) throws Exception {
 			internalList.clear();
-			internalList.addAll(values);
+
+			if(values != null) {
+				internalList.addAll(values);
+			}
 		}
 	}
 
