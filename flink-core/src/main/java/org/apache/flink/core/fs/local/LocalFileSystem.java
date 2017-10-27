@@ -150,6 +150,12 @@ public class LocalFileSystem extends FileSystem {
 	}
 
 	@Override
+	public boolean exists(Path f) throws IOException {
+		final File path = pathToFile(f);
+		return path.exists();
+	}
+
+	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
 
 		final File localf = pathToFile(f);
