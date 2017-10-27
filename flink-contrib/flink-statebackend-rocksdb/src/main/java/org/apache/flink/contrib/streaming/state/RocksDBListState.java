@@ -163,7 +163,7 @@ public class RocksDBListState<K, N, V>
 	public void update(List<V> values) throws Exception {
 		clear();
 
-		if (values != null) {
+		if (values != null && values.size() != 0) {
 			try {
 				writeCurrentKeyWithGroupAndNamespace();
 				byte[] key = keySerializationStream.toByteArray();
