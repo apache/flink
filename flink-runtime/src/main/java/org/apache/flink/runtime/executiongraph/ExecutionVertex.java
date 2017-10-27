@@ -43,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -487,7 +488,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			return Collections.emptySet();
 		}
 		else {
-			Set<CompletableFuture<TaskManagerLocation>> inputLocations = new HashSet<>(4);
+			Set<CompletableFuture<TaskManagerLocation>> locations = new HashSet<>(getTotalNumberOfParallelSubtasks());
+			Set<CompletableFuture<TaskManagerLocation>> inputLocations = new HashSet<>(getTotalNumberOfParallelSubtasks());
 
 			// go over all inputs
 			for (int i = 0; i < inputEdges.length; i++) {
@@ -497,17 +499,26 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					// go over all input sources
 					for (int k = 0; k < sources.length; k++) {
 						// look-up assigned slot of input source
-						CompletableFuture<TaskManagerLocation> taskManagerLocationFuture = sources[k].getSource().getProducer().getCurrentTaskManagerLocationFuture();
-						inputLocations.add(taskManagerLocationFuture);
-
+						CompletableFuture<TaskManagerLocation> locationFuture = sources[k].getSource().getProducer().getCurrentTaskManagerLocationFuture();
+						// add input location
+						inputLocations.add(locationFuture);
+						// inputs which have too many distinct sources are not considered
 						if (inputLocations.size() > MAX_DISTINCT_LOCATIONS_TO_CONSIDER) {
-							return Collections.emptyList();
+							inputLocations.clear();
+							break;
 						}
 					}
 				}
+				// keep the locations of the input with the least preferred locations
+				if (locations.isEmpty() || // nothing assigned yet
+						(!inputLocations.isEmpty() && inputLocations.size() < locations.size())) {
+					// current input has fewer preferred locations
+					locations.clear();
+					locations.addAll(inputLocations);
+				}
 			}
 
-			return inputLocations.isEmpty() ? Collections.emptyList() : inputLocations;
+			return locations.isEmpty() ? Collections.emptyList() : locations;
 		}
 	}
 
@@ -587,8 +598,22 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) {
-		return this.currentExecution.scheduleForExecution(slotProvider, queued);
+	/**
+	 * Schedules the current execution of this ExecutionVertex.
+	 *
+	 * @param slotProvider to allocate the slots from
+	 * @param queued if the allocation can be queued
+	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @return
+	 */
+	public boolean scheduleForExecution(
+			SlotProvider slotProvider,
+			boolean queued,
+			LocationPreferenceConstraint locationPreferenceConstraint) {
+		return this.currentExecution.scheduleForExecution(
+			slotProvider,
+			queued,
+			locationPreferenceConstraint);
 	}
 
 	@VisibleForTesting

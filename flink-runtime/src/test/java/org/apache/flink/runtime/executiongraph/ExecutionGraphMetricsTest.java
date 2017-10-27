@@ -53,6 +53,7 @@ import org.mockito.Matchers;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -115,7 +116,7 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 
 			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 			future.complete(simpleSlot);
-			when(scheduler.allocateSlot(any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
+			when(scheduler.allocateSlot(any(ScheduledUnit.class), anyBoolean(), any(Collection.class))).thenReturn(future);
 
 			when(rootSlot.getSlotNumber()).thenReturn(0);
 

@@ -38,6 +38,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -46,14 +47,19 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.operators.BatchTask;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
 
@@ -67,14 +73,18 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getInstance;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link ExecutionGraph} deployment.
@@ -553,6 +563,103 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		assertEquals(CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
 			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
+	}
+
+	/**
+	 * Tests that eager scheduling will wait until all input locations have been set before
+	 * scheduling a task.
+	 */
+	@Test
+	public void testEagerSchedulingWaitsOnAllInputPreferredLocations() throws Exception {
+		final int parallelism = 2;
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
+
+		final Time timeout = Time.hours(1L);
+		final JobVertexID sourceVertexId = new JobVertexID();
+		final JobVertex sourceVertex = new JobVertex("Test source", sourceVertexId);
+		sourceVertex.setInvokableClass(NoOpInvokable.class);
+		sourceVertex.setParallelism(parallelism);
+
+		final JobVertexID sinkVertexId = new JobVertexID();
+		final JobVertex sinkVertex = new JobVertex("Test sink", sinkVertexId);
+		sinkVertex.setInvokableClass(NoOpInvokable.class);
+		sinkVertex.setParallelism(parallelism);
+
+		sinkVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+
+		final Map<JobVertexID, CompletableFuture<SimpleSlot>[]> slotFutures = new HashMap<>(2);
+
+		for (JobVertexID jobVertexID : Arrays.asList(sourceVertexId, sinkVertexId)) {
+			CompletableFuture<SimpleSlot>[] slotFutureArray = new CompletableFuture[parallelism];
+
+			for (int i = 0; i < parallelism; i++) {
+				slotFutureArray[i] = new CompletableFuture<>();
+			}
+
+			slotFutures.put(jobVertexID, slotFutureArray);
+			slotProvider.addSlots(jobVertexID, slotFutureArray);
+		}
+
+		final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(3);
+
+		final ExecutionGraph executionGraph = ExecutionGraphTestUtils.createExecutionGraph(
+			new JobID(),
+			slotProvider,
+			new NoRestartStrategy(),
+			scheduledExecutorService,
+			timeout,
+			sourceVertex,
+			sinkVertex);
+
+		executionGraph.setScheduleMode(ScheduleMode.EAGER);
+		executionGraph.scheduleForExecution();
+
+		// all tasks should be in state SCHEDULED
+		for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+			assertEquals(ExecutionState.SCHEDULED, executionVertex.getCurrentExecutionAttempt().getState());
+		}
+
+		// wait until the source vertex slots have been requested
+		assertTrue(slotProvider.getSlotRequestedFuture(sourceVertexId, 0).get());
+		assertTrue(slotProvider.getSlotRequestedFuture(sourceVertexId, 1).get());
+
+		// check that the sinks have not requested their slots because they need the location
+		// information of the sources
+		assertFalse(slotProvider.getSlotRequestedFuture(sinkVertexId, 0).isDone());
+		assertFalse(slotProvider.getSlotRequestedFuture(sinkVertexId, 1).isDone());
+
+		final TaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
+
+		final SimpleSlot sourceSlot1 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 0);
+
+		final SimpleSlot sourceSlot2 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 1);
+
+		final SimpleSlot sinkSlot1 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 0);
+
+		final SimpleSlot sinkSlot2 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 1);
+
+		slotFutures.get(sourceVertexId)[0].complete(sourceSlot1);
+		slotFutures.get(sourceVertexId)[1].complete(sourceSlot2);
+
+		// wait until the sink vertex slots have been requested after we completed the source slots
+		assertTrue(slotProvider.getSlotRequestedFuture(sinkVertexId, 0).get());
+		assertTrue(slotProvider.getSlotRequestedFuture(sinkVertexId, 1).get());
+
+		slotFutures.get(sinkVertexId)[0].complete(sinkSlot1);
+		slotFutures.get(sinkVertexId)[1].complete(sinkSlot2);
+
+		for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
+			ExecutionGraphTestUtils.waitUntilExecutionState(executionVertex.getCurrentExecutionAttempt(), ExecutionState.DEPLOYING, 5000L);
+		}
+	}
+
+	private SimpleSlot createSlot(JobID jobId, TaskManagerLocation taskManagerLocation, int index) {
+		return new SimpleSlot(
+			jobId,
+			mock(SlotOwner.class),
+			taskManagerLocation,
+			index,
+			new SimpleAckingTaskManagerGateway());
 	}
 
 	@SuppressWarnings("serial")

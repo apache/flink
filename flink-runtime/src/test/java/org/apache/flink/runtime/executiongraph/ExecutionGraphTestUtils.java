@@ -320,9 +320,21 @@ public class ExecutionGraphTestUtils {
 			ScheduledExecutorService executor,
 			JobVertex... vertices) throws Exception {
 
+			return createExecutionGraph(jid, slotProvider, restartStrategy, executor, Time.seconds(10L), vertices);
+	}
+
+	public static ExecutionGraph createExecutionGraph(
+			JobID jid,
+			SlotProvider slotProvider,
+			RestartStrategy restartStrategy,
+			ScheduledExecutorService executor,
+			Time timeout,
+			JobVertex... vertices) throws Exception {
+
 		checkNotNull(jid);
 		checkNotNull(restartStrategy);
 		checkNotNull(vertices);
+		checkNotNull(timeout);
 
 		return ExecutionGraphBuilder.buildGraph(
 			null,
@@ -333,7 +345,7 @@ public class ExecutionGraphTestUtils {
 			slotProvider,
 			ExecutionGraphTestUtils.class.getClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
-			Time.seconds(10),
+			timeout,
 			restartStrategy,
 			new UnregisteredMetricsGroup(),
 			1,

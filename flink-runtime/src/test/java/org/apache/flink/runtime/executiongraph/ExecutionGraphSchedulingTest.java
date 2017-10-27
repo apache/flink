@@ -306,7 +306,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		for (int i = 0; i < parallelism; i += 2) {
 			sourceFutures[i].complete(sourceSlots[i]);
-			targetFutures[i + 1].complete(targetSlots[i + 1]);
+			targetFutures[i].complete(targetSlots[i]);
 		}
 
 		//
@@ -331,7 +331,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		// all completed futures must have been returns
 		for (int i = 0; i < parallelism; i += 2) {
 			assertTrue(sourceSlots[i].isCanceled());
-			assertTrue(targetSlots[i + 1].isCanceled());
+			assertTrue(targetSlots[i].isCanceled());
 		}
 	}
 

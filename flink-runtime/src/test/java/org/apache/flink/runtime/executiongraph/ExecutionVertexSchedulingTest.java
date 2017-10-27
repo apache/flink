@@ -24,6 +24,7 @@ import org.apache.flink.runtime.instance.DummyActorGateway;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.junit.Test;
 import org.mockito.Matchers;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
@@ -39,6 +41,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ge
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -62,11 +65,11 @@ public class ExecutionVertexSchedulingTest {
 			Scheduler scheduler = mock(Scheduler.class);
 			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 			future.complete(slot);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean(), any(Collection.class))).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, false);
+			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -94,11 +97,11 @@ public class ExecutionVertexSchedulingTest {
 			final CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 
 			Scheduler scheduler = mock(Scheduler.class);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean(), any(Collection.class))).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, true);
+			vertex.scheduleForExecution(scheduler, true, LocationPreferenceConstraint.ALL);
 
 			// future has not yet a slot
 			assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
@@ -128,12 +131,12 @@ public class ExecutionVertexSchedulingTest {
 			Scheduler scheduler = mock(Scheduler.class);
 			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
 			future.complete(slot);
-			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean())).thenReturn(future);
+			when(scheduler.allocateSlot(Matchers.any(ScheduledUnit.class), anyBoolean(), any(Collection.class))).thenReturn(future);
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
 			// try to deploy to the slot
-			vertex.scheduleForExecution(scheduler, false);
+			vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());
 		}
 		catch (Exception e) {

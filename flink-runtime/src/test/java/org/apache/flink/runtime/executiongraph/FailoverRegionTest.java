@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -156,7 +157,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 
-		ev21.scheduleForExecution(slotProvider, true);
+		ev21.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL);
 		ev21.getCurrentExecutionAttempt().fail(new Exception("New fail"));
 		assertEquals(JobStatus.CANCELLING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
@@ -169,7 +170,7 @@ public class FailoverRegionTest extends TestLogger {
 
 		ev11.getCurrentExecutionAttempt().markFinished();
 		ev21.getCurrentExecutionAttempt().markFinished();
-		ev22.scheduleForExecution(slotProvider, true);
+		ev22.scheduleForExecution(slotProvider, true, LocationPreferenceConstraint.ALL);
 		ev22.getCurrentExecutionAttempt().markFinished();
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev11).getState());
 		assertEquals(JobStatus.RUNNING, strategy.getFailoverRegion(ev22).getState());
@@ -209,11 +210,11 @@ public class FailoverRegionTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that two failover regions failover at the same time, they will not influence each orther
+	 * Tests that two failover regions failover at the same time, they will not influence each other
 	 * @throws Exception
 	 */
 	@Test
-	public void testMutilRegionFailoverAtSameTime() throws Exception {
+	public void testMultiRegionFailoverAtSameTime() throws Exception {
 		Instance instance = ExecutionGraphTestUtils.getInstance(
 				new ActorTaskManagerGateway(
 						new SimpleActorGateway(TestingUtils.directExecutionContext())),

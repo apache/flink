@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.time.Time;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -45,11 +47,12 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +61,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
@@ -95,6 +97,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
+
+	private static final AtomicReferenceFieldUpdater<Execution, SimpleSlot> ASSIGNED_SLOT_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
+		Execution.class,
+		SimpleSlot.class,
+		"assignedResource");
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
@@ -134,7 +141,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile ExecutionState state = CREATED;
 
-	private final AtomicReference<SimpleSlot> assignedResource;
+	private volatile SimpleSlot assignedResource;
 
 	private volatile Throwable failureCause;          // once assigned, never changes
 
@@ -193,7 +200,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		this.terminationFuture = new CompletableFuture<>();
 		this.taskManagerLocationFuture = new CompletableFuture<>();
 
-		this.assignedResource = new AtomicReference<>();
+		this.assignedResource = null;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -234,7 +241,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	public SimpleSlot getAssignedResource() {
-		return assignedResource.get();
+		return assignedResource;
 	}
 
 	/**
@@ -244,22 +251,23 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param slot to assign to this execution
 	 * @return true if the slot could be assigned to the execution, otherwise false
 	 */
+	@VisibleForTesting
 	boolean tryAssignResource(final SimpleSlot slot) {
-		Preconditions.checkNotNull(slot);
+		checkNotNull(slot);
 
 		// only allow to set the assigned resource in state SCHEDULED or CREATED
 		// note: we also accept resource assignment when being in state CREATED for testing purposes
 		if (state == SCHEDULED || state == CREATED) {
-			if (assignedResource.compareAndSet(null, slot)) {
+			if (ASSIGNED_SLOT_UPDATER.compareAndSet(this, null, slot)) {
 				// check for concurrent modification (e.g. cancelling call)
 				if (state == SCHEDULED || state == CREATED) {
-					Preconditions.checkState(!taskManagerLocationFuture.isDone(), "The TaskManagerLocationFuture should not be set if we haven't assigned a resource yet.");
+					checkState(!taskManagerLocationFuture.isDone(), "The TaskManagerLocationFuture should not be set if we haven't assigned a resource yet.");
 					taskManagerLocationFuture.complete(slot.getTaskManagerLocation());
 
 					return true;
 				} else {
 					// free assigned resource and return false
-					assignedResource.set(null);
+					ASSIGNED_SLOT_UPDATER.set(this, null);
 					return false;
 				}
 			} else {
@@ -275,7 +283,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	@Override
 	public TaskManagerLocation getAssignedResourceLocation() {
 		// returns non-null only when a location is already assigned
-		return assignedResource.get() != null ? assignedResource.get().getTaskManagerLocation() : null;
+		final SimpleSlot currentAssignedResource = assignedResource;
+		return currentAssignedResource != null ? currentAssignedResource.getTaskManagerLocation() : null;
 	}
 
 	public Throwable getFailureCause() {
@@ -333,7 +342,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public boolean scheduleForExecution() {
 		SlotProvider resourceProvider = getVertex().getExecutionGraph().getSlotProvider();
 		boolean allowQueued = getVertex().getExecutionGraph().isQueuedSchedulingAllowed();
-		return scheduleForExecution(resourceProvider, allowQueued);
+		return scheduleForExecution(resourceProvider, allowQueued, LocationPreferenceConstraint.ANY);
 	}
 
 	/**
@@ -344,12 +353,19 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param slotProvider The slot provider to use to allocate slot for this execution attempt.
 	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
 	 *               immediately deploy it.
+	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * 
 	 * @throws IllegalStateException Thrown, if the vertex is not in CREATED state, which is the only state that permits scheduling.
 	 */
-	public boolean scheduleForExecution(SlotProvider slotProvider, boolean queued) {
+	public boolean scheduleForExecution(
+		SlotProvider slotProvider,
+		boolean queued,
+		LocationPreferenceConstraint locationPreferenceConstraint) {
 		try {
-			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(slotProvider, queued);
+			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
+				slotProvider,
+				queued,
+				locationPreferenceConstraint);
 
 			// IMPORTANT: We have to use the synchronous handle operation (direct executor) here so
 			// that we directly deploy the tasks if the slot allocation future is completed. This is
@@ -387,11 +403,15 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param slotProvider to obtain a new slot from
 	 * @param queued if the allocation can be queued
+	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
 	 * @throws IllegalExecutionStateException if this method has been called while not being in the CREATED state
 	 */
-	public CompletableFuture<Execution> allocateAndAssignSlotForExecution(SlotProvider slotProvider, boolean queued) throws IllegalExecutionStateException {
+	public CompletableFuture<Execution> allocateAndAssignSlotForExecution(
+			SlotProvider slotProvider,
+			boolean queued,
+			LocationPreferenceConstraint locationPreferenceConstraint) throws IllegalExecutionStateException {
 
 		checkNotNull(slotProvider);
 
@@ -411,18 +431,27 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					new ScheduledUnit(this, sharingGroup) :
 					new ScheduledUnit(this, sharingGroup, locationConstraint);
 
-			CompletableFuture<SimpleSlot> slotFuture = slotProvider.allocateSlot(toSchedule, queued);
+			// calculate the preferred locations
+			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = calculatePreferredLocations(locationPreferenceConstraint);
 
-			return slotFuture.thenApply(slot -> {
-				if (tryAssignResource(slot)) {
-					return this;
-				} else {
-					// release the slot
-					slot.releaseSlot();
+			return preferredLocationsFuture
+				.thenCompose(
+					(Collection<TaskManagerLocation> preferredLocations) ->
+						slotProvider.allocateSlot(
+							toSchedule,
+							queued,
+							preferredLocations))
+				.thenApply(
+					(SimpleSlot slot) -> {
+						if (tryAssignResource(slot)) {
+							return this;
+						} else {
+							// release the slot
+							slot.releaseSlot();
 
-					throw new CompletionException(new FlinkException("Could not assign slot " + slot + " to execution " + this + " because it has already been assigned "));
-				}
-			});
+							throw new CompletionException(new FlinkException("Could not assign slot " + slot + " to execution " + this + " because it has already been assigned "));
+						}
+					});
 		}
 		else {
 			// call race, already deployed, or already done
@@ -436,7 +465,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @throws JobException if the execution cannot be deployed to the assigned resource
 	 */
 	public void deploy() throws JobException {
-		final SimpleSlot slot  = assignedResource.get();
+		final SimpleSlot slot  = assignedResource;
 
 		checkNotNull(slot, "In order to deploy the execution we first have to assign a resource via tryAssignResource.");
 
@@ -516,7 +545,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * Sends stop RPC call.
 	 */
 	public void stop() {
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -579,7 +608,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					try {
 						vertex.getExecutionGraph().deregisterExecution(this);
 
-						final SimpleSlot slot = assignedResource.get();
+						final SimpleSlot slot = assignedResource;
 
 						if (slot != null) {
 							slot.releaseSlot();
@@ -640,8 +669,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					() -> {
 						try {
 							consumerVertex.scheduleForExecution(
-									consumerVertex.getExecutionGraph().getSlotProvider(),
-									consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed());
+								consumerVertex.getExecutionGraph().getSlotProvider(),
+								consumerVertex.getExecutionGraph().isQueuedSchedulingAllowed(),
+								LocationPreferenceConstraint.ANY); // there must be at least one known location
 						} catch (Throwable t) {
 							consumerVertex.fail(new IllegalStateException("Could not schedule consumer " +
 									"vertex " + consumerVertex, t));
@@ -748,7 +778,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			int maxStrackTraceDepth,
 			Time timeout) {
 
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -772,7 +802,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param timestamp of the completed checkpoint
 	 */
 	public void notifyCheckpointComplete(long checkpointId, long timestamp) {
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -792,7 +822,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param checkpointOptions of the checkpoint to trigger
 	 */
 	public void triggerCheckpoint(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -850,7 +880,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
-						final SimpleSlot slot = assignedResource.get();
+						final SimpleSlot slot = assignedResource;
 
 						if (slot != null) {
 							slot.releaseSlot();
@@ -908,7 +938,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				if (transitionState(current, CANCELED)) {
 					try {
-						final SimpleSlot slot = assignedResource.get();
+						final SimpleSlot slot = assignedResource;
 
 						if (slot != null) {
 							slot.releaseSlot();
@@ -1005,7 +1035,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 				try {
-					final SimpleSlot slot = assignedResource.get();
+					final SimpleSlot slot = assignedResource;
 					if (slot != null) {
 						slot.releaseSlot();
 					}
@@ -1022,7 +1052,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					}
 
 					try {
-						if (assignedResource.get() != null) {
+						if (assignedResource != null) {
 							sendCancelRpcCall();
 						}
 					} catch (Throwable tt) {
@@ -1089,7 +1119,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * The sending is tried up to NUM_CANCEL_CALL_TRIES times.
 	 */
 	private void sendCancelRpcCall() {
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -1110,7 +1140,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	private void sendFailIntermediateResultPartitionsRpcCall() {
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -1128,7 +1158,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private void sendUpdatePartitionInfoRpcCall(
 			final Iterable<PartitionInfo> partitionInfos) {
 
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		if (slot != null) {
 			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
@@ -1150,6 +1180,46 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous
 	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Calculates the preferred locations based on the location preference constraint.
+	 *
+	 * @param locationPreferenceConstraint constraint for the location preference
+	 * @return Future containing the collection of preferred locations. This might not be completed if not all inputs
+	 * 		have been a resource assigned.
+	 */
+	@VisibleForTesting
+	public CompletableFuture<Collection<TaskManagerLocation>> calculatePreferredLocations(LocationPreferenceConstraint locationPreferenceConstraint) {
+		final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = getVertex().getPreferredLocationsBasedOnInputs();
+		final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture;
+
+		switch(locationPreferenceConstraint) {
+			case ALL:
+				preferredLocationsFuture = FutureUtils.combineAll(preferredLocationFutures);
+				break;
+			case ANY:
+				final ArrayList<TaskManagerLocation> completedTaskManagerLocations = new ArrayList<>(preferredLocationFutures.size());
+
+				for (CompletableFuture<TaskManagerLocation> preferredLocationFuture : preferredLocationFutures) {
+					if (preferredLocationFuture.isDone() && !preferredLocationFuture.isCompletedExceptionally()) {
+						final TaskManagerLocation taskManagerLocation = preferredLocationFuture.getNow(null);
+
+						if (taskManagerLocation == null) {
+							throw new FlinkRuntimeException("TaskManagerLocationFuture was completed with null. This indicates a programming bug.");
+						}
+
+						completedTaskManagerLocations.add(taskManagerLocation);
+					}
+				}
+
+				preferredLocationsFuture = CompletableFuture.completedFuture(completedTaskManagerLocations);
+				break;
+			default:
+				throw new RuntimeException("Unknown LocationPreferenceConstraint " + locationPreferenceConstraint + '.');
+		}
+
+		return preferredLocationsFuture;
+	}
 
 	private boolean transitionState(ExecutionState currentState, ExecutionState targetState) {
 		return transitionState(currentState, targetState, null);
@@ -1248,7 +1318,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	
 	@Override
 	public String toString() {
-		final SimpleSlot slot = assignedResource.get();
+		final SimpleSlot slot = assignedResource;
 
 		return String.format("Attempt #%d (%s) @ %s - [%s]", attemptNumber, vertex.getTaskNameWithSubtaskIndex(),
 				(slot == null ? "(unassigned)" : slot), state);

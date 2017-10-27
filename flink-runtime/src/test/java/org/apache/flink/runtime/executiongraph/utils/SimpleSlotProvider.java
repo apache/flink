@@ -35,6 +35,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.net.InetAddress;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -70,7 +71,10 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
+	public CompletableFuture<SimpleSlot> allocateSlot(
+			ScheduledUnit task,
+			boolean allowQueued,
+			Collection<TaskManagerLocation> preferredLocations) {
 		final AllocatedSlot slot;
 
 		synchronized (slots) {

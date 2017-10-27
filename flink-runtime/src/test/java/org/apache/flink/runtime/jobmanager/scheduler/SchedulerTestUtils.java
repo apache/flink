@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -106,20 +107,26 @@ public class SchedulerTestUtils {
 	
 	
 	public static Execution getTestVertex(Iterable<TaskManagerLocation> preferredLocations) {
-		ExecutionVertex vertex = mock(ExecutionVertex.class);
-
 		Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = new ArrayList<>(4);
 
 		for (TaskManagerLocation preferredLocation : preferredLocations) {
 			preferredLocationFutures.add(CompletableFuture.completedFuture(preferredLocation));
 		}
+
+		return getTestVertex(preferredLocationFutures);
+	}
+
+	public static Execution getTestVertex(Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) {
+		ExecutionVertex vertex = mock(ExecutionVertex.class);
+
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
-		
+
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
-		
+		when(execution.calculatePreferredLocations(any(LocationPreferenceConstraint.class))).thenCallRealMethod();
+
 		return execution;
 	}
 	

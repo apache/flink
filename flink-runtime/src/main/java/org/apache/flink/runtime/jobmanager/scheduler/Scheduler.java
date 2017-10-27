@@ -18,6 +18,26 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceDiedException;
+import org.apache.flink.runtime.instance.InstanceListener;
+import org.apache.flink.runtime.instance.SharedSlot;
+import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,30 +52,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.instance.SlotProvider;
-import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.instance.SharedSlot;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceDiedException;
-import org.apache.flink.runtime.instance.InstanceListener;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.ExceptionUtils;
-
-import org.apache.flink.util.Preconditions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The scheduler is responsible for distributing the ready-to-run tasks among instances and slots.
@@ -135,31 +133,29 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(ScheduledUnit task, boolean allowQueued) {
-		Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = task.getTaskToExecute().getVertex().getPreferredLocationsBasedOnInputs();
+	public CompletableFuture<SimpleSlot> allocateSlot(
+			ScheduledUnit task,
+			boolean allowQueued,
+			Collection<TaskManagerLocation> preferredLocations) {
 
-		CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = FutureUtils.combineAll(preferredLocationFutures);
+		try {
+			final Object ret = scheduleTask(task, allowQueued, preferredLocations);
 
-		return preferredLocationsFuture.thenCompose(
-			preferredLocations -> {
-				try {
-					final Object ret = scheduleTask(task, allowQueued, preferredLocations);
-
-					if (ret instanceof SimpleSlot) {
-						return CompletableFuture.completedFuture((SimpleSlot) ret);
-					} else if (ret instanceof CompletableFuture) {
-						@SuppressWarnings("unchecked")
-						CompletableFuture<SimpleSlot> typed = (CompletableFuture<SimpleSlot>) ret;
-						return typed;
-					} else {
-						// this should never happen, simply guard this case with an exception
-						throw new RuntimeException();
-					}
-				} catch (NoResourceAvailableException e) {
-					throw new CompletionException(e);
-				}
+			if (ret instanceof SimpleSlot) {
+				return CompletableFuture.completedFuture((SimpleSlot) ret);
 			}
-		);
+			else if (ret instanceof CompletableFuture) {
+				@SuppressWarnings("unchecked")
+				CompletableFuture<SimpleSlot> typed = (CompletableFuture<SimpleSlot>) ret;
+				return typed;
+			}
+			else {
+				// this should never happen, simply guard this case with an exception
+				throw new RuntimeException();
+			}
+		} catch (NoResourceAvailableException e) {
+			return FutureUtils.completedExceptionally(e);
+		}
 	}
 
 	/**

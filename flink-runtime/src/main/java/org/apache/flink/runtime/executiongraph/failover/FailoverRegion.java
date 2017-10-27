@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 
@@ -216,8 +217,9 @@ public class FailoverRegion {
 				for (ExecutionVertex ev : connectedExecutionVertexes) {
 					try {
 						ev.scheduleForExecution(
-								executionGraph.getSlotProvider(),
-								executionGraph.isQueuedSchedulingAllowed());
+							executionGraph.getSlotProvider(),
+							executionGraph.isQueuedSchedulingAllowed(),
+							LocationPreferenceConstraint.ANY); // some inputs not belonging to the failover region might have failed concurrently
 					}
 					catch (Throwable e) {
 						failover(globalModVersionOfFailover);

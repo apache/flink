@@ -60,6 +60,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -853,11 +854,14 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		}
 	}
 
-	private void scheduleLazy(SlotProvider slotProvider) throws NoResourceAvailableException {
+	private void scheduleLazy(SlotProvider slotProvider) {
 		// simply take the vertices without inputs.
 		for (ExecutionJobVertex ejv : verticesInCreationOrder) {
 			if (ejv.getJobVertex().isInputVertex()) {
-				ejv.scheduleAll(slotProvider, allowQueuedScheduling);
+				ejv.scheduleAll(
+					slotProvider,
+					allowQueuedScheduling,
+					LocationPreferenceConstraint.ALL); // since it is an input vertex, the input based location preferences should be empty
 			}
 		}
 	}
@@ -884,7 +888,10 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 		// allocate the slots (obtain all their futures
 		for (ExecutionJobVertex ejv : getVerticesTopologically()) {
 			// these calls are not blocking, they only return futures
-			Collection<CompletableFuture<Execution>> allocationFutures = ejv.allocateResourcesForAll(slotProvider, queued);
+			Collection<CompletableFuture<Execution>> allocationFutures = ejv.allocateResourcesForAll(
+				slotProvider,
+				queued,
+				LocationPreferenceConstraint.ALL);
 
 			allAllocationFutures.addAll(allocationFutures);
 		}

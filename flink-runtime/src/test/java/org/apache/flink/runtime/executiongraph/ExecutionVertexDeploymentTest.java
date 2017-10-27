@@ -35,6 +35,8 @@ import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.util.Collection;
@@ -52,7 +54,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ExecutionVertexDeploymentTest {
+public class ExecutionVertexDeploymentTest extends TestLogger {
 
 	@Test
 	public void testDeployCall() {

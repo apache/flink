@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -447,7 +448,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// it can occur as the result of races
 			{
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -486,7 +487,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				setVertexState(vertex, ExecutionState.CANCELING);
 
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");
