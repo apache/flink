@@ -88,9 +88,7 @@ public abstract class KafkaTableSource implements StreamTableSource<Row> {
 
 	@Override
 	public TableSchema getTableSchema() {
-		return new TableSchema(
-			((RowTypeInfo) typeInfo).getFieldNames(),
-			((RowTypeInfo) typeInfo).getFieldTypes());
+		return TableSchema.fromTypeInfo(typeInfo);
 	}
 
 	/**

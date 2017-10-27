@@ -205,7 +205,7 @@ object TableSourceUtil {
     * @param typeFactory The type factory to create the schema.
     * @return The Calcite schema for the selected fields of the given [[TableSource]].
     */
-  def getTableSchema(
+  def getRelDataType(
       tableSource: TableSource[_],
       selectedFields: Option[Array[Int]],
       streaming: Boolean,

@@ -57,7 +57,7 @@ class FlinkLogicalTableSourceScan(
       case t => throw TableException(s"Unknown Table type ${t.getClass}.")
     }
 
-    TableSourceUtil.getTableSchema(tableSource, selectedFields, streamingTable, flinkTypeFactory)
+    TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {

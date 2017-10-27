@@ -34,10 +34,10 @@ import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.codegen.calls.FunctionGenerator
+import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
@@ -241,6 +241,9 @@ abstract class CodeGenerator(
     *
     * @param returnType conversion target type. Inputs and output must have the same arity.
     * @param resultFieldNames result field names necessary for a mapping to POJO fields.
+    * @param rowtimeExpression an optional expression to extract the value of a rowtime field from
+    *                          the input data. If not set, the value of rowtime field is set to the
+    *                          StreamRecord timestamp.
     * @return instance of GeneratedExpression
     */
   def generateConverterResultExpression(
@@ -253,12 +256,13 @@ abstract class CodeGenerator(
       case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER |
            TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER =>
         // attribute is a rowtime indicator.
-        if (rowtimeExpression.isDefined) {
-          // generate rowtime attribute from expression
-          generateExpression(rowtimeExpression.get)
-        } else {
-          // fetch rowtime attribute from StreamRecord timestamp field
-          generateRowtimeAccess()
+        rowtimeExpression match {
+          case Some(expr) =>
+            // generate rowtime attribute from expression
+            generateExpression(expr)
+          case _ =>
+            // fetch rowtime attribute from StreamRecord timestamp field
+            generateRowtimeAccess()
         }
       case TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER =>
         // attribute is proctime indicator.
@@ -1323,8 +1327,7 @@ abstract class CodeGenerator(
   }
 
   private[flink] def generateCurrentTimestamp(): GeneratedExpression = {
-    val rexBuilder = new RexBuilder(new FlinkTypeFactory(new FlinkTypeSystem))
-    generateExpression(rexBuilder.makeCall(CURRENT_TIMESTAMP))
+    new CurrentTimePointCallGen(Types.SQL_TIMESTAMP, false).generate(this, Seq())
   }
 
   // ----------------------------------------------------------------------------------------------

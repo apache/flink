@@ -106,6 +106,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 		return new RowTypeInfo(getFieldTypes(), getFieldNames());
 	}
 
+	@Override
 	public TableSchema getTableSchema() {
 		if (this.tableSchema == null) {
 			return new TableSchema(getFieldNames(), getFieldTypes());

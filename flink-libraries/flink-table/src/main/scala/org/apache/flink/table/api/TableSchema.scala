@@ -18,6 +18,7 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
 
 /**
   * A TableSchema represents a Table's structure.
@@ -50,7 +51,9 @@ class TableSchema(
 
   val columnNameToIndex: Map[String, Int] = columnNames.zipWithIndex.toMap
 
-  /** Returns a copy of the TableSchema */
+  /**
+    * Returns a deep copy of the TableSchema.
+    */
   def copy: TableSchema = {
     new TableSchema(columnNames.clone(), columnTypes.clone())
   }
@@ -123,5 +126,32 @@ class TableSchema(
   }
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[TableSchema]
+
+}
+
+object TableSchema {
+
+  /**
+    * Creates a [[TableSchema]] from a [[TypeInformation]].
+    * If the [[TypeInformation]] is a [[CompositeType]], the fieldnames and types for the composite
+    * type are used to construct the [[TableSchema]].
+    * Otherwise, a [[TableSchema]] with a single field is created. The field name is "f0" and the
+    * field type the provided type.
+    *
+    * @param typeInfo The [[TypeInformation]] from which the [[TableSchema]] is generated.
+    * @return The [[TableSchema]] that was generated from the given [[TypeInformation]].
+    */
+  def fromTypeInfo(typeInfo: TypeInformation[_]): TableSchema = {
+    typeInfo match {
+      case c: CompositeType[_] =>
+        // get field names and types from composite type
+        val fieldNames = c.getFieldNames
+        val fieldTypes = fieldNames.map(c.getTypeAt).asInstanceOf[Array[TypeInformation[_]]]
+        new TableSchema(fieldNames, fieldTypes)
+      case t: TypeInformation[_] =>
+        // create table schema with a single field named "f0" of the given type.
+        new TableSchema(Array("f0"), Array(t))
+    }
+  }
 
 }

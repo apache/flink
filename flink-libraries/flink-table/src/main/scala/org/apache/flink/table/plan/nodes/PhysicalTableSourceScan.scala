@@ -45,7 +45,7 @@ abstract class PhysicalTableSourceScan(
       case t => throw TableException(s"Unknown Table type ${t.getClass}.")
     }
 
-    TableSourceUtil.getTableSchema(tableSource, selectedFields, streamingTable, flinkTypeFactory)
+    TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

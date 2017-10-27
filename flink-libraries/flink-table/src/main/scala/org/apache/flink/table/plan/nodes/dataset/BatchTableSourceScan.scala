@@ -43,7 +43,7 @@ class BatchTableSourceScan(
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    TableSourceUtil.getTableSchema(
+    TableSourceUtil.getRelDataType(
       tableSource,
       selectedFields,
       streaming = false,

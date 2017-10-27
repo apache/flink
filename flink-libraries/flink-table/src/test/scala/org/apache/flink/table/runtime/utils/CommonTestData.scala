@@ -22,7 +22,6 @@ import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.table.api.TableSchema
@@ -162,13 +161,7 @@ object CommonTestData {
         TypeExtractor.getForClass(classOf[Person])
       }
 
-      override def getTableSchema: TableSchema = {
-        val tpe = getReturnType.asInstanceOf[CompositeType[_]]
-        val fieldNames = tpe.getFieldNames
-        val fieldTypes = fieldNames.map((n: String) => tpe.getTypeAt(n))
-
-        new TableSchema(fieldNames, fieldTypes.asInstanceOf[Array[TypeInformation[_]]])
-      }
+      override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(getReturnType)
     }
   }
 
