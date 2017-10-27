@@ -81,7 +81,7 @@ public class HadoopFileSystem extends FileSystem {
 
 	@Override
 	public FileStatus getFileStatus(final Path f) throws IOException {
-		org.apache.hadoop.fs.FileStatus status = this.fs.getFileStatus(new org.apache.hadoop.fs.Path(f.toString()));
+		org.apache.hadoop.fs.FileStatus status = this.fs.getFileStatus(toHadoopPath(f));
 		return new HadoopFileStatus(status);
 	}
 
@@ -108,42 +108,52 @@ public class HadoopFileSystem extends FileSystem {
 
 	@Override
 	public HadoopDataInputStream open(final Path f, final int bufferSize) throws IOException {
-		final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(f.toString());
+		final org.apache.hadoop.fs.Path path = toHadoopPath(f);
 		final org.apache.hadoop.fs.FSDataInputStream fdis = this.fs.open(path, bufferSize);
 		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
 	public HadoopDataInputStream open(final Path f) throws IOException {
-		final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(f.toString());
+		final org.apache.hadoop.fs.Path path = toHadoopPath(f);
 		final org.apache.hadoop.fs.FSDataInputStream fdis = fs.open(path);
 		return new HadoopDataInputStream(fdis);
 	}
 
 	@Override
 	@SuppressWarnings("deprecation")
-	public HadoopDataOutputStream create(final Path f, final boolean overwrite, final int bufferSize,
-			final short replication, final long blockSize) throws IOException {
+	public HadoopDataOutputStream create(
+			final Path f,
+			final boolean overwrite,
+			final int bufferSize,
+			final short replication,
+			final long blockSize) throws IOException {
+
 		final org.apache.hadoop.fs.FSDataOutputStream fdos = this.fs.create(
-			new org.apache.hadoop.fs.Path(f.toString()), overwrite, bufferSize, replication, blockSize);
+				toHadoopPath(f), overwrite, bufferSize, replication, blockSize);
 		return new HadoopDataOutputStream(fdos);
 	}
 
 	@Override
 	public HadoopDataOutputStream create(final Path f, final WriteMode overwrite) throws IOException {
-		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream = this.fs
-			.create(new org.apache.hadoop.fs.Path(f.toString()), overwrite == WriteMode.OVERWRITE);
+		final org.apache.hadoop.fs.FSDataOutputStream fsDataOutputStream =
+				this.fs.create(toHadoopPath(f), overwrite == WriteMode.OVERWRITE);
 		return new HadoopDataOutputStream(fsDataOutputStream);
 	}
 
 	@Override
 	public boolean delete(final Path f, final boolean recursive) throws IOException {
-		return this.fs.delete(new org.apache.hadoop.fs.Path(f.toString()), recursive);
+		return this.fs.delete(toHadoopPath(f), recursive);
+	}
+
+	@Override
+	public boolean exists(Path f) throws IOException {
+		return this.fs.exists(toHadoopPath(f));
 	}
 
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
-		final org.apache.hadoop.fs.FileStatus[] hadoopFiles = this.fs.listStatus(new org.apache.hadoop.fs.Path(f.toString()));
+		final org.apache.hadoop.fs.FileStatus[] hadoopFiles = this.fs.listStatus(toHadoopPath(f));
 		final FileStatus[] files = new FileStatus[hadoopFiles.length];
 
 		// Convert types
@@ -156,13 +166,12 @@ public class HadoopFileSystem extends FileSystem {
 
 	@Override
 	public boolean mkdirs(final Path f) throws IOException {
-		return this.fs.mkdirs(new org.apache.hadoop.fs.Path(f.toString()));
+		return this.fs.mkdirs(toHadoopPath(f));
 	}
 
 	@Override
 	public boolean rename(final Path src, final Path dst) throws IOException {
-		return this.fs.rename(new org.apache.hadoop.fs.Path(src.toString()),
-			new org.apache.hadoop.fs.Path(dst.toString()));
+		return this.fs.rename(toHadoopPath(src), toHadoopPath(dst));
 	}
 
 	@SuppressWarnings("deprecation")
@@ -182,6 +191,14 @@ public class HadoopFileSystem extends FileSystem {
 			fsKind = getKindForScheme(this.fs.getUri().getScheme());
 		}
 		return fsKind;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
+
+	private static org.apache.hadoop.fs.Path toHadoopPath(Path path) {
+		return new org.apache.hadoop.fs.Path(path.toUri());
 	}
 
 	/**
