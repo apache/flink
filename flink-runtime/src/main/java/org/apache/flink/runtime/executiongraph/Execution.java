@@ -941,7 +941,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						}
 					} catch (Throwable tt) {
 						// no reason this should ever happen, but log it to be safe
-						LOG.error("Error triggering cancel call while marking task as failed.", tt);
+						LOG.error("Error triggering cancel call while marking task {} as failed.", getVertex().getTaskNameWithSubtaskIndex(), tt);
 					}
 				}
 
