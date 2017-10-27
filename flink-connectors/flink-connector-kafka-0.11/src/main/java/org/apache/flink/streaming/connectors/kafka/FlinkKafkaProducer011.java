@@ -41,7 +41,6 @@ import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializableObject;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -246,9 +245,6 @@ public class FlinkKafkaProducer011<IN>
 	/** Errors encountered in the async producer are stored here. */
 	@Nullable
 	private transient volatile Exception asyncException;
-
-	/** Lock for accessing the pending records. */
-	private final SerializableObject pendingRecordsLock = new SerializableObject();
 
 	/** Number of unacknowledged records. */
 	private final AtomicLong pendingRecords = new AtomicLong();
