@@ -148,6 +148,11 @@ public class LocalFileSystem extends FileSystem {
 		return new File(path.toUri().getPath());
 	}
 
+	@Override
+	public boolean exists(Path f) throws IOException {
+		final File path = pathToFile(f);
+		return path.exists();
+	}
 
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
@@ -232,7 +237,7 @@ public class LocalFileSystem extends FileSystem {
 	public boolean mkdirs(final Path f) throws IOException {
 		final File p2f = pathToFile(f);
 
-		if(p2f.isDirectory()) {
+		if (p2f.isDirectory()) {
 			return true;
 		}
 
