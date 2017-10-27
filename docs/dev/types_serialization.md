@@ -38,7 +38,7 @@ Think about it like a database that infers the schema of tables. In most cases, 
 by itself. Having the type information allows Flink to do some cool things:
 
 * Using POJOs types and grouping / joining / aggregating them by referring to field names (like `dataSet.keyBy("username")`).
-  The type information allows Flink to check (for typos and type compatibility) early rather than failing later ar runtime.
+  The type information allows Flink to check (for typos and type compatibility) early rather than failing later at runtime.
 
 * The more Flink knows about data types, the better the serialization and data layout schemes are.
   That is quite important for the memory usage paradigm in Flink (work on serialized data inside/outside the heap where ever possible
@@ -330,7 +330,7 @@ Type information factories can be used in both the Java and Scala API.
 
 In a hierarchy of types the closest factory 
 will be chosen while traversing upwards, however, a built-in factory has highest precedence. A factory has 
-also higher precendence than Flink's built-in types, therefore you should know what you are doing.
+also higher precedence than Flink's built-in types, therefore you should know what you are doing.
 
 The following example shows how to annotate a custom type `MyTuple` and supply custom type information for it using a factory in Java.
 
