@@ -622,10 +622,13 @@ abstract class TableEnvironment(val config: TableConfig) {
             "Please specify the type of the input with a RowTypeInfo.")
       case a: AtomicType[_] =>
         exprs.zipWithIndex flatMap {
+          case (_: TimeAttribute, _) =>
+            None
+          case (UnresolvedFieldReference(name), idx) if idx > 0 =>
+            // only accept the first field for an atomic type
+            throw new TableException("Only the first field can reference an atomic type.")
           case (UnresolvedFieldReference(name), idx) =>
-            if (idx > 0) {
-              throw new TableException("Table of atomic type can only have a single field.")
-            }
+            // first field reference is mapped to atomic type
             Some((0, name))
           case _ => throw new TableException("Field reference expression requested.")
         }

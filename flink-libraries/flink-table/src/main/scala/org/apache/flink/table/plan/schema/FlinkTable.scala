@@ -67,9 +67,13 @@ abstract class FlinkTable[T](
         }
         fieldIndexes.map(cType.getTypeAt(_).asInstanceOf[TypeInformation[_]])
       case aType: AtomicType[_] =>
-        if (fieldIndexes.length != 1 || fieldIndexes(0) != 0) {
+        if (fieldIndexes.exists(_ > 0)) {
           throw new TableException(
-            "Non-composite input type may have only a single field and its index must be 0.")
+            "Invalid index for table of atomic type encountered. Please report a bug.")
+        }
+        if (fieldIndexes.count(_ == 0) > 1) {
+          throw new TableException(
+            "Atomic input type may have only be referenced by a single table field.")
         }
         Array(aType)
     }

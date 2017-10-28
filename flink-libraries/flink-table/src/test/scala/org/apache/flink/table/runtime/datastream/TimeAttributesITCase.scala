@@ -38,7 +38,7 @@ import org.apache.flink.table.api.scala.stream.utils.StreamITCase
 import org.apache.flink.table.api.{TableEnvironment, TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.RelTimeIndicatorConverterTest.TableFunc
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
-import org.apache.flink.table.runtime.datastream.TimeAttributesITCase.{TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
+import org.apache.flink.table.runtime.datastream.TimeAttributesITCase._
 import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, StreamTableSource}
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -96,6 +96,70 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       .window(Tumble over 2.millis on 'rowtime as 'w)
       .groupBy('w)
       .select('w.end.rowtime, 'int.count as 'int) // no rowtime on non-window reference
+  }
+
+  @Test
+  def testAtomicType1(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
+      .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
+    val table = stream.toTable(
+      tEnv, 'rowtime.rowtime, 'proctime.proctime)
+
+    val t = table
+      .where('proctime.cast(Types.LONG) > 0)
+      .select('rowtime.cast(Types.STRING))
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.001",
+      "1970-01-01 00:00:00.002",
+      "1970-01-01 00:00:00.003",
+      "1970-01-01 00:00:00.004",
+      "1970-01-01 00:00:00.007",
+      "1970-01-01 00:00:00.008",
+      "1970-01-01 00:00:00.016")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAtomicType2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
+      .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
+    val table = stream.toTable(
+      tEnv, 'l, 'rowtime.rowtime, 'proctime.proctime)
+
+    val t = table
+      .where('proctime.cast(Types.LONG) > 0)
+      .select('l, 'rowtime.cast(Types.STRING))
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1,1970-01-01 00:00:00.001",
+      "2,1970-01-01 00:00:00.002",
+      "3,1970-01-01 00:00:00.003",
+      "4,1970-01-01 00:00:00.004",
+      "7,1970-01-01 00:00:00.007",
+      "8,1970-01-01 00:00:00.008",
+      "16,1970-01-01 00:00:00.016")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
   @Test
@@ -435,13 +499,29 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 }
 
 object TimeAttributesITCase {
+
+  class AtomicTimestampWithEqualWatermark
+    extends AssignerWithPunctuatedWatermarks[Long] {
+
+    override def checkAndGetNextWatermark(
+        lastElement: Long,
+        extractedTimestamp: Long): Watermark = {
+      new Watermark(extractedTimestamp)
+    }
+
+    override def extractTimestamp(
+        element: Long,
+        previousElementTimestamp: Long): Long = {
+      element
+    }
+  }
+
   class TimestampWithEqualWatermark
-  extends AssignerWithPunctuatedWatermarks[(Long, Int, Double, Float, BigDecimal, String)] {
+    extends AssignerWithPunctuatedWatermarks[(Long, Int, Double, Float, BigDecimal, String)] {
 
     override def checkAndGetNextWatermark(
         lastElement: (Long, Int, Double, Float, BigDecimal, String),
-        extractedTimestamp: Long)
-      : Watermark = {
+        extractedTimestamp: Long): Watermark = {
       new Watermark(extractedTimestamp)
     }
 
@@ -452,13 +532,12 @@ object TimeAttributesITCase {
     }
   }
 
-class TimestampWithEqualWatermarkPojo
-  extends AssignerWithPunctuatedWatermarks[TestPojo] {
+  class TimestampWithEqualWatermarkPojo
+    extends AssignerWithPunctuatedWatermarks[TestPojo] {
 
     override def checkAndGetNextWatermark(
         lastElement: TestPojo,
-        extractedTimestamp: Long)
-      : Watermark = {
+        extractedTimestamp: Long): Watermark = {
       new Watermark(extractedTimestamp)
     }
 
@@ -475,41 +554,41 @@ class TimestampWithEqualWatermarkPojo
     var b2: String = "skip me"
     var c: String = _
   }
-}
 
-class TestTableSource
-  extends StreamTableSource[Row]
-    with DefinedRowtimeAttribute
-    with DefinedProctimeAttribute {
+  class TestTableSource
+    extends StreamTableSource[Row]
+      with DefinedRowtimeAttribute
+      with DefinedProctimeAttribute {
 
-  override def getDataStream(env: JStreamExecEnv): DataStream[Row] = {
+    override def getDataStream(env: JStreamExecEnv): DataStream[Row] = {
 
-    def toRow(i: Int, s: String, l: Long) = Row.of(i.asInstanceOf[JInt], s, l.asInstanceOf[JLong])
+      def toRow(i: Int, s: String, l: Long) = Row.of(i.asInstanceOf[JInt], s, l.asInstanceOf[JLong])
 
-    val rows = Seq(
-      toRow(1, "A", 1000L),
-      toRow(2, "B", 2000L),
-      toRow(3, "C", 3000L),
-      toRow(4, "D", 4000L),
-      toRow(5, "E", 5000L),
-      toRow(6, "F", 6000L)
-    )
+      val rows = Seq(
+        toRow(1, "A", 1000L),
+        toRow(2, "B", 2000L),
+        toRow(3, "C", 3000L),
+        toRow(4, "D", 4000L),
+        toRow(5, "E", 5000L),
+        toRow(6, "F", 6000L)
+      )
 
-    env
-      .fromCollection(rows.asJava).returns(getReturnType)
-      .assignTimestampsAndWatermarks(new AscendingTimestampExtractor[Row] {
-        override def extractAscendingTimestamp(r: Row): Long = r.getField(2).asInstanceOf[Long]
-      })
-  }
+      env
+        .fromCollection(rows.asJava).returns(getReturnType)
+        .assignTimestampsAndWatermarks(new AscendingTimestampExtractor[Row] {
+          override def extractAscendingTimestamp(r: Row): Long = r.getField(2).asInstanceOf[Long]
+        })
+    }
 
-  override def getRowtimeAttribute: String = "rowtime"
+    override def getRowtimeAttribute: String = "rowtime"
 
-  override def getProctimeAttribute: String = "proctime"
+    override def getProctimeAttribute: String = "proctime"
 
-  override def getReturnType: TypeInformation[Row] = {
-    new RowTypeInfo(
-      Array(Types.INT, Types.STRING, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
-      Array("a", "b", "c")
-    )
+    override def getReturnType: TypeInformation[Row] = {
+      new RowTypeInfo(
+        Array(Types.INT, Types.STRING, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
+        Array("a", "b", "c")
+      )
+    }
   }
 }
