@@ -751,5 +751,14 @@ public class FlinkKafkaConsumerBaseTest {
 		public boolean isClearCalled() {
 			return clearCalled;
 		}
+
+		@Override
+		public void update(List<T> values) throws Exception {
+			clear();
+
+			if (values != null && values.size() != 0) {
+				list.addAll(values);
+			}
+		}
 	}
 }
