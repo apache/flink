@@ -33,6 +33,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -222,5 +223,22 @@ public class FutureUtilsTest extends TestLogger {
 
 		assertTrue(retryFuture.isCancelled());
 		verify(scheduledFutureMock).cancel(anyBoolean());
+	}
+
+	/**
+	 * Tests that a future is timed out after the specified timeout.
+	 */
+	@Test
+	public void testOrTimeout() throws Exception {
+		final CompletableFuture<String> future = new CompletableFuture<>();
+		final long timeout = 10L;
+
+		FutureUtils.orTimeout(future, timeout, TimeUnit.MILLISECONDS);
+
+		try {
+			future.get();
+		} catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
+		}
 	}
 }
