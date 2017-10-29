@@ -139,6 +139,9 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 					while (running) {
 						ctx.collect(new Tuple2<Long, String>(cnt, "kafka-" + cnt));
 						cnt++;
+						if (cnt % 100 == 0) {
+							Thread.sleep(1);
+						}
 					}
 				}
 
