@@ -43,7 +43,7 @@ import java.util.concurrent.CompletableFuture;
 public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, KvStateResponse> implements KvStateClientProxy {
 
 	private static final CompletableFuture<ActorGateway> UNKNOWN_JOB_MANAGER =
-			FutureUtils.getFailedFuture(new UnknownJobManagerException());
+			FutureUtils.completedExceptionally(new UnknownJobManagerException());
 
 	/** Number of threads used to process incoming requests. */
 	private final int queryExecutorThreads;

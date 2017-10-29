@@ -169,7 +169,7 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 
 					final InetSocketAddress serverAddress = location.getKvStateServerAddress(keyGroupIndex);
 					if (serverAddress == null) {
-						return FutureUtils.getFailedFuture(new UnknownKvStateKeyGroupLocationException(getServerName()));
+						return FutureUtils.completedExceptionally(new UnknownKvStateKeyGroupLocationException(getServerName()));
 					} else {
 						// Query server
 						final KvStateID kvStateId = location.getKvStateID(keyGroupIndex);
