@@ -368,12 +368,17 @@ object TableSourceUtil {
     val rowtimeDesc = getRowtimeAttributeDescriptor(tableSource, selectedFields)
     rowtimeDesc.map { r =>
       val tsExtractor = r.getTimestampExtractor
-      val resolvedFields = resolveInputFields(tsExtractor.getArgumentFields, tableSource)
 
-      // push an empty values node with the physical schema on the relbuilder
-      relBuilder.push(createSchemaRelNode(resolvedFields))
-      // get extraction expression
-      val fieldAccesses = resolvedFields.map(f => ResolvedFieldReference(f._1, f._3))
+      val fieldAccesses = if (tsExtractor.getArgumentFields.nonEmpty) {
+        val resolvedFields = resolveInputFields(tsExtractor.getArgumentFields, tableSource)
+        // push an empty values node with the physical schema on the relbuilder
+        relBuilder.push(createSchemaRelNode(resolvedFields))
+        // get extraction expression
+        resolvedFields.map(f => ResolvedFieldReference(f._1, f._3))
+      } else {
+        new Array[ResolvedFieldReference](0)
+      }
+
       val expression = tsExtractor.getExpression(fieldAccesses)
       // add cast to requested type and convert expression to RexNode
       val rexExpression = Cast(expression, resultType).toRexNode(relBuilder)
