@@ -992,9 +992,9 @@ up an automated clock synchronisation service (like NTP) to avoid false latency 
 
 ## REST API integration
 
-Metrics can also be queried through the [Monitoring REST API]({{ site.baseurl }}/monitoring/rest_api.html).
+Metrics can be queried through the [Monitoring REST API]({{ site.baseurl }}/monitoring/rest_api.html).
 
-Below is a list of available requests, with a sample JSON response. All requests are of the sample form `http://hostname:8081/jobmanager/metrics`, below we list only the *path* part of the URLs.
+Below is a list of available endpoints, with a sample JSON response. All endpoints are of the sample form `http://hostname:8081/jobmanager/metrics`, below we list only the *path* part of the URLs.
 
 Values in angle brackets are variables, for example `http://hostname:8081/jobs/<jobid>/metrics` will have to be requested for example as `http://hostname:8081/jobs/7684be6004e4e955c2a558a9bc463f65/metrics`.
 
@@ -1010,6 +1010,12 @@ Request metrics aggregated across all entities of the respective type:
   - `/taskmanagers/metrics`
   - `/jobs/metrics`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics`
+
+Request metrics aggregated over a subset of all entities of the respective type:
+
+  - `/taskmanagers/metrics?taskmanagers=A,B,C`
+  - `/jobs/metrics?jobs=D,E,F`
+  - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics?subtask=1,2,3`
 
 Request a list of available metrics:
 
