@@ -97,7 +97,7 @@ public class MetricRegistryConfiguration {
 			scopeFormats = ScopeFormats.fromConfig(configuration);
 		} catch (Exception e) {
 			LOG.warn("Failed to parse scope format, using default scope formats", e);
-			scopeFormats = new ScopeFormats();
+			scopeFormats = ScopeFormats.fromConfig(new Configuration());
 		}
 
 		char delim;
