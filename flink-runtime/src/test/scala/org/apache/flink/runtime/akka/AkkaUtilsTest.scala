@@ -20,7 +20,7 @@ package org.apache.flink.runtime.akka
 
 import java.net.InetSocketAddress
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException}
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
@@ -34,6 +34,26 @@ class AkkaUtilsTest
   extends FunSuite
   with Matchers
   with BeforeAndAfterAll {
+
+  test("getAkkaConfig should validate watch heartbeats") {
+    val configuration = new Configuration()
+    configuration.setString(
+      AkkaOptions.WATCH_HEARTBEAT_PAUSE.key(),
+      AkkaOptions.WATCH_HEARTBEAT_INTERVAL.defaultValue())
+    intercept[IllegalConfigurationException] {
+      AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+    }
+  }
+
+  test("getAkkaConfig should validate transport heartbeats") {
+    val configuration = new Configuration()
+    configuration.setString(
+      AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE.key(),
+      AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL.defaultValue())
+    intercept[IllegalConfigurationException] {
+      AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+    }
+  }
 
   test("getHostFromAkkaURL should return the correct host from a remote Akka URL") {
     val host = "127.0.0.1"

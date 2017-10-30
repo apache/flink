@@ -47,7 +47,7 @@ public class AkkaOptions {
 	 */
 	public static final ConfigOption<String> WATCH_HEARTBEAT_PAUSE = ConfigOptions
 		.key("akka.watch.heartbeat.pause")
-		.defaultValue(ASK_TIMEOUT.defaultValue());
+		.defaultValue("60 s");
 
 	/**
 	 * The Akka tcp connection timeout.
