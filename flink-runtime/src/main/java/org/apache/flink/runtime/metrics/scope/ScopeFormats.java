@@ -24,7 +24,7 @@ import org.apache.flink.configuration.MetricOptions;
 /**
  * A container for component scope formats.
  */
-public class ScopeFormats {
+public final class ScopeFormats {
 
 	private final JobManagerScopeFormat jobManagerFormat;
 	private final JobManagerJobScopeFormat jobManagerJobFormat;
