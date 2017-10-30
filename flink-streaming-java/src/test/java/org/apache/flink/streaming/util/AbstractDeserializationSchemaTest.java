@@ -24,7 +24,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.serialization.AbstractDeserializationSchema;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.JSONPObject;
+
 import org.junit.Test;
 
 import java.io.IOException;

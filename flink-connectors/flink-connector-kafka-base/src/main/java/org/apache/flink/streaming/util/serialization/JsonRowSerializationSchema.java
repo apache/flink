@@ -20,9 +20,9 @@ package org.apache.flink.streaming.util.serialization;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Serialization schema that serializes an object into a JSON bytes.

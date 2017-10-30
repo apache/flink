@@ -23,8 +23,9 @@ import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchem
 import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+
 import org.junit.Test;
 
 import java.io.IOException;

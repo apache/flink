@@ -217,6 +217,7 @@ under the License.
 									<exclude>org.apache.flink:flink-metrics-core</exclude>
 									<exclude>org.apache.flink:flink-metrics-jmx</exclude>
 									<exclude>org.apache.flink:flink-statebackend-rocksdb_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-shaded-jackson</exclude>
 
 									<!-- Also exclude very big transitive dependencies of Flink
 
@@ -256,9 +257,6 @@ under the License.
 									<exclude>org.apache.sling:org.apache.sling.commons.json</exclude>
 									<exclude>commons-logging:commons-logging</exclude>
 									<exclude>commons-codec:commons-codec</exclude>
-									<exclude>com.fasterxml.jackson.core:jackson-core</exclude>
-									<exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
-									<exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
 									<exclude>stax:stax-api</exclude>
 									<exclude>com.typesafe:config</exclude>
 									<exclude>org.uncommons.maths:uncommons-maths</exclude>

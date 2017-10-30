@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Response to the {@link RequestStatusOverview} message, carrying a description
