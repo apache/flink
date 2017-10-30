@@ -20,78 +20,74 @@ package org.apache.flink.table.api.stream.table
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.sources._
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource, TestTableSourceWithTime}
 import org.apache.flink.types.Row
-import org.junit.{Assert, Test}
+import org.junit.Test
 
 class TableSourceTest extends TableTestBase {
 
   @Test
   def testTableSourceWithLongRowTimeField(): Unit = {
 
-    val tableSource = new TestRowtimeSource(
+    val tableSchema = new TableSchema(
       Array("id", "rowtime", "val", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING))
+    val returnType = new RowTypeInfo(
       Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
         .asInstanceOf[Array[TypeInformation[_]]],
-      "rowtime"
-    )
+      Array("id", "rowtime", "val", "name"))
 
     val util = streamTestUtil()
-    util.tableEnv.registerTableSource("rowTimeT", tableSource)
+    util.tableEnv.registerTableSource(
+      "rowTimeT",
+      new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        "StreamTableSourceScan(table=[[rowTimeT]], fields=[id, rowtime, val, name])",
-        term("select", "rowtime", "id", "name", "val")
-      )
+    val expected = "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, id, name, val])"
     util.verifyTable(t, expected)
   }
 
   @Test
   def testTableSourceWithTimestampRowTimeField(): Unit = {
 
-    val tableSource = new TestRowtimeSource(
+    val tableSchema = new TableSchema(
       Array("id", "rowtime", "val", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING))
+    val returnType = new RowTypeInfo(
       Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING)
         .asInstanceOf[Array[TypeInformation[_]]],
-      "rowtime"
-    )
+      Array("id", "rowtime", "val", "name"))
 
     val util = streamTestUtil()
-    util.tableEnv.registerTableSource("rowTimeT", tableSource)
+    util.tableEnv.registerTableSource(
+      "rowTimeT",
+      new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
 
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        "StreamTableSourceScan(table=[[rowTimeT]], fields=[id, rowtime, val, name])",
-        term("select", "rowtime", "id", "name", "val")
-      )
+    val expected = "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, id, name, val])"
     util.verifyTable(t, expected)
   }
 
   @Test
   def testRowTimeTableSourceGroupWindow(): Unit = {
 
-    val tableSource = new TestRowtimeSource(
+    val tableSchema = new TableSchema(
       Array("id", "rowtime", "val", "name"),
-      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING)
         .asInstanceOf[Array[TypeInformation[_]]],
-      "rowtime"
-    )
+      Array("id", "rowtime", "val", "name"))
 
     val util = streamTestUtil()
-    util.tableEnv.registerTableSource("rowTimeT", tableSource)
+    util.tableEnv.registerTableSource(
+      "rowTimeT",
+      new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.scan("rowTimeT")
       .filter("val > 100")
@@ -106,8 +102,8 @@ class TableSourceTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            "StreamTableSourceScan(table=[[rowTimeT]], fields=[id, rowtime, val, name])",
-            term("select", "name", "val", "rowtime"),
+            "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, val, name])",
+            term("select", "rowtime", "val", "name"),
             term("where", ">(val, 100)")
           ),
           term("groupBy", "name"),
@@ -121,27 +117,47 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testProcTimeTableSourceSimple(): Unit = {
-    val util = streamTestUtil()
-    util.tableEnv.registerTableSource("procTimeT", new TestProctimeSource("pTime"))
 
-    val t = util.tableEnv.scan("procTimeT").select("pTime, id, name, val")
+    val tableSchema = new TableSchema(
+      Array("id", "proctime", "val", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "val", "name"))
+
+    val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "procTimeT",
+      new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), proctime = "proctime"))
+
+    val t = util.tableEnv.scan("procTimeT").select("proctime, id, name, val")
 
     val expected =
       unaryNode(
         "DataStreamCalc",
-        "StreamTableSourceScan(table=[[procTimeT]], fields=[id, val, name, pTime])",
-        term("select", "PROCTIME(pTime) AS pTime", "id", "name", "val")
+        "StreamTableSourceScan(table=[[procTimeT]], fields=[id, proctime, val, name])",
+        term("select", "PROCTIME(proctime) AS proctime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
   }
 
   @Test
   def testProcTimeTableSourceOverWindow(): Unit = {
+
+    val tableSchema = new TableSchema(
+      Array("id", "proctime", "val", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "val", "name"))
+
     val util = streamTestUtil()
-    util.tableEnv.registerTableSource("procTimeT", new TestProctimeSource("pTime"))
+    util.tableEnv.registerTableSource(
+      "procTimeT",
+      new TestTableSourceWithTime[Row](tableSchema, returnType, Seq(), proctime = "proctime"))
 
     val t = util.tableEnv.scan("procTimeT")
-      .window(Over partitionBy 'id orderBy 'pTime preceding 2.hours as 'w)
+      .window(Over partitionBy 'id orderBy 'proctime preceding 2.hours as 'w)
       .select('id, 'name, 'val.sum over 'w as 'valSum)
       .filter('valSum > 100)
 
@@ -150,11 +166,11 @@ class TableSourceTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          "StreamTableSourceScan(table=[[procTimeT]], fields=[id, val, name, pTime])",
+          "StreamTableSourceScan(table=[[procTimeT]], fields=[id, proctime, val, name])",
           term("partitionBy", "id"),
-          term("orderBy", "pTime"),
+          term("orderBy", "proctime"),
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
-          term("select", "id", "val", "name", "pTime", "SUM(val) AS w0$o0")
+          term("select", "id", "proctime", "val", "name", "SUM(val) AS w0$o0")
         ),
         term("select", "id", "name", "w0$o0 AS valSum"),
         term("where", ">(w0$o0, 100)")
@@ -163,94 +179,195 @@ class TableSourceTest extends TableTestBase {
   }
 
   @Test
-  def testProjectableProcTimeTableSource(): Unit = {
-    // ensures that projection is not pushed into table source with proctime indicators
+  def testProjectWithRowtimeProctime(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("id", "rtime", "val", "ptime", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "val", "rtime"))
+
     val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestProjectableTableSource(tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    val projectableTableSource = new TestProctimeSource("pTime") with ProjectableTableSource[Row] {
-      override def projectFields(fields: Array[Int]): TableSource[Row] = {
-        // ensure this method is not called!
-        Assert.fail()
-        null.asInstanceOf[TableSource[Row]]
-      }
-    }
-    util.tableEnv.registerTableSource("PTimeTable", projectableTableSource)
+    val t = util.tableEnv.scan("T").select('name, 'val, 'id)
 
-    val t = util.tableEnv.scan("PTimeTable")
-      .select('name, 'val)
-      .where('val > 10)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        "StreamTableSourceScan(table=[[PTimeTable]], fields=[id, val, name, pTime])",
-        term("select", "name", "val"),
-        term("where", ">(val, 10)")
-      )
+    val expected = "StreamTableSourceScan(table=[[T]], " +
+      "fields=[name, val, id], " +
+      "source=[TestSource(physical fields: name, val, id)])"
     util.verifyTable(t, expected)
   }
 
   @Test
-  def testProjectableRowTimeTableSource(): Unit = {
-    // ensures that projection is not pushed into table source with rowtime indicators
+  def testProjectWithoutRowtime(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("id", "rtime", "val", "ptime", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "name", "val", "rtime"))
+
     val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestProjectableTableSource(tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-    val projectableTableSource = new TestRowtimeSource(
-        Array("id", "rowtime", "val", "name"),
-        Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
-          .asInstanceOf[Array[TypeInformation[_]]],
-        "rowtime") with ProjectableTableSource[Row] {
+    val t = util.tableEnv.scan("T").select('ptime, 'name, 'val, 'id)
 
-      override def projectFields(fields: Array[Int]): TableSource[Row] = {
-        // ensure this method is not called!
-        Assert.fail()
-        null.asInstanceOf[TableSource[Row]]
-      }
-    }
-    util.tableEnv.registerTableSource("RTimeTable", projectableTableSource)
-
-    val t = util.tableEnv.scan("RTimeTable")
-      .select('name, 'val)
-      .where('val > 10)
-
-    val expected =
-      unaryNode(
-        "DataStreamCalc",
-        "StreamTableSourceScan(table=[[RTimeTable]], fields=[id, rowtime, val, name])",
-        term("select", "name", "val"),
-        term("where", ">(val, 10)")
-      )
+    val expected = unaryNode(
+      "DataStreamCalc",
+      "StreamTableSourceScan(table=[[T]], " +
+        "fields=[ptime, name, val, id], " +
+        "source=[TestSource(physical fields: name, val, id)])",
+      term("select", "PROCTIME(ptime) AS ptime", "name", "val", "id")
+    )
     util.verifyTable(t, expected)
   }
-}
 
-class TestRowtimeSource(
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]],
-    rowtimeField: String)
-  extends StreamTableSource[Row] with DefinedRowtimeAttribute {
+  def testProjectWithoutProctime(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("id", "rtime", "val", "ptime", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "rtime", "val", "name"))
 
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = ???
+    val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestProjectableTableSource(tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-  override def getRowtimeAttribute: String = rowtimeField
+    val t = util.tableEnv.scan("T").select('name, 'val, 'rtime, 'id)
 
-  override def getReturnType: TypeInformation[Row] = {
-    new RowTypeInfo(fieldTypes, fieldNames)
+    val expected = "StreamTableSourceScan(table=[[T]], " +
+      "fields=[name, val, rtime, id], " +
+      "source=[TestSource(physical fields: name, val, rtime, id)])"
+    util.verifyTable(t, expected)
   }
-}
 
-class TestProctimeSource(timeField: String)
-    extends StreamTableSource[Row] with DefinedProctimeAttribute {
+  def testProjectOnlyProctime(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("id", "rtime", "val", "ptime", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "rtime", "val", "name"))
 
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = ???
+    val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestProjectableTableSource(tableSchema, returnType, Seq(), "rtime", "ptime"))
 
-  override def getProctimeAttribute: String = timeField
+    val t = util.tableEnv.scan("T").select('ptime)
 
-  override def getReturnType: TypeInformation[Row] = {
-    new RowTypeInfo(
-      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      Array("id", "val", "name"))
+    val expected = "StreamTableSourceScan(table=[[T]], " +
+      "fields=[ptime], " +
+      "source=[TestSource(physical fields: )])"
+    util.verifyTable(t, expected)
   }
+
+  def testProjectOnlyRowtime(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("id", "rtime", "val", "ptime", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("id", "rtime", "val", "name"))
+
+    val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestProjectableTableSource(tableSchema, returnType, Seq(), "rtime", "ptime"))
+
+    val t = util.tableEnv.scan("T").select('rtime)
+
+    val expected = "StreamTableSourceScan(table=[[T]], " +
+      "fields=[rtime], " +
+      "source=[TestSource(physical fields: rtime)])"
+    util.verifyTable(t, expected)
+  }
+
+  @Test
+  def testProjectWithMapping(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("id", "rtime", "val", "ptime", "name"),
+      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+    val returnType = new RowTypeInfo(
+      Array(Types.LONG, Types.INT, Types.STRING, Types.LONG)
+        .asInstanceOf[Array[TypeInformation[_]]],
+      Array("p-rtime", "p-id", "p-name", "p-val"))
+    val mapping = Map("rtime" -> "p-rtime", "id" -> "p-id", "val" -> "p-val", "name" -> "p-name")
+
+    val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestProjectableTableSource(tableSchema, returnType, Seq(), "rtime", "ptime", mapping))
+
+    val t = util.tableEnv.scan("T").select('name, 'rtime, 'val)
+
+    val expected = "StreamTableSourceScan(table=[[T]], " +
+      "fields=[name, rtime, val], " +
+      "source=[TestSource(physical fields: remapped-p-name, remapped-p-rtime, remapped-p-val)])"
+    util.verifyTable(t, expected)
+  }
+
+  @Test
+  def testNestedProject(): Unit = {
+
+    val nested1 = new RowTypeInfo(
+      Array(Types.STRING, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      Array("name", "value")
+    )
+
+    val nested2 = new RowTypeInfo(
+      Array(Types.INT, Types.BOOLEAN).asInstanceOf[Array[TypeInformation[_]]],
+      Array("num", "flag")
+    )
+
+    val deepNested = new RowTypeInfo(
+      Array(nested1, nested2).asInstanceOf[Array[TypeInformation[_]]],
+      Array("nested1", "nested2")
+    )
+
+    val tableSchema = new TableSchema(
+      Array("id", "deepNested", "nested", "name"),
+      Array(Types.INT, deepNested, nested1, Types.STRING))
+
+    val returnType = new RowTypeInfo(
+      Array(Types.INT, deepNested, nested1, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
+        Array("id", "deepNested", "nested", "name"))
+
+    val util = streamTestUtil()
+    util.tableEnv.registerTableSource(
+      "T",
+      new TestNestedProjectableTableSource(tableSchema, returnType, Seq()))
+
+    val t = util.tableEnv
+      .scan("T")
+      .select('id,
+        'deepNested.get("nested1").get("name") as 'nestedName,
+        'nested.get("value") as 'nestedValue,
+        'deepNested.get("nested2").get("flag") as 'nestedFlag,
+        'deepNested.get("nested2").get("num") as 'nestedNum)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      "StreamTableSourceScan(table=[[T]], " +
+        "fields=[id, deepNested, nested], " +
+        "source=[TestSource(read nested fields: " +
+          "id.*, deepNested.nested2.num, deepNested.nested2.flag, " +
+          "deepNested.nested1.name, nested.value)])",
+      term("select", "id", "deepNested.nested1.name AS nestedName", "nested.value AS nestedValue",
+        "deepNested.nested2.flag AS nestedFlag", "deepNested.nested2.num AS nestedNum")
+    )
+    util.verifyTable(t, expected)
+  }
+
 }
-
-

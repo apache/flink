@@ -15,25 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.api.validation
 
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
-import org.junit.Test
+package org.apache.flink.table.plan.schema
 
-class FlinkTableValidationTest extends TableTestBase {
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.sources.{BatchTableSource, TableSourceUtil}
 
-  @Test
-  def testFieldNamesDuplicate() {
+class BatchTableSourceTable[T](
+    tableSource: BatchTableSource[T],
+    statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
+  extends TableSourceTable[T](
+    tableSource,
+    statistic) {
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Field names must be unique.\n" +
-      "List of duplicate fields: [a].\n" +
-      "List of all fields: [a, a, b].")
+  TableSourceUtil.validateTableSource(tableSource)
 
-    val util = batchTestUtil()
-    util.addTable[(Int, Int, String)]("MyTable", 'a, 'a, 'b)
+  override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
+    TableSourceUtil.getRelDataType(
+      tableSource,
+      None,
+      streaming = false,
+      typeFactory.asInstanceOf[FlinkTypeFactory])
   }
 }
+

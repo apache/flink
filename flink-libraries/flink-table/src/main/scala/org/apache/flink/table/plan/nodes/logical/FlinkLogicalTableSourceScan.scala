@@ -25,11 +25,11 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.table.api.{TableEnvironment, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
-import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
 
@@ -37,27 +37,27 @@ class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: TableSource[_])
+    val tableSource: TableSource[_],
+    val selectedFields: Option[Array[Int]])
   extends TableScan(cluster, traitSet, table)
   with FlinkLogicalRel {
 
-  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, getTable, tableSource)
+  def copy(
+      traitSet: RelTraitSet,
+      tableSource: TableSource[_],
+      selectedFields: Option[Array[Int]]): FlinkLogicalTableSourceScan = {
+    new FlinkLogicalTableSourceScan(cluster, traitSet, getTable, tableSource, selectedFields)
   }
 
   override def deriveRowType(): RelDataType = {
-
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-
-    tableSource match {
-      case s: StreamTableSource[_] =>
-        StreamTableSourceTable.deriveRowTypeOfTableSource(s, flinkTypeFactory)
-      case _: BatchTableSource[_] =>
-        val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-        val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
-        flinkTypeFactory.buildLogicalRowType(fieldNames, fieldTypes)
-      case _ => throw new TableException("Unknown TableSource type.")
+    val streamingTable = table.unwrap(classOf[TableSourceTable[_]]) match {
+      case _: StreamTableSourceTable[_] => true
+      case _: BatchTableSourceTable[_] => false
+      case t => throw TableException(s"Unknown Table type ${t.getClass}.")
     }
+
+    TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -67,7 +67,7 @@ class FlinkLogicalTableSourceScan(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
-        .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+        .item("fields", tableSource.getTableSchema.getColumnNames.mkString(", "))
 
     val sourceDesc = tableSource.explainSource()
     if (sourceDesc.nonEmpty) {
@@ -115,7 +115,8 @@ class FlinkLogicalTableSourceScanConverter
       rel.getCluster,
       traitSet,
       scan.getTable,
-      tableSource
+      tableSource,
+      None
     )
   }
 }

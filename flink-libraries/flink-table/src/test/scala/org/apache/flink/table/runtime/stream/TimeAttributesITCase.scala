@@ -32,7 +32,7 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
-import org.apache.flink.table.api.{TableEnvironment, Types}
+import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.StreamITCase
@@ -494,6 +494,7 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
   @Test
   def testTableSourceWithTimeIndicators(): Unit = {
 
+    StreamITCase.clear
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -505,15 +506,17 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
       Row.of(new JInt(4), "D", new JLong(4000L)),
       Row.of(new JInt(5), "E", new JLong(5000L)),
       Row.of(new JInt(6), "F", new JLong(6000L)))
+
+    val fieldNames = Array("a", "b", "rowtime")
+    val schema = new TableSchema(
+      fieldNames :+ "proctime",
+      Array(Types.INT, Types.STRING, Types.SQL_TIMESTAMP, Types.SQL_TIMESTAMP))
     val rowType = new RowTypeInfo(
       Array(Types.INT, Types.STRING, Types.LONG).asInstanceOf[Array[TypeInformation[_]]],
-      Array("a", "b", "rowtime")
-    )
+      fieldNames)
 
-    tEnv.registerTableSource(
-      "testTable",
-      new TestTableSourceWithTime(rows, rowType, "rowtime", "proctime"))
-    StreamITCase.clear
+    val tableSource = new TestTableSourceWithTime(schema, rowType, rows, "rowtime", "proctime")
+    tEnv.registerTableSource("testTable", tableSource)
 
     val result = tEnv
       .scan("testTable")

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
-import org.apache.flink.table.plan.schema.StreamTableSourceTable
+import org.apache.flink.table.plan.schema.{StreamTableSourceTable}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.types.Row
 import org.junit.Assert.assertTrue
@@ -58,6 +58,9 @@ class MockTableSourceConverter extends TableSourceConverter[StreamTableSource[Ro
         val schema = externalCatalogTable.schema
         Types.ROW(schema.getColumnNames, schema.getTypes)
       }
+
+      override def getTableSchema: TableSchema = externalCatalogTable.schema
+
     }
   }
 }

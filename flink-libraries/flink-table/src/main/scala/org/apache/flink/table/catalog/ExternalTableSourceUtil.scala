@@ -23,10 +23,10 @@ import java.net.URL
 import org.apache.commons.configuration.{ConfigurationException, ConversionException, PropertiesConfiguration}
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.annotation.TableType
-import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException}
-import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException, TableException}
+import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource}
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.InstantiationUtil
 import org.reflections.Reflections
@@ -124,9 +124,15 @@ object ExternalTableSourceUtil extends Logging {
           } else {
             FlinkStatistic.UNKNOWN
           }
+
           convertedTableSource match {
-            case s : StreamTableSource[_] => new StreamTableSourceTable(s, flinkStatistic)
-            case _ => new TableSourceTable(convertedTableSource, flinkStatistic)
+            case s: StreamTableSource[_] =>
+              new StreamTableSourceTable(s, flinkStatistic)
+            case b: BatchTableSource[_] =>
+              new BatchTableSourceTable(b, flinkStatistic)
+            case _ =>
+              throw new TableException("Unknown TableSource type.")
+
           }
         }
       case None =>

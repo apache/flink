@@ -181,13 +181,17 @@ class ExternalCatalogTest extends TableTestBase {
     util.verifyTable(result, expected)
   }
 
-  def sourceBatchTableNode(sourceTablePath: Array[String], fields: Array[String]): String = {
+  def sourceBatchTableNode(
+      sourceTablePath: Array[String],
+      fields: Array[String]): String = {
     s"BatchTableSourceScan(table=[[${sourceTablePath.mkString(", ")}]], " +
-        s"fields=[${fields.mkString(", ")}])"
+        s"fields=[${fields.mkString(", ")}], " +
+        s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
   def sourceStreamTableNode(sourceTablePath: Array[String], fields: Array[String]): String = {
     s"StreamTableSourceScan(table=[[${sourceTablePath.mkString(", ")}]], " +
-        s"fields=[${fields.mkString(", ")}])"
+      s"fields=[${fields.mkString(", ")}], " +
+      s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 }
