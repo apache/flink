@@ -42,8 +42,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
- * Abstract request handler for querying metrics. Subclasses may either that returns a list of all available metrics or
- * the values for a set of metrics for a specific entity, or aggregate them across several entities.
+ * Abstract request handler for querying aggregated metrics. Subclasses return either a list of all available metrics
+ * or the aggregated values of them across all/selected entities.
  *
  * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code [ { "id" : "X" } ] }
@@ -53,11 +53,10 @@ import java.util.concurrent.Executor;
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  *
- * <p>If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
- * The "agg" query parameter is used to define which aggregates should be calculated. Available aggregations are
- * "sum", "max", "min" and "avg". If the parameter is not specified all aggregations will be returned.
+ * <p>The "agg" query parameter is used to define which aggregates should be calculated. Available aggregations are
+ * "sum", "max", "min" and "avg". If the parameter is not specified, all aggregations will be returned.
  * {@code /metrics?get=X,Y&agg=min,max}
- * The handler will then return an object containing the aggregations for the requested metrics.
+ * The handler will then return a list of objects containing the aggregations for the requested metrics.
  * {@code [ { "id" : "X", "min", "1", "max", "2" }, { "id" : "Y", "min", "4", "max", "10"}]}
  */
 abstract class AbstractAggregatingMetricsHandler extends AbstractJsonRequestHandler {
@@ -85,11 +84,12 @@ abstract class AbstractAggregatingMetricsHandler extends AbstractJsonRequestHand
 					String aggTypeList = queryParams.get(PARAMETER_AGGREGATION);
 					MetricStore store = fetcher.getMetricStore();
 
+					Collection<? extends MetricStore.ComponentMetricStore> stores = getStores(store, pathParams, queryParams);
+					if (stores == null){
+						return "[]";
+					}
+
 					if (requestedMetricsList == null) {
-						Collection<? extends MetricStore.ComponentMetricStore> stores = getStores(store, pathParams, queryParams);
-						if (stores == null) {
-							return "[]";
-						}
 						Collection<String> list = getAvailableMetrics(stores);
 						return mapMetricListToJson(list);
 					}
@@ -131,10 +131,7 @@ abstract class AbstractAggregatingMetricsHandler extends AbstractJsonRequestHand
 							}
 						}
 					}
-					Collection<? extends MetricStore.ComponentMetricStore> stores = getStores(store, pathParams, queryParams);
-					if (stores == null){
-						return "[]";
-					}
+
 					return getAggregatedMetricValues(stores, requestedMetrics, requestedAggregationsFactories);
 				} catch (Exception e) {
 					throw new CompletionException(new FlinkException("Could not retrieve metrics.", e));
@@ -183,7 +180,10 @@ abstract class AbstractAggregatingMetricsHandler extends AbstractJsonRequestHand
 	 * @return JSON string containing the requested metrics
 	 * @throws IOException
 	 */
-	private String getAggregatedMetricValues(Collection<? extends MetricStore.ComponentMetricStore> stores, String[] requestedMetrics, List<DoubleAccumulator.DoubleAccumulatorFactory<?>> requestedAggregationsFactories) throws IOException {
+	private String getAggregatedMetricValues(
+			Collection<? extends MetricStore.ComponentMetricStore> stores,
+			String[] requestedMetrics,
+			List<DoubleAccumulator.DoubleAccumulatorFactory<?>> requestedAggregationsFactories) throws IOException {
 		StringWriter writer = new StringWriter();
 		JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
@@ -198,6 +198,7 @@ abstract class AbstractAggregatingMetricsHandler extends AbstractJsonRequestHand
 					}
 				}
 			} catch (NumberFormatException nfe) {
+				log.warn("The metric {} is not numeric and can't be aggregated.", requestedMetric, nfe);
 				// metric is not numeric so we can't perform aggregations => ignore it
 				continue;
 			}

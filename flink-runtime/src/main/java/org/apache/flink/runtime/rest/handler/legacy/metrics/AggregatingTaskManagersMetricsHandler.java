@@ -26,6 +26,9 @@ import java.util.concurrent.Executor;
 /**
  * Request handler that returns, aggregated across all task managers, a list of all available metrics or the values for
  * a set of metrics.
+ *
+ * <p>Specific taskmanagers can be selected for aggregation by specifying a comma-separated list of taskmanager IDs.
+ * {@code /metrics?get=X,Y&taskmanagers=A,B}
  */
 public class AggregatingTaskManagersMetricsHandler extends AbstractAggregatingMetricsHandler {
 	public AggregatingTaskManagersMetricsHandler(Executor executor, MetricFetcher fetcher) {

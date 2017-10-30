@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
+import org.apache.flink.util.UnionIterator;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -30,6 +33,9 @@ import static org.apache.flink.runtime.rest.handler.legacy.metrics.JobVertexMetr
 /**
  * Request handler that returns, aggregated across all subtasks, a list of all available metrics or the values
  * for a set of metrics.
+ *
+ * <p>Specific subtasks can be selected for aggregation by specifying a comma-separated list of integer ranges.
+ * {@code /metrics?get=X,Y&subtasks=0-2,4-5}
  */
 public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetricsHandler {
 	public AggregatingSubtasksMetricsHandler(Executor executor, MetricFetcher fetcher) {
@@ -40,6 +46,9 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 	protected Collection<? extends MetricStore.ComponentMetricStore> getStores(MetricStore store, Map<String, String> pathParameters, Map<String, String> queryParameters) {
 		String jobID = pathParameters.get(PARAMETER_JOB_ID);
 		String taskID = pathParameters.get(PARAMETER_VERTEX_ID);
+		if (jobID == null) {
+			return Collections.emptyList();
+		}
 		if (taskID == null) {
 			return Collections.emptyList();
 		}
@@ -47,17 +56,10 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 		if (subtasksList == null || subtasksList.isEmpty()) {
 			return store.getTaskMetricStore(jobID, taskID).getAllSubtaskMetricStores();
 		} else {
-			String[] subtasks = subtasksList.split(",");
+			Iterable<Integer> subtasks = getIntegerRangeFromString(subtasksList);
 			Collection<MetricStore.ComponentMetricStore> subtaskStores = new ArrayList<>();
-			for (String subtask : subtasks) {
-				int subtaskNum;
-				try {
-					subtaskNum = Integer.valueOf(subtask);
-				} catch (NumberFormatException nfe) {
-					log.warn("Invalid subtask index specified {}. Not a number.", subtask, nfe);
-					continue;
-				}
-				subtaskStores.add(store.getSubtaskMetricStore(jobID, taskID, subtaskNum));
+			for (int subtask : subtasks) {
+				subtaskStores.add(store.getSubtaskMetricStore(jobID, taskID, subtask));
 			}
 			return subtaskStores;
 		}
@@ -66,5 +68,50 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 	@Override
 	public String[] getPaths() {
 		return new String[]{"/jobs/:jobid/vertices/:vertexid/subtasks/metrics"};
+	}
+
+	private Iterable<Integer> getIntegerRangeFromString(String rangeDefinition) throws NumberFormatException {
+		final String[] ranges = rangeDefinition.trim().split(",");
+
+		UnionIterator<Integer> iterators = new UnionIterator<>();
+
+		for (String rawRange : ranges) {
+			try {
+				Iterator<Integer> rangeIterator;
+				String range = rawRange.trim();
+				int dashIdx = range.indexOf('-');
+				if (dashIdx == -1) {
+					// only one value in range:
+					rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
+				} else {
+					// evaluate range
+					final int start = Integer.valueOf(range.substring(0, dashIdx));
+					final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
+					rangeIterator = new Iterator<Integer>() {
+						int i = start;
+
+						@Override
+						public boolean hasNext() {
+							return i <= end;
+						}
+
+						@Override
+						public Integer next() {
+							return i++;
+						}
+
+						@Override
+						public void remove() {
+							throw new UnsupportedOperationException("Remove not supported");
+						}
+					};
+				}
+				iterators.add(rangeIterator);
+			} catch (NumberFormatException nfe) {
+				log.warn("Invalid value {} specified for integer range. Not a number.", rawRange, nfe);
+			}
+		}
+
+		return iterators;
 	}
 }

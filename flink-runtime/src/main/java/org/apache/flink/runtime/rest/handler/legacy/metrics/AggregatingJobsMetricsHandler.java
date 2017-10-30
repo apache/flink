@@ -26,6 +26,9 @@ import java.util.concurrent.Executor;
 /**
  * Request handler that returns, aggregated across all jobs, a list of all available metrics or the values
  * for a set of metrics.
+ *
+ * <p>Specific jobs can be selected for aggregation by specifying a comma-separated list of job IDs.
+ * {@code /metrics?get=X,Y&jobs=A,B}
  */
 public class AggregatingJobsMetricsHandler extends AbstractAggregatingMetricsHandler {
 	public AggregatingJobsMetricsHandler(Executor executor, MetricFetcher fetcher) {
