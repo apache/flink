@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.rest.handler.legacy.metrics.JobMetricsHandler.PARAMETER_JOB_ID;
@@ -70,7 +71,7 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 		return new String[]{"/jobs/:jobid/vertices/:vertexid/subtasks/metrics"};
 	}
 
-	private Iterable<Integer> getIntegerRangeFromString(String rangeDefinition) throws NumberFormatException {
+	private Iterable<Integer> getIntegerRangeFromString(String rangeDefinition) {
 		final String[] ranges = rangeDefinition.trim().split(",");
 
 		UnionIterator<Integer> iterators = new UnionIterator<>();
@@ -97,7 +98,11 @@ public class AggregatingSubtasksMetricsHandler extends AbstractAggregatingMetric
 
 						@Override
 						public Integer next() {
-							return i++;
+							if (hasNext()) {
+								return i++;
+							} else {
+								throw new NoSuchElementException();
+							}
 						}
 
 						@Override
