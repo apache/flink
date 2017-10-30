@@ -38,6 +38,17 @@ The configuration files for the TaskManagers can be different, Flink does not as
 * This will be replaced by the TOC
 {:toc}
 
+## Configuring Hadoop Classpaths
+
+Flink can be used without Hadoop dependencies, with bundled dependencies that come with Flink or
+with the Hadoop dependencies that are available on the system(s) that are executing Flink. By
+default, the bundled Hadoop jar will be used. You can configure this using the
+`bin/configure-hadoop-classpath.sh` script:
+
+```
+Usage: bin/configure-hadoop-classpath.sh {use-system-hadoop|use-bundled-hadoop|no-hadoop}
+```
+
 ## Common Options
 
 - `env.java.home`: The path to the Java installation to use (DEFAULT: system's default Java installation, if found). Needs to be specified if the startup scripts fail to automatically resolve the java home directory. Can be specified to point to a specific java installation or version. If this option is not specified, the startup scripts also evaluate the `$JAVA_HOME` environment variable.
