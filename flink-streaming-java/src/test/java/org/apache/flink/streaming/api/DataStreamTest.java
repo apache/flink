@@ -25,6 +25,8 @@ import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -36,7 +38,9 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -46,6 +50,8 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
+import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -78,7 +84,12 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -896,6 +907,83 @@ public class DataStreamTest {
 		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1() != null);
 		assertEquals(key2, env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getStatePartitioner1());
 		assertTrue(env.getStreamGraph().getStreamNode(sink3.getTransformation().getId()).getInEdges().get(0).getPartitioner() instanceof KeyGroupStreamPartitioner);
+	}
+
+	private static class TimeoutableFunction extends RichAsyncFunction<Long, Integer> {
+		private static final long serialVersionUID = 8522411971886428444L;
+
+		private static final long TERMINATION_TIMEOUT = 5000L;
+
+		static ExecutorService executorService = Executors.newSingleThreadExecutor();
+		static boolean started = false;
+		static AtomicInteger timeoutCounter = new AtomicInteger(2);
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			super.open(parameters);
+
+			synchronized (TimeoutableFunction.class) {
+				if (!started) {
+					executorService = Executors.newSingleThreadExecutor();
+				}
+				started = true;
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			super.close();
+
+			freeExecutor();
+		}
+
+		private void freeExecutor() {
+			synchronized (TimeoutableFunction.class) {
+				started = false;
+
+				executorService.shutdown();
+
+				try {
+					if (!executorService.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.MILLISECONDS)) {
+						executorService.shutdownNow();
+					}
+				} catch (InterruptedException interrupted) {
+					executorService.shutdownNow();
+
+					Thread.currentThread().interrupt();
+				}
+			}
+		}
+
+		@Override
+		public void asyncInvoke(final Long input, final ResultFuture<Integer> resultFuture) throws Exception {
+			executorService.submit(() -> {
+				try {
+					if (input.intValue() % 5 == 0 && timeoutCounter.getAndDecrement() > 0) {
+						Thread.sleep(1000);
+					} else {
+						Thread.sleep(100);
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				resultFuture.complete(Collections.singletonList(input.intValue() * 2));
+			});
+		}
+	}
+
+	@Test(timeout = 15 * 1000)
+	public void testChannel() throws Exception {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
+		env.setRestartStrategy(RestartStrategies.failureRateRestart(10, Time.minutes(1), Time.milliseconds(100)));
+		env.enableCheckpointing(100);
+
+		DataStreamSource<Long> src = env.generateSequence(1, 15);
+
+		AsyncDataStream.orderedWait(src, new TimeoutableFunction(), 500, TimeUnit.MILLISECONDS, 2);
+
+		env.execute();
 	}
 
 	@Test
