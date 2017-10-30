@@ -19,7 +19,13 @@
 package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.AvroUtils;
+import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
+import org.apache.flink.formats.avro.typeutils.AvroSerializer;
+import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -29,22 +35,50 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 
 import java.io.Serializable;
+import java.util.LinkedHashMap;
+
+import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
 
 /**
  * Utilities for integrating Avro serializers in Kryo.
  */
-public class AvroKryoSerializerUtils {
+public class AvroKryoSerializerUtils extends AvroUtils {
 
-	public static void addAvroSerializers(ExecutionConfig reg, Class<?> type) {
-		// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
-		// because Kryo is not able to serialize them properly, we use this serializer for them
-		reg.registerTypeWithKryoSerializer(GenericData.Array.class, Serializers.SpecificInstanceCollectionSerializerForArrayList.class);
+	@Override
+	public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
+		if (hasSuperclass(type, AVRO_SPECIFIC_RECORD_BASE) || hasSuperclass(type, AVRO_GENERIC_RECORD)) {
+			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
+			// because Kryo is not able to serialize them properly, we use this serializer for them
+			reg.registerTypeWithKryoSerializer(GenericData.Array.class, Serializers.SpecificInstanceCollectionSerializerForArrayList.class);
 
-		// We register this serializer for users who want to use untyped Avro records (GenericData.Record).
-		// Kryo is able to serialize everything in there, except for the Schema.
-		// This serializer is very slow, but using the GenericData.Records of Kryo is in general a bad idea.
-		// we add the serializer as a default serializer because Avro is using a private sub-type at runtime.
-		reg.addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
+			// We register this serializer for users who want to use untyped Avro records (GenericData.Record).
+			// Kryo is able to serialize everything in there, except for the Schema.
+			// This serializer is very slow, but using the GenericData.Records of Kryo is in general a bad idea.
+			// we add the serializer as a default serializer because Avro is using a private sub-type at runtime.
+			reg.addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
+		}
+	}
+
+	@Override
+	public void addAvroGenericDataArrayRegistration(LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+		kryoRegistrations.put(
+			GenericData.Array.class.getName(),
+			new KryoRegistration(
+				GenericData.Array.class,
+				new ExecutionConfig.SerializableSerializer<>(new Serializers.SpecificInstanceCollectionSerializerForArrayList())));
+	}
+
+	@Override
+	public <T> TypeSerializer<T> createAvroSerializer(Class<T> type) {
+		return new AvroSerializer<>(type);
+	}
+
+	@Override
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	public <T> TypeInformation<T> createAvroTypeInfo(Class<T> type) {
+		// we have to be raw here because we cannot have "<T extends SpecificRecordBase>" in
+		// the interface of AvroUtils
+		return new AvroTypeInfo(type);
 	}
 
 	/**
