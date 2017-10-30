@@ -72,6 +72,7 @@ function stop_cluster {
       | grep -v "DisconnectException" \
       | grep -v "AskTimeoutException" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
+      | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
@@ -84,6 +85,7 @@ function stop_cluster {
       | grep -v "DisconnectException" \
       | grep -v "AskTimeoutException" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
+      | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
       | grep -iq "exception"; then
     echo "Found exception in log files:"
     cat $FLINK_DIR/log/*
