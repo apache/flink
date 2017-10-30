@@ -38,7 +38,7 @@ public class ScopeFormats {
 	/**
 	 * Creates all scope formats, based on the given scope format strings.
 	 */
-	public ScopeFormats(
+	private ScopeFormats(
 			String jobManagerFormat,
 			String jobManagerJobFormat,
 			String taskManagerFormat,
