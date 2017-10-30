@@ -36,27 +36,6 @@ public class ScopeFormats {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates all default scope formats.
-	 */
-	public ScopeFormats() {
-		this.jobManagerFormat = new JobManagerScopeFormat(MetricOptions.SCOPE_NAMING_JM.defaultValue());
-
-		this.jobManagerJobFormat = new JobManagerJobScopeFormat(
-			MetricOptions.SCOPE_NAMING_JM_JOB.defaultValue(), this.jobManagerFormat);
-
-		this.taskManagerFormat = new TaskManagerScopeFormat(MetricOptions.SCOPE_NAMING_TM.defaultValue());
-
-		this.taskManagerJobFormat = new TaskManagerJobScopeFormat(
-			MetricOptions.SCOPE_NAMING_TM_JOB.defaultValue(), this.taskManagerFormat);
-
-		this.taskFormat = new TaskScopeFormat(
-				MetricOptions.SCOPE_NAMING_TASK.defaultValue(), this.taskManagerJobFormat);
-
-		this.operatorFormat = new OperatorScopeFormat(
-			MetricOptions.SCOPE_NAMING_OPERATOR.defaultValue(), this.taskFormat);
-	}
-
-	/**
 	 * Creates all scope formats, based on the given scope format strings.
 	 */
 	public ScopeFormats(
