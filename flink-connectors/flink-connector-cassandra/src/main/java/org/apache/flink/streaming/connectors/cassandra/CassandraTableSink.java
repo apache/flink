@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Properties;
 
 /**
- * A cassandra  {@link AppendStreamTableSink}.
+ * A Cassandra  {@link AppendStreamTableSink}.
  */
 public class CassandraTableSink implements AppendStreamTableSink<Row> {
 

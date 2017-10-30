@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -213,7 +212,7 @@ public class CassandraSink<IN> {
 			DataStream<Tuple> tupleInput = (DataStream<Tuple>) input;
 			return (CassandraSinkBuilder<IN>) new CassandraTupleSinkBuilder<>(tupleInput, tupleInput.getType(), tupleInput.getType().createSerializer(tupleInput.getExecutionEnvironment().getConfig()));
 		}
-		if (typeInfo instanceof RowTypeInfo) {
+		if (Row.class.equals(typeInfo.getTypeClass())) {
 			DataStream<Row> rowInput = (DataStream<Row>) input;
 			return (CassandraSinkBuilder<IN>) new CassandraRowSinkBuilder(rowInput, rowInput.getType(), rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()));
 		}
@@ -404,7 +403,9 @@ public class CassandraSink<IN> {
 
 		@Override
 		protected CassandraSink<Row> createWriteAheadSink() throws Exception {
-			throw new IllegalArgumentException("Exactly-once guarantees can only be provided for tuple types.");
+			return committer == null
+				? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraRowWriteAheadSink(query, serializer, builder, new CassandraCommitter(builder))))
+				: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraRowWriteAheadSink(query, serializer, builder, committer)));
 		}
 	}
 

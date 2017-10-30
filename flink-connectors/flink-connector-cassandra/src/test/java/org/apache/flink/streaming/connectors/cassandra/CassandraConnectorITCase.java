@@ -429,22 +429,6 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Test
-	public void testCassandraTableSink() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-
-		DataStreamSource<Row> source = env.fromCollection(rowCollection);
-		CassandraTableSink cassandraTableSink = new CassandraTableSink(builder, injectTableName(INSERT_DATA_QUERY), new Properties());
-		CassandraTableSink newCassandrTableSink = cassandraTableSink.configure(FIELD_NAMES, FIELD_TYPES);
-
-		newCassandrTableSink.emitDataStream(source);
-
-		env.execute();
-		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
-		Assert.assertEquals(20, rs.all().size());
-	}
-
-	@Test
 	public void testCassandraTableSinkE2E() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(4);
