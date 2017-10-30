@@ -163,6 +163,14 @@ public class AsyncWaitOperator<IN, OUT>
 	public void open() throws Exception {
 		super.open();
 
+		// create the emitter
+		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+
+		// start the emitter thread
+		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
+		emitterThread.setDaemon(true);
+		emitterThread.start();
+
 		// process stream elements from state, since the Emit thread will start as soon as all
 		// elements from previous state are in the StreamElementQueue, we have to make sure that the
 		// order to open all operators in the operator chain proceeds from the tail operator to the
@@ -185,14 +193,6 @@ public class AsyncWaitOperator<IN, OUT>
 			}
 			recoveredStreamElements = null;
 		}
-
-		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
-
-		// start the emitter thread
-		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
-		emitterThread.setDaemon(true);
-		emitterThread.start();
 
 	}
 
