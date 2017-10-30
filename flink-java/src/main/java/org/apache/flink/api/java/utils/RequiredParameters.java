@@ -83,24 +83,28 @@ public class RequiredParameters {
 	 * <p>If any check fails, a RequiredParametersException is thrown
 	 *
 	 * @param parameterTool - parameters supplied by the user.
+	 * @return the updated ParameterTool containing all the required parameters
 	 * @throws RequiredParametersException if any of the specified checks fail
 	 */
-	public void applyTo(ParameterTool parameterTool) throws RequiredParametersException {
+	public ParameterTool applyTo(ParameterTool parameterTool) throws RequiredParametersException {
 		List<String> missingArguments = new LinkedList<>();
+
+		HashMap<String, String> newParameters = new HashMap<>(parameterTool.toMap());
+
 		for (Option o : data.values()) {
-			if (parameterTool.data.containsKey(o.getName())) {
-				if (Objects.equals(parameterTool.data.get(o.getName()), ParameterTool.NO_VALUE_KEY)) {
+			if (newParameters.containsKey(o.getName())) {
+				if (Objects.equals(newParameters.get(o.getName()), ParameterTool.NO_VALUE_KEY)) {
 					// the parameter has been passed, but no value, check if there is a default value
-					checkAndApplyDefaultValue(o, parameterTool.data);
+					checkAndApplyDefaultValue(o, newParameters);
 				} else {
 					// a value has been passed in the parameterTool, now check if it adheres to all constraints
-					checkAmbiguousValues(o, parameterTool.data);
-					checkIsCastableToDefinedType(o, parameterTool.data);
-					checkChoices(o, parameterTool.data);
+					checkAmbiguousValues(o, newParameters);
+					checkIsCastableToDefinedType(o, newParameters);
+					checkChoices(o, newParameters);
 				}
 			} else {
 				// check if there is a default name or a value passed for a possibly defined alternative name.
-				if (hasNoDefaultValueAndNoValuePassedOnAlternativeName(o, parameterTool.data)) {
+				if (hasNoDefaultValueAndNoValuePassedOnAlternativeName(o, newParameters)) {
 					missingArguments.add(o.getName());
 				}
 			}
@@ -108,6 +112,8 @@ public class RequiredParameters {
 		if (!missingArguments.isEmpty()) {
 			throw new RequiredParametersException(this.missingArgumentsText(missingArguments), missingArguments);
 		}
+
+		return ParameterTool.fromMap(newParameters);
 	}
 
 	// check if the given parameter has a default value and add it to the passed map if that is the case
