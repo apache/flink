@@ -179,7 +179,7 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * Hint for picking next transactional id.
 	 */
-	private NextTransactionalIdHint nextTransactionalIdHint;
+	private transient NextTransactionalIdHint nextTransactionalIdHint;
 
 	/**
 	 * User defined properties for the Producer.

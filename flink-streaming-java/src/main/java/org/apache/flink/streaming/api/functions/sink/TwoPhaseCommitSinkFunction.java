@@ -65,10 +65,10 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 	protected final LinkedHashMap<Long, TXN> pendingCommitTransactions = new LinkedHashMap<>();
 
 	@Nullable
-	protected TXN currentTransaction;
-	protected Optional<CONTEXT> userContext;
+	protected transient TXN currentTransaction;
+	protected transient Optional<CONTEXT> userContext;
 
-	protected ListState<State<TXN, CONTEXT>> state;
+	protected transient ListState<State<TXN, CONTEXT>> state;
 
 	/**
 	 * Use default {@link ListStateDescriptor} for internal state serialization. Helpful utilities for using this
