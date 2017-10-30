@@ -21,8 +21,6 @@ package org.apache.flink.runtime.metrics.scope;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A container for component scope formats.
  */
@@ -74,24 +72,6 @@ public class ScopeFormats {
 		this.taskManagerJobFormat = new TaskManagerJobScopeFormat(taskManagerJobFormat, this.taskManagerFormat);
 		this.taskFormat = new TaskScopeFormat(taskFormat, this.taskManagerJobFormat);
 		this.operatorFormat = new OperatorScopeFormat(operatorFormat, this.taskFormat);
-	}
-
-	/**
-	 * Creates a {@code ScopeFormats} with the given scope formats.
-	 */
-	public ScopeFormats(
-			JobManagerScopeFormat jobManagerFormat,
-			JobManagerJobScopeFormat jobManagerJobFormat,
-			TaskManagerScopeFormat taskManagerFormat,
-			TaskManagerJobScopeFormat taskManagerJobFormat,
-			TaskScopeFormat taskFormat,
-			OperatorScopeFormat operatorFormat) {
-		this.jobManagerFormat = checkNotNull(jobManagerFormat);
-		this.jobManagerJobFormat = checkNotNull(jobManagerJobFormat);
-		this.taskManagerFormat = checkNotNull(taskManagerFormat);
-		this.taskManagerJobFormat = checkNotNull(taskManagerJobFormat);
-		this.taskFormat = checkNotNull(taskFormat);
-		this.operatorFormat = checkNotNull(operatorFormat);
 	}
 
 	// ------------------------------------------------------------------------
