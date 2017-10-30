@@ -990,6 +990,107 @@ latency issues caused by individual machines.
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
+## REST API integration
+
+Metrics can be queried through the [Monitoring REST API]({{ site.baseurl }}/monitoring/rest_api.html).
+
+Below is a list of available endpoints, with a sample JSON response. All endpoints are of the sample form `http://hostname:8081/jobmanager/metrics`, below we list only the *path* part of the URLs.
+
+Values in angle brackets are variables, for example `http://hostname:8081/jobs/<jobid>/metrics` will have to be requested for example as `http://hostname:8081/jobs/7684be6004e4e955c2a558a9bc463f65/metrics`.
+
+Request metrics for a specific entity:
+
+  - `/jobmanager/metrics`
+  - `/taskmanagers/<taskmanagerid>/metrics`
+  - `/jobs/<jobid>/metrics`
+  - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtaskindex>`
+
+Request metrics aggregated across all entities of the respective type:
+
+  - `/taskmanagers/metrics`
+  - `/jobs/metrics`
+  - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics`
+
+Request metrics aggregated over a subset of all entities of the respective type:
+
+  - `/taskmanagers/metrics?taskmanagers=A,B,C`
+  - `/jobs/metrics?jobs=D,E,F`
+  - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics?subtask=1,2,3`
+
+Request a list of available metrics:
+
+`GET /jobmanager/metrics`
+
+~~~
+[
+  {
+    "id": "metric1"
+  },
+  {
+    "id": "metric2"
+  }
+]
+~~~
+
+Request the values for specific (unaggregated) metrics:
+
+`GET taskmanagers/ABCDE/metrics?get=metric1,metric2`
+
+~~~
+[
+  {
+    "id": "metric1",
+    "value": "34"
+  },
+  {
+    "id": "metric2",
+    "value": "2"
+  }
+]
+~~~
+
+Request aggregated values for specific metrics:
+
+`GET /taskmanagers/metrics?get=metric1,metric2`
+
+~~~
+[
+  {
+    "id": "metric1",
+    "min": 1,
+    "max": 34,
+    "avg": 15,
+    "sum": 45
+  },
+  {
+    "id": "metric2",
+    "min": 2,
+    "max": 14,
+    "avg": 7,
+    "sum": 16
+  }
+]
+~~~
+
+Request specific aggregated values for specific metrics:
+
+`GET /taskmanagers/metrics?get=metric1,metric2&agg=min,max`
+
+~~~
+[
+  {
+    "id": "metric1",
+    "min": 1,
+    "max": 34,
+  },
+  {
+    "id": "metric2",
+    "min": 2,
+    "max": 14,
+  }
+]
+~~~
+
 ## Dashboard integration
 
 Metrics that were gathered for each task or operator can also be visualized in the Dashboard. On the main page for a

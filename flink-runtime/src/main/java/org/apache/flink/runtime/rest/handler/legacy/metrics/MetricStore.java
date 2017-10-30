@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -125,12 +126,12 @@ public class MetricStore {
 	 * @param taskID task ID
 	 * @return ComponentMetricStore for given IDs, or null if no store for the given arguments exists
 	 */
-	public synchronized ComponentMetricStore getTaskMetricStore(String jobID, String taskID) {
+	public synchronized TaskMetricStore getTaskMetricStore(String jobID, String taskID) {
 		JobMetricStore job = jobID == null ? null : jobs.get(jobID);
 		if (job == null || taskID == null) {
 			return null;
 		}
-		return ComponentMetricStore.unmodifiable(job.getTaskMetricStore(taskID));
+		return TaskMetricStore.unmodifiable(job.getTaskMetricStore(taskID));
 	}
 
 	/**
@@ -218,11 +219,13 @@ public class MetricStore {
 					QueryScopeInfo.OperatorQueryScopeInfo operatorInfo = (QueryScopeInfo.OperatorQueryScopeInfo) info;
 					job = jobs.computeIfAbsent(operatorInfo.jobID, k -> new JobMetricStore());
 					task = job.tasks.computeIfAbsent(operatorInfo.vertexID, k -> new TaskMetricStore());
+					subtask = task.subtasks.computeIfAbsent(operatorInfo.subtaskIndex, k -> new ComponentMetricStore());
 					/**
 					 * As the WebInterface does not account for operators (because it can't) we don't
 					 * divide by operator and instead use the concatenation of subtask index, operator name and metric name
 					 * as the name.
 					 */
+					addMetric(subtask.metrics, operatorInfo.operatorName + "." + name, metric);
 					addMetric(task.metrics, operatorInfo.subtaskIndex + "." + operatorInfo.operatorName + "." + name, metric);
 					break;
 				default:
@@ -348,11 +351,33 @@ public class MetricStore {
 	 * Sub-structure containing metrics of a single Task.
 	 */
 	@ThreadSafe
-	private static class TaskMetricStore extends ComponentMetricStore {
-		private final Map<Integer, ComponentMetricStore> subtasks = new ConcurrentHashMap<>();
+	public static class TaskMetricStore extends ComponentMetricStore {
+		private final Map<Integer, ComponentMetricStore> subtasks;
+
+		private TaskMetricStore() {
+			this(new ConcurrentHashMap<>(), new ConcurrentHashMap<>());
+		}
+
+		private TaskMetricStore(Map<String, String> metrics, Map<Integer, ComponentMetricStore> subtasks) {
+			super(metrics);
+			this.subtasks = checkNotNull(subtasks);
+		}
 
 		public ComponentMetricStore getSubtaskMetricStore(int subtaskIndex) {
 			return subtasks.get(subtaskIndex);
+		}
+
+		public Collection<ComponentMetricStore> getAllSubtaskMetricStores() {
+			return subtasks.values();
+		}
+
+		private static TaskMetricStore unmodifiable(TaskMetricStore source) {
+			if (source == null) {
+				return null;
+			}
+			return new TaskMetricStore(
+				unmodifiableMap(source.metrics),
+				unmodifiableMap(source.subtasks));
 		}
 	}
 }

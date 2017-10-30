@@ -27,8 +27,8 @@ import java.util.concurrent.Executor;
  * <p>If the query parameters do not contain a "get" parameter the list of all metrics is returned.
  * {@code {"available": [ { "name" : "X", "id" : "X" } ] } }
  *
- * <p>If the query parameters do contain a "get" parameter a comma-separate list of metric names is expected as a value.
- * {@code /get?X,Y}
+ * <p>If the query parameters do contain a "get" parameter, a comma-separated list of metric names is expected as a value.
+ * {@code /metrics?get=X,Y}
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */

@@ -63,6 +63,8 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		assertEquals("[" +
 				"{\"id\":\"8.opname.abc.metric6\"}," +
 				"{\"id\":\"8.opname.abc.metric7\"}," +
+				"{\"id\":\"1.opname.abc.metric6\"}," +
+				"{\"id\":\"1.opname.abc.metric7\"}," +
 				"{\"id\":\"8.abc.metric5\"}" +
 				"]",
 			availableList);
