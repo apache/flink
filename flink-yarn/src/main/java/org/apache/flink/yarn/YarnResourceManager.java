@@ -36,6 +36,7 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -131,7 +132,10 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 			jobLeaderIdService,
 			fatalErrorHandler);
 		this.flinkConfig  = flinkConfig;
-		this.yarnConfig = new YarnConfiguration();
+
+		final org.apache.hadoop.conf.Configuration hadoopConfiguration = HadoopUtils.getHadoopConfiguration(flinkConfig);
+		this.yarnConfig = new YarnConfiguration(hadoopConfiguration);
+
 		this.env = env;
 		final int yarnHeartbeatIntervalMS = flinkConfig.getInteger(
 				YarnConfigOptions.HEARTBEAT_DELAY_SECONDS) * 1000;

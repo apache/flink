@@ -43,6 +43,7 @@ import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
@@ -265,7 +266,8 @@ public class YarnApplicationMasterRunner {
 			}
 
 			// Hadoop/Yarn configuration (loads config data automatically from classpath files)
-			final YarnConfiguration yarnConfig = new YarnConfiguration();
+			final org.apache.hadoop.conf.Configuration hadoopConfiguration = HadoopUtils.getHadoopConfiguration(config);
+			final YarnConfiguration yarnConfig = new YarnConfiguration(hadoopConfiguration);
 
 			final int taskManagerContainerMemory;
 			final int numInitialTaskManagers;

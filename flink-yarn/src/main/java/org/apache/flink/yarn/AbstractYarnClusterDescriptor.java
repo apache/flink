@@ -31,6 +31,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -107,7 +108,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	private static final int MIN_JM_MEMORY = 768; // the minimum memory should be higher than the min heap cutoff
 	private static final int MIN_TM_MEMORY = 768;
 
-	private Configuration conf = new YarnConfiguration();
+	private final Configuration conf;
 
 	/**
 	 * If the user has specified a different number of slots, we store them here
@@ -144,6 +145,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	public AbstractYarnClusterDescriptor(
 		org.apache.flink.configuration.Configuration flinkConfiguration,
 		String configurationDirectory) {
+
+		Configuration hadoopConfiguration = HadoopUtils.getHadoopConfiguration(flinkConfiguration);
+
+		conf = new YarnConfiguration(hadoopConfiguration);
+
 		// for unit tests only
 		if (System.getenv("IN_TESTS") != null) {
 			try {
