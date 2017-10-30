@@ -29,6 +29,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
@@ -477,7 +478,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 		}
 
 		// add Avro support if flink-avro is available; a dummy otherwise
-		Serializers.addAvroGenericDataArrayRegistration(kryoRegistrations);
+		AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
 
 		return kryoRegistrations;
 	}

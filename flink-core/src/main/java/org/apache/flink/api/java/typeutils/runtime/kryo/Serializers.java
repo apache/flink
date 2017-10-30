@@ -22,10 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -36,18 +36,13 @@ import com.esotericsoftware.kryo.serializers.CollectionSerializer;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
-
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
-
 
 /**
  * Class containing utilities for the serializers of the Flink Runtime.
@@ -60,14 +55,6 @@ import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSupercl
  */
 @Internal
 public class Serializers {
-
-	private static final String AVRO_SPECIFIC_RECORD_BASE = "org.apache.avro.specific.SpecificRecordBase";
-
-	private static final String AVRO_GENERIC_RECORD = "org.apache.avro.generic.GenericData$Record";
-
-	private static final String AVRO_KRYO_UTILS = "org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils";
-
-	private static final String AVRO_GENERIC_DATA_ARRAY = "org.apache.avro.generic.GenericData$Array";
 
 	public static void recursivelyRegisterType(TypeInformation<?> typeInfo, ExecutionConfig config, Set<Class<?>> alreadySeen) {
 		if (typeInfo instanceof GenericTypeInfo) {
@@ -104,9 +91,7 @@ public class Serializers {
 		else {
 			config.registerKryoType(type);
 			// add serializers for Avro type if necessary
-			if (hasSuperclass(type, AVRO_SPECIFIC_RECORD_BASE) || hasSuperclass(type, AVRO_GENERIC_RECORD)) {
-				addAvroSerializers(config, type);
-			}
+			AvroUtils.getAvroUtils().addAvroSerializersIfRequired(config, type);
 
 			Field[] fields = type.getDeclaredFields();
 			for (Field field : fields) {
@@ -161,43 +146,19 @@ public class Serializers {
 	}
 
 	/**
-	 * Loads the utility class from <code>flink-avro</code> and adds Avro-specific serializers.
+	 * This is used in case we don't have Avro on the classpath. Flink versions before 1.4
+	 * always registered special Serializers for Kryo but starting with Flink 1.4 we don't have
+	 * Avro on the classpath by default anymore. We still have to retain the same registered
+	 * Serializers for backwards compatibility of savepoints.
 	 */
-	private static void addAvroSerializers(ExecutionConfig reg, Class<?> type) {
-		Class<?> clazz;
-		try {
-			clazz = Class.forName(AVRO_KRYO_UTILS, false, Serializers.class.getClassLoader());
-		}
-		catch (ClassNotFoundException e) {
-			throw new RuntimeException("Could not load class '" + AVRO_KRYO_UTILS + "'. " +
-				"You may be missing the 'flink-avro' dependency.");
-		}
-		try {
-			clazz.getDeclaredMethod("addAvroSerializers", ExecutionConfig.class, Class.class).invoke(null, reg, type);
-		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-			throw new RuntimeException("Could not access method in 'flink-avro' dependency.", e);
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	public static void addAvroGenericDataArrayRegistration(LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
-		try {
-			Class<?> clazz = Class.forName(AVRO_GENERIC_DATA_ARRAY, false, Serializers.class.getClassLoader());
-
-			kryoRegistrations.put(
-				AVRO_GENERIC_DATA_ARRAY,
-				new KryoRegistration(
-						clazz,
-						new ExecutionConfig.SerializableSerializer<>(new Serializers.SpecificInstanceCollectionSerializerForArrayList())));
-		}
-		catch (ClassNotFoundException e) {
-			kryoRegistrations.put(AVRO_GENERIC_DATA_ARRAY,
-				new KryoRegistration(DummyAvroRegisteredClass.class, (Class) DummyAvroKryoSerializerClass.class));
-		}
-	}
-
 	public static class DummyAvroRegisteredClass {}
 
+	/**
+	 * This is used in case we don't have Avro on the classpath. Flink versions before 1.4
+	 * always registered special Serializers for Kryo but starting with Flink 1.4 we don't have
+	 * Avro on the classpath by default anymore. We still have to retain the same registered
+	 * Serializers for backwards compatibility of savepoints.
+	 */
 	public static class DummyAvroKryoSerializerClass<T> extends Serializer<T> {
 		@Override
 		public void write(Kryo kryo, Output output, Object o) {
