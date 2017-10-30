@@ -45,7 +45,7 @@ object TableSourceUtil {
 
   /** Returns true if the [[TableSource]] has a proctime attribute. */
   def hasProctimeAttribute(tableSource: TableSource[_]): Boolean =
-    getProctimeAttributes(tableSource).nonEmpty
+    getProctimeAttribute(tableSource).nonEmpty
 
   /**
     * Validates a TableSource.
@@ -64,20 +64,20 @@ object TableSourceUtil {
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
-    val proctimeAttributes = getProctimeAttributes(tableSource)
+    val proctimeAttribute = getProctimeAttribute(tableSource)
 
     // validate that schema fields can be resolved to a return type field of correct type
     var mappedFieldCnt = 0
     tableFieldTypes.zip(tableFieldNames).foreach {
       case (t: SqlTimeTypeInfo[_], name: String)
-        if t.getTypeClass == classOf[Timestamp] && proctimeAttributes.contains(name) =>
+        if t.getTypeClass == classOf[Timestamp] && proctimeAttribute.contains(name) =>
         // OK, field was mapped to proctime attribute
       case (t: SqlTimeTypeInfo[_], name: String)
         if t.getTypeClass == classOf[Timestamp] && rowtimeAttributes.contains(name) =>
         // OK, field was mapped to rowtime attribute
       case (t: TypeInformation[_], name) =>
         // check if field is registered as time indicator
-        if (getProctimeAttributes(tableSource).contains(name)) {
+        if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
             s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
         }
@@ -149,9 +149,8 @@ object TableSourceUtil {
     }
 
     // ensure that proctime and rowtime attribute do not overlap
-    val overlap = getProctimeAttributes(tableSource).intersect(getRowtimeAttributes(tableSource))
-    if (overlap.nonEmpty) {
-      throw new ValidationException(s"Fields ${overlap.mkString("[", ", ", "]")} must not be " +
+    if (proctimeAttribute.isDefined && rowtimeAttributes.contains(proctimeAttribute.get)) {
+      throw new ValidationException(s"Field '${proctimeAttribute.get}' must not be " +
         s"processing time and rowtime attribute at the same time.")
     }
   }
@@ -193,7 +192,7 @@ object TableSourceUtil {
 
     // get rowtime and proctime attributes
     val rowtimeAttributes = getRowtimeAttributes(tableSource)
-    val proctimeAttributes = getProctimeAttributes(tableSource)
+    val proctimeAttributes = getProctimeAttribute(tableSource)
 
     // compute mapping of selected fields and time attributes
     val mapping: Array[Int] = tableFieldTypes.zip(tableFieldNames).map {
@@ -213,7 +212,7 @@ object TableSourceUtil {
         }
       case (t: TypeInformation[_], name) =>
         // check if field is registered as time indicator
-        if (getProctimeAttributes(tableSource).contains(name)) {
+        if (getProctimeAttribute(tableSource).contains(name)) {
           throw new ValidationException(s"Processing time field '$name' has invalid type $t. " +
             s"Processing time attributes must be of type ${Types.SQL_TIMESTAMP}.")
         }
@@ -261,7 +260,7 @@ object TableSourceUtil {
     if (streaming) {
       // adjust the type of time attributes for streaming tables
       val rowtimeAttributes = getRowtimeAttributes(tableSource)
-      val proctimeAttributes = getProctimeAttributes(tableSource)
+      val proctimeAttributes = getProctimeAttribute(tableSource)
 
       // patch rowtime fields with time indicator type
       rowtimeAttributes.foreach { rowtimeField =>
@@ -440,13 +439,13 @@ object TableSourceUtil {
     }
   }
 
-  /** Returns a list with all proctime attribute names of the [[TableSource]]. */
-  private def getProctimeAttributes(tableSource: TableSource[_]): Array[String] = {
+  /** Returns the proctime attribute of the [[TableSource]] if it is defined. */
+  private def getProctimeAttribute(tableSource: TableSource[_]): Option[String] = {
     tableSource match {
       case p: DefinedProctimeAttribute if p.getProctimeAttribute != null =>
-        Array(p.getProctimeAttribute)
+        Some(p.getProctimeAttribute)
       case _ =>
-        Array()
+        None
     }
   }
 
