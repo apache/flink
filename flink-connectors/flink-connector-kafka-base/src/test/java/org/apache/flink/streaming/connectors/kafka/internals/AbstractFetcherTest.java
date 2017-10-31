@@ -32,8 +32,10 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -45,6 +47,42 @@ import static org.mockito.Mockito.mock;
  */
 @SuppressWarnings("serial")
 public class AbstractFetcherTest {
+
+	@Test
+	public void testIgnorePartitionStateSentinelInSnapshot() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 1), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 2), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 3), KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			null,
+			null,
+			mock(TestProcessingTimeService.class),
+			0);
+
+		synchronized (sourceContext.getCheckpointLock()) {
+			HashMap<KafkaTopicPartition, Long> currentState = fetcher.snapshotCurrentState();
+			fetcher.commitInternalOffsetsToKafka(currentState, new KafkaCommitCallback() {
+				@Override
+				public void onSuccess() {
+				}
+
+				@Override
+				public void onException(Throwable cause) {
+					throw new RuntimeException("Callback failed", cause);
+				}
+			});
+
+			assertTrue(fetcher.getLastCommittedOffsets().isPresent());
+			assertEquals(Collections.emptyMap(), fetcher.getLastCommittedOffsets().get());
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//   Record emitting tests
@@ -327,6 +365,7 @@ public class AbstractFetcherTest {
 	// ------------------------------------------------------------------------
 
 	private static final class TestFetcher<T> extends AbstractFetcher<T, Object> {
+		protected Optional<Map<KafkaTopicPartition, Long>> lastCommittedOffsets = Optional.empty();
 
 		protected TestFetcher(
 				SourceContext<T> sourceContext,
@@ -362,10 +401,15 @@ public class AbstractFetcherTest {
 		}
 
 		@Override
-		public void commitInternalOffsetsToKafka(
+		protected void doCommitInternalOffsetsToKafka(
 				Map<KafkaTopicPartition, Long> offsets,
 				@Nonnull KafkaCommitCallback callback) throws Exception {
-			throw new UnsupportedOperationException();
+			lastCommittedOffsets = Optional.of(offsets);
+			callback.onSuccess();
+		}
+
+		public Optional<Map<KafkaTopicPartition, Long>> getLastCommittedOffsets() {
+			return lastCommittedOffsets;
 		}
 	}
 

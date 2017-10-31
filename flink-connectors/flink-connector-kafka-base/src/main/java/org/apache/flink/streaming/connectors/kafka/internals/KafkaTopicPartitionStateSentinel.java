@@ -52,4 +52,7 @@ public class KafkaTopicPartitionStateSentinel {
 	 */
 	public static final long GROUP_OFFSET = -915623761773L;
 
+	public static boolean isSentinel(long offset) {
+		return offset < 0;
+	}
 }
