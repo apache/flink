@@ -130,7 +130,8 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				false);
+				false,
+				100);
 
 		// ----- run the fetcher -----
 
@@ -265,7 +266,8 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				false);
+				false,
+				100);
 
 		// ----- run the fetcher -----
 
@@ -379,7 +381,8 @@ public class Kafka09FetcherTest {
 				schema,
 				new Properties(),
 				0L,
-				false);
+				false,
+				100);
 
 		// ----- run the fetcher -----
 

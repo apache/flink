@@ -136,6 +136,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			OffsetCommitMode offsetCommitMode) throws Exception {
 
 		boolean useMetrics = !PropertiesUtil.getBoolean(properties, KEY_DISABLE_METRICS, false);
+		int tryRegisterKafkaMetricCounts = PropertiesUtil.getInt(properties, KEY_REGISTER_TIMES, 100);
 
 		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
 		// this overwrites whatever setting the user configured in the properties
@@ -156,7 +157,8 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				deserializer,
 				properties,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				tryRegisterKafkaMetricCounts);
 	}
 
 	@Override

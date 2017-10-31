@@ -40,9 +40,12 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -89,6 +92,12 @@ public class KafkaConsumerThread extends Thread {
 	/** Flag whether to add Kafka's metrics to the Flink metrics. */
 	private final boolean useMetrics;
 
+	/** Times try to register kafka metrics to flink. */
+	protected final int tryRegisterKafkaMetricCounts;
+
+	/** Mark the num that has registered Metric. */
+	private int registerMetricCounts;
+
 	/** Reference to the Kafka consumer, once it is created. */
 	private volatile KafkaConsumer<byte[], byte[]> consumer;
 
@@ -113,6 +122,9 @@ public class KafkaConsumerThread extends Thread {
 	/** User callback to be invoked when commits completed. */
 	private volatile KafkaCommitCallback offsetCommitCallback;
 
+	/**Use to keep the kafka metrics that has been registered. */
+	private Set<String> registeredMetrics;
+
 	public KafkaConsumerThread(
 			Logger log,
 			Handover handover,
@@ -122,7 +134,8 @@ public class KafkaConsumerThread extends Thread {
 			KafkaConsumerCallBridge consumerCallBridge,
 			String threadName,
 			long pollTimeout,
-			boolean useMetrics) {
+			boolean useMetrics,
+			int tryRegisterKafkaMetricCounts) {
 
 		super(threadName);
 		setDaemon(true);
@@ -137,10 +150,12 @@ public class KafkaConsumerThread extends Thread {
 
 		this.pollTimeout = pollTimeout;
 		this.useMetrics = useMetrics;
+		this.tryRegisterKafkaMetricCounts = tryRegisterKafkaMetricCounts;
 
 		this.consumerReassignmentLock = new Object();
 		this.nextOffsetsToCommit = new AtomicReference<>();
 		this.running = true;
+		this.registeredMetrics = new HashSet<>();
 	}
 
 	// ------------------------------------------------------------------------
@@ -168,20 +183,6 @@ public class KafkaConsumerThread extends Thread {
 
 		// from here on, the consumer is guaranteed to be closed properly
 		try {
-			// register Kafka's very own metrics in Flink's metric reporters
-			if (useMetrics) {
-				// register Kafka metrics to Flink
-				Map<MetricName, ? extends Metric> metrics = consumer.metrics();
-				if (metrics == null) {
-					// MapR's Kafka implementation returns null here.
-					log.info("Consumer implementation does not support metrics");
-				} else {
-					// we have Kafka metrics, register them
-					for (Map.Entry<MetricName, ? extends Metric> metric: metrics.entrySet()) {
-						kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
-					}
-				}
-			}
 
 			// early exit check
 			if (!running) {
@@ -202,6 +203,28 @@ public class KafkaConsumerThread extends Thread {
 
 			// main fetch loop
 			while (running) {
+
+				// register Kafka's very own metrics in Flink's metric reporters
+				// When use kafka client version beyond 0.10.2 (include), we should try to register metric after KafkaConsumer#poll(long) or will lose some metric
+				// To make less trade off to the performance, we try to register serverl times after poll method
+
+				if (useMetrics && this.registerMetricCounts < this.tryRegisterKafkaMetricCounts) {
+					// register Kafka metrics to Flink
+					Map<MetricName, ? extends Metric> metrics = consumer.metrics();
+					if (metrics == null) {
+						// MapR's Kafka implementation returns null here.
+						log.debug("Consumer implementation does not support metrics");
+					} else {
+						// we have Kafka metrics, register them
+						for (Map.Entry<MetricName, ? extends Metric> metric : metrics.entrySet()) {
+							if (!registeredMetrics.contains(metric.getKey().name())) {
+								kafkaMetricGroup.gauge(metric.getKey().name(), new KafkaMetricWrapper(metric.getValue()));
+								registeredMetrics.add(metric.getKey().name());
+							}
+						}
+					}
+					this.registerMetricCounts++;
+				}
 
 				// check if there is something to commit
 				if (!commitInProgress) {

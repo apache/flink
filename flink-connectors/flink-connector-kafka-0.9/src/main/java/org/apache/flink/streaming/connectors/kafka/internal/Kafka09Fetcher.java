@@ -82,7 +82,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
-			boolean useMetrics) throws Exception {
+			boolean useMetrics,
+			int tryRegisterKafkaMetricCounts) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -108,7 +109,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 				createCallBridge(),
 				getFetcherName() + " for " + taskNameWithSubtasks,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				tryRegisterKafkaMetricCounts);
 	}
 
 	// ------------------------------------------------------------------------

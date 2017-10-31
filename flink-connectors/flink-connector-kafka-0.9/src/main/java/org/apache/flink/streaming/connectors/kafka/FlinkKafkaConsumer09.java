@@ -72,6 +72,9 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	/**  Configuration key to change the polling timeout. **/
 	public static final String KEY_POLL_TIMEOUT = "flink.poll-timeout";
 
+	/** Configuration key to change the register kafka metrics. */
+	public static final String KEY_REGISTER_TIMES = "flink.register-kafka-metric.times";
+
 	/** From Kafka's Javadoc: The time, in milliseconds, spent waiting in poll if data is not
 	 * available. If 0, returns immediately with any records that are available now. */
 	public static final long DEFAULT_POLL_TIMEOUT = 100L;
@@ -175,6 +178,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 			OffsetCommitMode offsetCommitMode) throws Exception {
 
 		boolean useMetrics = !PropertiesUtil.getBoolean(properties, KEY_DISABLE_METRICS, false);
+		int tryRegisterKafkaMetricCounts = PropertiesUtil.getInt(properties, KEY_REGISTER_TIMES, 100);
 
 		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
 		// this overwrites whatever setting the user configured in the properties
@@ -195,7 +199,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				deserializer,
 				properties,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				tryRegisterKafkaMetricCounts);
 	}
 
 	@Override

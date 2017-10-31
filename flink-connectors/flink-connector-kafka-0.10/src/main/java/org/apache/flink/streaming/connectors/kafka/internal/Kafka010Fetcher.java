@@ -57,7 +57,8 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			KeyedDeserializationSchema<T> deserializer,
 			Properties kafkaProperties,
 			long pollTimeout,
-			boolean useMetrics) throws Exception {
+			boolean useMetrics,
+			int tryRegisterKafkaMetricCounts) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -71,7 +72,8 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				deserializer,
 				kafkaProperties,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				tryRegisterKafkaMetricCounts);
 	}
 
 	@Override

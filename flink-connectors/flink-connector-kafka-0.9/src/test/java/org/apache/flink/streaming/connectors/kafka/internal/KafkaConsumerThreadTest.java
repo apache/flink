@@ -720,7 +720,8 @@ public class KafkaConsumerThreadTest {
 					new KafkaConsumerCallBridge(),
 					"test-kafka-consumer-thread",
 					0,
-					false);
+					false,
+					100);
 
 			this.mockConsumer = mockConsumer;
 		}
