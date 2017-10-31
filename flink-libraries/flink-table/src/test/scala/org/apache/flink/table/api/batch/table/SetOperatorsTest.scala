@@ -87,7 +87,8 @@ class SetOperatorsTest extends TableTestBase {
     val util = batchTestUtil()
     val t = util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
 
-    val in = t.select('a).unionAll(t.select(('c > 0) ? ('b, Null(createTypeInformation[(Int, String)]))))
+    val in = t.select('a).unionAll(t.select(('c > 0)
+      ? ('b, Null(createTypeInformation[(Int, String)]))))
 
     val expected = binaryNode(
       "DataSetUnion",
@@ -110,7 +111,8 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testUnionAnyType(): Unit = {
     val util = batchTestUtil()
-    val typeInfo = new RowTypeInfo(Seq(new GenericTypeInfo(classOf[NonPojo]), new GenericTypeInfo(classOf[NonPojo])): _*)
+    val typeInfo = new RowTypeInfo(Seq(new GenericTypeInfo(classOf[NonPojo]),
+      new GenericTypeInfo(classOf[NonPojo])): _*)
     val t = util.addJavaTable(typeInfo, "A", "a, b")
 
     val in = t.select('a).unionAll(t.select('b))

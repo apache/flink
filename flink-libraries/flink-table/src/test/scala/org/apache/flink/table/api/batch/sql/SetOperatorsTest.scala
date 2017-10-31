@@ -212,7 +212,8 @@ class SetOperatorsTest extends TableTestBase {
   @Test
   def testUnionAnyType(): Unit = {
     val util = batchTestUtil()
-    val typeInfo = new RowTypeInfo(Seq(new GenericTypeInfo(classOf[NonPojo]), new GenericTypeInfo(classOf[NonPojo])): _*)
+    val typeInfo = new RowTypeInfo(Seq(new GenericTypeInfo(classOf[NonPojo]),
+      new GenericTypeInfo(classOf[NonPojo])): _*)
     util.addJavaTable(typeInfo, "A", "a, b")
 
     val expected = binaryNode(

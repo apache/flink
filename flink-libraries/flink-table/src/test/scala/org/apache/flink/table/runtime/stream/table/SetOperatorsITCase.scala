@@ -95,8 +95,10 @@ class SetOperatorsITCase extends StreamingMultipleProgramsTestBase {
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     StreamITCase.testResults = mutable.MutableList()
-    val s1 = env.fromElements((1, new Tuple2[Int, String](1, "a")), (2, (2, "b"))).toTable(tEnv, 'a, 'b)
-    val s2 = env.fromElements((3, (3, "c")), (4, new Tuple2[Int, String](4, "d"))).toTable(tEnv, 'a, 'b)
+    val s1 = env.fromElements((1, new Tuple2[Int, String](1, "a")), (2, (2, "b")))
+      .toTable(tEnv, 'a, 'b)
+    val s2 = env.fromElements((3, (3, "c")), (4, new Tuple2[Int, String](4, "d")))
+      .toTable(tEnv, 'a, 'b)
 
     val result = s1.unionAll(s2).toAppendStream[Row]
     result.addSink(new StreamITCase.StringSink[Row])
