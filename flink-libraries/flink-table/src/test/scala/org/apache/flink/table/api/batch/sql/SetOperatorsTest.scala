@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.api.batch.sql
 
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.{Ignore, Test}
@@ -177,5 +180,57 @@ class SetOperatorsTest extends TableTestBase {
       "SELECT d FROM B WHERE d NOT IN (SELECT a FROM A) AND d < 5",
       expected
     )
+  }
+
+  @Test
+  def testUnionNullableTypes(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
+      ),
+      term("union", "a")
+    )
+
+    util.verifySql(
+      "SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A",
+      expected
+    )
+  }
+
+  @Test
+  def testUnionAnyType(): Unit = {
+    val util = batchTestUtil()
+    val typeInfo = Types.ROW(
+      new GenericTypeInfo(classOf[NonPojo]),
+      new GenericTypeInfo(classOf[NonPojo]))
+    util.addJavaTable(typeInfo, "A", "a, b")
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b")
+      ),
+      term("union", "a")
+    )
+
+    util.verifyJavaSql("SELECT a FROM A UNION ALL SELECT b FROM A", expected)
   }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.types.Row
 import org.junit.Assert._
@@ -88,9 +89,22 @@ class SetOperatorsITCase extends StreamingMultipleProgramsTestBase {
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
-  class NonPojo {
-    val x = new java.util.HashMap[String, String]()
+  @Test
+  def testUnionWithCompositeType(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
 
-    override def toString: String = x.toString
+    StreamITCase.testResults = mutable.MutableList()
+    val s1 = env.fromElements((1, (1, "a")), (2, (2, "b")))
+      .toTable(tEnv, 'a, 'b)
+    val s2 = env.fromElements(((3, "c"), 3), ((4, "d"), 4))
+      .toTable(tEnv, 'a, 'b)
+
+    val result = s1.unionAll(s2.select('b, 'a)).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList("1,(1,a)", "2,(2,b)", "3,(3,c)", "4,(4,d)")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
