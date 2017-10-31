@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.9 consumer API.
  *
@@ -212,7 +214,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	}
 
 	@Override
-	public void commitInternalOffsetsToKafka(
+	protected void doCommitInternalOffsetsToKafka(
 			Map<KafkaTopicPartition, Long> offsets,
 			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
 
@@ -224,6 +226,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
 			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());
 			if (lastProcessedOffset != null) {
+				checkState(lastProcessedOffset >= 0, "Illegal offset value to commit");
+
 				// committed offsets through the KafkaConsumer need to be 1 more than the last processed offset.
 				// This does not affect Flink's checkpoints/saved state.
 				long offsetToCommit = lastProcessedOffset + 1;

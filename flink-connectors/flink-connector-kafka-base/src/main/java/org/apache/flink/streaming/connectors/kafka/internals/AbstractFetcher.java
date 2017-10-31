@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -242,9 +243,24 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param commitCallback The callback that the user should trigger when a commit request completes or fails.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public abstract void commitInternalOffsetsToKafka(
+	public final void commitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
+		// Ignore sentinels. They might appear here if snapshot has started before actual offsets values
+		// replaced sentinels
+		doCommitInternalOffsetsToKafka(filterOutSentinels(offsets), commitCallback);
+	}
+
+	protected abstract void doCommitInternalOffsetsToKafka(
 			Map<KafkaTopicPartition, Long> offsets,
 			@Nonnull KafkaCommitCallback commitCallback) throws Exception;
+
+	private Map<KafkaTopicPartition, Long> filterOutSentinels(Map<KafkaTopicPartition, Long> offsets) {
+		return offsets.entrySet()
+			.stream()
+			.filter(entry -> !KafkaTopicPartitionStateSentinel.isSentinel(entry.getValue()))
+			.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+	}
 
 	/**
 	 * Creates the Kafka version specific representation of the given
