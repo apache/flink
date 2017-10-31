@@ -190,6 +190,19 @@ case class BatchTableTestUtil() extends TableTestUtil {
       actual.split("\n").map(_.trim).mkString("\n"))
   }
 
+  def verifyJavaSql(query: String, expected: String): Unit = {
+    verifyJavaTable(javaTableEnv.sqlQuery(query), expected)
+  }
+
+  def verifyJavaTable(resultTable: Table, expected: String): Unit = {
+    val relNode = resultTable.getRelNode
+    val optimized = javaTableEnv.optimize(relNode)
+    val actual = RelOptUtil.toString(optimized)
+    assertEquals(
+      expected.split("\n").map(_.trim).mkString("\n"),
+      actual.split("\n").map(_.trim).mkString("\n"))
+  }
+
   def printTable(resultTable: Table): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode)
@@ -262,6 +275,19 @@ case class StreamTableTestUtil() extends TableTestUtil {
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
+    val actual = RelOptUtil.toString(optimized)
+    assertEquals(
+      expected.split("\n").map(_.trim).mkString("\n"),
+      actual.split("\n").map(_.trim).mkString("\n"))
+  }
+
+  def verifyJavaSql(query: String, expected: String): Unit = {
+    verifyJavaTable(javaTableEnv.sqlQuery(query), expected)
+  }
+
+  def verifyJavaTable(resultTable: Table, expected: String): Unit = {
+    val relNode = resultTable.getRelNode
+    val optimized = javaTableEnv.optimize(relNode, updatesAsRetraction = false)
     val actual = RelOptUtil.toString(optimized)
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
