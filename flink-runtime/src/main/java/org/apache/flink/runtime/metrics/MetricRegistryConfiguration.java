@@ -94,10 +94,10 @@ public class MetricRegistryConfiguration {
 	public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
 		ScopeFormats scopeFormats;
 		try {
-			scopeFormats = createScopeConfig(configuration);
+			scopeFormats = ScopeFormats.fromConfig(configuration);
 		} catch (Exception e) {
 			LOG.warn("Failed to parse scope format, using default scope formats", e);
-			scopeFormats = new ScopeFormats();
+			scopeFormats = ScopeFormats.fromConfig(new Configuration());
 		}
 
 		char delim;
@@ -128,23 +128,6 @@ public class MetricRegistryConfiguration {
 		}
 
 		return new MetricRegistryConfiguration(scopeFormats, delim, reporterConfigurations);
-	}
-
-	/**
-	 *	Create the scope formats from the given {@link Configuration}.
-	 *
-	 * @param configuration to extract the scope formats from
-	 * @return Scope formats extracted from the given configuration
-	 */
-	static ScopeFormats createScopeConfig(Configuration configuration) {
-		String jmFormat = configuration.getString(MetricOptions.SCOPE_NAMING_JM);
-		String jmJobFormat = configuration.getString(MetricOptions.SCOPE_NAMING_JM_JOB);
-		String tmFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TM);
-		String tmJobFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TM_JOB);
-		String taskFormat = configuration.getString(MetricOptions.SCOPE_NAMING_TASK);
-		String operatorFormat = configuration.getString(MetricOptions.SCOPE_NAMING_OPERATOR);
-
-		return new ScopeFormats(jmFormat, jmJobFormat, tmFormat, tmJobFormat, taskFormat, operatorFormat);
 	}
 
 	public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
