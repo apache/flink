@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.types.Row
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.api.scala._
@@ -138,7 +139,6 @@ class ScalarOperatorsTest extends ExpressionTestBase {
 
   @Test
   def testOtherExpressions(): Unit = {
-
     // nested field null type
     testSqlApi("CASE WHEN f13.f1 IS NULL THEN 'a' ELSE 'b' END", "a")
     testSqlApi("CASE WHEN f13.f1 IS NOT NULL THEN 'a' ELSE 'b' END", "b")
@@ -148,6 +148,10 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testAllApis('f13.get("f0").isNotNull, "f13.get('f0').isNotNull", "f13.f0 IS NOT NULL", "true")
     testAllApis('f13.get("f1").isNull, "f13.get('f1').isNull", "f13.f1 IS NULL", "true")
     testAllApis('f13.get("f1").isNotNull, "f13.get('f1').isNotNull", "f13.f1 IS NOT NULL", "false")
+
+    // array element access test
+    testSqlApi("CASE WHEN f14 IS NOT NULL THEN f14[1] ELSE NULL END", "1")
+    testSqlApi("CASE WHEN f15 IS NOT NULL THEN f15[1] ELSE NULL END", "(1,a)")
 
     // boolean literals
     testAllApis(
@@ -250,7 +254,7 @@ class ScalarOperatorsTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   def testData = {
-    val testData = new Row(14)
+    val testData = new Row(16)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -265,6 +269,8 @@ class ScalarOperatorsTest extends ExpressionTestBase {
     testData.setField(11, false)
     testData.setField(12, null)
     testData.setField(13, Row.of("foo", null))
+    testData.setField(14, Array[Integer](1,2))
+    testData.setField(15, Array[(Int, String)]((1,"a"), (2, "b")))
     testData
   }
 
@@ -283,7 +289,9 @@ class ScalarOperatorsTest extends ExpressionTestBase {
       Types.STRING,
       Types.BOOLEAN,
       Types.BOOLEAN,
-      Types.ROW(Types.STRING, Types.STRING)
+      Types.ROW(Types.STRING, Types.STRING),
+      Types.OBJECT_ARRAY(Types.INT),
+      Types.OBJECT_ARRAY(createTypeInformation[(Int, String)])
       ).asInstanceOf[TypeInformation[Any]]
   }
 

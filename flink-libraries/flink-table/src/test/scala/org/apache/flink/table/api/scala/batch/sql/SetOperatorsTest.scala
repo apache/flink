@@ -20,6 +20,7 @@ package org.apache.flink.table.api.scala.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -80,6 +81,33 @@ class SetOperatorsTest extends TableTestBase {
       "SELECT a_int, a_string FROM A WHERE EXISTS(SELECT * FROM B WHERE a_long = b_long)",
       expected
     )
+  }
+
+  @Test
+  def testUnionNullableTypes(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
+
+    val in = t.select('a)
+      .unionAll(
+        t.select(('c > 0) ? ('b, Null(createTypeInformation[(Int, String)]))))
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "CASE(>(c, 0), b, null) AS _c0")
+      ),
+      term("union", "a")
+    )
+
+    util.verifyTable(in, expected)
   }
 
 }

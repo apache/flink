@@ -275,30 +275,37 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   override def leastRestrictive(types: util.List[RelDataType]): RelDataType = {
     val type0 = types.get(0)
     if (type0.getSqlTypeName != null) {
-      val resultType = resolveAny(types)
-      if (resultType != null) {
-        return resultType
+      val resultType = resolveAllIdenticalTypes(types)
+      if (resultType.isDefined) {
+        // result type for identical types
+        return resultType.get
       }
     }
+    // fall back to super
     super.leastRestrictive(types)
   }
 
-  private def resolveAny(types: util.List[RelDataType]): RelDataType = {
+  private def resolveAllIdenticalTypes(types: util.List[RelDataType]): Option[RelDataType] = {
     val allTypes = types.asScala
-    val hasAny = allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)
-    if (hasAny) {
-      val head = allTypes.head
-      // only allow ANY with exactly the same GenericRelDataType for all types
-      if (allTypes.forall(_ == head)) {
-        val nullable = allTypes.exists(
-          sqlType => sqlType.isNullable || sqlType.getSqlTypeName == SqlTypeName.NULL
-        )
-        createTypeWithNullability(head, nullable)
-      } else {
-        throw TableException("Generic ANY types must have a common type information.")
-      }
+
+    val head = allTypes.head
+    // check if all types are the same
+    if (allTypes.forall(_ == head)) {
+      // types are the same, check nullability
+      val nullable = allTypes
+        .exists(sqlType => sqlType.isNullable || sqlType.getSqlTypeName == SqlTypeName.NULL)
+      // return type with nullability
+      Some(createTypeWithNullability(head, nullable))
     } else {
-      null
+      // types are not all the same
+      if (allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)) {
+        // one of the type was ANY.
+        // we cannot generate a common type if it differs from other types.
+        throw TableException("Generic ANY types must have a common type information.")
+      } else {
+        // cannot resolve a common type for different input types
+        None
+      }
     }
   }
 }
