@@ -325,6 +325,22 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
+	ZOOKEEPER=`cat allClasses | grep '^org/apache/zookeeper' | wc -l`
+	if [ "$ZOOKEEPER" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$ZOOKEEPER' unshaded org.apache.zookeeper classes in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	CURATOR=`cat allClasses | grep '^org/apache/curator' | wc -l`
+	if [ "$CURATOR" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$CURATOR' unshaded org.apache.curator classes in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
 	FLINK_PYTHON=`cat allClasses | grep '^org/apache/flink/python' | wc -l`
 	if [ "$FLINK_PYTHON" != "0" ]; then
 		echo "=============================================================================="
