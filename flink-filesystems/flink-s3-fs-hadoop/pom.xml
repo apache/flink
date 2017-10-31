@@ -128,6 +128,20 @@ under the License.
 					<groupId>org.apache.avro</groupId>
 					<artifactId>avro</artifactId>
 				</exclusion>
+				<!-- The aws-java-sdk-core requires jackson 2.6, but
+					hadoop pulls in 2.3 -->
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
