@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.messages.metrics;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
- *
+ * GET parameter identifying metric names.
  */
 public class MetricNameParameter extends MessageQueryParameter<String> {
 	private static final String GET = "get";

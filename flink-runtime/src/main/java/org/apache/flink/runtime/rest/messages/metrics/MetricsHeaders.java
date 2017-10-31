@@ -25,7 +25,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- *
+ * Message header for metrics handler.
  */
 public final class MetricsHeaders implements MessageHeaders<EmptyRequestBody, MetricsOverview, MetricMessageParameters> {
 

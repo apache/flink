@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 
 /**
- *
+ * Entry for metric id and value pair.
  */
 public class MetricEntry {
 	public static final String FIELD_NAME_ID = "id";

@@ -27,7 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- *
+ * Parameters for getting metrics.
  */
 public class MetricMessageParameters extends MessageParameters {
 	private final JobIDPathParameter jobIDPathParameter = new JobIDPathParameter();

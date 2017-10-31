@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.messages.metrics;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 /**
- *
+ * Tests for {@link MetricsOverview}.
  */
 public class MetricsOverviewTest extends RestResponseMarshallingTestBase<MetricsOverview> {
 	@Override

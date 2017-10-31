@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- *
+ * Response of metrics handlers, represented as a list of {@link MetricEntry}.
  */
 public class MetricsOverview extends ArrayList<MetricEntry> implements ResponseBody {
 	public MetricsOverview() {
