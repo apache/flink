@@ -268,7 +268,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
   override def leastRestrictive(types: util.List[RelDataType]): RelDataType = {
     val type0 = types.get(0)
     if (type0.getSqlTypeName != null) {
-      val resultType = resolveAny(types)
+      val resultType = resolveAllIdenticalTypes(types)
       if (resultType != null) {
         return resultType
       }
@@ -276,22 +276,23 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     super.leastRestrictive(types)
   }
 
-  private def resolveAny(types: util.List[RelDataType]): RelDataType = {
+  private def resolveAllIdenticalTypes(types: util.List[RelDataType]): RelDataType = {
     val allTypes = types.asScala
-    val hasAny = allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)
-    if (hasAny) {
-      val head = allTypes.head
-      // only allow ANY with exactly the same GenericRelDataType for all types
-      if (allTypes.forall(_ == head)) {
-        val nullable = allTypes.exists(
-          sqlType => sqlType.isNullable || sqlType.getSqlTypeName == SqlTypeName.NULL
-        )
-        createTypeWithNullability(head, nullable)
-      } else {
-        throw TableException("Generic ANY types must have a common type information.")
-      }
+
+    val head = allTypes.head
+    if (allTypes.forall(_ == head)) {
+      val nullable = allTypes.exists(
+        sqlType => sqlType.isNullable || sqlType.getSqlTypeName == SqlTypeName.NULL
+      )
+      createTypeWithNullability(head, nullable)
     } else {
-      null
+      if (allTypes.exists(_.getSqlTypeName == SqlTypeName.ANY)) {
+        // only allow ANY with exactly the same GenericRelDataType for all types
+        throw TableException("Generic ANY types must have a common type information.")
+      } else {
+        // try resolving GenericRelDataType using super class method.
+        null
+      }
     }
   }
 }
