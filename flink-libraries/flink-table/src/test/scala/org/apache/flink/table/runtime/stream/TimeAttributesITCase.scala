@@ -34,7 +34,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.api.{TableEnvironment, TableSchema, Types}
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
-import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
+import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.utils.TestTableSourceWithTime
 import org.apache.flink.types.Row
@@ -56,6 +56,70 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
     (7L, 3, 3d, 3f, new BigDecimal("3"), "Hello"),
     (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"),
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
+
+  @Test
+  def testAtomicType1(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
+      .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
+    val table = stream.toTable(
+      tEnv, 'rowtime.rowtime, 'proctime.proctime)
+
+    val t = table
+      .where('proctime.cast(Types.LONG) > 0)
+      .select('rowtime.cast(Types.STRING))
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1970-01-01 00:00:00.001",
+      "1970-01-01 00:00:00.002",
+      "1970-01-01 00:00:00.003",
+      "1970-01-01 00:00:00.004",
+      "1970-01-01 00:00:00.007",
+      "1970-01-01 00:00:00.008",
+      "1970-01-01 00:00:00.016")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testAtomicType2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val stream = env
+      .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
+      .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
+    val table = stream.toTable(
+      tEnv, 'l, 'rowtime.rowtime, 'proctime.proctime)
+
+    val t = table
+      .where('proctime.cast(Types.LONG) > 0)
+      .select('l, 'rowtime.cast(Types.STRING))
+
+    val results = t.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "1,1970-01-01 00:00:00.001",
+      "2,1970-01-01 00:00:00.002",
+      "3,1970-01-01 00:00:00.003",
+      "4,1970-01-01 00:00:00.004",
+      "7,1970-01-01 00:00:00.007",
+      "8,1970-01-01 00:00:00.008",
+      "16,1970-01-01 00:00:00.016")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 
   @Test
   def testCalcMaterialization(): Unit = {
@@ -566,8 +630,26 @@ class TimeAttributesITCase extends StreamingMultipleProgramsTestBase {
 }
 
 object TimeAttributesITCase {
+
+  class AtomicTimestampWithEqualWatermark
+    extends AssignerWithPunctuatedWatermarks[Long] {
+
+    override def checkAndGetNextWatermark(
+        lastElement: Long,
+        extractedTimestamp: Long)
+    : Watermark = {
+      new Watermark(extractedTimestamp)
+    }
+
+    override def extractTimestamp(
+        element: Long,
+        previousElementTimestamp: Long): Long = {
+      element
+    }
+  }
+
   class TimestampWithEqualWatermark
-  extends AssignerWithPunctuatedWatermarks[(Long, Int, Double, Float, BigDecimal, String)] {
+    extends AssignerWithPunctuatedWatermarks[(Long, Int, Double, Float, BigDecimal, String)] {
 
     override def checkAndGetNextWatermark(
         lastElement: (Long, Int, Double, Float, BigDecimal, String),
@@ -584,7 +666,7 @@ object TimeAttributesITCase {
   }
 
   class TimestampWithEqualWatermarkPojo
-  extends AssignerWithPunctuatedWatermarks[TestPojo] {
+    extends AssignerWithPunctuatedWatermarks[TestPojo] {
 
     override def checkAndGetNextWatermark(
         lastElement: TestPojo,
