@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 
@@ -117,6 +118,16 @@ public class MetricStore {
 	 */
 	public synchronized ComponentMetricStore getJobMetricStore(String jobID) {
 		return jobID == null ? null : ComponentMetricStore.unmodifiable(jobs.get(jobID));
+	}
+
+	/**
+	 * Returns the {@link ComponentMetricStore} for the given job ID.
+	 *
+	 * @param jobID job ID
+	 * @return ComponentMetricStore for the given ID, or null if no store for the given argument exists
+	 */
+	public synchronized ComponentMetricStore getJobMetricStore(JobID jobID) {
+		return jobID == null ? null : ComponentMetricStore.unmodifiable(jobs.get(jobID.toString()));
 	}
 
 	/**

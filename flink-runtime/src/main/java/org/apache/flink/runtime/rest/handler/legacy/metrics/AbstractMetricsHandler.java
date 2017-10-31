@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
@@ -45,10 +46,9 @@ import java.util.concurrent.Executor;
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  */
 public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler {
-
 	public static final String PARAMETER_METRICS = "get";
 
-	private final MetricFetcher fetcher;
+	protected final MetricFetcher fetcher;
 
 	public AbstractMetricsHandler(Executor executor, MetricFetcher fetcher) {
 		super(executor);
@@ -82,7 +82,8 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 	 */
 	protected abstract Map<String, String> getMapFor(Map<String, String> pathParams, MetricStore metrics);
 
-	private String getMetricsValues(Map<String, String> pathParams, String requestedMetricsList) throws IOException {
+	@VisibleForTesting
+	protected String getMetricsValues(Map<String, String> pathParams, String requestedMetricsList) throws IOException {
 		if (requestedMetricsList.isEmpty()) {
 			/*
 			 * The WebInterface doesn't check whether the list of available metrics was empty. This can lead to a
@@ -115,7 +116,8 @@ public abstract class AbstractMetricsHandler extends AbstractJsonRequestHandler 
 		return writer.toString();
 	}
 
-	private String getAvailableMetricsList(Map<String, String> pathParams) throws IOException {
+	@VisibleForTesting
+	protected String getAvailableMetricsList(Map<String, String> pathParams) throws IOException {
 		Map<String, String> metrics = getMapFor(pathParams, fetcher.getMetricStore());
 		if (metrics == null) {
 			return "";

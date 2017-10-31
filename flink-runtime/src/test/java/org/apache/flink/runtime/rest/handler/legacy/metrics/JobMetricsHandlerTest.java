@@ -50,10 +50,10 @@ public class JobMetricsHandlerTest extends TestLogger {
 	@Test
 	public void getMapFor() throws Exception {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(GatewayRetriever.class),
-			mock(MetricQueryServiceRetriever.class),
-			Executors.directExecutor(),
-			TestingUtils.TIMEOUT());
+										mock(GatewayRetriever.class),
+										mock(MetricQueryServiceRetriever.class),
+										Executors.directExecutor(),
+										TestingUtils.TIMEOUT());
 		MetricStore store = MetricStoreTest.setupStore(fetcher.getMetricStore());
 
 		JobMetricsHandler handler = new JobMetricsHandler(Executors.directExecutor(), fetcher);
@@ -65,15 +65,28 @@ public class JobMetricsHandlerTest extends TestLogger {
 
 		assertEquals("2", metrics.get("abc.metric3"));
 		assertEquals("3", metrics.get("abc.metric4"));
+		assertEquals(
+				"[" +
+						"{\"id\":\"abc.metric4\"}," +
+						"{\"id\":\"abc.metric3\"}" +
+						"]",
+				handler.getAvailableMetricsList(pathParams));
+		assertEquals("", handler.getMetricsValues(pathParams, ""));
+		assertEquals(
+				"[" +
+						"{\"id\":\"abc.metric3\",\"value\":\"2\"}," +
+						"{\"id\":\"abc.metric4\",\"value\":\"3\"}" +
+						"]",
+				handler.getMetricsValues(pathParams, "abc.metric3,abc.metric4"));
 	}
 
 	@Test
 	public void getMapForNull() {
 		MetricFetcher fetcher = new MetricFetcher(
-			mock(GatewayRetriever.class),
-			mock(MetricQueryServiceRetriever.class),
-			Executors.directExecutor(),
-			TestingUtils.TIMEOUT());
+										mock(GatewayRetriever.class),
+										mock(MetricQueryServiceRetriever.class),
+										Executors.directExecutor(),
+										TestingUtils.TIMEOUT());
 		MetricStore store = fetcher.getMetricStore();
 
 		JobMetricsHandler handler = new JobMetricsHandler(Executors.directExecutor(), fetcher);
