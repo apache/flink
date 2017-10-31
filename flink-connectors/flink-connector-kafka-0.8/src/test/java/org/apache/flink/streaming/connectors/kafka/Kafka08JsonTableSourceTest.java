@@ -18,21 +18,18 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
 import org.apache.flink.types.Row;
 
-import java.util.Properties;
-
 /**
  * Tests for the {@link Kafka08JsonTableSource}.
  */
-public class Kafka08JsonTableSourceTest extends KafkaTableSourceTestBase {
+public class Kafka08JsonTableSourceTest extends KafkaJsonTableSourceTestBase {
 
 	@Override
-	protected KafkaTableSource createTableSource(String topic, Properties properties, TypeInformation<Row> typeInfo) {
-		return new Kafka08JsonTableSource(topic, properties, typeInfo);
+	protected KafkaTableSource.Builder getBuilder() {
+		return Kafka08JsonTableSource.builder();
 	}
 
 	@Override

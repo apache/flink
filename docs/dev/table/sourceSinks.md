@@ -38,105 +38,393 @@ Currently, Flink provides the `CsvTableSource` to read CSV files and a few table
 A custom `TableSource` can be defined by implementing the `BatchTableSource` or `StreamTableSource` interface. See section on [defining a custom TableSource](#define-a-tablesource) for details.
 
 | **Class name** | **Maven dependency** | **Batch?** | **Streaming?** | **Description**
-| `CsvTableSource` | `flink-table` | Y | Y | A simple source for CSV files.
-| `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for JSON data.
-| `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A Kafka 0.8 source for Avro data.
-| `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for JSON data.
-| `Kafka09AvroTableSource` | `flink-connector-kafka-0.9` | N | Y | A Kafka 0.9 source for Avro data.
-| `Kafka010JsonTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for JSON data.
-| `Kafka010AvroTableSource` | `flink-connector-kafka-0.10` | N | Y | A Kafka 0.10 source for Avro data.
+| `Kafka011AvroTableSource` | `flink-connector-kafka-0.11` | N | Y | A `TableSource` for Avro-encoded Kafka 0.11 topics.
+| `Kafka011JsonTableSource` | `flink-connector-kafka-0.11` | N | Y | A `TableSource` for flat Json-encoded Kafka 0.11 topics.
+| `Kafka010AvroTableSource` | `flink-connector-kafka-0.10` | N | Y | A `TableSource` for Avro-encoded Kafka 0.10 topics.
+| `Kafka010JsonTableSource` | `flink-connector-kafka-0.10` | N | Y | A `TableSource` for flat Json-encoded Kafka 0.10 topics.
+| `Kafka09AvroTableSource` | `flink-connector-kafka-0.9` | N | Y | A `TableSource` for Avro-encoded Kafka 0.9 topics.
+| `Kafka09JsonTableSource` | `flink-connector-kafka-0.9` | N | Y | A `TableSource` for flat Json-encoded Kafka 0.9 topics.
+| `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A `TableSource` for Avro-encoded Kafka 0.8 topics.
+| `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A `TableSource` for flat Json-encoded Kafka 0.8 topics.
+| `CsvTableSource` | `flink-table` | Y | Y | A simple `TableSource` for CSV files.
 
-All sources that come with the `flink-table` dependency can be directly used by your Table programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
+All sources that come with the `flink-table` dependency are directly available for Table API or SQL programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
 
 {% top %}
 
 ### KafkaJsonTableSource
 
-To use the Kafka JSON source, you have to add the Kafka connector dependency to your project:
+A `KafkaJsonTableSource` ingests JSON-encoded messages from a Kafka topic. Currently, only JSON records with flat (non-nested) schema are supported.
 
-  - `flink-connector-kafka-0.8` for Kafka 0.8,
-  - `flink-connector-kafka-0.9` for Kafka 0.9, or
-  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
+A `KafkaJsonTableSource` is created and configured using a builder. The following example shows how to create a `KafkaJsonTableSource` with basic properties:
 
-You can then create the source as follows (example for Kafka 0.8):
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// specify JSON field names and types
-TypeInformation<Row> typeInfo = Types.ROW(
-  new String[] { "id", "name", "score" },
-  new TypeInformation<?>[] { Types.INT(), Types.STRING(), Types.DOUBLE() }
-);
-
-KafkaJsonTableSource kafkaTableSource = new Kafka08JsonTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    typeInfo);
+// create builder
+TableSource source = Kafka010JsonTableSource.builder()
+  // set Kafka topic
+  .forTopic("sensors")
+  // set Kafka consumer properties
+  .withKafkaProperties(kafkaProps)
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())  
+    .field("temp", Types.DOUBLE())
+    .field("time", Types.SQL_TIMESTAMP()).build())
+  .build();
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// specify JSON field names and types
-val typeInfo = Types.ROW(
-  Array("id", "name", "score"),
-  Array(Types.INT, Types.STRING, Types.DOUBLE)
-)
-
-val kafkaTableSource = new Kafka08JsonTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    typeInfo)
+// create builder
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // set Kafka topic
+  .forTopic("sensors")
+  // set Kafka consumer properties
+  .withKafkaProperties(kafkaProps)
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temp", Types.DOUBLE)
+    .field("time", Types.SQL_TIMESTAMP).build())
+  .build()
 {% endhighlight %}
 </div>
 </div>
 
-By default, a missing JSON field does not fail the source. You can configure this via:
+#### Optional Configuration
 
-```java
-// Fail on missing JSON field
-tableSource.setFailOnMissingField(true);
-```
+* **Time Attributes:** Please see the sections on [configuring a rowtime attribute](#configure-a-rowtime-attribute) and [configuring a processing time attribute](#configure-a-processing-time-attribute).
+
+* **Explicit JSON parse schema:** By default, the JSON records are parsed with the table schema. You can configure an explicit JSON schema and provide a mapping from table schema fields to JSON fields as shown in the following example.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Map<String, String> mapping = new HashMap<>();
+mapping.put("sensorId", "id");
+mapping.put("temperature", "temp");
+
+TableSource source = Kafka010JsonTableSource.builder()
+  // ...
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())
+    .field("temperature", Types.DOUBLE()).build())
+  // set JSON parsing schema
+  .forJsonSchema(TableSchema.builder()
+    .field("id", Types.LONG())
+    .field("temp", Types.DOUBLE()).build())
+  // set mapping from table fields to JSON fields
+  .withTableToJsonMapping(mapping)
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temperature", Types.DOUBLE).build())
+  // set JSON parsing schema
+  .forJsonSchema(TableSchema.builder()
+    .field("id", Types.LONG)
+    .field("temp", Types.DOUBLE).build())
+  // set mapping from table fields to JSON fields
+  .withTableToJsonMapping(Map(
+    "sensorId" -> "id", 
+    "temperature" -> "temp").asJava)
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+* **Missing Field Handling** By default, a missing JSON field is set to `null`. You can enable strict JSON parsing that will cancel the source (and query) if a field is missing.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableSource source = Kafka010JsonTableSource.builder()
+  // ...
+  // configure missing field behavior
+  .failOnMissingField(true)
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  // configure missing field behavior
+  .failOnMissingField(true)
+  .build()
+{% endhighlight %}
+</div>
+</div>
 
 {% top %}
 
 ### KafkaAvroTableSource
 
-The `KafkaAvroTableSource` allows you to read Avro's `SpecificRecord` objects from Kafka.
+A `KafkaAvroTableSource` ingests Avro-encoded records from a Kafka topic.
 
-To use the Kafka Avro source, you have to add the Kafka connector dependency to your project:
-
-  - `flink-connector-kafka-0.8` for Kafka 0.8,
-  - `flink-connector-kafka-0.9` for Kafka 0.9, or
-  - `flink-connector-kafka-0.10` for Kafka 0.10, respectively.
-
-You can then create the source as follows (example for Kafka 0.8):
+A `KafkaAvroTableSource` is created and configured using a builder. The following example shows how to create a `KafkaAvroTableSource` with basic properties:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// pass the generated Avro class to the TableSource
-Class<? extends SpecificRecord> clazz = MyAvroType.class; 
-
-KafkaAvroTableSource kafkaTableSource = new Kafka08AvroTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    clazz);
+// create builder
+TableSource source = Kafka010AvroTableSource.builder()
+  // set Kafka topic
+  .forTopic("sensors")
+  // set Kafka consumer properties
+  .withKafkaProperties(kafkaProps)
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())
+    .field("temp", Types.DOUBLE())
+    .field("time", Types.SQL_TIMESTAMP()).build())
+  // set class of Avro record
+  .forAvroRecordClass(SensorReading.class)
+  .build();
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-// pass the generated Avro class to the TableSource
-val clazz = classOf[MyAvroType]
-
-val kafkaTableSource = new Kafka08AvroTableSource(
-    kafkaTopic,
-    kafkaProperties,
-    clazz)
+// create builder
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // set Kafka topic
+  .forTopic("sensors")
+  // set Kafka consumer properties
+  .withKafkaProperties(kafkaProps)
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temp", Types.DOUBLE)
+    .field("time", Types.SQL_TIMESTAMP).build())
+  // set class of Avro record
+  .forAvroRecordClass(classOf[SensorReading])
+  .build()
 {% endhighlight %}
 </div>
 </div>
+
+**NOTE:** The specified Avro record class must provide all fields of the table schema with corresponding type.
+
+#### Optional Configuration
+
+* **Time Attributes:** Please see the sections on [configuring a rowtime attribute](#configure-a-rowtime-attribute) and [configuring a processing time attribute](#configure-a-processing-time-attribute).
+
+* **Explicit Schema Field to Avro Mapping:** By default, all fields of the table schema are mapped by name to fields of the Avro records. If the fields in the Avro records have different names, a mapping from table schema fields to Avro fields can be specified.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Map<String, String> mapping = new HashMap<>();
+mapping.put("sensorId", "id");
+mapping.put("temperature", "temp");
+
+TableSource source = Kafka010AvroTableSource.builder()
+  // ...
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())
+    .field("temperature", Types.DOUBLE()).build())
+  // set class of Avro record with fields [id, temp]
+  .forAvroRecordClass(SensorReading.class)
+  // set mapping from table fields to JSON fields
+  .withTableToJsonMapping(mapping)
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010AvroTableSource.builder()
+  // ...
+  // set Table schema
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temperature", Types.DOUBLE).build())
+  // set class of Avro record with fields [id, temp]
+  .forAvroRecordClass(classOf[SensorReading])
+  // set mapping from table fields to JSON fields
+  .withTableToJsonMapping(Map(
+    "sensorId" -> "id", 
+    "temperature" -> "temp").asJava)
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
+### Configuring a Processing Time Attribute
+
+[Processing time attributes](streaming.html#processing-time) are commonly used in streaming queries. A processing time attribute returns the current wall-clock time of the operator that accesses it. 
+
+Batch queries support processing time attributes as well. However, processing time attributes are initialized with the wall-clock time of the table scan operator and keep this value throughout the query evaluation. 
+
+A table schema field of type `SQL_TIMESTAMP` can be declared as a processing time attribute as shown in the following example.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableSource source = Kafka010JsonTableSource.builder()
+  // ... 
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())  
+    .field("temp", Types.DOUBLE())
+    // field "ptime" is of type SQL_TIMESTAMP
+    .field("ptime", Types.SQL_TIMESTAMP()).build())
+  // declare "ptime" as processing time attribute
+  .withProctimeAttribute("ptime")
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temp", Types.DOUBLE)
+    // field "ptime" is of type SQL_TIMESTAMP
+    .field("ptime", Types.SQL_TIMESTAMP).build())
+  // declare "ptime" as processing time attribute
+  .withProctimeAttribute("ptime")
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+{% top %}
+
+### Configuring a Rowtime Attribute
+
+[Rowtime attributes](streaming.html#event-time) are attributes of type `TIMESTAMP` and handled in a unified way in stream and batch queries.
+
+A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribute by specifying 
+
+* the name of the field, 
+* a `TimestampExtractor` that computes the actual value for the attribute (usually from one or more other attributes), and
+* a `WatermarkStrategy` that specifies how watermarks are generated for the the rowtime attribute.
+
+The following example shows how to configure a rowtime attribute.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableSource source = Kafka010JsonTableSource.builder()
+  // ...
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())
+    .field("temp", Types.DOUBLE())
+    // field "rtime" is of type SQL_TIMESTAMP
+    .field("rtime", Types.SQL_TIMESTAMP()).build())
+  .withRowtimeAttribute(
+    // "rtime" is rowtime attribute
+    "rtime",
+    // value of "rtime" is extracted from existing field with same name
+    new ExistingField("rtime"),
+    // values of "rtime" are at most out-of-order by 30 seconds
+    new BoundedOutOfOrderWatermarks(30000L))
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temp", Types.DOUBLE)
+    // field "rtime" is of type SQL_TIMESTAMP
+    .field("rtime", Types.SQL_TIMESTAMP).build())
+  .withRowtimeAttribute(
+    // "rtime" is rowtime attribute
+    "rtime",
+    // value of "rtime" is extracted from existing field with same name
+    new ExistingField("rtime"),
+    // values of "rtime" are at most out-of-order by 30 seconds
+    new BoundedOutOfOrderTimestamps(30000L))
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+#### Extracting Kafka 0.10+ Timestamps into Rowtime Attribute
+
+Since Kafka 0.10, Kafka messages have a timestamp as metadata that specifies when the record was written into the Kafka topic. `KafkaTableSources` can assign Kafka's message timestamp as rowtime attribute as follows: 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableSource source = Kafka010JsonTableSource.builder()
+  // ...
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG())
+    .field("temp", Types.DOUBLE())
+    // field "rtime" is of type SQL_TIMESTAMP
+    .field("rtime", Types.SQL_TIMESTAMP()).build())
+  // use Kafka timestamp as rowtime attribute
+  .withKafkaTimestampAsRowtimeAttribute()(
+    // "rtime" is rowtime attribute
+    "rtime",
+    // values of "rtime" are ascending
+    new AscendingTimestamps())
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  .withSchema(TableSchema.builder()
+    .field("sensorId", Types.LONG)
+    .field("temp", Types.DOUBLE)
+    // field "rtime" is of type SQL_TIMESTAMP
+    .field("rtime", Types.SQL_TIMESTAMP).build())
+  // use Kafka timestamp as rowtime attribute
+  .withKafkaTimestampAsRowtimeAttribute()(
+    // "rtime" is rowtime attribute
+    "rtime",
+    // values of "rtime" are ascending
+    new AscendingTimestamps())
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+#### Provided TimestampExtractors
+
+Flink provides `TimestampExtractor` implementations for common use cases.
+The following `TimestampExtractor` implementations are currently available:
+
+* `ExistingField(fieldName)`: Extracts the value of a rowtime attribute from an existing `LONG` or `SQL_TIMESTAMP` field.
+* `StreamRecordTimestamp()`: Extracts the value of a rowtime attribute from the timestamp of the `DataStream` `StreamRecord`. Note, this `TimestampExtractor` is not available for batch table sources.
+
+A custom `TimestampExtrator` can be defined by implementing the corresponding interface.
+
+#### Provided WatermarkStrategies
+
+Flink provides `WatermarkStrategy` implementations for common use cases.
+The following `WatermarkStrategy` implementations are currently available:
+
+* `AscendingTimestamps`: A watermark strategy for ascending timestamps. Records with timestamps that are out-of-order will be considered late.
+* `BoundedOutOfOrderTimestamps(delay)`: A watermark strategy for timestamps that are at most out-of-order by the specified delay.
+
+A custom `WatermarkStrategy` can be defined by implementing the corresponding interface.
 
 {% top %}
 
