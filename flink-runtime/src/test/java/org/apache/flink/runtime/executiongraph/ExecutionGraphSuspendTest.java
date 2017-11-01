@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -45,7 +46,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 /**
  * Validates that suspending out of various states works correctly.
  */
-public class ExecutionGraphSuspendTest {
+public class ExecutionGraphSuspendTest extends TestLogger {
 
 	/**
 	 * Going into SUSPENDED out of CREATED should immediately cancel everything and

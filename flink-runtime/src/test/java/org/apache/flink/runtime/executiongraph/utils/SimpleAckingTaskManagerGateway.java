@@ -52,6 +52,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	public SimpleAckingTaskManagerGateway() {
 		optSubmitCondition = Optional.empty();
+		optCancelCondition = Optional.empty();
 	}
 
 	public void setCondition(Consumer<ExecutionAttemptID> predicate) {

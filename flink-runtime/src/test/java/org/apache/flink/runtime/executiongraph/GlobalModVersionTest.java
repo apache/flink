@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -42,7 +43,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class GlobalModVersionTest {
+public class GlobalModVersionTest extends TestLogger {
 
 	/**
 	 * Tests that failures during a global cancellation are not handed to the local
