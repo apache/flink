@@ -33,4 +33,6 @@ import java.util.concurrent.CompletableFuture;
 public interface MetricQueryServiceGateway {
 
 	CompletableFuture<MetricDumpSerialization.MetricSerializationResult> queryMetrics(Time timeout);
+
+	String getAddress();
 }
