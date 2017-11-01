@@ -202,7 +202,8 @@ public class ExecutionGraphTestUtils {
 		// check that all execution are in state DEPLOYING
 		for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
 			final Execution exec = ev.getCurrentExecutionAttempt();
-			assert(exec.getState() == ExecutionState.DEPLOYING);
+			final ExecutionState executionState = exec.getState();
+			assert executionState == ExecutionState.DEPLOYING : "Expected executionState to be DEPLOYING, was: " + executionState;
 		}
 
 		// switch executions to RUNNING
