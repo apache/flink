@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
@@ -48,6 +47,7 @@ import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -105,7 +105,7 @@ abstract class NettyMessage {
 	 * NettyMessageDecoder}
 	 */
 	private static ByteBuf allocateBuffer(ByteBufAllocator allocator, byte id, int length) {
-		Preconditions.checkArgument(length <= Integer.MAX_VALUE - HEADER_LENGTH);
+		checkArgument(length <= Integer.MAX_VALUE - HEADER_LENGTH);
 
 		final ByteBuf buffer;
 		if (length != -1) {
