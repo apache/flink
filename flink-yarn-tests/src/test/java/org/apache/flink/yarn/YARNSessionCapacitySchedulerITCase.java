@@ -18,9 +18,12 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.client.JobClient;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -124,9 +127,57 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-ys", "2", //test that the job is executed with a DOP of 2
 				"-yjm", "768",
 				"-ytm", "1024", exampleJarLocation.getAbsolutePath()},
-				/* test succeeded after this string */
+			/* test succeeded after this string */
 			"Job execution complete",
-			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+			/* prohibited strings: (to verify the parallelism) */
+			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
+			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
+			RunTypes.CLI_FRONTEND, 0, true);
+		LOG.info("Finished perJobYarnCluster()");
+	}
+
+	/**
+	 * Test per-job yarn cluster and memory calculations for off-heap use (see FLINK-7400) with the
+	 * same job as {@link #perJobYarnCluster()}.
+	 *
+	 * <p>This ensures that with (any) pre-allocated off-heap memory by us, there is some off-heap
+	 * memory remaining for Flink's libraries. Creating task managers will thus fail if no off-heap
+	 * memory remains.
+	 */
+	@Test
+	public void perJobYarnClusterOffHeap() {
+		LOG.info("Starting perJobYarnCluster()");
+		addTestAppender(JobClient.class, Level.INFO);
+		File exampleJarLocation = new File("target/programs/BatchWordCount.jar");
+		Assert.assertNotNull("Could not find wordcount jar", exampleJarLocation);
+
+		// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
+		final long taskManagerMemoryMB = 1024;
+		//noinspection NumericOverflow if the calculation of the total Java memory size overflows, default configuration parameters are wrong in the first place, so we can ignore this inspection
+		final long networkBuffersMB = TaskManagerServices
+			.calculateNetworkBufferMemory(
+				(taskManagerMemoryMB -
+					ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()) << 20,
+				new Configuration()) >> 20;
+		final long offHeapMemory = taskManagerMemoryMB
+			- ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()
+			// cutoff memory (will be added automatically)
+			- networkBuffersMB // amount of memory used for network buffers
+			- 100; // reserve something for the Java heap space
+
+		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
+				"-yj", flinkUberjar.getAbsolutePath(), "-yt", flinkLibFolder.getAbsolutePath(),
+				"-yn", "1",
+				"-ys", "2", //test that the job is executed with a DOP of 2
+				"-yjm", "768",
+				"-ytm", String.valueOf(taskManagerMemoryMB),
+				"-yD", "taskmanager.memory.off-heap=true",
+				"-yD", "taskmanager.memory.size=" + offHeapMemory,
+				"-yD", "taskmanager.memory.preallocate=true", exampleJarLocation.getAbsolutePath()},
+			/* test succeeded after this string */
+			"Job execution complete",
+			/* prohibited strings: (to verify the parallelism) */
+			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
 			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
 			RunTypes.CLI_FRONTEND, 0, true);
 		LOG.info("Finished perJobYarnCluster()");
