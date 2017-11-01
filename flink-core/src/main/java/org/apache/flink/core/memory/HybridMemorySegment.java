@@ -307,9 +307,6 @@ public final class HybridMemorySegment extends MemorySegment {
 		if ((offset | numBytes | (offset + numBytes)) < 0) {
 			throw new IndexOutOfBoundsException();
 		}
-		if (target.isReadOnly()) {
-			throw new ReadOnlyBufferException();
-		}
 
 		final int targetOffset = target.position();
 		final int remaining = target.remaining();
@@ -319,6 +316,10 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 
 		if (target.isDirect()) {
+			if (target.isReadOnly()) {
+				throw new ReadOnlyBufferException();
+			}
+
 			// copy to the target memory directly
 			final long targetPointer = getAddress(target) + targetOffset;
 			final long sourcePointer = address + offset;
