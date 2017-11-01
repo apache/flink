@@ -20,6 +20,7 @@ package org.apache.flink.runtime.akka;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.instance.ActorGateway;
@@ -36,14 +37,17 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 import scala.Option;
 import scala.reflect.ClassTag$;
@@ -249,6 +253,33 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 			jobManagerGateway
 				.ask(RequestStatusOverview.getInstance(), FutureUtils.toFiniteDuration(timeout))
 				.mapTo(ClassTag$.MODULE$.apply(ClusterOverview.class)));
+	}
+
+	@Override
+	public CompletableFuture<Collection<String>> requestMetricQueryServicePaths(Time timeout) {
+		final String jobManagerPath = getAddress();
+		final String jobManagerMetricQueryServicePath = jobManagerPath.substring(0, jobManagerPath.lastIndexOf('/') + 1) + MetricQueryService.METRIC_QUERY_SERVICE_NAME;
+
+		return CompletableFuture.completedFuture(
+			Collections.singleton(jobManagerMetricQueryServicePath));
+	}
+
+	@Override
+	public CompletableFuture<Collection<Tuple2<InstanceID, String>>> requestTaskManagerMetricQueryServicePaths(Time timeout) {
+		return requestTaskManagerInstances(timeout)
+			.thenApply(
+				(Collection<Instance> instances) ->
+					instances
+						.stream()
+						.map(
+							(Instance instance) -> {
+								final String taskManagerAddress = instance.getTaskManagerGateway().getAddress();
+								final String taskManagerMetricQuerServicePath = taskManagerAddress.substring(0, taskManagerAddress.lastIndexOf('/') + 1) +
+									MetricQueryService.METRIC_QUERY_SERVICE_NAME + '_' + instance.getTaskManagerID().getResourceIdString();
+
+								return Tuple2.of(instance.getId(), taskManagerMetricQuerServicePath);
+							})
+						.collect(Collectors.toList()));
 	}
 
 	@Override

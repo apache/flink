@@ -20,14 +20,18 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -76,4 +80,20 @@ public interface RestfulGateway extends RpcGateway {
 	 * @return Future containing the status overview
 	 */
 	CompletableFuture<ClusterOverview> requestClusterOverview(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the paths for the {@link MetricQueryService} to query.
+	 *
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the collection of metric query service paths to query
+	 */
+	CompletableFuture<Collection<String>> requestMetricQueryServicePaths(@RpcTimeout Time timeout);
+
+	/**
+	 * Requests the paths for the TaskManager's {@link MetricQueryService} to query.
+	 *
+	 * @param timeout for the asynchronous operation
+	 * @return Future containing the collection of instance ids and the corresponding metric query service path
+	 */
+	CompletableFuture<Collection<Tuple2<InstanceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
 }
