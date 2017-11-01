@@ -67,15 +67,10 @@ under the License.
 									<artifact>com.google.guava:guava</artifact>
 									<!-- Shade guava classes that are not included by curator -->
 									<includes>
-										<include>com/google/common/base/Function*</include>
-										<include>com/google/common/base/Predicate*</include>
-										<include>com/google/common/reflect/TypeToken*</include>
+										<include>com/google/common/base/Function.class</include>
+										<include>com/google/common/base/Predicate.class</include>
+										<include>com/google/common/reflect/TypeToken.class</include>
 									</includes>
-									<excludes>
-										<exclude>com/google/common/base/Functional*</exclude>
-										<exclude>com/google/common/base/Functions*</exclude>
-										<exclude>com/google/common/base/Predicates*</exclude>
-									</excludes>
 								</filter>
 							</filters>
 							<relocations>
