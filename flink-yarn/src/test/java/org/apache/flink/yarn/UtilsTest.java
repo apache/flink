@@ -37,6 +37,8 @@ import akka.actor.ActorSystem;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.testkit.JavaTestKit;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -71,7 +73,6 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link Utils}.
@@ -117,7 +118,7 @@ public class UtilsTest extends TestLogger {
 			final List<Container> containerList = new ArrayList<>();
 
 			for (int i = 0; i < numInitialTaskManagers; i++) {
-				containerList.add(new TestingContainer("container_" + i, "localhost"));
+				containerList.add(new TestingContainer("container", 1234, i));
 			}
 
 			doAnswer(new Answer() {
@@ -223,19 +224,22 @@ public class UtilsTest extends TestLogger {
 
 	static class TestingContainer extends Container {
 
-		private final String id;
-		private final String host;
+		private final NodeId nodeId;
+		private final ContainerId containerId;
 
-		TestingContainer(String id, String host) {
-			this.id = id;
-			this.host = host;
+		TestingContainer(String host, int port, int containerId) {
+			this.nodeId = NodeId.newInstance(host, port);
+			this.containerId = ContainerId.newInstance(
+				ApplicationAttemptId.newInstance(
+					ApplicationId.newInstance(
+						System.currentTimeMillis(),
+						1),
+					1),
+				containerId);
 		}
 
 		@Override
 		public ContainerId getId() {
-			ContainerId containerId = mock(ContainerId.class);
-			when(containerId.toString()).thenReturn(id);
-
 			return containerId;
 		}
 
@@ -246,9 +250,6 @@ public class UtilsTest extends TestLogger {
 
 		@Override
 		public NodeId getNodeId() {
-			NodeId nodeId = mock(NodeId.class);
-			when(nodeId.getHost()).thenReturn(host);
-
 			return nodeId;
 		}
 
