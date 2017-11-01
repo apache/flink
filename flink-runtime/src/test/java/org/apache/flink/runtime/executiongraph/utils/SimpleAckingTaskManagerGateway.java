@@ -48,12 +48,18 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private Optional<Consumer<ExecutionAttemptID>> optSubmitCondition;
 
+	private Optional<Consumer<ExecutionAttemptID>> optCancelCondition;
+
 	public SimpleAckingTaskManagerGateway() {
 		optSubmitCondition = Optional.empty();
 	}
 
 	public void setCondition(Consumer<ExecutionAttemptID> predicate) {
 		optSubmitCondition = Optional.of(predicate);
+	}
+
+	public void setCancelCondition(Consumer<ExecutionAttemptID> predicate) {
+		optCancelCondition = Optional.of(predicate);
 	}
 
 	@Override
@@ -96,6 +102,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+		optCancelCondition.ifPresent(condition -> condition.accept(executionAttemptID));
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
