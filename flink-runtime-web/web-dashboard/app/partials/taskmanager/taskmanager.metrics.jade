@@ -32,10 +32,10 @@ div(ng-if="metrics.id")
         td {{ metrics.dataPort }}
         td {{ metrics.slotsNumber }}
         td {{ metrics.freeSlots }}
-        td {{ metrics.cpuCores }}
-        td {{ metrics.physicalMemory | humanizeBytes }}
-        td {{ metrics.freeMemory | humanizeBytes }}
-        td {{ metrics.managedMemory | humanizeBytes }}
+        td {{ metrics.hardware.cpuCores }}
+        td {{ metrics.hardware.physicalMemory | humanizeBytes }}
+        td {{ metrics.hardware.freeMemory | humanizeBytes }}
+        td {{ metrics.hardware.managedMemory | humanizeBytes }}
 
   h1 Memory
 
