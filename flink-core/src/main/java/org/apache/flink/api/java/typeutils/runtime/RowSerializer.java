@@ -50,11 +50,14 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
 	private final TypeSerializer<Object>[] fieldSerializers;
 
+	private final int arity;
+
 	private transient boolean[] nullMask;
 
 	@SuppressWarnings("unchecked")
 	public RowSerializer(TypeSerializer<?>[] fieldSerializers) {
 		this.fieldSerializers = (TypeSerializer<Object>[]) checkNotNull(fieldSerializers);
+		this.arity = fieldSerializers.length;
 		this.nullMask = new boolean[fieldSerializers.length];
 	}
 
@@ -133,6 +136,10 @@ public final class RowSerializer extends TypeSerializer<Row> {
 	@Override
 	public int getLength() {
 		return -1;
+	}
+
+	public int getArity() {
+		return arity;
 	}
 
 	@Override
