@@ -110,13 +110,6 @@ under the License.
 			<artifactId>flink-shaded-netty</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
-			<!-- A relocated version is provided by flink-runtime -->
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- test dependencies -->
 
 		<dependency>
@@ -291,11 +284,6 @@ under the License.
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.mesos.shaded.com.fasterxml.jackson</shadedPattern>
-								</relocation>
-								<relocation>
-									<!-- IMPORTANT: This relocation must be kept in sync with flink-runtime. -->
-									<pattern>org.apache.zookeeper</pattern>
-									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

@@ -463,7 +463,6 @@ under the License.
 									</excludes>
 								</relocation>
 								<relocation>
-									<!-- IMPORTANT: This relocation must be kept in sync with flink-mesos. -->
 									<pattern>org.apache.zookeeper</pattern>
 									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper</shadedPattern>
 								</relocation>
