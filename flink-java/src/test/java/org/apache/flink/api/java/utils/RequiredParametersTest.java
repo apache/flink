@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.utils;
 
+import org.apache.flink.util.TestLogger;
+
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -33,7 +35,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for RequiredParameter class and its interactions with ParameterTool.
  */
-public class RequiredParametersTest {
+public class RequiredParametersTest extends TestLogger {
 
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
