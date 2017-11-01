@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemoryType;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -95,7 +96,9 @@ public class BufferPoolFactoryTest {
 	 */
 	@Test
 	public void testOverprovisioned() throws IOException {
+		// note: this is also the minimum number of buffers reserved for pool2
 		int buffersToTakeFromPool1 = numBuffers / 2 + 1;
+		// note: this is also the minimum number of buffers reserved for pool1
 		int buffersToTakeFromPool2 = numBuffers - buffersToTakeFromPool1;
 
 		List<Buffer> buffers = new ArrayList<>(numBuffers);
@@ -106,13 +109,13 @@ public class BufferPoolFactoryTest {
 			// take more buffers than the minimum required
 			for (int i = 0; i < buffersToTakeFromPool1; ++i) {
 				Buffer buffer = lbp1.requestBuffer();
-				buffers.add(buffer);
 				assertNotNull(buffer);
+				buffers.add(buffer);
 			}
 			assertEquals(buffersToTakeFromPool1, lbp1.bestEffortGetNumOfUsedBuffers());
 			assertEquals(numBuffers, lbp1.getNumBuffers());
 
-			// create a second pool which requires more than are freely available at the moment
+			// create a second pool which requires more buffers than are available at the moment
 			lbp2 = networkBufferPool.createBufferPool(buffersToTakeFromPool1, numBuffers);
 
 			assertEquals(lbp2.getNumberOfRequiredMemorySegments(), lbp2.getNumBuffers());
@@ -122,20 +125,33 @@ public class BufferPoolFactoryTest {
 			// take all remaining buffers
 			for (int i = 0; i < buffersToTakeFromPool2; ++i) {
 				Buffer buffer = lbp2.requestBuffer();
-				buffers.add(buffer);
 				assertNotNull(buffer);
+				buffers.add(buffer);
 			}
 			assertEquals(buffersToTakeFromPool2, lbp2.bestEffortGetNumOfUsedBuffers());
 
 			// we should be able to get one more but this is currently given out to lbp1 and taken by buffer1
 			assertNull(lbp2.requestBuffer());
 
-			// as soon as the excess buffer of lbp1 is recycled, it should be available for lbp2
-			buffers.remove(buffers.size() - 1).recycle();
+			// as soon as one excess buffer of lbp1 is recycled, it should be available for lbp2
+			buffers.remove(0).recycle();
+			// recycle returns the excess buffer to the network buffer pool
+			assertEquals(1, networkBufferPool.getNumberOfAvailableMemorySegments());
+			// verify the number of buffers taken from the pools
+			assertEquals(buffersToTakeFromPool1 - 1,
+				lbp1.bestEffortGetNumOfUsedBuffers() + lbp1.getNumberOfAvailableMemorySegments());
+			assertEquals(buffersToTakeFromPool2,
+				lbp2.bestEffortGetNumOfUsedBuffers() + lbp2.getNumberOfAvailableMemorySegments());
 
 			Buffer buffer = lbp2.requestBuffer();
-			buffers.add(buffer);
 			assertNotNull(buffer);
+			buffers.add(buffer);
+			// verify the number of buffers taken from the pools
+			assertEquals(0, networkBufferPool.getNumberOfAvailableMemorySegments());
+			assertEquals(buffersToTakeFromPool1 - 1,
+				lbp1.bestEffortGetNumOfUsedBuffers() + lbp1.getNumberOfAvailableMemorySegments());
+			assertEquals(buffersToTakeFromPool2 + 1,
+				lbp2.bestEffortGetNumOfUsedBuffers() + lbp2.getNumberOfAvailableMemorySegments());
 		} finally {
 			for (Buffer buffer : buffers) {
 				buffer.recycle();
