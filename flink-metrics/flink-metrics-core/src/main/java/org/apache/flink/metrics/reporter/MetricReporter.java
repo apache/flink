@@ -25,6 +25,8 @@ import org.apache.flink.metrics.MetricGroup;
 /**
  * Reporters are used to export {@link Metric Metrics} to an external backend.
  *
+ * <p>Implementations may also implement {@link DelimiterProvider} to define a default delimiter.
+ *
  * <p>Reporters are instantiated via reflection and must be public, non-abstract, and have a
  * public no-argument constructor.
  */

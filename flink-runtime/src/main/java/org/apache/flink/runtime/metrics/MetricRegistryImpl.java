@@ -27,6 +27,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
+import org.apache.flink.metrics.reporter.DelimiterProvider;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.akka.ActorUtils;
@@ -162,12 +163,25 @@ public class MetricRegistryImpl implements MetricRegistry {
 					}
 					reporters.add(reporterInstance);
 
-					String delimiterForReporter = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, String.valueOf(globalDelimiter));
-					if (delimiterForReporter.length() != 1) {
-						LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporter, namedReporter, globalDelimiter);
-						delimiterForReporter = String.valueOf(globalDelimiter);
+					char delimiterForReporter;
+					String delimiterForReporterString = reporterConfig.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, null);
+					if (delimiterForReporterString == null) {
+						if (reporterInstance instanceof DelimiterProvider) {
+							delimiterForReporter = ((DelimiterProvider) reporterInstance).getDelimiter();
+							LOG.debug("No delimiter configured for reporter {}, default to reporter-provided delimiter {}.", namedReporter, delimiterForReporter);
+						} else {
+							delimiterForReporter = globalDelimiter;
+							LOG.debug("No delimiter configured for reporter {}, defaulting to global delimiter {}.", namedReporter, globalDelimiter);
+						}
+					} else {
+						if (delimiterForReporterString.length() != 1) {
+							LOG.warn("Failed to parse delimiter '{}' for reporter '{}', using global delimiter '{}'.", delimiterForReporterString, namedReporter, globalDelimiter);
+							delimiterForReporter = globalDelimiter;
+						} else {
+							delimiterForReporter = delimiterForReporterString.charAt(0);
+						}
 					}
-					this.delimiters.add(delimiterForReporter.charAt(0));
+					this.delimiters.add(delimiterForReporter);
 				}
 				catch (Throwable t) {
 					LOG.error("Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.", namedReporter, t);

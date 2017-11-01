@@ -25,6 +25,7 @@ import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.DelimiterProvider;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -207,7 +208,7 @@ public class AbstractMetricGroupTest {
 	/**
 	 * Reporter that verifies the logical-scope caching behavior.
 	 */
-	public static final class LogicalScopeReporter1 extends ScopeCheckingTestReporter {
+	public static final class LogicalScopeReporter1 extends ScopeCheckingTestReporter implements DelimiterProvider {
 		@Override
 		public String filterCharacters(String input) {
 			return FILTER_B.filterCharacters(input);
@@ -215,15 +216,20 @@ public class AbstractMetricGroupTest {
 
 		@Override
 		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
-			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this, '-');
+			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this);
 			assertEquals("taskmanager-X-C", logicalScope);
+		}
+
+		@Override
+		public char getDelimiter() {
+			return '-';
 		}
 	}
 
 	/**
 	 * Reporter that verifies the logical-scope caching behavior.
 	 */
-	public static final class LogicalScopeReporter2 extends ScopeCheckingTestReporter {
+	public static final class LogicalScopeReporter2 extends ScopeCheckingTestReporter implements DelimiterProvider {
 		@Override
 		public String filterCharacters(String input) {
 			return FILTER_C.filterCharacters(input);
@@ -231,8 +237,13 @@ public class AbstractMetricGroupTest {
 
 		@Override
 		public void checkScopes(Metric metric, String metricName, MetricGroup group) {
-			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this, ',');
+			final String logicalScope = ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(this);
 			assertEquals("taskmanager,B,X", logicalScope);
+		}
+
+		@Override
+		public char getDelimiter() {
+			return ',';
 		}
 	}
 

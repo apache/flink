@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -51,7 +50,7 @@ public class GenericValueMetricGroup extends GenericMetricGroup {
 	}
 
 	@Override
-	protected String createLogicalScope(CharacterFilter filter, char delimiter) {
-		return parent.getLogicalScope(filter, delimiter);
+	protected boolean includeInLogicalScope() {
+		return false;
 	}
 }

@@ -26,11 +26,14 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.reporter.DelimiterProvider;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
@@ -446,6 +449,46 @@ public class MetricRegistryImplTest extends TestLogger {
 		@Override
 		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
 			throw new RuntimeException();
+		}
+	}
+
+	@Test
+	public void testDelimiterOverride() throws Exception {
+		Configuration config = new Configuration();
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
+		config.setString(MetricOptions.SCOPE_NAMING_TM, ScopeFormat.SCOPE_TASKMANAGER_ID);
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, DelimiterOverridingReporter.class.getName());
+
+		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+
+		try {
+			String taskManagerId = ResourceID.generate().toString();
+			TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", taskManagerId);
+
+			Counter metric = new SimpleCounter();
+			registry.register(metric, "counter", tm);
+
+			assertEquals(taskManagerId + "-counter", DelimiterOverridingReporter.reportedName);
+		} finally {
+			registry.shutdown();
+		}
+	}
+
+	/**
+	 * Reporter that implements the DelimiterProvider interface and exposes the generated
+	 * metric identifier.
+	 */
+	protected static class DelimiterOverridingReporter extends TestReporter implements DelimiterProvider {
+		public static String reportedName;
+
+		@Override
+		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+			reportedName = group.getMetricIdentifier(metricName);
+		}
+
+		@Override
+		public char getDelimiter() {
+			return '-';
 		}
 	}
 }

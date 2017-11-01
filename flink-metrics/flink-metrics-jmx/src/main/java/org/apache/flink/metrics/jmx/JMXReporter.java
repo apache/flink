@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.DelimiterProvider;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -62,7 +63,7 @@ import java.util.Map;
  * <p>Largely based on the JmxReporter class of the dropwizard metrics library
  * https://github.com/dropwizard/metrics/blob/master/metrics-core/src/main/java/io/dropwizard/metrics/JmxReporter.java
  */
-public class JMXReporter implements MetricReporter {
+public class JMXReporter implements MetricReporter, DelimiterProvider {
 
 	static final String JMX_DOMAIN_PREFIX = "org.apache.flink.";
 
@@ -91,6 +92,11 @@ public class JMXReporter implements MetricReporter {
 	public JMXReporter() {
 		this.mBeanServer = ManagementFactory.getPlatformMBeanServer();
 		this.registeredMetrics = new HashMap<>();
+	}
+
+	@Override
+	public char getDelimiter() {
+		return '.';
 	}
 
 	// ------------------------------------------------------------------------
@@ -231,7 +237,7 @@ public class JMXReporter implements MetricReporter {
 	}
 
 	static String generateJmxDomain(String metricName, MetricGroup group) {
-		return JMX_DOMAIN_PREFIX + ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, '.') + '.' + metricName;
+		return JMX_DOMAIN_PREFIX + ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER) + '.' + metricName;
 	}
 
 	/**

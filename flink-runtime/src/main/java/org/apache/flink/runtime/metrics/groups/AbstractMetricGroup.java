@@ -141,15 +141,19 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		return getLogicalScope(filter, registry.getDelimiter());
 	}
 
-	/**
-	 * Returns the logical scope of this group, for example
-	 * {@code "taskmanager.job.task"}.
-	 *
-	 * @param filter character filter which is applied to the scope components
-	 * @return logical scope
-	 */
-	public String getLogicalScope(CharacterFilter filter, char delimiter) {
-		return getLogicalScope(filter, delimiter, -1);
+	String getLogicalScope(CharacterFilter filter, char delimiter) {
+		return createLogicalScope(filter, delimiter);
+	}
+
+	String getLogicalScope(CharacterFilter filter, int reporterIndex) {
+		if (logicalScopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length)) {
+			return createLogicalScope(filter, registry.getDelimiter());
+		} else {
+			if (logicalScopeStrings[reporterIndex] == null) {
+				logicalScopeStrings[reporterIndex] = createLogicalScope(filter, registry.getDelimiter(reporterIndex));
+			}
+			return logicalScopeStrings[reporterIndex];
+		}
 	}
 
 	/**
@@ -161,6 +165,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	 * @param reporterIndex index of the reporter
 	 * @return logical scope
 	 */
+	@Deprecated
 	String getLogicalScope(CharacterFilter filter, char delimiter, int reporterIndex) {
 		if (logicalScopeStrings.length == 0 || (reporterIndex < 0 || reporterIndex >= logicalScopeStrings.length)) {
 			return createLogicalScope(filter, delimiter);
@@ -172,11 +177,24 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		}
 	}
 
-	protected String createLogicalScope(CharacterFilter filter, char delimiter) {
+	private String createLogicalScope(CharacterFilter filter, char delimiter) {
+		if (!includeInLogicalScope()) {
+			return parent.getLogicalScope(filter, delimiter);
+		}
+
 		final String groupName = getGroupName(filter);
 		return parent == null
 			? groupName
 			: parent.getLogicalScope(filter, delimiter) + delimiter + groupName;
+	}
+
+	/**
+	 * Controls whether this group should be included in the logical scope.
+	 *
+	 * @return whether this group should be included in the logical scope
+	 */
+	protected boolean includeInLogicalScope() {
+		return true;
 	}
 
 	/**

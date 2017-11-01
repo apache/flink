@@ -48,9 +48,16 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
 	}
 
 	public String getLogicalScope(CharacterFilter filter) {
-		return parentMetricGroup.getLogicalScope(filter);
+		return parentMetricGroup.getLogicalScope(filter, this.reporterIndex);
 	}
 
+	/**
+	 * This method only exists for backwards compatibility, and should only be removed once a public alternative was
+	 * provided, see FLINK-7957.
+	 *
+	 * @deprecated Use {@link #getLogicalScope(CharacterFilter)} instead
+	 */
+	@Deprecated
 	public String getLogicalScope(CharacterFilter filter, char delimiter) {
 		return parentMetricGroup.getLogicalScope(filter, delimiter, this.reporterIndex);
 	}

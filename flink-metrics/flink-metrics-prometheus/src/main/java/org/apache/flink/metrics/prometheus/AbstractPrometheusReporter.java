@@ -28,6 +28,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.DelimiterProvider;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -53,7 +54,7 @@ import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterO
  * base prometheus reporter for prometheus metrics.
  */
 @PublicEvolving
-public abstract class AbstractPrometheusReporter implements MetricReporter {
+public abstract class AbstractPrometheusReporter implements MetricReporter, DelimiterProvider {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -78,6 +79,11 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 	}
 
 	private CharacterFilter labelValueCharactersFilter = CHARACTER_FILTER;
+
+	@Override
+	public char getDelimiter() {
+		return SCOPE_SEPARATOR;
+	}
 
 	@Override
 	public void open(MetricConfig config) {
@@ -213,7 +219,7 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
 	@SuppressWarnings("unchecked")
 	private static String getLogicalScope(MetricGroup group) {
-		return ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER, SCOPE_SEPARATOR);
+		return ((FrontMetricGroup<AbstractMetricGroup<?>>) group).getLogicalScope(CHARACTER_FILTER);
 	}
 
 	@VisibleForTesting

@@ -223,7 +223,7 @@ public class MetricGroupTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that calling {@link AbstractMetricGroup#getLogicalScope(CharacterFilter, char, int)} on {@link GenericValueMetricGroup}
+	 * Verifies that calling {@link AbstractMetricGroup#getLogicalScope(CharacterFilter, int)} on {@link GenericValueMetricGroup}
 	 * should ignore value as well.
 	 */
 	@Test
@@ -241,7 +241,7 @@ public class MetricGroupTest extends TestLogger {
 			MetricGroup group = root.addGroup(key, value);
 
 			String logicalScope = ((AbstractMetricGroup) group)
-				.getLogicalScope(new DummyCharacterFilter(), registry.getDelimiter(), 0);
+				.getLogicalScope(new DummyCharacterFilter(), 0);
 			assertThat("Key is missing from logical scope.", logicalScope, containsString(key));
 			assertThat("Value is present in logical scope.", logicalScope, not(containsString(value)));
 		} finally {
