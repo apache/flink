@@ -1878,7 +1878,6 @@ class JobManager(
     jobManagerMetricGroup.gauge[Long, Gauge[Long]]("numRunningJobs", new Gauge[Long] {
       override def getValue: Long = JobManager.this.currentJobs.size
     })
-    MetricUtils.instantiateStatusMetrics(jobManagerMetricGroup)
   }
 }
 
@@ -2513,7 +2512,7 @@ object JobManager {
       }
     }
 
-    val jobManagerMetricGroup = new JobManagerMetricGroup(
+    val jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(
       metricRegistry,
       configuration.getString(JobManagerOptions.ADDRESS))
 

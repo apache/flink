@@ -36,6 +36,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ExceptionUtils;
@@ -127,7 +128,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
 
 			final String hostAddress = rpcService.getAddress().isEmpty() ? "localhost" : rpcService.getAddress();
-			jobManagerMetrics = new JobManagerMetricGroup(metricRegistry, hostAddress);
+			jobManagerMetrics = MetricUtils.instantiateJobManagerMetricGroup(metricRegistry, hostAddress);
 			this.jobManagerMetricGroup = jobManagerMetrics;
 
 			// libraries and class loader first
