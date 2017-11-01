@@ -24,7 +24,7 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-shaded-curator</artifactId>
+		<artifactId>flink-parent</artifactId>
 		<version>1.4-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
@@ -56,20 +56,27 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<artifactSet combine.self="override">
+							<artifactSet>
 								<includes>
-									<include>com.google.guava:*</include>
+									<include>com.google.guava:guava</include>
 									<include>org.apache.curator:*</include>
 								</includes>
 							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>com.google.guava:guava</artifact>
+									<!-- Shade guava classes that are not included by curator -->
+									<includes>
+										<include>com/google/common/base/Function.class</include>
+										<include>com/google/common/base/Predicate.class</include>
+										<include>com/google/common/reflect/TypeToken.class</include>
+									</includes>
+								</filter>
+							</filters>
 							<relocations>
 								<relocation>
-									<pattern>com.google</pattern>
-									<shadedPattern>org.apache.flink.curator.shaded.com.google</shadedPattern>
-									<excludes>
-										<exclude>com.google.protobuf.**</exclude>
-										<exclude>com.google.inject.**</exclude>
-									</excludes>
+									<pattern>com.google.common</pattern>
+									<shadedPattern>org.apache.flink.curator.shaded.com.google.common</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>

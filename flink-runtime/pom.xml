@@ -152,11 +152,6 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>org.xerial.snappy</groupId>
 			<artifactId>snappy-java</artifactId>
 			<version>1.1.4</version>
@@ -172,6 +167,14 @@ under the License.
 			<groupId>com.twitter</groupId>
 			<artifactId>chill_${scala.binary.version}</artifactId>
 			<version>${chill.version}</version>
+		</dependency>
+
+		<!-- Curator and ZooKeeper - we explicitly add ZooKeeper here as
+			well to make sure our managed version is used -->
+
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
 		</dependency>
 
 		<dependency>
@@ -437,6 +440,7 @@ under the License.
 									<include>com.typesafe.akka:akka-remote_*</include>
 									<include>io.netty:netty</include>
 									<include>org.uncommons.maths:uncommons-maths</include>
+									<include>org.apache.zookeeper:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
@@ -450,7 +454,22 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>org.apache.curator</pattern>
-									<shadedPattern>org.apache.flink.shaded.org.apache.curator</shadedPattern>
+									<shadedPattern>org.apache.flink.shaded.curator.org.apache.curator</shadedPattern>
+									<excludes>
+										<!-- Do not relocate curator-test. This leads to problems for downstream
+											users of runtime test classes that make use of it as the relocated
+											dependency is not included in the test-jar.-->
+										<exclude>org.apache.curator.test.*</exclude>
+									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.zookeeper</pattern>
+									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper</shadedPattern>
+								</relocation>
+								<!-- jute is already shaded into the ZooKeeper jar -->
+								<relocation>
+									<pattern>org.apache.jute</pattern>
+									<shadedPattern>org.apache.flink.shaded.zookeeper.org.apache.zookeeper.jute</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
