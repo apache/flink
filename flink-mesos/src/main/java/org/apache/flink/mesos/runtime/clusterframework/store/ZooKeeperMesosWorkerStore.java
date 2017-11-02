@@ -25,10 +25,10 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperSharedCount;
 import org.apache.flink.runtime.zookeeper.ZooKeeperSharedValue;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperVersionedValue;
-import org.apache.flink.runtime.zookeeper.ZookeeperAccess;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.mesos.Protos;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,19 +214,11 @@ public class ZooKeeperMesosWorkerStore implements MesosWorkerStore {
 
 			int currentVersion = workersInZooKeeper.exists(path);
 			if (currentVersion == -1) {
-				try {
-					workersInZooKeeper.addAndLock(path, worker);
-					LOG.debug("Added {} in ZooKeeper.", worker);
-				} catch (Exception ex) {
-					throw ZookeeperAccess.wrapIfZooKeeperNodeExistsException(ex);
-				}
+				workersInZooKeeper.addAndLock(path, worker);
+				LOG.debug("Added {} in ZooKeeper.", worker);
 			} else {
-				try {
-					workersInZooKeeper.replace(path, currentVersion, worker);
-					LOG.debug("Updated {} in ZooKeeper.", worker);
-				} catch (Exception ex) {
-					throw ZookeeperAccess.wrapIfZooKeeperNoNodeException(ex);
-				}
+				workersInZooKeeper.replace(path, currentVersion, worker);
+				LOG.debug("Updated {} in ZooKeeper.", worker);
 			}
 		}
 	}

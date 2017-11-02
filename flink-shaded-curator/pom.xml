@@ -29,8 +29,8 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-shaded-curator-recipes</artifactId>
-	<name>flink-shaded-curator-recipes</name>
+	<artifactId>flink-shaded-curator</artifactId>
+	<name>flink-shaded-curator</name>
 
 	<packaging>jar</packaging>
 
