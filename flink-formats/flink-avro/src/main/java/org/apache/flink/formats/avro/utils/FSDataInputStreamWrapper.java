@@ -31,36 +31,36 @@ import java.io.IOException;
  * <p>The wrapper keeps track of the position in the data stream.
  */
 public class FSDataInputStreamWrapper implements Closeable, SeekableInput {
+
 	private final FSDataInputStream stream;
-	private long pos;
-	private long len;
+	private final long len;
 
 	public FSDataInputStreamWrapper(FSDataInputStream stream, long len) {
 		this.stream = stream;
-		this.pos = 0;
 		this.len = len;
 	}
 
+	@Override
 	public long length() throws IOException {
 		return this.len;
 	}
 
+	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-		int read;
-		read = stream.read(b, off, len);
-		pos += read;
-		return read;
+		return stream.read(b, off, len);
 	}
 
+	@Override
 	public void seek(long p) throws IOException {
 		stream.seek(p);
-		pos = p;
 	}
 
+	@Override
 	public long tell() throws IOException {
-		return pos;
+		return stream.getPos();
 	}
 
+	@Override
 	public void close() throws IOException {
 		stream.close();
 	}
