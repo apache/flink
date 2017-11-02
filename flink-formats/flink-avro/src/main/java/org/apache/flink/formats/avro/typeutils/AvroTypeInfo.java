@@ -47,6 +47,8 @@ import java.util.List;
  */
 public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	public AvroTypeInfo(Class<T> typeClass) {
 		super(typeClass, generateFieldsFromAvroSchema(typeClass));
 	}
