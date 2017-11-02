@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.serialization;
+package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -32,15 +32,9 @@ import java.io.Serializable;
  * takes care of producing the return type information automatically.
  *
  * @param <T> The type created by the deserialization schema.
- *
- * @deprecated Use {@link org.apache.flink.api.common.serialization.DeserializationSchema} instead.
  */
 @Public
-@Deprecated
-public interface DeserializationSchema<T> extends
-		org.apache.flink.api.common.serialization.DeserializationSchema<T>,
-		Serializable,
-		ResultTypeQueryable<T> {
+public interface DeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
 	 * Deserializes the byte message.
@@ -49,7 +43,6 @@ public interface DeserializationSchema<T> extends
 	 *
 	 * @return The deserialized message as an object (null if the message cannot be deserialized).
 	 */
-	@Override
 	T deserialize(byte[] message) throws IOException;
 
 	/**
@@ -59,6 +52,5 @@ public interface DeserializationSchema<T> extends
 	 * @param nextElement The element to test for the end-of-stream signal.
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
-	@Override
 	boolean isEndOfStream(T nextElement);
 }

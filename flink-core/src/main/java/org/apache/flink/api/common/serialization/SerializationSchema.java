@@ -15,30 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.kafka;
+package org.apache.flink.api.common.serialization;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.annotation.Public;
 
-import java.util.Properties;
+import java.io.Serializable;
 
 /**
- * THIS CLASS IS DEPRECATED. Use FlinkKafkaConsumer08 instead.
+ * The serialization schema describes how to turn a data object into a different serialized
+ * representation. Most data sinks (for example Apache Kafka) require the data to be handed
+ * to them in a specific format (for example as byte strings).
  *
- * @deprecated Use {@link FlinkKafkaConsumer08}
+ * @param <T> The type to be serialized.
  */
-@Deprecated
-public class FlinkKafkaConsumer081<T> extends FlinkKafkaConsumer08<T> {
-
-	private static final long serialVersionUID = -5649906773771949146L;
+@Public
+public interface SerializationSchema<T> extends Serializable {
 
 	/**
-	 * THIS CONSTRUCTOR IS DEPRECATED. Use FlinkKafkaConsumer08 instead.
+	 * Serializes the incoming element to a specified type.
 	 *
-	 * @deprecated Use {@link FlinkKafkaConsumer08#FlinkKafkaConsumer08(String, DeserializationSchema, Properties)}
+	 * @param element
+	 *            The incoming element to be serialized
+	 * @return The serialized element.
 	 */
-	@Deprecated
-	public FlinkKafkaConsumer081(String topic, DeserializationSchema<T> valueDeserializer, Properties props) {
-		super(topic, valueDeserializer, props);
-	}
+	byte[] serialize(T element);
 }
-

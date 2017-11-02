@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 

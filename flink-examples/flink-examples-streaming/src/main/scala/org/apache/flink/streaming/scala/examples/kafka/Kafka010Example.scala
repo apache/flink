@@ -19,10 +19,10 @@
 package org.apache.flink.streaming.scala.examples.kafka
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
+import org.apache.flink.api.common.serialization.SimpleStringSchema
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.connectors.kafka.{FlinkKafkaConsumer010, FlinkKafkaProducer010}
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema
 
 /**
  * An example that shows how to read from and write to Kafka. This will read String messages

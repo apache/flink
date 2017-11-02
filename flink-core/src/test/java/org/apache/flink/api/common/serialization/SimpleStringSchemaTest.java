@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.serialization;
+package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 

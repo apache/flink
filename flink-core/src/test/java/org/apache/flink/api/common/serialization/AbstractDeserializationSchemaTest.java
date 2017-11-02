@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util;
+package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.util.serialization.AbstractDeserializationSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.JSONPObject;
 
