@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
 import java.util.Random;
@@ -25,48 +25,49 @@ import java.util.Random;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class BooleanType implements SerializationTestType {
+public class DoubleType implements SerializationTestType {
 
-	private boolean value;
+	private double value;
 
-	public BooleanType() {
-		this.value = false;
+	public DoubleType() {
+		this.value = 0;
 	}
 
-	private BooleanType(boolean value) {
+	private DoubleType(double value) {
 		this.value = value;
 	}
 
 	@Override
-	public BooleanType getRandom(Random rnd) {
-		return new BooleanType(rnd.nextBoolean());
+	public DoubleType getRandom(Random rnd) {
+		return new DoubleType(rnd.nextDouble());
 	}
 
 	@Override
 	public int length() {
-		return 1;
+		return 8;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeBoolean(this.value);
+		out.writeDouble(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readBoolean();
+		this.value = in.readDouble();
 	}
 
 	@Override
 	public int hashCode() {
-		return this.value ? 1 : 0;
+		final long l = Double.doubleToLongBits(this.value);
+		return (int) (l ^ l >>> 32);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof BooleanType) {
-			BooleanType other = (BooleanType) obj;
-			return this.value == other.value;
+		if (obj instanceof DoubleType) {
+			DoubleType other = (DoubleType) obj;
+			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
 		} else {
 			return false;
 		}

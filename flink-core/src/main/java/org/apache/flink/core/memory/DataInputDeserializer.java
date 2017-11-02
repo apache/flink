@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.core.memory;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -24,26 +24,23 @@ import java.io.UTFDataFormatException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.MemoryUtils;
-
 /**
  * A simple and efficient deserializer for the {@link java.io.DataInput} interface.
  */
 public class DataInputDeserializer implements DataInputView, java.io.Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	// ------------------------------------------------------------------------
-	
+
 	private byte[] buffer;
-	
+
 	private int end;
 
 	private int position;
 
 	// ------------------------------------------------------------------------
-	
+
 	public DataInputDeserializer() {}
 
 	public DataInputDeserializer(byte[] buffer) {
@@ -53,7 +50,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	public DataInputDeserializer(byte[] buffer, int start, int len) {
 		setBuffer(buffer, start, len);
 	}
-	
+
 	public DataInputDeserializer(ByteBuffer buffer) {
 		setBuffer(buffer);
 	}
@@ -61,7 +58,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 	// ------------------------------------------------------------------------
 	//  Changing buffers
 	// ------------------------------------------------------------------------
-	
+
 	public void setBuffer(ByteBuffer buffer) {
 		if (buffer.hasArray()) {
 			this.buffer = buffer.array();
@@ -91,7 +88,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 		this.position = start;
 		this.end = start + len;
 	}
-	
+
 	public void releaseArrays() {
 		this.buffer = null;
 	}
@@ -107,7 +104,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 			return 0;
 		}
 	}
-	
+
 	@Override
 	public boolean readBoolean() throws IOException {
 		if (this.position < this.end) {
@@ -176,7 +173,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 			if (LITTLE_ENDIAN) {
 				value = Integer.reverseBytes(value);
 			}
-			
+
 			this.position += 4;
 			return value;
 		} else {
@@ -239,7 +236,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 
 		int c, char2, char3;
 		int count = 0;
-		int chararr_count = 0;
+		int chararrCount = 0;
 
 		readFully(bytearr, 0, utflen);
 
@@ -249,7 +246,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 				break;
 			}
 			count++;
-			chararr[chararr_count++] = (char) c;
+			chararr[chararrCount++] = (char) c;
 		}
 
 		while (count < utflen) {
@@ -265,7 +262,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 			case 7:
 				/* 0xxxxxxx */
 				count++;
-				chararr[chararr_count++] = (char) c;
+				chararr[chararrCount++] = (char) c;
 				break;
 			case 12:
 			case 13:
@@ -278,7 +275,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 				if ((char2 & 0xC0) != 0x80) {
 					throw new UTFDataFormatException("malformed input around byte " + count);
 				}
-				chararr[chararr_count++] = (char) (((c & 0x1F) << 6) | (char2 & 0x3F));
+				chararr[chararrCount++] = (char) (((c & 0x1F) << 6) | (char2 & 0x3F));
 				break;
 			case 14:
 				/* 1110 xxxx 10xx xxxx 10xx xxxx */
@@ -291,7 +288,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 				if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 					throw new UTFDataFormatException("malformed input around byte " + (count - 1));
 				}
-				chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
+				chararr[chararrCount++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | (char3 & 0x3F));
 				break;
 			default:
 				/* 10xx xxxx, 1111 xxxx */
@@ -299,7 +296,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 			}
 		}
 		// The number of chars produced may be less than utflen
-		return new String(chararr, 0, chararr_count);
+		return new String(chararr, 0, chararrCount);
 	}
 
 	@Override
@@ -319,7 +316,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 			throw new EOFException();
 		}
 	}
-	
+
 	@Override
 	public int skipBytes(int n) throws IOException {
 		if (this.position <= this.end - n) {
@@ -337,7 +334,7 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 		int skippedBytes = skipBytes(numBytes);
 
 		if (skippedBytes < numBytes){
-			throw new EOFException("Could not skip " + numBytes +" bytes.");
+			throw new EOFException("Could not skip " + numBytes + " bytes.");
 		}
 	}
 
@@ -363,8 +360,8 @@ public class DataInputDeserializer implements DataInputView, java.io.Serializabl
 		if (this.position >= this.end) {
 			return -1;
 		} else {
-			int toRead = Math.min(this.end-this.position, len);
-			System.arraycopy(this.buffer,this.position,b,off,toRead);
+			int toRead = Math.min(this.end - this.position, len);
+			System.arraycopy(this.buffer, this.position, b, off, toRead);
 			this.position += toRead;
 
 			return toRead;

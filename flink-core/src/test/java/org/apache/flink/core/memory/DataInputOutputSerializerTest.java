@@ -16,21 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.core.memory;
 
-import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.testutils.serialization.types.SerializationTestType;
+import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
+import org.apache.flink.testutils.serialization.types.Util;
+
 import org.junit.Assert;
-
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
-import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestTypeFactory;
-import org.apache.flink.runtime.io.network.api.serialization.types.Util;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
+/**
+ * Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}.
+ */
 public class DataInputOutputSerializerTest {
 
 	@Test
@@ -88,7 +89,7 @@ public class DataInputOutputSerializerTest {
 	@Test
 	public void testRandomValuesWriteRead() {
 		final int numElements = 100000;
-		final ArrayDeque<SerializationTestType> reference = new ArrayDeque<SerializationTestType>();
+		final ArrayDeque<SerializationTestType> reference = new ArrayDeque<>();
 
 		DataOutputSerializer serializer = new DataOutputSerializer(1);
 

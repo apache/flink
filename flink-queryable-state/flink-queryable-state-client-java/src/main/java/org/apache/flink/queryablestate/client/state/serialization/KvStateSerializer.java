@@ -20,6 +20,8 @@ package org.apache.flink.queryablestate.client.state.serialization;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.DataInputDeserializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

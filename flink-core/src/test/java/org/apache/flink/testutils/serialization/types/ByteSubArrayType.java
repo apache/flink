@@ -17,56 +17,80 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class UnsignedShortType implements SerializationTestType {
+public class ByteSubArrayType implements SerializationTestType {
 
-	private int value;
+	private static final int MAX_LEN = 512;
 
-	public UnsignedShortType() {
-		this.value = 0;
-	}
+	private final byte[] data;
 
-	private UnsignedShortType(int value) {
-		this.value = value;
+	private int len;
+
+	public ByteSubArrayType() {
+		this.data = new byte[MAX_LEN];
+		this.len = 0;
 	}
 
 	@Override
-	public UnsignedShortType getRandom(Random rnd) {
-		return new UnsignedShortType(rnd.nextInt(32768) + 32768);
+	public ByteSubArrayType getRandom(Random rnd) {
+		final int len = rnd.nextInt(MAX_LEN) + 1;
+		final ByteSubArrayType t = new ByteSubArrayType();
+		t.len = len;
+
+		final byte[] data = t.data;
+		for (int i = 0; i < len; i++) {
+			data[i] = (byte) rnd.nextInt(256);
+		}
+
+		return t;
 	}
 
 	@Override
 	public int length() {
-		return 2;
+		return len + 4;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeShort(this.value);
+		out.writeInt(this.len);
+		out.write(this.data, 0, this.len);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readUnsignedShort();
+		this.len = in.readInt();
+		in.readFully(this.data, 0, this.len);
 	}
 
 	@Override
 	public int hashCode() {
-		return this.value;
+		final byte[] copy = new byte[this.len];
+		System.arraycopy(this.data, 0, copy, 0, this.len);
+		return Arrays.hashCode(copy);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof UnsignedShortType) {
-			UnsignedShortType other = (UnsignedShortType) obj;
-			return this.value == other.value;
+		if (obj instanceof ByteSubArrayType) {
+			ByteSubArrayType other = (ByteSubArrayType) obj;
+			if (this.len == other.len) {
+				for (int i = 0; i < this.len; i++) {
+					if (this.data[i] != other.data[i]) {
+						return false;
+					}
+				}
+				return true;
+			} else {
+				return false;
+			}
 		} else {
 			return false;
 		}

@@ -17,56 +17,67 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
+
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 import java.util.Random;
 
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+public class AsciiStringType implements SerializationTestType {
 
-public class UnsignedByteType implements SerializationTestType {
+	private static final int MAX_LEN = 1500;
 
-	private int value;
+	public String value;
 
-	public UnsignedByteType() {
-		this.value = 0;
+	public AsciiStringType() {
+		this.value = "";
 	}
 
-	private UnsignedByteType(int value) {
+	private AsciiStringType(String value) {
 		this.value = value;
 	}
 
 	@Override
-	public UnsignedByteType getRandom(Random rnd) {
-		return new UnsignedByteType(rnd.nextInt(128) + 128);
+	public AsciiStringType getRandom(Random rnd) {
+		final StringBuilder bld = new StringBuilder();
+		final int len = rnd.nextInt(MAX_LEN + 1);
+
+		for (int i = 0; i < len; i++) {
+			// 1--127
+			bld.append((char) (rnd.nextInt(126) + 1));
+		}
+
+		return new AsciiStringType(bld.toString());
 	}
 
 	@Override
 	public int length() {
-		return 1;
+		return value.getBytes(ConfigConstants.DEFAULT_CHARSET).length + 2;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeByte(this.value);
+		out.writeUTF(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readUnsignedByte();
+		this.value = in.readUTF();
 	}
 
 	@Override
 	public int hashCode() {
-		return this.value;
+		return this.value.hashCode();
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof UnsignedByteType) {
-			UnsignedByteType other = (UnsignedByteType) obj;
-			return this.value == other.value;
+		if (obj instanceof AsciiStringType) {
+			AsciiStringType other = (AsciiStringType) obj;
+			return this.value.equals(other.value);
 		} else {
 			return false;
 		}

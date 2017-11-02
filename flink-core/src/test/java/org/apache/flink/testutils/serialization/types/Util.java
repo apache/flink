@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.util.Iterator;
 import java.util.NoSuchElementException;

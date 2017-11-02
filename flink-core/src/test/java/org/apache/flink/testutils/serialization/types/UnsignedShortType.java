@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
 import java.util.Random;
@@ -25,48 +25,48 @@ import java.util.Random;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class FloatType implements SerializationTestType {
+public class UnsignedShortType implements SerializationTestType {
 
-	private float value;
+	private int value;
 
-	public FloatType() {
+	public UnsignedShortType() {
 		this.value = 0;
 	}
 
-	private FloatType(float value) {
+	private UnsignedShortType(int value) {
 		this.value = value;
 	}
 
 	@Override
-	public FloatType getRandom(Random rnd) {
-		return new FloatType(rnd.nextFloat());
+	public UnsignedShortType getRandom(Random rnd) {
+		return new UnsignedShortType(rnd.nextInt(32768) + 32768);
 	}
 
 	@Override
 	public int length() {
-		return 4;
+		return 2;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeFloat(this.value);
+		out.writeShort(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readFloat();
+		this.value = in.readUnsignedShort();
 	}
 
 	@Override
 	public int hashCode() {
-		return Float.floatToIntBits(this.value);
+		return this.value;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof FloatType) {
-			FloatType other = (FloatType) obj;
-			return Float.floatToIntBits(this.value) == Float.floatToIntBits(other.value);
+		if (obj instanceof UnsignedShortType) {
+			UnsignedShortType other = (UnsignedShortType) obj;
+			return this.value == other.value;
 		} else {
 			return false;
 		}

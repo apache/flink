@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.core.memory;
 
 import org.junit.Assert;
 import org.junit.Test;

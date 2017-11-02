@@ -17,80 +17,56 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class ByteSubArrayType implements SerializationTestType {
+public class LongType implements SerializationTestType {
 
-	private static final int MAX_LEN = 512;
+	private long value;
 
-	private final byte[] data;
+	public LongType() {
+		this.value = 0;
+	}
 
-	private int len;
-
-	public ByteSubArrayType() {
-		this.data = new byte[MAX_LEN];
-		this.len = 0;
+	private LongType(long value) {
+		this.value = value;
 	}
 
 	@Override
-	public ByteSubArrayType getRandom(Random rnd) {
-		final int len = rnd.nextInt(MAX_LEN) + 1;
-		final ByteSubArrayType t = new ByteSubArrayType();
-		t.len = len;
-
-		final byte[] data = t.data;
-		for (int i = 0; i < len; i++) {
-			data[i] = (byte) rnd.nextInt(256);
-		}
-
-		return t;
+	public LongType getRandom(Random rnd) {
+		return new LongType(rnd.nextLong());
 	}
 
 	@Override
 	public int length() {
-		return len + 4;
+		return 8;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.len);
-		out.write(this.data, 0, this.len);
+		out.writeLong(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.len = in.readInt();
-		in.readFully(this.data, 0, this.len);
+		this.value = in.readLong();
 	}
 
 	@Override
 	public int hashCode() {
-		final byte[] copy = new byte[this.len];
-		System.arraycopy(this.data, 0, copy, 0, this.len);
-		return Arrays.hashCode(copy);
+		return (int) (this.value ^ this.value >>> 32);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof ByteSubArrayType) {
-			ByteSubArrayType other = (ByteSubArrayType) obj;
-			if (this.len == other.len) {
-				for (int i = 0; i < this.len; i++) {
-					if (this.data[i] != other.data[i]) {
-						return false;
-					}
-				}
-				return true;
-			} else {
-				return false;
-			}
+		if (obj instanceof LongType) {
+			LongType other = (LongType) obj;
+			return this.value == other.value;
 		} else {
 			return false;
 		}

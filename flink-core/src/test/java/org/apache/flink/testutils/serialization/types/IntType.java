@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
 import java.util.Random;
@@ -25,49 +25,48 @@ import java.util.Random;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class DoubleType implements SerializationTestType {
+public class IntType implements SerializationTestType {
 
-	private double value;
+	private int value;
 
-	public DoubleType() {
+	public IntType() {
 		this.value = 0;
 	}
 
-	private DoubleType(double value) {
+	public IntType(int value) {
 		this.value = value;
 	}
 
 	@Override
-	public DoubleType getRandom(Random rnd) {
-		return new DoubleType(rnd.nextDouble());
+	public IntType getRandom(Random rnd) {
+		return new IntType(rnd.nextInt());
 	}
 
 	@Override
 	public int length() {
-		return 8;
+		return 4;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeDouble(this.value);
+		out.writeInt(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readDouble();
+		this.value = in.readInt();
 	}
 
 	@Override
 	public int hashCode() {
-		final long l = Double.doubleToLongBits(this.value);
-		return (int) (l ^ l >>> 32);
+		return this.value;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof DoubleType) {
-			DoubleType other = (DoubleType) obj;
-			return Double.doubleToLongBits(this.value) == Double.doubleToLongBits(other.value);
+		if (obj instanceof IntType) {
+			IntType other = (IntType) obj;
+			return this.value == other.value;
 		} else {
 			return false;
 		}

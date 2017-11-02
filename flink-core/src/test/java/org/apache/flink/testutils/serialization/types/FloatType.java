@@ -17,67 +17,56 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
-
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
 import java.util.Random;
 
-public class AsciiStringType implements SerializationTestType {
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
-	private static final int MAX_LEN = 1500;
+public class FloatType implements SerializationTestType {
 
-	public String value;
+	private float value;
 
-	public AsciiStringType() {
-		this.value = "";
+	public FloatType() {
+		this.value = 0;
 	}
 
-	private AsciiStringType(String value) {
+	private FloatType(float value) {
 		this.value = value;
 	}
 
 	@Override
-	public AsciiStringType getRandom(Random rnd) {
-		final StringBuilder bld = new StringBuilder();
-		final int len = rnd.nextInt(MAX_LEN + 1);
-
-		for (int i = 0; i < len; i++) {
-			// 1--127
-			bld.append((char) (rnd.nextInt(126) + 1));
-		}
-
-		return new AsciiStringType(bld.toString());
+	public FloatType getRandom(Random rnd) {
+		return new FloatType(rnd.nextFloat());
 	}
 
 	@Override
 	public int length() {
-		return value.getBytes(ConfigConstants.DEFAULT_CHARSET).length + 2;
+		return 4;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeUTF(this.value);
+		out.writeFloat(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readUTF();
+		this.value = in.readFloat();
 	}
 
 	@Override
 	public int hashCode() {
-		return this.value.hashCode();
+		return Float.floatToIntBits(this.value);
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof AsciiStringType) {
-			AsciiStringType other = (AsciiStringType) obj;
-			return this.value.equals(other.value);
+		if (obj instanceof FloatType) {
+			FloatType other = (FloatType) obj;
+			return Float.floatToIntBits(this.value) == Float.floatToIntBits(other.value);
 		} else {
 			return false;
 		}

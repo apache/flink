@@ -17,16 +17,31 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
-import java.util.Random;
+public enum SerializationTestTypeFactory {
+	
+	BOOLEAN(new BooleanType()),
+	BYTE_ARRAY(new ByteArrayType()),
+	BYTE_SUB_ARRAY(new ByteSubArrayType()),
+	BYTE(new ByteType()),
+	CHAR(new CharType()),
+	DOUBLE(new DoubleType()),
+	FLOAT(new FloatType()),
+	INT(new IntType()),
+	LONG(new LongType()),
+	SHORT(new ShortType()),
+	UNSIGNED_BYTE(new UnsignedByteType()),
+	UNSIGNED_SHORT(new UnsignedShortType()),
+	STRING(new AsciiStringType());
 
-import org.apache.flink.core.io.IOReadableWritable;
+	private final SerializationTestType factory;
 
-public interface SerializationTestType extends IOReadableWritable {
+	SerializationTestTypeFactory(SerializationTestType type) {
+		this.factory = type;
+	}
 
-	public SerializationTestType getRandom(Random rnd);
-
-	public int length();
-
+	public SerializationTestType factory() {
+		return this.factory;
+	}
 }

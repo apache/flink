@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
 import java.util.Random;
@@ -25,21 +25,21 @@ import java.util.Random;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class ShortType implements SerializationTestType {
+public class CharType implements SerializationTestType {
 
-	private short value;
+	private char value;
 
-	public ShortType() {
-		this.value = (short) 0;
+	public CharType() {
+		this.value = 0;
 	}
 
-	private ShortType(short value) {
+	private CharType(char value) {
 		this.value = value;
 	}
 
 	@Override
-	public ShortType getRandom(Random rnd) {
-		return new ShortType((short) rnd.nextInt(65536));
+	public CharType getRandom(Random rnd) {
+		return new CharType((char) rnd.nextInt(10000));
 	}
 
 	@Override
@@ -49,12 +49,12 @@ public class ShortType implements SerializationTestType {
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeShort(this.value);
+		out.writeChar(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readShort();
+		this.value = in.readChar();
 	}
 
 	@Override
@@ -64,11 +64,12 @@ public class ShortType implements SerializationTestType {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof ShortType) {
-			ShortType other = (ShortType) obj;
+		if (obj instanceof CharType) {
+			CharType other = (CharType) obj;
 			return this.value == other.value;
 		} else {
 			return false;
 		}
 	}
 }
+

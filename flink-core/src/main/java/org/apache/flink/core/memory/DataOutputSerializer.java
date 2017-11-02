@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
-
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.MemoryUtils;
+package org.apache.flink.core.memory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,23 +32,23 @@ import java.util.Arrays;
  * A simple and efficient serializer for the {@link java.io.DataOutput} interface.
  */
 public class DataOutputSerializer implements DataOutputView {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(DataOutputSerializer.class);
-	
+
 	private static final int PRUNE_BUFFER_THRESHOLD = 5 * 1024 * 1024;
 
 	// ------------------------------------------------------------------------
-	
+
 	private final byte[] startBuffer;
-	
+
 	private byte[] buffer;
-	
+
 	private int position;
 
 	private ByteBuffer wrapper;
 
 	// ------------------------------------------------------------------------
-	
+
 	public DataOutputSerializer(int startSize) {
 		if (startSize < 1) {
 			throw new IllegalArgumentException();
@@ -62,7 +58,7 @@ public class DataOutputSerializer implements DataOutputView {
 		this.buffer = this.startBuffer;
 		this.wrapper = ByteBuffer.wrap(buffer);
 	}
-	
+
 	public ByteBuffer wrapAsByteBuffer() {
 		this.wrapper.position(0);
 		this.wrapper.limit(this.position);
@@ -72,7 +68,7 @@ public class DataOutputSerializer implements DataOutputView {
 	public byte[] getByteArray() {
 		return buffer;
 	}
-	
+
 	public byte[] getCopyOfBuffer() {
 		return Arrays.copyOf(buffer, position);
 	}
@@ -84,13 +80,13 @@ public class DataOutputSerializer implements DataOutputView {
 	public int length() {
 		return this.position;
 	}
-	
+
 	public void pruneBuffer() {
 		if (this.buffer.length > PRUNE_BUFFER_THRESHOLD) {
 			if (LOG.isDebugEnabled()) {
 				LOG.debug("Releasing serialization buffer of " + this.buffer.length + " bytes.");
 			}
-			
+
 			this.buffer = this.startBuffer;
 			this.wrapper = ByteBuffer.wrap(this.buffer);
 		}
@@ -104,7 +100,7 @@ public class DataOutputSerializer implements DataOutputView {
 	// ----------------------------------------------------------------------------------------
 	//                               Data Output
 	// ----------------------------------------------------------------------------------------
-	
+
 	@Override
 	public void write(int b) throws IOException {
 		if (this.position >= this.buffer.length) {
@@ -146,7 +142,7 @@ public class DataOutputSerializer implements DataOutputView {
 		if (this.position >= this.buffer.length - sLen) {
 			resize(sLen);
 		}
-		
+
 		for (int i = 0; i < sLen; i++) {
 			writeByte(s.charAt(i));
 		}
@@ -165,9 +161,9 @@ public class DataOutputSerializer implements DataOutputView {
 	@Override
 	public void writeChars(String s) throws IOException {
 		final int sLen = s.length();
-		if (this.position >= this.buffer.length - 2*sLen) {
-			resize(2*sLen);
-		} 
+		if (this.position >= this.buffer.length - 2 * sLen) {
+			resize(2 * sLen);
+		}
 		for (int i = 0; i < sLen; i++) {
 			writeChar(s.charAt(i));
 		}
@@ -191,7 +187,7 @@ public class DataOutputSerializer implements DataOutputView {
 		}
 		if (LITTLE_ENDIAN) {
 			v = Integer.reverseBytes(v);
-		}			
+		}
 		UNSAFE.putInt(this.buffer, BASE_OFFSET + this.position, v);
 		this.position += 4;
 	}
@@ -215,7 +211,7 @@ public class DataOutputSerializer implements DataOutputView {
 			resize(2);
 		}
 		this.buffer[this.position++] = (byte) ((v >>> 8) & 0xff);
-		this.buffer[this.position++] = (byte) ((v >>> 0) & 0xff);
+		this.buffer[this.position++] = (byte) (v & 0xff);
 	}
 
 	@Override
@@ -242,14 +238,14 @@ public class DataOutputSerializer implements DataOutputView {
 		else if (this.position > this.buffer.length - utflen - 2) {
 			resize(utflen + 2);
 		}
-		
+
 		byte[] bytearr = this.buffer;
 		int count = this.position;
 
 		bytearr[count++] = (byte) ((utflen >>> 8) & 0xFF);
-		bytearr[count++] = (byte) ((utflen >>> 0) & 0xFF);
+		bytearr[count++] = (byte) (utflen & 0xFF);
 
-		int i = 0;
+		int i;
 		for (i = 0; i < strlen; i++) {
 			c = str.charAt(i);
 			if (!((c >= 0x0001) && (c <= 0x007F))) {
@@ -265,18 +261,17 @@ public class DataOutputSerializer implements DataOutputView {
 
 			} else if (c > 0x07FF) {
 				bytearr[count++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
-				bytearr[count++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-				bytearr[count++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+				bytearr[count++] = (byte) (0x80 | ((c >>  6) & 0x3F));
+				bytearr[count++] = (byte) (0x80 | (c & 0x3F));
 			} else {
 				bytearr[count++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-				bytearr[count++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+				bytearr[count++] = (byte) (0x80 | (c & 0x3F));
 			}
 		}
 
 		this.position = count;
 	}
-	
-	
+
 	private void resize(int minCapacityAdd) throws IOException {
 		int newLen = Math.max(this.buffer.length * 2, this.buffer.length + minCapacityAdd);
 		byte[] nb;
@@ -311,7 +306,7 @@ public class DataOutputSerializer implements DataOutputView {
 
 	@Override
 	public void skipBytesToWrite(int numBytes) throws IOException {
-		if(buffer.length - this.position < numBytes){
+		if (buffer.length - this.position < numBytes){
 			throw new EOFException("Could not skip " + numBytes + " bytes.");
 		}
 
@@ -320,7 +315,7 @@ public class DataOutputSerializer implements DataOutputView {
 
 	@Override
 	public void write(DataInputView source, int numBytes) throws IOException {
-		if(buffer.length - this.position < numBytes){
+		if (buffer.length - this.position < numBytes){
 			throw new EOFException("Could not write " + numBytes + " bytes. Buffer overflow.");
 		}
 

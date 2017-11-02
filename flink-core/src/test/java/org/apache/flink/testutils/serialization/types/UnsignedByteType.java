@@ -17,7 +17,7 @@
  */
 
 
-package org.apache.flink.runtime.io.network.api.serialization.types;
+package org.apache.flink.testutils.serialization.types;
 
 import java.io.IOException;
 import java.util.Random;
@@ -25,36 +25,36 @@ import java.util.Random;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
-public class IntType implements SerializationTestType {
+public class UnsignedByteType implements SerializationTestType {
 
 	private int value;
 
-	public IntType() {
+	public UnsignedByteType() {
 		this.value = 0;
 	}
 
-	public IntType(int value) {
+	private UnsignedByteType(int value) {
 		this.value = value;
 	}
 
 	@Override
-	public IntType getRandom(Random rnd) {
-		return new IntType(rnd.nextInt());
+	public UnsignedByteType getRandom(Random rnd) {
+		return new UnsignedByteType(rnd.nextInt(128) + 128);
 	}
 
 	@Override
 	public int length() {
-		return 4;
+		return 1;
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.value);
+		out.writeByte(this.value);
 	}
 
 	@Override
 	public void read(DataInputView in) throws IOException {
-		this.value = in.readInt();
+		this.value = in.readUnsignedByte();
 	}
 
 	@Override
@@ -64,8 +64,8 @@ public class IntType implements SerializationTestType {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof IntType) {
-			IntType other = (IntType) obj;
+		if (obj instanceof UnsignedByteType) {
+			UnsignedByteType other = (UnsignedByteType) obj;
 			return this.value == other.value;
 		} else {
 			return false;
