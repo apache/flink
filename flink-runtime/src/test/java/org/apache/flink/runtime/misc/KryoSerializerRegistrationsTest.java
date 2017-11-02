@@ -33,6 +33,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -71,6 +73,15 @@ public class KryoSerializerRegistrationsTest {
 
 				if (registration == null) {
 					fail(String.format("Registration for %d = %s got lost", tag, registeredClass));
+				}
+				else if (registeredClass.equals("org.apache.avro.generic.GenericData$Array")) {
+					// starting with Flink 1.4 Avro is no longer a dependency of core. Avro is
+					// only available if flink-avro is present. There is a special version of
+					// this test in AvroKryoSerializerRegistrationsTest that verifies correct
+					// registration of Avro types if present
+					assertThat(
+						registration.getType().getName(),
+						is("org.apache.flink.api.java.typeutils.runtime.kryo.Serializers$DummyAvroRegisteredClass"));
 				}
 				else if (!registeredClass.equals(registration.getType().getName())) {
 					fail(String.format("Registration for %d = %s changed to %s",

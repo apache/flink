@@ -168,8 +168,8 @@ public class OperatorBackendStateMetaInfoSnapshotReaderWriters {
 			DataInputViewStream dis = new DataInputViewStream(in);
 			ClassLoader previousClassLoader = Thread.currentThread().getContextClassLoader();
 			try (
-				TypeSerializerSerializationUtil.SerialUIDMismatchTolerantInputStream ois =
-					new TypeSerializerSerializationUtil.SerialUIDMismatchTolerantInputStream(dis, userCodeClassLoader)) {
+				TypeSerializerSerializationUtil.FailureTolerantObjectInputStream ois =
+					new TypeSerializerSerializationUtil.FailureTolerantObjectInputStream(dis, userCodeClassLoader)) {
 
 				Thread.currentThread().setContextClassLoader(userCodeClassLoader);
 				TypeSerializer<S> stateSerializer = (TypeSerializer<S>) ois.readObject();

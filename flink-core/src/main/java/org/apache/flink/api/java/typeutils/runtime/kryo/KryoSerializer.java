@@ -24,13 +24,12 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
-import org.apache.avro.generic.GenericData;
-
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.java.typeutils.AvroUtils;
 import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.DataOutputViewStream;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
@@ -406,7 +405,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 				}
 
 				// there's actually no way to tell if new Kryo serializers are compatible with
-				// the previous ones they overwrite; we can only signal compatibly and hope for the best
+				// the previous ones they overwrite; we can only signal compatibility and hope for the best
 				this.kryoRegistrations = reconfiguredRegistrations;
 				return CompatibilityResult.compatible();
 			}
@@ -478,11 +477,8 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 							registeredTypeWithSerializerEntry.getValue()));
 		}
 
-		kryoRegistrations.put(
-				GenericData.Array.class.getName(),
-				new KryoRegistration(
-						GenericData.Array.class,
-						new ExecutionConfig.SerializableSerializer<>(new Serializers.SpecificInstanceCollectionSerializerForArrayList())));
+		// add Avro support if flink-avro is available; a dummy otherwise
+		AvroUtils.getAvroUtils().addAvroGenericDataArrayRegistration(kryoRegistrations);
 
 		return kryoRegistrations;
 	}

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
 import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.api.java.io.AvroOutputFormat;
+import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -168,31 +168,30 @@ public class HDFSTest {
 	}
 
 	@Test
-	public void testAvroOut() {
+	public void testChangingFileNames() {
+		org.apache.hadoop.fs.Path hdfsPath = new org.apache.hadoop.fs.Path(hdfsURI + "/hdfsTest");
+		Path path = new Path(hdfsPath.toString());
+
 		String type = "one";
-		AvroOutputFormat<String> avroOut =
-				new AvroOutputFormat<String>(String.class);
+		TextOutputFormat<String> outputFormat = new TextOutputFormat<>(path);
 
-		org.apache.hadoop.fs.Path result = new org.apache.hadoop.fs.Path(hdfsURI + "/avroTest");
-
-		avroOut.setOutputFilePath(new Path(result.toString()));
-		avroOut.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
-		avroOut.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
+		outputFormat.setWriteMode(FileSystem.WriteMode.NO_OVERWRITE);
+		outputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
 
 		try {
-			avroOut.open(0, 2);
-			avroOut.writeRecord(type);
-			avroOut.close();
+			outputFormat.open(0, 2);
+			outputFormat.writeRecord(type);
+			outputFormat.close();
 
-			avroOut.open(1, 2);
-			avroOut.writeRecord(type);
-			avroOut.close();
+			outputFormat.open(1, 2);
+			outputFormat.writeRecord(type);
+			outputFormat.close();
 
-			assertTrue("No result file present", hdfs.exists(result));
-			FileStatus[] files = hdfs.listStatus(result);
+			assertTrue("No result file present", hdfs.exists(hdfsPath));
+			FileStatus[] files = hdfs.listStatus(hdfsPath);
 			Assert.assertEquals(2, files.length);
 			for (FileStatus file : files) {
-				assertTrue("1.avro".equals(file.getPath().getName()) || "2.avro".equals(file.getPath().getName()));
+				assertTrue("1".equals(file.getPath().getName()) || "2".equals(file.getPath().getName()));
 			}
 
 		} catch (IOException e) {
