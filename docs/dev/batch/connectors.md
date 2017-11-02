@@ -92,7 +92,7 @@ Also, the serialization framework of Flink is able to handle classes generated f
 ~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-avro</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 ~~~

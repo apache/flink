@@ -207,7 +207,7 @@ under the License.
 									<exclude>org.apache.flink:flink-runtime_${scala.binary.version}</exclude>
 									<exclude>org.apache.flink:flink-optimizer_${scala.binary.version}</exclude>
 									<exclude>org.apache.flink:flink-clients_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-avro_${scala.binary.version}</exclude>
+									<exclude>org.apache.flink:flink-avro</exclude>
 									<exclude>org.apache.flink:flink-examples-batch_${scala.binary.version}</exclude>
 									<exclude>org.apache.flink:flink-examples-streaming_${scala.binary.version}</exclude>
 									<exclude>org.apache.flink:flink-streaming-java_${scala.binary.version}</exclude>
