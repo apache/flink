@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -29,6 +30,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -42,6 +44,7 @@ import java.util.List;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -65,6 +68,22 @@ public class KryoSerializerCompatibilityTest {
 		}
 		CompatibilityResult<TestClass> compatResult = kryoSerializerForA.ensureCompatibility(kryoSerializerConfigSnapshot);
 		assertFalse(compatResult.isRequiresMigration());
+	}
+
+	@Test
+	public void testDeserializingKryoSerializerWithoutAvro() throws Exception {
+		final String resource = "serialized-kryo-serializer-1.3";
+
+		TypeSerializer<?> serializer;
+
+		try (InputStream in = getClass().getClassLoader().getResourceAsStream(resource)) {
+			DataInputViewStreamWrapper inView = new DataInputViewStreamWrapper(in);
+
+			serializer = TypeSerializerSerializationUtil.tryReadSerializer(inView, getClass().getClassLoader());
+		}
+
+		assertNotNull(serializer);
+		assertTrue(serializer instanceof KryoSerializer);
 	}
 
 	/**
@@ -150,7 +169,7 @@ public class KryoSerializerCompatibilityTest {
 				DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(f)) {
 
 				thrown.expectMessage("Could not find required Avro dependency");
-				FakeAvroClass myTestClass = kryoSerializer.deserialize(inputView);
+				kryoSerializer.deserialize(inputView);
 			}
 		}
 	}
