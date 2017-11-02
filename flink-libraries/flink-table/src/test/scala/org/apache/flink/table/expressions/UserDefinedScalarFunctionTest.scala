@@ -48,6 +48,24 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "43")
 
     testAllApis(
+      Func1('f11),
+      "Func1(f11)",
+      "Func1(f11)",
+      "4")
+
+    testAllApis(
+      Func1('f12),
+      "Func1(f12)",
+      "Func1(f12)",
+      "4")
+
+    testAllApis(
+      Func1('f13),
+      "Func1(f13)",
+      "Func1(f13)",
+      "4.0")
+
+    testAllApis(
       Func2('f0, 'f1, 'f3),
       "Func2(f0, f1, f3)",
       "Func2(f0, f1, f3)",
@@ -360,7 +378,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(11)
+    val testData = new Row(14)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -372,6 +390,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(8, 1000L)
     testData.setField(9, Seq("Hello", "World"))
     testData.setField(10, Array[Integer](1, 2, null))
+    testData.setField(11, 3.toByte)
+    testData.setField(12, 3.toShort)
+    testData.setField(13, 3.toFloat)
     testData
   }
 
@@ -387,7 +408,10 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.INTERVAL_MONTHS,
       Types.INTERVAL_MILLIS,
       TypeInformation.of(classOf[Seq[String]]),
-      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
+      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO,
+      Types.BYTE,
+      Types.SHORT,
+      Types.FLOAT
     ).asInstanceOf[TypeInformation[Any]]
   }
 

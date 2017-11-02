@@ -22,7 +22,7 @@ import java.lang.Boolean
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.functions.{FunctionContext, TableFunction}
 import org.apache.flink.types.Row
 import org.junit.Assert
@@ -106,6 +106,16 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
         collect(SimpleUser(splits(0), splits(1).toInt))
       }
     }
+  }
+}
+
+class TableFunc4 extends TableFunction[Row] {
+  def eval(b: Byte, s: Short, f: Float): Unit = {
+    collect(Row.of("Byte=" + b, "Short=" + s, "Float=" + f))
+  }
+
+  override def getResultType: TypeInformation[Row] = {
+    new RowTypeInfo(Types.STRING, Types.STRING, Types.STRING)
   }
 }
 
