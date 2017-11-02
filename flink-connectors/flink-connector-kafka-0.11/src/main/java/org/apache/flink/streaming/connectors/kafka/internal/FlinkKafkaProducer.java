@@ -181,24 +181,31 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		}
 	}
 
+	/**
+	 * Instead of obtaining producerId and epoch from the transaction coordinator, re-use previously obtained ones,
+	 * so that we can resume transaction after a restart. Implementation of this method is based on
+	 * {@link org.apache.kafka.clients.producer.KafkaProducer#initTransactions}.
+	 */
 	public void resumeTransaction(long producerId, short epoch) {
 		Preconditions.checkState(producerId >= 0 && epoch >= 0, "Incorrect values for producerId {} and epoch {}", producerId, epoch);
 		LOG.info("Attempting to resume transaction with producerId {} and epoch {}", producerId, epoch);
 
 		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Object sequenceNumbers = getValue(transactionManager, "sequenceNumbers");
+		synchronized (transactionManager) {
+			Object sequenceNumbers = getValue(transactionManager, "sequenceNumbers");
 
-		invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
-		invoke(sequenceNumbers, "clear");
+			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
+			invoke(sequenceNumbers, "clear");
 
-		Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
-		setValue(producerIdAndEpoch, "producerId", producerId);
-		setValue(producerIdAndEpoch, "epoch", epoch);
+			Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
+			setValue(producerIdAndEpoch, "producerId", producerId);
+			setValue(producerIdAndEpoch, "epoch", epoch);
 
-		invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.READY"));
+			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.READY"));
 
-		invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
-		setValue(transactionManager, "transactionStarted", true);
+			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
+			setValue(transactionManager, "transactionStarted", true);
+		}
 	}
 
 	public String getTransactionalId() {
@@ -224,15 +231,28 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 		return node.id();
 	}
 
+	/**
+	 * Besides committing {@link org.apache.kafka.clients.producer.KafkaProducer#commitTransaction} is also adding new
+	 * partitions to the transaction. flushNewPartitions method is moving this logic to pre-commit/flush, to make
+	 * resumeTransaction simpler. Otherwise resumeTransaction would require to restore state of the not yet added/"in-flight"
+	 * partitions.
+	 */
 	private void flushNewPartitions() {
 		LOG.info("Flushing new partitions");
-		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Object txnRequestHandler = invoke(transactionManager, "addPartitionsToTransactionHandler");
-		invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
-		TransactionalRequestResult result = (TransactionalRequestResult) getValue(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
+		TransactionalRequestResult result = enqueueNewPartitions();
 		Object sender = getValue(kafkaProducer, "sender");
 		invoke(sender, "wakeup");
 		result.await();
+	}
+
+	private TransactionalRequestResult enqueueNewPartitions() {
+		Object transactionManager = getValue(kafkaProducer, "transactionManager");
+		synchronized (transactionManager) {
+			Object txnRequestHandler = invoke(transactionManager, "addPartitionsToTransactionHandler");
+			invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
+			TransactionalRequestResult result = (TransactionalRequestResult) getValue(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
+			return result;
+		}
 	}
 
 	private static Enum<?> getEnum(String enumFullName) {

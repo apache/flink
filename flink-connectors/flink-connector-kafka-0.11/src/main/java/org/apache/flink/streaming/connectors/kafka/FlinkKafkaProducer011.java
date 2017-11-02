@@ -44,8 +44,6 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWra
 import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializableObject;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -133,7 +131,7 @@ public class FlinkKafkaProducer011<IN>
 		NONE
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducerBase.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaProducer011.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -224,7 +222,7 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * Pool of KafkaProducers objects.
 	 */
-	private transient ProducersPool producersPool = new ProducersPool();
+	private transient Optional<ProducersPool> producersPool = Optional.empty();
 
 	/**
 	 * Flag controlling whether we are writing the Flink record's timestamp into Kafka.
@@ -250,9 +248,6 @@ public class FlinkKafkaProducer011<IN>
 	/** Errors encountered in the async producer are stored here. */
 	@Nullable
 	private transient volatile Exception asyncException;
-
-	/** Lock for accessing the pending records. */
-	private final SerializableObject pendingRecordsLock = new SerializableObject();
 
 	/** Number of unacknowledged records. */
 	private final AtomicLong pendingRecords = new AtomicLong();
@@ -487,11 +482,6 @@ public class FlinkKafkaProducer011<IN>
 	 */
 	@Override
 	public void open(Configuration configuration) throws Exception {
-		if (semantic != Semantic.NONE && !((StreamingRuntimeContext) this.getRuntimeContext()).isCheckpointingEnabled()) {
-			LOG.warn("Using {} semantic, but checkpointing is not enabled. Switching to {} semantic.", semantic, Semantic.NONE);
-			semantic = Semantic.NONE;
-		}
-
 		if (logFailuresOnly) {
 			callback = new Callback() {
 				@Override
@@ -567,7 +557,7 @@ public class FlinkKafkaProducer011<IN>
 			asyncException = ExceptionUtils.firstOrSuppressed(e, asyncException);
 		}
 		try {
-			producersPool.close();
+			producersPool.ifPresent(pool -> pool.close());
 		}
 		catch (Exception e) {
 			asyncException = ExceptionUtils.firstOrSuppressed(e, asyncException);
@@ -598,7 +588,7 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	private FlinkKafkaProducer<byte[], byte[]> createOrGetProducerFromPool() throws Exception {
-		FlinkKafkaProducer<byte[], byte[]> producer = producersPool.poll();
+		FlinkKafkaProducer<byte[], byte[]> producer = getProducersPool().poll();
 		if (producer == null) {
 			String transactionalId = availableTransactionalIds.poll();
 			if (transactionalId == null) {
@@ -631,7 +621,7 @@ public class FlinkKafkaProducer011<IN>
 		switch (semantic) {
 			case EXACTLY_ONCE:
 				transaction.producer.commitTransaction();
-				producersPool.add(transaction.producer);
+				getProducersPool().add(transaction.producer);
 				break;
 			case AT_LEAST_ONCE:
 			case NONE:
@@ -674,11 +664,10 @@ public class FlinkKafkaProducer011<IN>
 		switch (semantic) {
 			case EXACTLY_ONCE:
 				transaction.producer.abortTransaction();
-				producersPool.add(transaction.producer);
+				getProducersPool().add(transaction.producer);
 				break;
 			case AT_LEAST_ONCE:
 			case NONE:
-				producersPool.add(transaction.producer);
 				break;
 			default:
 				throw new UnsupportedOperationException("Not implemented semantic");
@@ -731,7 +720,8 @@ public class FlinkKafkaProducer011<IN>
 		nextTransactionalIdHintState.clear();
 		// To avoid duplication only first subtask keeps track of next transactional id hint. Otherwise all of the
 		// subtasks would write exactly same information.
-		if (getRuntimeContext().getIndexOfThisSubtask() == 0 && nextTransactionalIdHint != null) {
+		if (getRuntimeContext().getIndexOfThisSubtask() == 0 && semantic == Semantic.EXACTLY_ONCE) {
+			checkState(nextTransactionalIdHint != null, "nextTransactionalIdHint must be set for EXACTLY_ONCE");
 			long nextFreeTransactionalId = nextTransactionalIdHint.nextFreeTransactionalId;
 
 			// If we scaled up, some (unknown) subtask must have created new transactional ids from scratch. In that
@@ -749,12 +739,20 @@ public class FlinkKafkaProducer011<IN>
 
 	@Override
 	public void initializeState(FunctionInitializationContext context) throws Exception {
+		if (semantic != Semantic.NONE && !((StreamingRuntimeContext) this.getRuntimeContext()).isCheckpointingEnabled()) {
+			LOG.warn("Using {} semantic, but checkpointing is not enabled. Switching to {} semantic.", semantic, Semantic.NONE);
+			semantic = Semantic.NONE;
+		}
+
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
 
 		if (semantic != Semantic.EXACTLY_ONCE) {
 			nextTransactionalIdHint = null;
+			producersPool = Optional.empty();
 		} else {
+			producersPool = Optional.of(new ProducersPool());
+
 			ArrayList<NextTransactionalIdHint> transactionalIdHints = Lists.newArrayList(nextTransactionalIdHintState.get());
 			if (transactionalIdHints.size() > 1) {
 				throw new IllegalStateException(
@@ -795,8 +793,7 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	private Set<String> generateNewTransactionalIds() {
-		Preconditions.checkState(nextTransactionalIdHint != null,
-			"nextTransactionalIdHint must be present for EXACTLY_ONCE");
+		checkState(nextTransactionalIdHint != null, "nextTransactionalIdHint must be present for EXACTLY_ONCE");
 
 		// range of available transactional ids is:
 		// [nextFreeTransactionalId, nextFreeTransactionalId + parallelism * kafkaProducersPoolSize)
@@ -868,6 +865,11 @@ public class FlinkKafkaProducer011<IN>
 		return initProducer(registerMetrics);
 	}
 
+	private ProducersPool getProducersPool() {
+		checkState(producersPool.isPresent(), "Trying to access uninitialized producer pool");
+		return producersPool.get();
+	}
+
 	private FlinkKafkaProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
 		FlinkKafkaProducer<byte[], byte[]> producer = new FlinkKafkaProducer<>(this.producerConfig);
 
@@ -923,7 +925,7 @@ public class FlinkKafkaProducer011<IN>
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-		producersPool = new ProducersPool();
+		producersPool = Optional.empty();
 	}
 
 	private static Properties getPropertiesFromBrokerList(String brokerList) {
