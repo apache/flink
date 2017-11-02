@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -57,11 +58,58 @@ public class HadoopS3FileSystemITCase extends TestLogger {
 	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
 	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
 
+	/**
+	 * Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped.
+	 */
+	private static boolean skipTest = true;
+
 	@BeforeClass
-	public static void checkIfCredentialsArePresent() {
+	public static void checkCredentialsAndSetup() throws IOException {
+		// check whether credentials exist
 		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
 		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
 		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
+
+		// initialize configuration with valid credentials
+		final Configuration conf = new Configuration();
+		conf.setString("s3.access.key", ACCESS_KEY);
+		conf.setString("s3.secret.key", SECRET_KEY);
+		FileSystem.initialize(conf);
+
+		// check for uniqueness of the test directory
+		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+		final FileSystem fs = directory.getFileSystem();
+
+		// directory must not yet exist
+		assertFalse(fs.exists(directory));
+
+		// reset configuration
+		FileSystem.initialize(new Configuration());
+
+		skipTest = false;
+	}
+
+	@AfterClass
+	public static void cleanUp() throws IOException {
+		if (!skipTest) {
+			// initialize configuration with valid credentials
+			final Configuration conf = new Configuration();
+			conf.setString("s3.access.key", ACCESS_KEY);
+			conf.setString("s3.secret.key", SECRET_KEY);
+			FileSystem.initialize(conf);
+
+			final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR);
+			final FileSystem fs = directory.getFileSystem();
+
+			// clean up
+			fs.delete(directory, true);
+
+			// now directory must be gone
+			assertFalse(fs.exists(directory));
+
+			// reset configuration
+			FileSystem.initialize(new Configuration());
+		}
 	}
 
 	@Test
