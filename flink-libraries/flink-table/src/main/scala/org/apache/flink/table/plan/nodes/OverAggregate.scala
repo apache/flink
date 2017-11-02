@@ -35,8 +35,8 @@ trait OverAggregate {
   }
 
   private[flink] def orderingToString(
-    inputType: RelDataType,
-    orderFields: java.util.List[RelFieldCollation]): String = {
+      inputType: RelDataType,
+      orderFields: java.util.List[RelFieldCollation]): String = {
 
     val inFields = inputType.getFieldList.asScala
 
@@ -48,9 +48,9 @@ trait OverAggregate {
   }
 
   private[flink] def windowRange(
-    logicWindow: Window,
-    overWindow: Group,
-    input: RelNode): String = {
+      logicWindow: Window,
+      overWindow: Group,
+      input: RelNode): String = {
     if (overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded) {
       s"BETWEEN ${getLowerBoundary(logicWindow, overWindow, input)} PRECEDING " +
           s"AND ${overWindow.upperBound}"
@@ -63,8 +63,7 @@ trait OverAggregate {
       inputType: RelDataType,
       constants: Seq[RexLiteral],
       rowType: RelDataType,
-      namedAggregates: Seq[CalcitePair[AggregateCall, String]])
-    : String = {
+      namedAggregates: Seq[CalcitePair[AggregateCall, String]]): String = {
 
     val inFields = inputType.getFieldNames.asScala
     val outFields = rowType.getFieldNames.asScala
@@ -97,12 +96,12 @@ trait OverAggregate {
   }
 
   private[flink] def getLowerBoundary(
-    logicWindow: Window,
-    overWindow: Group,
-    input: RelNode): Long = {
+      logicWindow: Window,
+      overWindow: Group,
+      input: RelNode): Long = {
 
     val ref: RexInputRef = overWindow.lowerBound.getOffset.asInstanceOf[RexInputRef]
-    val lowerBoundIndex = input.getRowType.getFieldCount - ref.getIndex
+    val lowerBoundIndex = ref.getIndex - input.getRowType.getFieldCount
     val lowerBound = logicWindow.constants.get(lowerBoundIndex).getValue2
     lowerBound match {
       case x: java.math.BigDecimal => x.asInstanceOf[java.math.BigDecimal].longValue()
