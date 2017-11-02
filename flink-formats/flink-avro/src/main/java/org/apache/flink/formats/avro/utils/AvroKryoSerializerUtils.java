@@ -37,8 +37,6 @@ import org.apache.avro.generic.GenericData;
 import java.io.Serializable;
 import java.util.LinkedHashMap;
 
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
-
 /**
  * Utilities for integrating Avro serializers in Kryo.
  */
@@ -46,7 +44,9 @@ public class AvroKryoSerializerUtils extends AvroUtils {
 
 	@Override
 	public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
-		if (hasSuperclass(type, AVRO_SPECIFIC_RECORD_BASE) || hasSuperclass(type, AVRO_GENERIC_RECORD)) {
+		if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(type) ||
+			org.apache.avro.generic.GenericData.Record.class.isAssignableFrom(type)) {
+
 			// Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
 			// because Kryo is not able to serialize them properly, we use this serializer for them
 			reg.registerTypeWithKryoSerializer(GenericData.Array.class, Serializers.SpecificInstanceCollectionSerializerForArrayList.class);
