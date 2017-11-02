@@ -22,7 +22,7 @@ import java.sql.{Date, Timestamp}
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableEnvironment, TableException, Types, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func1, Func13, Func18, RichFunc2}
@@ -227,6 +227,27 @@ class CorrelateITCase(
 
     val results = result.collect()
     val expected = "1000\n" + "655906210000\n" + "7591\n"
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testByteShortFloatArguments(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tableEnv = TableEnvironment.getTableEnvironment(env, config)
+    val in = testData(env).toTable(tableEnv).as('a, 'b, 'c)
+    val tFunc = new TableFunc4
+
+    val result = in
+      .select('a.cast(Types.BYTE) as 'a, 'a.cast(Types.SHORT) as 'b, 'b.cast(Types.FLOAT) as 'c)
+      .join(tFunc('a, 'b, 'c) as ('a2, 'b2, 'c2))
+      .toDataSet[Row]
+
+    val results = result.collect()
+    val expected = Seq(
+      "1,1,1.0,Byte=1,Short=1,Float=1.0",
+      "2,2,2.0,Byte=2,Short=2,Float=2.0",
+      "3,3,2.0,Byte=3,Short=3,Float=2.0",
+      "4,4,3.0,Byte=4,Short=4,Float=3.0").mkString("\n")
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 

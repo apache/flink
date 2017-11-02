@@ -41,6 +41,12 @@ object Func1 extends ScalarFunction {
   def eval(index: Integer): Integer = {
     index + 1
   }
+
+  def eval(b: Byte): Byte = (b + 1).toByte
+
+  def eval(s: Short): Short = (s + 1).toShort
+
+  def eval(f: Float): Float = f + 1
 }
 
 object Func2 extends ScalarFunction {
