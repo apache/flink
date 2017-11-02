@@ -36,6 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -53,7 +54,7 @@ import static org.junit.Assert.assertTrue;
  * <p>This test must be in the package it resides in, because it uses package-private methods
  * from the ExecutionGraph classes.
  */
-public class PipelinedRegionFailoverConcurrencyTest {
+public class PipelinedRegionFailoverConcurrencyTest extends TestLogger {
 
 	/**
 	 * Tests that a cancellation concurrent to a local failover leads to a properly

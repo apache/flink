@@ -76,6 +76,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.SimpleActorGateway;
@@ -589,15 +590,19 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	public void testConcurrentLocalFailAndRestart() throws Exception {
 		final int parallelism = 10;
 		SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+		final OneShotLatch restartLatch = new OneShotLatch();
+		final TriggeredRestartStrategy triggeredRestartStrategy = new TriggeredRestartStrategy(restartLatch);
 
 		final ExecutionGraph eg = createSimpleTestGraph(
 			new JobID(),
 			taskManagerGateway,
-			new FixedDelayRestartStrategy(10, 0L),
+			triggeredRestartStrategy,
 			createNoOpVertex(parallelism));
 
 		WaitForTasks waitForTasks = new WaitForTasks(parallelism);
+		WaitForTasks waitForTasksCancelled = new WaitForTasks(parallelism);
 		taskManagerGateway.setCondition(waitForTasks);
+		taskManagerGateway.setCancelCondition(waitForTasksCancelled);
 
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
@@ -648,7 +653,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		WaitForTasks waitForTasksAfterRestart = new WaitForTasks(parallelism);
 		taskManagerGateway.setCondition(waitForTasksAfterRestart);
 
+		waitForTasksCancelled.getFuture().get(1000L, TimeUnit.MILLISECONDS);
+
 		completeCancellingForAllVertices(eg);
+
+		// block the restart until we have completed for all vertices the cancellation
+		// otherwise it might happen that the last vertex which failed will have a new
+		// execution set due to restart which is wrongly canceled
+		restartLatch.trigger();
 
 		waitUntilJobStatus(eg, JobStatus.RUNNING, 1000);
 
@@ -1048,11 +1060,12 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		private final int tasksToWaitFor;
 		private final CompletableFuture<Boolean> allTasksReceived;
-		private int counter;
+		private final AtomicInteger counter;
 
 		public WaitForTasks(int tasksToWaitFor) {
 			this.tasksToWaitFor = tasksToWaitFor;
 			this.allTasksReceived = new CompletableFuture<>();
+			this.counter = new AtomicInteger();
 		}
 
 		public CompletableFuture<Boolean> getFuture() {
@@ -1061,9 +1074,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		@Override
 		public void accept(ExecutionAttemptID executionAttemptID) {
-			counter++;
-
-			if (counter >= tasksToWaitFor) {
+			if (counter.incrementAndGet() >= tasksToWaitFor) {
 				allTasksReceived.complete(true);
 			}
 		}
