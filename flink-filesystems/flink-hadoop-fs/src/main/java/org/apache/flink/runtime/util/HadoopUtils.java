@@ -21,11 +21,11 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.configuration.ConfigConstants;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +44,9 @@ public class HadoopUtils {
 
 	public static Configuration getHadoopConfiguration(org.apache.flink.configuration.Configuration flinkConfiguration) {
 
-		Configuration result = new Configuration();
+		// Instantiate a HdfsConfiguration to load the hdfs-site.xml and hdfs-default.xml
+		// from the classpath
+		Configuration result = new HdfsConfiguration();
 		boolean foundHadoopConfiguration = false;
 
 		// We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
