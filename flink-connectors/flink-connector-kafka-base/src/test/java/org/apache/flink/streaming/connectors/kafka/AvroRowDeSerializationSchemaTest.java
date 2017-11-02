@@ -23,6 +23,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.AvroTestUtils;
 import org.apache.flink.streaming.util.serialization.AvroRowDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.AvroRowSerializationSchema;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.avro.specific.SpecificRecord;
 import org.junit.Test;
@@ -118,6 +119,29 @@ public class AvroRowDeSerializationSchemaTest {
 		deserializationSchema.deserialize(bytes);
 		deserializationSchema.deserialize(bytes);
 		final Row actual = deserializationSchema.deserialize(bytes);
+
+		assertEquals(testData.f2, actual);
+	}
+
+	@Test
+	public void testSerializability() throws IOException, ClassNotFoundException {
+		final Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> testData = AvroTestUtils.getComplexTestData();
+
+		final AvroRowSerializationSchema serOrig = new AvroRowSerializationSchema(testData.f0);
+		final AvroRowDeserializationSchema deserOrig = new AvroRowDeserializationSchema(testData.f0);
+
+		byte[] serBytes = InstantiationUtil.serializeObject(serOrig);
+		byte[] deserBytes = InstantiationUtil.serializeObject(deserOrig);
+
+		AvroRowSerializationSchema serCopy =
+			InstantiationUtil.deserializeObject(serBytes, Thread.currentThread().getContextClassLoader());
+		AvroRowDeserializationSchema deserCopy =
+			InstantiationUtil.deserializeObject(deserBytes, Thread.currentThread().getContextClassLoader());
+
+		final byte[] bytes = serCopy.serialize(testData.f2);
+		deserCopy.deserialize(bytes);
+		deserCopy.deserialize(bytes);
+		final Row actual = deserCopy.deserialize(bytes);
 
 		assertEquals(testData.f2, actual);
 	}

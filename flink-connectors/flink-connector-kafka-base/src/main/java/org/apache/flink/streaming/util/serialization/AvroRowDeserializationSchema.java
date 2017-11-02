@@ -32,6 +32,8 @@ import org.apache.avro.util.Utf8;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.List;
 
 /**
@@ -44,24 +46,29 @@ import java.util.List;
 public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<Row> {
 
 	/**
+	 * Avro record class.
+	 */
+	private Class<? extends SpecificRecord> recordClazz;
+
+	/**
 	 * Schema for deterministic field order.
 	 */
-	private final Schema schema;
+	private transient Schema schema;
 
 	/**
 	 * Reader that deserializes byte array into a record.
 	 */
-	private final DatumReader<SpecificRecord> datumReader;
+	private transient DatumReader<SpecificRecord> datumReader;
 
 	/**
 	 * Input stream to read message from.
 	 */
-	private final MutableByteArrayInputStream inputStream;
+	private transient MutableByteArrayInputStream inputStream;
 
 	/**
 	 * Avro decoder that decodes binary data.
 	 */
-	private final Decoder decoder;
+	private transient Decoder decoder;
 
 	/**
 	 * Record to deserialize byte array to.
@@ -75,6 +82,7 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 	 */
 	public AvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz) {
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
+		this.recordClazz = recordClazz;
 		this.schema = SpecificData.get().getSchema(recordClazz);
 		this.datumReader = new SpecificDatumReader<>(schema);
 		this.record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
@@ -95,6 +103,20 @@ public class AvroRowDeserializationSchema extends AbstractDeserializationSchema<
 		// convert to row
 		final Object row = convertToRow(schema, record);
 		return (Row) row;
+	}
+
+	private void writeObject(ObjectOutputStream oos) throws IOException {
+		oos.writeObject(recordClazz);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+		this.recordClazz = (Class<? extends SpecificRecord>) ois.readObject();
+		this.schema = SpecificData.get().getSchema(recordClazz);
+		this.datumReader = new SpecificDatumReader<>(schema);
+		this.record = (SpecificRecord) SpecificData.newInstance(recordClazz, schema);
+		this.inputStream = new MutableByteArrayInputStream();
+		this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
 	}
 
 	/**
