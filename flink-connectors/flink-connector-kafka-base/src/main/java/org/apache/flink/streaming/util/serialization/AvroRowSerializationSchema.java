@@ -17,9 +17,9 @@
  */
 package org.apache.flink.streaming.util.serialization;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.List;
+import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -30,8 +30,12 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.List;
 
 /**
  * Serialization schema that serializes {@link Row} over {@link SpecificRecord} into a Avro bytes.
@@ -39,24 +43,29 @@ import org.apache.flink.util.Preconditions;
 public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 
 	/**
+	 * Avro record class.
+	 */
+	private Class<? extends SpecificRecord> recordClazz;
+
+	/**
 	 * Avro serialization schema.
 	 */
-	private final Schema schema;
+	private transient Schema schema;
 
 	/**
 	 * Writer to serialize Avro record into a byte array.
 	 */
-	private final DatumWriter<GenericRecord> datumWriter;
+	private transient DatumWriter<GenericRecord> datumWriter;
 
 	/**
 	 * Output stream to serialize records into byte array.
 	 */
-	private final ByteArrayOutputStream arrayOutputStream =  new ByteArrayOutputStream();
+	private transient ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
 
 	/**
 	 * Low-level class for serialization of Avro values.
 	 */
-	private final Encoder encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
+	private transient Encoder encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
 
 	/**
 	 * Creates a Avro serialization schema for the given schema.
@@ -65,6 +74,7 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 	 */
 	public AvroRowSerializationSchema(Class<? extends SpecificRecord> recordClazz) {
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
+		this.recordClazz = recordClazz;
 		this.schema = SpecificData.get().getSchema(recordClazz);
 		this.datumWriter = new SpecificDatumWriter<>(schema);
 	}
@@ -84,6 +94,19 @@ public class AvroRowSerializationSchema implements SerializationSchema<Row> {
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to serialize Row.", e);
 		}
+	}
+
+	private void writeObject(ObjectOutputStream oos) throws IOException {
+		oos.writeObject(recordClazz);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
+		this.recordClazz = (Class<? extends SpecificRecord>) ois.readObject();
+		this.schema = SpecificData.get().getSchema(recordClazz);
+		this.datumWriter = new SpecificDatumWriter<>(schema);
+		this.arrayOutputStream = new ByteArrayOutputStream();
+		this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
 	}
 
 	/**
