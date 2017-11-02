@@ -20,10 +20,13 @@ package org.apache.flink.table.functions.aggfunctions
 import java.math.BigDecimal
 import java.util.{HashMap => JHashMap}
 import java.lang.{Iterable => JIterable}
+import java.sql.Timestamp
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
+import org.apache.flink.table.api.Types
+import org.apache.flink.table.functions.aggfunctions.Ordering.TimestampOrdering
 import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Min with retraction aggregate function */
@@ -215,4 +218,12 @@ class DecimalMinWithRetractAggFunction extends MinWithRetractAggFunction[BigDeci
 class StringMinWithRetractAggFunction extends MinWithRetractAggFunction[String] {
   override def getInitValue: String = ""
   override def getValueTypeInfo = BasicTypeInfo.STRING_TYPE_INFO
+}
+
+/**
+  * Built-in Timestamp Min with retraction aggregate function
+  */
+class TimestampMinWithRetractAggFunction extends MinWithRetractAggFunction[Timestamp] {
+  override def getInitValue: Timestamp = new Timestamp(0)
+  override def getValueTypeInfo = Types.SQL_TIMESTAMP
 }

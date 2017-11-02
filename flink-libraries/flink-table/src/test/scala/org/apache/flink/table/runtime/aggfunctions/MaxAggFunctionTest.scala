@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.aggfunctions
 
 import java.math.BigDecimal
+import java.sql.Timestamp
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
@@ -229,4 +230,30 @@ class StringMaxAggFunctionTest extends AggFunctionTestBase[String, MaxAccumulato
 
   override def aggregator: AggregateFunction[String, MaxAccumulator[String]] =
     new StringMaxAggFunction()
+}
+
+class TimestampMaxAggFunctionTest
+  extends AggFunctionTestBase[Timestamp, MaxAccumulator[Timestamp]] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Timestamp(0),
+      new Timestamp(1000),
+      new Timestamp(100),
+      null.asInstanceOf[Timestamp],
+      new Timestamp(10)
+    ),
+    Seq(
+      null.asInstanceOf[Timestamp],
+      null.asInstanceOf[Timestamp],
+      null.asInstanceOf[Timestamp]
+    )
+  )
+
+  override def expectedResults: Seq[Timestamp] = Seq(
+    new Timestamp(1000),
+    null.asInstanceOf[Timestamp]
+  )
+
+  override def aggregator: AggregateFunction[Timestamp, MaxAccumulator[Timestamp]] =
+    new TimestampMaxAggFunction()
 }
