@@ -1267,6 +1267,8 @@ object AggregateUtil {
                   new BooleanMinWithRetractAggFunction
                 case VARCHAR | CHAR =>
                   new StringMinWithRetractAggFunction
+                case TIMESTAMP =>
+                  new TimestampMinWithRetractAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException(
                     s"Min with retract aggregate does no support type: '$sqlType'")
@@ -1291,6 +1293,8 @@ object AggregateUtil {
                   new BooleanMinAggFunction
                 case VARCHAR | CHAR =>
                   new StringMinAggFunction
+                case TIMESTAMP =>
+                  new TimestampMinAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException(s"Min aggregate does no support type: '$sqlType'")
               }
@@ -1316,6 +1320,8 @@ object AggregateUtil {
                   new BooleanMaxWithRetractAggFunction
                 case VARCHAR | CHAR =>
                   new StringMaxWithRetractAggFunction
+                case TIMESTAMP =>
+                  new TimestampMaxWithRetractAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException(
                     s"Max with retract aggregate does no support type: '$sqlType'")
@@ -1340,6 +1346,8 @@ object AggregateUtil {
                   new BooleanMaxAggFunction
                 case VARCHAR | CHAR =>
                   new StringMaxAggFunction
+                case TIMESTAMP =>
+                  new TimestampMaxAggFunction
                 case sqlType: SqlTypeName =>
                   throw new TableException(s"Max aggregate does no support type: '$sqlType'")
               }

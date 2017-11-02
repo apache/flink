@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.aggfunctions
 
 import java.math.BigDecimal
+import java.sql.Timestamp
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
@@ -230,4 +231,30 @@ class StringMinAggFunctionTest
 
   override def aggregator: AggregateFunction[String, MinAccumulator[String]] =
     new StringMinAggFunction()
+}
+
+class TimestampMinAggFunctionTest
+  extends AggFunctionTestBase[Timestamp, MinAccumulator[Timestamp]] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Timestamp(0),
+      new Timestamp(1000),
+      new Timestamp(100),
+      null.asInstanceOf[Timestamp],
+      new Timestamp(10)
+    ),
+    Seq(
+      null.asInstanceOf[Timestamp],
+      null.asInstanceOf[Timestamp],
+      null.asInstanceOf[Timestamp]
+    )
+  )
+
+  override def expectedResults: Seq[Timestamp] = Seq(
+    new Timestamp(0),
+    null.asInstanceOf[Timestamp]
+  )
+
+  override def aggregator: AggregateFunction[Timestamp, MinAccumulator[Timestamp]] =
+    new TimestampMinAggFunction()
 }

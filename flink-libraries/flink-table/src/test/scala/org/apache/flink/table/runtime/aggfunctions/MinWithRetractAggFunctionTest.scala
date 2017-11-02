@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.aggfunctions
 
 import java.math.BigDecimal
+import java.sql.Timestamp
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
@@ -239,6 +240,37 @@ class StringMinWithRetractAggFunctionTest
 
   override def aggregator: AggregateFunction[String, MinWithRetractAccumulator[String]] =
     new StringMinWithRetractAggFunction()
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+}
+
+class TimestampMinWithRetractAggFunctionTest
+  extends AggFunctionTestBase[Timestamp, MinWithRetractAccumulator[Timestamp]] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Timestamp(0),
+      new Timestamp(1000),
+      new Timestamp(100),
+      null.asInstanceOf[Timestamp],
+      new Timestamp(10)
+    ),
+    Seq(
+      null,
+      null,
+      null,
+      null,
+      null
+    )
+  )
+
+  override def expectedResults: Seq[Timestamp] = Seq(
+    new Timestamp(0),
+    null
+  )
+
+  override def aggregator: AggregateFunction[Timestamp, MinWithRetractAccumulator[Timestamp]] =
+    new TimestampMinWithRetractAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
