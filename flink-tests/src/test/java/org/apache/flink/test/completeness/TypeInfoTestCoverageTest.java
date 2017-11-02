@@ -23,12 +23,14 @@ import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+
 import org.reflections.Reflections;
 
 import java.lang.reflect.Modifier;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Scans the class path for type information and checks if there is a test for it.
@@ -40,7 +42,9 @@ public class TypeInfoTestCoverageTest extends TestLogger {
 		Reflections reflections = new Reflections("org.apache.flink");
 
 		Set<Class<? extends TypeInformation>> typeInfos = reflections.getSubTypesOf(TypeInformation.class);
-		Set<Class<? extends TypeInformationTestBase>> typeInfoTests = reflections.getSubTypesOf(TypeInformationTestBase.class);
+
+		Set<String> typeInfoTestNames = reflections.getSubTypesOf(TypeInformationTestBase.class)
+				.stream().map(Class::getName).collect(Collectors.toSet());
 
 		// check if a test exists for each type information
 		for (Class<? extends TypeInformation> typeInfo : typeInfos) {
@@ -54,13 +58,11 @@ public class TypeInfoTestCoverageTest extends TestLogger {
 					typeInfo.getName().contains("queryablestate")) {
 				continue;
 			}
-			boolean found = false;
-			for (Class<? extends TypeInformationTestBase> typeInfoTest : typeInfoTests) {
-				if (typeInfoTest.getName().equals(typeInfo.getName() + "Test")) {
-					found = true;
-				}
+
+			final String testToFind = typeInfo.getName() + "Test";
+			if (!typeInfoTestNames.contains(testToFind)) {
+				fail("Could not find test '" + testToFind + "' that covers '" + typeInfo.getName() + "'.");
 			}
-			assertTrue("Could not find test that corresponds to " + typeInfo.getName(), found);
 		}
 	}
 }
