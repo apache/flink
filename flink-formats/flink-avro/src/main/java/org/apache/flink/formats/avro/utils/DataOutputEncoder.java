@@ -28,9 +28,7 @@ import java.nio.ByteBuffer;
 /**
  * An {@link Encoder} that writes data to a {@link DataOutput}.
  */
-public final class DataOutputEncoder extends Encoder implements java.io.Serializable {
-
-	private static final long serialVersionUID = 1L;
+public final class DataOutputEncoder extends Encoder {
 
 	private DataOutput out;
 
