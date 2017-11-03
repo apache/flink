@@ -43,6 +43,13 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- explicitly include avro to force Flink's managed version -->
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<!-- managed version -->
+		</dependency>
+
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
 			<artifactId>hadoop-common</artifactId>
@@ -160,12 +167,6 @@ under the License.
 				<exclusion>
 					<groupId>commons-beanutils</groupId>
 					<artifactId>commons-beanutils</artifactId>
-				</exclusion>
-
-				<!-- we don't want Hadoop's Avro dependency, since Flink adds its own Avro support --> 
-				<exclusion>
-					<groupId>org.apache.avro</groupId>
-					<artifactId>avro</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -417,12 +418,6 @@ under the License.
 				<exclusion>
 					<groupId>com.sun.jersey.contribs</groupId>
 					<artifactId>jersey-guice</artifactId>
-				</exclusion>
-
-				<!-- we don't want Hadoop's Avro dependency, since Flink adds its own Avro support -->
-				<exclusion>
-					<groupId>org.apache.avro</groupId>
-					<artifactId>avro</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
