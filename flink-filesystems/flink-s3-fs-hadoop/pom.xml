@@ -226,6 +226,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
@@ -234,23 +235,27 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org</pattern>
-									<shadedPattern>org.apache.flink.s3hadoop.shaded.org</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org</shadedPattern>
+									<excludes>
+										<exclude>org.apache.flink.core.fs.FileSystemFactory</exclude>
+										<exclude>org.apache.flink.fs.s3hadoop.**</exclude>
+									</excludes>
 								</relocation>
 								<relocation>
 									<pattern>com</pattern>
-									<shadedPattern>org.apache.flink.s3hadoop.shaded.com</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>net</pattern>
-									<shadedPattern>org.apache.flink.s3hadoop.shaded.net</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.net</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okio</pattern>
-									<shadedPattern>org.apache.flink.s3hadoop.shaded.okio</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.okio</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>software</pattern>
-									<shadedPattern>org.apache.flink.s3hadoop.shaded.software</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.software</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>

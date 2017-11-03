@@ -226,6 +226,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
@@ -237,23 +238,27 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org</pattern>
-									<shadedPattern>org.apache.flink.s3presto.shaded.org</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org</shadedPattern>
+									<excludes>
+										<exclude>org.apache.flink.core.fs.FileSystemFactory</exclude>
+										<exclude>org.apache.flink.fs.s3presto.**</exclude>
+									</excludes>
 								</relocation>
 								<relocation>
 									<pattern>com</pattern>
-									<shadedPattern>org.apache.flink.s3presto.shaded.com</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.com</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>io</pattern>
-									<shadedPattern>org.apache.flink.s3presto.shaded.io</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.io</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>net</pattern>
-									<shadedPattern>org.apache.flink.s3presto.shaded.net</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.net</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>software</pattern>
-									<shadedPattern>org.apache.flink.s3presto.shaded.software</shadedPattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.software</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
