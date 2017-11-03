@@ -30,7 +30,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import org.junit.Test;
 
-import java.util.Collections;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 
@@ -73,8 +73,7 @@ public class MultipleJobsDetailsTest extends TestLogger {
 			4);
 
 		final MultipleJobsDetails expected = new MultipleJobsDetails(
-			Collections.singleton(running),
-			Collections.singleton(finished));
+			Arrays.asList(running, finished));
 
 		final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
 

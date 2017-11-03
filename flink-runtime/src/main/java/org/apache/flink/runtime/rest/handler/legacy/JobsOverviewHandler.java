@@ -80,14 +80,8 @@ public class JobsOverviewHandler extends AbstractJsonRequestHandler {
 
 						gen.writeStartObject();
 
-						gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_RUNNING);
-						for (JobDetails detail : result.getRunning()) {
-							jobDetailsSerializer.serialize(detail, gen, null);
-						}
-						gen.writeEndArray();
-
-						gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_FINISHED);
-						for (JobDetails detail : result.getFinished()) {
+						gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS);
+						for (JobDetails detail : result.getJobs()) {
 							jobDetailsSerializer.serialize(detail, gen, null);
 						}
 						gen.writeEndArray();
@@ -116,9 +110,7 @@ public class JobsOverviewHandler extends AbstractJsonRequestHandler {
 			StringWriter writer = new StringWriter();
 			try (JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer)) {
 				gen.writeStartObject();
-				gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_RUNNING);
-				gen.writeEndArray();
-				gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS_FINISHED);
+				gen.writeArrayFieldStart(MultipleJobsDetails.FIELD_NAME_JOBS);
 
 				final JobDetails.JobDetailsSerializer jobDetailsSerializer = new JobDetails.JobDetailsSerializer();
 				jobDetailsSerializer.serialize(WebMonitorUtils.createDetailsForJob(graph), gen, null);

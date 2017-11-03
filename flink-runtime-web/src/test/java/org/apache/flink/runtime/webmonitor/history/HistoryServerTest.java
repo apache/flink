@@ -96,7 +96,7 @@ public class HistoryServerTest extends TestLogger {
 			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
 			JsonNode overview = mapper.readTree(response);
 
-			String jobID = overview.get("finished").get(0).get("jid").asText();
+			String jobID = overview.get("jobs").get(0).get("jid").asText();
 			JsonNode jobDetails = mapper.readTree(getFromHTTP(baseUrl + "/jobs/" + jobID));
 			Assert.assertNotNull(jobDetails.get("jid"));
 		} finally {

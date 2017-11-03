@@ -30,6 +30,7 @@ import org.apache.flink.runtime.messages.webmonitor.RequestJobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 
 public class WebMonitorMessagesTest {
 	
@@ -103,7 +104,7 @@ public class WebMonitorMessagesTest {
 		try {
 			final Random rnd = new Random();
 			GenericMessageTester.testMessageInstance(
-					new MultipleJobsDetails(randomJobDetails(rnd), randomJobDetails(rnd)));
+					new MultipleJobsDetails(randomJobDetails(rnd)));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

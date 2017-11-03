@@ -59,13 +59,10 @@ public class JobsOverviewHandlerTest extends TestLogger {
 		Assert.assertEquals(JobsOverviewHeaders.URL, archive.getPath());
 
 		JsonNode result = ArchivedJobGenerationUtils.MAPPER.readTree(archive.getJson());
-		ArrayNode running = (ArrayNode) result.get("running");
-		Assert.assertEquals(0, running.size());
+		ArrayNode jobs = (ArrayNode) result.get("jobs");
+		Assert.assertEquals(1, jobs.size());
 
-		ArrayNode finished = (ArrayNode) result.get("finished");
-		Assert.assertEquals(1, finished.size());
-
-		compareJobOverview(expectedDetails, finished.get(0).toString());
+		compareJobOverview(expectedDetails, jobs.get(0).toString());
 	}
 
 	@Test

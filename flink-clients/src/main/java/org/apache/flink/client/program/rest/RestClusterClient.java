@@ -31,6 +31,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.BlobServerPortHeaders;
@@ -206,11 +207,13 @@ public class RestClusterClient extends ClusterClient {
 			headers
 		);
 		return jobDetailsFuture
-			.thenApply(details -> {
-				Collection<JobStatusMessage> flattenedDetails = new ArrayList<>();
-				details.getRunning().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
-				details.getFinished().forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
-				return flattenedDetails;
+			.thenApply(
+				(MultipleJobsDetails multipleJobsDetails) -> {
+					final Collection<JobDetails> jobDetails = multipleJobsDetails.getJobs();
+					Collection<JobStatusMessage> flattenedDetails = new ArrayList<>(jobDetails.size());
+					jobDetails.forEach(detail -> flattenedDetails.add(new JobStatusMessage(detail.getJobId(), detail.getJobName(), detail.getStatus(), detail.getStartTime())));
+
+					return flattenedDetails;
 			});
 	}
 

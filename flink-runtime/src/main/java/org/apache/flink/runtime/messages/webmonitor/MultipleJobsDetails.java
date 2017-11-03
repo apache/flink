@@ -19,16 +19,15 @@
 package org.apache.flink.runtime.messages.webmonitor;
 
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.apache.commons.collections.CollectionUtils;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.Objects;
 
 /**
  * An actor messages describing details of various jobs. This message is sent for example
@@ -38,38 +37,28 @@ public class MultipleJobsDetails implements ResponseBody, Serializable {
 
 	private static final long serialVersionUID = -1526236139616019127L;
 	
-	public static final String FIELD_NAME_JOBS_RUNNING = "running";
-	public static final String FIELD_NAME_JOBS_FINISHED = "finished";
+	public static final String FIELD_NAME_JOBS = "jobs";
 
-	@JsonProperty(FIELD_NAME_JOBS_RUNNING)
-	private final Collection<JobDetails> running;
-
-	@JsonProperty(FIELD_NAME_JOBS_FINISHED)
-	private final Collection<JobDetails> finished;
+	@JsonProperty(FIELD_NAME_JOBS)
+	private final Collection<JobDetails> jobs;
 
 	@JsonCreator
 	public MultipleJobsDetails(
-			@JsonProperty(FIELD_NAME_JOBS_RUNNING) Collection<JobDetails> running,
-			@JsonProperty(FIELD_NAME_JOBS_FINISHED) Collection<JobDetails> finished) {
-		this.running = running == null ? Collections.emptyList() : running;
-		this.finished = finished == null ? Collections.emptyList() : finished;
+			@JsonProperty(FIELD_NAME_JOBS) Collection<JobDetails> jobs) {
+		this.jobs = Preconditions.checkNotNull(jobs);
 	}
 	
 	// ------------------------------------------------------------------------
 
-	public Collection<JobDetails> getRunning() {
-		return running;
-	}
 
-	public Collection<JobDetails> getFinished() {
-		return finished;
+	public Collection<JobDetails> getJobs() {
+		return jobs;
 	}
 
 	@Override
 	public String toString() {
 		return "MultipleJobsDetails{" +
-			"running=" + running +
-			", finished=" + finished +
+			"jobs=" + jobs +
 			'}';
 	}
 
@@ -82,31 +71,12 @@ public class MultipleJobsDetails implements ResponseBody, Serializable {
 			return false;
 		}
 		MultipleJobsDetails that = (MultipleJobsDetails) o;
-
-		return CollectionUtils.isEqualCollection(running, that.running) &&
-			CollectionUtils.isEqualCollection(finished, that.finished);
+		return Objects.equals(jobs, that.jobs);
 	}
 
 	@Override
 	public int hashCode() {
-		// the hash code only depends on the collection elements, not the collection itself!
-		int result = 1;
-
-		Iterator<JobDetails> iterator = running.iterator();
-
-		while (iterator.hasNext()) {
-			JobDetails jobDetails = iterator.next();
-			result = 31 * result + (jobDetails == null ? 0 : jobDetails.hashCode());
-		}
-
-		iterator = finished.iterator();
-
-		while (iterator.hasNext()) {
-			JobDetails jobDetails = iterator.next();
-			result = 31 * result + (jobDetails == null ? 0 : jobDetails.hashCode());
-		}
-
-		return result;
+		return Objects.hash(jobs);
 	}
 
 	// ------------------------------------------------------------------------
