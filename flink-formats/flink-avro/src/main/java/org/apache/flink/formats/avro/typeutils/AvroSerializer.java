@@ -18,85 +18,93 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
-import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
-import org.apache.flink.api.java.typeutils.runtime.KryoUtils;
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
-import com.esotericsoftware.kryo.Kryo;
-import org.apache.avro.generic.GenericData;
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaCompatibility;
+import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
+import org.apache.avro.SchemaCompatibility.SchemaPairCompatibility;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.apache.avro.util.Utf8;
-import org.objenesis.strategy.StdInstantiatorStrategy;
+import org.apache.avro.specific.SpecificData;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.specific.SpecificRecord;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * General purpose serialization. Currently using Apache Avro's Reflect-serializers for serialization and
- * Kryo for deep object copies. We want to change this to Kryo-only.
+ * A serializer that serializes types via Avro.
  *
- * @param <T> The type serialized.
+ * <p>The serializer supports both efficient specific record serialization for
+ * types generated via Avro, as well as serialization via reflection
+ * (ReflectDatumReader / -Writer). The serializer instantiates them depending on
+ * the class of the type it should serialize.
+ *
+ * @param <T> The type to be serialized.
  */
-@Internal
-public final class AvroSerializer<T> extends TypeSerializer<T> {
+public class AvroSerializer<T> extends TypeSerializer<T> {
 
 	private static final long serialVersionUID = 1L;
 
+	// -------- configuration fields, serializable -----------
+
+	/** The class of the type that is serialized by this serializer. */
 	private final Class<T> type;
 
-	private final Class<? extends T> typeToInstantiate;
+	// -------- runtime fields, non-serializable, lazily initialized -----------
 
-	/**
-	 * Map of class tag (using classname as tag) to their Kryo registration.
-	 *
-	 * <p>This map serves as a preview of the final registration result of
-	 * the Kryo instance, taking into account registration overwrites.
-	 */
-	private LinkedHashMap<String, KryoRegistration> kryoRegistrations;
-
-	private transient ReflectDatumWriter<T> writer;
-	private transient ReflectDatumReader<T> reader;
+	private transient SpecificDatumWriter<T> writer;
+	private transient SpecificDatumReader<T> reader;
 
 	private transient DataOutputEncoder encoder;
 	private transient DataInputDecoder decoder;
 
-	private transient Kryo kryo;
+	private transient SpecificData avroData;
 
-	private transient T deepCopyInstance;
+	private transient Schema schema;
 
-	// --------------------------------------------------------------------------------------------
+	/** The serializer configuration snapshot, cached for efficiency. */
+	private transient AvroSchemaSerializerConfigSnapshot configSnapshot;
 
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a new AvroSerializer for the type indicated by the given class.
+	 */
 	public AvroSerializer(Class<T> type) {
-		this(type, type);
-	}
-
-	public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
 		this.type = checkNotNull(type);
-		this.typeToInstantiate = checkNotNull(typeToInstantiate);
-
-		InstantiationUtil.checkForInstantiation(typeToInstantiate);
-
-		this.kryoRegistrations = buildKryoRegistrations(type);
 	}
 
-	// --------------------------------------------------------------------------------------------
+	/**
+	 * @deprecated Use {@link AvroSerializer#AvroSerializer(Class)} instead.
+	 */
+	@Deprecated
+	@SuppressWarnings("unused")
+	public AvroSerializer(Class<T> type, Class<? extends T> typeToInstantiate) {
+		this(type);
+	}
+
+	// ------------------------------------------------------------------------
+
+	public Class<T> getType() {
+		return type;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Properties
+	// ------------------------------------------------------------------------
 
 	@Override
 	public boolean isImmutableType() {
@@ -104,32 +112,17 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 	}
 
 	@Override
-	public AvroSerializer<T> duplicate() {
-		return new AvroSerializer<T>(type, typeToInstantiate);
+	public int getLength() {
+		return -1;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Serialization
+	// ------------------------------------------------------------------------
 
 	@Override
 	public T createInstance() {
-		return InstantiationUtil.instantiate(this.typeToInstantiate);
-	}
-
-	@Override
-	public T copy(T from) {
-		checkKryoInitialized();
-
-		return KryoUtils.copy(from, kryo, this);
-	}
-
-	@Override
-	public T copy(T from, T reuse) {
-		checkKryoInitialized();
-
-		return KryoUtils.copy(from, reuse, kryo, this);
-	}
-
-	@Override
-	public int getLength() {
-		return -1;
+		return InstantiationUtil.instantiate(type);
 	}
 
 	@Override
@@ -153,111 +146,216 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 		return this.reader.read(reuse, this.decoder);
 	}
 
+	// ------------------------------------------------------------------------
+	//  Copying
+	// ------------------------------------------------------------------------
+
+	@Override
+	public T copy(T from) {
+		checkAvroInitialized();
+		return avroData.deepCopy(schema, from);
+	}
+
+	@Override
+	public T copy(T from, T reuse) {
+		return copy(from);
+	}
+
 	@Override
 	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		checkAvroInitialized();
-
-		if (this.deepCopyInstance == null) {
-			this.deepCopyInstance = InstantiationUtil.instantiate(type, Object.class);
-		}
-
-		this.decoder.setIn(source);
-		this.encoder.setOut(target);
-
-		T tmp = this.reader.read(this.deepCopyInstance, this.decoder);
-		this.writer.write(tmp, this.encoder);
+		T value = deserialize(source);
+		serialize(value, target);
 	}
 
-	private void checkAvroInitialized() {
-		if (this.reader == null) {
-			this.reader = new ReflectDatumReader<T>(type);
-			this.writer = new ReflectDatumWriter<T>(type);
-			this.encoder = new DataOutputEncoder();
-			this.decoder = new DataInputDecoder();
+	// ------------------------------------------------------------------------
+	//  Compatibility and Upgrades
+	// ------------------------------------------------------------------------
+
+	@Override
+	public TypeSerializerConfigSnapshot snapshotConfiguration() {
+		if (configSnapshot == null) {
+			checkAvroInitialized();
+			configSnapshot = new AvroSchemaSerializerConfigSnapshot(schema.toString(false));
+		}
+		return configSnapshot;
+	}
+
+	@Override
+	@SuppressWarnings("deprecation")
+	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
+		if (configSnapshot instanceof AvroSchemaSerializerConfigSnapshot) {
+			// proper schema snapshot, can do the sophisticated schema-based compatibility check
+			final String schemaString = ((AvroSchemaSerializerConfigSnapshot) configSnapshot).getSchemaString();
+			final Schema lastSchema = new Schema.Parser().parse(schemaString);
+
+			checkAvroInitialized();
+			final SchemaPairCompatibility compatibility =
+					SchemaCompatibility.checkReaderWriterCompatibility(schema, lastSchema);
+
+			return compatibility.getType() == SchemaCompatibilityType.COMPATIBLE ?
+					CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
+		}
+		else if (configSnapshot instanceof AvroSerializerConfigSnapshot) {
+			// old snapshot case, just compare the type
+			// we don't need to restore any Kryo stuff, since Kryo was never used for persistence,
+			// only for object-to-object copies.
+			final AvroSerializerConfigSnapshot old = (AvroSerializerConfigSnapshot) configSnapshot;
+			return type.equals(old.getTypeClass()) ?
+					CompatibilityResult.compatible() : CompatibilityResult.requiresMigration();
+		}
+		else {
+			return CompatibilityResult.requiresMigration();
 		}
 	}
 
-	private void checkKryoInitialized() {
-		if (this.kryo == null) {
-			this.kryo = new Kryo();
+	// ------------------------------------------------------------------------
+	//  Utilities
+	// ------------------------------------------------------------------------
 
-			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
-			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-			kryo.setInstantiatorStrategy(instantiatorStrategy);
-
-			kryo.setAsmEnabled(true);
-
-			KryoUtils.applyRegistrations(kryo, kryoRegistrations.values());
-		}
+	@Override
+	public TypeSerializer<T> duplicate() {
+		return new AvroSerializer<>(type);
 	}
-
-	// --------------------------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
-		return 31 * this.type.hashCode() + this.typeToInstantiate.hashCode();
+		return 42 + type.hashCode();
 	}
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof AvroSerializer) {
-			@SuppressWarnings("unchecked")
-			AvroSerializer<T> avroSerializer = (AvroSerializer<T>) obj;
-
-			return avroSerializer.canEqual(this) &&
-				type == avroSerializer.type &&
-				typeToInstantiate == avroSerializer.typeToInstantiate;
-		} else {
+		if (obj == this) {
+			return true;
+		}
+		else if (obj != null && obj.getClass() == AvroSerializer.class) {
+			final AvroSerializer that = (AvroSerializer) obj;
+			return this.type == that.type;
+		}
+		else {
 			return false;
 		}
 	}
 
 	@Override
 	public boolean canEqual(Object obj) {
-		return obj instanceof AvroSerializer;
+		return obj.getClass() == this.getClass();
 	}
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
-
 	@Override
-	public AvroSerializerConfigSnapshot<T> snapshotConfiguration() {
-		return new AvroSerializerConfigSnapshot<>(type, typeToInstantiate, kryoRegistrations);
+	public String toString() {
+		return getClass().getName() + " (" + getType().getName() + ')';
 	}
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public CompatibilityResult<T> ensureCompatibility(TypeSerializerConfigSnapshot configSnapshot) {
-		if (configSnapshot instanceof AvroSerializerConfigSnapshot) {
-			final AvroSerializerConfigSnapshot<T> config = (AvroSerializerConfigSnapshot<T>) configSnapshot;
+	// ------------------------------------------------------------------------
+	//  Initialization
+	// ------------------------------------------------------------------------
 
-			if (type.equals(config.getTypeClass()) && typeToInstantiate.equals(config.getTypeToInstantiate())) {
-				// resolve Kryo registrations; currently, since the Kryo registrations in Avro
-				// are fixed, there shouldn't be a problem with the resolution here.
+	private void checkAvroInitialized() {
+		if (writer == null) {
+			initializeAvro();
+		}
+	}
 
-				LinkedHashMap<String, KryoRegistration> oldRegistrations = config.getKryoRegistrations();
-				oldRegistrations.putAll(kryoRegistrations);
+	private void initializeAvro() {
+		final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
-				for (Map.Entry<String, KryoRegistration> reconfiguredRegistrationEntry : kryoRegistrations.entrySet()) {
-					if (reconfiguredRegistrationEntry.getValue().isDummy()) {
-						return CompatibilityResult.requiresMigration();
-					}
-				}
+		if (SpecificRecord.class.isAssignableFrom(type)) {
+			this.avroData = new SpecificData(cl);
+			this.schema = this.avroData.getSchema(type);
+			this.reader = new SpecificDatumReader<>(schema, schema, avroData);
+			this.writer = new SpecificDatumWriter<>(schema, avroData);
+		}
+		else {
+			final ReflectData reflectData = new ReflectData(cl);
+			this.avroData = reflectData;
+			this.schema = this.avroData.getSchema(type);
+			this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
+			this.writer = new ReflectDatumWriter<>(schema, reflectData);
+		}
 
-				this.kryoRegistrations = oldRegistrations;
-				return CompatibilityResult.compatible();
+		this.encoder = new DataOutputEncoder();
+		this.decoder = new DataInputDecoder();
+	}
+
+	// ------------------------------------------------------------------------
+	//  Serializer Snapshots
+	// ------------------------------------------------------------------------
+
+	/**
+	 * A config snapshot for the Avro Serializer that stores the Avro Schema to check compatibility.
+	 */
+	public static final class AvroSchemaSerializerConfigSnapshot extends TypeSerializerConfigSnapshot {
+
+		private String schemaString;
+
+		/**
+		 * Default constructor for instantiation via reflection.
+		 */
+		@SuppressWarnings("unused")
+		public AvroSchemaSerializerConfigSnapshot() {}
+
+		public AvroSchemaSerializerConfigSnapshot(String schemaString) {
+			this.schemaString = checkNotNull(schemaString);
+		}
+
+		public String getSchemaString() {
+			return schemaString;
+		}
+
+		// --- Serialization ---
+
+		@Override
+		public void read(DataInputView in) throws IOException {
+			super.read(in);
+			this.schemaString = in.readUTF();
+		}
+
+		@Override
+		public void write(DataOutputView out) throws IOException {
+			super.write(out);
+			out.writeUTF(schemaString);
+		}
+
+		// --- Version ---
+
+		@Override
+		public int getVersion() {
+			return 1;
+		}
+
+		// --- Utils ---
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this) {
+				return true;
+			}
+			else if (obj != null && obj.getClass() == AvroSchemaSerializerConfigSnapshot.class) {
+				final AvroSchemaSerializerConfigSnapshot that = (AvroSchemaSerializerConfigSnapshot) obj;
+				return this.schemaString.equals(that.schemaString);
+			}
+			else {
+				return false;
 			}
 		}
 
-		// ends up here if the preceding serializer is not
-		// the ValueSerializer, or serialized data type has changed
-		return CompatibilityResult.requiresMigration();
+		@Override
+		public int hashCode() {
+			return 11 + schemaString.hashCode();
+		}
+
+		@Override
+		public String toString() {
+			return getClass().getName() + " (" + schemaString + ')';
+		}
 	}
 
 	/**
-	 * {@link TypeSerializerConfigSnapshot} for Avro.
+	 * The outdated config snapshot, retained for backwards compatibility.
+	 *
+	 * @deprecated The {@link AvroSchemaSerializerConfigSnapshot} should be used instead.
 	 */
+	@Deprecated
 	public static class AvroSerializerConfigSnapshot<T> extends KryoRegistrationSerializerConfigSnapshot<T> {
 
 		private static final int VERSION = 1;
@@ -265,15 +363,6 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 		private Class<? extends T> typeToInstantiate;
 
 		public AvroSerializerConfigSnapshot() {}
-
-		public AvroSerializerConfigSnapshot(
-			Class<T> baseType,
-			Class<? extends T> typeToInstantiate,
-			LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
-
-			super(baseType, kryoRegistrations);
-			this.typeToInstantiate = Preconditions.checkNotNull(typeToInstantiate);
-		}
 
 		@Override
 		public void write(DataOutputView out) throws IOException {
@@ -303,36 +392,5 @@ public final class AvroSerializer<T> extends TypeSerializer<T> {
 		public Class<? extends T> getTypeToInstantiate() {
 			return typeToInstantiate;
 		}
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-		in.defaultReadObject();
-
-		// kryoRegistrations may be null if this Avro serializer is deserialized from an old version
-		if (kryoRegistrations == null) {
-			this.kryoRegistrations = buildKryoRegistrations(type);
-		}
-	}
-
-	private static <T> LinkedHashMap<String, KryoRegistration> buildKryoRegistrations(Class<T> serializedDataType) {
-		final LinkedHashMap<String, KryoRegistration> registrations = new LinkedHashMap<>();
-
-		// register Avro types.
-		registrations.put(
-				GenericData.Array.class.getName(),
-				new KryoRegistration(
-						GenericData.Array.class,
-						new ExecutionConfig.SerializableSerializer<>(new Serializers.SpecificInstanceCollectionSerializerForArrayList())));
-		registrations.put(Utf8.class.getName(), new KryoRegistration(Utf8.class));
-		registrations.put(GenericData.EnumSymbol.class.getName(), new KryoRegistration(GenericData.EnumSymbol.class));
-		registrations.put(GenericData.Fixed.class.getName(), new KryoRegistration(GenericData.Fixed.class));
-		registrations.put(GenericData.StringType.class.getName(), new KryoRegistration(GenericData.StringType.class));
-
-		// register the serialized data type
-		registrations.put(serializedDataType.getName(), new KryoRegistration(serializedDataType));
-
-		return registrations;
 	}
 }

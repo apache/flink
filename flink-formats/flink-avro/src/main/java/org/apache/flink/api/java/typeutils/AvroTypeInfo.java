@@ -33,6 +33,6 @@ import static org.apache.flink.formats.avro.typeutils.AvroTypeInfo.generateField
 public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> {
 
 	public AvroTypeInfo(Class<T> typeClass) {
-		super(typeClass, generateFieldsFromAvroSchema(typeClass));
+		super(typeClass, generateFieldsFromAvroSchema(typeClass, true));
 	}
 }

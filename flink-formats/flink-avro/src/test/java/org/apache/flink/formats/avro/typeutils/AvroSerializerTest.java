@@ -18,32 +18,42 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.User;
+import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertTrue;
+import java.util.Random;
 
 /**
- * Test for {@link AvroTypeInfo}.
+ * Tests for the {@link AvroSerializer} that test specific avro types.
  */
-public class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
+public class AvroSerializerTest extends SerializerTestBase<User> {
 
 	@Override
-	protected AvroTypeInfo<?>[] getTestData() {
-		return new AvroTypeInfo<?>[] {
-			new AvroTypeInfo<>(Address.class),
-			new AvroTypeInfo<>(User.class),
-		};
+	protected TypeSerializer<User> createSerializer() {
+		return new AvroSerializer<>(User.class);
 	}
 
-	@Test
-	public void testAvroByDefault() {
-		final TypeSerializer<User> serializer = new AvroTypeInfo<>(User.class).createSerializer(new ExecutionConfig());
-		assertTrue(serializer instanceof AvroSerializer);
+	@Override
+	protected int getLength() {
+		return -1;
+	}
+
+	@Override
+	protected Class<User> getTypeClass() {
+		return User.class;
+	}
+
+	@Override
+	protected User[] getTestData() {
+		final Random rnd = new Random();
+		final User[] users = new User[20];
+
+		for (int i = 0; i < users.length; i++) {
+			users[i] = TestDataGenerator.generateRandomUser(rnd);
+		}
+
+		return users;
 	}
 }
