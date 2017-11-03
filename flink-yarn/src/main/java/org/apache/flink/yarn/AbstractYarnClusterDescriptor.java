@@ -186,6 +186,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		for (File shipFile: shipFiles) {
 			// remove uberjar from ship list (by default everything in the lib/ folder is added to
 			// the list of files to ship, but we handle the uberjar separately.
+			// NOTE: this does not filter the uberjar if added recursively, e.g. by having the "lib"
+			//       folder in the shipFiles
 			if (!(shipFile.getName().startsWith("flink-dist") && shipFile.getName().endsWith("jar"))) {
 				this.shipFiles.add(shipFile);
 			}
@@ -1068,40 +1070,48 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					@Override
 					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs)
 						throws IOException {
-						java.nio.file.Path relativePath = parentPath.relativize(file);
 
-						String key = relativePath.toString();
-						try {
-							Path remotePath = setupSingleLocalResource(
-								key,
-								fs,
-								appId,
-								new Path(file.toUri()),
-								localResources,
-								targetHomeDir,
-								relativePath.getParent().toString());
-							remotePaths.add(remotePath);
-							envShipFileList.append(key).append("=").append(remotePath).append(",");
+						if (!(file.getFileName().startsWith("flink-dist") &&
+								file.getFileName().endsWith("jar"))) {
 
-							// add files to the classpath
-							classPaths.add(key);
+							java.nio.file.Path relativePath = parentPath.relativize(file);
 
-							return FileVisitResult.CONTINUE;
-						} catch (URISyntaxException e) {
-							throw new IOException(e);
+							String key = relativePath.toString();
+							try {
+								Path remotePath = setupSingleLocalResource(
+									key,
+									fs,
+									appId,
+									new Path(file.toUri()),
+									localResources,
+									targetHomeDir,
+									relativePath.getParent().toString());
+								remotePaths.add(remotePath);
+								envShipFileList.append(key).append("=")
+									.append(remotePath).append(",");
+
+								// add files to the classpath
+								classPaths.add(key);
+							} catch (URISyntaxException e) {
+								throw new IOException(e);
+							}
 						}
+
+						return FileVisitResult.CONTINUE;
 					}
 				});
 			} else {
-				Path shipLocalPath = new Path("file://" + shipFile.getAbsolutePath());
-				String key = shipFile.getName();
-				Path remotePath = setupSingleLocalResource(
-					key, fs, appId, shipLocalPath, localResources, targetHomeDir, "");
-				remotePaths.add(remotePath);
-				envShipFileList.append(key).append("=").append(remotePath).append(",");
+				if (!(shipFile.getName().startsWith("flink-dist") && shipFile.getName().endsWith("jar"))) {
+					Path shipLocalPath = new Path(shipFile.toURI());
+					String key = shipFile.getName();
+					Path remotePath = setupSingleLocalResource(
+						key, fs, appId, shipLocalPath, localResources, targetHomeDir, "");
+					remotePaths.add(remotePath);
+					envShipFileList.append(key).append("=").append(remotePath).append(",");
 
-				// add files to the classpath
-				classPaths.add(key);
+					// add files to the classpath
+					classPaths.add(key);
+				}
 			}
 
 		}
