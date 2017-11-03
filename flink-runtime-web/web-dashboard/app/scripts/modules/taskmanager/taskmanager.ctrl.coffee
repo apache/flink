@@ -33,11 +33,11 @@ angular.module('flinkApp')
 .controller 'SingleTaskManagerController', ($scope, $stateParams, SingleTaskManagerService, $interval, flinkConfig) ->
   $scope.metrics = {}
   SingleTaskManagerService.loadMetrics($stateParams.taskmanagerid).then (data) ->
-      $scope.metrics = data[0]
+      $scope.metrics = data
 
     refresh = $interval ->
       SingleTaskManagerService.loadMetrics($stateParams.taskmanagerid).then (data) ->
-        $scope.metrics = data[0]
+        $scope.metrics = data
     , flinkConfig["refresh-interval"]
 
     $scope.$on '$destroy', ->
