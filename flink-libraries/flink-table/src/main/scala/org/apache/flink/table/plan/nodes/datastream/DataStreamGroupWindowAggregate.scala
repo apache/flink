@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger
 import org.apache.flink.streaming.api.windowing.windows.{Window => DataStreamWindow}
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.codegen.AggregationCodeGenerator
+import org.apache.flink.table.codegen.{AggregationCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.expressions.ExpressionUtils._
 import org.apache.flink.table.expressions.ResolvedFieldReference
 import org.apache.flink.table.plan.logical._
@@ -173,11 +173,8 @@ class DataStreamGroupWindowAggregate(
       s"select: ($aggString)"
     val nonKeyedAggOpName = s"window: ($window), select: ($aggString)"
 
-    val generator = new AggregationCodeGenerator(
-      tableEnv.getConfig,
-      false,
-      inputSchema.typeInfo,
-      None)
+    val ctx = CodeGeneratorContext()
+    val generator = new AggregationCodeGenerator(tableEnv.getConfig, ctx, None)
 
     val needMerge = window match {
       case SessionGroupWindow(_, _, _) => true

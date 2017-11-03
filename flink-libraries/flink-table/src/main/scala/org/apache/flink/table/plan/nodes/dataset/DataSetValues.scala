@@ -25,9 +25,10 @@ import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.InputFormatCodeGenerator
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, InputFormatCodeGenerator}
 import org.apache.flink.table.runtime.io.ValuesInputFormat
 import org.apache.flink.types.Row
 
@@ -70,20 +71,24 @@ class DataSetValues(
 
     val config = tableEnv.getConfig
 
+    val inputType = new RowTypeInfo()
     val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-    val generator = new InputFormatCodeGenerator(config)
+    val ctx = CodeGeneratorContext()
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck).bindInput(inputType)
 
     // generate code for every record
     val generatedRecords = getTuples.asScala.map { r =>
-      generator.generateResultExpression(
+      val exprs = r.asScala.map(exprGenerator.generateExpression)
+      exprGenerator.generateResultExpression(
+        exprs,
         returnType,
-        getRowType.getFieldNames.asScala,
-        r.asScala)
+        getRowType.getFieldNames.asScala)
     }
 
     // generate input format
-    val generatedFunction = generator.generateValuesInputFormat(
+    val generatedFunction = InputFormatCodeGenerator.generateValuesInputFormat(
+      ctx,
       ruleDescription,
       generatedRecords.map(_.code),
       returnType)

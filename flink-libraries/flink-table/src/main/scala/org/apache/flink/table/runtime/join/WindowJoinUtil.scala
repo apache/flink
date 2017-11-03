@@ -28,7 +28,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
 import org.apache.flink.types.Row
 
@@ -416,13 +416,14 @@ object WindowJoinUtil {
     }
 
     // generate other non-equi function code
-    val generator = new FunctionCodeGenerator(
-      config,
-      nullCheck,
-      leftType,
-      Some(rightType))
+    val ctx = CodeGeneratorContext()
+    val collectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
 
-    val conversion = generator.generateConverterResultExpression(
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+          .bindInput(leftType)
+          .bindSecondInput(rightType)
+
+    val conversion = exprGenerator.generateConverterResultExpression(
       returnType.typeInfo,
       returnType.fieldNames)
 
@@ -431,25 +432,29 @@ object WindowJoinUtil {
       case None =>
         s"""
            |${conversion.code}
-           |${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |$collectorTerm.collect(${conversion.resultTerm});
            |""".stripMargin
       case Some(remainCondition) =>
         // generate code for remaining condition
-        val genCond = generator.generateExpression(remainCondition)
+        val genCond = exprGenerator.generateExpression(remainCondition)
         s"""
            |${genCond.code}
            |if (${genCond.resultTerm}) {
            |  ${conversion.code}
-           |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+           |  $collectorTerm.collect(${conversion.resultTerm});
            |}
            |""".stripMargin
     }
 
-    generator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       body,
-      returnType.typeInfo)
+      returnType.typeInfo,
+      leftType,
+      input2Type = Some(rightType),
+      collectorTerm = collectorTerm)
   }
 
 }

@@ -29,7 +29,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.FunctionCodeGenerator
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.runtime.{MapJoinLeftRunner, MapJoinRightRunner}
 import org.apache.flink.types.Row
 
@@ -127,21 +127,22 @@ class DataSetSingleRowJoin(
     val isOuterJoin = joinType match {
       case JoinRelType.LEFT | JoinRelType.RIGHT => true
       case _ => false
-    }    
-    
-    val codeGenerator = new FunctionCodeGenerator(
-      config,
-      isOuterJoin,
-      inputType1,
-      Some(inputType2))
+    }
+
+    val ctx = CodeGeneratorContext()
+    val collectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
+
+    val exprGenerator = new ExprCodeGenerator(ctx, isOuterJoin, config.getNullCheck)
+        .bindInput(inputType1)
+        .bindSecondInput(inputType2)
 
     val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType)
 
-    val conversion = codeGenerator.generateConverterResultExpression(
+    val conversion = exprGenerator.generateConverterResultExpression(
       returnType,
       joinRowType.getFieldNames)
 
-    val condition = codeGenerator.generateExpression(joinCondition)
+    val condition = exprGenerator.generateExpression(joinCondition)
 
     val joinMethodBody =
       if (joinType == JoinRelType.INNER) {
@@ -149,7 +150,7 @@ class DataSetSingleRowJoin(
          |${condition.code}
          |if (${condition.resultTerm}) {
          |  ${conversion.code}
-         |  ${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+         |  $collectorTerm.collect(${conversion.resultTerm});
          |}
          |""".stripMargin
     } else {
@@ -173,15 +174,19 @@ class DataSetSingleRowJoin(
            |if(!${condition.resultTerm}){
            |${notSuitedToCondition.mkString("\n")}
            |}
-           |${codeGenerator.collectorTerm}.collect(${conversion.resultTerm});
+           |$collectorTerm.collect(${conversion.resultTerm});
            |""".stripMargin
     }
 
-    val genFunction = codeGenerator.generateFunction(
+    val genFunction = FunctionCodeGenerator.generateFunction(
+      ctx,
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       joinMethodBody,
-      returnType)
+      returnType,
+      inputType1,
+      input2Type = Some(inputType2),
+      collectorTerm = collectorTerm)
 
     if (leftIsSingle) {
       new MapJoinRightRunner[Row, Row, Row](

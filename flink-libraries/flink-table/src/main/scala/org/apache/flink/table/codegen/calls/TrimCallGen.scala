@@ -23,7 +23,7 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator._
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates a TRIM function call.
@@ -35,10 +35,10 @@ import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 class TrimCallGen extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, STRING_TYPE_INFO, operands) {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
+    generateCallIfArgsNotNull(nullCheck, STRING_TYPE_INFO, operands) {
       (terms) =>
         val leading = compareEnum(terms.head, BOTH) || compareEnum(terms.head, LEADING)
         val trailing = compareEnum(terms.head, BOTH) || compareEnum(terms.head, TRAILING)

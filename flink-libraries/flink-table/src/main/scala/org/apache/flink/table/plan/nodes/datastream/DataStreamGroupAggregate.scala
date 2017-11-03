@@ -23,7 +23,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
-import org.apache.flink.table.codegen.AggregationCodeGenerator
+import org.apache.flink.table.codegen.{AggregationCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.plan.nodes.CommonAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
@@ -114,11 +114,8 @@ class DataStreamGroupAggregate(
 
     val outRowType = CRowTypeInfo(schema.typeInfo)
 
-    val generator = new AggregationCodeGenerator(
-      tableEnv.getConfig,
-      false,
-      inputSchema.typeInfo,
-      None)
+    val ctx = CodeGeneratorContext()
+    val generator = new AggregationCodeGenerator(tableEnv.getConfig, ctx, None)
 
     val aggString = aggregationToString(
       inputSchema.relDataType,

@@ -23,9 +23,10 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Values
 import org.apache.calcite.rex.RexLiteral
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
-import org.apache.flink.table.codegen.InputFormatCodeGenerator
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, InputFormatCodeGenerator}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.io.CRowValuesInputFormat
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
@@ -62,19 +63,24 @@ class DataStreamValues(
 
     val config = tableEnv.getConfig
 
+    val inputType = new RowTypeInfo()
     val returnType = CRowTypeInfo(schema.typeInfo)
-    val generator = new InputFormatCodeGenerator(config)
+
+    val ctx = CodeGeneratorContext()
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck).bindInput(inputType)
 
     // generate code for every record
     val generatedRecords = getTuples.asScala.map { r =>
-      generator.generateResultExpression(
+      val exprs = r.asScala.map(exprGenerator.generateExpression)
+      exprGenerator.generateResultExpression(
+        exprs,
         schema.typeInfo,
-        schema.fieldNames,
-        r.asScala)
+        schema.fieldNames)
     }
 
     // generate input format
-    val generatedFunction = generator.generateValuesInputFormat(
+    val generatedFunction = InputFormatCodeGenerator.generateValuesInputFormat(
+      ctx,
       ruleDescription,
       generatedRecords.map(_.code),
       schema.typeInfo)

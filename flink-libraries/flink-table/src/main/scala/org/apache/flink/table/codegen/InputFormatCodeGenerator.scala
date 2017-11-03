@@ -19,50 +19,47 @@ package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.types.Row
 
 /**
   * A code generator for generating Flink [[GenericInputFormat]]s.
-  *
-  * @param config configuration that determines runtime behavior
   */
-class InputFormatCodeGenerator(
-    config: TableConfig)
-  extends CodeGenerator(config, false, new RowTypeInfo(), None, None) {
-
+object InputFormatCodeGenerator {
 
   /**
     * Generates a values input format that can be passed to Java compiler.
     *
+    * @param ctx The code generator context
     * @param name Class name of the input format. Must not be unique but has to be a
     *             valid Java class identifier.
     * @param records code for creating records
     * @param returnType expected return type
+    * @param outRecordTerm term of the output
     * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
     */
   def generateValuesInputFormat[T <: Row](
-    name: String,
-    records: Seq[String],
-    returnType: TypeInformation[T])
-  : GeneratedInput[GenericInputFormat[T], T] = {
+      ctx: CodeGeneratorContext,
+      name: String,
+      records: Seq[String],
+      returnType: TypeInformation[T],
+      outRecordTerm: String = CodeGeneratorContext.DEFAULT_OUT_RECORD_TERM)
+    : GeneratedInput[GenericInputFormat[T], T] = {
     val funcName = newName(name)
 
-    addReusableOutRecord(returnType)
+    ctx.addReusableOutRecord(returnType, outRecordTerm)
 
     val funcCode = j"""
       public class $funcName extends ${classOf[GenericInputFormat[_]].getCanonicalName} {
 
         private int nextIdx = 0;
 
-        ${reuseMemberCode()}
+        ${ctx.reuseMemberCode()}
 
         public $funcName() throws Exception {
-          ${reuseInitCode()}
+          ${ctx.reuseInitCode()}
         }
 
         @Override

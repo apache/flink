@@ -42,35 +42,33 @@ trait CommonCorrelate {
     * Generates the flat map function to run the user-defined table function.
     */
   private[flink] def generateFunction[T <: Function](
-    config: TableConfig,
-    inputSchema: RowSchema,
-    udtfTypeInfo: TypeInformation[Any],
-    returnSchema: RowSchema,
-    joinType: SemiJoinType,
-    rexCall: RexCall,
-    pojoFieldMapping: Option[Array[Int]],
-    ruleDescription: String,
-    functionClass: Class[T]):
-  GeneratedFunction[T, Row] = {
+      config: TableConfig,
+      inputSchema: RowSchema,
+      udtfTypeInfo: TypeInformation[Any],
+      returnSchema: RowSchema,
+      joinType: SemiJoinType,
+      rexCall: RexCall,
+      pojoFieldMapping: Option[Array[Int]],
+      ruleDescription: String,
+      functionClass: Class[T]): GeneratedFunction[T, Row] = {
+    val ctx = CodeGeneratorContext()
+    val functionCollectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
+    val inputType = inputSchema.typeInfo
 
-    val functionGenerator = new FunctionCodeGenerator(
-      config,
-      false,
-      inputSchema.typeInfo,
-      Some(udtfTypeInfo),
-      None,
-      pojoFieldMapping)
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(inputType)
+        .bindSecondInput(udtfTypeInfo, inputFieldMapping = pojoFieldMapping)
 
-    val (input1AccessExprs, input2AccessExprs) = functionGenerator.generateCorrelateAccessExprs
+    val (input1AccessExprs, input2AccessExprs) = exprGenerator.generateCorrelateAccessExprs
 
-    val collectorTerm = functionGenerator
+    val tableFunctionCollectorTerm = ctx
       .addReusableConstructor(classOf[TableFunctionCollector[_]])
       .head
 
-    val call = functionGenerator.generateExpression(rexCall)
+    val call = exprGenerator.generateExpression(rexCall)
     var body =
       s"""
-         |${call.resultTerm}.setCollector($collectorTerm);
+         |${call.resultTerm}.setCollector($tableFunctionCollectorTerm);
          |${call.code}
          |""".stripMargin
 
@@ -86,52 +84,58 @@ trait CommonCorrelate {
           NO_CODE,
           x.resultType)
       }
-      val outerResultExpr = functionGenerator.generateResultExpression(
+      val outerResultExpr = exprGenerator.generateResultExpression(
         input1AccessExprs ++ input2NullExprs,
         returnSchema.typeInfo,
         returnSchema.fieldNames)
       body +=
         s"""
-           |boolean hasOutput = $collectorTerm.isCollected();
+           |boolean hasOutput = $tableFunctionCollectorTerm.isCollected();
            |if (!hasOutput) {
            |  ${outerResultExpr.code}
-           |  ${functionGenerator.collectorTerm}.collect(${outerResultExpr.resultTerm});
+           |  $functionCollectorTerm.collect(${outerResultExpr.resultTerm});
            |}
            |""".stripMargin
     } else if (joinType != SemiJoinType.INNER) {
       throw TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
     }
 
-    functionGenerator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       ruleDescription,
       functionClass,
       body,
-      returnSchema.typeInfo)
+      returnSchema.typeInfo,
+      inputType,
+      input2Type = Some(udtfTypeInfo),
+      collectorTerm = functionCollectorTerm)
   }
 
   /**
     * Generates table function collector.
     */
   private[flink] def generateCollector(
-    config: TableConfig,
-    inputSchema: RowSchema,
-    udtfTypeInfo: TypeInformation[Any],
-    returnSchema: RowSchema,
-    condition: Option[RexNode],
-    pojoFieldMapping: Option[Array[Int]])
-  : GeneratedCollector = {
+      config: TableConfig,
+      inputSchema: RowSchema,
+      udtfTypeInfo: TypeInformation[Any],
+      returnSchema: RowSchema,
+      condition: Option[RexNode],
+      pojoFieldMapping: Option[Array[Int]]): GeneratedCollector = {
+    val ctx = CodeGeneratorContext()
+    val inputType = inputSchema.typeInfo
+    val inputTerm = CodeGeneratorContext.DEFAULT_INPUT1_TERM
+    val udtfInputTerm = CodeGeneratorContext.DEFAULT_INPUT2_TERM
 
-    val generator = new CollectorCodeGenerator(
-      config,
-      false,
-      inputSchema.typeInfo,
-      Some(udtfTypeInfo),
-      None,
-      pojoFieldMapping)
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(inputType, inputTerm = inputTerm)
+        .bindSecondInput(
+          udtfTypeInfo,
+          inputTerm = udtfInputTerm,
+          inputFieldMapping = pojoFieldMapping)
 
-    val (input1AccessExprs, input2AccessExprs) = generator.generateCorrelateAccessExprs
+    val (input1AccessExprs, input2AccessExprs) = exprGenerator.generateCorrelateAccessExprs
 
-    val crossResultExpr = generator.generateResultExpression(
+    val crossResultExpr = exprGenerator.generateResultExpression(
       input1AccessExprs ++ input2AccessExprs,
       returnSchema.typeInfo,
       returnSchema.fieldNames)
@@ -151,19 +155,19 @@ trait CommonCorrelate {
       }
       // Run generateExpression to add init statements (ScalarFunctions) of condition to generator.
       //   The generated expression is discarded.
-      generator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
+      exprGenerator.generateExpression(condition.get.accept(changeInputRefIndexShuttle))
 
-      val filterGenerator = new FunctionCodeGenerator(
-        config,
-        false,
-        udtfTypeInfo,
-        None,
-        pojoFieldMapping)
+      // UDTF side will be first input
+      val filterCtx = CodeGeneratorContext()
+      val filterGenerator = new ExprCodeGenerator(filterCtx, false, config.getNullCheck)
+            .bindInput(
+              udtfTypeInfo,
+              inputTerm = udtfInputTerm,
+              inputFieldMapping = pojoFieldMapping)
 
-      filterGenerator.input1Term = filterGenerator.input2Term
       val filterCondition = filterGenerator.generateExpression(condition.get)
       s"""
-         |${filterGenerator.reuseInputUnboxingCode()}
+         |${filterCtx.reuseInputUnboxingCode()}
          |${filterCondition.code}
          |if (${filterCondition.resultTerm}) {
          |  ${crossResultExpr.code}
@@ -172,10 +176,14 @@ trait CommonCorrelate {
          |""".stripMargin
     }
 
-    generator.generateTableFunctionCollector(
+    CollectorCodeGenerator.generateTableFunctionCollector(
+      ctx,
       "TableFunctionCollector",
       collectorCode,
-      udtfTypeInfo)
+      inputType,
+      udtfTypeInfo,
+      inputTerm = inputTerm,
+      collectedTerm = udtfInputTerm)
   }
 
   private[flink] def selectToString(rowType: RelDataType): String = {

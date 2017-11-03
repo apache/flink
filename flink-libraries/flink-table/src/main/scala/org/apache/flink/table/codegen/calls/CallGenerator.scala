@@ -20,15 +20,14 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 trait CallGenerator {
 
   def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression
-
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression
 }
 
 object CallGenerator {
@@ -37,8 +36,7 @@ object CallGenerator {
       nullCheck: Boolean,
       returnType: TypeInformation[_],
       operands: Seq[GeneratedExpression])
-      (call: (Seq[String]) => String)
-    : GeneratedExpression = {
+      (call: (Seq[String]) => String): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
     val resultTypeTerm = primitiveTypeTermForTypeInfo(returnType)

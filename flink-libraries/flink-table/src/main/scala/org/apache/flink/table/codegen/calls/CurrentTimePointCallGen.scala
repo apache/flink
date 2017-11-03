@@ -19,7 +19,8 @@
 package org.apache.flink.table.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.CodeGenUtils._
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates function call to determine current time point (as date/time/timestamp) in
@@ -31,28 +32,28 @@ class CurrentTimePointCallGen(
   extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = targetType match {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = targetType match {
     case SqlTimeTypeInfo.TIME if local =>
-      val time = codeGenerator.addReusableLocalTime()
-      codeGenerator.generateNonNullLiteral(targetType, time)
+      val time = ctx.addReusableLocalTime()
+      generateNonNullLiteral(targetType, time, nullCheck)
 
     case SqlTimeTypeInfo.TIMESTAMP if local =>
-      val timestamp = codeGenerator.addReusableLocalTimestamp()
-      codeGenerator.generateNonNullLiteral(targetType, timestamp)
+      val timestamp = ctx.addReusableLocalTimestamp()
+      generateNonNullLiteral(targetType, timestamp, nullCheck)
 
     case SqlTimeTypeInfo.DATE =>
-      val date = codeGenerator.addReusableDate()
-      codeGenerator.generateNonNullLiteral(targetType, date)
+      val date = ctx.addReusableDate()
+      generateNonNullLiteral(targetType, date, nullCheck)
 
     case SqlTimeTypeInfo.TIME =>
-      val time = codeGenerator.addReusableTime()
-      codeGenerator.generateNonNullLiteral(targetType, time)
+      val time = ctx.addReusableTime()
+      generateNonNullLiteral(targetType, time, nullCheck)
 
     case SqlTimeTypeInfo.TIMESTAMP =>
-      val timestamp = codeGenerator.addReusableTimestamp()
-      codeGenerator.generateNonNullLiteral(targetType, timestamp)
+      val timestamp = ctx.addReusableTimestamp()
+      generateNonNullLiteral(targetType, timestamp, nullCheck)
   }
 
 }

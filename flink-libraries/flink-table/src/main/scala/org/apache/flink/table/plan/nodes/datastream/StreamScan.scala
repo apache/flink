@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
@@ -100,15 +100,12 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
       fieldNames: Seq[String],
       inputFieldMapping: Array[Int],
       rowtimeExpression: Option[RexNode]): GeneratedFunction[ProcessFunction[Any, Row], Row] = {
+    val ctx = CodeGeneratorContext()
+    val collectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(inputType, inputFieldMapping = Some(inputFieldMapping))
 
-    val generator = new FunctionCodeGenerator(
-      config,
-      false,
-      inputType,
-      None,
-      Some(inputFieldMapping))
-
-    val conversion = generator.generateConverterResultExpression(
+    val conversion = exprGenerator.generateConverterResultExpression(
       outputType,
       fieldNames,
       rowtimeExpression)
@@ -116,13 +113,16 @@ trait StreamScan extends CommonScan[CRow] with DataStreamRel {
     val body =
       s"""
          |${conversion.code}
-         |${generator.collectorTerm}.collect(${conversion.resultTerm});
+         |$collectorTerm.collect(${conversion.resultTerm});
          |""".stripMargin
 
-    generator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       "DataStreamSourceConversion",
       classOf[ProcessFunction[Any, Row]],
       body,
-      outputType)
+      outputType,
+      inputType,
+      collectorTerm = collectorTerm)
   }
 }

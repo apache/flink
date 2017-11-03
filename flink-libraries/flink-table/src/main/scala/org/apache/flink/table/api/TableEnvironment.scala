@@ -48,7 +48,7 @@ import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableE
 import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv, StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{ExternalCatalog, ExternalCatalogSchema}
-import org.apache.flink.table.codegen.{ExpressionReducer, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -985,14 +985,11 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     // code generate MapFunction
-    val generator = new FunctionCodeGenerator(
-      config,
-      false,
-      inputTypeInfo,
-      None,
-      None)
+    val ctx = CodeGeneratorContext()
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(inputTypeInfo)
 
-    val conversion = generator.generateConverterResultExpression(
+    val conversion = exprGenerator.generateConverterResultExpression(
       requestedTypeInfo,
       fieldNames)
 
@@ -1002,11 +999,13 @@ abstract class TableEnvironment(val config: TableConfig) {
          |return ${conversion.resultTerm};
          |""".stripMargin
 
-    val generated = generator.generateFunction(
+    val generated = FunctionCodeGenerator.generateFunction(
+      ctx,
       functionName,
       classOf[MapFunction[Row, OUT]],
       body,
-      requestedTypeInfo)
+      requestedTypeInfo,
+      inputTypeInfo)
 
     Some(generated)
   }

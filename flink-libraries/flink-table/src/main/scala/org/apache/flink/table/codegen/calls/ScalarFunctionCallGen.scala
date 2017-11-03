@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen.calls
 import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.typeutils.TypeCheckUtils
@@ -42,9 +42,9 @@ class ScalarFunctionCallGen(
   extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
     // determine function method and result class
     val matchingSignature = getEvalMethodSignature(scalarFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
@@ -71,7 +71,7 @@ class ScalarFunctionCallGen(
           } else if (ClassUtils.isPrimitiveWrapper(paramClass)
               && TypeCheckUtils.isTemporal(operandExpr.resultType)) {
             // we use primitives to represent temporal types internally, so no casting needed here
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
+            val exprOrNull: String = if (nullCheck) {
               s"${operandExpr.nullTerm} ? null : " +
                 s"(${paramClass.getCanonicalName}) ${operandExpr.resultTerm}"
             } else {
@@ -80,8 +80,8 @@ class ScalarFunctionCallGen(
             operandExpr.copy(resultTerm = exprOrNull)
           } else {
             val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
-            val boxedExpr = codeGenerator.generateOutputFieldBoxing(operandExpr)
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
+            val boxedExpr = generateOutputFieldBoxing(operandExpr, nullCheck)
+            val exprOrNull: String = if (nullCheck) {
               s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
             } else {
               boxedExpr.resultTerm
@@ -91,7 +91,7 @@ class ScalarFunctionCallGen(
         }
 
     // generate function call
-    val functionReference = codeGenerator.addReusableFunction(scalarFunction)
+    val functionReference = ctx.addReusableFunction(scalarFunction)
     val resultTypeTerm = if (resultClass.isPrimitive) {
       primitiveTypeTermForTypeInfo(returnType)
     } else {
@@ -107,9 +107,9 @@ class ScalarFunctionCallGen(
 
     // convert result of function to internal representation (input unboxing)
     val resultUnboxing = if (resultClass.isPrimitive) {
-      codeGenerator.generateNonNullLiteral(returnType, resultTerm)
+      generateNonNullLiteral(returnType, resultTerm, nullCheck)
     } else {
-      codeGenerator.generateInputFieldUnboxing(returnType, resultTerm)
+      generateInputFieldUnboxing(returnType, resultTerm, nullCheck)
     }
     resultUnboxing.copy(code =
       s"""

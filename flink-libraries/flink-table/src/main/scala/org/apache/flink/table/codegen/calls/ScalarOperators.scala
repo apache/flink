@@ -25,9 +25,9 @@ import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 
 object ScalarOperators {
 
@@ -81,9 +81,10 @@ object ScalarOperators {
   }
 
   def generateIn(
-      codeGenerator: CodeGenerator,
+      ctx: CodeGeneratorContext,
       needle: GeneratedExpression,
-      haystack: Seq[GeneratedExpression])
+      haystack: Seq[GeneratedExpression],
+      nullCheck: Boolean)
     : GeneratedExpression = {
 
     // determine common numeric type
@@ -118,7 +119,7 @@ object ScalarOperators {
             element.code,
             widerType.getOrElse(needle.resultType))
       }
-      val setTerm = codeGenerator.addReusableSet(elements)
+      val setTerm = ctx.addReusableSet(elements)
 
       val castedNeedle = needle.copy(
         castNumeric(needle), // cast needle to wider type
@@ -131,7 +132,7 @@ object ScalarOperators {
       val resultTypeTerm = primitiveTypeTermForTypeInfo(BOOLEAN_TYPE_INFO)
       val defaultValue = primitiveDefaultValue(BOOLEAN_TYPE_INFO)
 
-      val operatorCode = if (codeGenerator.nullCheck) {
+      val operatorCode = if (nullCheck) {
         s"""
           |${castedNeedle.code}
           |$resultTypeTerm $resultTerm;
@@ -157,7 +158,7 @@ object ScalarOperators {
     } else {
       // we use a chain of ORs for a set that contains non-constant elements
       haystack
-        .map(generateEquals(codeGenerator.nullCheck, needle, _))
+        .map(generateEquals(nullCheck, needle, _))
         .reduce( (left, right) =>
           generateOr(
             nullCheck = true,
@@ -836,11 +837,11 @@ object ScalarOperators {
   }
 
   def generateArray(
-      codeGenerator: CodeGenerator,
+      ctx: CodeGeneratorContext,
       resultType: TypeInformation[_],
-      elements: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    val arrayTerm = codeGenerator.addReusableArray(resultType.getTypeClass, elements.size)
+      elements: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
+    val arrayTerm = ctx.addReusableArray(resultType.getTypeClass, elements.size)
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
 
@@ -849,8 +850,8 @@ object ScalarOperators {
         val boxedTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
 
         elements.map { e =>
-          val boxedExpr = codeGenerator.generateOutputFieldBoxing(e)
-          val exprOrNull: String = if (codeGenerator.nullCheck) {
+          val boxedExpr = generateOutputFieldBoxing(e, nullCheck)
+          val exprOrNull: String = if (nullCheck) {
             s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
           } else {
             boxedExpr.resultTerm
@@ -876,18 +877,16 @@ object ScalarOperators {
   }
 
   def generateArrayElementAt(
-      codeGenerator: CodeGenerator,
       array: GeneratedExpression,
-      index: GeneratedExpression)
-    : GeneratedExpression = {
-
+      index: GeneratedExpression,
+      nullCheck: Boolean): GeneratedExpression = {
     val resultTerm = newName("result")
 
     def unboxArrayElement(componentInfo: TypeInformation[_]): GeneratedExpression = {
       // get boxed array element
       val resultTypeTerm = boxedTypeTermForTypeInfo(componentInfo)
 
-      val arrayAccessCode = if (codeGenerator.nullCheck) {
+      val arrayAccessCode = if (nullCheck) {
         s"""
           |${array.code}
           |${index.code}
@@ -903,7 +902,7 @@ object ScalarOperators {
       }
 
       // generate unbox code
-      val unboxing = codeGenerator.generateInputFieldUnboxing(componentInfo, resultTerm)
+      val unboxing = generateInputFieldUnboxing(componentInfo, resultTerm, nullCheck)
 
       unboxing.copy(code =
         s"""
@@ -925,17 +924,15 @@ object ScalarOperators {
 
       // no unboxing necessary
       case pati: PrimitiveArrayTypeInfo[_] =>
-        generateOperatorIfNotNull(codeGenerator.nullCheck, pati.getComponentType, array, index) {
+        generateOperatorIfNotNull(nullCheck, pati.getComponentType, array, index) {
           (leftTerm, rightTerm) => s"$leftTerm[$rightTerm - 1]"
         }
     }
   }
 
   def generateArrayElement(
-      codeGenerator: CodeGenerator,
-      array: GeneratedExpression)
-    : GeneratedExpression = {
-
+      array: GeneratedExpression,
+      nullCheck: Boolean): GeneratedExpression = {
     val nullTerm = newName("isNull")
     val resultTerm = newName("result")
     val resultType = array.resultType match {
@@ -946,7 +943,7 @@ object ScalarOperators {
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
     val defaultValue = primitiveDefaultValue(resultType)
 
-    val arrayLengthCode = if (codeGenerator.nullCheck) {
+    val arrayLengthCode = if (nullCheck) {
       s"${array.nullTerm} ? 0 : ${array.resultTerm}.length"
     } else {
       s"${array.resultTerm}.length"
@@ -954,22 +951,23 @@ object ScalarOperators {
 
     def unboxArrayElement(componentInfo: TypeInformation[_]): String = {
       // generate unboxing code
-      val unboxing = codeGenerator.generateInputFieldUnboxing(
+      val unboxing = generateInputFieldUnboxing(
         componentInfo,
-        s"${array.resultTerm}[0]")
+        s"${array.resultTerm}[0]",
+        nullCheck)
 
       s"""
         |${array.code}
-        |${if (codeGenerator.nullCheck) s"boolean $nullTerm;" else "" }
+        |${if (nullCheck) s"boolean $nullTerm;" else "" }
         |$resultTypeTerm $resultTerm;
         |switch ($arrayLengthCode) {
         |  case 0:
-        |    ${if (codeGenerator.nullCheck) s"$nullTerm = true;" else "" }
+        |    ${if (nullCheck) s"$nullTerm = true;" else "" }
         |    $resultTerm = $defaultValue;
         |    break;
         |  case 1:
         |    ${unboxing.code}
-        |    ${if (codeGenerator.nullCheck) s"$nullTerm = ${unboxing.nullTerm};" else "" }
+        |    ${if (nullCheck) s"$nullTerm = ${unboxing.nullTerm};" else "" }
         |    $resultTerm = ${unboxing.resultTerm};
         |    break;
         |  default:
@@ -988,15 +986,15 @@ object ScalarOperators {
       case pati: PrimitiveArrayTypeInfo[_] =>
         s"""
           |${array.code}
-          |${if (codeGenerator.nullCheck) s"boolean $nullTerm;" else "" }
+          |${if (nullCheck) s"boolean $nullTerm;" else "" }
           |$resultTypeTerm $resultTerm;
           |switch ($arrayLengthCode) {
           |  case 0:
-          |    ${if (codeGenerator.nullCheck) s"$nullTerm = true;" else "" }
+          |    ${if (nullCheck) s"$nullTerm = true;" else "" }
           |    $resultTerm = $defaultValue;
           |    break;
           |  case 1:
-          |    ${if (codeGenerator.nullCheck) s"$nullTerm = false;" else "" }
+          |    ${if (nullCheck) s"$nullTerm = false;" else "" }
           |    $resultTerm = ${array.resultTerm}[0];
           |    break;
           |  default:
@@ -1062,17 +1060,15 @@ object ScalarOperators {
   }
 
   def generateMapGet(
-      codeGenerator: CodeGenerator,
       map: GeneratedExpression,
-      key: GeneratedExpression)
-  : GeneratedExpression = {
-
+      key: GeneratedExpression,
+      nullCheck: Boolean): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
     val ty = map.resultType.asInstanceOf[MapTypeInfo[_,_]]
     val resultType = ty.getValueTypeInfo
     val resultTypeTerm = boxedTypeTermForTypeInfo(ty.getValueTypeInfo)
-    val accessCode = if (codeGenerator.nullCheck) {
+    val accessCode = if (nullCheck) {
           s"""
              |${map.code}
              |${key.code}

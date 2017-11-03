@@ -111,10 +111,8 @@ class DataStreamCalc(
     val projection = calcProgram.getProjectList.asScala
       .map(calcProgram.expandLocalRef)
 
-    val generator = new FunctionCodeGenerator(config, false, inputSchema.typeInfo)
-
     val genFunction = generateFunction(
-      generator,
+      inputSchema.typeInfo,
       ruleDescription,
       inputSchema,
       schema,

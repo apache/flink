@@ -30,7 +30,7 @@ import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.AggregationCodeGenerator
+import org.apache.flink.table.codegen.{AggregationCodeGenerator, CodeGeneratorContext}
 import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
@@ -138,12 +138,8 @@ class DataStreamOverAggregate(
     }
 
     val constants: Seq[RexLiteral] = logicWindow.constants.asScala
-
-    val generator = new AggregationCodeGenerator(
-      tableEnv.getConfig,
-      false,
-      inputSchema.typeInfo,
-      Some(constants))
+    val ctx = CodeGeneratorContext()
+    val generator = new AggregationCodeGenerator(tableEnv.getConfig, ctx, Some(constants))
 
     val timeType = schema.relDataType
       .getFieldList

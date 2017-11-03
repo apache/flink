@@ -40,7 +40,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.Path
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkPlannerImpl
-import org.apache.flink.table.codegen.{Compiler, FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, Compiler, ExprCodeGenerator, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -115,17 +115,19 @@ abstract class ExpressionTestBase {
   def evaluateExprs() = {
     val relBuilder = context._1
     val config = new TableConfig()
-    val generator = new FunctionCodeGenerator(config, false, typeInfo)
+    val ctx = CodeGeneratorContext()
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck).bindInput(typeInfo)
 
     // cast expressions to String
     val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
 
     // generate code
     val resultType = new RowTypeInfo(Seq.fill(testExprs.size)(STRING_TYPE_INFO): _*)
-    val genExpr = generator.generateResultExpression(
+    val exprs = stringTestExprs.map(exprGenerator.generateExpression)
+    val genExpr = exprGenerator.generateResultExpression(
+      exprs,
       resultType,
-      resultType.getFieldNames,
-      stringTestExprs)
+      resultType.getFieldNames)
 
     val bodyCode =
       s"""
@@ -133,11 +135,13 @@ abstract class ExpressionTestBase {
         |return ${genExpr.resultTerm};
         |""".stripMargin
 
-    val genFunc = generator.generateFunction[MapFunction[Any, Row], Row](
+    val genFunc = FunctionCodeGenerator.generateFunction[MapFunction[Any, Row], Row](
+      ctx,
       "TestFunction",
       classOf[MapFunction[Any, Row]],
       bodyCode,
-      resultType)
+      resultType,
+      typeInfo)
 
     // compile and evaluate
     val clazz = new TestCompiler[MapFunction[Any, Row], Row]().compile(genFunc)

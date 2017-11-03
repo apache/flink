@@ -29,7 +29,6 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonCalc
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.FlatMapRunner
@@ -83,13 +82,8 @@ class DataSetCalc(
   }
 
   override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
-
     val config = tableEnv.getConfig
-
     val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
-
-    val generator = new FunctionCodeGenerator(config, false, inputDS.getType)
-
     val returnType = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 
     val projection = calcProgram.getProjectList.asScala.map(calcProgram.expandLocalRef)
@@ -100,7 +94,7 @@ class DataSetCalc(
     }
 
     val genFunction = generateFunction(
-      generator,
+      inputDS.getType,
       ruleDescription,
       new RowSchema(getInput.getRowType),
       new RowSchema(getRowType),
@@ -108,7 +102,6 @@ class DataSetCalc(
       condition,
       config,
       classOf[FlatMapFunction[Row, Row]])
-
     val runner = new FlatMapRunner(genFunction.name, genFunction.code, returnType)
 
     inputDS.flatMap(runner).name(calcOpName(calcProgram, getExpressionString))

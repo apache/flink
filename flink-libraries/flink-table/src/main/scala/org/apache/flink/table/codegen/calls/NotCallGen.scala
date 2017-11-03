@@ -19,19 +19,19 @@
 package org.apache.flink.table.codegen.calls
 
 import org.apache.flink.table.codegen.calls.ScalarOperators.generateNot
-import org.apache.flink.table.codegen.{GeneratedExpression, CodeGenerator}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Inverts the boolean value of a CallGenerator result.
   */
-class NotCallGenerator(callGenerator: CallGenerator) extends CallGenerator {
+class NotCallGen(callGenerator: CallGenerator) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    val expr = callGenerator.generate(codeGenerator, operands)
-    generateNot(codeGenerator.nullCheck, expr)
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
+    val expr = callGenerator.generate(ctx, operands, nullCheck)
+    generateNot(nullCheck, expr)
   }
 
 }

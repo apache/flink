@@ -569,7 +569,7 @@ object FunctionGenerator {
       method: Method)
     : Unit = {
     sqlFunctions((sqlOperator, operandTypes)) =
-      new NotCallGenerator(new MethodCallGen(BOOLEAN_TYPE_INFO, method))
+      new NotCallGen(new MethodCallGen(BOOLEAN_TYPE_INFO, method))
   }
 
   private def addSqlFunction(

@@ -84,21 +84,26 @@ class ExpressionReducer(config: TableConfig)
     val resultType = new RowTypeInfo(literalTypes: _*)
 
     // generate MapFunction
-    val generator = new FunctionCodeGenerator(config, false, EMPTY_ROW_INFO)
+    val ctx = CodeGeneratorContext()
+    val inputType = EMPTY_ROW_INFO
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck).bindInput(inputType)
 
-    val result = generator.generateResultExpression(
+    val literalExprs = literals.map(exprGenerator.generateExpression)
+    val result = exprGenerator.generateResultExpression(
+      literalExprs,
       resultType,
-      resultType.getFieldNames,
-      literals)
+      resultType.getFieldNames)
 
-    val generatedFunction = generator.generateFunction[MapFunction[Row, Row], Row](
+    val generatedFunction = FunctionCodeGenerator.generateFunction[MapFunction[Row, Row], Row](
+      ctx,
       "ExpressionReducer",
       classOf[MapFunction[Row, Row]],
       s"""
         |${result.code}
         |return ${result.resultTerm};
         |""".stripMargin,
-      resultType)
+      resultType,
+      inputType)
 
     val clazz = compile(getClass.getClassLoader, generatedFunction.name, generatedFunction.code)
     val function = clazz.newInstance()

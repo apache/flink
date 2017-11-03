@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen.calls
 import java.lang.reflect.Method
 
 import org.apache.flink.table.codegen.calls.CallGenerator._
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates a function call that calls a method which returns the same type that it
@@ -30,10 +30,10 @@ import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 class MultiTypeMethodCallGen(method: Method) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, operands.head.resultType, operands) {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
+    generateCallIfArgsNotNull(nullCheck, operands.head.resultType, operands) {
       (operandResultTerms) =>
         s"""
           |${method.getDeclaringClass.getCanonicalName}.

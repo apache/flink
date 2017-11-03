@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.MapRunner
@@ -81,15 +81,11 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
       fieldNames: Seq[String],
       inputFieldMapping: Array[Int],
       rowtimeExpression: Option[RexNode]): GeneratedFunction[MapFunction[Any, Row], Row] = {
+    val ctx = CodeGeneratorContext()
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(inputType, inputFieldMapping = Some(inputFieldMapping))
 
-    val generator = new FunctionCodeGenerator(
-      config,
-      false,
-      inputType,
-      None,
-      Some(inputFieldMapping))
-
-    val conversion = generator.generateConverterResultExpression(
+    val conversion = exprGenerator.generateConverterResultExpression(
       outputType,
       fieldNames,
       rowtimeExpression)
@@ -100,10 +96,12 @@ trait BatchScan extends CommonScan[Row] with DataSetRel {
          |return ${conversion.resultTerm};
          |""".stripMargin
 
-    generator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       "DataSetSourceConversion",
       classOf[MapFunction[Any, Row]],
       body,
-      outputType)
+      outputType,
+      inputType)
   }
 }

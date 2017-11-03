@@ -21,8 +21,9 @@ package org.apache.flink.table.plan.nodes
 import org.apache.calcite.plan.{RelOptCost, RelOptPlanner}
 import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen._
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.types.Row
 
@@ -31,36 +32,46 @@ import scala.collection.JavaConverters._
 trait CommonCalc {
 
   private[flink] def generateFunction[T <: Function](
-      generator: FunctionCodeGenerator,
+      inputType: TypeInformation[_ <: Any],
       ruleDescription: String,
       inputSchema: RowSchema,
       returnSchema: RowSchema,
       calcProjection: Seq[RexNode],
       calcCondition: Option[RexNode],
       config: TableConfig,
-      functionClass: Class[T]):
-    GeneratedFunction[T, Row] = {
+      functionClass: Class[T]): GeneratedFunction[T, Row] = {
+    val ctx = CodeGeneratorContext()
+    val inputTerm = CodeGeneratorContext.DEFAULT_INPUT1_TERM
+    val collectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
 
-    val projection = generator.generateResultExpression(
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+            .bindInput(inputType, inputTerm = inputTerm)
+
+    // generate calc projection
+    val fieldExprs = calcProjection.map(exprGenerator.generateExpression)
+
+    // generate result expression
+    val projection = exprGenerator.generateResultExpression(
+      fieldExprs,
       returnSchema.typeInfo,
-      returnSchema.fieldNames,
-      calcProjection)
+      returnSchema.fieldNames)
 
+    // generate function body
     // only projection
     val body = if (calcCondition.isEmpty) {
       s"""
         |${projection.code}
-        |${generator.collectorTerm}.collect(${projection.resultTerm});
+        |$collectorTerm.collect(${projection.resultTerm});
         |""".stripMargin
     }
     else {
-      val filterCondition = generator.generateExpression(calcCondition.get)
+      val filterCondition = exprGenerator.generateExpression(calcCondition.get)
       // only filter
       if (projection == null) {
         s"""
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
-          |  ${generator.collectorTerm}.collect(${generator.input1Term});
+          |  $collectorTerm.collect($inputTerm);
           |}
           |""".stripMargin
       }
@@ -70,17 +81,21 @@ trait CommonCalc {
           |${filterCondition.code}
           |if (${filterCondition.resultTerm}) {
           |  ${projection.code}
-          |  ${generator.collectorTerm}.collect(${projection.resultTerm});
+          |  $collectorTerm.collect(${projection.resultTerm});
           |}
           |""".stripMargin
       }
     }
 
-    generator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       ruleDescription,
       functionClass,
       body,
-      returnSchema.typeInfo)
+      returnSchema.typeInfo,
+      inputType,
+      input1Term = inputTerm,
+      collectorTerm = collectorTerm)
   }
 
   private[flink] def conditionToString(

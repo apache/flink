@@ -21,13 +21,20 @@ package org.apache.flink.table.codegen
 import java.lang.reflect.{Field, Method}
 import java.util.concurrent.atomic.AtomicInteger
 
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo._
-import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.codegen.GeneratedExpression.NEVER_NULL
+import org.apache.flink.table.codegen.calls.ScalarOperators._
+import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
+import org.apache.flink.table.functions.sql.{ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval, isTimePoint}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCheckUtils}
 
 object CodeGenUtils {
@@ -202,6 +209,569 @@ object CodeGenUtils {
     if (!TypeCheckUtils.isInteger(genExpr.resultType)) {
       throw new CodeGenException("Integer expression type expected.")
     }
+
+  def generateNullLiteral(
+      resultType: TypeInformation[_],
+      nullCheck: Boolean): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
+    val defaultValue = primitiveDefaultValue(resultType)
+
+    if (nullCheck) {
+      val wrappedCode =
+        s"""
+           |$resultTypeTerm $resultTerm = $defaultValue;
+           |boolean $nullTerm = true;
+           |""".stripMargin
+      GeneratedExpression(resultTerm, nullTerm, wrappedCode, resultType, literal = true)
+    } else {
+      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
+    }
+  }
+
+  def generateNonNullLiteral(
+      literalType: TypeInformation[_],
+      literalCode: String,
+      nullCheck: Boolean): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(literalType)
+    val resultCode = if (nullCheck) {
+      s"""
+         |$resultTypeTerm $resultTerm = $literalCode;
+         |boolean $nullTerm = false;
+         |""".stripMargin
+    } else {
+      s"""
+         |$resultTypeTerm $resultTerm = $literalCode;
+         |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, resultCode, literalType, literal = true)
+  }
+
+  def generateSymbol(enum: Enum[_]): GeneratedExpression =
+    GeneratedExpression(qualifyEnum(enum), "false", "", new GenericTypeInfo(enum.getDeclaringClass))
+
+  def generateProctimeTimestamp(contextTerm: String): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val resultCode =
+      s"""
+         |long $resultTerm = $contextTerm.timerService().currentProcessingTime();
+         |""".stripMargin
+    GeneratedExpression(resultTerm, NEVER_NULL, resultCode, SqlTimeTypeInfo.TIMESTAMP)
+  }
+
+  def generateStreamRecordRowtimeAccess(contextTerm: String): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+
+    val accessCode =
+      s"""
+         |Long $resultTerm = $contextTerm.timestamp();
+         |if ($resultTerm == null) {
+         |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a " +
+         |    "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
+         |    "time characteristic.");
+         |}
+         |boolean $nullTerm = false;
+       """.stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, accessCode, Types.LONG)
+  }
+
+  def generateCurrentTimestamp(
+      ctx: CodeGeneratorContext,
+      nullCheck: Boolean): GeneratedExpression = {
+    new CurrentTimePointCallGen(Types.SQL_TIMESTAMP, false).generate(ctx, Seq(), nullCheck)
+  }
+
+  def generateInputAccess(
+      ctx: CodeGeneratorContext,
+      inputType: TypeInformation[_ <: Any],
+      inputTerm: String,
+      index: Int,
+      nullableInput: Boolean,
+      nullCheck: Boolean): GeneratedExpression = {
+    // if input has been used before, we can reuse the code that
+    // has already been generated
+    val inputExpr = ctx.getReusableInputUnboxingExprs(inputTerm, index) match {
+      // input access and unboxing has already been generated
+      case Some(expr) => expr
+
+      // generate input access and unboxing if necessary
+      case None =>
+        val expr = if (nullableInput) {
+          generateNullableInputFieldAccess(ctx, inputType, inputTerm, index, nullCheck)
+        } else {
+          generateFieldAccess(ctx, inputType, inputTerm, index, nullCheck)
+        }
+
+        ctx.addReusableInputUnboxingExprs(inputTerm, index, expr)
+        expr
+    }
+    // hide the generated code as it will be executed only once
+    GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, "", inputExpr.resultType)
+  }
+
+  def generateFieldAccess(
+      ctx: CodeGeneratorContext,
+      inputType: TypeInformation[_],
+      inputTerm: String,
+      index: Int,
+      nullCheck: Boolean): GeneratedExpression = {
+    inputType match {
+      case ct: CompositeType[_] =>
+        val accessor = fieldAccessorFor(ct, index)
+        val fieldType: TypeInformation[Any] = ct.getTypeAt(index)
+        val fieldTypeTerm = boxedTypeTermForTypeInfo(fieldType)
+
+        accessor match {
+          case ObjectFieldAccessor(field) =>
+            // primitive
+            if (isFieldPrimitive(field)) {
+              generateNonNullLiteral(fieldType, s"$inputTerm.${field.getName}", nullCheck)
+            }
+            // Object
+            else {
+              generateInputFieldUnboxing(
+                fieldType,
+                s"($fieldTypeTerm) $inputTerm.${field.getName}",
+                nullCheck)
+            }
+
+          case ObjectGenericFieldAccessor(fieldName) =>
+            // Object
+            val inputCode = s"($fieldTypeTerm) $inputTerm.$fieldName"
+            generateInputFieldUnboxing(fieldType, inputCode, nullCheck)
+
+          case ObjectMethodAccessor(methodName) =>
+            // Object
+            val inputCode = s"($fieldTypeTerm) $inputTerm.$methodName()"
+            generateInputFieldUnboxing(fieldType, inputCode, nullCheck)
+
+          case ProductAccessor(i) =>
+            // Object
+            val inputCode = s"($fieldTypeTerm) $inputTerm.getField($i)"
+            generateInputFieldUnboxing(fieldType, inputCode, nullCheck)
+
+          case ObjectPrivateFieldAccessor(field) =>
+            val fieldTerm = ctx.addReusablePrivateFieldAccess(ct.getTypeClass, field.getName)
+            val reflectiveAccessCode = reflectiveFieldReadAccess(fieldTerm, field, inputTerm)
+            // primitive
+            if (isFieldPrimitive(field)) {
+              generateNonNullLiteral(fieldType, reflectiveAccessCode, nullCheck)
+            }
+            // Object
+            else {
+              generateInputFieldUnboxing(fieldType, reflectiveAccessCode, nullCheck)
+            }
+        }
+
+      case at: AtomicType[_] =>
+        val fieldTypeTerm = boxedTypeTermForTypeInfo(at)
+        val inputCode = s"($fieldTypeTerm) $inputTerm"
+        generateInputFieldUnboxing(at, inputCode, nullCheck)
+
+      case _ =>
+        throw new CodeGenException("Unsupported type for input field access.")
+    }
+  }
+
+  def generateNullableInputFieldAccess(
+      ctx: CodeGeneratorContext,
+      inputType: TypeInformation[_ <: Any],
+      inputTerm: String,
+      index: Int,
+      nullCheck: Boolean): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+
+    val fieldType = inputType match {
+      case ct: CompositeType[_] => ct.getTypeAt(index)
+      case at: AtomicType[_] => at
+      case _ => throw new CodeGenException("Unsupported type for input field access.")
+    }
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+    val defaultValue = primitiveDefaultValue(fieldType)
+    val fieldAccessExpr = generateFieldAccess(ctx, inputType, inputTerm, index, nullCheck)
+
+    val inputCheckCode =
+      s"""
+         |$resultTypeTerm $resultTerm;
+         |boolean $nullTerm;
+         |if ($inputTerm == null) {
+         |  $resultTerm = $defaultValue;
+         |  $nullTerm = true;
+         |}
+         |else {
+         |  ${fieldAccessExpr.code}
+         |  $resultTerm = ${fieldAccessExpr.resultTerm};
+         |  $nullTerm = ${fieldAccessExpr.nullTerm};
+         |}
+         |""".stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, inputCheckCode, fieldType)
+  }
+
+  /**
+   * Converts the external boxed format to an internal mostly primitive field representation.
+   * Wrapper types can autoboxed to their corresponding primitive type (Integer -> int). External
+   * objects are converted to their internal representation (Timestamp -> internal timestamp
+   * in long).
+   *
+   * @param fieldType type of field
+   * @param fieldTerm expression term of field to be unboxed
+   * @param nullCheck whether to check null
+   * @return internal unboxed field representation
+   */
+  def generateInputFieldUnboxing(
+      fieldType: TypeInformation[_],
+      fieldTerm: String,
+      nullCheck: Boolean): GeneratedExpression = {
+    val resultTerm = newName("result")
+    val nullTerm = newName("isNull")
+    val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
+    val defaultValue = primitiveDefaultValue(fieldType)
+
+    // explicit unboxing
+    val unboxedFieldCode = if (isTimePoint(fieldType)) {
+      timePointToInternalCode(fieldType, fieldTerm)
+    } else {
+      fieldTerm
+    }
+
+    val wrappedCode = if (nullCheck && !isReference(fieldType)) {
+      // assumes that fieldType is a boxed primitive.
+      s"""
+         |boolean $nullTerm = $fieldTerm == null;
+         |$resultTypeTerm $resultTerm;
+         |if ($nullTerm) {
+         |  $resultTerm = $defaultValue;
+         |}
+         |else {
+         |  $resultTerm = $fieldTerm;
+         |}
+         |""".stripMargin
+    } else if (nullCheck) {
+      s"""
+         |boolean $nullTerm = $fieldTerm == null;
+         |$resultTypeTerm $resultTerm;
+         |if ($nullTerm) {
+         |  $resultTerm = $defaultValue;
+         |}
+         |else {
+         |  $resultTerm = $unboxedFieldCode;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$resultTypeTerm $resultTerm = $unboxedFieldCode;
+         |""".stripMargin
+    }
+
+    GeneratedExpression(resultTerm, nullTerm, wrappedCode, fieldType)
+  }
+
+  /**
+   * Converts the internal mostly primitive field representation to an external boxed format.
+   * Primitive types can autoboxed to their corresponding object type (int -> Integer). Internal
+   * representations are converted to their external objects (internal timestamp
+   * in long -> Timestamp).
+   *
+   * @param expr expression to be boxed
+   * @param nullCheck whether to check null
+   * @return external boxed field representation
+   */
+  def generateOutputFieldBoxing(
+      expr: GeneratedExpression,
+      nullCheck: Boolean): GeneratedExpression = {
+    expr.resultType match {
+      // convert internal date/time/timestamp to java.sql.* objects
+      case SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP =>
+        val resultTerm = newName("result")
+        val resultTypeTerm = boxedTypeTermForTypeInfo(expr.resultType)
+        val convMethod = internalToTimePointCode(expr.resultType, expr.resultTerm)
+
+        val resultCode = if (nullCheck) {
+          s"""
+             |${expr.code}
+             |$resultTypeTerm $resultTerm;
+             |if (${expr.nullTerm}) {
+             |  $resultTerm = null;
+             |}
+             |else {
+             |  $resultTerm = $convMethod;
+             |}
+             |""".stripMargin
+        } else {
+          s"""
+             |${expr.code}
+             |$resultTypeTerm $resultTerm = $convMethod;
+             |""".stripMargin
+        }
+
+        GeneratedExpression(resultTerm, expr.nullTerm, resultCode, expr.resultType)
+
+      // other types are autoboxed or need no boxing
+      case _ => expr
+    }
+  }
+
+  def generateCallExpression(
+      ctx: CodeGeneratorContext,
+      operator: SqlOperator,
+      operands: Seq[GeneratedExpression],
+      resultType: TypeInformation[_],
+      nullCheck: Boolean,
+      contextTerm: String): GeneratedExpression = {
+    operator match {
+      // arithmetic
+      case PLUS if isNumeric(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireNumeric(left)
+        requireNumeric(right)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+
+      case PLUS | DATETIME_PLUS if isTemporal(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireTemporal(left)
+        requireTemporal(right)
+        generateTemporalPlusMinus(plus = true, nullCheck, left, right)
+
+      case MINUS if isNumeric(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireNumeric(left)
+        requireNumeric(right)
+        generateArithmeticOperator("-", nullCheck, resultType, left, right)
+
+      case MINUS | MINUS_DATE if isTemporal(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireTemporal(left)
+        requireTemporal(right)
+        generateTemporalPlusMinus(plus = false, nullCheck, left, right)
+
+      case MULTIPLY if isNumeric(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireNumeric(left)
+        requireNumeric(right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+
+      case MULTIPLY if isTimeInterval(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireTimeInterval(left)
+        requireNumeric(right)
+        generateArithmeticOperator("*", nullCheck, resultType, left, right)
+
+      case DIVIDE | DIVIDE_INTEGER if isNumeric(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireNumeric(left)
+        requireNumeric(right)
+        generateArithmeticOperator("/", nullCheck, resultType, left, right)
+
+      case MOD if isNumeric(resultType) =>
+        val left = operands.head
+        val right = operands(1)
+        requireNumeric(left)
+        requireNumeric(right)
+        generateArithmeticOperator("%", nullCheck, resultType, left, right)
+
+      case UNARY_MINUS if isNumeric(resultType) =>
+        val operand = operands.head
+        requireNumeric(operand)
+        generateUnaryArithmeticOperator("-", nullCheck, resultType, operand)
+
+      case UNARY_MINUS if isTimeInterval(resultType) =>
+        val operand = operands.head
+        requireTimeInterval(operand)
+        generateUnaryIntervalPlusMinus(plus = false, nullCheck, operand)
+
+      case UNARY_PLUS if isNumeric(resultType) =>
+        val operand = operands.head
+        requireNumeric(operand)
+        generateUnaryArithmeticOperator("+", nullCheck, resultType, operand)
+
+      case UNARY_PLUS if isTimeInterval(resultType) =>
+        val operand = operands.head
+        requireTimeInterval(operand)
+        generateUnaryIntervalPlusMinus(plus = true, nullCheck, operand)
+
+      // comparison
+      case EQUALS =>
+        val left = operands.head
+        val right = operands(1)
+        generateEquals(nullCheck, left, right)
+
+      case NOT_EQUALS =>
+        val left = operands.head
+        val right = operands(1)
+        generateNotEquals(nullCheck, left, right)
+
+      case GREATER_THAN =>
+        val left = operands.head
+        val right = operands(1)
+        requireComparable(left)
+        requireComparable(right)
+        generateComparison(">", nullCheck, left, right)
+
+      case GREATER_THAN_OR_EQUAL =>
+        val left = operands.head
+        val right = operands(1)
+        requireComparable(left)
+        requireComparable(right)
+        generateComparison(">=", nullCheck, left, right)
+
+      case LESS_THAN =>
+        val left = operands.head
+        val right = operands(1)
+        requireComparable(left)
+        requireComparable(right)
+        generateComparison("<", nullCheck, left, right)
+
+      case LESS_THAN_OR_EQUAL =>
+        val left = operands.head
+        val right = operands(1)
+        requireComparable(left)
+        requireComparable(right)
+        generateComparison("<=", nullCheck, left, right)
+
+      case IS_NULL =>
+        val operand = operands.head
+        generateIsNull(nullCheck, operand)
+
+      case IS_NOT_NULL =>
+        val operand = operands.head
+        generateIsNotNull(nullCheck, operand)
+
+      // logic
+      case AND =>
+        operands.reduceLeft { (left: GeneratedExpression, right: GeneratedExpression) =>
+          requireBoolean(left)
+          requireBoolean(right)
+          generateAnd(nullCheck, left, right)
+        }
+
+      case OR =>
+        operands.reduceLeft { (left: GeneratedExpression, right: GeneratedExpression) =>
+          requireBoolean(left)
+          requireBoolean(right)
+          generateOr(nullCheck, left, right)
+        }
+
+      case NOT =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateNot(nullCheck, operand)
+
+      case CASE =>
+        generateIfElse(nullCheck, operands, resultType)
+
+      case IS_TRUE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsTrue(operand)
+
+      case IS_NOT_TRUE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsNotTrue(operand)
+
+      case IS_FALSE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsFalse(operand)
+
+      case IS_NOT_FALSE =>
+        val operand = operands.head
+        requireBoolean(operand)
+        generateIsNotFalse(operand)
+
+      case IN =>
+        val left = operands.head
+        val right = operands.tail
+        generateIn(ctx, left, right, nullCheck)
+
+      // casting
+      case CAST | REINTERPRET =>
+        val operand = operands.head
+        generateCast(nullCheck, operand, resultType)
+
+      // as / renaming
+      case AS =>
+        operands.head
+
+      // string arithmetic
+      case CONCAT =>
+        val left = operands.head
+        val right = operands(1)
+        requireString(left)
+        generateArithmeticOperator("+", nullCheck, resultType, left, right)
+
+      // arrays
+      case ARRAY_VALUE_CONSTRUCTOR =>
+        generateArray(ctx, resultType, operands, nullCheck)
+
+      case ITEM =>
+        operands.head.resultType match {
+          case _: ObjectArrayTypeInfo[_, _] |
+               _: BasicArrayTypeInfo[_, _] |
+               _: PrimitiveArrayTypeInfo[_] =>
+            val array = operands.head
+            val index = operands(1)
+            requireInteger(index)
+            generateArrayElementAt(array, index, nullCheck)
+
+          case _: MapTypeInfo[_, _] =>
+            val key = operands(1)
+            generateMapGet(operands.head, key, nullCheck)
+
+          case _ => throw new CodeGenException("Expect an array or a map.")
+        }
+
+      case CARDINALITY =>
+        val array = operands.head
+        requireArray(array)
+        generateArrayCardinality(nullCheck, array)
+
+      case ELEMENT =>
+        val array = operands.head
+        requireArray(array)
+        generateArrayElement(array, nullCheck)
+
+      case ScalarSqlFunctions.CONCAT =>
+        generateConcat(nullCheck = true, operands)
+
+      case ScalarSqlFunctions.CONCAT_WS =>
+        generateConcatWs(operands)
+
+      case StreamRecordTimestampSqlFunction =>
+        generateStreamRecordRowtimeAccess(contextTerm)
+
+      // advanced scalar functions
+      case sqlOperator: SqlOperator =>
+        val callGen = FunctionGenerator.getCallGenerator(
+          sqlOperator,
+          operands.map(_.resultType),
+          resultType)
+        callGen.getOrElse(
+          throw new CodeGenException(s"Unsupported call: $sqlOperator \n" +
+              s"If you think this function should be supported, " +
+              s"you can create an issue and start a discussion for it."))
+            .generate(ctx, operands, nullCheck)
+
+      // unknown or invalid
+      case call@_ =>
+        throw new CodeGenException(s"Unsupported call: $call")
+    }
+  }
 
   // ----------------------------------------------------------------------------------------------
 

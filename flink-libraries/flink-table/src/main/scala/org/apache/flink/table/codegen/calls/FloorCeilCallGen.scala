@@ -25,7 +25,7 @@ import org.apache.calcite.avatica.util.TimeUnitRange.{MONTH, YEAR}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{BIG_DEC_TYPE_INFO, DOUBLE_TYPE_INFO, FLOAT_TYPE_INFO}
 import org.apache.flink.table.codegen.CodeGenUtils.{getEnum, primitiveTypeTermForTypeInfo, qualifyMethod}
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 
 /**
   * Generates floor/ceil function calls.
@@ -36,14 +36,14 @@ class FloorCeilCallGen(
   extends MultiTypeMethodCallGen(arithmeticMethod) {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = operands.size match {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = operands.size match {
     // arithmetic
     case 1 =>
       operands.head.resultType match {
         case FLOAT_TYPE_INFO | DOUBLE_TYPE_INFO | BIG_DEC_TYPE_INFO =>
-          super.generate(codeGenerator, operands)
+          super.generate(ctx, operands, nullCheck)
         case _ =>
           operands.head // no floor/ceil necessary
       }
@@ -54,7 +54,7 @@ class FloorCeilCallGen(
       val unit = getEnum(operands(1)).asInstanceOf[TimeUnitRange]
       val internalType = primitiveTypeTermForTypeInfo(operand.resultType)
 
-      generateCallIfArgsNotNull(codeGenerator.nullCheck, operand.resultType, operands) {
+      generateCallIfArgsNotNull(nullCheck, operand.resultType, operands) {
         (terms) =>
           unit match {
             case YEAR | MONTH =>

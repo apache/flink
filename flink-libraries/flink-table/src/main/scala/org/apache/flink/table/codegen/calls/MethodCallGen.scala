@@ -22,8 +22,8 @@ import java.lang.reflect.Method
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils.qualifyMethod
+import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
-import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 
 /**
   * Generates a function call by using a [[java.lang.reflect.Method]].
@@ -31,10 +31,10 @@ import org.apache.flink.table.codegen.{CodeGenerator, GeneratedExpression}
 class MethodCallGen(returnType: TypeInformation[_], method: Method) extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
-    generateCallIfArgsNotNull(codeGenerator.nullCheck, returnType, operands) {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
+    generateCallIfArgsNotNull(nullCheck, returnType, operands) {
       (terms) =>
         s"""
           |${qualifyMethod(method)}(${terms.mkString(", ")})

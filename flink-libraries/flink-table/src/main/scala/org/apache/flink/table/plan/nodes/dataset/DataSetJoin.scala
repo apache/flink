@@ -36,7 +36,7 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig, TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
+import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.runtime._
 import org.apache.flink.types.Row
@@ -206,31 +206,35 @@ class DataSetJoin(
       rightKeys: Array[Int],
       resultType: TypeInformation[Row],
       config: TableConfig): DataSet[Row] = {
+    val ctx = CodeGeneratorContext()
+    val collectorTerm = CodeGeneratorContext.DEFAULT_COLLECTOR_TERM
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(left.getType)
+        .bindSecondInput(right.getType)
 
-    val generator = new FunctionCodeGenerator(
-      config,
-      false,
-      left.getType,
-      Some(right.getType))
-    val conversion = generator.generateConverterResultExpression(
+    val conversion = exprGenerator.generateConverterResultExpression(
       resultType,
       joinRowType.getFieldNames)
 
-    val condition = generator.generateExpression(joinCondition)
+    val condition = exprGenerator.generateExpression(joinCondition)
     val body =
       s"""
          |${condition.code}
          |if (${condition.resultTerm}) {
          |  ${conversion.code}
-         |  ${generator.collectorTerm}.collect(${conversion.resultTerm});
+         |  $collectorTerm.collect(${conversion.resultTerm});
          |}
          |""".stripMargin
 
-    val genFunction = generator.generateFunction(
+    val genFunction = FunctionCodeGenerator.generateFunction(
+      ctx,
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       body,
-      resultType)
+      resultType,
+      left.getType,
+      input2Type = Some(right.getType),
+      collectorTerm = collectorTerm)
 
     val joinFun = new FlatJoinRunner[Row, Row, Row](
       genFunction.name,
@@ -511,7 +515,10 @@ class DataSetJoin(
       leftType: TypeInformation[Row],
       rightType: TypeInformation[Row],
       config: TableConfig): GeneratedFunction[JoinFunction[Row, Row, JBool], JBool] = {
-    val predGenerator = new FunctionCodeGenerator(config, false, leftType, Some(rightType))
+    val ctx = CodeGeneratorContext()
+    val predGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+        .bindInput(leftType)
+        .bindSecondInput(rightType)
     val condition = predGenerator.generateExpression(joinCondition)
     val predCode =
       s"""
@@ -519,11 +526,14 @@ class DataSetJoin(
          |return (${condition.resultTerm});
          |""".stripMargin
 
-    predGenerator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       "OuterJoinPredicate",
       classOf[JoinFunction[Row, Row, JBool]],
       predCode,
-      Types.BOOLEAN)
+      Types.BOOLEAN,
+      leftType,
+      input2Type = Some(rightType))
   }
 
   /**
@@ -534,8 +544,10 @@ class DataSetJoin(
       rightType: TypeInformation[Row],
       resultType: TypeInformation[Row],
       config: TableConfig): GeneratedFunction[JoinFunction[Row, Row, Row], Row] = {
-
-    val conversionGenerator = new FunctionCodeGenerator(config, true, leftType, Some(rightType))
+    val ctx = CodeGeneratorContext()
+    val conversionGenerator = new ExprCodeGenerator(ctx, true, config.getNullCheck)
+        .bindInput(leftType)
+        .bindSecondInput(rightType)
     val conversion = conversionGenerator.generateConverterResultExpression(
       resultType,
       joinRowType.getFieldNames)
@@ -545,11 +557,14 @@ class DataSetJoin(
          |return ${conversion.resultTerm};
          |""".stripMargin
 
-    conversionGenerator.generateFunction(
+    FunctionCodeGenerator.generateFunction(
+      ctx,
       "OuterJoinConverter",
       classOf[JoinFunction[Row, Row, Row]],
       convCode,
-      resultType)
+      resultType,
+      leftType,
+      input2Type = Some(rightType))
   }
 
 }

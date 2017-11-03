@@ -40,16 +40,15 @@ import scala.collection.mutable
   * A code generator for generating [[GeneratedAggregations]].
   *
   * @param config configuration that determines runtime behavior
-  * @param nullableInput input(s) can be null.
-  * @param input type information about the input of the Function
+  * @param ctx the code generator context.
   * @param constants constant expressions that act like a second input in the parameter indices.
+  * @param contextTerm the context term used in generated codes.
   */
 class AggregationCodeGenerator(
     config: TableConfig,
-    nullableInput: Boolean,
-    input: TypeInformation[_ <: Any],
-    constants: Option[Seq[RexLiteral]])
-  extends CodeGenerator(config, nullableInput, input) {
+    ctx: CodeGeneratorContext,
+    constants: Option[Seq[RexLiteral]],
+    contextTerm: String = CodeGeneratorContext.DEFAULT_CONTEXT_TERM) {
 
   // set of statements for cleanup dataview that will be added only once
   // we use a LinkedHashSet to keep the insertion order
@@ -105,7 +104,7 @@ class AggregationCodeGenerator(
     // get unique function name
     val funcName = newName(name)
     // register UDAGGs
-    val aggs = aggregates.map(a => addReusableFunction(a, contextTerm))
+    val aggs = aggregates.map(a => ctx.addReusableFunction(a, contextTerm))
 
     // get java types of accumulators
     val accTypeClasses = aggregates.map { a =>
@@ -114,9 +113,10 @@ class AggregationCodeGenerator(
     val accTypes = accTypeClasses.map(_.getCanonicalName)
 
     // create constants
-    val constantExprs = constants.map(_.map(generateExpression)).getOrElse(Seq())
+    val exprGenerator = new ExprCodeGenerator(ctx, false, config.getNullCheck)
+    val constantExprs = constants.map(_.map(exprGenerator.generateExpression)).getOrElse(Seq())
     val constantTypes = constantExprs.map(_.resultType)
-    val constantFields = constantExprs.map(addReusableBoxedConstant)
+    val constantFields = constantExprs.map(ctx.addReusableBoxedConstant(_, config.getNullCheck))
 
     // get parameter lists for aggregation functions
     val parametersCode = aggFields.map { inFields =>
@@ -246,7 +246,7 @@ class AggregationCodeGenerator(
               s"""
                  |    final $dataViewTypeTerm $dataViewFieldTerm;
                  |""".stripMargin
-            reusableMemberStatements.add(field)
+            ctx.addReusableMember(field)
 
             // create DataViews
             val descFieldTerm = s"${dataViewFieldTerm}_desc"
@@ -275,7 +275,7 @@ class AggregationCodeGenerator(
             } else {
               throw new CodeGenException(s"Unsupported dataview type: $dataViewTypeTerm")
             }
-            reusableOpenStatements.add(createDataView)
+            ctx.addReusableOpenStatement(createDataView)
 
             // cleanup DataViews
             val cleanup =
@@ -303,7 +303,9 @@ class AggregationCodeGenerator(
           val fieldSetter = if (Modifier.isPublic(field.getModifiers)) {
             s"$accTerm.${field.getName} = $dataViewTerm;"
           } else {
-            val fieldTerm = addReusablePrivateFieldAccess(field.getDeclaringClass, field.getName)
+            val fieldTerm = ctx.addReusablePrivateFieldAccess(
+              field.getDeclaringClass,
+              field.getName)
             s"${reflectiveFieldWriteAccess(fieldTerm, field, accTerm, dataViewTerm)};"
           }
 
@@ -567,16 +569,16 @@ class AggregationCodeGenerator(
       j"""
          |public final class $funcName extends $generatedAggregationsClass {
          |
-         |  ${reuseMemberCode()}
+         |  ${ctx.reuseMemberCode()}
          |  $genMergeList
          |  public $funcName() throws Exception {
-         |    ${reuseInitCode()}
+         |    ${ctx.reuseInitCode()}
          |  }
-         |  ${reuseConstructorCode(funcName)}
+         |  ${ctx.reuseConstructorCode(funcName)}
          |
          |  public final void open(
          |    org.apache.flink.api.common.functions.RuntimeContext $contextTerm) throws Exception {
-         |    ${reuseOpenCode()}
+         |    ${ctx.reuseOpenCode()}
          |  }
          |
          |  $aggFuncCode
@@ -586,7 +588,7 @@ class AggregationCodeGenerator(
          |  }
          |
          |  public final void close() throws Exception {
-         |    ${reuseCloseCode()}
+         |    ${ctx.reuseCloseCode()}
          |  }
          |}
          """.stripMargin

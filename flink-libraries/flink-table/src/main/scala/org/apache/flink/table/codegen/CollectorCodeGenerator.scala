@@ -18,73 +18,56 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForTypeInfo, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.TableFunctionCollector
 
-
 /**
   * A code generator for generating [[org.apache.flink.util.Collector]]s.
-  *
-  * @param config configuration that determines runtime behavior
-  * @param nullableInput input(s) can be null.
-  * @param input1 type information about the first input of the Function
-  * @param input2 type information about the second input if the Function is binary
-  * @param input1FieldMapping additional mapping information for input1
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
-  * @param input2FieldMapping additional mapping information for input2
-  *   (e.g. POJO types have no deterministic field order and some input fields might not be read)
   */
-class CollectorCodeGenerator(
-    config: TableConfig,
-    nullableInput: Boolean,
-    input1: TypeInformation[_ <: Any],
-    input2: Option[TypeInformation[_ <: Any]] = None,
-    input1FieldMapping: Option[Array[Int]] = None,
-    input2FieldMapping: Option[Array[Int]] = None)
-  extends CodeGenerator(
-    config,
-    nullableInput,
-    input1,
-    input2,
-    input1FieldMapping,
-    input2FieldMapping) {
+object CollectorCodeGenerator {
 
   /**
     * Generates a [[TableFunctionCollector]] that can be passed to Java compiler.
     *
+    * @param ctx The context of the code generator
     * @param name Class name of the table function collector. Must not be unique but has to be a
     *             valid Java class identifier.
     * @param bodyCode body code for the collector method
+    * @param inputType The type information of the element being collected
     * @param collectedType The type information of the element collected by the collector
+    * @param inputTerm The term of the input element
+    * @param collectedTerm The term of the collected element
     * @return instance of GeneratedCollector
     */
   def generateTableFunctionCollector(
-    name: String,
-    bodyCode: String,
-    collectedType: TypeInformation[Any])
-  : GeneratedCollector = {
-
+      ctx: CodeGeneratorContext,
+      name: String,
+      bodyCode: String,
+      inputType: TypeInformation[_ <: Any],
+      collectedType: TypeInformation[Any],
+      inputTerm: String = CodeGeneratorContext.DEFAULT_INPUT1_TERM,
+      collectedTerm: String = CodeGeneratorContext.DEFAULT_INPUT2_TERM)
+    : GeneratedCollector = {
     val className = newName(name)
-    val input1TypeClass = boxedTypeTermForTypeInfo(input1)
+    val input1TypeClass = boxedTypeTermForTypeInfo(inputType)
     val input2TypeClass = boxedTypeTermForTypeInfo(collectedType)
 
     val funcCode = j"""
       public class $className extends ${classOf[TableFunctionCollector[_]].getCanonicalName} {
 
-        ${reuseMemberCode()}
+        ${ctx.reuseMemberCode()}
 
         public $className() throws Exception {
-          ${reuseInitCode()}
+          ${ctx.reuseInitCode()}
         }
 
         @Override
         public void collect(Object record) throws Exception {
           super.collect(record);
-          $input1TypeClass $input1Term = ($input1TypeClass) getInput();
-          $input2TypeClass $input2Term = ($input2TypeClass) record;
-          ${reuseInputUnboxingCode()}
+          $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
+          $input2TypeClass $collectedTerm = ($input2TypeClass) record;
+          ${ctx.reuseInputUnboxingCode()}
           $bodyCode
         }
 

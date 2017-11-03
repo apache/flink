@@ -22,7 +22,7 @@ import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.NEVER_NULL
-import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
+import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.typeutils.TypeCheckUtils
@@ -43,9 +43,9 @@ class TableFunctionCallGen(
   extends CallGenerator {
 
   override def generate(
-      codeGenerator: CodeGenerator,
-      operands: Seq[GeneratedExpression])
-    : GeneratedExpression = {
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      nullCheck: Boolean): GeneratedExpression = {
     // determine function method
     val matchingSignature = getEvalMethodSignature(tableFunction, signature)
       .getOrElse(throw new CodeGenException("No matching signature found."))
@@ -71,7 +71,7 @@ class TableFunctionCallGen(
           } else if (ClassUtils.isPrimitiveWrapper(paramClass)
               && TypeCheckUtils.isTemporal(operandExpr.resultType)) {
             // we use primitives to represent temporal types internally, so no casting needed here
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
+            val exprOrNull: String = if (nullCheck) {
               s"${operandExpr.nullTerm} ? null : " +
                 s"(${paramClass.getCanonicalName}) ${operandExpr.resultTerm}"
             } else {
@@ -80,8 +80,8 @@ class TableFunctionCallGen(
             operandExpr.copy(resultTerm = exprOrNull)
           } else {
             val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
-            val boxedExpr = codeGenerator.generateOutputFieldBoxing(operandExpr)
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
+            val boxedExpr = generateOutputFieldBoxing(operandExpr, nullCheck)
+            val exprOrNull: String = if (nullCheck) {
               s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
             } else {
               boxedExpr.resultTerm
@@ -91,7 +91,7 @@ class TableFunctionCallGen(
         }
 
     // generate function call
-    val functionReference = codeGenerator.addReusableFunction(tableFunction)
+    val functionReference = ctx.addReusableFunction(tableFunction)
     val functionCallCode =
       s"""
         |${parameters.map(_.code).mkString("\n")}
