@@ -232,7 +232,8 @@ class StringMaxAggFunctionTest extends AggFunctionTestBase[String, MaxAccumulato
     new StringMaxAggFunction()
 }
 
-class TimestampMaxAggFunctionTest extends AggFunctionTestBase[Timestamp, MaxAccumulator[Timestamp]] {
+class TimestampMaxAggFunctionTest
+  extends AggFunctionTestBase[Timestamp, MaxAccumulator[Timestamp]] {
   override def inputValueSets: Seq[Seq[_]] = Seq(
     Seq(
       new Timestamp(0),
