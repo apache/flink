@@ -113,14 +113,11 @@ public class MetricFetcher<T extends RestfulGateway> {
 						if (throwable != null) {
 							LOG.debug("Fetching of JobDetails failed.", throwable);
 						} else {
-							ArrayList<String> activeJobs = new ArrayList<>();
-							for (JobDetails job : jobDetails.getRunning()) {
-								activeJobs.add(job.getJobId().toString());
+							ArrayList<String> toRetain = new ArrayList<>(jobDetails.getJobs().size());
+							for (JobDetails job : jobDetails.getJobs()) {
+								toRetain.add(job.getJobId().toString());
 							}
-							for (JobDetails job : jobDetails.getFinished()) {
-								activeJobs.add(job.getJobId().toString());
-							}
-							metrics.retainJobs(activeJobs);
+							metrics.retainJobs(toRetain);
 						}
 					},
 					executor);

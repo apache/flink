@@ -343,7 +343,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		return combinedJobDetails.thenApply(
 			(Collection<JobDetails> jobDetails) ->
-				new MultipleJobsDetails(jobDetails, null));
+				new MultipleJobsDetails(jobDetails));
 	}
 
 	@Override

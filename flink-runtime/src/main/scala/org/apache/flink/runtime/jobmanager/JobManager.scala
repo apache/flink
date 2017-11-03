@@ -1649,10 +1649,10 @@ class JobManager(
 
         case msg : RequestJobDetails => 
           
-          val ourDetails: Array[JobDetails] = if (msg.shouldIncludeRunning()) {
+          val ourDetails: List[JobDetails] = if (msg.shouldIncludeRunning()) {
             currentJobs.values.map {
               v => WebMonitorUtils.createDetailsForJob(v._1)
-            }.toArray[JobDetails]
+            }.toList
           } else {
             null
           }
@@ -1662,11 +1662,10 @@ class JobManager(
             future.onSuccess {
               case archiveDetails: MultipleJobsDetails =>
                 theSender ! new MultipleJobsDetails(
-                  util.Arrays.asList(ourDetails: _*),
-                  archiveDetails.getFinished())
+                  (ourDetails ++ archiveDetails.getJobs.asScala).asJavaCollection)
             }(context.dispatcher)
           } else {
-            theSender ! new MultipleJobsDetails(util.Arrays.asList(ourDetails: _*), null)
+            theSender ! new MultipleJobsDetails(util.Arrays.asList(ourDetails: _*))
           }
           
         case _ => log.error("Unrecognized info message " + actorMessage)
