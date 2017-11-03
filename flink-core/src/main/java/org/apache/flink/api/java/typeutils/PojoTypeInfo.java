@@ -309,6 +309,10 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 			return AvroUtils.getAvroUtils().createAvroSerializer(getTypeClass());
 		}
 
+		return createPojoSerializer(config);
+	}
+
+	public PojoSerializer<T> createPojoSerializer(ExecutionConfig config) {
 		TypeSerializer<?>[] fieldSerializers = new TypeSerializer<?>[fields.length];
 		Field[] reflectiveFields = new Field[fields.length];
 
@@ -319,7 +323,7 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 
 		return new PojoSerializer<T>(getTypeClass(), fieldSerializers, reflectiveFields, config);
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof PojoTypeInfo) {
