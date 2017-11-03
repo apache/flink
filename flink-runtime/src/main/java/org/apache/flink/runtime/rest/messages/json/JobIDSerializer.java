@@ -18,27 +18,27 @@
 
 package org.apache.flink.runtime.rest.messages.json;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.api.common.JobID;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
 
 /**
- * Jackson deserializer for {@link JobVertexID}.
+ * Json serializer for {@link JobID}.
  */
-public class JobVertexIDDeserializer extends StdDeserializer<JobVertexID> {
+public class JobIDSerializer extends StdSerializer<JobID> {
 
-	private static final long serialVersionUID = 3051901462549718924L;
+	private static final long serialVersionUID = -6598593519161574611L;
 
-	protected JobVertexIDDeserializer() {
-		super(JobVertexID.class);
+	protected JobIDSerializer() {
+		super(JobID.class);
 	}
 
 	@Override
-	public JobVertexID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-		return JobVertexID.fromHexString(p.getValueAsString());
+	public void serialize(JobID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+		gen.writeString(value.toString());
 	}
 }
