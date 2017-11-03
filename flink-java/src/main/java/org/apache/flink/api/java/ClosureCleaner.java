@@ -90,7 +90,7 @@ public class ClosureCleaner {
 				if (closureAccessed) {
 					msg += " The implementation accesses fields of its enclosing class, which is " +
 							"a common reason for non-serializability. " +
-							"A common solution is to make the function a proper (non-inner) class, or" +
+							"A common solution is to make the function a proper (non-inner) class, or " +
 							"a static inner class.";
 				} else {
 					msg += " The object probably contains or references non serializable fields.";
