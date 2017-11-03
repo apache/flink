@@ -20,25 +20,18 @@ package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.KeyDeserializer;
 
 import java.io.IOException;
 
 /**
  * Jackson deserializer for {@link JobVertexID}.
  */
-public class JobVertexIDDeserializer extends StdDeserializer<JobVertexID> {
-
-	private static final long serialVersionUID = 3051901462549718924L;
-
-	protected JobVertexIDDeserializer() {
-		super(JobVertexID.class);
-	}
+public class JobVertexIDKeyDeserializer extends KeyDeserializer {
 
 	@Override
-	public JobVertexID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-		return JobVertexID.fromHexString(p.getValueAsString());
+	public Object deserializeKey(String key, DeserializationContext ctxt) throws IOException {
+		return JobVertexID.fromHexString(key);
 	}
 }
