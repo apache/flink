@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.handler.job.SubtasksTimesHandler;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -109,13 +110,13 @@ public class SubtasksTimesInfo implements ResponseBody {
 		private final long duration;
 
 		@JsonProperty(FIELD_NAME_TIMESTAMPS)
-		private final Map<String, Long> timestamps;
+		private final Map<ExecutionState, Long> timestamps;
 
 		public SubtaskTimeInfo(
 				@JsonProperty(FIELD_NAME_SUBTASK) int subtask,
 				@JsonProperty(FIELD_NAME_HOST) String host,
 				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_TIMESTAMPS) Map<String, Long> timestamps) {
+				@JsonProperty(FIELD_NAME_TIMESTAMPS) Map<ExecutionState, Long> timestamps) {
 			this.subtask = subtask;
 			this.host = checkNotNull(host);
 			this.duration = duration;

@@ -89,9 +89,9 @@ public class SubtasksTimesHandler extends AbstractExecutionGraphHandler<Subtasks
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname();
 
-			Map<String, Long> timestampMap = new HashMap<>();
+			Map<ExecutionState, Long> timestampMap = new HashMap<>(ExecutionState.values().length);
 			for (ExecutionState state : ExecutionState.values()) {
-				timestampMap.put(state.name(), timestamps[state.ordinal()]);
+				timestampMap.put(state, timestamps[state.ordinal()]);
 			}
 
 			subtasks.add(new SubtasksTimesInfo.SubtaskTimeInfo(
