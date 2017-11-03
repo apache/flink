@@ -109,6 +109,7 @@ public class TwoPhaseCommitSinkFunctionTest {
 	 * @see #testLogTimeoutAlmostReachedWarningDuringRecovery
 	 */
 	private void setupLogger() {
+		Logger.getRootLogger().removeAllAppenders();
 		logger = Logger.getLogger(TwoPhaseCommitSinkFunction.class);
 		testAppender = new AppenderSkeleton() {
 			@Override

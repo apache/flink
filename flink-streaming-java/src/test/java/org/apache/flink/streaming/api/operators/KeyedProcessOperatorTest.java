@@ -276,8 +276,6 @@ public class KeyedProcessOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>("EVENT:1777", 6L));
 		expectedOutput.add(new Watermark(6));
 
-		System.out.println("GOT: " + testHarness.getOutput());
-
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
