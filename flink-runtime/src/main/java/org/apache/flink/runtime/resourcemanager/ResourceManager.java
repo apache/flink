@@ -399,23 +399,9 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	@Override
-	public void cancelSlotRequest(JobID jobID, JobMasterId jobMasterId, AllocationID allocationID) {
-
-		// As the slot allocations are async, it can not avoid all redundent slots, but should best effort.
-		JobManagerRegistration jobManagerRegistration = jobManagerRegistrations.get(jobID);
-
-		if (null != jobManagerRegistration) {
-			if (Objects.equals(jobMasterId, jobManagerRegistration.getJobMasterId())) {
-				log.info("Cancel slot request for job {} with allocation id {}.",
-						jobID, allocationID);
-
-				slotManager.unregisterSlotRequest(allocationID);
-			} else {
-				log.info("Job manager {} is not the leader of job {}.", jobMasterId, jobID);
-			}
-		} else {
-			log.warn("Could not find registered job manager for job {}.", jobID);
-		}
+	public void cancelSlotRequest(AllocationID allocationID) {
+		// As the slot allocations are async, it can not avoid all redundant slots, but should best effort.
+		slotManager.unregisterSlotRequest(allocationID);
 	}
 
 	@Override
