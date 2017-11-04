@@ -29,6 +29,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.slf4j.Logger;
 
+import java.util.Collections;
+
 /**
  * This is the last handler in the pipeline. It logs all error messages.
  */
@@ -50,7 +52,8 @@ public class PipelineErrorHandler extends SimpleChannelInboundHandler<HttpReques
 			ctx,
 			message,
 			new ErrorResponseBody("Bad request received."),
-			HttpResponseStatus.BAD_REQUEST);
+			HttpResponseStatus.BAD_REQUEST,
+			Collections.emptyMap());
 	}
 
 	@Override

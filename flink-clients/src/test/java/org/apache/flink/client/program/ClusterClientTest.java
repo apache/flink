@@ -35,8 +35,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 
@@ -257,7 +257,7 @@ public class ClusterClientTest extends TestLogger {
 		public MultipleJobsDetails process(RequestJobDetails message) {
 			JobDetails running = new JobDetails(new JobID(), "job1", 0, 0, 0, JobStatus.RUNNING, 0, new int[9], 0);
 			JobDetails finished = new JobDetails(new JobID(), "job2", 0, 0, 0, JobStatus.FINISHED, 0, new int[9], 0);
-			return new MultipleJobsDetails(Collections.singleton(running), Collections.singleton(finished));
+			return new MultipleJobsDetails(Arrays.asList(running, finished));
 		}
 	}
 

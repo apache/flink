@@ -80,7 +80,7 @@ Below is a list of available requests, with a sample JSON response. All requests
 Values in angle brackets are variables, for example `http://hostname:port/jobs/<jobid>/exceptions` will have to requested for example as `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`.
 
   - `/config`
-  - `/joboverview`
+  - `/jobs/overview`
   - `/jobs/<jobid>`
   - `/jobs/<jobid>/vertices`
   - `/jobs/<jobid>/config`

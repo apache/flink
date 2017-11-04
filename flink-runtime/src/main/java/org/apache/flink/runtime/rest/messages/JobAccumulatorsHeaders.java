@@ -18,25 +18,43 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.CurrentJobsOverviewHandler;
+import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for {@link CurrentJobsOverviewHandler}.
+ * Message headers for the {@link JobAccumulatorsHandler}.
  */
-public final class CurrentJobsOverviewHandlerHeaders implements MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
+public class JobAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, JobAccumulatorsInfo, JobMessageParameters> {
 
-	private static final CurrentJobsOverviewHandlerHeaders INSTANCE = new CurrentJobsOverviewHandlerHeaders();
+	private static final JobAccumulatorsHeaders INSTANCE = new JobAccumulatorsHeaders();
 
-	// make this class a singleton
-	private CurrentJobsOverviewHandlerHeaders() {}
+	public static final String URL = "/jobs" +
+		"/:" + JobIDPathParameter.KEY +
+		"/accumulators";
+
+	private JobAccumulatorsHeaders() {
+	}
 
 	@Override
 	public Class<EmptyRequestBody> getRequestClass() {
 		return EmptyRequestBody.class;
+	}
+
+	@Override
+	public Class<JobAccumulatorsInfo> getResponseClass() {
+		return JobAccumulatorsInfo.class;
+	}
+
+	@Override
+	public HttpResponseStatus getResponseStatusCode() {
+		return HttpResponseStatus.OK;
+	}
+
+	@Override
+	public JobMessageParameters getUnresolvedMessageParameters() {
+		return new JobMessageParameters();
 	}
 
 	@Override
@@ -46,25 +64,10 @@ public final class CurrentJobsOverviewHandlerHeaders implements MessageHeaders<E
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return "/joboverview";
+		return URL;
 	}
 
-	@Override
-	public Class<MultipleJobsDetails> getResponseClass() {
-		return MultipleJobsDetails.class;
-	}
-
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
-
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
-
-	public static CurrentJobsOverviewHandlerHeaders getInstance() {
+	public static JobAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
 }

@@ -103,27 +103,21 @@ public class MetricFetcher<T extends RestfulGateway> {
 			if (optionalLeaderGateway.isPresent()) {
 				final T leaderGateway = optionalLeaderGateway.get();
 
-				/**
+				/*
 				 * Remove all metrics that belong to a job that is not running and no longer archived.
 				 */
-				CompletableFuture<MultipleJobsDetails> jobDetailsFuture = leaderGateway.requestJobDetails(
-					true,
-					true,
-					timeout);
+				CompletableFuture<MultipleJobsDetails> jobDetailsFuture = leaderGateway.requestJobDetails(timeout);
 
 				jobDetailsFuture.whenCompleteAsync(
 					(MultipleJobsDetails jobDetails, Throwable throwable) -> {
 						if (throwable != null) {
 							LOG.debug("Fetching of JobDetails failed.", throwable);
 						} else {
-							ArrayList<String> activeJobs = new ArrayList<>();
-							for (JobDetails job : jobDetails.getRunning()) {
-								activeJobs.add(job.getJobId().toString());
+							ArrayList<String> toRetain = new ArrayList<>(jobDetails.getJobs().size());
+							for (JobDetails job : jobDetails.getJobs()) {
+								toRetain.add(job.getJobId().toString());
 							}
-							for (JobDetails job : jobDetails.getFinished()) {
-								activeJobs.add(job.getJobId().toString());
-							}
-							metrics.retainJobs(activeJobs);
+							metrics.retainJobs(toRetain);
 						}
 					},
 					executor);

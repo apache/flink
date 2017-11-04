@@ -335,6 +335,8 @@ object AkkaUtils {
     val akkaEnableSSLConfig = configuration.getBoolean(AkkaOptions.SSL_ENABLED) &&
           SSLUtils.getSSLEnabled(configuration)
 
+    val retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR)
+
     val akkaEnableSSL = if (akkaEnableSSLConfig) "on" else "off"
 
     val akkaSSLKeyStore = configuration.getString(SecurityOptions.SSL_KEYSTORE)
@@ -386,6 +388,8 @@ object AkkaUtils {
          |    }
          |
          |    log-remote-lifecycle-events = $logLifecycleEvents
+         |
+         |    retry-gate-closed-for = ${retryGateClosedFor + " ms"}
          |  }
          |}
        """.stripMargin

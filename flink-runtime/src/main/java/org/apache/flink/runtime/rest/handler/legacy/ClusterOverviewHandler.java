@@ -27,6 +27,7 @@ import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
+import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -41,7 +42,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
-import static org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders.CLUSTER_OVERVIEW_REST_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -63,7 +63,7 @@ public class ClusterOverviewHandler extends AbstractJsonRequestHandler implement
 
 	@Override
 	public String[] getPaths() {
-		return new String[]{CLUSTER_OVERVIEW_REST_PATH};
+		return new String[]{ClusterOverviewHeaders.URL};
 	}
 
 	@Override

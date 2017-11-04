@@ -330,7 +330,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<MultipleJobsDetails> requestJobDetails(boolean includeRunning, boolean includeFinished, Time timeout) {
+	public CompletableFuture<MultipleJobsDetails> requestJobDetails(Time timeout) {
 		final int numberJobsRunning = jobManagerRunners.size();
 
 		ArrayList<CompletableFuture<JobDetails>> individualJobDetails = new ArrayList<>(numberJobsRunning);
@@ -343,7 +343,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		return combinedJobDetails.thenApply(
 			(Collection<JobDetails> jobDetails) ->
-				new MultipleJobsDetails(jobDetails, null));
+				new MultipleJobsDetails(jobDetails));
 	}
 
 	@Override

@@ -31,7 +31,7 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 
 	private static final ClusterOverviewHeaders INSTANCE = new ClusterOverviewHeaders();
 
-	public static final String CLUSTER_OVERVIEW_REST_PATH = "/overview";
+	public static final String URL = "/overview";
 
 	// make this class a singleton
 	private ClusterOverviewHeaders() {}
@@ -48,7 +48,7 @@ public final class ClusterOverviewHeaders implements MessageHeaders<EmptyRequest
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		return CLUSTER_OVERVIEW_REST_PATH;
+		return URL;
 	}
 
 	@Override

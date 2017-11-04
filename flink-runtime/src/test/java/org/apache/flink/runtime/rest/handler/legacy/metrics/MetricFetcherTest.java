@@ -54,7 +54,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -82,8 +81,8 @@ public class MetricFetcherTest extends TestLogger {
 
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 
-		when(jobManagerGateway.requestJobDetails(anyBoolean(), anyBoolean(), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList(), Collections.emptyList())));
+		when(jobManagerGateway.requestJobDetails(any(Time.class)))
+			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList())));
 		when(jobManagerGateway.requestMetricQueryServicePaths(any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(Collections.singleton(jmMetricQueryServicePath)));
 		when(jobManagerGateway.requestTaskManagerMetricQueryServicePaths(any(Time.class))).thenReturn(

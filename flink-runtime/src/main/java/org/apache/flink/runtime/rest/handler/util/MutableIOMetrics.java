@@ -54,6 +54,26 @@ public class MutableIOMetrics extends IOMetrics {
 		super(0, 0, 0, 0, 0, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
 	}
 
+	public boolean isNumBytesInLocalComplete() {
+		return numBytesInLocalComplete;
+	}
+
+	public boolean isNumBytesInRemoteComplete() {
+		return numBytesInRemoteComplete;
+	}
+
+	public boolean isNumBytesOutComplete() {
+		return numBytesOutComplete;
+	}
+
+	public boolean isNumRecordsInComplete() {
+		return numRecordsInComplete;
+	}
+
+	public boolean isNumRecordsOutComplete() {
+		return numRecordsOutComplete;
+	}
+
 	/**
 	 * Adds the IO metrics for the given attempt to this object. If the {@link AccessExecution} is in
 	 * a terminal state the contained {@link IOMetrics} object is added. Otherwise the given {@link MetricFetcher} is
