@@ -102,93 +102,93 @@ public class BufferPoolFactoryTest {
 		int buffersToTakeFromPool2 = numBuffers - buffersToTakeFromPool1;
 
 		List<Buffer> buffers = new ArrayList<>(numBuffers);
-		BufferPool lbp1 = null, lbp2 = null;
+		BufferPool bufferPool1 = null, bufferPool2 = null;
 		try {
-			lbp1 = networkBufferPool.createBufferPool(buffersToTakeFromPool2, numBuffers);
+			bufferPool1 = networkBufferPool.createBufferPool(buffersToTakeFromPool2, numBuffers);
 
 			// take more buffers than the minimum required
 			for (int i = 0; i < buffersToTakeFromPool1; ++i) {
-				Buffer buffer = lbp1.requestBuffer();
+				Buffer buffer = bufferPool1.requestBuffer();
 				assertNotNull(buffer);
 				buffers.add(buffer);
 			}
-			assertEquals(buffersToTakeFromPool1, lbp1.bestEffortGetNumOfUsedBuffers());
-			assertEquals(numBuffers, lbp1.getNumBuffers());
+			assertEquals(buffersToTakeFromPool1, bufferPool1.bestEffortGetNumOfUsedBuffers());
+			assertEquals(numBuffers, bufferPool1.getNumBuffers());
 
 			// create a second pool which requires more buffers than are available at the moment
-			lbp2 = networkBufferPool.createBufferPool(buffersToTakeFromPool1, numBuffers);
+			bufferPool2 = networkBufferPool.createBufferPool(buffersToTakeFromPool1, numBuffers);
 
-			assertEquals(lbp2.getNumberOfRequiredMemorySegments(), lbp2.getNumBuffers());
-			assertEquals(lbp1.getNumberOfRequiredMemorySegments(), lbp1.getNumBuffers());
-			assertNull(lbp1.requestBuffer());
+			assertEquals(bufferPool2.getNumberOfRequiredMemorySegments(), bufferPool2.getNumBuffers());
+			assertEquals(bufferPool1.getNumberOfRequiredMemorySegments(), bufferPool1.getNumBuffers());
+			assertNull(bufferPool1.requestBuffer());
 
 			// take all remaining buffers
 			for (int i = 0; i < buffersToTakeFromPool2; ++i) {
-				Buffer buffer = lbp2.requestBuffer();
+				Buffer buffer = bufferPool2.requestBuffer();
 				assertNotNull(buffer);
 				buffers.add(buffer);
 			}
-			assertEquals(buffersToTakeFromPool2, lbp2.bestEffortGetNumOfUsedBuffers());
+			assertEquals(buffersToTakeFromPool2, bufferPool2.bestEffortGetNumOfUsedBuffers());
 
-			// we should be able to get one more but this is currently given out to lbp1 and taken by buffer1
-			assertNull(lbp2.requestBuffer());
+			// we should be able to get one more but this is currently given out to bufferPool1 and taken by buffer1
+			assertNull(bufferPool2.requestBuffer());
 
-			// as soon as one excess buffer of lbp1 is recycled, it should be available for lbp2
+			// as soon as one excess buffer of bufferPool1 is recycled, it should be available for bufferPool2
 			buffers.remove(0).recycle();
 			// recycle returns the excess buffer to the network buffer pool
 			assertEquals(1, networkBufferPool.getNumberOfAvailableMemorySegments());
 			// verify the number of buffers taken from the pools
 			assertEquals(buffersToTakeFromPool1 - 1,
-				lbp1.bestEffortGetNumOfUsedBuffers() + lbp1.getNumberOfAvailableMemorySegments());
+				bufferPool1.bestEffortGetNumOfUsedBuffers() + bufferPool1.getNumberOfAvailableMemorySegments());
 			assertEquals(buffersToTakeFromPool2,
-				lbp2.bestEffortGetNumOfUsedBuffers() + lbp2.getNumberOfAvailableMemorySegments());
+				bufferPool2.bestEffortGetNumOfUsedBuffers() + bufferPool2.getNumberOfAvailableMemorySegments());
 
-			Buffer buffer = lbp2.requestBuffer();
+			Buffer buffer = bufferPool2.requestBuffer();
 			assertNotNull(buffer);
 			buffers.add(buffer);
 			// verify the number of buffers taken from the pools
 			assertEquals(0, networkBufferPool.getNumberOfAvailableMemorySegments());
 			assertEquals(buffersToTakeFromPool1 - 1,
-				lbp1.bestEffortGetNumOfUsedBuffers() + lbp1.getNumberOfAvailableMemorySegments());
+				bufferPool1.bestEffortGetNumOfUsedBuffers() + bufferPool1.getNumberOfAvailableMemorySegments());
 			assertEquals(buffersToTakeFromPool2 + 1,
-				lbp2.bestEffortGetNumOfUsedBuffers() + lbp2.getNumberOfAvailableMemorySegments());
+				bufferPool2.bestEffortGetNumOfUsedBuffers() + bufferPool2.getNumberOfAvailableMemorySegments());
 		} finally {
 			for (Buffer buffer : buffers) {
 				buffer.recycle();
 			}
-			if (lbp1 != null) {
-				lbp1.lazyDestroy();
+			if (bufferPool1 != null) {
+				bufferPool1.lazyDestroy();
 			}
-			if (lbp2 != null) {
-				lbp2.lazyDestroy();
+			if (bufferPool2 != null) {
+				bufferPool2.lazyDestroy();
 			}
 		}
 	}
 
 	@Test
 	public void testBoundedPools() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1, 1);
-		assertEquals(1, lbp.getNumBuffers());
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, 1);
+		assertEquals(1, bufferPool.getNumBuffers());
 
-		lbp = networkBufferPool.createBufferPool(1, 2);
-		assertEquals(2, lbp.getNumBuffers());
+		bufferPool = networkBufferPool.createBufferPool(1, 2);
+		assertEquals(2, bufferPool.getNumBuffers());
 	}
 
 	@Test
 	public void testSingleManagedPoolGetsAll() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
-		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), lbp.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), bufferPool.getNumBuffers());
 	}
 
 	@Test
 	public void testSingleManagedPoolGetsAllExceptFixedOnes() throws IOException {
-		BufferPool fixed = networkBufferPool.createBufferPool(24, 24);
+		BufferPool fixedBufferPool = networkBufferPool.createBufferPool(24, 24);
 
-		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
+		BufferPool flexibleBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
-		assertEquals(24, fixed.getNumBuffers());
-		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - fixed.getNumBuffers(), lbp.getNumBuffers());
+		assertEquals(24, fixedBufferPool.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - fixedBufferPool.getNumBuffers(), flexibleBufferPool.getNumBuffers());
 	}
 
 	@Test
