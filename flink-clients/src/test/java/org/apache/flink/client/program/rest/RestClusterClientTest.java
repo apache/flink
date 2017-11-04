@@ -111,9 +111,9 @@ public class RestClusterClientTest extends TestLogger {
 
 		RestServerEndpoint rse = new RestServerEndpoint(rsec) {
 			@Override
-			protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+			protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
 
-				Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
+				List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
 				handlers.add(Tuple2.of(portHandler.getMessageHeaders(), portHandler));
 				handlers.add(Tuple2.of(submitHandler.getMessageHeaders(), submitHandler));
 				handlers.add(Tuple2.of(terminationHandler.getMessageHeaders(), terminationHandler));
@@ -212,9 +212,9 @@ public class RestClusterClientTest extends TestLogger {
 
 		RestServerEndpoint rse = new RestServerEndpoint(rsec) {
 			@Override
-			protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+			protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
 
-				Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
+				List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
 				handlers.add(Tuple2.of(triggerHandler.getMessageHeaders(), triggerHandler));
 				return handlers;
 			}
@@ -280,9 +280,9 @@ public class RestClusterClientTest extends TestLogger {
 
 		RestServerEndpoint rse = new RestServerEndpoint(rsec) {
 			@Override
-			protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+			protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
 
-				Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
+				List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = new ArrayList<>();
 				handlers.add(Tuple2.of(listJobsHandler.getMessageHeaders(), listJobsHandler));
 				return handlers;
 			}
