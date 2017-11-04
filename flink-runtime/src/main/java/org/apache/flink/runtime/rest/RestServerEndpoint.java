@@ -45,8 +45,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLEngine;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
-import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -88,7 +91,7 @@ public abstract class RestServerEndpoint {
 	 * @param restAddressFuture future rest address of the RestServerEndpoint
 	 * @return Collection of AbstractRestHandler which are added to the server endpoint
 	 */
-	protected abstract Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
+	protected abstract List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture);
 
 	/**
 	 * Starts this REST server endpoint.
@@ -107,7 +110,23 @@ public abstract class RestServerEndpoint {
 			final Router router = new Router();
 			final CompletableFuture<String> restAddressFuture = new CompletableFuture<>();
 
-			initializeHandlers(restAddressFuture).forEach(handler -> registerHandler(router, handler));
+			List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers = initializeHandlers(restAddressFuture);
+
+			/* sort the handlers such that they are ordered the following:
+			 * /jobs
+			 * /jobs/overview
+			 * /jobs/:jobid
+			 * /jobs/:jobid/config
+			 * /:*
+			 */
+			Collections.sort(
+				handlers,
+				RestHandlerUrlComparator.INSTANCE);
+
+			handlers.forEach(handler -> {
+				log.debug("Register handler {} under {}@{}.", handler.f1, handler.f0.getHttpMethod(), handler.f0.getTargetRestEndpointURL());
+				registerHandler(router, handler);
+			});
 
 			ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
 
@@ -266,6 +285,71 @@ public abstract class RestServerEndpoint {
 				break;
 			default:
 				throw new RuntimeException("Unsupported http method: " + specificationHandler.f0.getHttpMethod() + '.');
+		}
+	}
+
+	/**
+	 * Comparator for Rest URLs.
+	 *
+	 * <p>The comparator orders the Rest URLs such that URLs with path parameters are ordered behind
+	 * those without parameters. E.g.:
+	 * /jobs
+	 * /jobs/overview
+	 * /jobs/:jobid
+	 * /jobs/:jobid/config
+	 * /:*
+	 *
+	 * <p>IMPORTANT: This comparator is highly specific to how Netty path parameter are encoded. Namely
+	 * via a preceding ':' character.
+	 */
+	static final class RestHandlerUrlComparator implements Comparator<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>, Serializable {
+
+		private static final long serialVersionUID = 2388466767835547926L;
+
+		private static final Comparator<String> CASE_INSENSITIVE_ORDER = new CaseInsensitiveOrderComparator();
+
+		static final RestHandlerUrlComparator INSTANCE = new RestHandlerUrlComparator();
+
+		@Override
+		public int compare(
+				Tuple2<RestHandlerSpecification, ChannelInboundHandler> o1,
+				Tuple2<RestHandlerSpecification, ChannelInboundHandler> o2) {
+			return CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
+		}
+
+		static final class CaseInsensitiveOrderComparator implements Comparator<String>, Serializable {
+			private static final long serialVersionUID = 8550835445193437027L;
+
+			@Override
+			public int compare(String s1, String s2) {
+				int n1 = s1.length();
+				int n2 = s2.length();
+				int min = Math.min(n1, n2);
+				for (int i = 0; i < min; i++) {
+					char c1 = s1.charAt(i);
+					char c2 = s2.charAt(i);
+					if (c1 != c2) {
+						c1 = Character.toUpperCase(c1);
+						c2 = Character.toUpperCase(c2);
+						if (c1 != c2) {
+							c1 = Character.toLowerCase(c1);
+							c2 = Character.toLowerCase(c2);
+							if (c1 != c2) {
+								if (c1 == ':') {
+									// c2 is less than c1 because it is also different
+									return 1;
+								} else if (c2 == ':') {
+									// c1 is less than c2
+									return -1;
+								} else {
+									return c1 - c2;
+								}
+							}
+						}
+					}
+				}
+				return n1 - n2;
+			}
 		}
 	}
 }
