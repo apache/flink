@@ -302,9 +302,8 @@ public class ResultPartition implements BufferPoolOwner {
 	public void addToAllChannels(Buffer buffer) throws IOException {
 		try {
 			for (int targetChannel = 0; targetChannel < subpartitions.length; targetChannel++) {
-				// retain the buffer so that it can be recycled by each channel of targetPartition
-				buffer.retain();
-				add(buffer, targetChannel);
+				// retain the buffer so that it can be recycled by each channel
+				add(buffer.retain(), targetChannel);
 			}
 		} finally {
 			// we do not need to further retain the buffer
