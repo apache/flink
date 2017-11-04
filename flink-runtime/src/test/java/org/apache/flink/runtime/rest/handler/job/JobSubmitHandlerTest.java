@@ -35,6 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Matchers.any;
@@ -55,7 +56,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
 			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap());
 
 		JobSubmitRequestBody request = new JobSubmitRequestBody(new byte[0]);
 
@@ -76,7 +78,8 @@ public class JobSubmitHandlerTest extends TestLogger {
 		JobSubmitHandler handler = new JobSubmitHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
 			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap());
 
 		JobGraph job = new JobGraph("testjob");
 		JobSubmitRequestBody request = new JobSubmitRequestBody(job);

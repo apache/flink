@@ -42,6 +42,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
@@ -166,6 +167,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	// ------------------------------------------------------------------------
 
+	private final HardwareDescription hardwareDescription;
+
 	public TaskExecutor(
 			RpcService rpcService,
 			TaskManagerConfiguration taskManagerConfiguration,
@@ -214,6 +217,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			new ResourceManagerHeartbeatListener(),
 			rpcService.getScheduledExecutor(),
 			log);
+
+		hardwareDescription = HardwareDescription.extractFromSystem(memoryManager.getMemorySize());
 	}
 
 	// ------------------------------------------------------------------------
@@ -720,6 +725,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 					getAddress(),
 					getResourceID(),
 					taskSlotTable.createSlotReport(getResourceID()),
+					taskManagerLocation.dataPort(),
+					hardwareDescription,
 					newLeaderAddress,
 					newResourceManagerId,
 					getMainThreadExecutor(),

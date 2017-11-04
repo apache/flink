@@ -39,6 +39,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
@@ -52,8 +53,9 @@ public class JobTerminationHandler extends AbstractRestHandler<DispatcherGateway
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
 			Time timeout,
+			Map<String, String> headers,
 			MessageHeaders<EmptyRequestBody, EmptyResponseBody, JobTerminationMessageParameters> messageHeaders) {
-		super(localRestAddress, leaderRetriever, timeout, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders);
 	}
 
 	@Override
