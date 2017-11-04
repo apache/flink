@@ -75,7 +75,7 @@ public class PeriodicOffsetCommitter extends Thread {
 		catch (Throwable t) {
 			if (running) {
 				errorHandler.reportError(
-						new Exception("The periodic offset committer encountered an error: " + t.getMessage(), t));
+						new Exception("The periodic offset committer encountered an error: ", t));
 			}
 		}
 	}

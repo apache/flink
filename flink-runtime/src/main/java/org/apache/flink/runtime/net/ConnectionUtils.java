@@ -225,7 +225,7 @@ public class ConnectionUtils {
 			try {
 				localhostName = InetAddress.getLocalHost();
 			} catch (UnknownHostException uhe) {
-				LOG.warn("Could not resolve local hostname to an IP address: {}", uhe.getMessage());
+				LOG.warn("Could not resolve local hostname to an IP address: ", uhe);
 				return null;
 			}
 

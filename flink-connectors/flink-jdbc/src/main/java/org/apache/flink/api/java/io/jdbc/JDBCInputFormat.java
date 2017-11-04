@@ -148,9 +148,9 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 				statement.setFetchSize(fetchSize);
 			}
 		} catch (SQLException se) {
-			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
+			throw new IllegalArgumentException("open() failed.", se);
 		} catch (ClassNotFoundException cnfe) {
-			throw new IllegalArgumentException("JDBC-Class not found. - " + cnfe.getMessage(), cnfe);
+			throw new IllegalArgumentException("JDBC-Class not found. - ", cnfe);
 		}
 	}
 
@@ -162,7 +162,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 				statement.close();
 			}
 		} catch (SQLException se) {
-			LOG.info("Inputformat Statement couldn't be closed - " + se.getMessage());
+			LOG.info("Inputformat Statement couldn't be closed - ", se);
 		} finally {
 			statement = null;
 		}
@@ -172,7 +172,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 				dbConn.close();
 			}
 		} catch (SQLException se) {
-			LOG.info("Inputformat couldn't be closed - " + se.getMessage());
+			LOG.info("Inputformat couldn't be closed - ", se);
 		} finally {
 			dbConn = null;
 		}
@@ -238,7 +238,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			resultSet = statement.executeQuery();
 			hasNext = resultSet.next();
 		} catch (SQLException se) {
-			throw new IllegalArgumentException("open() failed." + se.getMessage(), se);
+			throw new IllegalArgumentException("open() failed.", se);
 		}
 	}
 
@@ -255,7 +255,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 		try {
 			resultSet.close();
 		} catch (SQLException se) {
-			LOG.info("Inputformat ResultSet couldn't be closed - " + se.getMessage());
+			LOG.info("Inputformat ResultSet couldn't be closed - ", se);
 		}
 	}
 
@@ -290,7 +290,7 @@ public class JDBCInputFormat extends RichInputFormat<Row, InputSplit> implements
 			hasNext = resultSet.next();
 			return row;
 		} catch (SQLException se) {
-			throw new IOException("Couldn't read data - " + se.getMessage(), se);
+			throw new IOException("Couldn't read data - ", se);
 		} catch (NullPointerException npe) {
 			throw new IOException("Couldn't access resultSet", npe);
 		}

@@ -979,7 +979,7 @@ public abstract class ExecutionEnvironment {
 		try {
 			registerCachedFilesWithPlan(plan);
 		} catch (Exception e) {
-			throw new RuntimeException("Error while registering cached files: " + e.getMessage(), e);
+			throw new RuntimeException("Error while registering cached files: ", e);
 		}
 
 		// clear all the sinks such that the next execution does not redo everything

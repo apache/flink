@@ -632,8 +632,7 @@ public final class Record implements Value, CopyableValue<Record> {
 					}
 				}
 			} catch (Exception ioex) {
-				throw new RuntimeException("Error creating field union of record data" + 
-							ioex.getMessage() == null ? "." : ": " + ioex.getMessage(), ioex);
+				throw new RuntimeException("Error creating field union of record data: ", ioex);
 			}
 		}
 		else {
@@ -700,8 +699,7 @@ public final class Record implements Value, CopyableValue<Record> {
 					}
 				}
 			} catch (Exception ioex) {
-				throw new RuntimeException("Error creating field union of record data" + 
-							ioex.getMessage() == null ? "." : ": " + ioex.getMessage(), ioex);
+				throw new RuntimeException("Error creating field union of record data: ", ioex);
 			}
 		}
 		
@@ -995,7 +993,7 @@ public final class Record implements Value, CopyableValue<Record> {
 				}
 			}
 			catch (Exception e) {
-				throw new RuntimeException("Error in data type serialization: " + e.getMessage(), e); 
+				throw new RuntimeException("Error in data type serialization: ", e);
 			}
 		}
 		
@@ -1074,7 +1072,7 @@ public final class Record implements Value, CopyableValue<Record> {
 			serializer.writeValLenIntBackwards(numFields);
 		}
 		catch (Exception e) {
-			throw new RuntimeException("Error serializing Record header: " + e.getMessage(), e);
+			throw new RuntimeException("Error serializing Record header: ", e);
 		}
 	}
 	
