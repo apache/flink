@@ -75,11 +75,7 @@ class DataStreamJoinRule
     val remainingPredsAccessTime = remainingPreds.isDefined &&
       accessesTimeAttribute(remainingPreds.get, join.getRowType)
 
-    if (!windowBounds.isDefined && !remainingPredsAccessTime) {
-      true
-    } else {
-      false
-    }
+    !windowBounds.isDefined && !remainingPredsAccessTime
   }
 
   override def convert(rel: RelNode): RelNode = {

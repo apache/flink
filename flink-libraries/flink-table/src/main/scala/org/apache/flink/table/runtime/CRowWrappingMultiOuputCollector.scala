@@ -23,13 +23,15 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * The collector is used to wrap a [[Row]] to a [[CRow]]. Otherwise, set times to output repeatedly
+  * The collector to wrap a [[Row]] into a [[CRow]] and collect it multiple times.
   */
 class CRowWrappingMultiOuputCollector() extends Collector[Row] {
 
-  var out: Collector[CRow] = _
-  val outCRow: CRow = new CRow()
-  var times: Long = 0L
+  private var out: Collector[CRow] = _
+  private val outCRow: CRow = new CRow()
+  private var times: Long = 0L
+
+  def setCollector(collector: Collector[CRow]): Unit = this.out = collector
 
   def setChange(change: Boolean): Unit = this.outCRow.change = change
 

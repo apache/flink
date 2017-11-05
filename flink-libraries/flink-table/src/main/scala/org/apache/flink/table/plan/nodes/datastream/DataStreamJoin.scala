@@ -152,11 +152,6 @@ class DataStreamJoin(
       case _ => throw new UnsupportedOperationException(s"An Unsupported JoinType [ $joinType ]")
     }
 
-    if (nullCheck && !config.getNullCheck) {
-      throw TableException("Null check in TableConfig must be enabled for outer joins.")
-    }
-
-
     val generator = new FunctionCodeGenerator(
       config,
       nullCheck,
@@ -205,7 +200,8 @@ class DataStreamJoin(
 
     connectOperator
       .keyBy(leftKeys.toArray, rightKeys.toArray)
-      .process(coMapFun).name(joinOpName)
+      .process(coMapFun)
+      .name(joinOpName)
       .returns(CRowTypeInfo(returnType))
   }
 }

@@ -174,13 +174,11 @@ class DataStreamInnerJoin(
       curProcessTime: Long,
       oldExpiredTime: Long): Long = {
 
-    var newExpiredTime = oldExpiredTime
-    if (stateCleaningEnabled) {
-      if (curProcessTime + minRetentionTime > oldExpiredTime) {
-        newExpiredTime = curProcessTime + maxRetentionTime
-      }
+    if (stateCleaningEnabled && curProcessTime + minRetentionTime > oldExpiredTime) {
+      curProcessTime + maxRetentionTime
+    } else {
+      oldExpiredTime
     }
-    newExpiredTime
   }
 
   /**
@@ -197,7 +195,7 @@ class DataStreamInnerJoin(
       otherSideState: MapState[Row, JTuple2[Int, Long]],
       isLeft: Boolean): Unit = {
 
-    cRowWrapper.out = out
+    cRowWrapper.setCollector(out)
     cRowWrapper.setChange(value.change)
 
     val curProcessTime = ctx.timerService.currentProcessingTime
@@ -215,7 +213,7 @@ class DataStreamInnerJoin(
     }
 
     // update current side stream state
-    if (!value.asInstanceOf[CRow].change) {
+    if (!value.change) {
       cntAndExpiredTime.f0 = cntAndExpiredTime.f0 - 1
       if (cntAndExpiredTime.f0 <= 0) {
         currentSideState.remove(value.row)
