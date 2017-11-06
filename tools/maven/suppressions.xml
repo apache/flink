@@ -35,4 +35,8 @@ under the License.
 		<suppress
 			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
 			checks="IllegalImport"/>
+		<!-- Configuration class copied from Hadoop -->
+		<suppress
+			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
+			checks=".*"/>
 </suppressions>
