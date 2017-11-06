@@ -305,9 +305,6 @@ public class SlotManager implements AutoCloseable {
 			if (pendingSlotRequest.isAssigned()) {
 				cancelPendingSlotRequest(pendingSlotRequest);
 			}
-			else {
-				resourceActions.cancelResourceAllocation(pendingSlotRequest.getResourceProfile());
-			}
 
 			return true;
 		} else {

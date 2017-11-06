@@ -298,7 +298,8 @@ public class SlotManagerTest extends TestLogger {
 			assertFalse(pendingSlotRequest.isAssigned());
 
 			slotManager.unregisterSlotRequest(allocationId);
-			verify(resourceManagerActions, times(1)).cancelResourceAllocation(eq(resourceProfile));
+			pendingSlotRequest = slotManager.getSlotRequest(allocationId);
+			assertTrue(pendingSlotRequest == null);
 
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 

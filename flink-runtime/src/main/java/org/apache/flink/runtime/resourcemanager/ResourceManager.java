@@ -880,13 +880,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	 */
 	public abstract boolean stopWorker(ResourceID resourceID);
 
-	/**
-	 * Cancel the allocation of a resource. If the resource allocation has not fulfilled, should cancel it.
-	 *
-	 * @param resourceProfile The resource description of the previous allocation
-	 */
-	public abstract void cancelNewWorker(ResourceProfile resourceProfile);
-
 	// ------------------------------------------------------------------------
 	//  Static utility classes
 	// ------------------------------------------------------------------------
@@ -910,16 +903,6 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 		public void notifyAllocationFailure(JobID jobId, AllocationID allocationId, Exception cause) {
 			validateRunsInMainThread();
 			log.info("Slot request with allocation id {} for job {} failed.", allocationId, jobId, cause);
-		}
-
-		@Override
-		public void cancelResourceAllocation(ResourceProfile resourceProfile) {
-			runAsync(new Runnable() {
-				@Override
-				public void run() {
-					cancelNewWorker(resourceProfile);
-				}
-			});
 		}
 	}
 

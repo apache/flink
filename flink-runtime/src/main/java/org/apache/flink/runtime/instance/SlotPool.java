@@ -318,7 +318,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 		future.whenComplete(
 			(value, throwable) -> {
-				if (throwable != null && throwable instanceof TimeoutException) {
+				if (throwable != null) {
 					resourceManagerGateway.cancelSlotRequest(allocationID);
 				}
 			});

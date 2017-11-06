@@ -237,11 +237,6 @@ public class YarnResourceManager extends ResourceManager<ResourceID> implements 
 		return resourceID;
 	}
 
-	@Override
-	public void cancelNewWorker(ResourceProfile resourceProfile) {
-		// TODO: Implement to cancel the resource allocation
-	}
-
 	// AMRMClientAsync CallbackHandler methods
 	@Override
 	public float getProgress() {
