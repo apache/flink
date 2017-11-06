@@ -102,7 +102,7 @@ object TPCHQuery3 {
       getCustomerDataSet(env, params.get("customer")).
         filter( c => c.mktSegment.equals("AUTOMOBILE"))
     // read orders
-    val orders = getOrdersDataSet(env, params.get("order"))
+    val orders = getOrdersDataSet(env, params.get("orders"))
 
                       // filter orders by order date
     val items = orders.filter( o => dateFormat.parse(o.orderDate).before(date) )
