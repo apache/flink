@@ -25,6 +25,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 
 /**
  * This class represents a piece of memory managed by Flink.
@@ -1177,6 +1178,7 @@ public abstract class MemorySegment {
 	 * @throws IndexOutOfBoundsException If the offset is invalid, or this segment does not
 	 *           contain the given number of bytes (starting from offset), or the target byte buffer does
 	 *           not have enough space for the bytes.
+	 * @throws ReadOnlyBufferException If the target buffer is read-only.
 	 */
 	public abstract void get(int offset, ByteBuffer target, int numBytes);
 
