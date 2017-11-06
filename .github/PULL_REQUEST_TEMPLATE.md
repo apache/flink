@@ -63,9 +63,9 @@ This change added tests and can be verified as follows:
   - The serializers: (yes / no / don't know)
   - The runtime per-record code paths (performance sensitive): (yes / no / don't know)
   - Anything that affects deployment or recovery: JobManager (and its components), Checkpointing, Yarn/Mesos, ZooKeeper: (yes / no / don't know)
+  - The S3 file system connector: (yes / no / don't know)
 
 ## Documentation
 
   - Does this pull request introduce a new feature? (yes / no)
   - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
-
