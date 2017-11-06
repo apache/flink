@@ -46,7 +46,8 @@ find . -name 'pom.xml' -type f -exec perl -pi -e 's#<version>'$OLD_VERSION'</ver
 #change version of documentation
 cd docs
 perl -pi -e "s#^version: .*#version: \"${NEW_VERSION}\"#" _config.yml
-perl -pi -e "s#^version_short: .*#version_short: \"${NEW_VERSION}\"#" _config.yml
+perl -pi -e "s#^version_title: .*#version_title: \"${NEW_VERSION}\"#" _config.yml
+perl -pi -e "s#^version_javadocs: .*#version_javadocs: \"${NEW_VERSION}\"#" _config.yml
 cd ..
 
 git commit -am "Update version to $NEW_VERSION"
