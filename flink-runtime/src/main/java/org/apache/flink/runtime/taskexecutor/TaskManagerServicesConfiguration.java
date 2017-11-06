@@ -400,23 +400,27 @@ public class TaskManagerServicesConfiguration {
 	 * Creates the {@link QueryableStateConfiguration} from the given Configuration.
 	 */
 	private static QueryableStateConfiguration parseQueryableStateConfiguration(Configuration config) {
-		final boolean enabled = config.getBoolean(QueryableStateOptions.SERVER_ENABLE);
 
-		if (enabled) {
-			final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
-					config.getString(QueryableStateOptions.PROXY_PORT_RANGE,
-							QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
-			final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(
-					config.getString(QueryableStateOptions.SERVER_PORT_RANGE,
-							QueryableStateOptions.SERVER_PORT_RANGE.defaultValue()));
+		final Iterator<Integer> proxyPorts = NetUtils.getPortRangeFromString(
+				config.getString(QueryableStateOptions.PROXY_PORT_RANGE,
+						QueryableStateOptions.PROXY_PORT_RANGE.defaultValue()));
+		final Iterator<Integer> serverPorts = NetUtils.getPortRangeFromString(
+				config.getString(QueryableStateOptions.SERVER_PORT_RANGE,
+						QueryableStateOptions.SERVER_PORT_RANGE.defaultValue()));
 
-			final int numNetworkThreads = config.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS);
-			final int numQueryThreads = config.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS);
-			return new QueryableStateConfiguration(true, proxyPorts, serverPorts, numNetworkThreads, numQueryThreads);
-		}
-		else {
-			return QueryableStateConfiguration.disabled();
-		}
+		final int numProxyServerNetworkThreads = config.getInteger(QueryableStateOptions.PROXY_NETWORK_THREADS);
+		final int numProxyServerQueryThreads = config.getInteger(QueryableStateOptions.PROXY_ASYNC_QUERY_THREADS);
+
+		final int numStateServerNetworkThreads = config.getInteger(QueryableStateOptions.SERVER_NETWORK_THREADS);
+		final int numStateServerQueryThreads = config.getInteger(QueryableStateOptions.SERVER_ASYNC_QUERY_THREADS);
+
+		return new QueryableStateConfiguration(
+				proxyPorts,
+				serverPorts,
+				numProxyServerNetworkThreads,
+				numProxyServerQueryThreads,
+				numStateServerNetworkThreads,
+				numStateServerQueryThreads);
 	}
 
 	/**

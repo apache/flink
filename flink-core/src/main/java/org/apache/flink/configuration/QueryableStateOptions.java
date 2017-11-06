@@ -32,11 +32,6 @@ public class QueryableStateOptions {
 	// Server Options
 	// ------------------------------------------------------------------------
 
-	/** Flag to indicate whether to start the queryable state server. */
-	public static final ConfigOption<Boolean> SERVER_ENABLE =
-			key("query.server.enable")
-			.defaultValue(true);
-
 	/**
 	 * The config parameter defining the server port range of the queryable state proxy.
 	 *
@@ -58,6 +53,16 @@ public class QueryableStateOptions {
 	public static final ConfigOption<String> PROXY_PORT_RANGE =
 			key("query.proxy.ports")
 			.defaultValue("9069");
+
+	/** Number of network (event loop) threads for the client proxy (0 => #slots). */
+	public static final ConfigOption<Integer> PROXY_NETWORK_THREADS =
+			key("query.proxy.network-threads")
+					.defaultValue(0);
+
+	/** Number of async query threads for the client proxy (0 => #slots). */
+	public static final ConfigOption<Integer> PROXY_ASYNC_QUERY_THREADS =
+			key("query.proxy.query-threads")
+					.defaultValue(0);
 
 	/**
 	 * The config parameter defining the server port range of the queryable state server.
@@ -99,16 +104,6 @@ public class QueryableStateOptions {
 	public static final ConfigOption<Integer> CLIENT_NETWORK_THREADS =
 			key("query.client.network-threads")
 			.defaultValue(0);
-
-	/** Number of retries on location lookup failures. */
-	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRIES =
-			key("query.client.lookup.num-retries")
-			.defaultValue(3);
-
-	/** Retry delay on location lookup failures (millis). */
-	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRY_DELAY =
-			key("query.client.lookup.retry-delay")
-			.defaultValue(1000);
 
 	// ------------------------------------------------------------------------
 
