@@ -23,22 +23,31 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +57,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
@@ -55,6 +65,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SlotPoolTest extends TestLogger {
+
+	private static final Logger LOG = LoggerFactory.getLogger(SlotPoolTest.class);
 
 	private final Time timeout = Time.seconds(10L);
 
@@ -291,6 +303,59 @@ public class SlotPoolTest extends TestLogger {
 			assertFalse(future2.isDone());
 		} finally {
 			slotPool.shutDown();
+		}
+	}
+
+	/**
+	 * Tests that a slot request is cancelled if it failed with an exception (e.g. TimeoutException).
+	 *
+	 * <p>See FLINK-7870
+	 */
+	@Test
+	public void testSlotRequestCancellationUponFailingRequest() throws Exception {
+		final SlotPool slotPool = new SlotPool(rpcService, jobId);
+		final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
+		final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
+		final CompletableFuture<AllocationID> requestSlotFutureAllocationId = new CompletableFuture<>();
+
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
+		resourceManagerGateway.setCancelSlotConsumer(allocationID -> cancelSlotFuture.complete(allocationID));
+
+		final ScheduledUnit scheduledUnit = new ScheduledUnit(mock(Execution.class));
+
+		try {
+			slotPool.start(JobMasterId.generate(), "localhost");
+
+			final SlotPoolGateway slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
+
+			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
+
+			CompletableFuture<SimpleSlot> slotFuture = slotPoolGateway.allocateSlot(
+				scheduledUnit,
+				ResourceProfile.UNKNOWN,
+				Collections.emptyList(),
+				timeout);
+
+			requestSlotFuture.completeExceptionally(new FlinkException("Testing exception."));
+
+			try {
+				slotFuture.get();
+				fail("The slot future should not have been completed properly.");
+			} catch (Exception ignored) {
+				// expected
+			}
+
+			// check that a failure triggered the slot request cancellation
+			// with the correct allocation id
+			assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
+		} finally {
+			try {
+				RpcUtils.terminateRpcEndpoint(slotPool, timeout);
+			} catch (Exception e) {
+				LOG.warn("Could not properly terminate the SlotPool.", e);
+			}
 		}
 	}
 

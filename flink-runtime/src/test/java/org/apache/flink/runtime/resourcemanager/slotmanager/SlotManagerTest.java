@@ -292,15 +292,6 @@ public class SlotManagerTest extends TestLogger {
 		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(taskExecutorGateway);
 
 		try (SlotManager slotManager = createSlotManager(resourceManagerId, resourceManagerActions)) {
-			// verify that if the request has not been assigned, should cancel the resource allocation
-			slotManager.registerSlotRequest(slotRequest);
-			PendingSlotRequest pendingSlotRequest = slotManager.getSlotRequest(allocationId);
-			assertFalse(pendingSlotRequest.isAssigned());
-
-			slotManager.unregisterSlotRequest(allocationId);
-			pendingSlotRequest = slotManager.getSlotRequest(allocationId);
-			assertTrue(pendingSlotRequest == null);
-
 			slotManager.registerTaskManager(taskManagerConnection, slotReport);
 
 			TaskManagerSlot slot = slotManager.getSlot(slotId);
