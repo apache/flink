@@ -50,6 +50,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for the SlotPool using a proper RPC setup.
@@ -89,7 +90,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		);
 		pool.start(JobMasterId.generate(), "foobar");
 
-		CompletableFuture<SimpleSlot> future = pool.allocateSlot(new AllocationID(), DEFAULT_TESTING_PROFILE, null, Time.days(1));
+		CompletableFuture<SimpleSlot> future = pool.allocateSlot(new AllocationID(), mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, Time.days(1));
 
 		try {
 			future.get(4, TimeUnit.SECONDS);
@@ -120,7 +121,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
 		AllocationID allocationID = new AllocationID();
-		CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(allocationID, DEFAULT_TESTING_PROFILE, null, Time.milliseconds(100));
+		CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(allocationID, mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, Time.milliseconds(100));
 
 		try {
 			future.get(500, TimeUnit.MILLISECONDS);
@@ -152,7 +153,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		pool.connectToResourceManager(resourceManagerGateway);
 
 		AllocationID allocationID = new AllocationID();
-		CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(allocationID, DEFAULT_TESTING_PROFILE, null, Time.milliseconds(100));
+		CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(allocationID, mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, Time.milliseconds(100));
 
 		try {
 			future.get(500, TimeUnit.MILLISECONDS);
@@ -184,7 +185,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		pool.connectToResourceManager(resourceManagerGateway);
 
 		AllocationID allocationID = new AllocationID();
-		CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(allocationID, DEFAULT_TESTING_PROFILE, null, Time.milliseconds(100));
+		CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(allocationID, mock(ScheduledUnit.class), DEFAULT_TESTING_PROFILE, null, Time.milliseconds(100));
 
 		try {
 			future.get(500, TimeUnit.MILLISECONDS);
@@ -238,6 +239,6 @@ public class SlotPoolRpcTest extends TestLogger {
 			assertTrue(e.getCause() instanceof AskTimeoutException);
 		}
 
-		assertEquals(0, pool.getSelfGateway(SlotPoolGateway.class).getNumberOfPendingRequests());
+		assertEquals(0, pool.getSelfGateway(SlotPoolGateway.class).getNumberOfPendingRequests().get().intValue());
 	}
 }

@@ -263,12 +263,14 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(AllocationID allocationID,
+	public CompletableFuture<SimpleSlot> allocateSlot(
+			AllocationID allocationID,
+			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences,
 			Time timeout) {
 
-		return internalAllocateSlot(allocationID, resources, locationPreferences);
+		return internalAllocateSlot(allocationID, task, resources, locationPreferences);
 	}
 
 	@Override
@@ -298,6 +300,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 	CompletableFuture<SimpleSlot> internalAllocateSlot(
 			AllocationID allocationID,
+			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences) {
 
@@ -1053,7 +1056,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 				Collection<TaskManagerLocation> preferredLocations) {
 
 			final AllocationID allocationID = new AllocationID();
-			CompletableFuture<SimpleSlot> slotFuture = gateway.allocateSlot(allocationID, ResourceProfile.UNKNOWN, preferredLocations, timeout);
+			CompletableFuture<SimpleSlot> slotFuture = gateway.allocateSlot(allocationID, task, ResourceProfile.UNKNOWN, preferredLocations, timeout);
 			slotFuture.whenComplete(
 				(SimpleSlot slot, Throwable failure) -> {
 					if (failure != null) {
