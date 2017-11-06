@@ -379,9 +379,22 @@ class JoinTest extends TableTestBase {
       "rowtime")
 
     verifyTimeBoundary(
-      "t1.c - interval '2' second >= t2.c + interval '1' second -" +
-        "interval '10' second and " +
+      "t1.c >= t2.c - interval '1' second and " +
         "t1.c <= t2.c + interval '10' second",
+      -1000,
+      10000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t1.c - interval '2' second >= t2.c + interval '1' second - interval '10' second and " +
+        "t1.c <= t2.c + interval '10' second",
+      -7000,
+      10000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t2.c + interval '1' second - interval '10' second <= t1.c - interval '2' second and " +
+        "t2.c + interval '10' second >= t1.c",
       -7000,
       10000,
       "rowtime")
@@ -391,6 +404,27 @@ class JoinTest extends TableTestBase {
         "t1.c <= t2.c - interval '5' second",
       -10000,
       -5000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t2.c - interval '10' second <= t1.c and " +
+        "t2.c - interval '5' second >= t1.c",
+      -10000,
+      -5000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t1.c > t2.c - interval '2' second and " +
+        "t1.c < t2.c + interval '2' second",
+      -1999,
+      1999,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t2.c > t1.c - interval '2' second and " +
+        "t2.c < t1.c + interval '2' second",
+      -1999,
+      1999,
       "rowtime")
 
     verifyTimeBoundary(
