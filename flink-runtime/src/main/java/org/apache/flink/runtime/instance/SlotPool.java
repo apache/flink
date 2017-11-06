@@ -316,6 +316,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 		pendingRequests.put(allocationID, new PendingRequest(allocationID, future, resources));
 
+		future.whenComplete(
+			(value, throwable) -> {
+				if (throwable != null) {
+					resourceManagerGateway.cancelSlotRequest(allocationID);
+				}
+			});
+
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
 			jobMasterId,
 			new SlotRequest(jobId, allocationID, resources, jobManagerAddress),
