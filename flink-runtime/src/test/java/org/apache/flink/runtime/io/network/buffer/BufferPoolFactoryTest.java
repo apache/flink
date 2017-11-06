@@ -20,9 +20,12 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemoryType;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -31,15 +34,24 @@ import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the creation of {@link LocalBufferPool} instances from the {@link NetworkBufferPool}
+ * factory.
+ */
 public class BufferPoolFactoryTest {
 
-	private final static int numBuffers = 1024;
+	private static final int numBuffers = 1024;
 
-	private final static int memorySegmentSize = 128;
+	private static final int memorySegmentSize = 128;
 
 	private NetworkBufferPool networkBufferPool;
+
+	@Rule
+	public ExpectedException expectedException = ExpectedException.none();
 
 	@Before
 	public void setupNetworkBufferPool() {
@@ -58,35 +70,130 @@ public class BufferPoolFactoryTest {
 		}
 	}
 
-	@Test(expected = IOException.class)
-	public void testRequireMoreThanPossible() throws IOException {
-		networkBufferPool.createBufferPool(networkBufferPool.getTotalNumberOfMemorySegments() * 2, Integer.MAX_VALUE);
+	/**
+	 * Tests creating one buffer pool which requires more buffers than available.
+	 */
+	@Test
+	public void testRequireMoreThanPossible1() throws IOException {
+		expectedException.expect(IOException.class);
+		expectedException.expectMessage("Insufficient number of network buffers");
+
+		networkBufferPool.createBufferPool(networkBufferPool.getTotalNumberOfMemorySegments() + 1,
+			Integer.MAX_VALUE);
+	}
+
+	/**
+	 * Tests creating two buffer pools which together require more buffers than available.
+	 */
+	@Test
+	public void testRequireMoreThanPossible2() throws IOException {
+		expectedException.expect(IOException.class);
+		expectedException.expectMessage("Insufficient number of network buffers");
+
+		networkBufferPool.createBufferPool(numBuffers / 2 + 1, numBuffers);
+		networkBufferPool.createBufferPool(numBuffers / 2 + 1, numBuffers);
+	}
+
+	/**
+	 * Tests creating two buffer pools which together require as many buffers as available but where
+	 * there are less buffers available to the {@link NetworkBufferPool} at the time of the second
+	 * {@link LocalBufferPool} creation.
+	 */
+	@Test
+	public void testOverprovisioned() throws IOException {
+		// note: this is also the minimum number of buffers reserved for pool2
+		int buffersToTakeFromPool1 = numBuffers / 2 + 1;
+		// note: this is also the minimum number of buffers reserved for pool1
+		int buffersToTakeFromPool2 = numBuffers - buffersToTakeFromPool1;
+
+		List<Buffer> buffers = new ArrayList<>(numBuffers);
+		BufferPool bufferPool1 = null, bufferPool2 = null;
+		try {
+			bufferPool1 = networkBufferPool.createBufferPool(buffersToTakeFromPool2, numBuffers);
+
+			// take more buffers than the minimum required
+			for (int i = 0; i < buffersToTakeFromPool1; ++i) {
+				Buffer buffer = bufferPool1.requestBuffer();
+				assertNotNull(buffer);
+				buffers.add(buffer);
+			}
+			assertEquals(buffersToTakeFromPool1, bufferPool1.bestEffortGetNumOfUsedBuffers());
+			assertEquals(numBuffers, bufferPool1.getNumBuffers());
+
+			// create a second pool which requires more buffers than are available at the moment
+			bufferPool2 = networkBufferPool.createBufferPool(buffersToTakeFromPool1, numBuffers);
+
+			assertEquals(bufferPool2.getNumberOfRequiredMemorySegments(), bufferPool2.getNumBuffers());
+			assertEquals(bufferPool1.getNumberOfRequiredMemorySegments(), bufferPool1.getNumBuffers());
+			assertNull(bufferPool1.requestBuffer());
+
+			// take all remaining buffers
+			for (int i = 0; i < buffersToTakeFromPool2; ++i) {
+				Buffer buffer = bufferPool2.requestBuffer();
+				assertNotNull(buffer);
+				buffers.add(buffer);
+			}
+			assertEquals(buffersToTakeFromPool2, bufferPool2.bestEffortGetNumOfUsedBuffers());
+
+			// we should be able to get one more but this is currently given out to bufferPool1 and taken by buffer1
+			assertNull(bufferPool2.requestBuffer());
+
+			// as soon as one excess buffer of bufferPool1 is recycled, it should be available for bufferPool2
+			buffers.remove(0).recycle();
+			// recycle returns the excess buffer to the network buffer pool
+			assertEquals(1, networkBufferPool.getNumberOfAvailableMemorySegments());
+			// verify the number of buffers taken from the pools
+			assertEquals(buffersToTakeFromPool1 - 1,
+				bufferPool1.bestEffortGetNumOfUsedBuffers() + bufferPool1.getNumberOfAvailableMemorySegments());
+			assertEquals(buffersToTakeFromPool2,
+				bufferPool2.bestEffortGetNumOfUsedBuffers() + bufferPool2.getNumberOfAvailableMemorySegments());
+
+			Buffer buffer = bufferPool2.requestBuffer();
+			assertNotNull(buffer);
+			buffers.add(buffer);
+			// verify the number of buffers taken from the pools
+			assertEquals(0, networkBufferPool.getNumberOfAvailableMemorySegments());
+			assertEquals(buffersToTakeFromPool1 - 1,
+				bufferPool1.bestEffortGetNumOfUsedBuffers() + bufferPool1.getNumberOfAvailableMemorySegments());
+			assertEquals(buffersToTakeFromPool2 + 1,
+				bufferPool2.bestEffortGetNumOfUsedBuffers() + bufferPool2.getNumberOfAvailableMemorySegments());
+		} finally {
+			for (Buffer buffer : buffers) {
+				buffer.recycle();
+			}
+			if (bufferPool1 != null) {
+				bufferPool1.lazyDestroy();
+			}
+			if (bufferPool2 != null) {
+				bufferPool2.lazyDestroy();
+			}
+		}
 	}
 
 	@Test
 	public void testBoundedPools() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1, 1);
-		assertEquals(1, lbp.getNumBuffers());
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, 1);
+		assertEquals(1, bufferPool.getNumBuffers());
 
-		lbp = networkBufferPool.createBufferPool(1, 2);
-		assertEquals(2, lbp.getNumBuffers());
+		bufferPool = networkBufferPool.createBufferPool(1, 2);
+		assertEquals(2, bufferPool.getNumBuffers());
 	}
 
 	@Test
 	public void testSingleManagedPoolGetsAll() throws IOException {
-		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
+		BufferPool bufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
-		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), lbp.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments(), bufferPool.getNumBuffers());
 	}
 
 	@Test
 	public void testSingleManagedPoolGetsAllExceptFixedOnes() throws IOException {
-		BufferPool fixed = networkBufferPool.createBufferPool(24, 24);
+		BufferPool fixedBufferPool = networkBufferPool.createBufferPool(24, 24);
 
-		BufferPool lbp = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
+		BufferPool flexibleBufferPool = networkBufferPool.createBufferPool(1, Integer.MAX_VALUE);
 
-		assertEquals(24, fixed.getNumBuffers());
-		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - fixed.getNumBuffers(), lbp.getNumBuffers());
+		assertEquals(24, fixedBufferPool.getNumBuffers());
+		assertEquals(networkBufferPool.getTotalNumberOfMemorySegments() - fixedBufferPool.getNumBuffers(), flexibleBufferPool.getNumBuffers());
 	}
 
 	@Test
@@ -263,7 +370,7 @@ public class BufferPoolFactoryTest {
 		for (int i = 0; i < 1_000; ++i) {
 			Random random = new Random();
 
-			List<BufferPool> pools = new ArrayList<BufferPool>();
+			List<BufferPool> pools = new ArrayList<>();
 
 			int numPools = numBuffers / 32;
 			long maxTotalUsed = 0;
