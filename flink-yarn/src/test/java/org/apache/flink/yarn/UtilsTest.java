@@ -62,6 +62,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import scala.Option;
@@ -135,6 +136,26 @@ public class UtilsTest extends TestLogger {
 				}
 			}).when(resourceManagerClient).addContainerRequest(Matchers.any(AMRMClient.ContainerRequest.class));
 
+			final CompletableFuture<AkkaActorGateway> resourceManagerFuture = new CompletableFuture<>();
+			final CompletableFuture<AkkaActorGateway> leaderGatewayFuture = new CompletableFuture<>();
+
+			doAnswer(
+				(InvocationOnMock invocation) -> {
+					Container container = (Container) invocation.getArguments()[0];
+					resourceManagerFuture.thenCombine(leaderGatewayFuture,
+						(resourceManagerGateway, leaderGateway) -> {
+						resourceManagerGateway.tell(
+							new NotifyResourceStarted(YarnFlinkResourceManager.extractResourceID(container)),
+							leaderGateway);
+						return null;
+						});
+					return null;
+				})
+				.when(nodeManagerClient)
+				.startContainer(
+					Matchers.any(Container.class),
+					Matchers.any(ContainerLaunchContext.class));
+
 			ActorRef resourceManager = null;
 			ActorRef leader1;
 
@@ -169,15 +190,8 @@ public class UtilsTest extends TestLogger {
 				final AkkaActorGateway leader1Gateway = new AkkaActorGateway(leader1, leaderSessionID);
 				final AkkaActorGateway resourceManagerGateway = new AkkaActorGateway(resourceManager, leaderSessionID);
 
-				doAnswer(new Answer() {
-					@Override
-					public Object answer(InvocationOnMock invocation) throws Throwable {
-						Container container = (Container) invocation.getArguments()[0];
-						resourceManagerGateway.tell(new NotifyResourceStarted(YarnFlinkResourceManager.extractResourceID(container)),
-							leader1Gateway);
-						return null;
-					}
-				}).when(nodeManagerClient).startContainer(Matchers.any(Container.class), Matchers.any(ContainerLaunchContext.class));
+				leaderGatewayFuture.complete(leader1Gateway);
+				resourceManagerFuture.complete(resourceManagerGateway);
 
 				expectMsgClass(deadline.timeLeft(), RegisterResourceManager.class);
 
