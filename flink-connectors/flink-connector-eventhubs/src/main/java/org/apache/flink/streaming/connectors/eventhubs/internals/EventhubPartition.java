@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.eventhubs.internals;
 
-import org.apache.flink.hadoop.shaded.com.google.common.base.Preconditions;
+import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.Properties;
