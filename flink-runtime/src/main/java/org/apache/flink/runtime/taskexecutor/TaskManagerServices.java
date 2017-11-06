@@ -327,33 +327,35 @@ public class TaskManagerServices {
 		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
 		KvStateRegistry kvStateRegistry = new KvStateRegistry();
-		KvStateClientProxy kvClientProxy = null;
-		KvStateServer kvStateServer = null;
 
-		if (taskManagerServicesConfiguration.getQueryableStateConfig().isEnabled()) {
-			QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
+		QueryableStateConfiguration qsConfig = taskManagerServicesConfiguration.getQueryableStateConfig();
 
-			int numNetworkThreads = qsConfig.numServerThreads() == 0 ?
-					taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numServerThreads();
+		int numProxyServerNetworkThreads = qsConfig.numProxyServerThreads() == 0 ?
+				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyServerThreads();
 
-			int numQueryThreads = qsConfig.numQueryThreads() == 0 ?
-					taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numQueryThreads();
+		int numProxyServerQueryThreads = qsConfig.numProxyQueryThreads() == 0 ?
+				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numProxyQueryThreads();
 
-			kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
-					taskManagerServicesConfiguration.getTaskManagerAddress(),
-					qsConfig.getProxyPortRange(),
-					numNetworkThreads,
-					numQueryThreads,
-					new DisabledKvStateRequestStats());
+		final KvStateClientProxy kvClientProxy = QueryableStateUtils.createKvStateClientProxy(
+				taskManagerServicesConfiguration.getTaskManagerAddress(),
+				qsConfig.getProxyPortRange(),
+				numProxyServerNetworkThreads,
+				numProxyServerQueryThreads,
+				new DisabledKvStateRequestStats());
 
-			kvStateServer = QueryableStateUtils.createKvStateServer(
-					taskManagerServicesConfiguration.getTaskManagerAddress(),
-					qsConfig.getStateServerPortRange(),
-					numNetworkThreads,
-					numQueryThreads,
-					kvStateRegistry,
-					new DisabledKvStateRequestStats());
-		}
+		int numStateServerNetworkThreads = qsConfig.numStateServerThreads() == 0 ?
+				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateServerThreads();
+
+		int numStateServerQueryThreads = qsConfig.numStateQueryThreads() == 0 ?
+				taskManagerServicesConfiguration.getNumberOfSlots() : qsConfig.numStateQueryThreads();
+
+		final KvStateServer kvStateServer = QueryableStateUtils.createKvStateServer(
+				taskManagerServicesConfiguration.getTaskManagerAddress(),
+				qsConfig.getStateServerPortRange(),
+				numStateServerNetworkThreads,
+				numStateServerQueryThreads,
+				kvStateRegistry,
+				new DisabledKvStateRequestStats());
 
 		// we start the network first, to make sure it can allocate its buffers first
 		return new NetworkEnvironment(

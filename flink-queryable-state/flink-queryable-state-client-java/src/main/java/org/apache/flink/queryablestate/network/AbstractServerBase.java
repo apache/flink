@@ -180,16 +180,16 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 */
 	public void start() throws Throwable {
 		Preconditions.checkState(serverAddress == null,
-				"Server " + serverName + " already running @ " + serverAddress + '.');
+				"The " + serverName + " already running @ " + serverAddress + '.');
 
 		Iterator<Integer> portIterator = bindPortRange.iterator();
 		while (portIterator.hasNext() && !attemptToBind(portIterator.next())) {}
 
 		if (serverAddress != null) {
-			LOG.info("Started server {} @ {}.", serverName, serverAddress);
+			LOG.info("Started the {} @ {}.", serverName, serverAddress);
 		} else {
-			LOG.info("Unable to start server {}. All ports in provided range are occupied.", serverName);
-			throw new FlinkRuntimeException("Unable to start server " + serverName + ". All ports in provided range are occupied.");
+			LOG.info("Unable to start the {}. All ports in provided range are occupied.", serverName);
+			throw new FlinkRuntimeException("Unable to start the " + serverName + ". All ports in provided range are occupied.");
 		}
 	}
 
