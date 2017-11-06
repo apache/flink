@@ -223,9 +223,18 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 				.channel(NioServerSocketChannel.class)
 				.option(ChannelOption.ALLOCATOR, bufferPool)
 				.childOption(ChannelOption.ALLOCATOR, bufferPool)
-				.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, HIGH_WATER_MARK)
-				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK)
 				.childHandler(new ServerChannelInitializer<>(handler));
+
+		final int defaultHighWaterMark = 64 * 1024; // from DefaultChannelConfig (not exposed)
+		//noinspection ConstantConditions
+		// (ignore warning here to make this flexible in case the configuration values change)
+		if (LOW_WATER_MARK > defaultHighWaterMark) {
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, HIGH_WATER_MARK);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK);
+		} else { // including (newHighWaterMark < defaultLowWaterMark)
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, LOW_WATER_MARK);
+			bootstrap.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, HIGH_WATER_MARK);
+		}
 
 		try {
 			final ChannelFuture future = bootstrap.bind().sync();
