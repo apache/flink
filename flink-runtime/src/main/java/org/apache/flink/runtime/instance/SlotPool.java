@@ -278,15 +278,20 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 	@Override
 	public void cancelSlotAllocation(AllocationID allocationID) {
-		waitingForResourceManager.remove(allocationID);
-		
-		removePendingRequestWithException(allocationID, new CancellationException("Allocation " + allocationID + " cancelled"));
+		if (waitingForResourceManager.remove(allocationID) == null) {
 
-		if (allocatedSlots.contains(allocationID)) {
-			Slot slot = allocatedSlots.get(allocationID);
-			LOG.info("Return allocated slot {} by cancelling allocation {}.", slot, allocationID);
-			if (slot.markCancelled()) {
-				internalReturnAllocatedSlot(slot);
+			PendingRequest request = pendingRequests.remove(allocationID);
+			if (request != null) {
+				failPendingRequest(request, new CancellationException("Allocation " + allocationID + " cancelled"));
+			} else {
+
+				Slot slot = allocatedSlots.get(allocationID);
+				if (slot != null) {
+					LOG.info("Return allocated slot {} by cancelling allocation {}.", slot, allocationID);
+					if (slot.markCancelled()) {
+						internalReturnAllocatedSlot(slot);
+					}
+				}
 			}
 		}
 	}
@@ -381,19 +386,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	}
 
 	private void checkTimeoutSlotAllocation(AllocationID allocationID) {
-		removePendingRequestWithException(allocationID, new TimeoutException("Slot allocation request " + allocationID + " timed out"));
+		PendingRequest request = pendingRequests.remove(allocationID);
+		if (request != null) {
+			failPendingRequest(request, new TimeoutException("Slot allocation request " + allocationID + " timed out"));
+		}
 	}
 
-	private void removePendingRequestWithException(AllocationID allocationID, Exception e) {
-		PendingRequest request = pendingRequests.remove(allocationID);
-		if (request != null && (!request.getFuture().isDone() || request.getFuture().isCompletedExceptionally())) {
-			//TODO: the following line depends on the pr: https://github.com/apache/flink/pull/4887
-			//if (resourceManagerGateway != null) {
-			//	resourceManagerGateway.cancelSlotRequest(jobId, jobMasterId, allocationID);
-			//}
-			if (!request.getFuture().isDone()) {
-				request.getFuture().completeExceptionally(e);
-			}
+	private void failPendingRequest(PendingRequest pendingRequest, Exception e) {
+		if (!pendingRequest.getFuture().isDone()) {
+			pendingRequest.getFuture().completeExceptionally(e);
 		}
 	}
 
@@ -417,8 +418,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 	private void checkTimeoutRequestWaitingForResourceManager(AllocationID allocationID) {
 		PendingRequest request = waitingForResourceManager.remove(allocationID);
-		if (request != null && !request.getFuture().isDone()) {
-			request.getFuture().completeExceptionally(new NoResourceAvailableException(
+		if (request != null) {
+			failPendingRequest(request, new NoResourceAvailableException(
 					"No slot available and no connection to Resource Manager established."));
 		}
 	}
@@ -680,14 +681,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		return availableSlots;
 	}
 
-	@VisibleForTesting
-	int getNumOfWaitingForResourceRequests() {
-		return waitingForResourceManager.size();
+	public CompletableFuture<Integer> getNumberOfWaitingForResourceRequests() {
+		return CompletableFuture.completedFuture(waitingForResourceManager.size());
 	}
 
-	@VisibleForTesting
-	int getNumOfPendingRequests() {
-		return pendingRequests.size();
+	@Override
+	public CompletableFuture<Integer> getNumberOfPendingRequests() {
+		return CompletableFuture.completedFuture(pendingRequests.size());
 	}
 
 	// ------------------------------------------------------------------------
@@ -1054,9 +1054,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 			final AllocationID allocationID = new AllocationID();
 			CompletableFuture<SimpleSlot> slotFuture = gateway.allocateSlot(allocationID, ResourceProfile.UNKNOWN, preferredLocations, timeout);
-			slotFuture.exceptionally((Throwable failure) -> {
-					gateway.cancelSlotAllocation(allocationID);
-					return null;
+			slotFuture.whenComplete(
+				(SimpleSlot slot, Throwable failure) -> {
+					if (failure != null) {
+						gateway.cancelSlotAllocation(allocationID);
+					}
 			});
 			return slotFuture;
 		}
