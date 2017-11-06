@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.internal.FlinkKafkaProducer;
+import org.apache.flink.streaming.connectors.kafka.internal.TransactionalIdsGenerator;
 import org.apache.flink.streaming.connectors.kafka.internal.metrics.KafkaMetricMuttableWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
@@ -59,7 +60,6 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.errors.InvalidTxnStateException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,8 +81,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -181,6 +179,11 @@ public class FlinkKafkaProducer011<IN>
 	 * State for nextTransactionalIdHint.
 	 */
 	private transient ListState<NextTransactionalIdHint> nextTransactionalIdHintState;
+
+	/**
+	 * Generator for Transactional IDs.
+	 */
+	private transient TransactionalIdsGenerator transactionalIdsGenerator;
 
 	/**
 	 * Hint for picking next transactional id.
@@ -785,6 +788,11 @@ public class FlinkKafkaProducer011<IN>
 
 		nextTransactionalIdHintState = context.getOperatorStateStore().getUnionListState(
 			NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR);
+		transactionalIdsGenerator = new TransactionalIdsGenerator(
+			getRuntimeContext().getTaskName(),
+			getRuntimeContext().getIndexOfThisSubtask(),
+			kafkaProducersPoolSize,
+			SAFE_SCALE_DOWN_FACTOR);
 
 		if (semantic != Semantic.EXACTLY_ONCE) {
 			nextTransactionalIdHint = null;
@@ -803,15 +811,8 @@ public class FlinkKafkaProducer011<IN>
 				// (1) the first execution of this application
 				// (2) previous execution has failed before first checkpoint completed
 				//
-				// in case of (2) we have to abort all previous transactions, but we don't know was the parallelism used
-				// then, so we must guess using current configured pool size, current parallelism and
-				// SAFE_SCALE_DOWN_FACTOR
-				long abortTransactionalIdStart = getRuntimeContext().getIndexOfThisSubtask();
-				long abortTransactionalIdEnd = abortTransactionalIdStart + 1;
-
-				abortTransactionalIdStart *= kafkaProducersPoolSize * SAFE_SCALE_DOWN_FACTOR;
-				abortTransactionalIdEnd *= kafkaProducersPoolSize * SAFE_SCALE_DOWN_FACTOR;
-				abortTransactions(LongStream.range(abortTransactionalIdStart, abortTransactionalIdEnd));
+				// in case of (2) we have to abort all previous transactions
+				abortTransactions(transactionalIdsGenerator.generateIdsToAbort());
 			} else {
 				nextTransactionalIdHint = transactionalIdHints.get(0);
 			}
@@ -834,16 +835,7 @@ public class FlinkKafkaProducer011<IN>
 	private Set<String> generateNewTransactionalIds() {
 		checkState(nextTransactionalIdHint != null, "nextTransactionalIdHint must be present for EXACTLY_ONCE");
 
-		// range of available transactional ids is:
-		// [nextFreeTransactionalId, nextFreeTransactionalId + parallelism * kafkaProducersPoolSize)
-		// loop below picks in a deterministic way a subrange of those available transactional ids based on index of
-		// this subtask
-		int subtaskId = getRuntimeContext().getIndexOfThisSubtask();
-		Set<String> transactionalIds = new HashSet<>();
-		for (int i = 0; i < kafkaProducersPoolSize; i++) {
-			long transactionalId = nextTransactionalIdHint.nextFreeTransactionalId + subtaskId * kafkaProducersPoolSize + i;
-			transactionalIds.add(generateTransactionalId(transactionalId));
-		}
+		Set<String> transactionalIds = transactionalIdsGenerator.generateIdsToUse(nextTransactionalIdHint.nextFreeTransactionalId);
 		LOG.info("Generated new transactionalIds {}", transactionalIds);
 		return transactionalIds;
 	}
@@ -862,7 +854,7 @@ public class FlinkKafkaProducer011<IN>
 		if (!getUserContext().isPresent()) {
 			return;
 		}
-		abortTransactions(getUserContext().get().transactionalIds.stream());
+		abortTransactions(getUserContext().get().transactionalIds);
 	}
 
 	private void resetAvailableTransactionalIdsPool(Collection<String> transactionalIds) {
@@ -874,22 +866,13 @@ public class FlinkKafkaProducer011<IN>
 
 	// ----------------------------------- Utilities --------------------------
 
-	private void abortTransactions(LongStream transactionalIds) {
-		abortTransactions(transactionalIds.mapToObj(this::generateTransactionalId));
-	}
-
-	private void abortTransactions(Stream<String> transactionalIds) {
-		transactionalIds.forEach(transactionalId -> {
+	private void abortTransactions(Set<String> transactionalIds) {
+		for (String transactionalId : transactionalIds) {
 			try (FlinkKafkaProducer<byte[], byte[]> kafkaProducer =
 					initTransactionalProducer(transactionalId, false)) {
 				kafkaProducer.initTransactions();
 			}
-		});
-	}
-
-	private String generateTransactionalId(long transactionalId) {
-		String transactionalIdFormat = getRuntimeContext().getTaskName() + "-%d";
-		return String.format(transactionalIdFormat, transactionalId);
+		}
 	}
 
 	int getTransactionCoordinatorId() {
