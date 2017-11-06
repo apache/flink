@@ -227,7 +227,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		pool.connectToResourceManager(resourceManagerGateway);
 
 		ScheduledUnit mockScheduledUnit = new ScheduledUnit(SchedulerTestUtils.getDummyTask());
-														
+
 		// test the pending request is clear when timed out
 		CompletableFuture<SimpleSlot> future = pool.getSlotProvider().allocateSlot(mockScheduledUnit, true);
 
