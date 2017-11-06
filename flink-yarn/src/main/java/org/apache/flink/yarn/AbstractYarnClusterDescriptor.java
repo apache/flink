@@ -182,16 +182,17 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		this.flinkJarPath = localJarPath;
 	}
 
+	/**
+	 * Adds the given files to the list of files to ship.
+	 *
+	 * <p>Note that any file matching "<tt>flink-dist*.jar</tt>" will be excluded from the upload by
+	 * {@link #uploadAndRegisterFiles(Collection, FileSystem, Path, ApplicationId, List, Map, StringBuilder)}
+	 * since we upload the Flink uber jar ourselves and do not need to deploy it multiple times.
+	 *
+	 * @param shipFiles files to ship
+	 */
 	public void addShipFiles(List<File> shipFiles) {
-		for (File shipFile: shipFiles) {
-			// remove uberjar from ship list (by default everything in the lib/ folder is added to
-			// the list of files to ship, but we handle the uberjar separately.
-			// NOTE: this does not filter the uberjar if added recursively, e.g. by having the "lib"
-			//       folder in the shipFiles
-			if (!(shipFile.getName().startsWith("flink-dist") && shipFile.getName().endsWith("jar"))) {
-				this.shipFiles.add(shipFile);
-			}
-		}
+		this.shipFiles.addAll(shipFiles);
 	}
 
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
@@ -1050,6 +1051,27 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		return resource.f0;
 	}
 
+	/**
+	 * Recursively uploads (and registers) any (user and system) files in <tt>shipFiles</tt> except
+	 * for files matching "<tt>flink-dist*.jar</tt>" which should be uploaded separately.
+	 *
+	 * @param shipFiles
+	 * 		files to upload
+	 * @param fs
+	 * 		file system to upload to
+	 * @param targetHomeDir
+	 * 		remote home directory to upload to
+	 * @param appId
+	 * 		application ID
+	 * @param remotePaths
+	 * 		paths of the remote resources (uploaded resources will be added)
+	 * @param localResources
+	 * 		map of resources (uploaded resources will be added)
+	 * @param envShipFileList
+	 * 		list of shipped files in a format understood by {@link Utils#createTaskExecutorContext}
+	 *
+	 * @return list of class paths with the the proper resource keys from the registration
+	 */
 	static List<String> uploadAndRegisterFiles(
 			Collection<File> shipFiles,
 			FileSystem fs,
