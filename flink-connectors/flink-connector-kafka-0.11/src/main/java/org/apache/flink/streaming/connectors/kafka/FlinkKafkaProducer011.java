@@ -791,6 +791,7 @@ public class FlinkKafkaProducer011<IN>
 		transactionalIdsGenerator = new TransactionalIdsGenerator(
 			getRuntimeContext().getTaskName(),
 			getRuntimeContext().getIndexOfThisSubtask(),
+			getRuntimeContext().getNumberOfParallelSubtasks(),
 			kafkaProducersPoolSize,
 			SAFE_SCALE_DOWN_FACTOR);
 

@@ -19,27 +19,42 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.LongStream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Class responsible for generating transactional ids to use when communicating with Kafka.
+ *
+ * <p>It guarantees that:
+ * <ul>
+ * 	<li>generated ids to use will never clash with ids to use from different subtasks
+ * 	<li>generated ids to abort will never clash with ids to abort from different subtasks
+ * 	<li>generated ids to use will never clash with ids to abort from different subtasks
+ * </ul>
+ * In other words, any particular generated id will always be assigned to one and only one subtask.
  */
 public class TransactionalIdsGenerator {
 	private final String prefix;
 	private final int subtaskIndex;
+	private final int totalNumberOfSubtasks;
 	private final int poolSize;
 	private final int safeScaleDownFactor;
 
 	public TransactionalIdsGenerator(
 			String prefix,
 			int subtaskIndex,
+			int totalNumberOfSubtasks,
 			int poolSize,
 			int safeScaleDownFactor) {
+		checkArgument(subtaskIndex < totalNumberOfSubtasks);
+		checkArgument(poolSize > 0);
+		checkArgument(safeScaleDownFactor > 0);
+		checkArgument(subtaskIndex >= 0);
+
 		this.prefix = checkNotNull(prefix);
 		this.subtaskIndex = subtaskIndex;
+		this.totalNumberOfSubtasks = totalNumberOfSubtasks;
 		this.poolSize = poolSize;
 		this.safeScaleDownFactor = safeScaleDownFactor;
 	}
@@ -65,14 +80,11 @@ public class TransactionalIdsGenerator {
 	 *  range to abort based on current configured pool size, current parallelism and safeScaleDownFactor.
 	 */
 	public Set<String> generateIdsToAbort() {
-		long abortTransactionalIdStart = subtaskIndex;
-		long abortTransactionalIdEnd = abortTransactionalIdStart + 1;
-
-		abortTransactionalIdStart *= poolSize * safeScaleDownFactor;
-		abortTransactionalIdEnd *= poolSize * safeScaleDownFactor;
-		return LongStream.range(abortTransactionalIdStart, abortTransactionalIdEnd)
-			.mapToObj(this::generateTransactionalId)
-			.collect(Collectors.toSet());
+		Set<String> idsToAbort = new HashSet<>();
+		for (int i = 0; i < safeScaleDownFactor; i++) {
+			idsToAbort.addAll(generateIdsToUse(i * poolSize * totalNumberOfSubtasks));
+		}
+		return idsToAbort;
 	}
 
 	private String generateTransactionalId(long transactionalId) {
