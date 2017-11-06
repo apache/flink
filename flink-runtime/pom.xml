@@ -454,6 +454,7 @@ under the License.
 								</relocation>
 								<relocation>
 									<pattern>org.apache.curator</pattern>
+									<!-- IMPORTANT: This must be kept in sync with flink-connector-kafka-0.8 -->
 									<shadedPattern>org.apache.flink.shaded.curator.org.apache.curator</shadedPattern>
 									<excludes>
 										<!-- Do not relocate curator-test. This leads to problems for downstream
