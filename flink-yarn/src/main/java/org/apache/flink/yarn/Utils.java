@@ -124,7 +124,7 @@ public final class Utils {
 	 * 		remote filesystem
 	 * @param appId
 	 * 		application ID
-	 * @param localRsrcPath
+	 * @param localSrcPath
 	 * 		path to the local file
 	 * @param homedir
 	 * 		remote home directory base (will be extended)
@@ -136,38 +136,42 @@ public final class Utils {
 	static Tuple2<Path, LocalResource> setupLocalResource(
 		FileSystem fs,
 		String appId,
-		Path localRsrcPath,
+		Path localSrcPath,
 		Path homedir,
 		String relativeTargetPath) throws IOException {
 
-		if (new File(localRsrcPath.toUri().getPath()).isDirectory()) {
+		if (new File(localSrcPath.toUri().getPath()).isDirectory()) {
 			throw new IllegalArgumentException("File to copy must not be a directory: " +
-				localRsrcPath);
+				localSrcPath);
 		}
 
 		// copy resource to HDFS
-		String suffix = ".flink/" + appId + "/" + relativeTargetPath + "/" + localRsrcPath.getName();
+		String suffix =
+			".flink/"
+				+ appId
+				+ (relativeTargetPath.isEmpty() ? "" : "/" + relativeTargetPath)
+				+ "/" + localSrcPath.getName();
 
 		Path dst = new Path(homedir, suffix);
 
-		LOG.info("Copying from " + localRsrcPath + " to " + dst);
+		LOG.info("Copying from " + localSrcPath + " to " + dst);
 
-		fs.copyFromLocalFile(false, true, localRsrcPath, dst);
+		fs.copyFromLocalFile(false, true, localSrcPath, dst);
 
 		// now create the resource instance
-		LocalResource resource = Records.newRecord(LocalResource.class);
-		registerLocalResource(fs, dst, resource);
+		LocalResource resource = registerLocalResource(fs, dst);
 		return Tuple2.of(dst, resource);
 	}
 
-	private static void registerLocalResource(
-		FileSystem fs, Path remoteRsrcPath, LocalResource localResource) throws IOException {
+	private static LocalResource registerLocalResource(FileSystem fs, Path remoteRsrcPath) throws IOException {
+		LocalResource localResource = Records.newRecord(LocalResource.class);
 		FileStatus jarStat = fs.getFileStatus(remoteRsrcPath);
 		localResource.setResource(ConverterUtils.getYarnUrlFromURI(remoteRsrcPath.toUri()));
 		localResource.setSize(jarStat.getLen());
 		localResource.setTimestamp(jarStat.getModificationTime());
 		localResource.setType(LocalResourceType.FILE);
 		localResource.setVisibility(LocalResourceVisibility.APPLICATION);
+		return localResource;
 	}
 
 	public static void setTokensFor(ContainerLaunchContext amContainer, List<Path> paths, Configuration conf) throws IOException {
@@ -364,10 +368,9 @@ public final class Utils {
 		LocalResource keytabResource = null;
 		if (remoteKeytabPath != null) {
 			log.info("Adding keytab {} to the AM container local resource bucket", remoteKeytabPath);
-			keytabResource = Records.newRecord(LocalResource.class);
 			Path keytabPath = new Path(remoteKeytabPath);
 			FileSystem fs = keytabPath.getFileSystem(yarnConfig);
-			registerLocalResource(fs, keytabPath, keytabResource);
+			keytabResource = registerLocalResource(fs, keytabPath);
 		}
 
 		//To support Yarn Secure Integration Test Scenario
@@ -376,26 +379,24 @@ public final class Utils {
 		boolean hasKrb5 = false;
 		if (remoteYarnConfPath != null && remoteKrb5Path != null) {
 			log.info("TM:Adding remoteYarnConfPath {} to the container local resource bucket", remoteYarnConfPath);
-			yarnConfResource = Records.newRecord(LocalResource.class);
 			Path yarnConfPath = new Path(remoteYarnConfPath);
 			FileSystem fs = yarnConfPath.getFileSystem(yarnConfig);
-			registerLocalResource(fs, yarnConfPath, yarnConfResource);
+			yarnConfResource = registerLocalResource(fs, yarnConfPath);
 
 			log.info("TM:Adding remoteKrb5Path {} to the container local resource bucket", remoteKrb5Path);
-			krb5ConfResource = Records.newRecord(LocalResource.class);
 			Path krb5ConfPath = new Path(remoteKrb5Path);
 			fs = krb5ConfPath.getFileSystem(yarnConfig);
-			registerLocalResource(fs, krb5ConfPath, krb5ConfResource);
+			krb5ConfResource = registerLocalResource(fs, krb5ConfPath);
 
 			hasKrb5 = true;
 		}
 
 		// register Flink Jar with remote HDFS
-		final LocalResource flinkJar = Records.newRecord(LocalResource.class);
+		final LocalResource flinkJar;
 		{
 			Path remoteJarPath = new Path(remoteFlinkJarPath);
 			FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
-			registerLocalResource(fs, remoteJarPath, flinkJar);
+			flinkJar = registerLocalResource(fs, remoteJarPath);
 		}
 
 		// register conf with local fs
@@ -437,12 +438,11 @@ public final class Utils {
 		// prepare additional files to be shipped
 		for (String pathStr : shipListString.split(",")) {
 			if (!pathStr.isEmpty()) {
-				String[] pathWithKey = pathStr.split("=");
-				require(pathWithKey.length == 2, "Invalid entry in ship file list: %s", pathStr);
-				LocalResource resource = Records.newRecord(LocalResource.class);
-				Path path = new Path(pathWithKey[1]);
-				registerLocalResource(path.getFileSystem(yarnConfig), path, resource);
-				taskManagerLocalResources.put(pathWithKey[0], resource);
+				String[] keyAndPath = pathStr.split("=");
+				require(keyAndPath.length == 2, "Invalid entry in ship file list: %s", pathStr);
+				Path path = new Path(keyAndPath[1]);
+				LocalResource resource = registerLocalResource(path.getFileSystem(yarnConfig), path);
+				taskManagerLocalResources.put(keyAndPath[0], resource);
 			}
 		}
 

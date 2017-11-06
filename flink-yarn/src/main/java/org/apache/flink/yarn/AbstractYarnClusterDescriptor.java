@@ -707,12 +707,25 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		StringBuilder envShipFileList = new StringBuilder();
 
 		// upload and register ship files
-		List<String> systemClassPaths = uploadAndRegisterFiles(systemShipFiles, fs,
-			homeDir, appId, paths, localResources, envShipFileList);
+		List<String> systemClassPaths = uploadAndRegisterFiles(
+			systemShipFiles,
+			fs,
+			homeDir,
+			appId,
+			paths,
+			localResources,
+			envShipFileList);
 
 		List<String> userClassPaths;
 		if (userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED) {
-			userClassPaths = uploadAndRegisterFiles(userJarFiles, fs, homeDir, appId, paths, localResources, envShipFileList);
+			userClassPaths = uploadAndRegisterFiles(
+				userJarFiles,
+				fs,
+				homeDir,
+				appId,
+				paths,
+				localResources,
+				envShipFileList);
 		} else {
 			userClassPaths = Collections.emptyList();
 		}
@@ -1007,7 +1020,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * 		the remote file system to upload to
 	 * @param appId
 	 * 		application ID
-	 * @param localRsrcPath
+	 * @param localSrcPath
 	 * 		local path to the file
 	 * @param localResources
 	 * 		map of resources
@@ -1018,7 +1031,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			String key,
 			FileSystem fs,
 			ApplicationId appId,
-			Path localRsrcPath,
+			Path localSrcPath,
 			Map<String, LocalResource> localResources,
 			Path targetHomeDir,
 			String relativeTargetPath) throws IOException, URISyntaxException {
@@ -1026,7 +1039,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		Tuple2<Path, LocalResource> resource = Utils.setupLocalResource(
 			fs,
 			appId.toString(),
-			localRsrcPath,
+			localSrcPath,
 			targetHomeDir,
 			relativeTargetPath);
 

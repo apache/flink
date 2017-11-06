@@ -139,7 +139,9 @@ public class YarnFileStageTest {
 	 * 		whether add the <tt>file://</tt> scheme to the local path to copy from
 	 */
 	public static void testCopyFromLocalRecursive(
-			FileSystem targetFileSystem, Path targetDir, TemporaryFolder tempFolder,
+			FileSystem targetFileSystem,
+			Path targetDir,
+			TemporaryFolder tempFolder,
 			boolean addSchemeToLocalPath) throws Exception {
 
 		// directory must not yet exist
