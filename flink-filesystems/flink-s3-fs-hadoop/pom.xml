@@ -33,6 +33,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
+		<!-- Do not change this without updating the copied Configuration class! -->
 		<s3hadoop.hadoop.version>2.8.1</s3hadoop.hadoop.version>
 		<s3hadoop.aws.version>1.11.95</s3hadoop.aws.version>
 	</properties>
@@ -234,28 +235,87 @@ under the License.
 							</artifactSet>
 							<relocations>
 								<relocation>
-									<pattern>org</pattern>
-									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org</shadedPattern>
+									<pattern>com.amazonaws</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com.amazonaws</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.fasterxml</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com.fasterxml</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com.google</shadedPattern>
 									<excludes>
-										<exclude>org.apache.flink.core.fs.FileSystemFactory</exclude>
-										<exclude>org.apache.flink.fs.s3hadoop.**</exclude>
+										<!-- provided -->
+										<exclude>com.google.code.findbugs.**</exclude>
 									</excludes>
 								</relocation>
 								<relocation>
-									<pattern>com</pattern>
-									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com</shadedPattern>
+									<pattern>com.nimbusds</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com.nimbusds</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>net</pattern>
-									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.net</shadedPattern>
+									<pattern>com.squareup</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.com.squareup</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>net.jcip</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.net.jcip</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>net.minidev</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.net.minidev</shadedPattern>
+								</relocation>
+
+								<!-- relocate everything from the flink-hadoop-fs project -->
+								<relocation>
+									<pattern>org.apache.flink.runtime.fs.hdfs</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.apache.flink.runtime.fs.hdfs</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.flink.runtime.util</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.apache.flink.runtime.util</shadedPattern>
+									<includes>
+										<include>org.apache.flink.runtime.util.**Hadoop*</include>
+									</includes>
+								</relocation>
+
+								<relocation>
+									<pattern>org.apache</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.apache</shadedPattern>
+									<excludes>
+										<!-- keep all other classes of flink as they are (exceptions above) -->
+										<exclude>org.apache.flink.**</exclude>
+										<exclude>org.apache.log4j.**</exclude> <!-- provided -->
+									</excludes>
+								</relocation>
+								<relocation>
+									<pattern>org.codehaus</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.codehaus</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.joda</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.joda</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.mortbay</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.mortbay</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.tukaani</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.tukaani</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.znerd</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.org.znerd</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>okio</pattern>
 									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.okio</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>software</pattern>
-									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.software</shadedPattern>
+									<pattern>software.amazon</pattern>
+									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.software.amazon</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
@@ -277,6 +337,10 @@ under the License.
 										<exclude>META-INF/maven/org.apache.commons/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/flink-hadoop-fs/**</exclude>
 										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+										<!-- we use our own "shaded" core-default.xml: core-default-shaded.xml -->
+										<exclude>core-default.xml</exclude>
+										<!-- we only add a core-site.xml with unshaded classnames for the unit tests -->
+										<exclude>core-site.xml</exclude>
 									</excludes>
 								</filter>
 							</filters>
