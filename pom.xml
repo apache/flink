@@ -422,6 +422,22 @@ under the License.
 				</exclusions>
 			</dependency>
 
+			<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+                visible after the shading (without relocation!) of akka-remote -->
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-stream_${scala.binary.version}</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
+			<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+                visible after the shading (without relocation!) of akka-remote -->
+			<dependency>
+				<groupId>com.typesafe.akka</groupId>
+				<artifactId>akka-protobuf_${scala.binary.version}</artifactId>
+				<version>${akka.version}</version>
+			</dependency>
+
 			<dependency>
 				<groupId>com.typesafe.akka</groupId>
 				<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
