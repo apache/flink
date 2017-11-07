@@ -66,7 +66,7 @@ public interface RestfulGateway extends RpcGateway {
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the job details
 	 */
-	CompletableFuture<MultipleJobsDetails> requestJobDetails(
+	CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(
 		@RpcTimeout Time timeout);
 
 	/**

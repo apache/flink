@@ -59,7 +59,7 @@ public class JobIdsHandler extends AbstractRestHandler<RestfulGateway, EmptyRequ
 			@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
 			@Nonnull RestfulGateway gateway) throws RestHandlerException {
 
-		return gateway.requestJobDetails(timeout).thenApply(
+		return gateway.requestMultipleJobDetails(timeout).thenApply(
 			multipleJobDetails -> new JobIdsWithStatusOverview(
 				multipleJobDetails
 					.getJobs()
