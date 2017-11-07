@@ -19,15 +19,9 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
-import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -43,31 +37,20 @@ import java.util.concurrent.Executor;
 /**
  * Returns the Job Manager's configuration.
  */
-public class ClusterConfigHandler extends AbstractJsonRequestHandler
-		implements LegacyRestHandler<DispatcherGateway, ClusterConfigurationInfo, EmptyMessageParameters> {
+public class ClusterConfigHandler extends AbstractJsonRequestHandler {
 
-	private final ClusterConfigurationInfo clusterConfig;
 	private final String clusterConfigJson;
 
 	public ClusterConfigHandler(Executor executor, Configuration config) {
 		super(executor);
 
 		Preconditions.checkNotNull(config);
-		this.clusterConfig = ClusterConfigurationInfo.from(config);
 		this.clusterConfigJson = createConfigJson(config);
 	}
 
 	@Override
 	public String[] getPaths() {
 		return new String[]{ClusterConfigurationInfoHeaders.CLUSTER_CONFIG_REST_PATH};
-	}
-
-	@Override
-	public CompletableFuture<ClusterConfigurationInfo> handleRequest(
-			HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-			DispatcherGateway gateway) {
-
-		return CompletableFuture.completedFuture(clusterConfig);
 	}
 
 	@Override
