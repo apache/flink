@@ -117,7 +117,8 @@ public class JobManagerRunnerMockTest extends TestLogger {
 			JobManagerServices.fromConfiguration(new Configuration(), mock(BlobServer.class)),
 			new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
 			jobCompletion,
-			jobCompletion));
+			jobCompletion,
+			null));
 	}
 
 	@After

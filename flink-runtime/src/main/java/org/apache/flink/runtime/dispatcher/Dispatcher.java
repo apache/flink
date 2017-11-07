@@ -298,39 +298,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 		return allJobsFuture.thenCombine(
 			taskManagerOverviewFuture,
-			(Collection<JobStatus> allJobsStatus, ResourceOverview resourceOverview) -> {
-
-				int numberRunningOrPendingJobs = 0;
-				int numberFinishedJobs = 0;
-				int numberCancelledJobs = 0;
-				int numberFailedJobs = 0;
-
-				for (JobStatus status : allJobsStatus) {
-					switch (status) {
-						case FINISHED:
-							numberFinishedJobs++;
-							break;
-						case FAILED:
-							numberFailedJobs++;
-							break;
-						case CANCELED:
-							numberCancelledJobs++;
-							break;
-						default:
-							numberRunningOrPendingJobs++;
-							break;
-					}
-				}
-
-				return new ClusterOverview(
-					resourceOverview.getNumberTaskManagers(),
-					resourceOverview.getNumberRegisteredSlots(),
-					resourceOverview.getNumberFreeSlots(),
-					numberRunningOrPendingJobs,
-					numberFinishedJobs,
-					numberCancelledJobs,
-					numberFailedJobs);
-			});
+			(Collection<JobStatus> allJobsStatus, ResourceOverview resourceOverview) ->
+				ClusterOverview.create(resourceOverview, allJobsStatus));
 	}
 
 	@Override

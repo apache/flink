@@ -18,8 +18,14 @@
 
 package org.apache.flink.runtime.messages.webmonitor;
 
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.util.Preconditions;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collection;
 
 /**
  * Response to the {@link RequestStatusOverview} message, carrying a description
@@ -121,5 +127,41 @@ public class ClusterOverview extends JobsOverview {
 				", numJobsCancelled=" + getNumJobsCancelled() +
 				", numJobsFailed=" + getNumJobsFailed() +
 				'}';
+	}
+
+	public static ClusterOverview create(ResourceOverview resourceOverview, Collection<JobStatus> allJobsStatus) {
+		Preconditions.checkNotNull(resourceOverview);
+		Preconditions.checkNotNull(allJobsStatus);
+
+		int numberRunningOrPendingJobs = 0;
+		int numberFinishedJobs = 0;
+		int numberCancelledJobs = 0;
+		int numberFailedJobs = 0;
+
+		for (JobStatus status : allJobsStatus) {
+			switch (status) {
+				case FINISHED:
+					numberFinishedJobs++;
+					break;
+				case FAILED:
+					numberFailedJobs++;
+					break;
+				case CANCELED:
+					numberCancelledJobs++;
+					break;
+				default:
+					numberRunningOrPendingJobs++;
+					break;
+			}
+		}
+
+		return new ClusterOverview(
+			resourceOverview.getNumberTaskManagers(),
+			resourceOverview.getNumberRegisteredSlots(),
+			resourceOverview.getNumberFreeSlots(),
+			numberRunningOrPendingJobs,
+			numberFinishedJobs,
+			numberCancelledJobs,
+			numberFailedJobs);
 	}
 }

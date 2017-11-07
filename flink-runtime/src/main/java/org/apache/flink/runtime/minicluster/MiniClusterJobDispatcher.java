@@ -279,7 +279,8 @@ public class MiniClusterJobDispatcher {
 					jobManagerServices,
 					metricRegistry,
 					onCompletion,
-					errorHandler);
+					errorHandler,
+					null);
 				runners[i].start();
 			}
 			catch (Throwable t) {
