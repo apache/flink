@@ -45,6 +45,8 @@ class StreamTableSinksITCase extends StreamingMultipleProgramsTestBase {
   def testAppendSinkOnUpdatingTable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+
     val tEnv = TableEnvironment.getTableEnvironment(env)
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
@@ -70,18 +72,18 @@ class StreamTableSinksITCase extends StreamingMultipleProgramsTestBase {
 
     t.window(Tumble over 5.millis on 'rowtime as 'w)
       .groupBy('w)
-      .select('w.end, 'id.count, 'num.sum)
+      .select('w.rowtime, 'id.count, 'num.sum)
       .writeToSink(new TestAppendSink)
 
     env.execute()
 
     val result = RowCollector.getAndClearValues.map(_.f1.toString).sorted
     val expected = List(
-      "1970-01-01 00:00:00.005,4,8",
-      "1970-01-01 00:00:00.01,5,18",
-      "1970-01-01 00:00:00.015,5,24",
-      "1970-01-01 00:00:00.02,5,29",
-      "1970-01-01 00:00:00.025,2,12")
+      "1970-01-01 00:00:00.004,4,8",
+      "1970-01-01 00:00:00.009,5,18",
+      "1970-01-01 00:00:00.014,5,24",
+      "1970-01-01 00:00:00.019,5,29",
+      "1970-01-01 00:00:00.024,2,12")
       .sorted
     assertEquals(expected, result)
   }

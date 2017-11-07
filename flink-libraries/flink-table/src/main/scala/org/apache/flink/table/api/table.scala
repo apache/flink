@@ -791,7 +791,12 @@ class Table(
     val rowType = getRelNode.getRowType
     val fieldNames: Array[String] = rowType.getFieldNames.asScala.toArray
     val fieldTypes: Array[TypeInformation[_]] = rowType.getFieldList.asScala
-      .map(field => FlinkTypeFactory.toTypeInfo(field.getType)).toArray
+      .map(field => FlinkTypeFactory.toTypeInfo(field.getType))
+      .map {
+        // replace time indicator types by SQL_TIMESTAMP
+        case t: TypeInformation[_] if FlinkTypeFactory.isTimeIndicatorType(t) => Types.SQL_TIMESTAMP
+        case t: TypeInformation[_] => t
+      }.toArray
 
     // configure the table sink
     val configuredSink = sink.configure(fieldNames, fieldTypes)
