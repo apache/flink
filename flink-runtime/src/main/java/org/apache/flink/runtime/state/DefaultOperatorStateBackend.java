@@ -502,7 +502,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		public void update(List<S> values) throws Exception {
 			internalList.clear();
 
-			if (values != null && values.size() != 0) {
+			if (values != null && !values.isEmpty()) {
 				internalList.addAll(values);
 			}
 		}

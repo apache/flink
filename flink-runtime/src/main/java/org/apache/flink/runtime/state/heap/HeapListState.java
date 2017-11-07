@@ -126,7 +126,7 @@ public class HeapListState<K, N, V>
 	public void update(List<V> values) throws Exception {
 		clear();
 
-		if (values != null && values.size() != 0) {
+		if (values != null && !values.isEmpty()) {
 			final N namespace = currentNamespace;
 			final StateTable<K, N, ArrayList<V>> map = stateTable;
 

@@ -756,7 +756,7 @@ public class FlinkKafkaConsumerBaseTest {
 		public void update(List<T> values) throws Exception {
 			clear();
 
-			if (values != null && values.size() != 0) {
+			if (values != null && !values.isEmpty()) {
 				list.addAll(values);
 			}
 		}
