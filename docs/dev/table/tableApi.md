@@ -1435,7 +1435,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 Data Types
 ----------
 
-The Table API is built on top of Flink's DataSet and DataStream API. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The Table API does not support all Flink types so far. All supported simple types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
+The Table API is built on top of Flink's DataSet and DataStream APIs. Internally, it also uses Flink's `TypeInformation` to define data types. Fully supported types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
 
 | Table API              | SQL                         | Java type              |
 | :--------------------- | :-------------------------- | :--------------------- |
@@ -1457,14 +1457,7 @@ The Table API is built on top of Flink's DataSet and DataStream API. Internally,
 | `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
 | `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 
-
-Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row. 
-
-Generic types are treated as a black box within Table API and SQL yet.
-
-Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
-
-Array types can be accessed using the `myArray.at(1)` operator in Table API and `myArray[1]` operator in SQL. Array literals can be created using `array(1, 2, 3)` in Table API and `ARRAY[1, 2, 3]` in SQL.
+Generic types and composite types (e.g., POJOs or Tuples) can be fields of a row as well. Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html). Composite types can be accessed with [built-in functions](#built-in-functions) (see *Value access functions* section).
 
 **TODO: Clean-up and move relevant parts to the "Mappings Types to Table Schema" section of the Common Concepts & API page.**
 
@@ -1549,7 +1542,7 @@ Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTH
 Built-In Functions
 ------------------
 
-Both the Table API and SQL come with a set of built-in functions for data transformations. This section gives a brief overview of the available functions so far.
+The Table API comes with a set of built-in functions for data transformations. This section gives a brief overview of the available functions.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -2268,28 +2261,6 @@ ANY.cast(TYPE)
     <tr>
       <td>
         {% highlight java %}
-ARRAY.at(INT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
-array(ANY [, ANY ]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight java %}
 NUMERIC.rows
 {% endhighlight %}
       </td>
@@ -2714,11 +2685,33 @@ ANY.flatten()
     <tr>
       <td>
         {% highlight java %}
+array(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
 ARRAY.cardinality()
 {% endhighlight %}
       </td>
       <td>
         <p>Returns the number of elements of an array.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+ARRAY.at(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
       </td>
     </tr>
 
@@ -3475,28 +3468,6 @@ ANY.cast(TYPE)
     <tr>
       <td>
         {% highlight scala %}
-ARRAY.at(INT)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
-array(ANY [, ANY ]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight scala %}
 NUMERIC.rows
 {% endhighlight %}
       </td>
@@ -3919,11 +3890,33 @@ ANY.flatten()
     <tr>
       <td>
         {% highlight scala %}
+array(ANY [, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values. The array will be an array of objects (not primitives).</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
 ARRAY.cardinality()
 {% endhighlight %}
       </td>
       <td>
         <p>Returns the number of elements of an array.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+ARRAY.at(INT)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
       </td>
     </tr>
 
