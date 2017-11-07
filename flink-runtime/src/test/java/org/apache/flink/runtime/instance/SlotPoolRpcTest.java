@@ -229,7 +229,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		ScheduledUnit mockScheduledUnit = new ScheduledUnit(SchedulerTestUtils.getDummyTask());
 
 		// test the pending request is clear when timed out
-		CompletableFuture<SimpleSlot> future = pool.getSlotProvider().allocateSlot(mockScheduledUnit, true);
+		CompletableFuture<SimpleSlot> future = pool.getSlotProvider().allocateSlot(mockScheduledUnit, true, null);
 
 		try {
 			future.get(500, TimeUnit.MILLISECONDS);
