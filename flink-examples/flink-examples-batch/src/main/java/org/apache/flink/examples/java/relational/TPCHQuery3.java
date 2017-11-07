@@ -180,6 +180,9 @@ public class TPCHQuery3 {
 	//     DATA TYPES
 	// *************************************************************************
 
+	/**
+	 * Lineitem.
+ 	 */
 	public static class Lineitem extends Tuple4<Long, Double, Double, String> {
 
 		public Long getOrderkey() {
@@ -199,6 +202,9 @@ public class TPCHQuery3 {
 		}
 	}
 
+	/**
+	 * Customer.
+	 */
 	public static class Customer extends Tuple2<Long, String> {
 
 		public Long getCustKey() {
@@ -210,6 +216,9 @@ public class TPCHQuery3 {
 		}
 	}
 
+	/**
+	 * Order.
+	 */
 	public static class Order extends Tuple4<Long, Long, String, Long> {
 
 		public Long getOrderKey() {
