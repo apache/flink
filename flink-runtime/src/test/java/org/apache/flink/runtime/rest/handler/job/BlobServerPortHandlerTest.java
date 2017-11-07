@@ -35,6 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -58,7 +59,8 @@ public class BlobServerPortHandlerTest extends TestLogger {
 		BlobServerPortHandler handler = new BlobServerPortHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
 			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap());
 
 		BlobServerPortResponseBody portResponse = handler
 			.handleRequest(new HandlerRequest<>(EmptyRequestBody.getInstance(), EmptyMessageParameters.getInstance()), mockGateway)
@@ -77,7 +79,8 @@ public class BlobServerPortHandlerTest extends TestLogger {
 		BlobServerPortHandler handler = new BlobServerPortHandler(
 			CompletableFuture.completedFuture("http://localhost:1234"),
 			mockGatewayRetriever,
-			RpcUtils.INF_TIMEOUT);
+			RpcUtils.INF_TIMEOUT,
+			Collections.emptyMap());
 
 		try {
 			handler
@@ -93,5 +96,6 @@ public class BlobServerPortHandlerTest extends TestLogger {
 	}
 
 	private static class TestException extends Exception {
+		private static final long serialVersionUID = -7064446788277853899L;
 	}
 }

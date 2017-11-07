@@ -31,7 +31,7 @@ import java.io.IOException;
  */
 public class JobVertexIDSerializer extends StdSerializer<JobVertexID> {
 
-	private static final long serialVersionUID = 2970050507628933522L;
+	private static final long serialVersionUID = -2339350570828548335L;
 
 	public JobVertexIDSerializer() {
 		super(JobVertexID.class);
@@ -39,6 +39,6 @@ public class JobVertexIDSerializer extends StdSerializer<JobVertexID> {
 
 	@Override
 	public void serialize(JobVertexID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		gen.writeFieldName(value.toString());
+		gen.writeString(value.toString());
 	}
 }

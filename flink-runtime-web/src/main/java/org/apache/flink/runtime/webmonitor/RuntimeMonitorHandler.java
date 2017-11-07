@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URLDecoder;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -74,7 +75,11 @@ public class RuntimeMonitorHandler extends RedirectHandler<JobManagerGateway> im
 			CompletableFuture<String> localJobManagerAddressFuture,
 			Time timeout) {
 
-		super(localJobManagerAddressFuture, retriever, timeout);
+		super(
+			localJobManagerAddressFuture,
+			retriever,
+			timeout,
+			Collections.singletonMap(HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN, cfg.getAllowOrigin()));
 		this.handler = checkNotNull(handler);
 		this.allowOrigin = cfg.getAllowOrigin();
 	}

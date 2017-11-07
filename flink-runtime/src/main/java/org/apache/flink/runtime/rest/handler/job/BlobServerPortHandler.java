@@ -34,6 +34,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -42,8 +43,12 @@ import java.util.concurrent.CompletionException;
  */
 public final class BlobServerPortHandler extends AbstractRestHandler<DispatcherGateway, EmptyRequestBody, BlobServerPortResponseBody, EmptyMessageParameters> {
 
-	public BlobServerPortHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<DispatcherGateway> leaderRetriever, Time timeout) {
-		super(localRestAddress, leaderRetriever, timeout, BlobServerPortHeaders.getInstance());
+	public BlobServerPortHandler(
+			CompletableFuture<String> localRestAddress,
+			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			Time timeout,
+			Map<String, String> headers) {
+		super(localRestAddress, leaderRetriever, timeout, headers, BlobServerPortHeaders.getInstance());
 	}
 
 	@Override

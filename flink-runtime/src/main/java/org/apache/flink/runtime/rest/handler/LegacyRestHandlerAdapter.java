@@ -29,6 +29,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -46,9 +47,10 @@ public class LegacyRestHandlerAdapter<T extends RestfulGateway, R extends Respon
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<T> leaderRetriever,
 			Time timeout,
+			Map<String, String> headers,
 			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
 			LegacyRestHandler<T, R, M> legacyRestHandler) {
-		super(localRestAddress, leaderRetriever, timeout, messageHeaders);
+		super(localRestAddress, leaderRetriever, timeout, headers, messageHeaders);
 
 		this.legacyRestHandler = Preconditions.checkNotNull(legacyRestHandler);
 	}

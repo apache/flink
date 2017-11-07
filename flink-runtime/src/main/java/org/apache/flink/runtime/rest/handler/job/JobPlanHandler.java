@@ -29,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -41,6 +42,7 @@ public class JobPlanHandler extends AbstractExecutionGraphHandler<JobPlanInfo, J
 		CompletableFuture<String> localRestAddress,
 		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 		Time timeout,
+		Map<String, String> headers,
 		MessageHeaders<EmptyRequestBody, JobPlanInfo, JobMessageParameters> messageHeaders,
 		ExecutionGraphCache executionGraphCache,
 		Executor executor) {
@@ -49,6 +51,7 @@ public class JobPlanHandler extends AbstractExecutionGraphHandler<JobPlanInfo, J
 			localRestAddress,
 			leaderRetriever,
 			timeout,
+			headers,
 			messageHeaders,
 			executionGraphCache,
 			executor);
