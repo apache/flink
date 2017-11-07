@@ -41,7 +41,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNoException;
 
@@ -65,6 +67,16 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
 
+	/**
+	 * Number of tests executed.
+	 */
+	private static int numRecursiveUploadTests = 0;
+
+	/**
+	 * Will be updated by {@link #checkCredentialsAndSetup()} if the test is not skipped.
+	 */
+	private static boolean skipTest = true;
+
 	@BeforeClass
 	public static void checkCredentialsAndSetup() throws IOException {
 		// check whether credentials exist
@@ -72,12 +84,25 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
 		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
 
+		skipTest = false;
+
 		setupCustomHadoopConfig();
 	}
 
 	@AfterClass
 	public static void resetFileSystemConfiguration() throws IOException {
 		FileSystem.initialize(new Configuration());
+	}
+
+	@AfterClass
+	public static void checkAtLeastOneTestRun() {
+		if (!skipTest) {
+			assertThat(
+				"No S3 filesystem upload test executed. Please activate the " +
+					"'include_hadoop_aws' build profile or set '-Dinclude_hadoop_aws' during build " +
+					"(Hadoop >= 2.6 moved S3 filesystems out of hadoop-common).",
+				numRecursiveUploadTests, greaterThan(0));
+		}
 	}
 
 	/**
@@ -129,6 +154,8 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 	 * 		test path suffix which will be the test's target path
 	 */
 	private void testRecursiveUploadForYarn(String scheme, String pathSuffix) throws Exception {
+		++numRecursiveUploadTests;
+
 		final Path basePath = new Path(scheme + "://" + BUCKET + '/' + TEST_DATA_DIR);
 		final HadoopFileSystem fs = (HadoopFileSystem) basePath.getFileSystem();
 

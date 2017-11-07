@@ -31,6 +31,12 @@ under the License.
 	<name>flink-yarn</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<!-- for testing (will override Hadoop's default dependency on too low SDK versions that
+			do not work with our httpcomponents version) -->
+		<aws.sdk.version>1.11.171</aws.sdk.version>
+	</properties>
+
 	<dependencies>
 
 		<!-- core dependencies -->
@@ -153,6 +159,63 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
+
+		<profile>
+			<!-- Hadoop >= 2.6 moved the S3 file systems from hadoop-common into hadoop-aws artifact
+				(see https://issues.apache.org/jira/browse/HADOOP-11074)
+				We can add the (test) dependency per default once 2.6 is the minimum required version.
+			-->
+			<id>include_hadoop_aws</id>
+			<activation>
+				<property>
+					<name>include_hadoop_aws</name>
+				</property>
+			</activation>
+			<dependencies>
+				<!-- for the S3 tests of YarnFileStageTestS3ITCase -->
+				<dependency>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-aws</artifactId>
+					<version>${hadoop.version}</version>
+					<scope>test</scope>
+					<exclusions>
+						<exclusion>
+							<groupId>org.apache.avro</groupId>
+							<artifactId>avro</artifactId>
+						</exclusion>
+						<!-- The aws-java-sdk-core requires jackson 2.6, but
+							hadoop pulls in 2.3 -->
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-annotations</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-core</artifactId>
+						</exclusion>
+						<exclusion>
+							<groupId>com.fasterxml.jackson.core</groupId>
+							<artifactId>jackson-databind</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+				<!-- override Hadoop's default dependency on too low SDK versions that do not work
+					with our httpcomponents version when initialising the s3a file system -->
+				<dependency>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-s3</artifactId>
+					<version>${aws.sdk.version}</version>
+					<scope>test</scope>
+				</dependency>
+				<dependency>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>aws-java-sdk-sts</artifactId>
+					<version>${aws.sdk.version}</version>
+					<scope>test</scope>
+				</dependency>
+			</dependencies>
+		</profile>
+
 	</profiles>
 
 	<build>
