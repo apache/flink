@@ -35,6 +35,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -47,6 +48,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
+			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, CheckpointConfigInfo, JobMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
@@ -54,6 +56,7 @@ public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<Check
 			localRestAddress,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			messageHeaders,
 			executionGraphCache,
 			executor);

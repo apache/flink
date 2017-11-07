@@ -36,6 +36,7 @@ import javax.annotation.Nonnull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ObjectInputStream;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -43,8 +44,12 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class JobSubmitHandler extends AbstractRestHandler<DispatcherGateway, JobSubmitRequestBody, JobSubmitResponseBody, EmptyMessageParameters> {
 
-	public JobSubmitHandler(CompletableFuture<String> localRestAddress, GatewayRetriever<DispatcherGateway> leaderRetriever, Time timeout) {
-		super(localRestAddress, leaderRetriever, timeout, JobSubmitHeaders.getInstance());
+	public JobSubmitHandler(
+			CompletableFuture<String> localRestAddress,
+			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			Time timeout,
+			Map<String, String> headers) {
+		super(localRestAddress, leaderRetriever, timeout, headers, JobSubmitHeaders.getInstance());
 	}
 
 	@Override

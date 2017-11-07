@@ -36,6 +36,7 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -50,6 +51,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExcep
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
+			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobExceptionsInfo, JobMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
@@ -58,6 +60,7 @@ public class JobExceptionsHandler extends AbstractExecutionGraphHandler<JobExcep
 			localRestAddress,
 			leaderRetriever,
 			timeout,
+			responseHeaders,
 			messageHeaders,
 			executionGraphCache,
 			executor);
