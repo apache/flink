@@ -26,9 +26,9 @@ import org.apache.flink.types.Row;
 import java.util.Properties;
 
 /**
- * Tests for the {@link Kafka09JsonTableSink}.
+ * Tests for the {@link Kafka010JsonTableSink}.
  */
-public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
+public class Kafka010JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
 	protected KafkaTableSink createTableSink(
@@ -36,7 +36,7 @@ public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
 			Properties properties,
 			FlinkKafkaPartitioner<Row> partitioner) {
 
-		return new Kafka09JsonTableSink(topic, properties, partitioner);
+		return new Kafka010JsonTableSink(topic, properties, partitioner);
 	}
 
 	@Override
@@ -46,7 +46,8 @@ public class Kafka09JsonTableSinkTest extends KafkaTableSinkTestBase {
 
 	@Override
 	protected Class<? extends FlinkKafkaProducerBase> getProducerClass() {
-		return FlinkKafkaProducer09.class;
+		return FlinkKafkaProducer010.class;
 	}
+
 }
 
