@@ -92,4 +92,33 @@ class JoinValidationTest extends TableTestBase {
     streamUtil.verifySql(sql, "n/a")
   }
 
+  /** Validates that range and equality predicate are not accepted **/
+  @Test(expected = classOf[TableException])
+  def testRangeAndEqualityPredicates(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
+        |  t1.proctime = t2.proctime
+        | """.stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
+  /** Validates that equality predicate with offset are not accepted **/
+  @Test(expected = classOf[TableException])
+  def testEqualityPredicateWithOffset(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.proctime = t2.proctime - INTERVAL '5' SECOND
+        | """.stripMargin
+
+    streamUtil.verifySql(sql, "n/a")
+  }
+
 }
