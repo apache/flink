@@ -130,6 +130,20 @@ under the License.
 			<artifactId>akka-remote_${scala.binary.version}</artifactId>
 		</dependency>
 
+		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+			visible after the shading (without relocation!) of akka-remote -->
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-stream_${scala.binary.version}</artifactId>
+		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+			visible after the shading (without relocation!) of akka-remote -->
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-protobuf_${scala.binary.version}</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
@@ -429,8 +443,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<!-- we need this to avoid having to specify all of akka's dependencies -->
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-shaded-curator</include>
