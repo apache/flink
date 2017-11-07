@@ -999,6 +999,7 @@ Thus, in order to infer the metric identifier:
     <tr>
       <td>numLateRecordsDropped</td>
       <td>The number of records this operator/task has dropped due to arriving late.</td>
+      <td>Counter</td>
     </tr>
     <tr>
       <th rowspan="2"><strong>Operator</strong></th>
