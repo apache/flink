@@ -514,14 +514,8 @@ under the License.
 									<artifact>*</artifact>
 									<includes>
 										<include>org/apache/flink/streaming/examples/kafka/**</include>
-										<include>org/apache/flink/streaming/**</include>
+										<include>org/apache/flink/streaming/connectors/kafka/**</include>
 										<include>org/apache/kafka/**</include>
-										<include>org/apache/curator/**</include>
-										<include>org/apache/zookeeper/**</include>
-										<include>org/apache/jute/**</include>
-										<include>org/I0Itec/**</include>
-										<include>jline/**</include>
-										<include>com/yammer/**</include>
 										<include>kafka/**</include>
 									</includes>
 								</filter>
