@@ -39,7 +39,6 @@ under the License.
 			<useTransitiveFiltering>true</useTransitiveFiltering>
 
 			<includes>
-				<include>org.apache.flink:flink-python_${scala.binary.version}</include>
 				<include>org.slf4j:slf4j-log4j12</include>
 				<include>log4j:log4j</include>
 			</includes>
@@ -181,6 +180,16 @@ under the License.
 			<fileMode>0644</fileMode>
 			<includes>
 				<include>flink-gelly-examples_${scala.binary.version}-${project.version}.jar</include>
+			</includes>
+		</fileSet>
+
+		<!-- copy python jar -->
+		<fileSet>
+			<directory>../flink-libraries/flink-python/target</directory>
+			<outputDirectory>lib</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>flink-python_${scala.binary.version}-${project.version}.jar</include>
 			</includes>
 		</fileSet>
 
