@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.util.OperatingSystem;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -55,7 +56,7 @@ import static org.junit.Assert.assertFalse;
 /**
  * Tests for verifying file staging during submission to YARN works.
  */
-public class YarnFileStageTest {
+public class YarnFileStageTest extends TestLogger {
 
 	@ClassRule
 	public static final TemporaryFolder CLASS_TEMP_DIR = new TemporaryFolder();
