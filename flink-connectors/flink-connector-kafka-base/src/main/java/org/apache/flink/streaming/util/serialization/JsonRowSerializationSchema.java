@@ -18,6 +18,9 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -43,10 +46,23 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 	/**
 	 * Creates a JSON serialization schema for the given fields and types.
 	 *
-	 * @param fieldNames Names of JSON fields to parse.
+	 * @param rowSchema The schema of the rows to encode.
 	 */
-	public JsonRowSerializationSchema(String[] fieldNames) {
-		this.fieldNames = Preconditions.checkNotNull(fieldNames);
+	public JsonRowSerializationSchema(RowTypeInfo rowSchema) {
+
+		Preconditions.checkNotNull(rowSchema);
+		String[] fieldNames = rowSchema.getFieldNames();
+		TypeInformation[] fieldTypes = rowSchema.getFieldTypes();
+
+		// check that no field is composite
+		for (int i = 0; i < fieldTypes.length; i++) {
+			if (fieldTypes[i] instanceof CompositeType) {
+				throw new IllegalArgumentException("JsonRowSerializationSchema cannot encode rows with nested schema, " +
+					"but field '" + fieldNames[i] + "' is nested: " + fieldTypes[i].toString());
+			}
+		}
+
+		this.fieldNames = fieldNames;
 	}
 
 	@Override

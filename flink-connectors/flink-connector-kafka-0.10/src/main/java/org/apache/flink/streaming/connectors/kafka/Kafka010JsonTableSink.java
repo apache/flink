@@ -20,20 +20,18 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
 import org.apache.flink.types.Row;
 
 import java.util.Properties;
 
 /**
- * Kafka 0.8 {@link KafkaTableSink} that serializes data in JSON format.
+ * Kafka 0.10 {@link KafkaTableSink} that serializes data in JSON format.
  */
-public class Kafka08JsonTableSink extends KafkaJsonTableSink {
+public class Kafka010JsonTableSink extends KafkaJsonTableSink {
 
 	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.8
+	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.10
 	 * topic with fixed partition assignment.
 	 *
 	 * <p>Each parallel TableSink instance will write its rows to a single Kafka partition.</p>
@@ -47,47 +45,29 @@ public class Kafka08JsonTableSink extends KafkaJsonTableSink {
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
 	 */
-	public Kafka08JsonTableSink(String topic, Properties properties) {
+	public Kafka010JsonTableSink(String topic, Properties properties) {
 		super(topic, properties, new FlinkFixedPartitioner<>());
 	}
 
 	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.8
+	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.10
 	 * topic with custom partition assignment.
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
 	 * @param partitioner Kafka partitioner
 	 */
-	public Kafka08JsonTableSink(String topic, Properties properties, FlinkKafkaPartitioner<Row> partitioner) {
+	public Kafka010JsonTableSink(String topic, Properties properties, FlinkKafkaPartitioner<Row> partitioner) {
 		super(topic, properties, partitioner);
-	}
-
-	/**
-	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.8
-	 * topic with custom partition assignment.
-	 *
-	 * @param topic topic in Kafka to which table is written
-	 * @param properties properties to connect to Kafka
-	 * @param partitioner Kafka partitioner
-	 *
-	 * @deprecated This is a deprecated constructor that does not correctly handle partitioning when
-	 *             producing to multiple topics. Use
-	 *             {@link #Kafka08JsonTableSink(String, Properties, FlinkKafkaPartitioner)} instead.
-	 */
-	@Deprecated
-	public Kafka08JsonTableSink(String topic, Properties properties, KafkaPartitioner<Row> partitioner) {
-		super(topic, properties, new FlinkKafkaDelegatePartitioner<>(partitioner));
 	}
 
 	@Override
 	protected FlinkKafkaProducerBase<Row> createKafkaProducer(String topic, Properties properties, SerializationSchema<Row> serializationSchema, FlinkKafkaPartitioner<Row> partitioner) {
-		return new FlinkKafkaProducer08<>(topic, serializationSchema, properties, partitioner);
+		return new FlinkKafkaProducer010<>(topic, serializationSchema, properties, partitioner);
 	}
 
 	@Override
-	protected Kafka08JsonTableSink createCopy() {
-		return new Kafka08JsonTableSink(topic, properties, partitioner);
+	protected Kafka010JsonTableSink createCopy() {
+		return new Kafka010JsonTableSink(topic, properties, partitioner);
 	}
 }
-
