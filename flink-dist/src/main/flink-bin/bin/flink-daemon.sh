@@ -84,7 +84,7 @@ fi
 
 # Ascending ID depending on number of lines in pid file.
 # This allows us to start multiple daemon of each type.
-id=$([ -f "$pid" ] && echo $(wc -l < $pid) || echo "0")
+id=$([ -f "$pid" ] && echo $(wc -l < "$pid") || echo "0")
 
 FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}"
 log="${FLINK_LOG_PREFIX}.log"
@@ -144,16 +144,16 @@ case $STARTSTOP in
     (stop)
         if [ -f "$pid" ]; then
             # Remove last in pid file
-            to_stop=$(tail -n 1 $pid)
+            to_stop=$(tail -n 1 "$pid")
 
             if [ -z $to_stop ]; then
                 rm "$pid" # If all stopped, clean up pid file
                 echo "No $DAEMON daemon to stop on host $HOSTNAME."
             else
-                sed \$d "$pid" > $pid.tmp # all but last line
+                sed \$d "$pid" > "$pid.tmp" # all but last line
 
                 # If all stopped, clean up pid file
-                [ $(wc -l < $pid.tmp) -eq 0 ] && rm "$pid" $pid.tmp || mv $pid.tmp $pid
+                [ $(wc -l < "$pid.tmp") -eq 0 ] && rm "$pid" "$pid.tmp" || mv "$pid.tmp" "$pid"
 
                 if kill -0 $to_stop > /dev/null 2>&1; then
                     echo "Stopping $DAEMON daemon (pid: $to_stop) on host $HOSTNAME."
@@ -169,7 +169,7 @@ case $STARTSTOP in
 
     (stop-all)
         if [ -f "$pid" ]; then
-            mv "$pid" ${pid}.tmp
+            mv "$pid" "${pid}.tmp"
 
             while read to_stop; do
                 if kill -0 $to_stop > /dev/null 2>&1; then
