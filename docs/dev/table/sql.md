@@ -800,7 +800,7 @@ val result4 = tableEnv.sqlQuery(
 Data Types
 ----------
 
-The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internally, it also uses Flink's `TypeInformation` to distinguish between types. The SQL support does not include all Flink types so far. All supported simple types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between SQL Types, Table API types, and the resulting Java class.
+The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internally, it also uses Flink's `TypeInformation` to define data types. Fully supported types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between SQL Types, Table API types, and the resulting Java class.
 
 | Table API              | SQL                         | Java type              |
 | :--------------------- | :-------------------------- | :--------------------- |
@@ -823,21 +823,14 @@ The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internal
 | `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
 | `Types.MULTISET`       | `MULTISET`                  | e.g. `java.util.HashMap<String, Integer>` for a multiset of `String` |
 
-
-Advanced types such as generic types, composite types (e.g. POJOs or Tuples), and array types (object or primitive arrays) can be fields of a row.
-
-Generic types are treated as a black box within Table API and SQL yet.
-
-Composite types, however, are fully supported types where fields of a composite type can be accessed using the `.get()` operator in Table API and dot operator (e.g. `MyTable.pojoColumn.myField`) in SQL. Composite types can also be flattened using `.flatten()` in Table API or `MyTable.pojoColumn.*` in SQL.
-
-Array types can be accessed using the `myArray.at(1)` operator in Table API and `myArray[1]` operator in SQL. Array literals can be created using `array(1, 2, 3)` in Table API and `ARRAY[1, 2, 3]` in SQL.
+Generic types and composite types (e.g., POJOs or Tuples) can be fields of a row as well. Generic types are treated as a black box and can be passed on or processed by [user-defined functions](udfs.html). Composite types can be accessed with [built-in functions](#built-in-functions) (see *Value access functions* section).
 
 {% top %}
 
 Built-In Functions
 ------------------
 
-Both the Table API and SQL come with a set of built-in functions for data transformations. This section gives a brief overview of the available functions so far.
+Flink's SQL support comes with a set of built-in functions for data transformations. This section gives a brief overview of the available functions.
 
 <!--
 This list of SQL functions should be kept in sync with SqlExpressionTest to reduce confusion due to the large amount of SQL functions.
@@ -1819,6 +1812,7 @@ CAST(value AS type)
   </tbody>
 </table>
 
+<!-- Disabled temporarily in favor of composite type support
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1828,7 +1822,7 @@ CAST(value AS type)
   </thead>
 
   <tbody>
-  <!-- Disabled temporarily in favor of composite type support
+  
     <tr>
       <td>
         {% highlight text %}
@@ -1850,32 +1844,10 @@ ROW (value [, value]* )
         <p>Creates a row from a list of values.</p>
       </td>
     </tr>
--->
-
-    <tr>
-      <td>
-        {% highlight text %}
-array ‘[’ index ‘]’
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-ARRAY ‘[’ value [, value ]* ‘]’
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates an array from a list of values.</p>
-      </td>
-    </tr>
 
   </tbody>
 </table>
+-->
 
 <table class="table table-bordered">
   <thead>
@@ -2283,6 +2255,18 @@ tableName.compositeType.*
   </thead>
 
   <tbody>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ARRAY ‘[’ value [, value ]* ‘]’
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates an array from a list of values.</p>
+      </td>
+    </tr>
+
     <tr>
       <td>
         {% highlight text %}
@@ -2291,6 +2275,17 @@ CARDINALITY(ARRAY)
       </td>
       <td>
         <p>Returns the number of elements of an array.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+array ‘[’ index ‘]’
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the element at a particular position in an array. The index starts at 1.</p>
       </td>
     </tr>
 
