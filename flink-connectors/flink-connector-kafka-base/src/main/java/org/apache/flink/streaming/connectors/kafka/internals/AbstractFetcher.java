@@ -648,6 +648,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		public void onProcessingTime(long timestamp) throws Exception {
 
 			long minAcrossAll = Long.MAX_VALUE;
+			boolean isEffectiveMinAggregation = false;
 			for (KafkaTopicPartitionState<?> state : allPartitions) {
 
 				// we access the current watermark for the periodic assigners under the state
@@ -659,10 +660,11 @@ public abstract class AbstractFetcher<T, KPH> {
 				}
 
 				minAcrossAll = Math.min(minAcrossAll, curr);
+				isEffectiveMinAggregation = true;
 			}
 
 			// emit next watermark, if there is one
-			if (minAcrossAll > lastWatermarkTimestamp) {
+			if (isEffectiveMinAggregation && minAcrossAll > lastWatermarkTimestamp) {
 				lastWatermarkTimestamp = minAcrossAll;
 				emitter.emitWatermark(new Watermark(minAcrossAll));
 			}
