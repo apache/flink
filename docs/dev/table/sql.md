@@ -440,11 +440,18 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
       </td>
     	<td>
       <p>UDTFs must be registered in the TableEnvironment. See the <a href="udfs.html">UDF documentation</a> for details on how to specify and register UDTFs. </p>
-      <p><b>Note:</b> Currently only literal <code>TRUE</code> can be accepted as the predicate for the left outer join against a lateral table.</p>
+      <p>Inner Join</p>
 {% highlight sql %}
 SELECT users, tag
-FROM Orders LATERAL VIEW UNNEST_UDTF(tags) t AS tag
+FROM Orders, LATERAL TABLE(unnest_udtf(tags)) t AS tag
 {% endhighlight %}
+      <p>Left Outer Join</p>
+{% highlight sql %}
+SELECT users, tag
+FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
+{% endhighlight %}
+
+<p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
       </td>
     </tr>
   </tbody>
