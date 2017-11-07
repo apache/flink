@@ -408,6 +408,7 @@ FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
           </ul>
         </p>
 
+        <p>The range predicates <code>ltime >= rtime && ltime <= rtime</code> can be abbreviated with a single equi-predicate <code>ltime = rtime</code>.</p> 
         <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
 
 {% highlight sql %}
