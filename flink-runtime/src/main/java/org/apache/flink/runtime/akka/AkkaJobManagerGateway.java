@@ -223,7 +223,7 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<MultipleJobsDetails> requestJobDetails(Time timeout) {
+	public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Time timeout) {
 		return FutureUtils.toJava(
 			jobManagerGateway
 				.ask(new RequestJobDetails(true, true), FutureUtils.toFiniteDuration(timeout))

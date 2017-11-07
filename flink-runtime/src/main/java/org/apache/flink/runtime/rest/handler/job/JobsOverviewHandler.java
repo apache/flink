@@ -55,6 +55,6 @@ public class JobsOverviewHandler extends AbstractRestHandler<RestfulGateway, Emp
 
 	@Override
 	protected CompletableFuture<MultipleJobsDetails> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
-		return gateway.requestJobDetails(timeout);
+		return gateway.requestMultipleJobDetails(timeout);
 	}
 }
