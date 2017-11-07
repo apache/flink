@@ -318,6 +318,28 @@ public class AbstractFetcherTest {
 		assertTrue(watermarkTs >= 13L && watermarkTs <= 15L);
 	}
 
+	@Test
+	public void testPeriodicWatermarksWithNoSubscribedPartitionsShouldYieldNoWatermarks() throws Exception {
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestProcessingTimeService processingTimeProvider = new TestProcessingTimeService();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()),
+			null, /* punctuated watermarks assigner*/
+			processingTimeProvider,
+			10);
+
+		processingTimeProvider.setCurrentTime(10);
+		// no partitions; when the periodic watermark emitter fires, no watermark should be emitted
+		assertFalse(sourceContext.hasWatermark());
+	}
+
+
 	// ------------------------------------------------------------------------
 	//  Test mocks
 	// ------------------------------------------------------------------------
