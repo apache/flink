@@ -27,8 +27,6 @@ import javax.annotation.Nullable;
 
 /**
  * Interface for a metric registry.
-
-				LOG.debug("Started MetricQueryService under {}.", metricQueryServicePath);
  */
 public interface MetricRegistry {
 
