@@ -230,7 +230,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 																in),
 														serializer),
 												serializer),
-										checkpointId,
+										pastCheckpointId,
 										timestamp);
 								if (success) {
 									// in case the checkpoint was successfully committed,
