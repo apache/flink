@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.KafkaPartitioner;
@@ -32,7 +33,27 @@ import java.util.Properties;
 public class Kafka09JsonTableSink extends KafkaJsonTableSink {
 
 	/**
-	 * Creates {@link KafkaTableSink} for Kafka 0.9 .
+	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.9
+	 * topic with fixed partition assignment.
+	 *
+	 * <p>Each parallel TableSink instance will write its rows to a single Kafka partition.</p>
+	 * <ul>
+	 * <li>If the number of Kafka partitions is less than the number of sink instances, different
+	 * sink instances will write to the same partition.</li>
+	 * <li>If the number of Kafka partitions is higher than the number of sink instance, some
+	 * Kafka partitions won't receive data.</li>
+	 * </ul>
+	 *
+	 * @param topic topic in Kafka to which table is written
+	 * @param properties properties to connect to Kafka
+	 */
+	public Kafka09JsonTableSink(String topic, Properties properties) {
+		super(topic, properties, new FlinkFixedPartitioner<>());
+	}
+
+	/**
+	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.9
+	 * topic with custom partition assignment.
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
@@ -43,7 +64,8 @@ public class Kafka09JsonTableSink extends KafkaJsonTableSink {
 	}
 
 	/**
-	 * Creates {@link KafkaTableSink} for Kafka 0.9 .
+	 * Creates {@link KafkaTableSink} to write table rows as JSON-encoded records to a Kafka 0.9
+	 * topic with custom partition assignment.
 	 *
 	 * @param topic topic in Kafka to which table is written
 	 * @param properties properties to connect to Kafka
