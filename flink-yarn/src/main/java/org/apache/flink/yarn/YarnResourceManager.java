@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.FiniteDuration;
@@ -70,7 +71,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	private final Map<String, String> env;
 
 	/** YARN container map. Package private for unit test purposes. */
-	final Map<String, YarnWorkerNode> workerNodeMap;
+	final ConcurrentMap<ResourceID, YarnWorkerNode> workerNodeMap;
 
 	/** The default registration timeout for task executor in seconds. */
 	private static final int DEFAULT_TASK_MANAGER_REGISTRATION_DURATION = 300;
@@ -242,17 +243,17 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public boolean stopWorker(YarnWorkerNode workerNode) {
-		workerNodeMap.remove(workerNode.getResourceID().toString());
 		if (workerNode != null) {
-			Container container = workerNode.getYarnContainer();
+			Container container = workerNode.getContainer();
 			log.info("Stopping container {}.", container.getId().toString());
 			// release the container on the node manager
 			try {
 				nodeManagerClient.stopContainer(container.getId(), container.getNodeId());
 			} catch (Throwable t) {
-				log.error("Error while calling YARN Node Manager to stop container", t);
+				log.warn("Error while calling YARN Node Manager to stop container", t);
 			}
 			resourceManagerClient.releaseAssignedContainer(container.getId());
+			workerNodeMap.remove(workerNode.getResourceID());
 		} else {
 			log.error("Can not find container with resource ID {}.", workerNode.getResourceID().toString());
 		}
@@ -261,7 +262,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	protected YarnWorkerNode workerStarted(ResourceID resourceID) {
-		return workerNodeMap.get(resourceID.getResourceIdString());
+		return workerNodeMap.get(resourceID);
 	}
 
 	// AMRMClientAsync CallbackHandler methods
@@ -287,11 +288,14 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			numPendingContainerRequests = Math.max(0, numPendingContainerRequests - 1);
 			log.info("Received new container: {} - Remaining pending container requests: {}",
 					container.getId(), numPendingContainerRequests);
-			workerNodeMap.put(container.getId().toString(), new YarnWorkerNode(container));
+			final String containerIdStr = container.getId().toString();
+			workerNodeMap.put(new ResourceID(containerIdStr),
+					new YarnWorkerNode(container));
 			try {
 				/** Context information used to start a TaskExecutor Java process */
 				ContainerLaunchContext taskExecutorLaunchContext =
-						createTaskExecutorLaunchContext(container.getResource(), container.getId().toString(), container.getNodeId().getHost());
+						createTaskExecutorLaunchContext(
+								container.getResource(), containerIdStr, container.getNodeId().getHost());
 				nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
 			}
 			catch (Throwable t) {

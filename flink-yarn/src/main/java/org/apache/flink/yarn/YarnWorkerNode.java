@@ -20,28 +20,30 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.yarn.api.records.Container;
-
-import java.io.Serializable;
 
 /**
  * A stored YARN worker, which contains the YARN container.
  */
-public class YarnWorkerNode implements ResourceIDRetrievable, Serializable {
+public class YarnWorkerNode implements ResourceIDRetrievable {
 
-	private Container yarnContainer;
+	private final ResourceID resourceID;
+	private final Container container;
 
 	public YarnWorkerNode(Container container) {
-		this.yarnContainer = container;
+		Preconditions.checkNotNull(container);
+		this.resourceID = new ResourceID(container.getId().toString());
+		this.container = container;
 	}
 
 	@Override
 	public ResourceID getResourceID() {
-		return new ResourceID(yarnContainer.getId().toString());
+		return resourceID;
 	}
 
-	public Container getYarnContainer() {
-		return yarnContainer;
+	public Container getContainer() {
+		return container;
 	}
 }

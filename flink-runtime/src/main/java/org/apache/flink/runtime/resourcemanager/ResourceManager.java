@@ -63,7 +63,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -87,7 +86,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>{@link #requestSlot(JobMasterId, SlotRequest, Time)} requests a slot from the resource manager</li>
  * </ul>
  */
-public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable & Serializable>
+public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		extends FencedRpcEndpoint<ResourceManagerId>
 		implements ResourceManagerGateway, LeaderContender {
 
