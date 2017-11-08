@@ -48,6 +48,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
+import org.apache.flink.runtime.jobgraph.tasks.StoppableTask;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -63,11 +64,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -75,11 +80,17 @@ import static org.mockito.Mockito.when;
 public class TaskAsyncCallTest {
 
 	private static int numCalls;
-	
+
+	/** Triggered at the beginning of {@link CheckpointsInOrderInvokable#invoke()}. */
 	private static OneShotLatch awaitLatch;
+
+	/**
+	 * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)}
+	 * was called {@link #numCalls} times.
+	 */
 	private static OneShotLatch triggerLatch;
 
-	private static List<ClassLoader> classLoaders;
+	private static final List<ClassLoader> classLoaders = new ArrayList<>();
 
 	@Before
 	public void createQueuesAndActors() {
@@ -88,7 +99,7 @@ public class TaskAsyncCallTest {
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
 
-		classLoaders = new ArrayList<>();
+		classLoaders.clear();
 	}
 
 
@@ -99,69 +110,84 @@ public class TaskAsyncCallTest {
 	@Test
 	public void testCheckpointCallsInOrder() throws Exception {
 		Task task = createTask(CheckpointsInOrderInvokable.class);
-		task.startTaskThread();
+		try (TaskCleaner ignored = new TaskCleaner(task)) {
+			task.startTaskThread();
 
-		awaitLatch.await();
+			awaitLatch.await();
 
-		for (int i = 1; i <= numCalls; i++) {
-			task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+			for (int i = 1; i <= numCalls; i++) {
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+			}
+
+			triggerLatch.await();
+
+			assertFalse(task.isCanceledOrFailed());
+
+			ExecutionState currentState = task.getExecutionState();
+			assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
 		}
-
-		triggerLatch.await();
-
-		assertFalse(task.isCanceledOrFailed());
-
-		ExecutionState currentState = task.getExecutionState();
-		assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
-
-		task.cancelExecution();
-		task.getExecutingThread().join();
 	}
 
 	@Test
 	public void testMixedAsyncCallsInOrder() throws Exception {
 		Task task = createTask(CheckpointsInOrderInvokable.class);
-		task.startTaskThread();
+		try (TaskCleaner ignored = new TaskCleaner(task)) {
+			task.startTaskThread();
 
-		awaitLatch.await();
+			awaitLatch.await();
 
-		for (int i = 1; i <= numCalls; i++) {
-			task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
-			task.notifyCheckpointComplete(i);
+			for (int i = 1; i <= numCalls; i++) {
+				task.triggerCheckpointBarrier(i, 156865867234L, CheckpointOptions.forCheckpoint());
+				task.notifyCheckpointComplete(i);
+			}
+
+			triggerLatch.await();
+
+			assertFalse(task.isCanceledOrFailed());
+
+			ExecutionState currentState = task.getExecutionState();
+			assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
 		}
+	}
 
-		triggerLatch.await();
+	@Test
+	public void testThrowExceptionIfStopInvokedWithNotStoppableTask() throws Exception {
+		Task task = createTask(CheckpointsInOrderInvokable.class);
+		try (TaskCleaner ignored = new TaskCleaner(task)) {
+			task.startTaskThread();
+			awaitLatch.await();
 
-		assertFalse(task.isCanceledOrFailed());
-		ExecutionState currentState = task.getExecutionState();
-		assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
-
-		task.cancelExecution();
-		task.getExecutingThread().join();
+			try {
+				task.stopExecution();
+				fail("Expected exception not thrown");
+			} catch (UnsupportedOperationException e) {
+				assertThat(e.getMessage(), containsString("Stopping not supported by task"));
+			}
+		}
 	}
 
 	/**
-	 * Asserts that {@link StatefulTask#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)}
-	 * and {@link StatefulTask#notifyCheckpointComplete(long)} are invoked by a thread whose context
-	 * class loader is set to the user code class loader.
+	 * Asserts that {@link StatefulTask#triggerCheckpoint(CheckpointMetaData, CheckpointOptions)},
+	 * {@link StatefulTask#notifyCheckpointComplete(long)}, and {@link StoppableTask#stop()} are
+	 * invoked by a thread whose context class loader is set to the user code class loader.
 	 */
 	@Test
 	public void testSetsUserCodeClassLoader() throws Exception {
- 		numCalls = 1;
+		numCalls = 1;
 
 		Task task = createTask(ContextClassLoaderInterceptingInvokable.class);
+		try (TaskCleaner ignored = new TaskCleaner(task)) {
+			task.startTaskThread();
 
-		task.startTaskThread();
-		awaitLatch.await();
+			awaitLatch.await();
 
-		task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint());
-		task.notifyCheckpointComplete(1);
+			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint());
+			task.notifyCheckpointComplete(1);
+			task.stopExecution();
+		}
 
-		triggerLatch.await();
-
-		task.cancelExecution();
-		task.getExecutingThread().join();
-
+		// assert after task is canceled and executing thread is stopped to avoid race conditions
+		assertThat(classLoaders, hasSize(greaterThanOrEqualTo(3)));
 		assertThat(classLoaders, everyItem(instanceOf(TestUserCodeClassLoader.class)));
 	}
 
@@ -297,7 +323,7 @@ public class TaskAsyncCallTest {
 	 *
 	 * @see #testSetsUserCodeClassLoader()
 	 */
-	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable {
+	public static class ContextClassLoaderInterceptingInvokable extends CheckpointsInOrderInvokable implements StoppableTask {
 
 		@Override
 		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
@@ -312,6 +338,12 @@ public class TaskAsyncCallTest {
 
 			super.notifyCheckpointComplete(checkpointId);
 		}
+
+		@Override
+		public void stop() {
+			classLoaders.add(Thread.currentThread().getContextClassLoader());
+		}
+
 	}
 
 	/**
@@ -322,6 +354,21 @@ public class TaskAsyncCallTest {
 	private static class TestUserCodeClassLoader extends ClassLoader {
 		public TestUserCodeClassLoader() {
 			super(ClassLoader.getSystemClassLoader());
+		}
+	}
+
+	private static class TaskCleaner implements AutoCloseable {
+
+		private final Task task;
+
+		private TaskCleaner(Task task) {
+			this.task = task;
+		}
+
+		@Override
+		public void close() throws Exception {
+			task.cancelExecution();
+			task.getExecutingThread().join(5000);
 		}
 	}
 
