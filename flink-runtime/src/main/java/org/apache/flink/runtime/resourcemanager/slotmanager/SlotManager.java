@@ -959,4 +959,21 @@ public class SlotManager implements AutoCloseable {
 			return false;
 		}
 	}
+
+	@VisibleForTesting
+	public void unregisterTaskManagersAndReleaseResources() {
+		Iterator<Map.Entry<InstanceID, TaskManagerRegistration>> taskManagerRegistrationIterator =
+				taskManagerRegistrations.entrySet().iterator();
+
+		while (taskManagerRegistrationIterator.hasNext()) {
+			TaskManagerRegistration taskManagerRegistration =
+					taskManagerRegistrationIterator.next().getValue();
+
+			taskManagerRegistrationIterator.remove();
+
+			internalUnregisterTaskManager(taskManagerRegistration);
+
+			resourceActions.releaseResource(taskManagerRegistration.getInstanceId());
+		}
+	}
 }

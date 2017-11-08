@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.messages.InfoMessage;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -62,7 +63,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -86,7 +86,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>{@link #requestSlot(JobMasterId, SlotRequest, Time)} requests a slot from the resource manager</li>
  * </ul>
  */
-public abstract class ResourceManager<WorkerType extends Serializable>
+public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		extends FencedRpcEndpoint<ResourceManagerId>
 		implements ResourceManagerGateway, LeaderContender {
 
@@ -800,21 +800,22 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	}
 
 	protected void releaseResource(InstanceID instanceId) {
-		ResourceID resourceID = null;
+		WorkerType worker = null;
 
 		// TODO: Improve performance by having an index on the instanceId
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> entry : taskExecutors.entrySet()) {
 			if (entry.getValue().getInstanceID().equals(instanceId)) {
-				resourceID = entry.getKey();
+				worker = entry.getValue().getWorker();
 				break;
 			}
 		}
 
-		if (resourceID != null) {
-			if (stopWorker(resourceID)) {
-				closeTaskManagerConnection(resourceID, new FlinkException("Worker was stopped."));
+		if (worker != null) {
+			if (stopWorker(worker)) {
+				closeTaskManagerConnection(worker.getResourceID(),
+						new FlinkException("Worker was stopped."));
 			} else {
-				log.debug("Worker {} was not stopped.", resourceID);
+				log.debug("Worker {} was not stopped.", worker.getResourceID());
 			}
 		} else {
 			// unregister in order to clean up potential left over state
@@ -958,10 +959,10 @@ public abstract class ResourceManager<WorkerType extends Serializable>
 	/**
 	 * Stops the given worker.
 	 *
-	 * @param resourceID identifying the worker to be stopped
+	 * @param worker The worker.
 	 * @return True if the worker was stopped, otherwise false
 	 */
-	public abstract boolean stopWorker(ResourceID resourceID);
+	public abstract boolean stopWorker(WorkerType worker);
 
 	// ------------------------------------------------------------------------
 	//  Static utility classes

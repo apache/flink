@@ -701,7 +701,7 @@ public class MesosResourceManagerTest extends TestLogger {
 			resourceManager.launchCoordinator.expectMsgClass(LaunchCoordinator.Assign.class);
 
 			// tell the RM to stop the worker
-			resourceManager.stopWorker(extractResourceID(task1));
+			resourceManager.stopWorker(new RegisteredMesosWorkerNode(worker1launched));
 
 			// verify that the instance state was updated
 			MesosWorkerStore.Worker worker1Released = worker1launched.releaseWorker();
