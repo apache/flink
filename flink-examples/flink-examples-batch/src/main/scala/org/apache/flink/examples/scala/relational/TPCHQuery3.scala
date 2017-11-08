@@ -78,8 +78,7 @@ object TPCHQuery3 {
       println("  This program expects data from the TPC-H benchmark as input data.")
       println("  Due to legal restrictions, we can not ship generated data.")
       println("  You can find the TPC-H data generator at http://www.tpc.org/tpch/.")
-      println("  Usage: TPCHQuery3 " +
-        "--lineitem <path> --customer <path> --orders <path> [--output <path>]")
+      println("  Usage: TPCHQuery3 --lineitem <path> --customer <path> --orders <path> [--output <path>]")
       return
     }
 
@@ -102,7 +101,7 @@ object TPCHQuery3 {
       getCustomerDataSet(env, params.get("customer")).
         filter( c => c.mktSegment.equals("AUTOMOBILE"))
     // read orders
-    val orders = getOrdersDataSet(env, params.get("order"))
+    val orders = getOrdersDataSet(env, params.get("orders"))
 
                       // filter orders by order date
     val items = orders.filter( o => dateFormat.parse(o.orderDate).before(date) )

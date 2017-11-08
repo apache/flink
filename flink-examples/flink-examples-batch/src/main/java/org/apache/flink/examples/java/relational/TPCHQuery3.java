@@ -101,8 +101,8 @@ public class TPCHQuery3 {
 
 		// get input data
 		DataSet<Lineitem> lineitems = getLineitemDataSet(env, params.get("lineitem"));
-		DataSet<Order> orders = getOrdersDataSet(env, params.get("customer"));
-		DataSet<Customer> customers = getCustomerDataSet(env, params.get("orders"));
+		DataSet<Customer> customers = getCustomerDataSet(env, params.get("customer"));
+		DataSet<Order> orders = getOrdersDataSet(env, params.get("orders"));
 
 		// Filter market segment "AUTOMOBILE"
 		customers = customers.filter(
