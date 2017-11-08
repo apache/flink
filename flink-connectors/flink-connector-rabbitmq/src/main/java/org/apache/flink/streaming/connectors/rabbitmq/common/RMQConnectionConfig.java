@@ -231,8 +231,8 @@ public class RMQConnectionConfig implements Serializable {
 	 * Returns true if queue declaration is enabled, false otherwise.
 	 * @return Returns true if queue declaration is enabled, false otherwise.
 	 */
-	public boolean isQueueDeclaration() {
-		return queueDeclaration;
+	public Boolean isQueueDeclaration() {
+		return queueDeclaration == null ? true : queueDeclaration;
 	}
 
 	/**
