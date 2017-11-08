@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Describe the different resource factors of the operator with UDF.
  *
@@ -257,40 +259,36 @@ public class ResourceSpec implements Serializable {
 				'}';
 	}
 
-	private void addResource(String name, double value, ResourceAggregateType type) {
-		extendedResources.put(name, new Resource(name, type, value));
-	}
+	public static abstract class Resource implements Serializable {
+		final private String name;
 
-	public static class Resource {
-		private String name;
-		private ResourceAggregateType type;
-		private Double value;
+		final private Double value;
 
-		public Resource(String name, double value) {
-			this(name, ResourceAggregateType.AGGREGATE_TYPE_SUM, value);
-		}
+		final private ResourceAggregateType type;
 
-		public Resource(String name, ResourceAggregateType type, double value) {
-			this.name = name;
-			this.type = type;
+		public Resource(String name, double value, ResourceAggregateType type) {
+			this.name = checkNotNull(name);
 			this.value = Double.valueOf(value);
+			this.type = checkNotNull(type);
 		}
 
 		Resource merge(Resource other) {
-			Preconditions.checkArgument(this.name.equals(other.name), "Merge with different aggregate name");
+			Preconditions.checkArgument(getClass() == other.getClass(), "Merge with different resource type");
+			Preconditions.checkArgument(this.name.equals(other.name), "Merge with different resource name");
 			Preconditions.checkArgument(this.type.equals(other.type), "Merge with different aggregate type");
 
-			Resource resource = new Resource(name, type, value);
+			Double value = null;
 			switch (type) {
 				case AGGREGATE_TYPE_MAX :
-					resource.value = other.value.compareTo(this.value) > 0 ? other.value : this.value;
+					value = other.value.compareTo(this.value) > 0 ? other.value : this.value;
 					break;
 
 				case AGGREGATE_TYPE_SUM:
 				default:
-					resource.value += other.value;
+					value = this.value + other.value;
 			}
 
+			Resource resource = create(value, type);
 			return resource;
 		}
 
@@ -313,6 +311,53 @@ public class ResourceSpec implements Serializable {
 			result = 31 * result + type.ordinal();
 			result = 31 * result + value.hashCode();
 			return result;
+		}
+
+		/**
+		 * create a resource of the sub resource type
+		 *
+		 * @param value the value of the resource
+		 * @param type the aggregate type of the resource
+		 * @return a new instance of the sub resource
+		 */
+		abstract Resource create(double value, ResourceAggregateType type);
+	}
+
+	/**
+	 * The GPU resource.
+	 */
+	public static class GPUResource extends Resource {
+
+		GPUResource(double value) {
+			this(value, ResourceAggregateType.AGGREGATE_TYPE_SUM);
+		}
+
+		GPUResource(double value, ResourceAggregateType type) {
+			super("GPU", value, type);
+		}
+
+		@Override
+		public Resource create(double value, ResourceAggregateType type) {
+			return new GPUResource(value, type);
+		}
+	}
+
+	/**
+	 * The FPGA resource.
+	 */
+	public static class FPGAResource extends Resource {
+
+		FPGAResource(double value) {
+			this(value, ResourceAggregateType.AGGREGATE_TYPE_SUM);
+		}
+
+		FPGAResource(double value, ResourceAggregateType type) {
+			super("FPGA", value, type);
+		}
+
+		@Override
+		public Resource create(double value, ResourceAggregateType type) {
+			return new FPGAResource(value, type);
 		}
 	}
 }
