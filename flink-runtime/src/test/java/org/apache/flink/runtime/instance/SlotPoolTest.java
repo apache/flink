@@ -335,6 +335,7 @@ public class SlotPoolTest extends TestLogger {
 			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
 
 			CompletableFuture<SimpleSlot> slotFuture = slotPoolGateway.allocateSlot(
+				new AllocationID(),
 				scheduledUnit,
 				ResourceProfile.UNKNOWN,
 				Collections.emptyList(),

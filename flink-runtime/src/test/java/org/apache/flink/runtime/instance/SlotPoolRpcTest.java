@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.util.clock.SystemClock;
@@ -149,7 +150,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		pool.start(JobMasterId.generate(), "foobar");
 		SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
-		ResourceManagerGateway resourceManagerGateway = new SimpleAckingResourceManagerGateway();
+		ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		pool.connectToResourceManager(resourceManagerGateway);
 
 		AllocationID allocationID = new AllocationID();
@@ -181,7 +182,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		pool.start(JobMasterId.generate(), "foobar");
 		SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
-		ResourceManagerGateway resourceManagerGateway = new SimpleAckingResourceManagerGateway();
+		ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		pool.connectToResourceManager(resourceManagerGateway);
 
 		AllocationID allocationID = new AllocationID();
@@ -223,7 +224,7 @@ public class SlotPoolRpcTest extends TestLogger {
 				Time.seconds(1) // this is the timeout for the request tested here
 		);
 		pool.start(JobMasterId.generate(), "foobar");
-		ResourceManagerGateway resourceManagerGateway = new SimpleAckingResourceManagerGateway();
+		ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 		pool.connectToResourceManager(resourceManagerGateway);
 
 		ScheduledUnit mockScheduledUnit = new ScheduledUnit(SchedulerTestUtils.getDummyTask());
