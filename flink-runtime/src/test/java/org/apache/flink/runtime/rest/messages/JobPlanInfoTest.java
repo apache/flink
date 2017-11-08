@@ -16,11 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.handler.legacy.messages;
+package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.rest.messages.JobPlanInfo;
-import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
 /**
  * Tests that the {@link JobPlanInfo} can be marshalled and unmarshalled.
