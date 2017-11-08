@@ -178,8 +178,8 @@ case $STARTSTOP in
                 else
                     echo "Skipping $DAEMON daemon (pid: $to_stop), because it is not running anymore on $HOSTNAME."
                 fi
-            done < ${pid}.tmp
-            rm ${pid}.tmp
+            done < "${pid}.tmp"
+            rm "${pid}.tmp"
         fi
     ;;
 
