@@ -6,7 +6,7 @@ We also relocate the shaded Hadoop version to allow running in a different
 setup. For this to work, however, we needed to adapt Hadoop's `Configuration`
 class to load a (shaded) `core-default-shaded.xml` configuration with the
 relocated class names of classes loaded via reflection
-(in the fute, we may need to extend this to `mapred-default.xml` and `hdfs-defaults.xml` and their respective configuration classes).
+(in the future, we may need to extend this to `mapred-default.xml` and `hdfs-defaults.xml` and their respective configuration classes).
 
 # Changing the Hadoop Version
 
@@ -20,7 +20,7 @@ steps are required to keep the shading correct:
   - `src/test/resources/core-site.xml` (as is)
 3. verify the shaded jar:
   - does not contain any unshaded classes except for `org.apache.flink.fs.s3hadoop.S3FileSystemFactory`
-  - every other classes should be under `org.apache.flink.fs.s3hadoop.shaded`
+  - all other classes should be under `org.apache.flink.fs.s3hadoop.shaded`
   - there should be a `META-INF/services/org.apache.flink.fs.s3hadoop.S3FileSystemFactory` file pointing to the `org.apache.flink.fs.s3hadoop.S3FileSystemFactory` class
   - other service files under `META-INF/services` should have their names and contents in the relocated `org.apache.flink.fs.s3hadoop.shaded` package
   - contains a `core-default-shaded.xml` file
