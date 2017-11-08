@@ -43,7 +43,7 @@ You can create and register a `Counter` by calling `counter(String name)` on a `
 
 {% highlight java %}
 
-public class MyMapper extends RichMapFunction<String, Integer> {
+public class MyMapper extends RichMapFunction<String, String> {
   private Counter counter;
 
   @Override
@@ -53,8 +53,10 @@ public class MyMapper extends RichMapFunction<String, Integer> {
       .counter("myCounter");
   }
 
-  @public Integer map(String value) throws Exception {
+  @Override
+  public String map(String value) throws Exception {
     this.counter.inc();
+    return value;
   }
 }
 
@@ -64,7 +66,7 @@ Alternatively you can also use your own `Counter` implementation:
 
 {% highlight java %}
 
-public class MyMapper extends RichMapFunction<String, Integer> {
+public class MyMapper extends RichMapFunction<String, String> {
   private Counter counter;
 
   @Override
@@ -72,6 +74,12 @@ public class MyMapper extends RichMapFunction<String, Integer> {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCustomCounter", new CustomCounter());
+  }
+
+  @Override
+  public String map(String value) throws Exception {
+    this.counter.inc();
+    return value;
   }
 }
 
@@ -87,8 +95,8 @@ You can register a gauge by calling `gauge(String name, Gauge gauge)` on a `Metr
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-public class MyMapper extends RichMapFunction<String, Integer> {
-  private int valueToExpose;
+public class MyMapper extends RichMapFunction<String, String> {
+  private int valueToExpose = 0;
 
   @Override
   public void open(Configuration config) {
@@ -101,6 +109,12 @@ public class MyMapper extends RichMapFunction<String, Integer> {
         }
       });
   }
+
+  @Override
+  public String map(String value) throws Exception {
+    valueToExpose++;
+    return value;
+  }
 }
 
 {% endhighlight %}
@@ -109,15 +123,19 @@ public class MyMapper extends RichMapFunction<String, Integer> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[String,Int] {
-  val valueToExpose = 5
+public class MyMapper extends RichMapFunction[String,String] {
+  val valueToExpose = 0
 
   override def open(parameters: Configuration): Unit = {
     getRuntimeContext()
       .getMetricGroup()
       .gauge("MyGauge", ScalaGauge[Int]( () => valueToExpose ) )
   }
-  ...
+
+  override def map(value: String): String = {
+    valueToExpose += 1
+    value
+  }
 }
 
 {% endhighlight %}
@@ -133,7 +151,7 @@ A `Histogram` measures the distribution of long values.
 You can register one by calling `histogram(String name, Histogram histogram)` on a `MetricGroup`.
 
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Integer> {
+public class MyMapper extends RichMapFunction<Long, Long> {
   private Histogram histogram;
 
   @Override
@@ -143,8 +161,10 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
       .histogram("myHistogram", new MyHistogram());
   }
 
-  @public Integer map(Long value) throws Exception {
+  @Override
+  public Long map(Long value) throws Exception {
     this.histogram.update(value);
+    return value;
   }
 }
 {% endhighlight %}
@@ -183,7 +203,7 @@ A `Meter` measures an average throughput. An occurrence of an event can be regis
 You can register a meter by calling `meter(String name, Meter meter)` on a `MetricGroup`.
 
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Integer> {
+public class MyMapper extends RichMapFunction<Long, Long> {
   private Meter meter;
 
   @Override
@@ -193,8 +213,10 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
       .meter("myMeter", new MyMeter());
   }
 
-  @public Integer map(Long value) throws Exception {
+  @Override
+  public Long map(Long value) throws Exception {
     this.meter.markEvent();
+    return value;
   }
 }
 {% endhighlight %}
@@ -212,7 +234,7 @@ To use this wrapper add the following dependency in your `pom.xml`:
 You can then register a Codahale/DropWizard meter like this:
 
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Integer> {
+public class MyMapper extends RichMapFunction<Long, Long> {
   private Meter meter;
 
   @Override
@@ -222,6 +244,12 @@ public class MyMapper extends RichMapFunction<Long, Integer> {
     this.meter = getRuntimeContext()
       .getMetricGroup()
       .meter("myMeter", new DropwizardMeterWrapper(meter));
+  }
+
+  @Override
+  public Long map(Long value) throws Exception {
+    this.meter.markEvent();
+    return value;
   }
 }
 {% endhighlight %}
