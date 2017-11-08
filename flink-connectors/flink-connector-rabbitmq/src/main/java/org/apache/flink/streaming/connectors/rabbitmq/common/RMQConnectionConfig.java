@@ -31,10 +31,10 @@ import java.security.NoSuchAlgorithmException;
 /**
  * Connection Configuration for RMQ.
  * If {@link Builder#setUri(String)} has been set then {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer,
- * Boolean, Boolean, Integer, Integer, Integer, Integer)}
+ * Boolean, Boolean, Integer, Integer, Integer, Integer, Boolean)}
  * will be used for initialize the RMQ connection or
  * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, String, String, String, Integer, Boolean,
- * Boolean, Integer, Integer, Integer, Integer)}
+ * Boolean, Integer, Integer, Integer, Integer, Boolean)}
  * will be used for initialize the RMQ connection
  */
 public class RMQConnectionConfig implements Serializable {
@@ -49,6 +49,7 @@ public class RMQConnectionConfig implements Serializable {
 	private String username;
 	private String password;
 	private String uri;
+	private Boolean queueDeclaration;
 
 	private Integer networkRecoveryInterval;
 	private Boolean automaticRecovery;
@@ -78,7 +79,7 @@ public class RMQConnectionConfig implements Serializable {
 	private RMQConnectionConfig(String host, Integer port, String virtualHost, String username, String password,
 								Integer networkRecoveryInterval, Boolean automaticRecovery,
 								Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
-								Integer requestedFrameMax, Integer requestedHeartbeat){
+								Integer requestedFrameMax, Integer requestedHeartbeat, Boolean queueDeclaration){
 		Preconditions.checkNotNull(host, "host can not be null");
 		Preconditions.checkNotNull(port, "port can not be null");
 		Preconditions.checkNotNull(virtualHost, "virtualHost can not be null");
@@ -97,6 +98,7 @@ public class RMQConnectionConfig implements Serializable {
 		this.requestedChannelMax = requestedChannelMax;
 		this.requestedFrameMax = requestedFrameMax;
 		this.requestedHeartbeat = requestedHeartbeat;
+		this.queueDeclaration = queueDeclaration;
 	}
 
 	/**
@@ -113,7 +115,7 @@ public class RMQConnectionConfig implements Serializable {
 	*/
 	private RMQConnectionConfig(String uri, Integer networkRecoveryInterval, Boolean automaticRecovery,
 								Boolean topologyRecovery, Integer connectionTimeout, Integer requestedChannelMax,
-								Integer requestedFrameMax, Integer requestedHeartbeat){
+								Integer requestedFrameMax, Integer requestedHeartbeat, Boolean queueDeclaration){
 		Preconditions.checkNotNull(uri, "Uri can not be null");
 		this.uri = uri;
 
@@ -124,6 +126,7 @@ public class RMQConnectionConfig implements Serializable {
 		this.requestedChannelMax = requestedChannelMax;
 		this.requestedFrameMax = requestedFrameMax;
 		this.requestedHeartbeat = requestedHeartbeat;
+		this.queueDeclaration = queueDeclaration;
 	}
 
 	/** @return the host to use for connections */
@@ -225,6 +228,14 @@ public class RMQConnectionConfig implements Serializable {
 	}
 
 	/**
+	 * Returns true if queue declaration is enabled, false otherwise.
+	 * @return Returns true if queue declaration is enabled, false otherwise.
+	 */
+	public boolean isQueueDeclaration() {
+		return queueDeclaration;
+	}
+
+	/**
 	 *
 	 * @return Connection Factory for RMQ
 	 * @throws URISyntaxException if Malformed URI has been passed
@@ -292,6 +303,7 @@ public class RMQConnectionConfig implements Serializable {
 		private String virtualHost;
 		private String username;
 		private String password;
+		private boolean queueDeclaration;
 
 		private Integer networkRecoveryInterval;
 		private Boolean automaticRecovery;
@@ -429,8 +441,18 @@ public class RMQConnectionConfig implements Serializable {
 		 * @param automaticRecovery if true, enables connection recovery
 		 * @return the Builder
 		 */
-		public Builder setAutomaticRecovery(boolean automaticRecovery) {
+		public Builder setAutomaticRecovery(Boolean automaticRecovery) {
 			this.automaticRecovery = automaticRecovery;
+			return this;
+		}
+
+		/**
+		 * Enables or disables queue declaration.
+		 * @param queueDeclaration if ture, enables queue declaration
+		 * @return the Builder
+		 */
+		public Builder setQueueDeclaration(Boolean queueDeclaration) {
+			this.queueDeclaration = queueDeclaration;
 			return this;
 		}
 
@@ -439,21 +461,21 @@ public class RMQConnectionConfig implements Serializable {
 		 *
 		 * <p>If URI is NULL we use host, port, vHost, username, password combination
 		 * to initialize connection. using  {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, String, String, String,
-		 * Integer, Boolean, Boolean, Integer, Integer, Integer, Integer)}.
+		 * Integer, Boolean, Boolean, Integer, Integer, Integer, Integer, Boolean)}.
 		 *
 		 * <p>Otherwise the URI will be used to initialize the client connection
-		 * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, Boolean, Boolean, Integer, Integer, Integer, Integer)}
+		 * {@link RMQConnectionConfig#RMQConnectionConfig(String, Integer, Boolean, Boolean, Integer, Integer, Integer, Integer, Boolean)}
 		 * @return RMQConnectionConfig
 		 */
 		public RMQConnectionConfig build(){
 			if (this.uri != null) {
 				return new RMQConnectionConfig(this.uri, this.networkRecoveryInterval,
 					this.automaticRecovery, this.topologyRecovery, this.connectionTimeout, this.requestedChannelMax,
-					this.requestedFrameMax, this.requestedHeartbeat);
+					this.requestedFrameMax, this.requestedHeartbeat, this.queueDeclaration);
 			} else {
 				return new RMQConnectionConfig(this.host, this.port, this.virtualHost, this.username, this.password,
 					this.networkRecoveryInterval, this.automaticRecovery, this.topologyRecovery,
-					this.connectionTimeout, this.requestedChannelMax, this.requestedFrameMax, this.requestedHeartbeat);
+					this.connectionTimeout, this.requestedChannelMax, this.requestedFrameMax, this.requestedHeartbeat, this.queueDeclaration);
 			}
 		}
 	}
