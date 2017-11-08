@@ -533,7 +533,8 @@ Table fullOuterResult = left.fullOuterJoin(right, "a = d").select("a, b, e");
             <li>The compared time attributes must be of the same type, i.e., both are processing time or event time.</li>
           </ul>
         </p>
-
+        
+        <p>The range predicates <code>ltime >= rtime && ltime <= rtime</code> can be abbreviated with a single equi-predicate <code>ltime = rtime</code>.</p> 
         <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
 
 {% highlight java %}
@@ -651,6 +652,7 @@ val fullOuterResult = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
           </ul>
         </p>
 
+        <p>The range predicates <code>'ltime >= 'rtime && 'ltime <= 'rtime</code> can be abbreviated with a single equi-predicate <code>'ltime === 'rtime</code>.</p> 
         <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
 
 {% highlight scala %}

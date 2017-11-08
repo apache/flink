@@ -187,6 +187,53 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.compareWithList(expected)
   }
 
+  /** test rowtime inner join with equi-times **/
+  @Test
+  def testRowTimeInnerJoinWithEquiTimeAttrs(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    StreamITCase.clear
+
+    val sqlQuery =
+      """
+        |SELECT t2.key, t2.id, t1.id
+        |FROM T1 as t1 join T2 as t2 ON
+        |  t1.key = t2.key AND
+        |  t2.rt = t1.rt
+        |""".stripMargin
+
+    val data1 = new mutable.MutableList[(Int, Long, String, Long)]
+
+    data1.+=((4, 4000L, "A", 4000L))
+    data1.+=((5, 5000L, "A", 5000L))
+    data1.+=((6, 6000L, "A", 6000L))
+    data1.+=((6, 6000L, "B", 6000L))
+
+    val data2 = new mutable.MutableList[(String, String, Long)]
+    data2.+=(("A", "R-5", 5000L))
+    data2.+=(("B", "R-6", 6000L))
+
+    val t1 = env.fromCollection(data1)
+      .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
+      .toTable(tEnv, 'id, 'tm, 'key, 'rt.rowtime)
+    val t2 = env.fromCollection(data2)
+      .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
+      .toTable(tEnv, 'key, 'id, 'rt.rowtime)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+    val expected = new java.util.ArrayList[String]
+    expected.add("A,R-5,5")
+    expected.add("B,R-6,6")
+    StreamITCase.compareWithList(expected)
+  }
+
   /** test rowtime inner join with other conditions **/
   @Test
   def testRowTimeInnerJoinWithOtherConditions(): Unit = {

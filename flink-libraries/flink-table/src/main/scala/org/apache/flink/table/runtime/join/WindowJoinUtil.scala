@@ -80,68 +80,77 @@ object WindowJoinUtil {
 
     // split the condition into time indicator condition and other condition
     val (timePreds, otherPreds) = cnfCondition match {
-        // We need at least two comparison predicates for a properly bounded window join.
-        // So we need an AND expression for a valid window join.
-        case c: RexCall if cnfCondition.getKind == SqlKind.AND =>
-          c.getOperands.asScala
-            .map(identifyTimePredicate(_, leftLogicalFieldCnt, inputSchema))
-            .foldLeft((Seq[TimePredicate](), Seq[RexNode]()))((preds, analyzed) => {
-              analyzed match {
-                case Left(timePred) => (preds._1 :+ timePred, preds._2)
-                case Right(otherPred) => (preds._1, preds._2 :+ otherPred)
-              }
-            })
-        case _ =>
-          // No valid window bounds. A windowed stream join requires two comparison predicates that
-          // bound the time in both directions.
-          return (None, Some(predicate))
+      // We need at least two comparison predicates for a properly bounded window join.
+      // So we need an AND expression for a valid window join.
+      case c: RexCall if cnfCondition.getKind == SqlKind.AND =>
+        c.getOperands.asScala
+          .map(identifyTimePredicate(_, leftLogicalFieldCnt, inputSchema))
+          .foldLeft((Seq[TimePredicate](), Seq[RexNode]()))((preds, analyzed) => {
+            analyzed match {
+              case Left(timePred) => (preds._1 :+ timePred, preds._2)
+              case Right(otherPred) => (preds._1, preds._2 :+ otherPred)
+            }
+          })
+      case c: RexCall =>
+        identifyTimePredicate(c, leftLogicalFieldCnt, inputSchema) match {
+          case Left(timePred) => (Seq[TimePredicate](timePred), Seq[RexNode]())
+          case Right(otherPred) => (Seq[TimePredicate](), Seq[RexNode](otherPred))
+        }
+      case _ =>
+        // No valid window bounds. A windowed stream join requires two comparison predicates that
+        // bound the time in both directions.
+        return (None, Some(predicate))
     }
 
-    if (timePreds.size != 2) {
-      // No valid window bounds. A windowed stream join requires two comparison predicates that
-      // bound the time in both directions.
-      return (None, Some(predicate))
-    }
+    // We support the predicate like left.time = right.time.
+    if (timePreds.size == 1 && timePreds.head.pred.getKind == SqlKind.EQUALS ||
+      timePreds.size == 2) {
+      // assemble window bounds from predicates
+      val streamTimeOffsets = timePreds.map(computeWindowBoundFromPredicate(_, rexBuilder, config))
+      val (leftLowerBound, leftUpperBound) =
+        streamTimeOffsets match {
+          case Seq(Some(x: WindowBound), Some(y: WindowBound)) if x.isLeftLower && !y.isLeftLower =>
+            (x.bound, y.bound)
+          case Seq(Some(x: WindowBound), Some(y: WindowBound)) if !x.isLeftLower && y.isLeftLower =>
+            (y.bound, x.bound)
+          case Seq(Some(x: WindowBound)) =>
+            (x.bound, x.bound)
+          case _ =>
+            // Window join requires two comparison predicate that bound the time in both directions.
+            return (None, Some(predicate))
+        }
 
-    // assemble window bounds from predicates
-    val streamTimeOffsets = timePreds.map(computeWindowBoundFromPredicate(_, rexBuilder, config))
-    val (leftLowerBound, leftUpperBound) =
-      streamTimeOffsets match {
-        case Seq(Some(x: WindowBound), Some(y: WindowBound)) if x.isLeftLower && !y.isLeftLower =>
-          (x.bound, y.bound)
-        case Seq(Some(x: WindowBound), Some(y: WindowBound)) if !x.isLeftLower && y.isLeftLower =>
-          (y.bound, x.bound)
-        case _ =>
-          // Window join requires two comparison predicate that bound the time in both directions.
-          return (None, Some(predicate))
+      // compose the remain condition list into one condition
+      val remainCondition =
+        otherPreds match {
+          case Seq() =>
+            None
+          case _ =>
+            Some(otherPreds.reduceLeft((l, r) => RelOptUtil.andJoinFilters(rexBuilder, l, r)))
+        }
+
+      val bounds = if (timePreds.head.leftInputOnLeftSide) {
+        Some(WindowBounds(
+          timePreds.head.isEventTime,
+          leftLowerBound,
+          leftUpperBound,
+          timePreds.head.leftTimeIdx,
+          timePreds.head.rightTimeIdx))
+      } else {
+        Some(WindowBounds(
+          timePreds.head.isEventTime,
+          leftLowerBound,
+          leftUpperBound,
+          timePreds.head.rightTimeIdx,
+          timePreds.head.leftTimeIdx))
       }
 
-    // compose the remain condition list into one condition
-    val remainCondition =
-    otherPreds match {
-      case Seq() =>
-        None
-      case _ =>
-        Some(otherPreds.reduceLeft((l, r) => RelOptUtil.andJoinFilters(rexBuilder, l, r)))
-    }
-
-    val bounds = if (timePreds.head.leftInputOnLeftSide) {
-      Some(WindowBounds(
-        timePreds.head.isEventTime,
-        leftLowerBound,
-        leftUpperBound,
-        timePreds.head.leftTimeIdx,
-        timePreds.head.rightTimeIdx))
+      (bounds, remainCondition)
     } else {
-      Some(WindowBounds(
-        timePreds.head.isEventTime,
-        leftLowerBound,
-        leftUpperBound,
-        timePreds.head.rightTimeIdx,
-        timePreds.head.leftTimeIdx))
+      // No valid window bounds. A windowed stream join requires two comparison predicates that
+      // bound the time in both directions.
+      (None, Some(predicate))
     }
-
-    (bounds, remainCondition)
   }
 
   /**
@@ -172,7 +181,8 @@ object WindowJoinUtil {
           case SqlKind.GREATER_THAN |
                SqlKind.GREATER_THAN_OR_EQUAL |
                SqlKind.LESS_THAN |
-               SqlKind.LESS_THAN_OR_EQUAL =>
+               SqlKind.LESS_THAN_OR_EQUAL |
+               SqlKind.EQUALS =>
 
             val leftTerm = c.getOperands.get(0)
             val rightTerm = c.getOperands.get(1)
@@ -235,7 +245,7 @@ object WindowJoinUtil {
     *
     * @return A Seq of all time attribute accessed in the expression.
     */
-  def extractTimeAttributeAccesses(
+  private def extractTimeAttributeAccesses(
       expr: RexNode,
       leftFieldCount: Int,
       inputType: RelDataType): Seq[TimeAttributeAccess] = {
@@ -248,9 +258,9 @@ object WindowJoinUtil {
           case t: TimeIndicatorRelDataType =>
             // time attribute access. Remember time type and side of input
             if (idx < leftFieldCount) {
-              Seq(TimeAttributeAccess(t.isEventTime, true, idx))
+              Seq(TimeAttributeAccess(t.isEventTime, isLeftInput = true, idx))
             } else {
-              Seq(TimeAttributeAccess(t.isEventTime, false, idx - leftFieldCount))
+              Seq(TimeAttributeAccess(t.isEventTime, isLeftInput = false, idx - leftFieldCount))
             }
           case _ =>
             // not a time attribute access.
@@ -272,7 +282,7 @@ object WindowJoinUtil {
     * @param inputType The input type of the expression.
     * @return True, if the expression accesses a non-time attribute. False otherwise.
     */
-  def accessesNonTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
+  private def accessesNonTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
     expr match {
       case i: RexInputRef =>
         val accessedType = inputType.getFieldList.get(i.getIndex).getType
@@ -292,7 +302,7 @@ object WindowJoinUtil {
     *
     * @return window boundary, is left lower bound
     */
-  def computeWindowBoundFromPredicate(
+  private def computeWindowBoundFromPredicate(
       timePred: TimePredicate,
       rexBuilder: RexBuilder,
       config: TableConfig): Option[WindowBound] = {
@@ -303,6 +313,8 @@ object WindowJoinUtil {
           timePred.leftInputOnLeftSide
         case (SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
           !timePred.leftInputOnLeftSide
+        case (SqlKind.EQUALS) =>
+          true // We don't care about this since there's only one bound value.
         case _ =>
           return None
       }
