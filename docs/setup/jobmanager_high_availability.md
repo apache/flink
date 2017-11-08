@@ -80,7 +80,7 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
 - **ZooKeeper cluster-id** (recommended): The *cluster-id ZooKeeper node*, under which all required coordination data for a cluster is placed.
 
-  <pre>high-availability.zookeeper.path.cluster-id: /default_ns # important: customize per cluster</pre>
+  <pre>high-availability.cluster-id: /default_ns # important: customize per cluster</pre>
 
   **Important**: You should not set this value manually when runnig a YARN
   cluster, a per-job YARN session, or on another cluster manager. In those
@@ -108,7 +108,7 @@ After configuring the masters and the ZooKeeper quorum, you can use the provided
 high-availability: zookeeper
 high-availability.zookeeper.quorum: localhost:2181
 high-availability.zookeeper.path.root: /flink
-high-availability.zookeeper.path.cluster-id: /cluster_one # important: customize per cluster
+high-availability.cluster-id: /cluster_one # important: customize per cluster
 high-availability.zookeeper.storageDir: hdfs:///flink/recovery</pre>
 
 2. **Configure masters** in `conf/masters`:
