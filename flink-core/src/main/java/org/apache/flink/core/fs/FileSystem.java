@@ -26,8 +26,8 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystemFactory;
@@ -43,8 +43,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -214,8 +217,12 @@ public abstract class FileSystem {
 	/** Cache for file systems, by scheme + authority. */
 	private static final HashMap<FSKey, FileSystem> CACHE = new HashMap<>();
 
-	/** Mapping of file system schemes to  the corresponding implementation factories. */
-	private static final HashMap<String, FileSystemFactory> FS_FACTORIES = loadFileSystems();
+	/** All available file system factories. */
+	private static final List<FileSystemFactory> RAW_FACTORIES = loadFileSystems();
+
+	/** Mapping of file system schemes to the corresponding factories,
+	 * populated in {@link FileSystem#initialize(Configuration)}. */
+	private static final HashMap<String, FileSystemFactory> FS_FACTORIES = new HashMap<>();
 
 	/** The default factory that is used when no scheme matches. */
 	private static final FileSystemFactory FALLBACK_FACTORY = loadHadoopFsFactory();
@@ -236,7 +243,7 @@ public abstract class FileSystem {
 	 * of this method, this method clears the file system instance cache.
 	 *
 	 * <p>This method also reads the default file system URI from the configuration key
-	 * {@link ConfigConstants#FILESYSTEM_SCHEME}. All calls to {@link FileSystem#get(URI)} where
+	 * {@link CoreOptions#DEFAULT_FILESYSTEM_SCHEME}. All calls to {@link FileSystem#get(URI)} where
 	 * the URI has no scheme will be interpreted as relative to that URI.
 	 * As an example, assume the default file system URI is set to {@code 'hdfs://localhost:9000/'}.
 	 * A file path of {@code '/user/USERNAME/in.txt'} is interpreted as
@@ -249,17 +256,22 @@ public abstract class FileSystem {
 		try {
 			// make sure file systems are re-instantiated after re-configuration
 			CACHE.clear();
+			FS_FACTORIES.clear();
 
 			// configure all file system factories
-			for (FileSystemFactory factory : FS_FACTORIES.values()) {
+			for (FileSystemFactory factory : RAW_FACTORIES) {
 				factory.configure(config);
+				String scheme = factory.getScheme();
+
+				FileSystemFactory fsf = ConnectionLimitingFactory.decorateIfLimited(factory, scheme, config);
+				FS_FACTORIES.put(scheme, fsf);
 			}
 
 			// configure the default (fallback) factory
 			FALLBACK_FACTORY.configure(config);
 
 			// also read the default file system scheme
-			final String stringifiedUri = config.getString(ConfigConstants.FILESYSTEM_SCHEME, null);
+			final String stringifiedUri = config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
 			if (stringifiedUri == null) {
 				DEFAULT_SCHEME = null;
 			}
@@ -269,7 +281,7 @@ public abstract class FileSystem {
 				}
 				catch (URISyntaxException e) {
 					throw new IllegalConfigurationException("The default file system scheme ('" +
-							ConfigConstants.FILESYSTEM_SCHEME + "') is invalid: " + stringifiedUri, e);
+							CoreOptions.DEFAULT_FILESYSTEM_SCHEME + "') is invalid: " + stringifiedUri, e);
 				}
 			}
 		}
@@ -366,6 +378,13 @@ public abstract class FileSystem {
 				if (cached != null) {
 					return cached;
 				}
+			}
+
+			// this "default" initialization makes sure that the FileSystem class works
+			// even when not configured with an explicit Flink configuration, like on
+			// JobManager or TaskManager setup
+			if (FS_FACTORIES.isEmpty()) {
+				initialize(new Configuration());
 			}
 
 			// Try to create a new file system
@@ -907,11 +926,11 @@ public abstract class FileSystem {
 	 *
 	 * @return A map from the file system scheme to corresponding file system factory.
 	 */
-	private static HashMap<String, FileSystemFactory> loadFileSystems() {
-		final HashMap<String, FileSystemFactory> map = new HashMap<>();
+	private static List<FileSystemFactory> loadFileSystems() {
+		final ArrayList<FileSystemFactory> list = new ArrayList<>();
 
 		// by default, we always have the local file system factory
-		map.put("file", new LocalFileSystemFactory());
+		list.add(new LocalFileSystemFactory());
 
 		LOG.debug("Loading extension file systems via services");
 
@@ -926,9 +945,8 @@ public abstract class FileSystem {
 			while (iter.hasNext()) {
 				try {
 					FileSystemFactory factory = iter.next();
-					String scheme = factory.getScheme();
-					map.put(scheme, factory);
-					LOG.debug("Added file system {}:{}", scheme, factory.getClass().getName());
+					list.add(factory);
+					LOG.debug("Added file system {}:{}", factory.getScheme(), factory.getClass().getName());
 				}
 				catch (Throwable t) {
 					// catching Throwable here to handle various forms of class loading
@@ -945,7 +963,7 @@ public abstract class FileSystem {
 			LOG.error("Failed to load additional file systems via services", t);
 		}
 
-		return map;
+		return Collections.unmodifiableList(list);
 	}
 
 	/**

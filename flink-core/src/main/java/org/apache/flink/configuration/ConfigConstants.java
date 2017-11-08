@@ -614,7 +614,10 @@ public final class ConfigConstants {
 	 * Key to specify the default filesystem to be used by a job. In the case of
 	 * <code>file:///</code>, which is the default (see {@link ConfigConstants#DEFAULT_FILESYSTEM_SCHEME}),
 	 * the local filesystem is going to be used to resolve URIs without an explicit scheme.
-	 * */
+	 *
+	 * @deprecated Use {@link CoreOptions#DEFAULT_FILESYSTEM_SCHEME} instead.
+	 */
+	@Deprecated
 	public static final String FILESYSTEM_SCHEME = "fs.default-scheme";
 
 	/**

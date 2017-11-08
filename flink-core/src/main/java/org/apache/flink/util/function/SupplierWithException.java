@@ -16,33 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.fs.local;
-
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemFactory;
-
-import java.net.URI;
+package org.apache.flink.util.function;
 
 /**
- * A factory for the {@link LocalFileSystem}.
+ * A functional interface for a {@link java.util.function.Supplier} that may
+ * throw exceptions.
+ *
+ * @param <R> The type of the result of the supplier.
+ * @param <E> The type of Exceptions thrown by this function.
  */
-@PublicEvolving
-public class LocalFileSystemFactory implements FileSystemFactory {
+@FunctionalInterface
+public interface SupplierWithException<R, E extends Throwable> {
 
-	@Override
-	public String getScheme() {
-		return LocalFileSystem.getLocalFsURI().getScheme();
-	}
-
-	@Override
-	public void configure(Configuration config) {
-		// the local file system takes no configuration, so nothing to do here
-	}
-
-	@Override
-	public FileSystem create(URI fsUri) {
-		return LocalFileSystem.getSharedInstance();
-	}
+	/**
+	 * Gets the result of this supplier.
+	 *
+	 * @return The result of thus supplier.
+	 * @throws E This function may throw an exception.
+	 */
+	R get() throws E;
 }
