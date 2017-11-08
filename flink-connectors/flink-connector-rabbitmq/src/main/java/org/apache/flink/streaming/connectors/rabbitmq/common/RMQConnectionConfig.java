@@ -303,7 +303,7 @@ public class RMQConnectionConfig implements Serializable {
 		private String virtualHost;
 		private String username;
 		private String password;
-		private boolean queueDeclaration;
+		private Boolean queueDeclaration;
 
 		private Integer networkRecoveryInterval;
 		private Boolean automaticRecovery;
@@ -441,7 +441,7 @@ public class RMQConnectionConfig implements Serializable {
 		 * @param automaticRecovery if true, enables connection recovery
 		 * @return the Builder
 		 */
-		public Builder setAutomaticRecovery(Boolean automaticRecovery) {
+		public Builder setAutomaticRecovery(boolean automaticRecovery) {
 			this.automaticRecovery = automaticRecovery;
 			return this;
 		}
