@@ -99,6 +99,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The Task represents one execution of a parallel subtask on a TaskManager.
@@ -263,6 +264,12 @@ public class Task implements Runnable, TaskActions {
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationTimeout;
+
+	/**
+	 * This class loader should be set as the context class loader of the threads in
+	 * {@link #asyncCallDispatcher} because user code may dynamically load classes in all callbacks.
+	 */
+	private ClassLoader userCodeClassLoader;
 
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
@@ -563,7 +570,6 @@ public class Task implements Runnable, TaskActions {
 		Map<String, Future<Path>> distributedCacheEntries = new HashMap<String, Future<Path>>();
 		AbstractInvokable invokable = null;
 
-		ClassLoader userCodeClassLoader;
 		try {
 			// ----------------------------
 			//  Task Bootstrap - We periodically
@@ -580,7 +586,7 @@ public class Task implements Runnable, TaskActions {
 			// this may involve downloading the job's JAR files and/or classes
 			LOG.info("Loading JAR files for task {}.", this);
 
-			userCodeClassLoader = createUserCodeClassloader(libraryCache);
+			userCodeClassLoader = createUserCodeClassloader();
 			final ExecutionConfig executionConfig = serializedExecutionConfig.deserializeValue(userCodeClassLoader);
 
 			if (executionConfig.getTaskCancellationInterval() >= 0) {
@@ -865,7 +871,7 @@ public class Task implements Runnable, TaskActions {
 		}
 	}
 
-	private ClassLoader createUserCodeClassloader(LibraryCacheManager libraryCache) throws Exception {
+	private ClassLoader createUserCodeClassloader() throws Exception {
 		long startDownloadTime = System.currentTimeMillis();
 
 		// triggers the download of all missing jar files from the job manager
@@ -1342,15 +1348,19 @@ public class Task implements Runnable, TaskActions {
 			if (executionState != ExecutionState.RUNNING) {
 				return;
 			}
-			
+
 			// get ourselves a reference on the stack that cannot be concurrently modified
 			ExecutorService executor = this.asyncCallDispatcher;
 			if (executor == null) {
 				// first time use, initialize
+				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
 				executor = Executors.newSingleThreadExecutor(
-						new DispatcherThreadFactory(TASK_THREADS_GROUP, "Async calls on " + taskNameWithSubtask));
+						new DispatcherThreadFactory(
+							TASK_THREADS_GROUP,
+							"Async calls on " + taskNameWithSubtask,
+							userCodeClassLoader));
 				this.asyncCallDispatcher = executor;
-				
+
 				// double-check for execution state, and make sure we clean up after ourselves
 				// if we created the dispatcher while the task was concurrently canceled
 				if (executionState != ExecutionState.RUNNING) {
