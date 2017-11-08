@@ -148,8 +148,9 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testSerializable() throws Exception {
-		ResourceSpec rs = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(1.1));
-		byte[] buffer = InstantiationUtil.serializeObject(rs);
-		InstantiationUtil.deserializeObject(buffer, ClassLoader.getSystemClassLoader());
+		ResourceSpec rs1 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(1.1));
+		byte[] buffer = InstantiationUtil.serializeObject(rs1);
+		ResourceSpec rs2 = InstantiationUtil.deserializeObject(buffer, ClassLoader.getSystemClassLoader());
+		assertTrue(rs1.equals(rs2));
 	}
 }
