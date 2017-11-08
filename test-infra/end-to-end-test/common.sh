@@ -17,15 +17,27 @@
 # limitations under the License.
 ################################################################################
 
-set -e
 set -o pipefail
 
-export FLINK_DIR="$1"
-export CLUSTER_MODE="$2"
+if [[ -z $FLINK_DIR ]]; then
+    echo "FLINK_DIR needs to point to a Flink distribution directory"
+    exit 1
+fi
+if [[ -z $CLUSTER_MODE ]]; then
+    echo "CLUSTER_MODE needs to be one of local or cluster."
+    exit 1
+fi
 
 export PASS=1
 
 echo "Flink dist directory: $FLINK_DIR"
+
+TEST_ROOT=`pwd`
+TEST_INFRA_DIR="$0"
+TEST_INFRA_DIR=`dirname "$TEST_INFRA_DIR"`
+cd $TEST_INFRA_DIR
+TEST_INFRA_DIR=`pwd`
+cd $TEST_ROOT
 
 # used to randomize created directories
 export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
@@ -73,6 +85,7 @@ function stop_cluster {
       | grep -v "AskTimeoutException" \
       | grep -v "WARN  akka.remote.transport.netty.NettyTransport" \
       | grep -v  "WARN  org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" \
+      | grep -v "jvm-exit-on-fatal-error" \
       | grep -iq "error"; then
     echo "Found error in log files:"
     cat $FLINK_DIR/log/*
@@ -132,10 +145,6 @@ function check_all_pass {
   echo "All tests PASS"
 }
 
-function clean_data_dir {
-  rm -r $TEST_DATA_DIR
-}
-
 function s3_put {
   local_file=$1
   bucket=$2
@@ -172,3 +181,11 @@ function s3_delete {
     -H "Authorization: AWS ${s3Key}:${signature}" \
     https://${bucket}.s3.amazonaws.com/${s3_file}
 }
+
+# make sure to clean up even in case of failures
+function cleanup {
+  stop_cluster
+  rm -r $TEST_DATA_DIR
+  check_all_pass
+}
+trap cleanup EXIT
