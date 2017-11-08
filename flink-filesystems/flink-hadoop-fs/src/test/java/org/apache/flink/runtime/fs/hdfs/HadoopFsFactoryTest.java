@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -39,7 +40,7 @@ public class HadoopFsFactoryTest extends TestLogger {
 		final URI uri = URI.create("hdfs://localhost:12345/");
 
 		HadoopFsFactory factory = new HadoopFsFactory();
-		HadoopFileSystem fs = factory.create(uri);
+		FileSystem fs = factory.create(uri);
 
 		assertEquals(uri.getScheme(), fs.getUri().getScheme());
 		assertEquals(uri.getAuthority(), fs.getUri().getAuthority());
