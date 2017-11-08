@@ -17,24 +17,9 @@
 # limitations under the License.
 ################################################################################
 
-
-set -e
-set -o pipefail
-
-# Convert relative path to absolute path
-TEST_ROOT=`pwd`
-TEST_INFRA_DIR="$0"
-TEST_INFRA_DIR=`dirname "$TEST_INFRA_DIR"`
-cd $TEST_INFRA_DIR
-TEST_INFRA_DIR=`pwd`
-cd $TEST_ROOT
-
-. "$TEST_INFRA_DIR"/common.sh
+source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/target/ClassLoaderTestProgram.jar
-
-# kill any remaining JobManagers/TaskManagers at the end
-trap 'pkill -f "JobManager|TaskManager"' EXIT
 
 echo "Testing parent-first class loading"
 
@@ -127,6 +112,3 @@ if [[ "$OUTPUT" != "$EXPECTED" ]]; then
   echo -e "ACTUAL: $OUTPUT"
   PASS=""
 fi
-
-clean_data_dir
-check_all_pass
