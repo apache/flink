@@ -245,7 +245,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	public boolean stopWorker(YarnWorkerNode workerNode) {
 		if (workerNode != null) {
 			Container container = workerNode.getContainer();
-			log.info("Stopping container {}.", container.getId().toString());
+			log.info("Stopping container {}.", container.getId());
 			// release the container on the node manager
 			try {
 				nodeManagerClient.stopContainer(container.getId(), container.getNodeId());
@@ -255,7 +255,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			resourceManagerClient.releaseAssignedContainer(container.getId());
 			workerNodeMap.remove(workerNode.getResourceID());
 		} else {
-			log.error("Can not find container with resource ID {}.", workerNode.getResourceID().toString());
+			log.error("Can not find container with resource ID {}.", workerNode.getResourceID());
 		}
 		return true;
 	}
