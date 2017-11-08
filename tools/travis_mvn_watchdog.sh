@@ -301,6 +301,22 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
+	CODEHAUS_JACKSON=`cat allClasses | grep '^org/codehaus/jackson' | wc -l`
+	if [ "$CODEHAUS_JACKSON" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$CODEHAUS_JACKSON' unshaded org.codehaus.jackson classes in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
+	FASTERXML_JACKSON=`cat allClasses | grep '^com/fasterxml/jackson' | wc -l`
+	if [ "$FASTERXML_JACKSON" != "0" ]; then
+		echo "=============================================================================="
+		echo "Detected '$FASTERXML_JACKSON' unshaded com.fasterxml.jackson classes in fat jar"
+		echo "=============================================================================="
+		return 1
+	fi
+
 	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
 	if [ "$SNAPPY" == "0" ]; then
 		echo "=============================================================================="
