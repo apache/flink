@@ -158,8 +158,7 @@ public class TypeExtractionUtils {
 			throw new TypeExtractionException("No lambda method found.");
 		}
 		catch (Exception e) {
-			throw new TypeExtractionException("Could not extract lambda method out of function: " +
-				e.getClass().getSimpleName() + " - " + e.getMessage(), e);
+			throw new TypeExtractionException("Could not extract lambda method out of function: ", e);
 		}
 	}
 

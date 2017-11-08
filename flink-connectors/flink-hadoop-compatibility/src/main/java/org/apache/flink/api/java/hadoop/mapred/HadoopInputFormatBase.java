@@ -130,13 +130,11 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			return getFileStats(cachedFileStats, paths, new ArrayList<FileStatus>(1));
 		} catch (IOException ioex) {
 			if (LOG.isWarnEnabled()) {
-				LOG.warn("Could not determine statistics due to an io error: "
-						+ ioex.getMessage());
+				LOG.warn("Could not determine statistics due to an io error: ", ioex);
 			}
 		} catch (Throwable t) {
 			if (LOG.isErrorEnabled()) {
-				LOG.error("Unexpected problem while getting the file statistics: "
-						+ t.getMessage(), t);
+				LOG.error("Unexpected problem while getting the file statistics: ", t);
 			}
 		}
 

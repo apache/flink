@@ -205,7 +205,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 		}
 		catch (Exception e) {
-			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(), e);
+			throw new ProgramInvocationException("Cannot establish connection to JobManager: ", e);
 		}
 
 		try {
@@ -215,8 +215,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			throw e;
 		}
 		catch (Exception e) {
-			String term = e.getMessage() == null ? "." : (": " + e.getMessage());
-			throw new ProgramInvocationException("The program execution failed" + term, e);
+			throw new ProgramInvocationException("The program execution failed: ", e);
 		}
 		finally {
 			try {

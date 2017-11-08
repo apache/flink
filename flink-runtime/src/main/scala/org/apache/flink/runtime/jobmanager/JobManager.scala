@@ -1235,7 +1235,7 @@ class JobManager(
         catch {
           case t: Throwable =>
             throw new JobSubmissionException(jobId,
-              "Cannot set up the user code libraries: " + t.getMessage, t)
+              "Cannot set up the user code libraries: ", t)
         }
 
         val userCodeLoader = libraryCacheManager.getClassLoader(jobGraph.getJobID)

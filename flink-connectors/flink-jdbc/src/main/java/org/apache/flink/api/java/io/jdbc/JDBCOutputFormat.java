@@ -237,7 +237,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			try {
 				upload.close();
 			} catch (SQLException e) {
-				LOG.info("JDBC statement could not be closed: " + e.getMessage());
+				LOG.info("JDBC statement could not be closed: ", e);
 			} finally {
 				upload = null;
 			}
@@ -247,7 +247,7 @@ public class JDBCOutputFormat extends RichOutputFormat<Row> {
 			try {
 				dbConn.close();
 			} catch (SQLException se) {
-				LOG.info("JDBC connection could not be closed: " + se.getMessage());
+				LOG.info("JDBC connection could not be closed: ", se);
 			} finally {
 				dbConn = null;
 			}

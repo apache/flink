@@ -943,7 +943,7 @@ public class FlinkKafkaProducer011<IN>
 		if (e != null) {
 			// prevent double throwing
 			asyncException = null;
-			throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
+			throw new Exception("Failed to send data to Kafka: ", e);
 		}
 	}
 

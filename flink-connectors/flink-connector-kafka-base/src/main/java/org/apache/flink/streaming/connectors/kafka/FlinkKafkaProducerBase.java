@@ -250,7 +250,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 				@Override
 				public void onCompletion(RecordMetadata metadata, Exception e) {
 					if (e != null) {
-						LOG.error("Error while sending record to Kafka: " + e.getMessage(), e);
+						LOG.error("Error while sending record to Kafka: ", e);
 					}
 					acknowledgeMessage();
 				}
@@ -370,7 +370,7 @@ public abstract class FlinkKafkaProducerBase<IN> extends RichSinkFunction<IN> im
 		if (e != null) {
 			// prevent double throwing
 			asyncException = null;
-			throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
+			throw new Exception("Failed to send data to Kafka: ", e);
 		}
 	}
 

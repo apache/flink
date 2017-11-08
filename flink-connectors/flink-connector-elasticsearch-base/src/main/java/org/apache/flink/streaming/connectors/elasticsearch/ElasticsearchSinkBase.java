@@ -405,7 +405,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 
 		@Override
 		public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
-			LOG.error("Failed Elasticsearch bulk request: {}", failure.getMessage(), failure.getCause());
+			LOG.error("Failed Elasticsearch bulk request: ", failure);
 
 			try {
 				for (ActionRequest action : request.requests()) {
