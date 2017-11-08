@@ -20,11 +20,9 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemFactory;
-import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 
