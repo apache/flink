@@ -29,10 +29,10 @@ import java.util.Map;
 
 /**
  * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
- * <p>
- * Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
- * <p>
- * All methods in this class are thread-safe.
+ *
+ * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
+ *
+ * <p>All methods in this class are thread-safe.
  */
 @Internal
 public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
