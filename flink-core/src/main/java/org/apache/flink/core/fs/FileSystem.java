@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 /*
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
  * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
@@ -38,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -55,40 +55,40 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * distributed file systems, or local file systems. The abstraction by this file system is very simple,
  * and the set of available operations quite limited, to support the common denominator of a wide
  * range of file systems. For example, appending to or mutating existing files is not supported.
- * 
+ *
  * <p>Flink implements and supports some file system types directly (for example the default
  * machine-local file system). Other file system types are accessed by an implementation that bridges
  * to the suite of file systems supported by Hadoop (such as for example HDFS).
- * 
+ *
  * <h2>Scope and Purpose</h2>
- * 
- * The purpose of this abstraction is used to expose a common and well defined interface for
+ *
+ * <p>The purpose of this abstraction is used to expose a common and well defined interface for
  * access to files. This abstraction is used both by Flink's fault tolerance mechanism (storing
  * state and recovery data) and by reusable built-in connectors (file sources / sinks).
- * 
+ *
  * <p>The purpose of this abstraction is <b>not</b> to give user programs an abstraction with
  * extreme flexibility and control across all possible file systems. That mission would be a folly,
  * as the differences in characteristics of even the most common file systems are already quite
  * large. It is expected that user programs that need specialized functionality of certain file systems
  * in their functions, operations, sources, or sinks instantiate the specialized file system adapters
  * directly.
- * 
+ *
  * <h2>Data Persistence Contract</h2>
- * 
- * The FileSystem's {@link FSDataOutputStream output streams} are used to persistently store data,
+ *
+ * <p>The FileSystem's {@link FSDataOutputStream output streams} are used to persistently store data,
  * both for results of streaming applications and for fault tolerance and recovery. It is therefore
  * crucial that the persistence semantics of these streams are well defined.
- * 
+ *
  * <h3>Definition of Persistence Guarantees</h3>
- * 
- * Data written to an output stream is considered persistent, if two requirements are met:
- * 
+ *
+ * <p>Data written to an output stream is considered persistent, if two requirements are met:
+ *
  * <ol>
  *     <li><b>Visibility Requirement:</b> It must be guaranteed that all other processes, machines,
  *     virtual machines, containers, etc. that are able to access the file see the data consistently
  *     when given the absolute file path. This requirement is similar to the <i>close-to-open</i>
  *     semantics defined by POSIX, but restricted to the file itself (by its absolute path).</li>
- * 
+ *
  *     <li><b>Durability Requirement:</b> The file system's specific durability/persistence requirements
  *     must be met. These are specific to the particular file system. For example the
  *     {@link LocalFileSystem} does not provide any durability guarantees for crashes of both
@@ -101,14 +101,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * listing the directory contents) are not required to be complete for the data in the file stream
  * to be considered persistent. This relaxation is important for file systems where updates to
  * directory contents are only eventually consistent.
- * 
+ *
  * <p>The {@link FSDataOutputStream} has to guarantee data persistence for the written bytes
  * once the call to {@link FSDataOutputStream#close()} returns.
  *
  * <h3>Examples</h3>
  *
  * <ul>
- *     <li>For <b>fault-tolerant distributed file systems</b>, data is considered persistent once 
+ *     <li>For <b>fault-tolerant distributed file systems</b>, data is considered persistent once
  *     it has been received and acknowledged by the file system, typically by having been replicated
  *     to a quorum of machines (<i>durability requirement</i>). In addition the absolute file path
  *     must be visible to all other machines that will potentially access the file (<i>visibility
@@ -125,12 +125,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     <li>A <b>local file system</b> must support the POSIX <i>close-to-open</i> semantics.
  *     Because the local file system does not have any fault tolerance guarantees, no further
  *     requirements exist.
- * 
+ *
  *     <p>The above implies specifically that data may still be in the OS cache when considered
  *     persistent from the local file system's perspective. Crashes that cause the OS cache to loose
  *     data are considered fatal to the local machine and are not covered by the local file system's
  *     guarantees as defined by Flink.
- * 
+ *
  *     <p>That means that computed results, checkpoints, and savepoints that are written only to
  *     the local filesystem are not guaranteed to be recoverable from the local machine's failure,
  *     making local file systems unsuitable for production setups.</li>
@@ -138,14 +138,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <h2>Updating File Contents</h2>
  *
- * Many file systems either do not support overwriting contents of existing files at all, or do
+ * <p>Many file systems either do not support overwriting contents of existing files at all, or do
  * not support consistent visibility of the updated contents in that case. For that reason,
  * Flink's FileSystem does not support appending to existing files, or seeking within output streams
  * so that previously written data could be overwritten.
  *
  * <h2>Overwriting Files</h2>
  *
- * Overwriting files is in general possible. A file is overwritten by deleting it and creating
+ * <p>Overwriting files is in general possible. A file is overwritten by deleting it and creating
  * a new file. However, certain filesystems cannot make that change synchronously visible
  * to all parties that have access to the file.
  * For example <a href="https://aws.amazon.com/documentation/s3/">Amazon S3</a> guarantees only
@@ -154,29 +154,29 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>To avoid these consistency issues, the implementations of failure/recovery mechanisms in
  * Flink strictly avoid writing to the same file path more than once.
- * 
+ *
  * <h2>Thread Safety</h2>
- * 
- * Implementations of {@code FileSystem} must be thread-safe: The same instance of FileSystem
+ *
+ * <p>Implementations of {@code FileSystem} must be thread-safe: The same instance of FileSystem
  * is frequently shared across multiple threads in Flink and must be able to concurrently
  * create input/output streams and list file metadata.
- * 
+ *
  * <p>The {@link FSDataOutputStream} and {@link FSDataOutputStream} implementations are strictly
  * <b>not thread-safe</b>. Instances of the streams should also not be passed between threads
  * in between read or write operations, because there are no guarantees about the visibility of
  * operations across threads (many operations do not create memory fences).
- * 
+ *
  * <h2>Streams Safety Net</h2>
- * 
- * When application code obtains a FileSystem (via {@link FileSystem#get(URI)} or via
+ *
+ * <p>When application code obtains a FileSystem (via {@link FileSystem#get(URI)} or via
  * {@link Path#getFileSystem()}), the FileSystem instantiates a safety net for that FileSystem.
  * The safety net ensures that all streams created from the FileSystem are closed when the
  * application task finishes (or is canceled or failed). That way, the task's threads do not
  * leak connections.
- * 
+ *
  * <p>Internal runtime code can explicitly obtain a FileSystem that does not use the safety
  * net via {@link FileSystem#getUnguardedFileSystem(URI)}.
- * 
+ *
  * @see FSDataInputStream
  * @see FSDataOutputStream
  */
@@ -201,7 +201,7 @@ public abstract class FileSystem {
 
 	// ------------------------------------------------------------------------
 
-	/** Logger for all FileSystem work */
+	/** Logger for all FileSystem work. */
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
 
 	/** This lock guards the methods {@link #initOutPathLocalFS(Path, WriteMode, boolean)} and
@@ -223,14 +223,13 @@ public abstract class FileSystem {
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
 	private static URI DEFAULT_SCHEME;
-	
 
 	// ------------------------------------------------------------------------
 	//  Initialization
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Initializes the shared file system settings. 
+	 * Initializes the shared file system settings.
 	 *
 	 * <p>The given configuration is passed to each file system factory to initialize the respective
 	 * file systems. Because the configuration of file systems may be different subsequent to the call
@@ -351,7 +350,7 @@ public abstract class FileSystem {
 				}
 			}
 
-			// print a helpful pointer for malformed local URIs (happens a lot to new users) 
+			// print a helpful pointer for malformed local URIs (happens a lot to new users)
 			if (uri.getScheme().equals("file") && uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
 				String supposedUri = "file:///" + uri.getAuthority() + uri.getPath();
 
@@ -382,7 +381,7 @@ public abstract class FileSystem {
 				}
 				catch (UnsupportedFileSystemSchemeException e) {
 					throw new UnsupportedFileSystemSchemeException(
-							"Could not find a file system implementation for scheme '" + uri.getScheme() + 
+							"Could not find a file system implementation for scheme '" + uri.getScheme() +
 									"'. The scheme is not directly supported by Flink and no Hadoop file " +
 									"system to support this scheme could be loaded.", e);
 				}
@@ -479,7 +478,7 @@ public abstract class FileSystem {
 	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
 	 *
 	 * @return the number of bytes that large input files should be optimally be split into to minimize I/O time
-	 * 
+	 *
 	 * @deprecated This value is no longer used and is meaningless.
 	 */
 	@Deprecated
@@ -539,7 +538,7 @@ public abstract class FileSystem {
 
 	/**
 	 * Opens an FSDataOutputStream at the indicated Path.
-	 * 
+	 *
 	 * <p>This method is deprecated, because most of its parameters are ignored by most file systems.
 	 * To control for example the replication factor and block size in the Hadoop Distributed File system,
 	 * make sure that the respective Hadoop configuration file is either linked from the Flink configuration,
@@ -556,13 +555,13 @@ public abstract class FileSystem {
 	 *        required block replication for the file.
 	 * @param blockSize
 	 *        the size of the file blocks
-	 * 
+	 *
 	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
 	 *                     a file already exists at that path and the write mode indicates to not
 	 *                     overwrite the file.
-	 * 
+	 *
 	 * @deprecated Deprecated because not well supported across types of file systems.
-	 *             Control the behavior of specific file systems via configurations instead. 
+	 *             Control the behavior of specific file systems via configurations instead.
 	 */
 	@Deprecated
 	public FSDataOutputStream create(
@@ -583,11 +582,11 @@ public abstract class FileSystem {
 	 * @param overwrite
 	 *        if a file with this name already exists, then if true,
 	 *        the file will be overwritten, and if false an error will be thrown.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
 	 *                     a file already exists at that path and the write mode indicates to not
 	 *                     overwrite the file.
-	 * 
+	 *
 	 * @deprecated Use {@link #create(Path, WriteMode)} instead.
 	 */
 	@Deprecated
@@ -597,7 +596,7 @@ public abstract class FileSystem {
 
 	/**
 	 * Opens an FSDataOutputStream to a new file at the given path.
-	 * 
+	 *
 	 * <p>If the file already exists, the behavior depends on the given {@code WriteMode}.
 	 * If the mode is set to {@link WriteMode#NO_OVERWRITE}, then this method fails with an
 	 * exception.
@@ -605,7 +604,7 @@ public abstract class FileSystem {
 	 * @param f The file path to write to
 	 * @param overwriteMode The action to take if a file or directory already exists at the given path.
 	 * @return The stream to the new file at the target path.
-	 * 
+	 *
 	 * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because
 	 *                     a file already exists at that path and the write mode indicates to not
 	 *                     overwrite the file.
@@ -674,7 +673,7 @@ public abstract class FileSystem {
 	 *     </ul>
 	 *   </li>
 	 * </ul>
-	 * 
+	 *
 	 * <p>Files contained in an existing directory are not deleted, because multiple instances of a
 	 * DataSinkTask might call this function at the same time and hence might perform concurrent
 	 * delete operations on the file system (possibly deleting output files of concurrently running tasks).
@@ -684,7 +683,7 @@ public abstract class FileSystem {
 	 * @param outPath Output path that should be prepared.
 	 * @param writeMode Write mode to consider.
 	 * @param createDirectory True, to initialize a directory at the given path, false to prepare space for a file.
-	 *    
+	 *
 	 * @return True, if the path was successfully prepared, false otherwise.
 	 * @throws IOException Thrown, if any of the file system access operations failed.
 	 */
@@ -708,7 +707,7 @@ public abstract class FileSystem {
 			// restore the interruption state
 			Thread.currentThread().interrupt();
 
-			// leave the method - we don't have the lock anyways 
+			// leave the method - we don't have the lock anyways
 			throw new IOException("The thread was interrupted while trying to initialize the output directory");
 		}
 
@@ -733,7 +732,7 @@ public abstract class FileSystem {
 					} else {
 						// file may not be overwritten
 						throw new IOException("File or directory already exists. Existing files and directories " +
-								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " + 
+								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " +
 								WriteMode.OVERWRITE.name() + " mode to overwrite existing files and directories.");
 					}
 
@@ -748,7 +747,7 @@ public abstract class FileSystem {
 								delete(outPath, true);
 							}
 							catch (IOException e) {
-								throw new IOException("Could not remove existing directory '" + outPath + 
+								throw new IOException("Could not remove existing directory '" + outPath +
 										"' to allow overwrite by result file", e);
 							}
 						}
@@ -798,27 +797,27 @@ public abstract class FileSystem {
 	/**
 	 * Initializes output directories on distributed file systems according to the given write mode.
 	 *
-	 * WriteMode.NO_OVERWRITE &amp; parallel output:
+	 * <p>WriteMode.NO_OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing file or directory raises an exception.
 	 *
-	 * WriteMode.NO_OVERWRITE &amp; NONE parallel output:
+	 * <p>WriteMode.NO_OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory raises an exception.
 	 *
-	 * WriteMode.OVERWRITE &amp; parallel output:
+	 * <p>WriteMode.OVERWRITE &amp; parallel output:
 	 *  - A directory is created if the output path does not exist.
 	 *  - An existing directory and its content is deleted and a new directory is created.
 	 *  - An existing file is deleted and replaced by a new directory.
 	 *
-	 *  WriteMode.OVERWRITE &amp; NONE parallel output:
+	 *  <p>WriteMode.OVERWRITE &amp; NONE parallel output:
 	 *  - An existing file or directory is deleted and replaced by a new directory.
 	 *
 	 * @param outPath Output path that should be prepared.
 	 * @param writeMode Write mode to consider.
 	 * @param createDirectory True, to initialize a directory at the given path, false otherwise.
-	 *    
+	 *
 	 * @return True, if the path was successfully prepared, false otherwise.
-	 * 
+	 *
 	 * @throws IOException Thrown, if any of the file system access operations failed.
 	 */
 	public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean createDirectory) throws IOException {
@@ -841,7 +840,7 @@ public abstract class FileSystem {
 			// restore the interruption state
 			Thread.currentThread().interrupt();
 
-			// leave the method - we don't have the lock anyways 
+			// leave the method - we don't have the lock anyways
 			throw new IOException("The thread was interrupted while trying to initialize the output directory");
 		}
 
@@ -850,13 +849,13 @@ public abstract class FileSystem {
 			if (exists(outPath)) {
 				// path exists, check write mode
 				switch(writeMode) {
-	
+
 				case NO_OVERWRITE:
 					// file or directory may not be overwritten
 					throw new IOException("File or directory already exists. Existing files and directories are not overwritten in " +
 							WriteMode.NO_OVERWRITE.name() + " mode. Use " + WriteMode.OVERWRITE.name() +
 								" mode to overwrite existing files and directories.");
-	
+
 				case OVERWRITE:
 					// output path exists. We delete it and all contained files in case of a directory.
 					try {
@@ -867,12 +866,12 @@ public abstract class FileSystem {
 						// this will be handled later.
 					}
 					break;
-	
+
 				default:
-					throw new IllegalArgumentException("Invalid write mode: "+writeMode);
+					throw new IllegalArgumentException("Invalid write mode: " + writeMode);
 				}
 			}
-	
+
 			if (createDirectory) {
 				// Output directory needs to be created
 				try {
@@ -881,10 +880,10 @@ public abstract class FileSystem {
 					}
 				} catch (IOException ioe) {
 					// Some other thread might already have created the directory.
-					// If - for some other reason - the directory could not be created  
+					// If - for some other reason - the directory could not be created
 					// and the path does not exist, this will be handled later.
 				}
-	
+
 				// double check that the output directory exists
 				return exists(outPath) && getFileStatus(outPath).isDir();
 			}
@@ -906,7 +905,7 @@ public abstract class FileSystem {
 	 * Aside from the {@link LocalFileSystem}, these file systems are loaded
 	 * via Java's service framework.
 	 *
-	 * @return A map from the file system scheme to corresponding file system factory. 
+	 * @return A map from the file system scheme to corresponding file system factory.
 	 */
 	private static HashMap<String, FileSystemFactory> loadFileSystems() {
 		final HashMap<String, FileSystemFactory> map = new HashMap<>();
@@ -935,7 +934,7 @@ public abstract class FileSystem {
 					// catching Throwable here to handle various forms of class loading
 					// and initialization errors
 					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-					LOG.error("Failed to load a file systems via services", t);
+					LOG.error("Failed to load a file system via services", t);
 				}
 			}
 		}
@@ -948,7 +947,7 @@ public abstract class FileSystem {
 
 		return map;
 	}
-	
+
 	/**
 	 * Utility loader for the Hadoop file system factory.
 	 * We treat the Hadoop FS factory in a special way, because we use it as a catch
@@ -963,10 +962,12 @@ public abstract class FileSystem {
 		// first, see if the Flink runtime classes are available
 		final Class<? extends FileSystemFactory> factoryClass;
 		try {
-			factoryClass = Class.forName("org.apache.flink.runtime.fs.hdfs.HadoopFsFactory", false, cl).asSubclass(FileSystemFactory.class);
+			factoryClass = Class
+					.forName("org.apache.flink.runtime.fs.hdfs.HadoopFsFactory", false, cl)
+					.asSubclass(FileSystemFactory.class);
 		}
 		catch (ClassNotFoundException e) {
-			LOG.info("No Flink runtime dependency present. " + 
+			LOG.info("No Flink runtime dependency present. " +
 					"The extended set of supported File Systems via Hadoop is not available.");
 			return new UnsupportedSchemeFactory("Flink runtime classes missing in classpath/dependencies.");
 		}
@@ -1039,7 +1040,7 @@ public abstract class FileSystem {
 
 		@Override
 		public int hashCode() {
-			return 31 * scheme.hashCode() + 
+			return 31 * scheme.hashCode() +
 					(authority == null ? 17 : authority.hashCode());
 		}
 

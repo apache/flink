@@ -32,13 +32,13 @@ import java.io.IOException;
 @Internal
 public abstract class AbstractMultiFSDataInputStream extends FSDataInputStream {
 
-	/** Inner stream for the currently accessed segment of the virtual global stream */
+	/** Inner stream for the currently accessed segment of the virtual global stream. */
 	protected FSDataInputStream delegate;
 
-	/** Position in the virtual global stream */
+	/** Position in the virtual global stream. */
 	protected long totalPos;
 
-	/** Total available bytes in the virtual global stream */
+	/** Total available bytes in the virtual global stream. */
 	protected long totalAvailable;
 
 	public AbstractMultiFSDataInputStream() {
@@ -48,7 +48,7 @@ public abstract class AbstractMultiFSDataInputStream extends FSDataInputStream {
 	@Override
 	public void seek(long desired) throws IOException {
 
-		if(desired == totalPos) {
+		if (desired == totalPos) {
 			return;
 		}
 
