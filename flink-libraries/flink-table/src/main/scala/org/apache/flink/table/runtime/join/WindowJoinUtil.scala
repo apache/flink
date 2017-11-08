@@ -321,10 +321,14 @@ object WindowJoinUtil {
       leftLiteral.get - rightLiteral.get
     }
     val boundary = timePred.pred.getKind match {
-      case SqlKind.LESS_THAN =>
+      case SqlKind.LESS_THAN if timePred.leftInputOnLeftSide =>
         tmpTimeOffset - 1
-      case SqlKind.GREATER_THAN =>
+      case SqlKind.LESS_THAN if !timePred.leftInputOnLeftSide =>
         tmpTimeOffset + 1
+      case SqlKind.GREATER_THAN if timePred.leftInputOnLeftSide =>
+        tmpTimeOffset + 1
+      case SqlKind.GREATER_THAN if !timePred.leftInputOnLeftSide =>
+        tmpTimeOffset - 1
       case _ =>
         tmpTimeOffset
     }
