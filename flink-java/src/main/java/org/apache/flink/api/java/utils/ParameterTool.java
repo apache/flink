@@ -38,6 +38,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -212,25 +213,21 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return fromMap((Map) System.getProperties());
 	}
 
-	private static final Object placeholder = new Object();
-
 	// ------------------ ParameterUtil  ------------------------
 	protected final Map<String, String> data;
 
 	// data which is only used on the client and does not need to be transmitted
 	protected transient Map<String, String> defaultData;
-	protected transient Map<String, Object> unrequestedParameters;
+	protected transient Set<String> unrequestedParameters;
 
 	private ParameterTool(Map<String, String> data) {
 		this.data = Collections.unmodifiableMap(new HashMap<>(data));
 
 		this.defaultData = new ConcurrentHashMap<>(data.size());
 
-		this.unrequestedParameters = new ConcurrentHashMap<>(data.size());
+		this.unrequestedParameters = Collections.newSetFromMap(new ConcurrentHashMap<>(data.size()));
 
-		for (String key : data.keySet()) {
-			unrequestedParameters.put(key, placeholder);
-		}
+		unrequestedParameters.addAll(data.keySet());
 	}
 
 	@Override
@@ -259,7 +256,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 */
 	@PublicEvolving
 	public Set<String> getUnrequestedParameters() {
-		return Collections.unmodifiableSet(unrequestedParameters.keySet());
+		return Collections.unmodifiableSet(unrequestedParameters);
 	}
 
 	// ------------------ Get data from the util ----------------
@@ -597,7 +594,15 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 		ParameterTool ret = new ParameterTool(resultData);
 
-		ret.unrequestedParameters.putAll(other.unrequestedParameters);
+		final HashSet<String> requestedParametersLeft = new HashSet<>(data.keySet());
+		requestedParametersLeft.removeAll(unrequestedParameters);
+
+		final HashSet<String> requestedParametersRight = new HashSet<>(other.data.keySet());
+		requestedParametersRight.removeAll(other.unrequestedParameters);
+
+		ret.unrequestedParameters.removeAll(requestedParametersLeft);
+		ret.unrequestedParameters.removeAll(requestedParametersRight);
+
 		return ret;
 	}
 
@@ -614,6 +619,6 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		in.defaultReadObject();
 
 		defaultData = Collections.emptyMap();
-		unrequestedParameters = Collections.emptyMap();
+		unrequestedParameters = Collections.emptySet();
 	}
 }
