@@ -544,6 +544,18 @@ case $TEST in
 			printf "==============================================================================\n"
 			test-infra/end-to-end-test/test_streaming_classloader.sh build-target cluster
 			EXIT_CODE=$(($EXIT_CODE+$?))
+
+			printf "\n==============================================================================\n"
+			printf "Running Shaded Hadoop S3A end-to-end test\n"
+			printf "==============================================================================\n"
+			test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh build-target cluster
+			EXIT_CODE=$(($EXIT_CODE+$?))
+
+			printf "\n==============================================================================\n"
+			printf "Running Shaded Presto S3 end-to-end test\n"
+			printf "==============================================================================\n"
+			test-infra/end-to-end-test/test_shaded_presto_s3.sh build-target cluster
+			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
 			printf "\n==============================================================================\n"
 			printf "Previous build failure detected, skipping end-to-end tests.\n"

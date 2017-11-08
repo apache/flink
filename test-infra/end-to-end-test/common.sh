@@ -92,14 +92,14 @@ function stop_cluster {
     PASS=""
   fi
 
-  for f in `ls $FLINK_DIR/log/*.out`
-  do
-    if [[ -s $f ]]; then
-      echo "Found non-empty file $f"
-      cat $f
-      PASS=""
-    fi
-  done
+  if grep -rv "NativeCodeLoader" $FLINK_DIR/log/*.out \
+      | grep -v  "Unable to load native-hadoop" \
+      | grep -v  "amazonaws" \
+      | grep -i "."; then
+    echo "Found non-empty .out files:"
+    cat $FLINK_DIR/log/*.out
+    PASS=""
+  fi
 
   rm $FLINK_DIR/log/*
 }
@@ -134,4 +134,41 @@ function check_all_pass {
 
 function clean_data_dir {
   rm -r $TEST_DATA_DIR
+}
+
+function s3_put {
+  local_file=$1
+  bucket=$2
+  s3_file=$3
+  resource="/${bucket}/${s3_file}"
+  contentType="application/octet-stream"
+  dateValue=`date -R`
+  stringToSign="PUT\n\n${contentType}\n${dateValue}\n${resource}"
+  s3Key=$ARTIFACTS_AWS_ACCESS_KEY
+  s3Secret=$ARTIFACTS_AWS_SECRET_KEY
+  signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
+  curl -X PUT -T "${local_file}" \
+    -H "Host: ${bucket}.s3.amazonaws.com" \
+    -H "Date: ${dateValue}" \
+    -H "Content-Type: ${contentType}" \
+    -H "Authorization: AWS ${s3Key}:${signature}" \
+    https://${bucket}.s3.amazonaws.com/${s3_file}
+}
+
+function s3_delete {
+  bucket=$1
+  s3_file=$2
+  resource="/${bucket}/${s3_file}"
+  contentType="application/octet-stream"
+  dateValue=`date -R`
+  stringToSign="DELETE\n\n${contentType}\n${dateValue}\n${resource}"
+  s3Key=$ARTIFACTS_AWS_ACCESS_KEY
+  s3Secret=$ARTIFACTS_AWS_SECRET_KEY
+  signature=`echo -en ${stringToSign} | openssl sha1 -hmac ${s3Secret} -binary | base64`
+  curl -X DELETE \
+    -H "Host: ${bucket}.s3.amazonaws.com" \
+    -H "Date: ${dateValue}" \
+    -H "Content-Type: ${contentType}" \
+    -H "Authorization: AWS ${s3Key}:${signature}" \
+    https://${bucket}.s3.amazonaws.com/${s3_file}
 }
