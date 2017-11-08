@@ -509,14 +509,18 @@ under the License.
 							</transformers>
 							<finalName>Kafka010Example</finalName>
 							<!-- <outputFile>Kafka.jar</outputFile> -->
+							<artifactSet>
+								<includes>
+									<include>org.apache.kafka:*</include>
+									<include>org.apache.flink:flink-connector-kafka*</include>
+									<include>org.apache.flink:flink-examples-streaming*</include>
+								</includes>
+							</artifactSet>
 							<filters>
 								<filter>
-									<artifact>*</artifact>
+									<artifact>org.apache.flink:flink-examples-streaming*</artifact>
 									<includes>
 										<include>org/apache/flink/streaming/examples/kafka/**</include>
-										<include>org/apache/flink/streaming/connectors/kafka/**</include>
-										<include>org/apache/kafka/**</include>
-										<include>kafka/**</include>
 									</includes>
 								</filter>
 							</filters>
