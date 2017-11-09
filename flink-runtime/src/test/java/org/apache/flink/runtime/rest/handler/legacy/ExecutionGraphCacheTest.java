@@ -23,7 +23,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -233,7 +233,7 @@ public class ExecutionGraphCacheTest extends TestLogger {
 
 			verify(jobManagerGateway, times(1)).requestJob(eq(jobId), any(Time.class));
 		} finally {
-			Executors.gracefulShutdown(5000L, TimeUnit.MILLISECONDS, executor);
+			ExecutorUtils.gracefulShutdown(5000L, TimeUnit.MILLISECONDS, executor);
 		}
 	}
 

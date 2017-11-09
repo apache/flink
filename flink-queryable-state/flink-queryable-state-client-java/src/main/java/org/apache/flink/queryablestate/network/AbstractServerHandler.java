@@ -183,9 +183,16 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 	public abstract CompletableFuture<RESP> handleRequest(final long requestId, final REQ request);
 
 	/**
-	 * Shuts down any handler specific resources, e.g. thread pools etc.
+	 * Shuts down any handler-specific resources, e.g. thread pools etc and returns
+	 * a {@link CompletableFuture}.
+	 *
+	 * <p>If an exception is thrown during the shutdown process, then that exception
+	 * will be included in the returned future.
+	 *
+	 * @return A {@link CompletableFuture} that will be completed when the shutdown
+	 * process actually finishes.
 	 */
-	public abstract void shutdown();
+	public abstract CompletableFuture<Void> shutdown();
 
 	/**
 	 * Task to execute the actual query against the state instance.
