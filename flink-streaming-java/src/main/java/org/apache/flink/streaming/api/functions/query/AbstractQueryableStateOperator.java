@@ -36,6 +36,8 @@ abstract class AbstractQueryableStateOperator<S extends State, IN>
 		extends AbstractStreamOperator<IN>
 		implements OneInputStreamOperator<IN, IN> {
 
+	private static final long serialVersionUID = 7842489558298787382L;
+
 	/** State descriptor for the queryable state instance. */
 	protected final StateDescriptor<? extends S, ?> stateDescriptor;
 
