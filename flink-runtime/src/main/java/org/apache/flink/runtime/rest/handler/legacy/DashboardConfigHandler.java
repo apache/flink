@@ -18,13 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler.legacy;
 
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.LegacyRestHandler;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
-import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
@@ -40,7 +35,7 @@ import java.util.concurrent.Executor;
  * against this web server should behave. It defines for example the refresh interval,
  * and time zone of the server timestamps.
  */
-public class DashboardConfigHandler extends AbstractJsonRequestHandler implements LegacyRestHandler<DispatcherGateway, DashboardConfiguration, EmptyMessageParameters> {
+public class DashboardConfigHandler extends AbstractJsonRequestHandler {
 
 	public static final String DASHBOARD_CONFIG_REST_PATH = "/config";
 
@@ -65,11 +60,6 @@ public class DashboardConfigHandler extends AbstractJsonRequestHandler implement
 	@Override
 	public String[] getPaths() {
 		return new String[]{DASHBOARD_CONFIG_REST_PATH};
-	}
-
-	@Override
-	public CompletableFuture<DashboardConfiguration> handleRequest(HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, DispatcherGateway gateway) {
-		return CompletableFuture.completedFuture(dashboardConfiguration);
 	}
 
 	@Override
