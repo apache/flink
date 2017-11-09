@@ -80,4 +80,13 @@ object StreamTestData {
     data.+=((5, 15L, 14, "KLM", 2L))
     env.fromCollection(data)
   }
+
+  def getSmallNestedTupleDataStream(env: StreamExecutionEnvironment):
+      DataStream[((Int, Int), String)] = {
+    val data = new mutable.MutableList[((Int, Int), String)]
+    data.+=(((1, 1), "one"))
+    data.+=(((2, 2), "two"))
+    data.+=(((3, 3), "three"))
+    env.fromCollection(data)
+  }
 }
