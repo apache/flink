@@ -1293,6 +1293,7 @@ Before continuing in this section you might want to take a look at our section a
 [event time and watermarks]({{ site.baseurl }}/dev/event_time.html).
 
 When watermarks arrive at the window operator this triggers two things:
+
  - the watermark triggers computation of all windows where the maximum timestamp (which is
  *end-timestamp - 1*) is smaller than the new watermark
  - the watermark is forwarded (as is) to downstream operations
