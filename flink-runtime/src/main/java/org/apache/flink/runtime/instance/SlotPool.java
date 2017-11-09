@@ -42,9 +42,12 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -279,23 +282,25 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	}
 
 	@Override
-	public void cancelSlotAllocation(AllocationID allocationID) {
-		if (waitingForResourceManager.remove(allocationID) == null) {
+	public CompletableFuture<Acknowledge> cancelSlotAllocation(AllocationID allocationId) {
+		final PendingRequest pendingRequest = removePendingRequest(allocationId);
 
-			PendingRequest request = pendingRequests.remove(allocationID);
-			if (request != null) {
-				failPendingRequest(request, new CancellationException("Allocation " + allocationID + " cancelled"));
-			} else {
+		if (pendingRequest != null) {
+			failPendingRequest(pendingRequest, new CancellationException("Allocation " + allocationId + " cancelled."));
+		} else {
+			final Slot slot = allocatedSlots.get(allocationId);
 
-				Slot slot = allocatedSlots.get(allocationID);
-				if (slot != null) {
-					LOG.info("Return allocated slot {} by cancelling allocation {}.", slot, allocationID);
-					if (slot.markCancelled()) {
-						internalReturnAllocatedSlot(slot);
-					}
+			if (slot != null) {
+				LOG.info("Returning allocated slot {} because the corresponding allocation request {} was cancelled.", slot, allocationId);
+				if (slot.markCancelled()) {
+					internalReturnAllocatedSlot(slot);
 				}
+			} else {
+				LOG.debug("There was no slot allocation with {} to be cancelled.", allocationId);
 			}
 		}
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	CompletableFuture<SimpleSlot> internalAllocateSlot(
@@ -326,6 +331,28 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		return future;
+	}
+
+	/**
+	 * Checks whether there exists a pending request with the given allocation id and removes it
+	 * from the internal data structures.
+	 *
+	 * @param allocationId identifying the pending request
+	 * @return pending request if there is one, otherwise null
+	 */
+	@Nullable
+	private PendingRequest removePendingRequest(AllocationID allocationId) {
+		PendingRequest result = waitingForResourceManager.remove(allocationId);
+
+		if (result != null) {
+			// sanity check
+			assert !pendingRequests.containsKey(allocationId) : "A pending requests should only be part of either " +
+				"the pendingRequests or waitingForResourceManager but not both.";
+
+			return result;
+		} else {
+			return pendingRequests.remove(allocationId);
+		}
 	}
 
 	private void requestSlotFromResourceManager(
@@ -396,6 +423,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	}
 
 	private void failPendingRequest(PendingRequest pendingRequest, Exception e) {
+		Preconditions.checkNotNull(pendingRequest);
+		Preconditions.checkNotNull(e);
+
 		if (!pendingRequest.getFuture().isDone()) {
 			pendingRequest.getFuture().completeExceptionally(e);
 		}
@@ -422,8 +452,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	private void checkTimeoutRequestWaitingForResourceManager(AllocationID allocationID) {
 		PendingRequest request = waitingForResourceManager.remove(allocationID);
 		if (request != null) {
-			failPendingRequest(request, new NoResourceAvailableException(
-					"No slot available and no connection to Resource Manager established."));
+			failPendingRequest(
+				request,
+				new NoResourceAvailableException("No slot available and no connection to Resource Manager established."));
 		}
 	}
 
@@ -632,10 +663,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	 * Also it provides a way for us to keep "dead" or "abnormal" TaskManagers out of this pool.
 	 *
 	 * @param resourceID The id of the TaskManager
+	 * @return Future acknowledge if th operation was successful
 	 */
 	@Override
-	public void registerTaskManager(final ResourceID resourceID) {
+	public CompletableFuture<Acknowledge> registerTaskManager(final ResourceID resourceID) {
 		registeredTaskManagers.add(resourceID);
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
 	/**
@@ -684,13 +718,14 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		return availableSlots;
 	}
 
-	public CompletableFuture<Integer> getNumberOfWaitingForResourceRequests() {
-		return CompletableFuture.completedFuture(waitingForResourceManager.size());
+	@VisibleForTesting
+	public HashMap<AllocationID, PendingRequest> getPendingRequests() {
+		return pendingRequests;
 	}
 
-	@Override
-	public CompletableFuture<Integer> getNumberOfPendingRequests() {
-		return CompletableFuture.completedFuture(pendingRequests.size());
+	@VisibleForTesting
+	public HashMap<AllocationID, PendingRequest> getWaitingForResourceManager() {
+		return waitingForResourceManager;
 	}
 
 	// ------------------------------------------------------------------------
