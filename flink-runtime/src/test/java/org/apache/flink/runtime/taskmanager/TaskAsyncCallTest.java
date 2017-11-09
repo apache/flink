@@ -79,6 +79,7 @@ import static org.mockito.Mockito.when;
 
 public class TaskAsyncCallTest {
 
+	/** Number of expected checkpoints. */
 	private static int numCalls;
 
 	/** Triggered at the beginning of {@link CheckpointsInOrderInvokable#invoke()}. */
@@ -90,10 +91,16 @@ public class TaskAsyncCallTest {
 	 */
 	private static OneShotLatch triggerLatch;
 
+	/**
+	 * Triggered when {@link CheckpointsInOrderInvokable#notifyCheckpointComplete(long)}
+	 * was called {@link #numCalls} times.
+	 */
+	private static OneShotLatch notifyCheckpointCompleteLatch;
+
 	/** Triggered on {@link ContextClassLoaderInterceptingInvokable#stop()}}. */
 	private static OneShotLatch stopLatch;
 
-	private static final List<ClassLoader> classLoaders = new ArrayList<>();
+	private static final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
 
 	@Before
 	public void createQueuesAndActors() {
@@ -101,6 +108,7 @@ public class TaskAsyncCallTest {
 
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
+		notifyCheckpointCompleteLatch = new OneShotLatch();
 		stopLatch = new OneShotLatch();
 
 		classLoaders.clear();
@@ -189,6 +197,8 @@ public class TaskAsyncCallTest {
 			task.notifyCheckpointComplete(1);
 			task.stopExecution();
 
+			triggerLatch.await();
+			notifyCheckpointCompleteLatch.await();
 			stopLatch.await();
 
 			assertThat(classLoaders, hasSize(greaterThanOrEqualTo(3)));
@@ -277,8 +287,12 @@ public class TaskAsyncCallTest {
 				}
 			}
 
-			triggerLatch.trigger();
 			if (error != null) {
+				// exit method prematurely due to error but make sure that the tests can finish
+				triggerLatch.trigger();
+				notifyCheckpointCompleteLatch.trigger();
+				stopLatch.trigger();
+
 				throw error;
 			}
 		}
@@ -320,6 +334,8 @@ public class TaskAsyncCallTest {
 				synchronized (this) {
 					notifyAll();
 				}
+			} else if (lastCheckpointId == numCalls) {
+				notifyCheckpointCompleteLatch.trigger();
 			}
 		}
 	}
