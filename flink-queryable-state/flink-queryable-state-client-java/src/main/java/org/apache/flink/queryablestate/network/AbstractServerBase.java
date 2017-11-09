@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -45,6 +46,7 @@ import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -60,7 +62,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends MessageBody> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractServerBase.class);
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** AbstractServerBase config: low water mark. */
 	private static final int LOW_WATER_MARK = 8 * 1024;
@@ -180,16 +182,16 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 */
 	public void start() throws Throwable {
 		Preconditions.checkState(serverAddress == null,
-				"The " + serverName + " already running @ " + serverAddress + '.');
+				serverName + " is already running @ " + serverAddress + '.');
 
 		Iterator<Integer> portIterator = bindPortRange.iterator();
 		while (portIterator.hasNext() && !attemptToBind(portIterator.next())) {}
 
 		if (serverAddress != null) {
-			LOG.info("Started the {} @ {}.", serverName, serverAddress);
+			log.info("Started {} @ {}.", serverName, serverAddress);
 		} else {
-			LOG.info("Unable to start the {}. All ports in provided range are occupied.", serverName);
-			throw new FlinkRuntimeException("Unable to start the " + serverName + ". All ports in provided range are occupied.");
+			log.info("Unable to start {}. All ports in provided range are occupied.", serverName);
+			throw new FlinkRuntimeException("Unable to start " + serverName + ". All ports in provided range are occupied.");
 		}
 	}
 
@@ -203,7 +205,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 * @throws Exception If something goes wrong during the bind operation.
 	 */
 	private boolean attemptToBind(final int port) throws Throwable {
-		LOG.debug("Attempting to start server {} on port {}.", serverName, port);
+		log.debug("Attempting to start {} on port {}.", serverName, port);
 
 		this.queryExecutor = createQueryExecutor();
 		this.handler = initializeHandler();
@@ -250,8 +252,8 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
 			throw future.cause();
 		} catch (BindException e) {
-			LOG.debug("Failed to start server {} on port {}: {}.", serverName, port, e.getMessage());
-			shutdown();
+			log.debug("Failed to start {} on port {}: {}.", serverName, port, e.getMessage());
+			shutdownServer(Time.seconds(10L)).join();
 		}
 		// any other type of exception we let it bubble up.
 		return false;
@@ -260,25 +262,47 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	/**
 	 * Shuts down the server and all related thread pools.
 	 */
-	public void shutdown() {
-		LOG.info("Shutting down server {} @ {}", serverName, serverAddress);
+	public CompletableFuture<?> shutdownServer(Time timeout) throws InterruptedException {
+		log.info("Shutting down {} @ {}", serverName, serverAddress);
 
-		if (handler != null) {
-			handler.shutdown();
-			handler = null;
-		}
+		final CompletableFuture<Boolean> queryExecShutdownFuture = CompletableFuture.supplyAsync(() -> {
+				try {
+					if (queryExecutor != null && !queryExecutor.isShutdown()) {
+						queryExecutor.shutdown();
+						queryExecutor.awaitTermination(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+						return true;
+					}
+				} catch (InterruptedException e) {
+					log.warn("Failed to shutdown {}: ", serverName, e);
+					return false;
+				}
+				return false;
+			});
 
-		if (queryExecutor != null) {
-			queryExecutor.shutdown();
-		}
+		final CompletableFuture<Boolean> groupShutdownFuture = new CompletableFuture<>();
+		final CompletableFuture<Boolean> handlerShutdownFuture = new CompletableFuture<>();
 
-		if (bootstrap != null) {
-			EventLoopGroup group = bootstrap.group();
-			if (group != null) {
-				group.shutdownGracefully(0L, 10L, TimeUnit.SECONDS);
+		queryExecShutdownFuture.thenRun(() -> {
+			if (bootstrap != null) {
+				EventLoopGroup group = bootstrap.group();
+				if (group != null) {
+					group.shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+							.addListener(finished -> groupShutdownFuture.complete(null));
+				} else {
+					groupShutdownFuture.complete(null);
+				}
 			}
-		}
-		serverAddress = null;
+
+			if (handler != null) {
+				handler.shutdown().thenRun(() -> {
+					handler = null;
+					handlerShutdownFuture.complete(null);
+				});
+			} else {
+				handlerShutdownFuture.complete(null);
+			}
+		});
+		return CompletableFuture.allOf(groupShutdownFuture, handlerShutdownFuture);
 	}
 
 	/**

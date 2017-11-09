@@ -185,7 +185,7 @@ public abstract class AbstractServerHandler<REQ extends MessageBody, RESP extend
 	/**
 	 * Shuts down any handler specific resources, e.g. thread pools etc.
 	 */
-	public abstract void shutdown();
+	public abstract CompletableFuture<Boolean> shutdown();
 
 	/**
 	 * Task to execute the actual query against the state instance.
