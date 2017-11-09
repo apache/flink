@@ -67,6 +67,25 @@ class CalcITCase(
   }
 
   @Test
+  def testSelectStarFromNestedTable(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT * FROM MyTable"
+
+    val ds = CollectionDataSets.getSmallNestedTupleDataSet(env).toTable(tEnv).as('a, 'b)
+    tEnv.registerTable("MyTable", ds)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = "(1,1),one\n" + "(2,2),two\n" + "(3,3),three\n"
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testSelectStarFromDataSet(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
@@ -85,6 +104,25 @@ class CalcITCase(
       "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
       "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
       "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testSelectStarFromNestedDataSet(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT * FROM MyTable"
+
+    val ds = CollectionDataSets.getSmallNestedTupleDataSet(env)
+    tEnv.registerDataSet("MyTable", ds, 'a, 'b)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = "(1,1),one\n" + "(2,2),two\n" + "(3,3),three\n"
 
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
