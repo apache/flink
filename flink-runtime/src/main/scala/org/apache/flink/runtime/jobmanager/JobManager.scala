@@ -45,7 +45,7 @@ import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceM
 import org.apache.flink.runtime.clusterframework.messages._
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
-import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter, Executors => FlinkExecutors}
+import org.apache.flink.runtime.concurrent.{FutureUtils, ScheduledExecutorServiceAdapter}
 import org.apache.flink.runtime.execution.SuppressRestartsException
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders.ResolveOrder
 import org.apache.flink.runtime.execution.librarycache.{BlobLibraryCacheManager, LibraryCacheManager}
@@ -85,7 +85,7 @@ import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.webmonitor.retriever.impl.{AkkaJobManagerRetriever, AkkaQueryServiceRetriever}
 import org.apache.flink.runtime.webmonitor.{WebMonitor, WebMonitorUtils}
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.{FlinkException, InstantiationUtil, NetUtils, SerializedThrowable}
+import org.apache.flink.util._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -2060,7 +2060,7 @@ object JobManager {
         LOG.warn("Could not properly shut down the metric registry.", t)
     }
 
-    FlinkExecutors.gracefulShutdown(
+    ExecutorUtils.gracefulShutdown(
       timeout.toMillis,
       TimeUnit.MILLISECONDS,
       futureExecutor,

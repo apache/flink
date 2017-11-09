@@ -35,6 +35,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The default implementation of the {@link KvStateClientProxy}.
@@ -96,7 +97,12 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 
 	@Override
 	public void shutdown() {
-		super.shutdown();
+		try {
+			shutdownServer().get(10L, TimeUnit.SECONDS);
+			log.info("{} was shutdown successfully.", getServerName());
+		} catch (Exception e) {
+			log.warn("{} shutdown failed: {}", getServerName(), e);
+		}
 	}
 
 	@Override

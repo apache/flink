@@ -33,7 +33,9 @@ import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.queryablestate.server.KvStateServerImpl;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage;
@@ -42,6 +44,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 
+import akka.dispatch.OnComplete;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,6 +144,7 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 								// KvStateLocation. Therefore we retry this query and
 								// force look up the location.
 
+								LOG.debug("Retrying after failing to retrieve state due to: {}.", throwable.getCause().getMessage());
 								executeActionAsync(result, request, true);
 							} else {
 								result.completeExceptionally(throwable);
@@ -203,20 +207,34 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 
 		LOG.debug("Retrieving location for state={} of job={} from the job manager.", jobId, queryableStateName);
 
+		final CompletableFuture<KvStateLocation> location = new CompletableFuture<>();
+		lookupCache.put(cacheKey, location);
 		return proxy.getJobManagerFuture().thenComposeAsync(
 				jobManagerGateway -> {
 					final Object msg = new KvStateMessage.LookupKvStateLocation(jobId, queryableStateName);
-					final CompletableFuture<KvStateLocation> locationFuture = FutureUtils.toJava(
-							jobManagerGateway.ask(msg, FiniteDuration.apply(1000L, TimeUnit.MILLISECONDS))
-									.mapTo(ClassTag$.MODULE$.<KvStateLocation>apply(KvStateLocation.class)));
+					jobManagerGateway.ask(msg, FiniteDuration.apply(1000L, TimeUnit.MILLISECONDS))
+							.mapTo(ClassTag$.MODULE$.<KvStateLocation>apply(KvStateLocation.class))
+							.onComplete(new OnComplete<KvStateLocation>() {
 
-					lookupCache.put(cacheKey, locationFuture);
-					return locationFuture;
+								@Override
+								public void onComplete(Throwable failure, KvStateLocation loc) throws Throwable {
+									if (failure != null) {
+										if (failure instanceof FlinkJobNotFoundException) {
+											// if the jobId was wrong, remove the entry from the cache.
+											lookupCache.remove(cacheKey);
+										}
+										location.completeExceptionally(failure);
+									} else {
+										location.complete(loc);
+									}
+								}
+							}, Executors.directExecutionContext());
+					return location;
 				}, queryExecutor);
 	}
 
 	@Override
-	public void shutdown() {
-		kvStateClient.shutdown();
+	public CompletableFuture<Void> shutdown() {
+		return kvStateClient.shutdown();
 	}
 }
