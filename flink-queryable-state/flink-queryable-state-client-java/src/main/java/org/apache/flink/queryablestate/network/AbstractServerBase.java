@@ -20,7 +20,9 @@ package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -45,10 +47,12 @@ import java.net.InetSocketAddress;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The base class for every server in the queryable state module.
@@ -82,6 +86,9 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
 	/** The number of threads to be used for query serving. */
 	private final int numQueryThreads;
+
+	/** Atomic shut down future. */
+	private final AtomicReference<CompletableFuture<?>> serverShutdownFuture = new AtomicReference<>(null);
 
 	/** Netty's ServerBootstrap. */
 	private ServerBootstrap bootstrap;
@@ -205,6 +212,11 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	private boolean attemptToBind(final int port) throws Throwable {
 		log.debug("Attempting to start {} on port {}.", serverName, port);
 
+		// here we reset the future every time because in case of failure
+		// to bind, we call shutdown here and this may interfere with future
+		// shutdown attempts.
+		this.serverShutdownFuture.getAndSet(null);
+
 		this.queryExecutor = createQueryExecutor();
 		this.handler = initializeHandler();
 
@@ -251,7 +263,17 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 			throw future.cause();
 		} catch (BindException e) {
 			log.debug("Failed to start {} on port {}: {}.", serverName, port, e.getMessage());
-			shutdown();
+			try {
+				shutdownServer(Time.seconds(10L)).get();
+			} catch (Exception r) {
+
+				// Here we were seeing this problem:
+				// https://github.com/netty/netty/issues/4357 if we do a get().
+				// this is why we now simply wait a bit so that everything is
+				// shut down and then we check
+
+				log.warn("Problem while shutting down {}: {}", serverName, r.getMessage());
+			}
 		}
 		// any other type of exception we let it bubble up.
 		return false;
@@ -259,26 +281,63 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
 	/**
 	 * Shuts down the server and all related thread pools.
+	 * @param timeout The time to wait for the shutdown process to complete.
+	 * @return A {@link CompletableFuture} that will be completed upon termination of the shutdown process.
 	 */
-	public void shutdown() {
-		log.info("Shutting down {} @ {}", serverName, serverAddress);
+	public CompletableFuture<?> shutdownServer(Time timeout) throws InterruptedException {
+		CompletableFuture<?> shutdownFuture = new CompletableFuture<>();
+		if (serverShutdownFuture.compareAndSet(null, shutdownFuture)) {
+			log.info("Shutting down {} @ {}", serverName, serverAddress);
 
-		if (handler != null) {
-			handler.shutdown();
-			handler = null;
-		}
-
-		if (queryExecutor != null) {
-			queryExecutor.shutdown();
-		}
-
-		if (bootstrap != null) {
-			EventLoopGroup group = bootstrap.group();
-			if (group != null) {
-				group.shutdownGracefully(0L, 10L, TimeUnit.SECONDS);
+			final CompletableFuture<?> groupShutdownFuture = new CompletableFuture<>();
+			if (bootstrap != null) {
+				EventLoopGroup group = bootstrap.group();
+				if (group != null && !group.isShutdown()) {
+					group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
+							.addListener(finished -> {
+								if (finished.isSuccess()) {
+									groupShutdownFuture.complete(null);
+								} else {
+									groupShutdownFuture.completeExceptionally(finished.cause());
+								}
+							});
+				} else {
+					groupShutdownFuture.complete(null);
+				}
+			} else {
+				groupShutdownFuture.complete(null);
 			}
+
+			final CompletableFuture<?> handlerShutdownFuture = new CompletableFuture<>();
+			if (handler == null) {
+				handlerShutdownFuture.complete(null);
+			} else {
+				handler.shutdown().whenComplete((result, throwable) -> {
+					if (throwable != null) {
+						handlerShutdownFuture.completeExceptionally(throwable);
+					} else {
+						handlerShutdownFuture.complete(null);
+					}
+				});
+			}
+
+			final CompletableFuture<?> queryExecShutdownFuture = CompletableFuture.runAsync(() -> {
+				if (queryExecutor != null) {
+					ExecutorUtils.gracefulShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, queryExecutor);
+				}
+			});
+
+			CompletableFuture.allOf(
+					queryExecShutdownFuture, groupShutdownFuture, handlerShutdownFuture
+			).whenComplete((result, throwable) -> {
+				if (throwable != null) {
+					shutdownFuture.completeExceptionally(throwable);
+				} else {
+					shutdownFuture.complete(null);
+				}
+			});
 		}
-		serverAddress = null;
+		return serverShutdownFuture.get();
 	}
 
 	/**

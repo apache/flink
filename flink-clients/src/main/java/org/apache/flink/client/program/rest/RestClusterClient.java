@@ -48,6 +48,7 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointMessagePar
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.util.ExecutorUtils;
 
 import javax.annotation.Nullable;
 
@@ -90,7 +91,7 @@ public class RestClusterClient extends ClusterClient {
 			log.error("An error occurred during the client shutdown.", e);
 		}
 		this.restClient.shutdown(Time.seconds(5));
-		org.apache.flink.runtime.concurrent.Executors.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
+		ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.executorService);
 	}
 
 	@Override

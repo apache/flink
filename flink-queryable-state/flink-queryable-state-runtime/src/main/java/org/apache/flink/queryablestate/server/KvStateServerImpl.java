@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.server;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.AbstractServerBase;
@@ -32,6 +33,7 @@ import org.apache.flink.util.Preconditions;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The default implementation of the {@link KvStateServer}.
@@ -101,6 +103,12 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 
 	@Override
 	public void shutdown() {
-		super.shutdown();
+		try {
+			Time timeout = Time.seconds(10L);
+			shutdownServer(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			log.info("{} was shutdown successfully.", getServerName());
+		} catch (Exception e) {
+			log.warn("{} shutdown failed: {}", getServerName(), e);
+		}
 	}
 }

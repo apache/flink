@@ -33,6 +33,7 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -64,7 +65,7 @@ public class SlotProtocolTest extends TestLogger {
 
 	@AfterClass
 	public static void afterClass() {
-		Executors.gracefulShutdown(timeout, TimeUnit.MILLISECONDS, scheduledExecutorService);
+		ExecutorUtils.gracefulShutdown(timeout, TimeUnit.MILLISECONDS, scheduledExecutorService);
 	}
 
 	/**
