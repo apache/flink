@@ -1410,7 +1410,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		return resultFuture;
 	}
 
-	public static <T> void retryWithDelay(
+	private static <T> void retryWithDelay(
 			final CompletableFuture<T> resultFuture,
 			final Supplier<CompletableFuture<T>> operation,
 			final int retries,

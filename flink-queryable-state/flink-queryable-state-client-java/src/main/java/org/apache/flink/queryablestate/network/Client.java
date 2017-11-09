@@ -44,6 +44,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandle
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -166,27 +168,39 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 	 *
 	 * <p>After a call to this method, all returned futures will be failed.
 	 */
-	public void shutdown() {
+	public CompletableFuture<Boolean> shutdown() {
+		final CompletableFuture<Boolean> shutdownFuture = new CompletableFuture<>();
+
 		if (shutDown.compareAndSet(false, true)) {
+			final List<CompletableFuture<?>> connectionFutures = new ArrayList<>();
 			for (Map.Entry<InetSocketAddress, EstablishedConnection> conn : establishedConnections.entrySet()) {
 				if (establishedConnections.remove(conn.getKey(), conn.getValue())) {
-					conn.getValue().close();
+					connectionFutures.add(conn.getValue().close());
 				}
 			}
 
 			for (Map.Entry<InetSocketAddress, PendingConnection> conn : pendingConnections.entrySet()) {
 				if (pendingConnections.remove(conn.getKey()) != null) {
-					conn.getValue().close();
+					connectionFutures.add(conn.getValue().close());
 				}
 			}
 
-			if (bootstrap != null) {
-				EventLoopGroup group = bootstrap.group();
-				if (group != null) {
-					group.shutdownGracefully(0L, 10L, TimeUnit.SECONDS);
-				}
-			}
+			CompletableFuture.allOf(connectionFutures.toArray(new CompletableFuture<?>[connectionFutures.size()])).thenRun(
+					() -> {
+						if (bootstrap != null) {
+							EventLoopGroup group = bootstrap.group();
+							if (group != null) {
+								group.shutdownGracefully(0L, 10L, TimeUnit.SECONDS)
+										.addListener(finished -> shutdownFuture.complete(true));
+							}
+						} else {
+							shutdownFuture.complete(false);
+						}
+					});
+		} else {
+			shutdownFuture.complete(false);
 		}
+		return shutdownFuture;
 	}
 
 	/**
@@ -309,31 +323,38 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		/**
 		 * Close the connecting channel with a ClosedChannelException.
 		 */
-		private void close() {
-			close(new ClosedChannelException());
+		private CompletableFuture<?> close() {
+			return close(new ClosedChannelException());
 		}
 
 		/**
 		 * Close the connecting channel with an Exception (can be {@code null})
 		 * or forward to the established channel.
 		 */
-		private void close(Throwable cause) {
+		private CompletableFuture<?> close(Throwable cause) {
 			synchronized (connectLock) {
-				if (!closed) {
+				final CompletableFuture<?> shutdownFuture;
+				if (closed) {
+					shutdownFuture = new CompletableFuture<>();
+					shutdownFuture.complete(null);
+				} else {
 					if (failureCause == null) {
 						failureCause = cause;
 					}
 
 					if (established != null) {
-						established.close();
+						shutdownFuture = established.close();
 					} else {
 						PendingRequest pending;
 						while ((pending = queuedRequests.poll()) != null) {
 							pending.completeExceptionally(cause);
 						}
+						shutdownFuture = new CompletableFuture<>();
+						shutdownFuture.complete(null);
 					}
-					closed = true;
+					shutdownFuture.thenRun(() -> closed = true);
 				}
+				return shutdownFuture;
 			}
 		}
 
@@ -409,8 +430,8 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		/**
 		 * Close the channel with a ClosedChannelException.
 		 */
-		void close() {
-			close(new ClosedChannelException());
+		CompletableFuture<Boolean> close() {
+			return close(new ClosedChannelException());
 		}
 
 		/**
@@ -419,20 +440,27 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		 * @param cause The cause to close the channel with.
 		 * @return Channel close future
 		 */
-		private boolean close(Throwable cause) {
+		private CompletableFuture<Boolean> close(Throwable cause) {
+			final CompletableFuture<Boolean> shutdownFuture = new CompletableFuture<>();
 			if (failureCause.compareAndSet(null, cause)) {
-				channel.close();
-				stats.reportInactiveConnection();
+				final CompletableFuture<?> tmp = new CompletableFuture<>();
+				channel.close().addListener(finished -> tmp.complete(null));
 
-				for (long requestId : pendingRequests.keySet()) {
-					TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
-					if (pending != null && pending.completeExceptionally(cause)) {
-						stats.reportFailedRequest();
+				tmp.thenRun(() -> {
+					stats.reportInactiveConnection();
+
+					for (long requestId : pendingRequests.keySet()) {
+						TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
+						if (pending != null && pending.completeExceptionally(cause)) {
+							stats.reportFailedRequest();
+						}
 					}
-				}
-				return true;
+					shutdownFuture.complete(true);
+				});
+			} else {
+				shutdownFuture.complete(false);
 			}
-			return false;
+			return shutdownFuture;
 		}
 
 		/**
@@ -483,27 +511,31 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		@Override
 		public void onRequestResult(long requestId, RESP response) {
 			TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
-			if (pending != null && pending.complete(response)) {
+			if (pending != null && !pending.isDone()) {
 				long durationMillis = (System.nanoTime() - pending.getTimestamp()) / 1_000_000L;
 				stats.reportSuccessfulRequest(durationMillis);
+				pending.complete(response);
 			}
 		}
 
 		@Override
 		public void onRequestFailure(long requestId, Throwable cause) {
 			TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
-			if (pending != null && pending.completeExceptionally(cause)) {
+			if (pending != null && !pending.isDone()) {
 				stats.reportFailedRequest();
+				pending.completeExceptionally(cause);
 			}
 		}
 
 		@Override
 		public void onFailure(Throwable cause) {
-			if (close(cause)) {
-				// Remove from established channels, otherwise future
-				// requests will be handled by this failed channel.
-				establishedConnections.remove(serverAddress, this);
-			}
+			close(cause).thenAccept(cancelled -> {
+				if (cancelled) {
+					// Remove from established channels, otherwise future
+					// requests will be handled by this failed channel.
+					establishedConnections.remove(serverAddress, this);
+				}
+			});
 		}
 
 		@Override

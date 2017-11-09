@@ -45,6 +45,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Client for querying Flink's managed state.
@@ -108,9 +110,35 @@ public class QueryableStateClient {
 				new DisabledKvStateRequestStats());
 	}
 
-	/** Shuts down the client. */
+	/**
+	 * Shuts down the client and waits for 10 seconds
+	 * for the shutdown to be completed.
+	 *
+	 * <p>If this expires, or an exception is thrown for
+	 * any reason, then a warning is printed containing the
+	 * exception.
+	 */
 	public void shutdown() {
-		client.shutdown();
+		try {
+			client.shutdown().get(10L, TimeUnit.SECONDS);
+			LOG.info("The Queryable State Client was shutdown successfully.");
+		} catch (Exception e) {
+			LOG.warn("The Queryable State Client shutdown failed: ", e);
+		}
+	}
+
+	/**
+	 * Shuts down the client and waits until shutdown is completed.
+	 *
+	 * <p>If an exception is thrown for any reason, then this exception
+	 * is further propagated upwards.
+	 */
+	public void shutdownAndWait() throws Throwable {
+		try {
+			client.shutdown().join();
+		} catch (CompletionException e) {
+			throw e.getCause();
+		}
 	}
 
 	/**

@@ -217,8 +217,9 @@ public class ClientTest {
 			assertEquals(expectedRequests, stats.getNumSuccessful());
 			assertEquals(expectedRequests, stats.getNumFailed());
 		} finally {
+
 			if (client != null) {
-				client.shutdown();
+				client.shutdown().join();
 			}
 
 			if (serverChannel != null) {
@@ -366,7 +367,7 @@ public class ClientTest {
 			}
 
 			if (client != null) {
-				client.shutdown();
+				client.shutdown().join();
 			}
 
 			assertEquals("Channel leak", 0L, stats.getNumConnections());
@@ -467,7 +468,7 @@ public class ClientTest {
 			assertEquals(2L, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				client.shutdown().join();
 			}
 
 			if (serverChannel != null) {
@@ -548,7 +549,7 @@ public class ClientTest {
 			assertEquals(1L, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				client.shutdown().join();
 			}
 
 			if (serverChannel != null) {
@@ -701,7 +702,7 @@ public class ClientTest {
 			}
 
 			// Shut down
-			client.shutdown();
+			client.shutdown().join();
 
 			for (Future<Void> future : taskFutures) {
 				try {
@@ -739,7 +740,7 @@ public class ClientTest {
 			}
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				client.shutdown().join();
 			}
 
 			for (int i = 0; i < numServers; i++) {
