@@ -90,6 +90,9 @@ public class TaskAsyncCallTest {
 	 */
 	private static OneShotLatch triggerLatch;
 
+	/** Triggered on {@link ContextClassLoaderInterceptingInvokable#stop()}}. */
+	private static OneShotLatch stopLatch;
+
 	private static final List<ClassLoader> classLoaders = new ArrayList<>();
 
 	@Before
@@ -98,6 +101,7 @@ public class TaskAsyncCallTest {
 
 		awaitLatch = new OneShotLatch();
 		triggerLatch = new OneShotLatch();
+		stopLatch = new OneShotLatch();
 
 		classLoaders.clear();
 	}
@@ -184,11 +188,12 @@ public class TaskAsyncCallTest {
 			task.triggerCheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint());
 			task.notifyCheckpointComplete(1);
 			task.stopExecution();
-		}
 
-		// assert after task is canceled and executing thread is stopped to avoid race conditions
-		assertThat(classLoaders, hasSize(greaterThanOrEqualTo(3)));
-		assertThat(classLoaders, everyItem(instanceOf(TestUserCodeClassLoader.class)));
+			stopLatch.await();
+
+			assertThat(classLoaders, hasSize(greaterThanOrEqualTo(3)));
+			assertThat(classLoaders, everyItem(instanceOf(TestUserCodeClassLoader.class)));
+		}
 	}
 
 	private Task createTask(Class<? extends AbstractInvokable> invokableClass) throws Exception {
@@ -342,6 +347,7 @@ public class TaskAsyncCallTest {
 		@Override
 		public void stop() {
 			classLoaders.add(Thread.currentThread().getContextClassLoader());
+			stopLatch.trigger();
 		}
 
 	}
