@@ -209,17 +209,6 @@ under the License.
 					<forkCount>1</forkCount>
 				</configuration>
 			</plugin>
-			<!--
-            https://issues.apache.org/jira/browse/DIRSHARED-134
-            Required to pull the Mini-KDC transitive dependency
-            -->
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<version>3.0.1</version>
-				<inherited>true</inherited>
-				<extensions>true</extensions>
-			</plugin>
 		</plugins>
 	</build>
 
