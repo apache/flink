@@ -314,13 +314,13 @@ public class ResourceSpec implements Serializable {
 		}
 
 		/**
-		 * create a resource of the sub resource type
+		 * create a resource of the same resource type
 		 *
 		 * @param value the value of the resource
 		 * @param type the aggregate type of the resource
 		 * @return a new instance of the sub resource
 		 */
-		abstract Resource create(double value, ResourceAggregateType type);
+		protected abstract Resource create(double value, ResourceAggregateType type);
 	}
 
 	/**
