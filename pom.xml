@@ -891,6 +891,21 @@ under the License.
 
 	<build>
 		<plugins>
+			<!--
+			We need to include this here because some of our modules have transitive dependencies
+			on jdbm1, which is of type "bundle". This only works if you include the
+			maven-bundle-plugin (see https://issues.apache.org/jira/browse/DIRSHARED-134). We need
+			the plugin in the root pom because Javadoc aggregation runs only in the root pom and
+			not the specific poms. Not having this here was the cause for FLINK-7702.
+			-->
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>3.0.1</version>
+				<inherited>true</inherited>
+				<extensions>true</extensions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
