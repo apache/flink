@@ -139,19 +139,6 @@ under the License.
 
 	<build>
 		<plugins>
-
-			<!--
-				https://issues.apache.org/jira/browse/DIRSHARED-134
-				Required to pull the Mini-KDC transitive dependency
-			-->
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<version>3.0.1</version>
-				<inherited>true</inherited>
-				<extensions>true</extensions>
-			</plugin>
-
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
