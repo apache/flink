@@ -21,6 +21,7 @@ package org.apache.flink.runtime.instance;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -37,10 +38,11 @@ public class AllocatedSlotsTest {
 		SlotPool.AllocatedSlots allocatedSlots = new SlotPool.AllocatedSlots();
 
 		final AllocationID allocation1 = new AllocationID();
+		final SlotPoolGateway.SlotRequestID slotRequestID = new SlotPoolGateway.SlotRequestID();
 		final ResourceID resource1 = new ResourceID("resource1");
 		final Slot slot1 = createSlot(resource1, allocation1);
 
-		allocatedSlots.add(slot1);
+		allocatedSlots.add(slotRequestID, slot1);
 
 		assertTrue(allocatedSlots.contains(slot1.getAllocatedSlot().getSlotAllocationId()));
 		assertTrue(allocatedSlots.containResource(resource1));
@@ -50,9 +52,10 @@ public class AllocatedSlotsTest {
 		assertEquals(1, allocatedSlots.size());
 
 		final AllocationID allocation2 = new AllocationID();
+		final SlotPoolGateway.SlotRequestID slotRequestID2 = new SlotPoolGateway.SlotRequestID();
 		final Slot slot2 = createSlot(resource1, allocation2);
 
-		allocatedSlots.add(slot2);
+		allocatedSlots.add(slotRequestID2, slot2);
 
 		assertTrue(allocatedSlots.contains(slot1.getAllocatedSlot().getSlotAllocationId()));
 		assertTrue(allocatedSlots.contains(slot2.getAllocatedSlot().getSlotAllocationId()));
@@ -64,10 +67,11 @@ public class AllocatedSlotsTest {
 		assertEquals(2, allocatedSlots.size());
 
 		final AllocationID allocation3 = new AllocationID();
+		final SlotPoolGateway.SlotRequestID slotRequestID3 = new SlotPoolGateway.SlotRequestID();
 		final ResourceID resource2 = new ResourceID("resource2");
 		final Slot slot3 = createSlot(resource2, allocation3);
 
-		allocatedSlots.add(slot3);
+		allocatedSlots.add(slotRequestID3, slot3);
 
 		assertTrue(allocatedSlots.contains(slot1.getAllocatedSlot().getSlotAllocationId()));
 		assertTrue(allocatedSlots.contains(slot2.getAllocatedSlot().getSlotAllocationId()));
