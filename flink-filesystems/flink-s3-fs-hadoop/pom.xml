@@ -286,6 +286,7 @@ under the License.
 									<excludes>
 										<!-- keep all other classes of flink as they are (exceptions above) -->
 										<exclude>org.apache.flink.**</exclude>
+										<exclude>org.apache.log4j.**</exclude> <!-- provided -->
 									</excludes>
 								</relocation>
 								<relocation>
