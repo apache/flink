@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
@@ -51,7 +52,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -83,8 +83,8 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 	/** Pending connections. */
 	private final Map<InetSocketAddress, PendingConnection> pendingConnections = new ConcurrentHashMap<>();
 
-	/** Atomic shut down flag. */
-	private final AtomicBoolean shutDown = new AtomicBoolean();
+	/** Atomic shut down future. */
+	private final AtomicReference<CompletableFuture<?>> clientShutdownFuture = new AtomicReference<>(null);
 
 	/**
 	 * Creates a client with the specified number of event loop threads.
@@ -134,8 +134,8 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 	}
 
 	public CompletableFuture<RESP> sendRequest(final InetSocketAddress serverAddress, final REQ request) {
-		if (shutDown.get()) {
-			return FutureUtils.getFailedFuture(new IllegalStateException("Shut down"));
+		if (!clientShutdownFuture.compareAndSet(null, null)) {
+			return FutureUtils.getFailedFuture(new IllegalStateException("Client already shut down."));
 		}
 
 		EstablishedConnection connection = establishedConnections.get(serverAddress);
@@ -167,12 +167,15 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 	 * Shuts down the client and closes all connections.
 	 *
 	 * <p>After a call to this method, all returned futures will be failed.
+	 *
+	 * @return A {@link CompletableFuture} that will be completed when the shutdown process is done.
 	 */
-	public CompletableFuture<Boolean> shutdown() {
-		final CompletableFuture<Boolean> shutdownFuture = new CompletableFuture<>();
+	public CompletableFuture<?> shutdown() {
+		final CompletableFuture<?> newShutdownFuture = new CompletableFuture<>();
+		if (clientShutdownFuture.compareAndSet(null, newShutdownFuture)) {
 
-		if (shutDown.compareAndSet(false, true)) {
 			final List<CompletableFuture<?>> connectionFutures = new ArrayList<>();
+
 			for (Map.Entry<InetSocketAddress, EstablishedConnection> conn : establishedConnections.entrySet()) {
 				if (establishedConnections.remove(conn.getKey(), conn.getValue())) {
 					connectionFutures.add(conn.getValue().close());
@@ -185,22 +188,36 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 				}
 			}
 
-			CompletableFuture.allOf(connectionFutures.toArray(new CompletableFuture<?>[connectionFutures.size()])).thenRun(
-					() -> {
-						if (bootstrap != null) {
-							EventLoopGroup group = bootstrap.group();
-							if (group != null) {
-								group.shutdownGracefully(0L, 10L, TimeUnit.SECONDS)
-										.addListener(finished -> shutdownFuture.complete(true));
-							}
-						} else {
-							shutdownFuture.complete(false);
-						}
-					});
-		} else {
-			shutdownFuture.complete(false);
+			CompletableFuture.allOf(
+					connectionFutures.toArray(new CompletableFuture<?>[connectionFutures.size()])
+			).whenComplete((result, throwable) -> {
+				if (throwable != null) {
+					newShutdownFuture.completeExceptionally(throwable);
+				} else if (bootstrap != null) {
+					EventLoopGroup group = bootstrap.group();
+					if (group != null && !group.isShutdown()) {
+						group.shutdownGracefully(0L, 0L, TimeUnit.MILLISECONDS)
+								.addListener(finished -> {
+									if (finished.isSuccess()) {
+										newShutdownFuture.complete(null);
+									} else {
+										newShutdownFuture.completeExceptionally(finished.cause());
+									}
+								});
+					} else {
+						newShutdownFuture.complete(null);
+					}
+				} else {
+					newShutdownFuture.complete(null);
+				}
+			});
+
+			// check again if in the meantime another thread completed the future
+			if (clientShutdownFuture.compareAndSet(null, newShutdownFuture)) {
+				return newShutdownFuture;
+			}
 		}
-		return shutdownFuture;
+		return clientShutdownFuture.get();
 	}
 
 	/**
@@ -222,8 +239,14 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		/** The established connection after the connect succeeds. */
 		private EstablishedConnection established;
 
+		/** Atomic shut down future. */
+		private final AtomicReference<CompletableFuture<?>> connectionShutdownFuture = new AtomicReference<>(null);
+
 		/** Closed flag. */
 		private boolean closed;
+
+//		/** Shut down future. */
+//		private CompletableFuture<?> connectionShutdownFuture;
 
 		/** Failure cause if something goes wrong. */
 		private Throwable failureCause;
@@ -296,12 +319,14 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 					while (!queuedRequests.isEmpty()) {
 						final PendingRequest pending = queuedRequests.poll();
 
-						established.sendRequest(pending.request)
-								.thenAccept(resp -> pending.complete(resp))
-								.exceptionally(throwable -> {
-									pending.completeExceptionally(throwable);
-									return null;
-						});
+						established.sendRequest(pending.request).whenComplete(
+								(response, throwable) -> {
+									if (throwable != null) {
+										pending.completeExceptionally(throwable);
+									} else {
+										pending.complete(response);
+									}
+								});
 					}
 
 					// Publish the channel for the general public
@@ -311,7 +336,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 					// Check shut down for possible race with shut down. We
 					// don't want any lingering connections after shut down,
 					// which can happen if we don't check this here.
-					if (shutDown.get()) {
+					if (!clientShutdownFuture.compareAndSet(null, null)) {
 						if (establishedConnections.remove(serverAddress, established)) {
 							established.close();
 						}
@@ -332,30 +357,34 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		 * or forward to the established channel.
 		 */
 		private CompletableFuture<?> close(Throwable cause) {
-			synchronized (connectLock) {
-				final CompletableFuture<?> shutdownFuture;
-				if (closed) {
-					shutdownFuture = new CompletableFuture<>();
-					shutdownFuture.complete(null);
-				} else {
-					if (failureCause == null) {
-						failureCause = cause;
-					}
-
-					if (established != null) {
-						shutdownFuture = established.close();
-					} else {
-						PendingRequest pending;
-						while ((pending = queuedRequests.poll()) != null) {
-							pending.completeExceptionally(cause);
+			CompletableFuture<?> future = new CompletableFuture<>();
+			if (connectionShutdownFuture.compareAndSet(null, future)) {
+				synchronized (connectLock) {
+					if (!closed) {
+						if (failureCause == null) {
+							failureCause = cause;
 						}
-						shutdownFuture = new CompletableFuture<>();
-						shutdownFuture.complete(null);
+
+						closed = true;
+						if (established != null) {
+							established.close().whenComplete((result, throwable) -> {
+								if (throwable != null) {
+									future.completeExceptionally(throwable);
+								} else {
+									future.complete(null);
+								}
+							});
+						} else {
+							PendingRequest pending;
+							while ((pending = queuedRequests.poll()) != null) {
+								pending.completeExceptionally(cause);
+							}
+							future.complete(null);
+						}
 					}
-					shutdownFuture.thenRun(() -> closed = true);
 				}
-				return shutdownFuture;
 			}
+			return connectionShutdownFuture.get();
 		}
 
 		@Override
@@ -404,6 +433,9 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		/** Reference to a failure that was reported by the channel. */
 		private final AtomicReference<Throwable> failureCause = new AtomicReference<>();
 
+		/** Atomic shut down future. */
+		private final AtomicReference<CompletableFuture<Boolean>> connectionShutdownFuture = new AtomicReference<>(null);
+
 		/**
 		 * Creates an established connection with the given channel.
 		 *
@@ -442,25 +474,29 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		 */
 		private CompletableFuture<Boolean> close(Throwable cause) {
 			final CompletableFuture<Boolean> shutdownFuture = new CompletableFuture<>();
-			if (failureCause.compareAndSet(null, cause)) {
-				final CompletableFuture<?> tmp = new CompletableFuture<>();
-				channel.close().addListener(finished -> tmp.complete(null));
 
-				tmp.thenRun(() -> {
+			if (connectionShutdownFuture.compareAndSet(null, shutdownFuture) &&
+					failureCause.compareAndSet(null, cause)) {
+
+				channel.close().addListener(finished -> {
 					stats.reportInactiveConnection();
-
 					for (long requestId : pendingRequests.keySet()) {
 						TimestampedCompletableFuture pending = pendingRequests.remove(requestId);
 						if (pending != null && pending.completeExceptionally(cause)) {
 							stats.reportFailedRequest();
 						}
 					}
-					shutdownFuture.complete(true);
+
+					if (finished.isSuccess()) {
+						shutdownFuture.complete(true);
+					} else {
+						shutdownFuture.completeExceptionally(finished.cause());
+					}
 				});
-			} else {
-				shutdownFuture.complete(false);
 			}
-			return shutdownFuture;
+
+			// in case we had a race condition, return the winner of the race.
+			return connectionShutdownFuture.get();
 		}
 
 		/**
@@ -530,11 +566,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 		@Override
 		public void onFailure(Throwable cause) {
 			close(cause).thenAccept(cancelled -> {
-				if (cancelled) {
-					// Remove from established channels, otherwise future
-					// requests will be handled by this failed channel.
-					establishedConnections.remove(serverAddress, this);
-				}
+				establishedConnections.remove(serverAddress, this);
 			});
 		}
 
@@ -564,5 +596,10 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 				return timestampInNanos;
 			}
 		}
+	}
+
+	@VisibleForTesting
+	public boolean isEventGroupShutdown() {
+		return bootstrap == null || bootstrap.group().isTerminated();
 	}
 }

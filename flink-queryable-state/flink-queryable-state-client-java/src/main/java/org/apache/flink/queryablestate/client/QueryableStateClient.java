@@ -45,8 +45,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Client for querying Flink's managed state.
@@ -111,33 +109,31 @@ public class QueryableStateClient {
 	}
 
 	/**
-	 * Shuts down the client and waits for 10 seconds
-	 * for the shutdown to be completed.
+	 * Shuts down the client and returns a {@link CompletableFuture} that
+	 * will be completed when the shutdown process is completed.
 	 *
-	 * <p>If this expires, or an exception is thrown for
-	 * any reason, then a warning is printed containing the
-	 * exception.
+	 * <p>If an exception is thrown for any reason, then the returned future
+	 * will be completed exceptionally with that exception.
+	 *
+	 * @return A {@link CompletableFuture} for further handling of the
+	 * shutdown result.
 	 */
-	public void shutdown() {
-		try {
-			client.shutdown().get(10L, TimeUnit.SECONDS);
-			LOG.info("The Queryable State Client was shutdown successfully.");
-		} catch (Exception e) {
-			LOG.warn("The Queryable State Client shutdown failed: ", e);
-		}
+	public CompletableFuture<?> shutdownAndHandle() {
+		return client.shutdown();
 	}
 
 	/**
 	 * Shuts down the client and waits until shutdown is completed.
 	 *
-	 * <p>If an exception is thrown for any reason, then this exception
-	 * is further propagated upwards.
+	 * <p>If an exception is thrown, a warning is printed containing
+	 * the exception message.
 	 */
-	public void shutdownAndWait() throws Throwable {
+	public void shutdownAndWait() {
 		try {
-			client.shutdown().join();
-		} catch (CompletionException e) {
-			throw e.getCause();
+			client.shutdown().get();
+			LOG.info("The Queryable State Client was shutdown successfully.");
+		} catch (Exception e) {
+			LOG.warn("The Queryable State Client shutdown failed: ", e);
 		}
 	}
 

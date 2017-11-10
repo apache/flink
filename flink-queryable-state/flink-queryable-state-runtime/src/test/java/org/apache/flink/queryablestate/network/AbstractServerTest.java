@@ -143,6 +143,7 @@ public class AbstractServerTest {
 		@Override
 		public void close() throws Exception {
 			shutdown().join();
+			Assert.assertTrue(isEventGroupShutdown());
 		}
 	}
 
