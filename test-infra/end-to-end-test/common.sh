@@ -107,10 +107,7 @@ function stop_cluster {
     PASS=""
   fi
 
-  if grep -rv "NativeCodeLoader" $FLINK_DIR/log/*.out \
-      | grep -v  "Unable to load native-hadoop" \
-      | grep -v  "amazonaws" \
-      | grep -i "."; then
+  if grep -ri "." $FLINK_DIR/log/*.out > /dev/null; then
     echo "Found non-empty .out files:"
     cat $FLINK_DIR/log/*.out
     PASS=""
