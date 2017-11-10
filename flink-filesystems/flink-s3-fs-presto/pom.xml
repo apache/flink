@@ -284,6 +284,10 @@ under the License.
 									</excludes>
 								</relocation>
 								<relocation>
+									<pattern>org.HdrHistogram</pattern>
+									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.HdrHistogram</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>org.joda</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.joda</shadedPattern>
 								</relocation>
