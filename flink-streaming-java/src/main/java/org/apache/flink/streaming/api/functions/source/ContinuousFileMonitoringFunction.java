@@ -325,7 +325,7 @@ public class ContinuousFileMonitoringFunction<OUT>
 	 */
 	private boolean shouldIgnore(Path filePath, long modificationTime) {
 		assert (Thread.holdsLock(checkpointLock));
-		boolean shouldIgnore = modificationTime <= globalModificationTime;
+		boolean shouldIgnore = modificationTime < globalModificationTime;
 		if (shouldIgnore && LOG.isDebugEnabled()) {
 			LOG.debug("Ignoring " + filePath + ", with mod time= " + modificationTime +
 				" and global mod time= " + globalModificationTime);
