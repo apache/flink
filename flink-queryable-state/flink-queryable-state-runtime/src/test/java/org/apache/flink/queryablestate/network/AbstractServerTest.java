@@ -174,23 +174,21 @@ public class AbstractServerTest {
 				}
 
 				@Override
-				public CompletableFuture<Boolean> shutdown() {
-					return CompletableFuture.completedFuture(true);
+				public CompletableFuture<?> shutdown() {
+					return CompletableFuture.completedFuture(null);
 				}
 			};
 		}
 
 		@Override
 		public void close() throws Exception {
-			shutdownServer(Time.seconds(10L)).join();
-
+			shutdownServer(Time.seconds(10L)).get();
 			if (requestStats instanceof AtomicKvStateRequestStats) {
 				AtomicKvStateRequestStats stats = (AtomicKvStateRequestStats) requestStats;
 				Assert.assertEquals(0L, stats.getNumConnections());
 			}
-
 			Assert.assertTrue(getQueryExecutor().isTerminated());
-			Assert.assertTrue(getQueryExecutor().isTerminated());
+			Assert.assertTrue(isEventGroupShutdown());
 		}
 	}
 

@@ -101,7 +101,7 @@ public class KvStateServerHandler extends AbstractServerHandler<KvStateInternalR
 	}
 
 	@Override
-	public CompletableFuture<Boolean> shutdown() {
-		return CompletableFuture.completedFuture(true);
+	public CompletableFuture<?> shutdown() {
+		return CompletableFuture.completedFuture(null);
 	}
 }
