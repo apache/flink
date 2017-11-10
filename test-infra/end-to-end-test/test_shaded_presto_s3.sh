@@ -31,7 +31,7 @@ source "$(dirname "$0")"/common.sh
 s3_put $TEST_INFRA_DIR/test-data/words $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-presto-s3
 # make sure we delete the file at the end
 function s3_cleanup {
-  s3_delete $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-s3a
+  s3_delete $ARTIFACTS_AWS_BUCKET flink-end-to-end-test-shaded-presto-s3
   rm $FLINK_DIR/lib/flink-s3-fs*.jar
 
   # make sure to run regular cleanup as well
