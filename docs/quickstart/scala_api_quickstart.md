@@ -263,7 +263,7 @@ For a complete overview over our API, have a look at the
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html), and
 [Scala API Extensions]({{ site.baseurl }}/dev/scala_api_extensions.html)
 sections. If you have any trouble, ask on our
-[Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/).
+[Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
 We are happy to provide help.
 
 {% top %}
