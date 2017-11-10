@@ -978,6 +978,24 @@ input
 </div>
 </div>
 
+### Using per-window state in ProcessWindowFunction
+
+In addition to accessing keyed state (as any rich function can) a `ProcessWindowFunction` can
+also use keyed state that is scoped to the window that the function is currently processing. The are
+two methods on the `Context` object that a `process()` invocation receives that allow access
+two the two types of state:
+
+ - `globalState()`, which allows access to keyed state that is not scoped to a window
+ - `windowState()`, which allows access to keyed state that is also scoped to the window
+
+This feature is helpful if you anticipate multiple firing for the same window, as can happen when
+you have late firings for data that arrives late or when you have a custom trigger that does
+speculative early firings. In such a case you would store information about previous firings or
+the number of firings in per-window state.
+
+When using windowed state it is important to also clean up that state when a window is cleared. This
+should happen in the `clear()` method.
+
 ### WindowFunction (Legacy)
 
 In some places where a `ProcessWindowFunction` can be used you can also use a `WindowFunction`. This
