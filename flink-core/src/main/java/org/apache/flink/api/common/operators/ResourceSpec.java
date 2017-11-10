@@ -328,11 +328,11 @@ public class ResourceSpec implements Serializable {
 	 */
 	public static class GPUResource extends Resource {
 
-		GPUResource(double value) {
+		public GPUResource(double value) {
 			this(value, ResourceAggregateType.AGGREGATE_TYPE_SUM);
 		}
 
-		GPUResource(double value, ResourceAggregateType type) {
+		public GPUResource(double value, ResourceAggregateType type) {
 			super("GPU", value, type);
 		}
 
@@ -347,11 +347,11 @@ public class ResourceSpec implements Serializable {
 	 */
 	public static class FPGAResource extends Resource {
 
-		FPGAResource(double value) {
+		public FPGAResource(double value) {
 			this(value, ResourceAggregateType.AGGREGATE_TYPE_SUM);
 		}
 
-		FPGAResource(double value, ResourceAggregateType type) {
+		public FPGAResource(double value, ResourceAggregateType type) {
 			super("FPGA", value, type);
 		}
 
