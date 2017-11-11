@@ -208,7 +208,7 @@ class NettyClient {
 			{
 				throw new ChannelException(
 						"The operating system does not offer enough file handles to open the network connection. " +
-								"Please increase the number of of available file handles.", e.getCause());
+								"Please increase the number of available file handles.", e.getCause());
 			}
 			else {
 				throw e;

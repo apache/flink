@@ -420,7 +420,7 @@ public final class ConfigConstants {
 	 * The maximum number of failed YARN containers before entirely stopping
 	 * the YARN session / job on YARN.
 	 *
-	 * By default, we take the number of of initially requested containers.
+	 * By default, we take the number of initially requested containers.
 	 * @deprecated in favor of {@code YarnConfigOptions#MAX_FAILED_CONTAINERS}.
 	 */
 	@Deprecated
@@ -523,7 +523,7 @@ public final class ConfigConstants {
 	 * The maximum number of failed Mesos tasks before entirely stopping
 	 * the Mesos session / job on Mesos.
 	 *
-	 * By default, we take the number of of initially requested tasks.
+	 * By default, we take the number of initially requested tasks.
 	 * @deprecated in favor of {@code MesosOptions#MAX_FAILED_TASKS}.
 	 */
 	@Deprecated

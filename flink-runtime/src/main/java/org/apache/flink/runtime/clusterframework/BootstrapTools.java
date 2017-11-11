@@ -288,7 +288,7 @@ public class BootstrapTools {
 	}
 
 	/**
-	* Sets the value of of a new config key to the value of a deprecated config key. Taking into
+	* Sets the value of a new config key to the value of a deprecated config key. Taking into
 	* account the changed prefix.
 	* @param config Config to write
 	* @param deprecatedPrefix Old prefix of key
