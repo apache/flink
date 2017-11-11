@@ -978,6 +978,38 @@ input
 </div>
 </div>
 
+### Using per-window state in ProcessWindowFunction
+
+In addition to accessing keyed state (as any rich function can) a `ProcessWindowFunction` can
+also use keyed state that is scoped to the window that the function is currently processing. In this
+context it is important to understand what the window that *per-window* state is referring to is.
+There are different "windows" involved:
+
+ - The window that was defined when specifying the windowed operation: This might be *tumbling
+ windows of 1 hour* or *sliding windows of 2 hours that slide by 1 hour*.
+ - An actual instance of a defined window for a given key: This might be *time window from 12:00
+ to 13:00 for user-id xyz*. This is based on the window definition and there will be many windows
+ based on the number of keys that the job is currently processing and based on what time slots
+ the events fall into.
+
+Per-window state is tied to the latter of those two. Meaning that if we process events for 1000
+different keys and events for all of them currently fall into the *[12:00, 13:00)* time window
+then there will be 1000 window instances that each have their own keyed per-window state.
+
+There are two methods on the `Context` object that a `process()` invocation receives that allow
+access two the two types of state:
+
+ - `globalState()`, which allows access to keyed state that is not scoped to a window
+ - `windowState()`, which allows access to keyed state that is also scoped to the window
+
+This feature is helpful if you anticipate multiple firing for the same window, as can happen when
+you have late firings for data that arrives late or when you have a custom trigger that does
+speculative early firings. In such a case you would store information about previous firings or
+the number of firings in per-window state.
+
+When using windowed state it is important to also clean up that state when a window is cleared. This
+should happen in the `clear()` method.
+
 ### WindowFunction (Legacy)
 
 In some places where a `ProcessWindowFunction` can be used you can also use a `WindowFunction`. This
@@ -1293,6 +1325,7 @@ Before continuing in this section you might want to take a look at our section a
 [event time and watermarks]({{ site.baseurl }}/dev/event_time.html).
 
 When watermarks arrive at the window operator this triggers two things:
+
  - the watermark triggers computation of all windows where the maximum timestamp (which is
  *end-timestamp - 1*) is smaller than the new watermark
  - the watermark is forwarded (as is) to downstream operations

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.AbstractID;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -71,7 +72,7 @@ public interface SlotPoolGateway extends RpcGateway {
 	//  registering / un-registering TaskManagers and slots
 	// ------------------------------------------------------------------------
 
-	void registerTaskManager(ResourceID resourceID);
+	CompletableFuture<Acknowledge> registerTaskManager(ResourceID resourceID);
 
 	CompletableFuture<Acknowledge> releaseTaskManager(ResourceID resourceID);
 
@@ -86,10 +87,26 @@ public interface SlotPoolGateway extends RpcGateway {
 	// ------------------------------------------------------------------------
 
 	CompletableFuture<SimpleSlot> allocateSlot(
+			SlotRequestID requestId,
 			ScheduledUnit task,
 			ResourceProfile resources,
 			Iterable<TaskManagerLocation> locationPreferences,
 			@RpcTimeout Time timeout);
 
 	void returnAllocatedSlot(Slot slot);
+
+	/**
+	 * Cancel a slot allocation request.
+	 *
+	 * @param requestId identifying the slot allocation request
+	 * @return Future acknowledge if the slot allocation has been cancelled
+	 */
+	CompletableFuture<Acknowledge> cancelSlotAllocation(SlotRequestID requestId);
+
+	/**
+	 * Request ID identifying different slot requests.
+	 */
+	final class SlotRequestID extends AbstractID {
+		private static final long serialVersionUID = -6072105912250154283L;
+	}
 }

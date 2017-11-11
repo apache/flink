@@ -176,4 +176,10 @@ object CommonTestData {
       this(null, null)
     }
   }
+
+  class NonPojo {
+    val x = new java.util.HashMap[String, String]()
+
+    override def toString: String = x.toString
+  }
 }

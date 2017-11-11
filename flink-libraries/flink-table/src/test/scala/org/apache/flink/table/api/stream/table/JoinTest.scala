@@ -100,6 +100,40 @@ class JoinTest extends TableTestBase {
     util.verifyTable(resultTable, expected)
   }
 
+  @Test
+  def testProcTimeWindowInnerJoinWithEquiTimeAttrs(): Unit = {
+    val util = streamTestUtil()
+    val left = util.addTable[(Long, Int, String)]('a, 'b, 'c, 'ltime.proctime)
+    val right = util.addTable[(Long, Int, String)]('d, 'e, 'f, 'rtime.proctime)
+
+    val resultTable = left.join(right)
+      .where('a === 'd && 'ltime === 'rtime)
+      .select('a, 'e, 'ltime)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        binaryNode(
+          "DataStreamWindowJoin",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "ltime")
+          ),
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(1),
+            term("select", "d", "e", "rtime")
+          ),
+          term("where", "AND(=(a, d), =(ltime, rtime))"),
+          term("join", "a", "ltime", "d", "e", "rtime"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "e", "PROCTIME(ltime) AS ltime")
+      )
+    util.verifyTable(resultTable, expected)
+  }
+
   /**
     * The time indicator can be accessed from non-time predicates now.
     */

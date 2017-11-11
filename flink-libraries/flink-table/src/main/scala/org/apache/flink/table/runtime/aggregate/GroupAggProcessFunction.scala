@@ -97,9 +97,12 @@ class GroupAggProcessFunction(
     if (null == accumulators) {
       firstRow = true
       accumulators = function.createAccumulators()
-      inputCnt = 0L
     } else {
       firstRow = false
+    }
+
+    if (null == inputCnt) {
+      inputCnt = 0L
     }
 
     // Set group keys value to the final output

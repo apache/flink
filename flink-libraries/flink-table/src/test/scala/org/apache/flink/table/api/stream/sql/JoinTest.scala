@@ -185,6 +185,66 @@ class JoinTest extends TableTestBase {
   }
 
   @Test
+  def testJoinWithEquiProcTime(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.proctime = t2.proctime
+        |""".stripMargin
+
+    val expected =
+      unaryNode("DataStreamCalc",
+        binaryNode("DataStreamWindowJoin",
+          unaryNode("DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "proctime")
+          ),
+          unaryNode("DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "proctime")
+          ),
+          term("where", "AND(=(a, a0), =(proctime, proctime0))"),
+          term("join", "a", "proctime", "a0", "b", "proctime0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b0 AS b")
+      )
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
+  def testJoinWithEquiRowTime(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b
+        |FROM MyTable t1, MyTable2 t2
+        |WHERE t1.a = t2.a AND
+        |  t1.c = t2.c
+        |""".stripMargin
+
+    val expected =
+      unaryNode("DataStreamCalc",
+        binaryNode("DataStreamWindowJoin",
+          unaryNode("DataStreamCalc",
+            streamTableNode(0),
+            term("select", "a", "c")
+          ),
+          unaryNode("DataStreamCalc",
+            streamTableNode(1),
+            term("select", "a", "b", "c")
+          ),
+          term("where", "AND(=(a, a0), =(c, c0))"),
+          term("join", "a", "c", "a0", "b", "c0"),
+          term("joinType", "InnerJoin")
+        ),
+        term("select", "a", "b0 AS b")
+      )
+    streamUtil.verifySql(sqlQuery, expected)
+  }
+
+  @Test
   def testRowTimeInnerJoinAndWindowAggregationOnFirst(): Unit = {
 
     val sqlQuery =
@@ -319,9 +379,22 @@ class JoinTest extends TableTestBase {
       "rowtime")
 
     verifyTimeBoundary(
-      "t1.c - interval '2' second >= t2.c + interval '1' second -" +
-        "interval '10' second and " +
+      "t1.c >= t2.c - interval '1' second and " +
         "t1.c <= t2.c + interval '10' second",
+      -1000,
+      10000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t1.c - interval '2' second >= t2.c + interval '1' second - interval '10' second and " +
+        "t1.c <= t2.c + interval '10' second",
+      -7000,
+      10000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t2.c + interval '1' second - interval '10' second <= t1.c - interval '2' second and " +
+        "t2.c + interval '10' second >= t1.c",
       -7000,
       10000,
       "rowtime")
@@ -331,6 +404,33 @@ class JoinTest extends TableTestBase {
         "t1.c <= t2.c - interval '5' second",
       -10000,
       -5000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t2.c - interval '10' second <= t1.c and " +
+        "t2.c - interval '5' second >= t1.c",
+      -10000,
+      -5000,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t1.c > t2.c - interval '2' second and " +
+        "t1.c < t2.c + interval '2' second",
+      -1999,
+      1999,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t2.c > t1.c - interval '2' second and " +
+        "t2.c < t1.c + interval '2' second",
+      -1999,
+      1999,
+      "rowtime")
+
+    verifyTimeBoundary(
+      "t1.c = t2.c",
+      0,
+      0,
       "rowtime")
   }
 

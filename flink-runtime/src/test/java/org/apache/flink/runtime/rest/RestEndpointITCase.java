@@ -57,6 +57,7 @@ import javax.annotation.Nonnull;
 import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -205,8 +206,8 @@ public class RestEndpointITCase extends TestLogger {
 		}
 
 		@Override
-		protected Collection<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
-			return Collections.singleton(Tuple2.of(new TestHeaders(), testHandler));
+		protected List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> initializeHandlers(CompletableFuture<String> restAddressFuture) {
+			return Collections.singletonList(Tuple2.of(new TestHeaders(), testHandler));
 		}
 	}
 

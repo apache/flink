@@ -20,8 +20,12 @@ package org.apache.flink.table.api.batch.table
 
 import java.sql.Timestamp
 
+import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.Null
+import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -75,5 +79,60 @@ class SetOperatorsTest extends TableTestBase {
     )
 
     util.verifyTable(in, expected)
+  }
+
+  @Test
+  def testUnionNullableTypes(): Unit = {
+    val util = batchTestUtil()
+    val t = util.addTable[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
+
+    val in = t.select('a)
+      .unionAll(
+        t.select(('c > 0) ? ('b, Null(createTypeInformation[(Int, String)]))))
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "CASE(>(c, 0), b, null) AS _c0")
+      ),
+      term("union", "a")
+    )
+
+    util.verifyTable(in, expected)
+  }
+
+  @Test
+  def testUnionAnyType(): Unit = {
+    val util = batchTestUtil()
+    val typeInfo = Types.ROW(
+      new GenericTypeInfo(classOf[NonPojo]),
+      new GenericTypeInfo(classOf[NonPojo]))
+    val t = util.addJavaTable(typeInfo, "A", "a, b")
+
+    val in = t.select('a).unionAll(t.select('b))
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b")
+      ),
+      term("union", "a")
+    )
+
+    util.verifyJavaTable(in, expected)
   }
 }
