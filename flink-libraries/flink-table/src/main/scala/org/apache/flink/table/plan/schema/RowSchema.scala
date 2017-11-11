@@ -48,7 +48,7 @@ class RowSchema(private val logicalRowType: RelDataType) {
   def relDataType: RelDataType = logicalRowType
 
   /**
-    * Returns the [[TypeInformation]] of of the schema
+    * Returns the [[TypeInformation]] of the schema
     */
   def typeInfo: TypeInformation[Row] = physicalRowTypeInfo
 

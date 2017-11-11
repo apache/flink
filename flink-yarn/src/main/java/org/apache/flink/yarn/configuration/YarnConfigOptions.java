@@ -62,7 +62,7 @@ public class YarnConfigOptions {
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
 	 * the YARN session / job on YARN.
-	 * By default, we take the number of of initially requested containers.
+	 * By default, we take the number of initially requested containers.
 	 *
 	 * <p>Note: This option returns a String since Integer options must have a static default value.
 	 */
