@@ -373,7 +373,7 @@ check_shaded_artifacts_s3_fs() {
 	VARIANT=$1
 	jar tf flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar > allClasses
 
-	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/fs/s3${VARIANT}/" -e '^org/$' -e '^org/apache/$' -e '^org/apache/flink/$' -e '^org/apache/flink/fs/$' | grep '.class$'`
+	UNSHADED_CLASSES=`cat allClasses | grep -v -e '^META-INF' -e '^assets' -e "^org/apache/flink/fs/s3${VARIANT}/" | grep '\.class$'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
 		echo "Detected unshaded dependencies in fat jar:"
@@ -382,13 +382,13 @@ check_shaded_artifacts_s3_fs() {
 		return 1
 	fi
 
-	if [ ! `cat allClasses | grep '^META-INF/services/org.apache.flink.core.fs.FileSystemFactory$'` ]; then
+	if [ ! `cat allClasses | grep '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$'` ]; then
 		echo "=============================================================================="
 		echo "File does not exist: services/org.apache.flink.core.fs.FileSystemFactory"
 		echo "=============================================================================="
 	fi
 
-	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org.apache.flink.core.fs.FileSystemFactory$' -e "^META-INF/services/org.apache.flink.fs.s3${VARIANT}.shaded" -e '^META-INF/services/'`
+	UNSHADED_SERVICES=`cat allClasses | grep '^META-INF/services/' | grep -v -e '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$' -e "^META-INF/services/org\.apache\.flink\.fs\.s3${VARIANT}\.shaded" -e '^META-INF/services/'`
 	if [ "$?" == "0" ]; then
 		echo "=============================================================================="
 		echo "Detected unshaded service files in fat jar:"
@@ -397,7 +397,7 @@ check_shaded_artifacts_s3_fs() {
 		return 1
 	fi
 
-	FS_SERVICE_FILE_CLASS=`unzip -q -c flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar META-INF/services/org.apache.flink.core.fs.FileSystemFactory | grep -v -e '^#' -e '^$' -e "^$"`
+	FS_SERVICE_FILE_CLASS=`unzip -q -c flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar META-INF/services/org.apache.flink.core.fs.FileSystemFactory | grep -v -e '^#' -e '^$'`
 	if [ "${FS_SERVICE_FILE_CLASS}" != "org.apache.flink.fs.s3${VARIANT}.S3FileSystemFactory" ]; then
 		echo "=============================================================================="
 		echo "Detected wrong content in services/org.apache.flink.core.fs.FileSystemFactory:"
