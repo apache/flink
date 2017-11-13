@@ -65,7 +65,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 	 * @param maxStateSize The maximal size of the serialized state
 	 */
 	public MemoryStateBackend(int maxStateSize) {
-		this(maxStateSize, false);
+		this(maxStateSize, true);
 	}
 
 	/**
