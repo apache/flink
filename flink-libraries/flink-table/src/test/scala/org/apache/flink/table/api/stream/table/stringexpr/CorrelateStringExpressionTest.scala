@@ -19,7 +19,7 @@
 package org.apache.flink.table.api.stream.table.stringexpr
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.{typeutils, _}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils._
@@ -34,7 +34,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
 
     val util = streamTestUtil()
     val sTab = util.addTable[(Int, Long, String)]('a, 'b, 'c)
-    val typeInfo = new RowTypeInfo(Seq(Types.INT, Types.LONG, Types.STRING): _*)
+    val typeInfo = new RowTypeInfo(Seq(typeutils.Types.INT, typeutils.Types.LONG, typeutils.Types.STRING): _*)
     val jTab = util.addJavaTable[Row](typeInfo,"MyTab","a, b, c")
 
     // test cross join

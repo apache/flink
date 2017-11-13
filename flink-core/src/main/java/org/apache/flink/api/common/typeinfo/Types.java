@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeinfo;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -32,8 +33,16 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+import org.apache.flink.types.Either;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.Value;
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -60,85 +69,85 @@ public class Types {
 	/**
 	 * Returns type information for {@link java.lang.Void}. Does not support a null value.
 	 */
-	public static final TypeInformation<?> VOID = BasicTypeInfo.VOID_TYPE_INFO;
+	public static final TypeInformation<Void> VOID = BasicTypeInfo.VOID_TYPE_INFO;
 
 	/**
 	 * Returns type information for {@link java.lang.String}. Supports a null value.
 	 */
-	public static final TypeInformation<?> STRING = BasicTypeInfo.STRING_TYPE_INFO;
+	public static final TypeInformation<String> STRING = BasicTypeInfo.STRING_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>byte</code> and {@link java.lang.Byte}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> BYTE = BasicTypeInfo.BYTE_TYPE_INFO;
+	public static final TypeInformation<Byte> BYTE = BasicTypeInfo.BYTE_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>boolean</code> and {@link java.lang.Boolean}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> BOOLEAN = BasicTypeInfo.BOOLEAN_TYPE_INFO;
+	public static final TypeInformation<Boolean> BOOLEAN = BasicTypeInfo.BOOLEAN_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>short</code> and {@link java.lang.Short}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> SHORT = BasicTypeInfo.SHORT_TYPE_INFO;
+	public static final TypeInformation<Short> SHORT = BasicTypeInfo.SHORT_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>int</code> and {@link java.lang.Integer}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> INT = BasicTypeInfo.INT_TYPE_INFO;
+	public static final TypeInformation<Integer> INT = BasicTypeInfo.INT_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>long</code> and {@link java.lang.Long}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> LONG = BasicTypeInfo.LONG_TYPE_INFO;
+	public static final TypeInformation<Long> LONG = BasicTypeInfo.LONG_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>float</code> and {@link java.lang.Float}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> FLOAT = BasicTypeInfo.FLOAT_TYPE_INFO;
+	public static final TypeInformation<Float> FLOAT = BasicTypeInfo.FLOAT_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>double</code> and {@link java.lang.Double}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO;
+	public static final TypeInformation<Double> DOUBLE = BasicTypeInfo.DOUBLE_TYPE_INFO;
 
 	/**
 	 * Returns type information for both a primitive <code>char</code> and {@link java.lang.Character}.
 	 * Does not support a null value.
 	 */
-	public static final TypeInformation<?> CHAR = BasicTypeInfo.CHAR_TYPE_INFO;
+	public static final TypeInformation<Character> CHAR = BasicTypeInfo.CHAR_TYPE_INFO;
 
 	/**
 	 * Returns type information for {@link java.math.BigDecimal}. Supports a null value.
 	 */
-	public static final TypeInformation<?> BIG_DEC = BasicTypeInfo.BIG_DEC_TYPE_INFO;
+	public static final TypeInformation<BigDecimal> BIG_DEC = BasicTypeInfo.BIG_DEC_TYPE_INFO;
 
 	/**
 	 * Returns type information for {@link java.math.BigInteger}. Supports a null value.
 	 */
-	public static final TypeInformation<?> BIG_INT = BasicTypeInfo.BIG_INT_TYPE_INFO;
+	public static final TypeInformation<BigInteger> BIG_INT = BasicTypeInfo.BIG_INT_TYPE_INFO;
 
 	/**
 	 * Returns type information for {@link java.sql.Date}. Supports a null value.
 	 */
-	public static final TypeInformation<?> SQL_DATE = SqlTimeTypeInfo.DATE;
+	public static final TypeInformation<Date> SQL_DATE = SqlTimeTypeInfo.DATE;
 
 	/**
 	 * Returns type information for {@link java.sql.Time}. Supports a null value.
 	 */
-	public static final TypeInformation<?> SQL_TIME = SqlTimeTypeInfo.TIME;
+	public static final TypeInformation<Time> SQL_TIME = SqlTimeTypeInfo.TIME;
 
 	/**
 	 * Returns type information for {@link java.sql.Timestamp}. Supports a null value.
 	 */
-	public static final TypeInformation<?> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
+	public static final TypeInformation<Timestamp> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
 
 	/**
 	 * Returns type information for {@link org.apache.flink.types.Row} with fields of the given types.
@@ -157,7 +166,7 @@ public class Types {
 	 *
 	 * @param types The types of the row fields, e.g., Types.STRING, Types.INT
 	 */
-	public static TypeInformation<?> ROW(TypeInformation<?>... types) {
+	public static TypeInformation<Row> ROW(TypeInformation<?>... types) {
 		return new RowTypeInfo(types);
 	}
 
@@ -178,7 +187,7 @@ public class Types {
 	 * @param fieldNames array of field names
 	 * @param types array of field types
 	 */
-	public static TypeInformation<?> ROW_NAMED(String[] fieldNames, TypeInformation<?>... types) {
+	public static TypeInformation<Row> ROW_NAMED(String[] fieldNames, TypeInformation<?>... types) {
 		return new RowTypeInfo(types, fieldNames);
 	}
 
@@ -193,7 +202,7 @@ public class Types {
 	 *
 	 * @param types The types of the tuple fields, e.g., Types.STRING, Types.INT
 	 */
-	public static TypeInformation<?> TUPLE(TypeInformation<?>... types) {
+	public static <T extends Tuple> TypeInformation<T> TUPLE(TypeInformation<?>... types) {
 		return new TupleTypeInfo<>(types);
 	}
 
@@ -232,8 +241,8 @@ public class Types {
 	 *                      {@link org.apache.flink.api.java.tuple.Tuple25} that defines all field types and
 	 *                      does not add any additional fields
 	 */
-	public static TypeInformation<?> TUPLE(Class<?> tupleSubclass) {
-		final TypeInformation<?> ti = TypeExtractor.createTypeInfo(tupleSubclass);
+	public static <T extends Tuple> TypeInformation<T> TUPLE(Class<T> tupleSubclass) {
+		final TypeInformation<T> ti = TypeExtractor.createTypeInfo(tupleSubclass);
 		if (ti instanceof TupleTypeInfo) {
 			return ti;
 		}
@@ -259,8 +268,8 @@ public class Types {
 	 *
 	 * @param pojoClass POJO class to be analyzed by Flink
 	 */
-	public static TypeInformation<?> POJO(Class<?> pojoClass) {
-		final TypeInformation<?> ti = TypeExtractor.createTypeInfo(pojoClass);
+	public static <T> TypeInformation<T> POJO(Class<T> pojoClass) {
+		final TypeInformation<T> ti = TypeExtractor.createTypeInfo(pojoClass);
 		if (ti instanceof PojoTypeInfo) {
 			return ti;
 		}
@@ -289,7 +298,7 @@ public class Types {
 	 * @param pojoClass POJO class
 	 * @param fields map of fields that map a name to type information
 	 */
-	public static TypeInformation<?> POJO(Class<?> pojoClass, Map<String, TypeInformation<?>> fields) {
+	public static <T> TypeInformation<T> POJO(Class<T> pojoClass, Map<String, TypeInformation<?>> fields) {
 		final List<PojoField> pojoFields = new ArrayList<>(fields.size());
 		for (Map.Entry<String, TypeInformation<?>> field : fields.entrySet()) {
 			Field f = TypeExtractor.getDeclaredField(pojoClass, field.getKey());
@@ -313,7 +322,7 @@ public class Types {
 	 *
 	 * @param genericClass any Java class
 	 */
-	public static TypeInformation<?> GENERIC(Class<?> genericClass) {
+	public static <T> TypeInformation<T> GENERIC(Class<T> genericClass) {
 		return new GenericTypeInfo<>(genericClass);
 	}
 
@@ -350,9 +359,10 @@ public class Types {
 	 *
 	 * @param elementType element type of the array
 	 */
-	public static TypeInformation<?> OBJECT_ARRAY(TypeInformation<?> elementType) {
+	@SuppressWarnings("unchecked")
+	public static <E> TypeInformation<E[]> OBJECT_ARRAY(TypeInformation<E> elementType) {
 		if (elementType == Types.STRING) {
-			return BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO;
+			return (TypeInformation) BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO;
 		}
 		return ObjectArrayTypeInfo.getInfoFor(elementType);
 	}
@@ -373,9 +383,8 @@ public class Types {
 	 *
 	 * @param valueType class that implements {@link org.apache.flink.types.Value}
 	 */
-	@SuppressWarnings("unchecked")
-	public static TypeInformation<?> VALUE(Class<?> valueType) {
-		return new ValueTypeInfo(valueType);
+	public static <V extends Value> TypeInformation<V> VALUE(Class<V> valueType) {
+		return new ValueTypeInfo<>(valueType);
 	}
 
 	/**
@@ -388,9 +397,8 @@ public class Types {
 	 * @param keyType type information for the map's keys
 	 * @param valueType type information for the map's values
 	 */
-	@SuppressWarnings("unchecked")
-	public static TypeInformation<?> MAP(TypeInformation<?> keyType, TypeInformation<?> valueType) {
-		return new MapTypeInfo(keyType, valueType);
+	public static <K, V> TypeInformation<Map<K, V>> MAP(TypeInformation<K> keyType, TypeInformation<V> valueType) {
+		return new MapTypeInfo<>(keyType, valueType);
 	}
 
 	/**
@@ -402,9 +410,8 @@ public class Types {
 	 *
 	 * @param elementType type information for the list's elements
 	 */
-	@SuppressWarnings("unchecked")
-	public static TypeInformation<?> LIST(TypeInformation<?> elementType) {
-		return new ListTypeInfo(elementType);
+	public static <E> TypeInformation<List<E>> LIST(TypeInformation<E> elementType) {
+		return new ListTypeInfo<>(elementType);
 	}
 
 	/**
@@ -412,9 +419,8 @@ public class Types {
 	 *
 	 * @param enumType enumeration class extending {@link java.lang.Enum}
 	 */
-	@SuppressWarnings("unchecked")
-	public static TypeInformation<?> ENUM(Class<?> enumType) {
-		return new EnumTypeInfo(enumType);
+	public static <E extends Enum<E>> TypeInformation<E> ENUM(Class<E> enumType) {
+		return new EnumTypeInfo<>(enumType);
 	}
 
 	/**
@@ -428,8 +434,7 @@ public class Types {
 	 * @param leftType type information of left side / {@link org.apache.flink.types.Either.Left}
 	 * @param rightType type information of right side / {@link org.apache.flink.types.Either.Right}
 	 */
-	@SuppressWarnings("unchecked")
-	public static TypeInformation<?> EITHER(TypeInformation<?> leftType, TypeInformation<?> rightType) {
-		return new EitherTypeInfo(leftType, rightType);
+	public static <L, R> TypeInformation<Either<L, R>> EITHER(TypeInformation<L> leftType, TypeInformation<R> rightType) {
+		return new EitherTypeInfo<>(leftType, rightType);
 	}
 }
