@@ -161,10 +161,15 @@ So far, you have set up your cluster to run with queryable state and you have de
 queryable. Now it is time to see how to query this state. 
 
 For this you can use the `QueryableStateClient` helper class. This is available in the `flink-queryable-state-client` 
-jar which you have to explicitly include as a dependency in the `pom.xml` of your project, as shown below:
+jar which you have to explicitly include as a dependency in the `pom.xml` of your project along with `flink-core`, as shown below:
 
 <div data-lang="java" markdown="1">
 {% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-core</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-queryable-state-client-java{{ site.scala_version_suffix }}</artifactId>
