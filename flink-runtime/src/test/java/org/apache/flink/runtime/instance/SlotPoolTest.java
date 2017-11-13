@@ -37,6 +37,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -50,7 +51,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.instance.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
@@ -380,6 +383,76 @@ public class SlotPoolTest extends TestLogger {
 			} catch (Exception e) {
 				LOG.warn("Could not properly terminate the SlotPool.", e);
 			}
+		}
+	}
+
+	/**
+	 * Tests that unused offered slots are directly used to fulfill pending slot
+	 * requests.
+	 *
+	 * <p>See FLINK-8089
+	 */
+	@Test
+	public void testFulfillingSlotRequestsWithUnusedOfferedSlots() throws Exception {
+		final SlotPool slotPool = new SlotPool(rpcService, jobId);
+
+		final JobMasterId jobMasterId = JobMasterId.generate();
+		final String jobMasterAddress = "foobar";
+		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+
+		resourceManagerGateway.setRequestSlotConsumer(
+			(SlotRequest slotRequest) -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+
+		final SlotRequestID slotRequestId1 = new SlotRequestID();
+		final SlotRequestID slotRequestId2 = new SlotRequestID();
+
+		try {
+			slotPool.start(jobMasterId, jobMasterAddress);
+
+			final SlotPoolGateway slotPoolGateway = slotPool.getSelfGateway(SlotPoolGateway.class);
+
+			final ScheduledUnit scheduledUnit = new ScheduledUnit(mock(Execution.class));
+
+			slotPoolGateway.connectToResourceManager(resourceManagerGateway);
+
+			CompletableFuture<LogicalSlot> slotFuture1 = slotPoolGateway.allocateSlot(
+				slotRequestId1,
+				scheduledUnit,
+				ResourceProfile.UNKNOWN,
+				Collections.emptyList(),
+				timeout);
+
+			// wait for the first slot request
+			final AllocationID allocationId = allocationIdFuture.get();
+
+			CompletableFuture<LogicalSlot> slotFuture2 = slotPoolGateway.allocateSlot(
+				slotRequestId2,
+				scheduledUnit,
+				ResourceProfile.UNKNOWN,
+				Collections.emptyList(),
+				timeout);
+
+			slotPoolGateway.cancelSlotRequest(slotRequestId1);
+
+			try {
+				// this should fail with a CancellationException
+				slotFuture1.get();
+				fail("The first slot future should have failed because it was cancelled.");
+			} catch (ExecutionException ee) {
+				assertTrue(ExceptionUtils.stripExecutionException(ee) instanceof CancellationException);
+			}
+
+			final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN);
+
+			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
+
+			assertTrue(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
+
+			// the slot offer should fulfill the second slot request
+			assertEquals(allocationId, slotFuture2.get().getAllocationId());
+		} finally {
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 

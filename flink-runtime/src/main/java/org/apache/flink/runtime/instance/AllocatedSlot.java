@@ -108,15 +108,6 @@ public class AllocatedSlot {
 	}
 
 	/**
-	 * Gets the number of the slot.
-	 *
-	 * @return The number of the slot on the TaskManager.
-	 */
-	public int getPhysicalSlotNumber() {
-		return physicalSlotNumber;
-	}
-
-	/**
 	 * Gets the resource profile of the slot.
 	 *
 	 * @return The resource profile of the slot.
@@ -143,6 +134,15 @@ public class AllocatedSlot {
 	 */
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
+	}
+
+	/**
+	 * Returns true if this slot is not being used (e.g. a logical slot is allocated from this slot).
+	 *
+	 * @return true if a logical slot is allocated from this slot, otherwise false
+	 */
+	public boolean isUsed() {
+		return logicalSlotReference.get() != null;
 	}
 
 	/**

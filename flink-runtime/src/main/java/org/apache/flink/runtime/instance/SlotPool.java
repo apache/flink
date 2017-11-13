@@ -281,7 +281,11 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
 
 		if (allocatedSlot != null) {
-			internalReturnAllocatedSlot(allocatedSlot);
+			if (allocatedSlot.releaseLogicalSlot()) {
+				tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
+			} else {
+				throw new RuntimeException("Could not release allocated slot " + allocatedSlot + '.');
+			}
 		} else {
 			log.debug("There is no allocated slot with request id {}. Ignoring this request.", slotRequestId);
 		}
@@ -342,9 +346,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 				try {
 					return allocatedSlot.allocateSimpleSlot(requestId, Locality.UNKNOWN);
 				} catch (SlotException e) {
-					internalReturnAllocatedSlot(allocatedSlot);
-
-					throw new CompletionException("Could not allocate a logical simple slot.", e);
+					throw new CompletionException("Could not allocate a logical simple slot from allocate slot " +
+						allocatedSlot + '.', e);
 				}
 			});
 	}
@@ -464,6 +467,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		Preconditions.checkNotNull(e);
 
 		if (!pendingRequest.getAllocatedSlotFuture().isDone()) {
+			LOG.info("Failing pending request {}.", pendingRequest.getSlotRequestId());
 			pendingRequest.getAllocatedSlotFuture().completeExceptionally(e);
 		}
 	}
@@ -497,28 +501,25 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Return the slot back to this pool without releasing it. It's mainly called by failed / cancelled tasks, and the
-	 * slot can be reused by other pending requests if the resource profile matches.n
+	 * Tries to fulfill with the given allocated slot a pending slot request or add the
+	 * allocated slot to the set of available slots if no matching request is available.
 	 *
 	 * @param allocatedSlot which shall be returned
 	 */
-	private void internalReturnAllocatedSlot(AllocatedSlot allocatedSlot) {
-		if (allocatedSlot.releaseLogicalSlot()) {
+	private void tryFulfillSlotRequestOrMakeAvailable(AllocatedSlot allocatedSlot) {
+		Preconditions.checkState(!allocatedSlot.isUsed(), "Provided slot is still in use.");
 
-			final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
+		final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
 
-			if (pendingRequest != null) {
-				LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
-					pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
+		if (pendingRequest != null) {
+			LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
+				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
-				allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
-				pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
-			} else {
-				LOG.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
-				availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
-			}
+			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
+			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
 		} else {
-			LOG.debug("Failed to mark the logical slot of {} as released.", allocatedSlot);
+			LOG.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
+			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
 		}
 	}
 
@@ -643,7 +644,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 			// we were actually not waiting for this:
 			//   - could be that this request had been fulfilled
 			//   - we are receiving the slots from TaskManagers after becoming leaders
-			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
+			tryFulfillSlotRequestOrMakeAvailable(allocatedSlot);
 		}
 
 		// we accepted the request in any case. slot will be released after it idled for
