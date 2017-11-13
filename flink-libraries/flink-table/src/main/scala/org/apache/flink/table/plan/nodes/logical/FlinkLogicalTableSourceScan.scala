@@ -29,7 +29,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
-import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
+import org.apache.flink.table.sources.{FilterableTableSource, TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
 
@@ -62,7 +62,19 @@ class FlinkLogicalTableSourceScan(
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
+
+    val adjustedCnt: Double = tableSource match {
+      case f: FilterableTableSource[_] if f.isFilterPushedDown =>
+        // ensure we prefer FilterableTableSources with pushed-down filters.
+        rowCnt - 1.0
+      case _ =>
+        rowCnt
+    }
+
+    planner.getCostFactory.makeCost(
+      adjustedCnt,
+      adjustedCnt,
+      adjustedCnt * estimateRowSize(getRowType))
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

@@ -47,6 +47,7 @@ A custom `TableSource` can be defined by implementing the `BatchTableSource` or 
 | `Kafka08AvroTableSource` | `flink-connector-kafka-0.8` | N | Y | A `TableSource` for Avro-encoded Kafka 0.8 topics.
 | `Kafka08JsonTableSource` | `flink-connector-kafka-0.8` | N | Y | A `TableSource` for flat Json-encoded Kafka 0.8 topics.
 | `CsvTableSource` | `flink-table` | Y | Y | A simple `TableSource` for CSV files.
+| `OrcTableSource` | `flink-orc` | Y | N | A `TableSource` for ORC files.
 
 All sources that come with the `flink-table` dependency are directly available for Table API or SQL programs. For all other table sources, you have to add the respective dependency in addition to the `flink-table` dependency.
 
@@ -482,6 +483,54 @@ val csvTableSource = CsvTableSource
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}
+
+### OrcTableSource
+
+The `OrcTableSource` reads [ORC files](https://orc.apache.org). ORC is a file format for structured data and stores the data in a compressed, columnar representation. ORC is very storage efficient and supports projection and filter push-down.
+
+An `OrcTableSource` is created as shown below:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+// create Hadoop Configuration
+Configuration config = new Configuration();
+
+OrcTableSource orcTableSource = OrcTableSource.builder()
+  // path to ORC file(s)
+  .path("file:///path/to/data")
+  // schema of ORC files
+  .forOrcSchema("struct<name:string,addresses:array<struct<street:string,zip:smallint>>>")
+  // Hadoop configuration
+  .withConfiguration(config)
+  // build OrcTableSource
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+// create Hadoop Configuration
+val config = new Configuration()
+
+val orcTableSource = OrcTableSource.builder()
+  // path to ORC file(s)
+  .path("file:///path/to/data")
+  // schema of ORC files
+  .forOrcSchema("struct<name:string,addresses:array<struct<street:string,zip:smallint>>>")
+  // Hadoop configuration
+  .withConfiguration(config)
+  // build OrcTableSource
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+**Note:** The `OrcTableSource` does not support ORC's `Union` type yet.
 
 {% top %}
 
