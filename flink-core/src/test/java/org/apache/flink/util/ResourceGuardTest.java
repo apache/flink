@@ -53,30 +53,37 @@ public class ResourceGuardTest extends TestLogger {
 	@Test
 	public void testCloseBlockIfAcquired() throws Exception {
 		ResourceGuard resourceGuard = new ResourceGuard();
-		ResourceGuard.Lease lease_1 = resourceGuard.acquireResource();
+		ResourceGuard.Lease lease = resourceGuard.acquireResource();
 		AtomicBoolean checker = new AtomicBoolean(true);
 
 		Thread closerThread = new Thread() {
 			@Override
 			public void run() {
-				try {
-					// this line should block until all acquires are matched by releases.
-					resourceGuard.close();
-					checker.set(false);
-				} catch (Exception ignore) {
-					checker.set(false);
-				}
+				// this line should block until all acquires are matched by releases.
+				resourceGuard.close();
+				checker.set(false);
 			}
 		};
 
 		closerThread.start();
 
-		ResourceGuard.Lease lease_2 = resourceGuard.acquireResource();
-		lease_2.close();
+		// we wait until the close()-call in the other thread happened.
+		while (!resourceGuard.isClosed()) {
+			Thread.yield();
+		}
+
+		// validate that the close()-call is still blocked.
 		Assert.assertTrue(checker.get());
 
-		// this matches the first acquire and will unblock the close.
-		lease_1.close();
+		// validate that the closed-status is already effective.
+		try {
+			resourceGuard.acquireResource();
+			Assert.fail("Resource guard is expected to be already closed.");
+		} catch (IOException ignore) {
+		}
+
+		// this matches the first acquire and will unblock the close()-call in the other thread.
+		lease.close();
 		closerThread.join(60_000);
 		Assert.assertFalse(checker.get());
 	}
@@ -90,21 +97,29 @@ public class ResourceGuardTest extends TestLogger {
 		Thread closerThread = new Thread() {
 			@Override
 			public void run() {
-				try {
-					// this line should block until all acquires are matched by releases.
-					resourceGuard.close();
-					checker.set(false);
-				} catch (Exception ignore) {
-					checker.set(false);
-				}
+				// this line should block until all acquires are matched by releases.
+				resourceGuard.close();
+				checker.set(false);
 			}
 		};
 
 		closerThread.start();
+
+		// we wait until the close()-call in the other thread happened.
+		while (!resourceGuard.isClosed()) {
+			Thread.yield();
+		}
+
+		// attempt to unblock the resource guard via interrupt.
 		closerThread.interrupt();
 
+		// wait some time.
+		closerThread.join(100);
+
+		// check that unblock through interrupting failed.
 		Assert.assertTrue(checker.get());
 
+		// proper unblocking by closing the lease.
 		lease.close();
 		closerThread.join(60_000);
 		Assert.assertFalse(checker.get());
