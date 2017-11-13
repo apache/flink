@@ -81,11 +81,10 @@ The *FsStateBackend* is configured with a file system URL (type, address, path),
 
 The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
 
-The FsStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is a new feature and currently not enabled 
-by default. To enable this feature, users can instantiate a `FsStateBackend` with the corresponding boolean flag in the constructor set to `true`, e.g.:
+The FsStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a `FsStateBackend` with the corresponding boolean flag in the constructor set to `false`, e.g.:
 
 {% highlight java %}
-    new FsStateBackend(path, true);
+    new FsStateBackend(path, false);
 {% endhighlight %}
 
 The FsStateBackend is encouraged for:
