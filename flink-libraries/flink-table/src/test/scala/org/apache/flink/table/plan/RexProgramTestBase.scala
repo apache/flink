@@ -80,5 +80,4 @@ abstract class RexProgramTestBase {
   protected def makeTypes(fieldTypes: SqlTypeName*): java.util.List[RelDataType] = {
     fieldTypes.toList.map(typeFactory.createSqlType).asJava
   }
-
 }

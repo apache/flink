@@ -22,21 +22,17 @@ import java.util
 import java.util.{Collections, List => JList}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.Types.{DOUBLE, INT, LONG, STRING}
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.expressions._
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
 import org.apache.flink.types.Row
-import org.apache.flink.util.Preconditions
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 class TestTableSourceWithTime[T](
     tableSchema: TableSchema,

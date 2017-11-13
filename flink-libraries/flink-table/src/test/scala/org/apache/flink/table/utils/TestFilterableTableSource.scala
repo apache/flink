@@ -35,6 +35,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object TestFilterableTableSource {
+
   /**
     * @return The default filterable table source.
     */
@@ -44,15 +45,17 @@ object TestFilterableTableSource {
 
   /**
     * A filterable data source with custom data.
-    * @param rowTypeInfo The type of the data.
-    *                    Its expected that both types and field names are provided
+    * @param rowTypeInfo The type of the data. Its expected that both types and field
+    *                    names are provided.
     * @param rows The data as a sequence of rows.
     * @param filterableFields The fields that are allowed to be filtered on.
     * @return The table source.
     */
-  def apply(rowTypeInfo: RowTypeInfo,
-            rows: Seq[Row],
-            filterableFields: Set[String]): TestFilterableTableSource = {
+  def apply(
+      rowTypeInfo: RowTypeInfo,
+      rows: Seq[Row],
+      filterableFields: Set[String])
+    : TestFilterableTableSource = {
     new TestFilterableTableSource(rowTypeInfo, rows, filterableFields)
   }
 
@@ -64,24 +67,20 @@ object TestFilterableTableSource {
     new RowTypeInfo(fieldTypes, fieldNames)
   }
 
-
   private lazy val defaultRows: Seq[Row] = {
     for {
       cnt <- 0 until 33
     } yield {
       Row.of(
         s"Record_$cnt",
-        cnt.toLong.asInstanceOf[Object],
-        cnt.toInt.asInstanceOf[Object],
-        cnt.toDouble.asInstanceOf[Object])
+        cnt.toLong.asInstanceOf[AnyRef],
+        cnt.toInt.asInstanceOf[AnyRef],
+        cnt.toDouble.asInstanceOf[AnyRef])
     }
   }
 }
 
-
 /**
-  *
-  *
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
   *
@@ -91,11 +90,12 @@ object TestFilterableTableSource {
   * @param filterPredicates The predicates that should be used to filter.
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
-class TestFilterableTableSource(rowTypeInfo: RowTypeInfo,
-                                data: Seq[Row],
-                                filterableFields: Set[String] = Set(),
-                                filterPredicates: Seq[Expression] = Seq(),
-                                val filterPushedDown: Boolean = false)
+class TestFilterableTableSource(
+    rowTypeInfo: RowTypeInfo,
+    data: Seq[Row],
+    filterableFields: Set[String] = Set(),
+    filterPredicates: Seq[Expression] = Seq(),
+    val filterPushedDown: Boolean = false)
   extends BatchTableSource[Row]
     with StreamTableSource[Row]
     with FilterableTableSource[Row] {
@@ -195,8 +195,9 @@ class TestFilterableTableSource(rowTypeInfo: RowTypeInfo,
     }
   }
 
-  private def extractValues(expr: BinaryComparison,
-                            row: Row): (Comparable[Any], Comparable[Any]) = {
+  private def extractValues(expr: BinaryComparison, row: Row)
+    : (Comparable[Any], Comparable[Any]) = {
+
     (expr.left, expr.right) match {
       case (l: ResolvedFieldReference, r: Literal) =>
         val idx = rowTypeInfo.getFieldIndex(l.name)

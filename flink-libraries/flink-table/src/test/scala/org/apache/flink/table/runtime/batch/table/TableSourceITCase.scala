@@ -528,7 +528,7 @@ class TableSourceITCase(
       new TestProjectableTableSource(tableSchema, returnType, data, "rtime", "ptime"))
 
     val results = tEnv.scan("T")
-      .select('ptime > 0)
+      .select('ptime.cast(Types.LONG) > 0)
       .select(1.count)
       .collect()
 
