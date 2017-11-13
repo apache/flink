@@ -18,15 +18,11 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateBackendFactory;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -35,43 +31,19 @@ import java.io.IOException;
  */
 public class RocksDBStateBackendFactory implements StateBackendFactory<RocksDBStateBackend> {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(RocksDBStateBackendFactory.class);
-
-	private static final long serialVersionUID = 4906988360901930371L;
-
-	/** The key under which the config stores the directory where checkpoints should be stored. */
-	public static final String CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.fs.checkpointdir";
-	/** The key under which the config stores the directory where RocksDB should be stored. */
-	public static final String ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY = "state.backend.rocksdb.checkpointdir";
-
 	@Override
 	public RocksDBStateBackend createFromConfig(Configuration config)
 			throws IllegalConfigurationException, IOException {
 
-		final String checkpointDirURI = config.getString(CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-		final String rocksdbLocalPath = config.getString(ROCKSDB_CHECKPOINT_DIRECTORY_URI_CONF_KEY, null);
-
+		// we need to explicitly read the checkpoint directory here, because that
+		// is a required constructor parameter
+		final String checkpointDirURI = config.getString(CheckpointingOptions.CHECKPOINTS_DIRECTORY);
 		if (checkpointDirURI == null) {
 			throw new IllegalConfigurationException(
 				"Cannot create the RocksDB state backend: The configuration does not specify the " +
-				"checkpoint directory '" + CHECKPOINT_DIRECTORY_URI_CONF_KEY + '\'');
+				"checkpoint directory '" + CheckpointingOptions.CHECKPOINTS_DIRECTORY.key() + '\'');
 		}
 
-		try {
-			Path path = new Path(checkpointDirURI);
-			RocksDBStateBackend backend = new RocksDBStateBackend(path.toUri());
-			if (rocksdbLocalPath != null) {
-				String[] directories = rocksdbLocalPath.split(",|" + File.pathSeparator);
-				backend.setDbStoragePaths(directories);
-			}
-			LOG.info("State backend is set to RocksDB (configured DB storage paths {}, checkpoints to filesystem {} ) ",
-					backend.getDbStoragePaths(), path);
-
-			return backend;
-		}
-		catch (IllegalArgumentException e) {
-			throw new IllegalConfigurationException(
-					"Cannot initialize RocksDB State Backend with URI '" + checkpointDirURI + '.', e);
-		}
+		return new RocksDBStateBackend(checkpointDirURI).configure(config);
 	}
 }

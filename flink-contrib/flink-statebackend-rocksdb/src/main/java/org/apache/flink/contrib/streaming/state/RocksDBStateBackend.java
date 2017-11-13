@@ -20,15 +20,20 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
 
@@ -36,8 +41,11 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.RocksDB;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,7 +57,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
-import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A State Backend that stores its state in {@code RocksDB}. This state backend can
@@ -64,7 +72,7 @@ import static java.util.Objects.requireNonNull;
  * using the methods {@link #setPredefinedOptions(PredefinedOptions)} and
  * {@link #setOptions(OptionsFactory)}.
  */
-public class RocksDBStateBackend extends AbstractStateBackend {
+public class RocksDBStateBackend extends AbstractStateBackend implements ConfigurableStateBackend {
 
 	private static final long serialVersionUID = 1L;
 
@@ -76,42 +84,45 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	private static boolean rocksDbInitialized = false;
 
 	// ------------------------------------------------------------------------
-	//  Static configuration values
-	// ------------------------------------------------------------------------
+
+	// -- configuration values, set in the application / configuration
 
 	/** The state backend that we use for creating checkpoint streams. */
-	private final AbstractStateBackend checkpointStreamBackend;
+	private final StateBackend checkpointStreamBackend;
 
-	/** Operator identifier that is used to uniqueify the RocksDB storage path. */
-	private String operatorIdentifier;
-
-	/** JobID for uniquifying backup paths. */
-	private JobID jobId;
-
-	// DB storage directories
-
-	/** Base paths for RocksDB directory, as configured. May be null. */
-	private Path[] configuredDbBasePaths;
-
-	/** Base paths for RocksDB directory, as initialized. */
-	private File[] initializedDbBasePaths;
-
-	private int nextDirectory;
-
-	// RocksDB options
+	/** Base paths for RocksDB directory, as configured.
+	 * Null if not yet set, in which case the configuration values will be used.
+	 * The configuration defaults to the TaskManager's temp directories. */
+	@Nullable
+	private Path[] localRocksDbDirectories;
 
 	/** The pre-configured option settings. */
 	private PredefinedOptions predefinedOptions = PredefinedOptions.DEFAULT;
 
 	/** The options factory to create the RocksDB options in the cluster. */
+	@Nullable
 	private OptionsFactory optionsFactory;
 
+	/** True if incremental checkpointing is enabled.
+	 * Null if not yet set, in which case the configuration values will be used. */
+	@Nullable
+	private Boolean enableIncrementalCheckpointing;
+
+	// -- runtime values, set on TaskManager when initializing / using the backend
+
+	/** Base paths for RocksDB directory, as initialized. */
+	private transient File[] initializedDbBasePaths;
+
+	/** JobID for uniquifying backup paths. */
+	private transient JobID jobId;
+
+	/** The index of the next directory to be used from {@link #initializedDbBasePaths}.*/
+	private transient int nextDirectory;
+
 	/** Whether we already lazily initialized our local storage directories. */
-	private transient boolean isInitialized = false;
+	private transient boolean isInitialized;
 
-	/** True if incremental checkpointing is enabled. */
-	private boolean enableIncrementalCheckpointing;
-
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
@@ -126,7 +137,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public RocksDBStateBackend(String checkpointDataUri) throws IOException {
-		this(new Path(checkpointDataUri).toUri(), false);
+		this(new Path(checkpointDataUri).toUri());
 	}
 
 	/**
@@ -159,7 +170,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
-		this(new FsStateBackend(checkpointDataUri), false);
+		this(new FsStateBackend(checkpointDataUri));
 	}
 
 	/**
@@ -187,10 +198,10 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * <p>The snapshots of the RocksDB state will be stored using the given backend's
 	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}.
 	 *
-	 * @param checkpointStreamBackend The backend to store the
+	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
 	 */
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend) {
-		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);
+		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 	}
 
 	/**
@@ -201,17 +212,91 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * <p>The snapshots of the RocksDB state will be stored using the given backend's
 	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}.
 	 *
-	 * @param checkpointStreamBackend The backend to store the
-	 * @param enableIncrementalCheckpointing True if incremental checkponting is enabled
+	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
 	 */
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
-		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);
+		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+	}
+
+	/**
+	 * Private constructor that creates a re-configured copy of the state backend.
+	 *
+	 * @param original The state backend to re-configure.
+	 * @param config The configuration.
+	 */
+	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config) {
+		// reconfigure the state backend backing the streams
+		final StateBackend originalStreamBackend = original.checkpointStreamBackend;
+		this.checkpointStreamBackend = originalStreamBackend instanceof ConfigurableStateBackend ?
+				((ConfigurableStateBackend) originalStreamBackend).configure(config) :
+				originalStreamBackend;
+
+		// configure incremental checkpoints
+		if (original.enableIncrementalCheckpointing != null) {
+			this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing;
+		}
+		else {
+			this.enableIncrementalCheckpointing =
+					config.getBoolean(CheckpointingOptions.ROCKSDB_INCREMENTAL_CHECKPOINTS);
+		}
+
+		// configure local directories
+		if (original.localRocksDbDirectories != null) {
+			this.localRocksDbDirectories = original.localRocksDbDirectories;
+		}
+		else {
+			final String rocksdbLocalPaths = config.getString(CheckpointingOptions.ROCKSDB_LOCAL_DIRECTORIES);
+			if (rocksdbLocalPaths != null) {
+				String[] directories = rocksdbLocalPaths.split(",|" + File.pathSeparator);
+
+				try {
+					setDbStoragePaths(directories);
+				}
+				catch (IllegalArgumentException e) {
+					throw new IllegalConfigurationException("Invalid configuration for RocksDB state " +
+							"backend's local storage directories: " + e.getMessage(), e);
+				}
+			}
+		}
+
+		// copy remaining settings
+		this.predefinedOptions = original.predefinedOptions;
+		this.optionsFactory = original.optionsFactory;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Reconfiguration
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Creates a copy of this state backend that uses the values defined in the configuration
+	 * for fields where that were not yet specified in this state backend.
+	 *
+	 * @param config the configuration
+	 * @return The re-configured variant of the state backend
+	 */
+	@Override
+	public RocksDBStateBackend configure(Configuration config) {
+		return new RocksDBStateBackend(this, config);
 	}
 
 	// ------------------------------------------------------------------------
 	//  State backend methods
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Gets the state backend that this RocksDB state backend uses to persist
+	 * its bytes to.
+	 *
+	 * <p>This RocksDB state backend only implements the RocksDB specific parts, it
+	 * relies on the 'CheckpointBackend' to persist the checkpoint and savepoint bytes
+	 * streams.
+	 */
+	public StateBackend getCheckpointBackend() {
+		return checkpointStreamBackend;
+	}
 
 	private void lazyInitializeForJob(
 			Environment env,
@@ -221,19 +306,18 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 			return;
 		}
 
-		this.operatorIdentifier = operatorIdentifier.replace(" ", "");
 		this.jobId = env.getJobID();
 
 		// initialize the paths where the local RocksDB files should be stored
-		if (configuredDbBasePaths == null) {
+		if (localRocksDbDirectories == null) {
 			// initialize from the temp directories
 			initializedDbBasePaths = env.getIOManager().getSpillingDirectories();
 		}
 		else {
-			List<File> dirs = new ArrayList<>(configuredDbBasePaths.length);
+			List<File> dirs = new ArrayList<>(localRocksDbDirectories.length);
 			String errorMessage = "";
 
-			for (Path path : configuredDbBasePaths) {
+			for (Path path : localRocksDbDirectories) {
 				File f = new File(path.toUri().getPath());
 				File testDir = new File(f, UUID.randomUUID().toString());
 				if (!testDir.mkdirs()) {
@@ -244,6 +328,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				} else {
 					dirs.add(f);
 				}
+				//noinspection ResultOfMethodCallIgnored
 				testDir.delete();
 			}
 
@@ -313,7 +398,20 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getExecutionConfig(),
-				enableIncrementalCheckpointing);
+				isIncrementalCheckpointsEnabled());
+	}
+
+	@Override
+	public OperatorStateBackend createOperatorStateBackend(
+			Environment env,
+			String operatorIdentifier) throws Exception {
+
+		//the default for RocksDB; eventually there can be a operator state backend based on RocksDB, too.
+		final boolean asyncSnapshots = true;
+		return new DefaultOperatorStateBackend(
+				env.getUserClassLoader(),
+				env.getExecutionConfig(),
+				asyncSnapshots);
 	}
 
 	// ------------------------------------------------------------------------
@@ -349,7 +447,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 */
 	public void setDbStoragePaths(String... paths) {
 		if (paths == null) {
-			configuredDbBasePaths = null;
+			localRocksDbDirectories = null;
 		}
 		else if (paths.length == 0) {
 			throw new IllegalArgumentException("empty paths");
@@ -369,7 +467,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				}
 			}
 
-			configuredDbBasePaths = pp;
+			localRocksDbDirectories = pp;
 		}
 	}
 
@@ -378,14 +476,26 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @return The configured DB storage paths, or null, if none were configured.
 	 */
 	public String[] getDbStoragePaths() {
-		if (configuredDbBasePaths == null) {
+		if (localRocksDbDirectories == null) {
 			return null;
 		} else {
-			String[] paths = new String[configuredDbBasePaths.length];
+			String[] paths = new String[localRocksDbDirectories.length];
 			for (int i = 0; i < paths.length; i++) {
-				paths[i] = configuredDbBasePaths[i].toString();
+				paths[i] = localRocksDbDirectories[i].toString();
 			}
 			return paths;
+		}
+	}
+
+	/**
+	 * Gets whether incremental checkpoints are enabled for this state backend.
+	 */
+	public boolean isIncrementalCheckpointsEnabled() {
+		if (enableIncrementalCheckpointing != null) {
+			return enableIncrementalCheckpointing;
+		}
+		else {
+			return CheckpointingOptions.ROCKSDB_INCREMENTAL_CHECKPOINTS.defaultValue();
 		}
 	}
 
@@ -403,7 +513,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * @param options The options to set (must not be null).
 	 */
 	public void setPredefinedOptions(PredefinedOptions options) {
-		predefinedOptions = requireNonNull(options);
+		predefinedOptions = checkNotNull(options);
 	}
 
 	/**
@@ -479,27 +589,17 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 		return opt;
 	}
 
-	@Override
-	public OperatorStateBackend createOperatorStateBackend(
-		Environment env,
-		String operatorIdentifier) throws Exception {
-
-		//the default for RocksDB; eventually there can be a operator state backend based on RocksDB, too.
-		final boolean asyncSnapshots = true;
-		return new DefaultOperatorStateBackend(
-			env.getUserClassLoader(),
-			env.getExecutionConfig(),
-			asyncSnapshots);
-	}
+	// ------------------------------------------------------------------------
+	//  utilities
+	// ------------------------------------------------------------------------
 
 	@Override
 	public String toString() {
-		return "RocksDB State Backend {" +
-			"isInitialized=" + isInitialized +
-			", configuredDbBasePaths=" + Arrays.toString(configuredDbBasePaths) +
-			", initializedDbBasePaths=" + Arrays.toString(initializedDbBasePaths) +
-			", checkpointStreamBackend=" + checkpointStreamBackend +
-			'}';
+		return "RocksDBStateBackend{" +
+				"checkpointStreamBackend=" + checkpointStreamBackend +
+				", localRocksDbDirectories=" + Arrays.toString(localRocksDbDirectories) +
+				", enableIncrementalCheckpointing=" + enableIncrementalCheckpointing +
+				'}';
 	}
 
 	// ------------------------------------------------------------------------

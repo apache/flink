@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
@@ -30,14 +31,15 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.util.IOUtils;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.CompactionStyle;
 import org.rocksdb.DBOptions;
@@ -49,6 +51,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -74,6 +77,14 @@ public class RocksDBStateBackendConfigTest {
 	// ------------------------------------------------------------------------
 	//  RocksDB local file directory
 	// ------------------------------------------------------------------------
+
+	@Test
+	public void testDefaultsInSync() throws Exception {
+		final boolean defaultIncremental = CheckpointingOptions.ROCKSDB_INCREMENTAL_CHECKPOINTS.defaultValue();
+
+		RocksDBStateBackend backend = new RocksDBStateBackend(tempFolder.newFolder().toURI());
+		assertEquals(defaultIncremental, backend.isIncrementalCheckpointsEnabled());
+	}
 
 	@Test
 	public void testSetDbPath() throws Exception {
@@ -214,7 +225,6 @@ public class RocksDBStateBackendConfigTest {
 		finally {
 			//noinspection ResultOfMethodCallIgnored
 			targetDir.setWritable(true, false);
-			FileUtils.deleteDirectory(targetDir);
 		}
 	}
 
@@ -256,8 +266,6 @@ public class RocksDBStateBackendConfigTest {
 		} finally {
 			//noinspection ResultOfMethodCallIgnored
 			targetDir1.setWritable(true, false);
-			FileUtils.deleteDirectory(targetDir1);
-			FileUtils.deleteDirectory(targetDir2);
 		}
 	}
 
@@ -336,6 +344,41 @@ public class RocksDBStateBackendConfigTest {
 				opt.dispose();
 			}
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	//  Reconfiguration
+	// ------------------------------------------------------------------------
+
+	@Test
+	public void testRocksDbReconfigurationCopiesExistingValues() throws Exception {
+		final FsStateBackend checkpointBackend = new FsStateBackend(tempFolder.newFolder().toURI().toString());
+		final boolean incremental = !CheckpointingOptions.ROCKSDB_INCREMENTAL_CHECKPOINTS.defaultValue();
+
+		final RocksDBStateBackend original = new RocksDBStateBackend(checkpointBackend, incremental);
+
+		// these must not be the default options
+		final PredefinedOptions predOptions = PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
+		assertNotEquals(predOptions, original.getPredefinedOptions());
+		original.setPredefinedOptions(predOptions);
+
+		final OptionsFactory optionsFactory = mock(OptionsFactory.class);
+		original.setOptions(optionsFactory);
+
+		final String[] localDirs = new String[] {
+				tempFolder.newFolder().getAbsolutePath(), tempFolder.newFolder().getAbsolutePath() };
+		original.setDbStoragePaths(localDirs);
+
+		RocksDBStateBackend copy = original.configure(new Configuration());
+
+		assertEquals(original.isIncrementalCheckpointsEnabled(), copy.isIncrementalCheckpointsEnabled());
+		assertArrayEquals(original.getDbStoragePaths(), copy.getDbStoragePaths());
+		assertEquals(original.getOptions(), copy.getOptions());
+		assertEquals(original.getPredefinedOptions(), copy.getPredefinedOptions());
+
+		FsStateBackend copyCheckpointBackend = (FsStateBackend) copy.getCheckpointBackend();
+		assertEquals(checkpointBackend.getCheckpointPath(), copyCheckpointBackend.getCheckpointPath());
+		assertEquals(checkpointBackend.getSavepointPath(), copyCheckpointBackend.getSavepointPath());
 	}
 
 	// ------------------------------------------------------------------------

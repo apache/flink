@@ -40,14 +40,6 @@ public interface CheckpointStreamFactory {
 			long timestamp) throws Exception;
 
 	/**
-	 * Closes the stream factory, releasing all internal resources, but does not delete any
-	 * persistent checkpoint data.
-	 *
-	 * @throws Exception Exceptions can be forwarded and will be logged by the system
-	 */
-	void close() throws Exception;
-
-	/**
 	 * A dedicated output stream that produces a {@link StreamStateHandle} when closed.
 	 *
 	 * <p>Note: This is an abstract class and not an interface because {@link OutputStream}
