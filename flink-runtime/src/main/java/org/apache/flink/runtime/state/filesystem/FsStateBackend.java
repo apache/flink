@@ -163,7 +163,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(URI checkpointDataUri) throws IOException {
-		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, false);
+		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, true);
 	}
 
 	/**
@@ -208,7 +208,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 */
 	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
 
-		this(checkpointDataUri, fileStateSizeThreshold, false);
+		this(checkpointDataUri, fileStateSizeThreshold, true);
 	}
 
 	/**
