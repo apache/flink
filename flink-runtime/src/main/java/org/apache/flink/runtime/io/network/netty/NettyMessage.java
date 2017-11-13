@@ -52,8 +52,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A simple and generic interface to serialize messages to Netty's buffer space.
+ *
+ * <p>This class must be public as long as we are using a Netty version prior to 4.0.45. Please check FLINK-7845 for
+ * more information.
  */
-abstract class NettyMessage {
+public abstract class NettyMessage {
 
 	// ------------------------------------------------------------------------
 	// Note: Every NettyMessage subtype needs to have a public 0-argument
