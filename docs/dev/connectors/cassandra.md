@@ -101,8 +101,6 @@ Note that that enabling this feature will have an adverse impact on latency.
 ### Checkpointing and Fault Tolerance
 With checkpointing enabled, Cassandra Sink guarantees at-least-once delivery of action requests to C* instance.
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: However, current Cassandra Sink implementation does not flush the pending mutations before the checkpoint was triggered. Thus, some in-flight mutations might not be replayed when the job recovered. </p>
-
 More details on [checkpoints docs]({{ site.baseurl }}/dev/stream/state/checkpointing.html) and [fault tolerance guarantee docs]({{ site.baseurl }}/dev/connectors/guarantees.html)
 
 ## Examples
