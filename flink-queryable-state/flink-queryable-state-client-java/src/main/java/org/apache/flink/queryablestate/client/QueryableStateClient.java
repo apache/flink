@@ -132,7 +132,7 @@ public class QueryableStateClient {
 	}
 
 	/**
-	 * Returns a future holding the request result.	 *
+	 * Returns a future holding the request result.	 
 	 * @param jobId                     JobID of the job the queryable state belongs to.
 	 * @param queryableStateName        Name under which the state is queryable.
 	 * @param key			            The key we are interested in.
@@ -155,7 +155,7 @@ public class QueryableStateClient {
 	}
 
 	/**
-	 * Returns a future holding the request result.	 *
+	 * Returns a future holding the request result.	 
 	 * @param jobId                     JobID of the job the queryable state belongs to.
 	 * @param queryableStateName        Name under which the state is queryable.
 	 * @param key			            The key we are interested in.
