@@ -108,10 +108,11 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
   }
 
   /**
-    * Convert a date value to a calendar.  Calcite fromCalendarField functions use the Calendar.get
-    * methods, so the raw values of the individual fields are preserved when converted to the
-    * string formats.
-    * @return Get the Calendar value
+    * Convert a Date value to a Calendar. Calcite's fromCalendarField functions use the
+    * Calendar.get methods, so the raw values of the individual fields are preserved when
+    * converted to the String formats.
+    *
+    * @return get the Calendar value
     */
   private def valueAsCalendar: Calendar = {
     val date = value.asInstanceOf[java.util.Date]

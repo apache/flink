@@ -18,19 +18,18 @@
 
 package org.apache.flink.table.api
 
+import _root_.java.sql.{Date, Time, Timestamp}
+
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.{BinaryComparison, Expression, Literal}
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
-import org.junit.{Assert, Test}
-import _root_.java.sql.{Date, Time, Timestamp}
-
-import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.types.Row
+import org.junit.{Assert, Test}
 
 class TableSourceTest extends TableTestBase {
 
@@ -225,7 +224,8 @@ class TableSourceTest extends TableTestBase {
     val result = tableEnv
         .scan(tableName)
         .select('price, 'id, 'amount)
-        .where("amount > 2 && (amount < 32 || amount.cast(LONG) > 10)") // cast can not be converted
+        .where("amount > 2 && id < 1.2 && " +
+          "(amount < 32 || amount.cast(LONG) > 10)") // cast can not be converted
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -234,7 +234,7 @@ class TableSourceTest extends TableTestBase {
         Array("price", "id", "amount"),
         "'amount > 2"),
       term("select", "price", "id", "amount"),
-      term("where", "OR(<(amount, 32), >(CAST(amount), 10))")
+      term("where", "AND(<(id, 1.2E0), OR(<(amount, 32), >(CAST(amount), 10)))")
     )
     util.verifyTable(result, expected)
   }
@@ -403,13 +403,10 @@ class TableSourceTest extends TableTestBase {
         "'tv > 14:25:02.toTime && " +
         "'dv > 2017-02-03.toDate && " +
         "'tsv > 2017-02-03 14:25:02.0.toTimestamp"
-    val expected = unaryNode(
-      "DataSetCalc",
-      batchFilterableSourceTableNode(
-        tableName,
-        Array("id", "dv", "tv", "tsv"),
-        expectedFilter),
-      term("select", "id")
+    val expected = batchFilterableSourceTableNode(
+      tableName,
+      Array("id"),
+      expectedFilter
     )
     util.verifyTable(result, expected)
   }

@@ -165,25 +165,42 @@ class RexNodeToExpressionConverter(
     val literalType = FlinkTypeFactory.toTypeInfo(literal.getType)
 
     val literalValue = literalType match {
-      // Chrono use cases.
+
       case _@SqlTimeTypeInfo.DATE =>
         val rexValue = literal.getValueAs(classOf[DateString])
         Date.valueOf(rexValue.toString)
+
       case _@SqlTimeTypeInfo.TIME =>
         val rexValue = literal.getValueAs(classOf[TimeString])
         Time.valueOf(rexValue.toString(0))
+
       case _@SqlTimeTypeInfo.TIMESTAMP =>
         val rexValue = literal.getValueAs(classOf[TimestampString])
         Timestamp.valueOf(rexValue.toString(3))
 
+      case _@BasicTypeInfo.BYTE_TYPE_INFO =>
+        // convert from BigDecimal to Byte
+        literal.getValueAs(classOf[java.lang.Byte])
+
+      case _@BasicTypeInfo.SHORT_TYPE_INFO =>
+        // convert from BigDecimal to Short
+        literal.getValueAs(classOf[java.lang.Short])
+
       case _@BasicTypeInfo.INT_TYPE_INFO =>
-        /*
-        Force integer conversion.  RelDataType is INTEGER and SqlTypeName is DECIMAL,
-        meaning that it will assume that we are using a BigDecimal
-        and refuse to convert to Integer.
-         */
-        val rexValue = literal.getValueAs(classOf[java.math.BigDecimal])
-        rexValue.intValue()
+        // convert from BigDecimal to Integer
+        literal.getValueAs(classOf[java.lang.Integer])
+
+      case _@BasicTypeInfo.LONG_TYPE_INFO =>
+        // convert from BigDecimal to Long
+        literal.getValueAs(classOf[java.lang.Long])
+
+      case _@BasicTypeInfo.FLOAT_TYPE_INFO =>
+        // convert from BigDecimal to Float
+        literal.getValueAs(classOf[java.lang.Float])
+
+      case _@BasicTypeInfo.DOUBLE_TYPE_INFO =>
+        // convert from BigDecimal to Double
+        literal.getValueAs(classOf[java.lang.Double])
 
       case _ => literal.getValue
     }
