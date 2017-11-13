@@ -18,125 +18,101 @@
 
 package org.apache.flink.orc;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.Row;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests for {@link OrcTableSource}.
  */
 public class OrcTableSourceITCase extends MultipleProgramsTestBase {
 
-	private static final String TEST1_SCHEMA = "struct<boolean1:boolean,byte1:tinyint,short1:smallint,int1:int," +
-		"long1:bigint,float1:float,double1:double,bytes1:binary,string1:string," +
-		"middle:struct<list:array<struct<int1:int,string1:string>>>," +
-		"list:array<struct<int1:int,string1:string>>," +
-		"map:map<string,struct<int1:int,string1:string>>>";
-
-	private final URL test1URL = getClass().getClassLoader().getResource("TestOrcFile.test1.orc");
-
-
-	private static final String[] TEST1_DATA = new String[] {
-		"false,1,1024,65536,9223372036854775807,1.0,-15.0,[0, 1, 2, 3, 4],hi,[1,bye, 2,sigh],[3,good, 4,bad],{}",
-		"true,100,2048,65536,9223372036854775807,2.0,-5.0,[],bye,[1,bye, 2,sigh]," +
-			"[100000000,cat, -100000,in, 1234,hat],{chani=5,chani, mauddib=1,mauddib}" };
+	private static final String TEST_FILE_FLAT = "test-data-flat.orc";
+	private static final String TEST_SCHEMA_FLAT =
+		"struct<_col0:int,_col1:string,_col2:string,_col3:string,_col4:int,_col5:string,_col6:int,_col7:int,_col8:int>";
 
 	public OrcTableSourceITCase() {
 		super(TestExecutionMode.COLLECTION);
 	}
 
 	@Test
-	public void testOrcTableSource() throws Exception {
+	public void testFullScan() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
 
-		assert (test1URL != null);
-		OrcTableSource orc = new OrcTableSource(test1URL.getPath(), TEST1_SCHEMA);
+		OrcTableSource orc = OrcTableSource.builder()
+			.path(getPath(TEST_FILE_FLAT))
+			.forOrcSchema(TEST_SCHEMA_FLAT)
+			.build();
+		tEnv.registerTableSource("OrcTable", orc);
 
-		tEnv.registerTableSource("orcTable", orc);
-
-		String query = "Select * from orcTable";
-		Table t = tEnv.sql(query);
+		String query =
+			"SELECT COUNT(*), " +
+				"MIN(_col0), MAX(_col0), " +
+				"MIN(_col1), MAX(_col1), " +
+				"MIN(_col2), MAX(_col2), " +
+				"MIN(_col3), MAX(_col3), " +
+				"MIN(_col4), MAX(_col4), " +
+				"MIN(_col5), MAX(_col5), " +
+				"MIN(_col6), MAX(_col6), " +
+				"MIN(_col7), MAX(_col7), " +
+				"MIN(_col8), MAX(_col8) " +
+			"FROM OrcTable";
+		Table t = tEnv.sqlQuery(query);
 
 		DataSet<Row> dataSet = tEnv.toDataSet(t, Row.class);
-		List<Row> records = dataSet.collect();
+		List<Row> result = dataSet.collect();
 
-		Assert.assertEquals(records.size(), 2);
-
-		List<String> actualRecords = new ArrayList<>();
-		for (Row record : records) {
-			Assert.assertEquals(record.getArity(), 12);
-			actualRecords.add(record.toString());
-		}
-
-		Assert.assertThat(actualRecords, CoreMatchers.hasItems(TEST1_DATA));
+		assertEquals(1, result.size());
+		assertEquals(
+			"1920800,1,1920800,F,M,D,W,2 yr Degree,Unknown,500,10000,Good,Unknown,0,6,0,6,0,6",
+			result.get(0).toString());
 	}
 
 	@Test
-	public void testOrcTableProjection() throws Exception {
+	public void testScanWithProjectionAndFilter() throws Exception {
 
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
 
-		assert(test1URL != null);
-		OrcTableSource orc = new OrcTableSource(test1URL.getPath(), TEST1_SCHEMA);
+		OrcTableSource orc = OrcTableSource.builder()
+			.path(getPath(TEST_FILE_FLAT))
+			.forOrcSchema(TEST_SCHEMA_FLAT)
+			.build();
+		tEnv.registerTableSource("OrcTable", orc);
 
-		tEnv.registerTableSource("orcTable", orc);
-
-		String query = "Select middle,list,map from orcTable";
-		Table t = tEnv.sql(query);
-
-		String[] colNames = new String[] {"middle", "list", "map"};
-
-		RowTypeInfo rowTypeInfo = new RowTypeInfo(
-			new TypeInformation[] {
-				BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.STRING_TYPE_INFO},
-			new String[] {"int1", "string1"});
-
-		RowTypeInfo structTypeInfo = new RowTypeInfo(
-			new TypeInformation[] {ObjectArrayTypeInfo.getInfoFor(rowTypeInfo)},
-			new String[] {"list"});
-
-		TypeInformation[] colTypes = new TypeInformation[] {
-			structTypeInfo,
-			ObjectArrayTypeInfo.getInfoFor(rowTypeInfo),
-			new MapTypeInfo(BasicTypeInfo.STRING_TYPE_INFO, rowTypeInfo)
-		};
-
-		TableSchema actualTableSchema = new TableSchema(colNames, colTypes);
-
-		Assert.assertArrayEquals(t.getSchema().getColumnNames(), colNames);
-		Assert.assertArrayEquals(t.getSchema().getTypes(), colTypes);
-		Assert.assertEquals(actualTableSchema.toString(), t.getSchema().toString());
+		String query =
+			"SELECT " +
+				"MIN(_col4), MAX(_col4), " +
+				"MIN(_col3), MAX(_col3), " +
+				"MIN(_col0), MAX(_col0), " +
+				"MIN(_col2), MAX(_col2), " +
+				"COUNT(*) " +
+				"FROM OrcTable " +
+				"WHERE (_col0 BETWEEN 4975 and 5024 OR _col0 BETWEEN 9975 AND 10024) AND _col1 = 'F'";
+		Table t = tEnv.sqlQuery(query);
 
 		DataSet<Row> dataSet = tEnv.toDataSet(t, Row.class);
-		List<Row> records = dataSet.collect();
+		List<Row> result = dataSet.collect();
 
-		Assert.assertEquals(records.size(), 2);
-		for (Row record: records) {
-			Assert.assertEquals(record.getArity(), 3);
-		}
-
+		assertEquals(1, result.size());
+		assertEquals(
+			"1500,6000,2 yr Degree,Unknown,4976,10024,D,W,50",
+			result.get(0).toString());
 	}
 
+	private String getPath(String fileName) {
+		return getClass().getClassLoader().getResource(fileName).getPath();
+	}
 }

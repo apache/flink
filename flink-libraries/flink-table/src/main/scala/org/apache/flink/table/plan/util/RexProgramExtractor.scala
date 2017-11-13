@@ -202,6 +202,18 @@ class RexNodeToExpressionConverter(
         // convert from BigDecimal to Double
         literal.getValueAs(classOf[java.lang.Double])
 
+      case _@BasicTypeInfo.STRING_TYPE_INFO =>
+        // convert from NlsString to String
+        literal.getValueAs(classOf[java.lang.String])
+
+      case _@BasicTypeInfo.BOOLEAN_TYPE_INFO =>
+        // convert to Boolean
+        literal.getValueAs(classOf[java.lang.Boolean])
+
+      case _@BasicTypeInfo.BIG_DEC_TYPE_INFO =>
+        // convert to BigDecimal
+        literal.getValueAs(classOf[java.math.BigDecimal])
+
       case _ => literal.getValue
     }
 
