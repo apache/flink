@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.contrib.streaming.state.util.MergeUtils;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -114,7 +115,6 @@ public class RocksDBListState<K, N, V>
 			DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 			valueSerializer.serialize(value, out);
 			backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
-
 		} catch (Exception e) {
 			throw new RuntimeException("Error while adding data to RocksDB", e);
 		}
@@ -169,11 +169,14 @@ public class RocksDBListState<K, N, V>
 				byte[] key = keySerializationStream.toByteArray();
 				DataOutputViewStreamWrapper out = new DataOutputViewStreamWrapper(keySerializationStream);
 
+				List<byte[]> bytes = new ArrayList<>(values.size());
 				for (V value : values) {
 					keySerializationStream.reset();
 					valueSerializer.serialize(value, out);
-					backend.db.merge(columnFamily, writeOptions, key, keySerializationStream.toByteArray());
+					bytes.add(keySerializationStream.toByteArray());
 				}
+
+				backend.db.put(columnFamily, writeOptions, key, MergeUtils.merge(bytes));
 			} catch (IOException | RocksDBException e) {
 				throw new RuntimeException("Error while updating data to RocksDB", e);
 			}
