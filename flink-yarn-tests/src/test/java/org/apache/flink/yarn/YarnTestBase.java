@@ -342,7 +342,7 @@ public abstract class YarnTestBase extends TestLogger {
 								// extract potential stack trace from log
 								while (scanner.hasNextLine()) {
 									String line = scanner.nextLine();
-									if (!line.isEmpty() && (Character.isWhitespace(line.charAt(0))) || line.startsWith("Caused by")) {
+									if (!line.isEmpty() && (Character.isWhitespace(line.charAt(0)) || line.startsWith("Caused by"))) {
 										logExcerpt.append(line);
 										logExcerpt.append(System.lineSeparator());
 									} else {
