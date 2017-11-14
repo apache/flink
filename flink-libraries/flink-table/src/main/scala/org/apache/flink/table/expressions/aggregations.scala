@@ -245,8 +245,10 @@ case class AggFunctionCall(
       ValidationFailure(s"Given parameters do not match any signature. \n" +
                           s"Actual: ${signatureToString(signature)} \n" +
                           s"Expected: ${
-                            getMethodSignatures(aggregateFunction, "accumulate").drop(1)
-                              .map(signatureToString).mkString(", ")}")
+                            getMethodSignatures(aggregateFunction, "accumulate")
+                              .map(_.drop(1))
+                              .map(signatureToString)
+                              .mkString(", ")}")
     } else {
       ValidationSuccess
     }

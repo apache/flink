@@ -91,7 +91,7 @@ abstract class TableTestUtil {
     val actual = RelOptUtil.toString(optimized)
     // we remove the charset for testing because it
     // depends on the native machine (Little/Big Endian)
-    val actualNoCharset = actual.replace("_UTF-16LE'", "'")
+    val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
     assertEquals(
       expected.split("\n").map(_.trim).mkString("\n"),
       actualNoCharset.split("\n").map(_.trim).mkString("\n"))

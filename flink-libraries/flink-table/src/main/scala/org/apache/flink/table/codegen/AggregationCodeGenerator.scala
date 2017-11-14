@@ -17,17 +17,18 @@
  */
 package org.apache.flink.table.codegen
 
-import java.lang.reflect.{Modifier, ParameterizedType}
+import java.lang.reflect.Modifier
 import java.lang.{Iterable => JIterable}
 
 import org.apache.calcite.rex.RexLiteral
 import org.apache.commons.codec.binary.Base64
 import org.apache.flink.api.common.state.{State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
+import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
@@ -175,7 +176,7 @@ class AggregationCodeGenerator(
         }
 
         if (needMerge) {
-          val methods =
+          val method =
             getUserDefinedMethod(a, "merge", Array(accTypeClasses(i), classOf[JIterable[Any]]))
             .getOrElse(
               throw new CodeGenException(
@@ -183,17 +184,14 @@ class AggregationCodeGenerator(
                   s"${a.getClass.getCanonicalName}'.")
             )
 
-          var iterableTypeClass = methods.getGenericParameterTypes.apply(1)
-                                  .asInstanceOf[ParameterizedType].getActualTypeArguments.apply(0)
-          // further extract iterableTypeClass if the accumulator has generic type
-          iterableTypeClass match {
-            case impl: ParameterizedType => iterableTypeClass = impl.getRawType
-            case _ =>
-          }
+          // use the TypeExtractionUtils here to support nested GenericArrayTypes and
+          // other complex types
+          val iterableGenericType = extractTypeArgument(method.getGenericParameterTypes()(1), 0)
+          val iterableTypeClass = getRawClass(iterableGenericType)
 
           if (iterableTypeClass != accTypeClasses(i)) {
             throw new CodeGenException(
-              s"merge method in AggregateFunction ${a.getClass.getCanonicalName} does not have " +
+              s"Merge method in AggregateFunction ${a.getClass.getCanonicalName} does not have " +
                 s"the correct Iterable type. Actually: ${iterableTypeClass.toString}. " +
                 s"Expected: ${accTypeClasses(i).toString}")
           }
