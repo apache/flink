@@ -37,7 +37,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateMessage;
-import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.util.Preconditions;
 
@@ -48,7 +47,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -133,12 +131,11 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 			operationFuture.whenCompleteAsync(
 					(t, throwable) -> {
 						if (throwable != null) {
-							if (throwable instanceof CancellationException) {
-								result.completeExceptionally(throwable);
-							} else if (throwable.getCause() instanceof UnknownKvStateIdException ||
+							if (
+									throwable.getCause() instanceof UnknownKvStateIdException ||
 									throwable.getCause() instanceof UnknownKvStateKeyGroupLocationException ||
-									throwable.getCause() instanceof UnknownKvStateLocation ||
-									throwable.getCause() instanceof ConnectException) {
+									throwable.getCause() instanceof ConnectException
+								) {
 
 								// These failures are likely to be caused by out-of-sync
 								// KvStateLocation. Therefore we retry this query and
