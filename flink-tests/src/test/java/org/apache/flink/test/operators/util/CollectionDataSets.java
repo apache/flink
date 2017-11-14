@@ -34,6 +34,8 @@ import java.io.File;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -52,6 +54,62 @@ import scala.math.BigInt;
  * #######################################################################################################
  */
 public class CollectionDataSets {
+
+	public static DataSet<Tuple5<Integer, String, java.sql.Time, java.sql.Date, Double>> get5TupleDataSetWithDate(ExecutionEnvironment env) {
+		List<Tuple5<Integer, String, java.sql.Time, java.sql.Date, Double>> data = new ArrayList<>();
+		data.add(new Tuple5<>(1, "2017-11-11", timeConvertor("15:45:59"), dateConvertor("1944-02-24"), 12.444444444444445));
+		data.add(new Tuple5<>(2, "2017-11-11", timeConvertor("15:45:59"), dateConvertor("1944-02-24"), 12.666666665));
+		data.add(new Tuple5<>(3, "2017-11-11", timeConvertor("17:45:59"), dateConvertor("1944-12-24"), 12.54444445));
+		return env.fromCollection(data);
+	}
+
+	/**
+	 * Simple POJO containing a word and its respective count.
+	 */
+	public static class Tuple5Item {
+		public Integer f0;
+		public String f1;
+		public java.sql.Time f2;
+		public java.sql.Date f3;
+		public Double f4;
+
+		public Tuple5Item() {}
+
+		public Tuple5Item(Integer f0, String f1, java.sql.Time f2, java.sql.Date f3, Double f4) {
+			this.f0 = f0;
+			this.f1 = f1;
+			this.f2 = f2;
+			this.f3 = f3;
+			this.f4 = f4;
+		}
+
+		@Override
+		public String toString() {
+			return "" + f0 + "," + f1 + "," + f2 + "," + f3 + "," + f4;
+		}
+	}
+
+	private static java.sql.Date dateConvertor(String dateStr) {
+		DateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+		java.sql.Date date = null;
+		try {
+			date = new java.sql.Date(format.parse(dateStr).getTime());
+		} catch (java.text.ParseException pe) {
+			date = new java.sql.Date(0);
+		}
+		return date;
+	}
+
+	private static java.sql.Time timeConvertor(String timeStr) {
+		DateFormat format = new SimpleDateFormat("hh:mm:ss");
+		java.sql.Time time = null;
+		try {
+			time = new java.sql.Time(format.parse(timeStr).getTime());
+		} catch (java.text.ParseException pe) {
+			time = new java.sql.Time(0);
+		}
+		return time;
+	}
 
 	public static DataSet<Tuple3<Integer, Long, String>> get3TupleDataSet(ExecutionEnvironment env) {
 

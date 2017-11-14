@@ -318,8 +318,11 @@ object FlinkTypeFactory {
 
       // temporal types
       case SqlTimeTypeInfo.DATE => DATE
+      case SqlTimeTypeInfo.INTERNAL_DATE => DATE
       case SqlTimeTypeInfo.TIME => TIME
+      case SqlTimeTypeInfo.INTERNAL_TIME => TIME
       case SqlTimeTypeInfo.TIMESTAMP => TIMESTAMP
+      case SqlTimeTypeInfo.INTERNAL_TIMESTAMP => TIMESTAMP
       case TimeIntervalTypeInfo.INTERVAL_MONTHS => INTERVAL_YEAR_MONTH
       case TimeIntervalTypeInfo.INTERVAL_MILLIS => INTERVAL_DAY_SECOND
 
@@ -374,6 +377,61 @@ object FlinkTypeFactory {
     case _ => false
   }
 
+  def toExternalTypeInfo(relDataType: RelDataType): TypeInformation[_] =
+    relDataType.getSqlTypeName match {
+      case BOOLEAN => BOOLEAN_TYPE_INFO
+      case TINYINT => BYTE_TYPE_INFO
+      case SMALLINT => SHORT_TYPE_INFO
+      case INTEGER => INT_TYPE_INFO
+      case BIGINT => LONG_TYPE_INFO
+      case FLOAT => FLOAT_TYPE_INFO
+      case DOUBLE => DOUBLE_TYPE_INFO
+      case VARCHAR | CHAR => STRING_TYPE_INFO
+      case DECIMAL => BIG_DEC_TYPE_INFO
+
+      // temporal types
+      case DATE => SqlTimeTypeInfo.DATE
+      case TIME => SqlTimeTypeInfo.TIME
+      case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
+      case typeName
+        if YEAR_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MONTHS
+      case typeName if DAY_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MILLIS
+
+      case NULL =>
+        throw TableException("Type NULL is not supported. Null values must have a supported type.")
+
+      // symbol for special flags e.g. TRIM's BOTH, LEADING, TRAILING
+      // are represented as integer
+      case SYMBOL => INT_TYPE_INFO
+
+      // extract encapsulated TypeInformation
+      case ANY if relDataType.isInstanceOf[GenericRelDataType] =>
+        val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
+        genericRelDataType.typeInfo
+
+      case ROW if relDataType.isInstanceOf[CompositeRelDataType] =>
+        val compositeRelDataType = relDataType.asInstanceOf[CompositeRelDataType]
+        compositeRelDataType.compositeType
+
+      // ROW and CURSOR for UDTF case, whose type info will never be used, just a placeholder
+      case ROW | CURSOR => new NothingTypeInfo
+
+      case ARRAY if relDataType.isInstanceOf[ArrayRelDataType] =>
+        val arrayRelDataType = relDataType.asInstanceOf[ArrayRelDataType]
+        arrayRelDataType.typeInfo
+
+      case MAP if relDataType.isInstanceOf[MapRelDataType] =>
+        val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
+        mapRelDataType.typeInfo
+
+      case MULTISET if relDataType.isInstanceOf[MultisetRelDataType] =>
+        val multisetRelDataType = relDataType.asInstanceOf[MultisetRelDataType]
+        multisetRelDataType.typeInfo
+
+      case _@t =>
+        throw TableException(s"Type is not supported: $t")
+  }
+
   def toTypeInfo(relDataType: RelDataType): TypeInformation[_] = relDataType.getSqlTypeName match {
     case BOOLEAN => BOOLEAN_TYPE_INFO
     case TINYINT => BYTE_TYPE_INFO
@@ -395,9 +453,10 @@ object FlinkTypeFactory {
       }
 
     // temporal types
-    case DATE => SqlTimeTypeInfo.DATE
-    case TIME => SqlTimeTypeInfo.TIME
-    case TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
+    // case DATE => SqlTimeTypeInfo.DATE
+    case DATE => SqlTimeTypeInfo.INTERNAL_DATE
+    case TIME => SqlTimeTypeInfo.INTERNAL_TIME
+    case TIMESTAMP => SqlTimeTypeInfo.INTERNAL_TIMESTAMP
     case typeName if YEAR_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MONTHS
     case typeName if DAY_INTERVAL_TYPES.contains(typeName) => TimeIntervalTypeInfo.INTERVAL_MILLIS
 
@@ -422,7 +481,17 @@ object FlinkTypeFactory {
 
     case ARRAY if relDataType.isInstanceOf[ArrayRelDataType] =>
       val arrayRelDataType = relDataType.asInstanceOf[ArrayRelDataType]
-      arrayRelDataType.typeInfo
+      if (arrayRelDataType.typeInfo.isInstanceOf[ObjectArrayTypeInfo[_,_]]) {
+        arrayRelDataType.typeInfo.asInstanceOf[ObjectArrayTypeInfo[_,_]].getComponentInfo match {
+          case SqlTimeTypeInfo.DATE => ObjectArrayTypeInfo.getInfoFor(SqlTimeTypeInfo.INTERNAL_DATE)
+          case SqlTimeTypeInfo.TIME => ObjectArrayTypeInfo.getInfoFor(SqlTimeTypeInfo.INTERNAL_TIME)
+          case SqlTimeTypeInfo.TIMESTAMP =>
+            ObjectArrayTypeInfo.getInfoFor(SqlTimeTypeInfo.INTERNAL_TIMESTAMP)
+          case _ => arrayRelDataType.typeInfo
+        }
+      } else {
+        arrayRelDataType.typeInfo
+      }
 
     case MAP if relDataType.isInstanceOf[MapRelDataType] =>
       val mapRelDataType = relDataType.asInstanceOf[MapRelDataType]
@@ -434,5 +503,45 @@ object FlinkTypeFactory {
 
     case _@t =>
       throw TableException(s"Type is not supported: $t")
+  }
+
+  def isTemporal(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    // pass time indicators
+    case ti: TimeIndicatorTypeInfo => false
+    case SqlTimeTypeInfo.DATE
+         | SqlTimeTypeInfo.TIME
+         | SqlTimeTypeInfo.TIMESTAMP => true
+
+    case _ => false
+  }
+
+  def isInternal(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case SqlTimeTypeInfo.INTERNAL_DATE
+         | SqlTimeTypeInfo.INTERNAL_TIME
+         | SqlTimeTypeInfo.INTERNAL_TIMESTAMP => true
+    case _ => false
+  }
+
+  def toInternal(typeInfo: TypeInformation[_]): TypeInformation[_] = typeInfo match {
+    // pass time indicators
+    case ti: TimeIndicatorTypeInfo => ti
+
+    case SqlTimeTypeInfo.DATE => SqlTimeTypeInfo.INTERNAL_DATE
+    case SqlTimeTypeInfo.TIME => SqlTimeTypeInfo.INTERNAL_TIME
+    case SqlTimeTypeInfo.TIMESTAMP => SqlTimeTypeInfo.INTERNAL_TIMESTAMP
+    case _ => typeInfo
+  }
+
+  def toExternal(typeInfo: TypeInformation[_]): TypeInformation[_] = typeInfo match {
+    case SqlTimeTypeInfo.INTERNAL_DATE => SqlTimeTypeInfo.DATE
+    case SqlTimeTypeInfo.INTERNAL_TIME => SqlTimeTypeInfo.TIME
+    case SqlTimeTypeInfo.INTERNAL_TIMESTAMP => SqlTimeTypeInfo.TIMESTAMP
+    case _ => typeInfo
+  }
+
+  def compare(left: TypeInformation[_], right: TypeInformation[_]): Boolean = {
+    return left == right ||
+      (isInternal(left) && (toExternal(left) == right)) ||
+      (isInternal(right) && (toExternal(right) == left))
   }
 }

@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.TypeCheckUtils
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isArray, isComparable, isNumeric}
 import org.apache.flink.table.validate._
@@ -40,7 +41,10 @@ abstract class BinaryComparison extends BinaryExpression {
   override private[flink] def validateInput(): ValidationResult =
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
-      case (lType, rType) if isComparable(lType) && lType == rType => ValidationSuccess
+      case (lType, rType)
+        if (isComparable(lType) || isComparable(rType))
+          && FlinkTypeFactory.compare(lType, rType) =>
+        ValidationSuccess
       case (lType, rType) =>
         ValidationFailure(
           s"Comparison is only supported for numeric types and " +
@@ -56,7 +60,7 @@ case class EqualTo(left: Expression, right: Expression) extends BinaryComparison
   override private[flink] def validateInput(): ValidationResult =
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
-      case (lType, rType) if lType == rType => ValidationSuccess
+      case (lType, rType) if FlinkTypeFactory.compare(lType, rType) => ValidationSuccess
       case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
         ValidationSuccess
       case (lType, rType) =>
@@ -72,7 +76,7 @@ case class NotEqualTo(left: Expression, right: Expression) extends BinaryCompari
   override private[flink] def validateInput(): ValidationResult =
     (left.resultType, right.resultType) match {
       case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
-      case (lType, rType) if lType == rType => ValidationSuccess
+      case (lType, rType) if FlinkTypeFactory.compare(lType, rType) => ValidationSuccess
       case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
         ValidationSuccess
       case (lType, rType) =>

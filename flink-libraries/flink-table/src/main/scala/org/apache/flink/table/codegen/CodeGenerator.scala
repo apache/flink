@@ -37,12 +37,12 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.codegen.calls.ScalarOperators._
 import org.apache.flink.table.functions.sql.{ProctimeSqlFunction, ScalarSqlFunctions, StreamRecordTimestampSqlFunction}
+import org.apache.flink.table.codegen.calls.{CurrentTimePointCallGen, FunctionGenerator}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 
 import scala.collection.JavaConversions._
@@ -351,7 +351,8 @@ abstract class CodeGenerator(
     returnType match {
       case pt: PojoTypeInfo[_] =>
         fieldExprs.zipWithIndex foreach {
-          case (fieldExpr, i) if fieldExpr.resultType != pt.getTypeAt(resultFieldNames(i)) =>
+          case (fieldExpr, i)
+            if !FlinkTypeFactory.compare(fieldExpr.resultType, pt.getTypeAt(resultFieldNames(i))) =>
             throw new CodeGenException(
               s"Incompatible types of expression and result type. Expression [$fieldExpr] type is" +
               s" [${fieldExpr.resultType}], result type is [${pt.getTypeAt(resultFieldNames(i))}]")
@@ -361,7 +362,7 @@ abstract class CodeGenerator(
 
       case ct: CompositeType[_] =>
         fieldExprs.zipWithIndex foreach {
-          case (fieldExpr, i) if fieldExpr.resultType != ct.getTypeAt(i) =>
+          case (fieldExpr, i) if !FlinkTypeFactory.compare(fieldExpr.resultType, ct.getTypeAt(i)) =>
             throw new CodeGenException(
               s"Incompatible types of expression and result type. Expression[$fieldExpr] type is " +
               s"[${fieldExpr.resultType}], result type is [${ct.getTypeAt(i)}]")
@@ -377,7 +378,38 @@ abstract class CodeGenerator(
     }
 
     val returnTypeTerm = boxedTypeTermForTypeInfo(returnType)
-    val boxedFieldExprs = fieldExprs.map(generateOutputFieldBoxing)
+
+    val boxedFieldExprs = fieldExprs.zipWithIndex.map {
+      case (fieldExpr, idx) => {
+        val actualFieldExpr = returnType match {
+          case pt: PojoTypeInfo[_] =>
+            val resultFieldType = pt.getTypeAt(resultFieldNames(idx))
+            if (FlinkTypeFactory.isTemporal(fieldExpr.resultType)
+              || FlinkTypeFactory.isTemporal(resultFieldType)) {
+              GeneratedExpression(
+                fieldExpr.resultTerm,
+                fieldExpr.nullTerm,
+                fieldExpr.code,
+                resultFieldType)
+            } else {
+              fieldExpr
+            }
+          case ct: CompositeType[_] =>
+            val resultFieldType = ct.getTypeAt(idx)
+            if (FlinkTypeFactory.isTemporal(fieldExpr.resultType)
+              || FlinkTypeFactory.isTemporal(resultFieldType)) {
+              GeneratedExpression(
+                fieldExpr.resultTerm,
+                fieldExpr.nullTerm,
+                fieldExpr.code,
+                resultFieldType)
+            } else {
+              fieldExpr
+            }
+        }
+        generateOutputFieldBoxing(actualFieldExpr)
+      }
+    }
 
     // generate result expression
     returnType match {
@@ -1217,7 +1249,7 @@ abstract class CodeGenerator(
     val defaultValue = primitiveDefaultValue(fieldType)
 
     // explicit unboxing
-    val unboxedFieldCode = if (isTimePoint(fieldType)) {
+    val unboxedFieldCode = if (isTimePoint(fieldType) && !FlinkTypeFactory.isInternal(fieldType)) {
       timePointToInternalCode(fieldType, fieldTerm)
     } else {
       fieldTerm

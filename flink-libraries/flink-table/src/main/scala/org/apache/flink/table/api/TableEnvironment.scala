@@ -916,15 +916,17 @@ abstract class TableEnvironment(val config: TableConfig) {
 
     // generic row needs no conversion
     if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
-        requestedTypeInfo.getTypeClass == classOf[Row]) {
+        requestedTypeInfo.getTypeClass == classOf[Row] &&
+        schema.typeInfo == schema.externalTypeInfo) {
       return None
     }
 
-    val fieldTypes = schema.fieldTypeInfos
+    val fieldTypes = schema.externalFieldTypeInfos
     val fieldNames = schema.fieldNames
 
     // check for valid type info
-    if (requestedTypeInfo.getArity != fieldTypes.length) {
+    if (!requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
+      requestedTypeInfo.getArity != fieldTypes.length) {
       throw new TableException(
         s"Arity [${fieldTypes.length}] of result [$fieldTypes] does not match " +
         s"the number[${requestedTypeInfo.getArity}] of requested type [$requestedTypeInfo].")
@@ -961,7 +963,7 @@ abstract class TableEnvironment(val config: TableConfig) {
           case (fieldTypeInfo, i) =>
             val requestedTypeInfo = tt.getTypeAt(i)
             validateFieldType(requestedTypeInfo)
-            if (fieldTypeInfo != requestedTypeInfo) {
+            if (!FlinkTypeFactory.compare(fieldTypeInfo, requestedTypeInfo)) {
               throw new TableException(s"Result field does not match requested type. " +
                 s"Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")
             }
@@ -969,15 +971,20 @@ abstract class TableEnvironment(val config: TableConfig) {
 
       // Atomic type requested
       case at: AtomicType[_] =>
-        if (fieldTypes.size != 1) {
-          throw new TableException(s"Requested result type is an atomic type but " +
-            s"result[$fieldTypes] has more or less than a single field.")
-        }
-        val requestedTypeInfo = fieldTypes.head
-        validateFieldType(requestedTypeInfo)
-        if (requestedTypeInfo != at) {
-          throw new TableException(s"Result field does not match requested type. " +
-            s"Requested: $at; Actual: $requestedTypeInfo")
+        if (at.isInstanceOf[GenericTypeInfo[_]]) {
+          val requestedTypeInfo = schema.externalTypeInfo
+          validateFieldType(requestedTypeInfo)
+        } else {
+          if (fieldTypes.size != 1) {
+            throw new TableException(s"Requested result type is an atomic type but " +
+              s"result[$fieldTypes] has more or less than a single field.")
+          }
+          val requestedTypeInfo = fieldTypes.head
+          validateFieldType(requestedTypeInfo)
+          if (requestedTypeInfo != at) {
+            throw new TableException(s"Result field does not match requested type. " +
+              s"Requested: $at; Actual: $requestedTypeInfo")
+          }
         }
 
       case _ =>
@@ -992,8 +999,16 @@ abstract class TableEnvironment(val config: TableConfig) {
       None,
       None)
 
+    val expectedTypeInfo =
+      if (requestedTypeInfo.isInstanceOf[GenericTypeInfo[_]] &&
+        requestedTypeInfo.getTypeClass == classOf[Row]) {
+        schema.externalTypeInfo
+      } else {
+        requestedTypeInfo
+      }
+
     val conversion = generator.generateConverterResultExpression(
-      requestedTypeInfo,
+      expectedTypeInfo,
       fieldNames)
 
     val body =

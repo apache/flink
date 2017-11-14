@@ -37,6 +37,12 @@ class RowSchema(private val logicalRowType: RelDataType) {
   private lazy val physicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
     physicalRowFieldTypes.toArray, fieldNames.toArray)
 
+  private lazy val logicalRowFieldTypes: Seq[TypeInformation[_]] =
+    logicalRowType.getFieldList map { f => FlinkTypeFactory.toExternalTypeInfo(f.getType) }
+
+  private lazy val logicalRowTypeInfo: TypeInformation[Row] = new RowTypeInfo(
+    logicalRowFieldTypes.toArray, fieldNames.toArray)
+
   /**
     * Returns the arity of the schema.
     */
@@ -56,6 +62,16 @@ class RowSchema(private val logicalRowType: RelDataType) {
     * Returns the [[TypeInformation]] of fields of the schema
     */
   def fieldTypeInfos: Seq[TypeInformation[_]] = physicalRowFieldTypes
+
+  /**
+    * Returns the external [[TypeInformation]] of the schema
+    */
+  def externalTypeInfo: TypeInformation[Row] = logicalRowTypeInfo
+
+  /**
+    * Returns the external [[TypeInformation]] of fields of the schema
+    */
+  def externalFieldTypeInfos: Seq[TypeInformation[_]] = logicalRowFieldTypes
 
   /**
     * Returns the fields names

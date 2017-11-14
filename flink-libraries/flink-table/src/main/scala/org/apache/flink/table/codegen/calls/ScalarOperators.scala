@@ -23,11 +23,12 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
-import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCoercion}
 
 object ScalarOperators {
 
@@ -178,7 +179,8 @@ object ScalarOperators {
       generateComparison("==", nullCheck, left, right)
     }
     // temporal types
-    else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
+    else if (isTemporal(left.resultType) &&
+      FlinkTypeFactory.compare(left.resultType, right.resultType)) {
       generateComparison("==", nullCheck, left, right)
     }
     // array types
@@ -219,7 +221,8 @@ object ScalarOperators {
       generateComparison("!=", nullCheck, left, right)
     }
     // temporal types
-    else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
+    else if (isTemporal(left.resultType) &&
+      FlinkTypeFactory.compare(left.resultType, right.resultType)) {
       generateComparison("!=", nullCheck, left, right)
     }
     // array types
@@ -279,7 +282,8 @@ object ScalarOperators {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
       // both sides are temporal of same type
-      else if (isTemporal(left.resultType) && left.resultType == right.resultType) {
+      else if (isTemporal(left.resultType) &&
+        FlinkTypeFactory.compare(left.resultType, right.resultType)) {
         (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
       }
       // both sides are boolean
@@ -538,8 +542,11 @@ object ScalarOperators {
     case (ti: TimeIndicatorTypeInfo, SqlTimeTypeInfo.TIMESTAMP) =>
       operand.copy(resultType = SqlTimeTypeInfo.TIMESTAMP) // just replace the TypeInformation
 
+    case (ti: TimeIndicatorTypeInfo, SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
+      operand.copy(resultType = SqlTimeTypeInfo.INTERNAL_TIMESTAMP)
+
     // identity casting
-    case (fromTp, toTp) if fromTp == toTp =>
+    case (fromTp, toTp) if FlinkTypeFactory.compare(fromTp, toTp) =>
       operand
 
     // array identity casting
@@ -720,6 +727,75 @@ object ScalarOperators {
         | (TimeIntervalTypeInfo.INTERVAL_MONTHS, LONG_TYPE_INFO) =>
       internalExprCasting(operand, targetType)
 
+    // Internal Date -> Integer
+    // Internal Time -> Integer
+    // Internal Timestamp -> Long
+    // Integer -> Internal Date
+    // Integer -> Internal Time
+    // Long -> Internal Timestamp
+    case (SqlTimeTypeInfo.INTERNAL_DATE, INT_TYPE_INFO)
+        | (SqlTimeTypeInfo.INTERNAL_TIME, INT_TYPE_INFO)
+        | (SqlTimeTypeInfo.INTERNAL_TIMESTAMP, LONG_TYPE_INFO)
+        | (INT_TYPE_INFO, SqlTimeTypeInfo.INTERNAL_DATE)
+        | (INT_TYPE_INFO, SqlTimeTypeInfo.INTERNAL_TIME)
+        | (LONG_TYPE_INFO, SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
+      internalExprCasting(operand, targetType)
+
+    // Internal Date, Internal Time -> Long
+    case (SqlTimeTypeInfo.INTERNAL_DATE, LONG_TYPE_INFO)
+        | (SqlTimeTypeInfo.INTERNAL_TIME, LONG_TYPE_INFO) =>
+      internalExprCasting(operand, targetType)
+
+    // String -> Internal Date
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.INTERNAL_DATE) =>
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, operand) {
+        (operandTerm) => s"${qualifyMethod(BuiltInMethod.STRING_TO_DATE.method)}($operandTerm)"
+      }.copy(resultType = targetType)
+
+    // String -> Internal Time
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.INTERNAL_TIME) =>
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, operand) {
+        (operandTerm) => s"${qualifyMethod(BuiltInMethod.STRING_TO_TIME.method)}($operandTerm)"
+      }.copy(resultType = targetType)
+
+    // String -> Timestamp
+    case (STRING_TYPE_INFO, SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, operand) {
+        (operandTerm) => s"${qualifyMethod(BuiltInMethod.STRING_TO_TIMESTAMP.method)}" +
+          s"($operandTerm)"
+      }.copy(resultType = targetType)
+
+    // Timestamp -> Internal Date
+    case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.INTERNAL_DATE) =>
+      val targetTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.DATE)
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, operand) {
+        (operandTerm) =>
+          s"($targetTypeTerm) ($operandTerm / " +
+            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+      }.copy(resultType = targetType)
+
+    // Timestamp -> Internal Time
+    case (SqlTimeTypeInfo.TIMESTAMP, SqlTimeTypeInfo.INTERNAL_TIME) =>
+      val targetTypeTerm = primitiveTypeTermForTypeInfo(SqlTimeTypeInfo.TIME)
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, operand) {
+        (operandTerm) =>
+          s"($targetTypeTerm) ($operandTerm % " +
+            s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+      }.copy(resultType = targetType)
+
+    // Date -> Internal Timestamp
+    case (SqlTimeTypeInfo.DATE, SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, operand) {
+        (operandTerm) =>
+          s"$operandTerm * ${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY"
+      }.copy(resultType = targetType)
+
+    // Time -> Internal Timestamp
+    case (SqlTimeTypeInfo.TIME, SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
+      generateUnaryOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, operand) {
+        (operandTerm) => s"$operandTerm"
+      }.copy(resultType = targetType)
+
     case (from, to) =>
       throw new CodeGenException(s"Unsupported cast from '$from' to '$to'.")
   }
@@ -817,6 +893,31 @@ object ScalarOperators {
         }
 
       case (SqlTimeTypeInfo.TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }
+
+      case (SqlTimeTypeInfo.INTERNAL_DATE, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+          (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+        }.copy(resultType = SqlTimeTypeInfo.INTERNAL_DATE)
+
+      case (SqlTimeTypeInfo.INTERNAL_DATE, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.DATE, left, right) {
+          (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
+        }.copy(resultType = SqlTimeTypeInfo.INTERNAL_DATE)
+
+      case (SqlTimeTypeInfo.INTERNAL_TIME, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIME, left, right) {
+          (l, r) => s"$l $op ((int) ($r))"
+        }.copy(resultType = SqlTimeTypeInfo.INTERNAL_TIME)
+
+      case (SqlTimeTypeInfo.INTERNAL_TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MILLIS) =>
+        generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
+          (l, r) => s"$l $op $r"
+        }
+
+      case (SqlTimeTypeInfo.INTERNAL_TIMESTAMP, TimeIntervalTypeInfo.INTERVAL_MONTHS) =>
         generateOperatorIfNotNull(nullCheck, SqlTimeTypeInfo.TIMESTAMP, left, right) {
           (l, r) => s"${qualifyMethod(BuiltInMethod.ADD_MONTHS.method)}($l, $op($r))"
         }

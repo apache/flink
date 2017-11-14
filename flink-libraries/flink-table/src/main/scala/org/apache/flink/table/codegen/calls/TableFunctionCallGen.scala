@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.NEVER_NULL
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
@@ -79,8 +80,16 @@ class TableFunctionCallGen(
             }
             operandExpr.copy(resultTerm = exprOrNull)
           } else {
-            val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
-            val boxedExpr = codeGenerator.generateOutputFieldBoxing(operandExpr)
+            val actualExpr =
+              if (FlinkTypeFactory.isInternal(operandExpr.resultType)) {
+                val externalType = FlinkTypeFactory.toExternal(operandExpr.resultType)
+                operandExpr.copy(resultType = externalType)
+              } else {
+                operandExpr
+              }
+
+            val boxedTypeTerm = boxedTypeTermForTypeInfo(actualExpr.resultType)
+            val boxedExpr = codeGenerator.generateOutputFieldBoxing(actualExpr)
             val exprOrNull: String = if (codeGenerator.nullCheck) {
               s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
             } else {

@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.Row;
@@ -58,18 +59,78 @@ public class JavaSqlITCase extends TableProgramsCollectionTestBase {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
 
-		String sqlQuery = "VALUES (1, 'Test', TRUE, DATE '1944-02-24', 12.4444444444444445)," +
-			"(2, 'Hello', TRUE, DATE '1944-02-24', 12.666666665)," +
-			"(3, 'World', FALSE, DATE '1944-12-24', 12.54444445)";
+		String sqlQuery = "VALUES (1, 'Test', TRUE, DATE '1944-02-24', 12.4444444444444445, TIME '15:45:59')," +
+			"(2, 'Hello', TRUE, DATE '1944-02-24', 12.666666665, TIME '15:45:59')," +
+			"(3, 'World', FALSE, DATE '1944-12-24', 12.54444445, TIME '17:45:59')";
 		Table result = tableEnv.sqlQuery(sqlQuery);
 
 		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
 
 		List<Row> results = resultSet.collect();
-		String expected = "3,World,false,1944-12-24,12.5444444500000000\n" +
-			"2,Hello,true,1944-02-24,12.6666666650000000\n" +
+		String expected = "3,World,false,1944-12-24,12.5444444500000000,17:45:59\n" +
+			"2,Hello,true,1944-02-24,12.6666666650000000,15:45:59\n" +
 			// Calcite converts to decimals and strings with equal length
-			"1,Test ,true,1944-02-24,12.4444444444444445\n";
+			"1,Test ,true,1944-02-24,12.4444444444444445,15:45:59\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testSelectTupleToRow() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSet<Tuple5<Integer, String, java.sql.Time, java.sql.Date, Double>> ds = CollectionDataSets.get5TupleDataSetWithDate(env);
+		Table in = tableEnv.fromDataSet(ds, "f0,f1,f2,f3,f4");
+		tableEnv.registerTable("T", in);
+
+		String sqlQuery = "SELECT * FROM T WHERE f3 > DATE '1944-02-24'";
+		Table result = tableEnv.sqlQuery(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+
+		List<Row> results = resultSet.collect();
+		String expected = "3,2017-11-11,17:45:59,1944-12-24,12.54444445\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testSelectTupleToTuple() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSet<Tuple5<Integer, String, java.sql.Time, java.sql.Date, Double>> ds = CollectionDataSets.get5TupleDataSetWithDate(env);
+		Table in = tableEnv.fromDataSet(ds, "f0,f1,f2,f3,f4");
+		tableEnv.registerTable("T", in);
+
+		String sqlQuery = "SELECT * FROM T WHERE f3 > DATE '1944-02-24'";
+		Table result = tableEnv.sqlQuery(sqlQuery);
+
+		DataSet<CollectionDataSets.Tuple5Item> resultSet = tableEnv.toDataSet(result, CollectionDataSets.Tuple5Item.class);
+
+		List<CollectionDataSets.Tuple5Item> results = resultSet.collect();
+		String expected = "3,2017-11-11,17:45:59,1944-12-24,12.54444445\n";
+		compareResultAsText(results, expected);
+	}
+
+	@Test
+	public void testUDFWithDate() throws Exception {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		BatchTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env, config());
+
+		DataSet<Tuple5<Integer, String, java.sql.Time, java.sql.Date, Double>> ds = CollectionDataSets.get5TupleDataSetWithDate(env);
+		Table in = tableEnv.fromDataSet(ds, "f0,f1,f2,f3,f4");
+		tableEnv.registerTable("T", in);
+		tableEnv.registerFunction("my_quarter", new JavaUserDefinedScalarFunctions.JavaFunc5());
+		tableEnv.registerFunction("str_to_date", new JavaUserDefinedScalarFunctions.JavaFunc6());
+		tableEnv.registerFunction("my_month", new JavaUserDefinedScalarFunctions.JavaFunc7());
+
+		String sqlQuery = "SELECT f1, f3, my_quarter(str_to_date(f1)), my_quarter(f3), my_month(f3) FROM T WHERE f3 > DATE '1944-02-24'";
+		Table result = tableEnv.sqlQuery(sqlQuery);
+
+		DataSet<Row> resultSet = tableEnv.toDataSet(result, Row.class);
+
+		List<Row> results = resultSet.collect();
+		String expected = "2017-11-11,1944-12-24,4,4,12\n";
 		compareResultAsText(results, expected);
 	}
 

@@ -28,6 +28,7 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.sql.DateTimeSqlFunction
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
@@ -542,10 +543,11 @@ object FunctionGenerator {
 
     // built-in scalar function
     case _ =>
-      sqlFunctions.get((sqlOperator, operandTypes))
+      val externalOperandTypes = operandTypes.map(x => FlinkTypeFactory.toExternal(x))
+      sqlFunctions.get((sqlOperator, externalOperandTypes))
         .orElse(sqlFunctions.find(entry => entry._1._1 == sqlOperator
-          && entry._1._2.length == operandTypes.length
-          && entry._1._2.zip(operandTypes).forall {
+          && entry._1._2.length == externalOperandTypes.length
+          && entry._1._2.zip(externalOperandTypes).forall {
           case (x: BasicTypeInfo[_], y: BasicTypeInfo[_]) => y.shouldAutocastTo(x) || x == y
           case _ => false
         }).map(_._2))

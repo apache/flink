@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen.calls
 
 import org.apache.commons.lang3.ClassUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
 import org.apache.flink.table.functions.ScalarFunction
@@ -79,8 +80,16 @@ class ScalarFunctionCallGen(
             }
             operandExpr.copy(resultTerm = exprOrNull)
           } else {
-            val boxedTypeTerm = boxedTypeTermForTypeInfo(operandExpr.resultType)
-            val boxedExpr = codeGenerator.generateOutputFieldBoxing(operandExpr)
+            val actualExpr =
+              if (FlinkTypeFactory.isInternal(operandExpr.resultType)) {
+                val externalType = FlinkTypeFactory.toExternal(operandExpr.resultType)
+                operandExpr.copy(resultType = externalType)
+              } else {
+                operandExpr
+              }
+
+            val boxedTypeTerm = boxedTypeTermForTypeInfo(actualExpr.resultType)
+            val boxedExpr = codeGenerator.generateOutputFieldBoxing(actualExpr)
             val exprOrNull: String = if (codeGenerator.nullCheck) {
               s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
             } else {
@@ -95,7 +104,11 @@ class ScalarFunctionCallGen(
     val resultTypeTerm = if (resultClass.isPrimitive) {
       primitiveTypeTermForTypeInfo(returnType)
     } else {
-      boxedTypeTermForTypeInfo(returnType)
+      if (FlinkTypeFactory.isInternal(returnType)) {
+        boxedTypeTermForTypeInfo(FlinkTypeFactory.toExternal(returnType))
+      } else {
+        boxedTypeTermForTypeInfo(returnType)
+      }
     }
     val resultTerm = newName("result")
     val functionCallCode =
@@ -106,10 +119,15 @@ class ScalarFunctionCallGen(
         |""".stripMargin
 
     // convert result of function to internal representation (input unboxing)
-    val resultUnboxing = if (resultClass.isPrimitive) {
-      codeGenerator.generateNonNullLiteral(returnType, resultTerm)
+    val actualReturnType = if (FlinkTypeFactory.isInternal(returnType)) {
+      FlinkTypeFactory.toExternal(returnType)
     } else {
-      codeGenerator.generateInputFieldUnboxing(returnType, resultTerm)
+      returnType
+    }
+    val resultUnboxing = if (resultClass.isPrimitive) {
+      codeGenerator.generateNonNullLiteral(actualReturnType, resultTerm)
+    } else {
+      codeGenerator.generateInputFieldUnboxing(actualReturnType, resultTerm)
     }
     resultUnboxing.copy(code =
       s"""

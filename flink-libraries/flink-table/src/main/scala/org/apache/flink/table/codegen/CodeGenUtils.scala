@@ -70,6 +70,10 @@ object CodeGenUtils {
     case SqlTimeTypeInfo.TIME => "int"
     case SqlTimeTypeInfo.TIMESTAMP => "long"
 
+    case SqlTimeTypeInfo.INTERNAL_DATE => "int"
+    case SqlTimeTypeInfo.INTERNAL_TIME => "int"
+    case SqlTimeTypeInfo.INTERNAL_TIMESTAMP => "long"
+
     // internal primitive representation of time intervals
     case TimeIntervalTypeInfo.INTERVAL_MONTHS => "int"
     case TimeIntervalTypeInfo.INTERVAL_MILLIS => "long"
@@ -111,6 +115,8 @@ object CodeGenUtils {
     case SqlTimeTypeInfo.TIMESTAMP => "-1L"
     case TimeIntervalTypeInfo.INTERVAL_MONTHS => "-1"
     case TimeIntervalTypeInfo.INTERVAL_MILLIS => "-1L"
+    case SqlTimeTypeInfo.INTERNAL_DATE | SqlTimeTypeInfo.INTERNAL_TIME => "-1"
+    case SqlTimeTypeInfo.INTERNAL_TIMESTAMP => "-1L"
 
     case _ => "null"
   }
@@ -135,6 +141,12 @@ object CodeGenUtils {
       case SqlTimeTypeInfo.TIME =>
         s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIME.method)}($resultTerm)"
       case SqlTimeTypeInfo.TIMESTAMP =>
+        s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIMESTAMP.method)}($resultTerm)"
+      case SqlTimeTypeInfo.INTERNAL_DATE =>
+        s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_DATE.method)}($resultTerm)"
+      case SqlTimeTypeInfo.INTERNAL_TIME =>
+        s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIME.method)}($resultTerm)"
+      case SqlTimeTypeInfo.INTERNAL_TIMESTAMP =>
         s"${qualifyMethod(BuiltInMethod.INTERNAL_TO_TIMESTAMP.method)}($resultTerm)"
     }
 

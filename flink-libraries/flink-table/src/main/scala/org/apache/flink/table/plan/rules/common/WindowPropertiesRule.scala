@@ -25,6 +25,7 @@ import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
@@ -109,7 +110,8 @@ abstract class WindowPropertiesBaseRule(rulePredicate: RelOptRuleOperand, ruleNa
       'streamRowtime
     } else if (ExpressionUtils.isProctimeAttribute(window.timeAttribute)) {
       'streamProctime
-    } else if (window.timeAttribute.resultType == Types.SQL_TIMESTAMP) {
+    } else if (
+      FlinkTypeFactory.toExternal(window.timeAttribute.resultType) == Types.SQL_TIMESTAMP) {
       'batchRowtime
     } else {
       throw new TableException("Unknown window type encountered. Please report this bug.")

@@ -28,6 +28,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DateComparator;
+import org.apache.flink.api.common.typeutils.base.IntComparator;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.LongComparator;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlDateSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlTimeSerializer;
 import org.apache.flink.api.common.typeutils.base.SqlTimestampComparator;
@@ -45,11 +49,20 @@ public class SqlTimeTypeInfo<T> extends TypeInformation<T> implements AtomicType
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static final SqlTimeTypeInfo<Date> DATE = new SqlTimeTypeInfo<>(Date.class, SqlDateSerializer.INSTANCE, (Class) DateComparator.class);
 
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	public static final SqlTimeTypeInfo<Integer> INTERNAL_DATE = new SqlTimeTypeInfo<>(Integer.class, IntSerializer.INSTANCE, (Class) IntComparator.class, Date.class);
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static final SqlTimeTypeInfo<Time> TIME = new SqlTimeTypeInfo<>(Time.class, SqlTimeSerializer.INSTANCE, (Class) DateComparator.class);
 
 	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static final SqlTimeTypeInfo<Integer> INTERNAL_TIME = new SqlTimeTypeInfo<>(Integer.class, IntSerializer.INSTANCE, (Class) IntComparator.class, Time.class);
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public static final SqlTimeTypeInfo<Timestamp> TIMESTAMP = new SqlTimeTypeInfo<>(Timestamp.class, SqlTimestampSerializer.INSTANCE, (Class) SqlTimestampComparator.class);
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static final SqlTimeTypeInfo<Long> INTERNAL_TIMESTAMP = new SqlTimeTypeInfo<>(Long.class, LongSerializer.INSTANCE, (Class) LongComparator.class, Timestamp.class);
 
 	// --------------------------------------------------------------------------------------------
 
@@ -59,10 +72,20 @@ public class SqlTimeTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	private final Class<? extends TypeComparator<T>> comparatorClass;
 
+	private final Class externalClazz;
+
 	protected SqlTimeTypeInfo(Class<T> clazz, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass) {
 		this.clazz = checkNotNull(clazz);
 		this.serializer = checkNotNull(serializer);
 		this.comparatorClass = checkNotNull(comparatorClass);
+		this.externalClazz = null;
+	}
+
+	protected SqlTimeTypeInfo(Class<T> clazz, TypeSerializer<T> serializer, Class<? extends TypeComparator<T>> comparatorClass, Class externalClazz) {
+		this.clazz = checkNotNull(clazz);
+		this.serializer = checkNotNull(serializer);
+		this.comparatorClass = checkNotNull(comparatorClass);
+		this.externalClazz = externalClazz;
 	}
 
 	@Override
@@ -126,7 +149,8 @@ public class SqlTimeTypeInfo<T> extends TypeInformation<T> implements AtomicType
 			return other.canEqual(this) &&
 				this.clazz == other.clazz &&
 				serializer.equals(other.serializer) &&
-				this.comparatorClass == other.comparatorClass;
+				this.comparatorClass == other.comparatorClass &&
+				this.externalClazz == other.externalClazz;
 		} else {
 			return false;
 		}
@@ -134,7 +158,8 @@ public class SqlTimeTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
 	@Override
 	public String toString() {
-		return clazz.getSimpleName();
+		return this.getClass().getSimpleName() + "[" + clazz.getSimpleName() + ", "
+			+ (externalClazz == null ? "null" : externalClazz.getSimpleName()) + "]";
 	}
 
 	// --------------------------------------------------------------------------------------------

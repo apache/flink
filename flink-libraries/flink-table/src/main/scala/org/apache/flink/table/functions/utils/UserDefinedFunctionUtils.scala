@@ -29,7 +29,7 @@ import com.google.common.primitives.Primitives
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction}
 import org.apache.flink.api.common.functions.InvalidTypesException
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
 import org.apache.flink.table.api.dataview._
@@ -593,6 +593,12 @@ object UserDefinedFunctionUtils {
   typeInfos.map { typeInfo =>
     if (typeInfo == null) {
       null
+    } else if (typeInfo == SqlTimeTypeInfo.INTERNAL_DATE) {
+      SqlTimeTypeInfo.DATE.getTypeClass
+    } else if (typeInfo == SqlTimeTypeInfo.INTERNAL_TIME) {
+      SqlTimeTypeInfo.TIME.getTypeClass
+    } else if (typeInfo == SqlTimeTypeInfo.INTERNAL_TIMESTAMP) {
+      SqlTimeTypeInfo.TIMESTAMP.getTypeClass
     } else {
       typeInfo.getTypeClass
     }

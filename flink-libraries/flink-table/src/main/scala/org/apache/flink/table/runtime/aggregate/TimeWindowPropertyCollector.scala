@@ -50,12 +50,12 @@ abstract class TimeWindowPropertyCollector[T](
     if (windowStartOffset.isDefined) {
       output.setField(
         lastFieldPos + windowStartOffset.get,
-        SqlFunctions.internalToTimestamp(windowStart))
+        windowStart)
     }
     if (windowEndOffset.isDefined) {
       output.setField(
         lastFieldPos + windowEndOffset.get,
-        SqlFunctions.internalToTimestamp(windowEnd))
+        windowEnd)
     }
 
     if (windowRowtimeOffset.isDefined) {
@@ -77,7 +77,7 @@ final class DataSetTimeWindowPropertyCollector(
   override def getRow(record: Row): Row = record
 
   override def setRowtimeAttribute(pos: Int): Unit = {
-    output.setField(pos, SqlFunctions.internalToTimestamp(windowEnd - 1))
+    output.setField(pos, windowEnd - 1)
   }
 }
 

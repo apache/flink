@@ -80,4 +80,55 @@ public class JavaUserDefinedScalarFunctions {
 		}
 	}
 
+	/**
+	 * Determines Quarter (1,2,3,4) of a given date.
+	 */
+	public static class JavaFunc5 extends ScalarFunction {
+		public int eval(java.sql.Date date) {
+			int month = date.getMonth();
+			int quarter = 0;
+			switch (month) {
+				case 0: case 1: case 2:
+					quarter = 1;
+					break;
+				case 3: case 4: case 5:
+					quarter = 2;
+					break;
+				case 6: case 7: case 8:
+					quarter = 3;
+					break;
+				case 9: case 10: case 11:
+					quarter = 4;
+					break;
+				default:
+					break;
+			}
+			return quarter;
+		}
+	}
+
+	/**
+	 * Converts a string in JDBC date escape format to a Date value.
+	 */
+	public static class JavaFunc6 extends ScalarFunction {
+		public java.sql.Date eval(String s) {
+			java.sql.Date date = null;
+			try {
+				date = java.sql.Date.valueOf(s);
+			} catch (IllegalArgumentException e) {
+				date = new java.sql.Date(0);
+			}
+			return date;
+		}
+	}
+
+	/**
+	 * Determines Month (1..12) of a given date.
+	 */
+	public static class JavaFunc7 extends ScalarFunction {
+		public int eval(java.sql.Date date) {
+			int month = date.getMonth();
+			return month + 1;
+		}
+	}
 }

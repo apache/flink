@@ -22,6 +22,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -169,7 +170,8 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
       case WindowReference(_, Some(tpe: TypeInformation[_])) if isRowtimeIndicatorType(tpe) =>
         // rowtime window
         ValidationSuccess
-      case WindowReference(_, Some(tpe)) if tpe == Types.LONG || tpe == Types.SQL_TIMESTAMP =>
+      case WindowReference(_, Some(tpe))
+        if tpe == Types.LONG || FlinkTypeFactory.toExternal(tpe) == Types.SQL_TIMESTAMP =>
         // batch time window
         ValidationSuccess
       case WindowReference(_, _) =>
@@ -185,7 +187,8 @@ case class RowtimeAttribute(expr: Expression) extends TimeAttribute(expr) {
       case WindowReference(_, Some(tpe: TypeInformation[_])) if isRowtimeIndicatorType(tpe) =>
         // rowtime window
         TimeIndicatorTypeInfo.ROWTIME_INDICATOR
-      case WindowReference(_, Some(tpe)) if tpe == Types.LONG || tpe == Types.SQL_TIMESTAMP =>
+      case WindowReference(_, Some(tpe))
+        if tpe == Types.LONG || FlinkTypeFactory.toExternal(tpe) == Types.SQL_TIMESTAMP =>
         // batch time window
         Types.SQL_TIMESTAMP
       case _ =>

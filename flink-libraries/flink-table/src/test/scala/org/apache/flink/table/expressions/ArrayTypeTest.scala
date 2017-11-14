@@ -80,7 +80,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       Array(Date.valueOf("1985-04-11")),
       "array('1985-04-11'.toDate)",
       "ARRAY[DATE '1985-04-11']",
-      "[1985-04-11]")
+      "[5579]")
 
     testAllApis(
       Array(BigDecimal(2.0002), BigDecimal(2.0003)),

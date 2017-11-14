@@ -45,7 +45,9 @@ case class Cast(child: Expression, resultType: TypeInformation[_]) extends Unary
   }
 
   override private[flink] def validateInput(): ValidationResult = {
-    if (TypeCoercion.canCast(child.resultType, resultType)) {
+    if (TypeCoercion.canCast(
+      FlinkTypeFactory.toExternal(child.resultType),
+      FlinkTypeFactory.toExternal(resultType))) {
       ValidationSuccess
     } else {
       ValidationFailure(s"Unsupported cast from ${child.resultType} to $resultType")

@@ -25,6 +25,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.TypeCheckUtils._
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -81,7 +82,8 @@ case class In(expression: Expression, elements: Seq[Expression]) extends Express
         }
         (children.head.resultType, children.last.resultType) match {
           case (lType, rType) if isNumeric(lType) && isNumeric(rType) => ValidationSuccess
-          case (lType, rType) if lType == rType => ValidationSuccess
+          case (lType, rType) if (lType == rType || FlinkTypeFactory.compare(lType, rType)) =>
+            ValidationSuccess
           case (lType, rType) if isArray(lType) && lType.getTypeClass == rType.getTypeClass =>
             ValidationSuccess
           case (lType, rType) =>

@@ -54,7 +54,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
-          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
+          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS
+          || temporal.resultType == SqlTimeTypeInfo.INTERNAL_DATE
+          || temporal.resultType == SqlTimeTypeInfo.INTERNAL_TIMESTAMP =>
         ValidationSuccess
 
       case SymbolExpression(TimeIntervalUnit.HOUR)
@@ -62,7 +64,9 @@ case class Extract(timeIntervalUnit: Expression, temporal: Expression) extends E
            | SymbolExpression(TimeIntervalUnit.SECOND)
         if temporal.resultType == SqlTimeTypeInfo.TIME
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
-          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
+          || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
+          || temporal.resultType == SqlTimeTypeInfo.INTERNAL_TIME
+          || temporal.resultType == SqlTimeTypeInfo.INTERNAL_TIMESTAMP =>
         ValidationSuccess
 
       case _ =>
@@ -165,12 +169,14 @@ abstract class TemporalCeilFloor(
 
     (unit.get, temporal.resultType) match {
       case (TimeIntervalUnit.YEAR | TimeIntervalUnit.MONTH,
-          SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP) =>
+          SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP |
+          SqlTimeTypeInfo.INTERNAL_DATE | SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
         ValidationSuccess
-      case (TimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
+      case (TimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP | SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
         ValidationSuccess
       case (TimeIntervalUnit.HOUR | TimeIntervalUnit.MINUTE | TimeIntervalUnit.SECOND,
-          SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
+          SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP |
+          SqlTimeTypeInfo.INTERNAL_TIME | SqlTimeTypeInfo.INTERNAL_TIMESTAMP) =>
         ValidationSuccess
       case _ =>
         ValidationFailure(s"Temporal ceil/floor operator does not support " +
