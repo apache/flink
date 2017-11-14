@@ -316,7 +316,7 @@ The following parameters configure Flink's JobManager and TaskManagers.
 
 - `taskmanager.exit-on-fatal-akka-error`: Whether the TaskManager shall be terminated in case of a fatal Akka error (quarantining event). (DEFAULT: **false**)
 
-- `jobmanager.tdd.offload.minsize`: Maximum size of of the `TaskDeploymentDescriptor`'s serialized task and job information to still transmit them via RPC. Larger blobs may be offloaded to the BLOB server. (DEFAULT: **1 KiB**).
+- `jobmanager.tdd.offload.minsize`: Maximum size of the `TaskDeploymentDescriptor`'s serialized task and job information to still transmit them via RPC. Larger blobs may be offloaded to the BLOB server. (DEFAULT: **1 KiB**).
 
 ### Distributed Coordination (via Akka)
 

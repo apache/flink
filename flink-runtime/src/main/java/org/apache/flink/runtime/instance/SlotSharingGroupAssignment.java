@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * the {@link SimpleSlot}s.</p>
  * 
  * <p>An exception are the co-location-constraints, that define that the i-th subtask of one
- * vertex needs to be scheduled strictly together with the i-th subtasks of of the vertices
+ * vertex needs to be scheduled strictly together with the i-th subtasks of the vertices
  * that share the co-location-constraint. To manage that, a co-location-constraint gets its
  * own shared slot inside the shared slots of a sharing group.</p>
  * 
