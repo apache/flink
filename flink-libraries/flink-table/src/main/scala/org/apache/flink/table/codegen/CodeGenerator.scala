@@ -957,6 +957,10 @@ abstract class CodeGenerator(
       case ARRAY_VALUE_CONSTRUCTOR =>
         generateArray(this, resultType, operands)
 
+      // maps
+      case MAP_VALUE_CONSTRUCTOR =>
+        generateMap(this, resultType, operands)
+
       case ITEM =>
         operands.head.resultType match {
           case _: ObjectArrayTypeInfo[_, _] |
@@ -1558,6 +1562,22 @@ abstract class CodeGenerator(
         |    new $initArray;
         |""".stripMargin
     reusableMemberStatements.add(fieldArray)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable hash map to the member area of the generated [[Function]].
+    */
+  def addReusableMap(clazz: Class[_]): String = {
+    val fieldTerm = newName("map")
+    val classQualifier = "java.util.Map"
+    val initMap = "java.util.HashMap()"
+    val fieldMap =
+      s"""
+         |final $classQualifier $fieldTerm =
+         |    new $initMap;
+         |""".stripMargin
+    reusableMemberStatements.add(fieldMap)
     fieldTerm
   }
 

@@ -705,6 +705,14 @@ trait ImplicitExpressionOperations {
     */
   def element() = ArrayElement(expr)
 
+  /**
+    * Accesses the element of a map based on key.
+    *
+    * @param key key of the element
+    * @return value of the element
+    */
+  def getValue(key: Expression) = MapElementGetValue(expr, key)
+
   // Time definition
 
   /**
@@ -956,6 +964,19 @@ object array {
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
+  * Creates a map of literals. The map will be a map between two objects (not primitives).
+  */
+object map {
+
+  /**
+    * Creates a map of literals. The map will be a map between two objects (not primitives).
+    */
+  def apply(key: Expression, value: Expression, tail: Expression*): Expression = {
+    MapConstructor(Seq(key, value) ++ tail.toSeq)
   }
 }
 

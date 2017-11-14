@@ -243,6 +243,10 @@ object FunctionCatalog {
     "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
 
+    // map
+    "map" -> classOf[MapConstructor],
+    "getValue" -> classOf[MapElementGetValue],
+
     // window properties
     "start" -> classOf[WindowStart],
     "end" -> classOf[WindowEnd],
@@ -333,6 +337,10 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.ITEM,
     SqlStdOperatorTable.CARDINALITY,
     SqlStdOperatorTable.ELEMENT,
+    // MAP OPERATORS
+    SqlStdOperatorTable.MAP_VALUE_CONSTRUCTOR,
+    SqlStdOperatorTable.ITEM,
+    SqlStdOperatorTable.CARDINALITY,
     // SPECIAL OPERATORS
     SqlStdOperatorTable.ROW,
     SqlStdOperatorTable.OVERLAPS,
