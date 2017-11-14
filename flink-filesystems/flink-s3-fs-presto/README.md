@@ -14,12 +14,21 @@ relocated class names of classes loaded via reflection
 If you want to change the Hadoop version this project depends on, the following
 steps are required to keep the shading correct:
 
-1. copy `org/apache/hadoop/conf/Configuration.java` from the respective Hadoop jar file (from `com.facebook.presto.hadoop/hadoop-apache2`) to this project
-  - adapt the `Configuration` class by replacing `core-default.xml` with `core-default-shaded.xml`.
-2. copy `core-default.xml` from the respective Hadoop jar (from `com.facebook.presto.hadoop/hadoop-apache2`) file to this project as
-  - `src/main/resources/core-default-shaded.xml` (replacing every occurence of `org.apache.hadoop` with `org.apache.flink.fs.s3presto.shaded.org.apache.hadoop`)
-  - `src/test/resources/core-site.xml` (as is)
-3. verify the shaded jar:
+1. from the respective Hadoop jar (from the `com.facebook.presto.hadoop/hadoop-apache2` resource, currently version 2.7.3-1 as of our `pom.xml`),
+  - copy `org/apache/hadoop/conf/Configuration.java` to `src/main/java/org/apache/hadoop/conf/` and
+    - replace `core-default.xml` with `core-default-shaded.xml`.
+  - copy `org/apache/hadoop/util/NativeCodeLoader.java` to `src/main/java/org/apache/hadoop/util/` and
+    - replace the static initializer with
+    ```
+  static {
+    LOG.info("Skipping native-hadoop library for flink-s3-fs-presto's relocated Hadoop... " +
+             "using builtin-java classes where applicable");
+  }
+```
+  - copy `core-default.xml` to `src/main/resources/core-default-shaded.xml` and
+    - change every occurence of `org.apache.hadoop` into `org.apache.flink.fs.s3presto.shaded.org.apache.hadoop`
+  - copy `core-site.xml` to `src/test/resources/core-site.xml` (as is)
+2. verify the shaded jar:
   - does not contain any unshaded classes except for `org.apache.flink.fs.s3presto.S3FileSystemFactory`
   - all other classes should be under `org.apache.flink.fs.s3presto.shaded`
   - there should be a `META-INF/services/org.apache.flink.fs.s3presto.S3FileSystemFactory` file pointing to the `org.apache.flink.fs.s3presto.S3FileSystemFactory` class
