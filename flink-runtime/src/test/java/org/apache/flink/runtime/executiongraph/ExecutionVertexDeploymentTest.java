@@ -25,8 +25,8 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -374,12 +374,8 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		AllocatedSlot allocatedSlot = mock(AllocatedSlot.class);
 		when(allocatedSlot.getSlotAllocationId()).thenReturn(new AllocationID());
 
-		Slot root = mock(Slot.class);
-		when(root.getSlotNumber()).thenReturn(1);
-		SimpleSlot slot = mock(SimpleSlot.class);
-		when(slot.getRoot()).thenReturn(root);
-		when(slot.getAllocatedSlot()).thenReturn(allocatedSlot);
-		when(root.getAllocatedSlot()).thenReturn(allocatedSlot);
+		LogicalSlot slot = mock(LogicalSlot.class);
+		when(slot.getAllocationId()).thenReturn(new AllocationID());
 
 		for (ScheduleMode mode : ScheduleMode.values()) {
 			vertex.getExecutionGraph().setScheduleMode(mode);

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceDiedException;
 import org.apache.flink.runtime.instance.InstanceListener;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SharedSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -133,7 +134,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(
+	public CompletableFuture<LogicalSlot> allocateSlot(
 			ScheduledUnit task,
 			boolean allowQueued,
 			Collection<TaskManagerLocation> preferredLocations) {
@@ -146,7 +147,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			}
 			else if (ret instanceof CompletableFuture) {
 				@SuppressWarnings("unchecked")
-				CompletableFuture<SimpleSlot> typed = (CompletableFuture<SimpleSlot>) ret;
+				CompletableFuture<LogicalSlot> typed = (CompletableFuture<LogicalSlot>) ret;
 				return typed;
 			}
 			else {
@@ -321,7 +322,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				else {
 					// no resource available now, so queue the request
 					if (queueIfNoResource) {
-						CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
+						CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 						this.taskQueue.add(new QueuedTask(task, future));
 						return future;
 					}
@@ -837,10 +838,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 		
 		private final ScheduledUnit task;
 		
-		private final CompletableFuture<SimpleSlot> future;
+		private final CompletableFuture<LogicalSlot> future;
 		
 		
-		public QueuedTask(ScheduledUnit task, CompletableFuture<SimpleSlot> future) {
+		public QueuedTask(ScheduledUnit task, CompletableFuture<LogicalSlot> future) {
 			this.task = task;
 			this.future = future;
 		}
@@ -849,7 +850,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			return task;
 		}
 
-		public CompletableFuture<SimpleSlot> getFuture() {
+		public CompletableFuture<LogicalSlot> getFuture() {
 			return future;
 		}
 	}

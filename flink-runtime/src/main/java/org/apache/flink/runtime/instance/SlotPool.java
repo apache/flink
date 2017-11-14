@@ -266,7 +266,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(
+	public CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestID requestId,
 			ScheduledUnit task,
 			ResourceProfile resources,
@@ -303,7 +303,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
-	CompletableFuture<SimpleSlot> internalAllocateSlot(
+	CompletableFuture<LogicalSlot> internalAllocateSlot(
 			SlotRequestID requestId,
 			ScheduledUnit task,
 			ResourceProfile resources,
@@ -318,7 +318,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		// the request will be completed by a future
-		final CompletableFuture<SimpleSlot> future = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> future = new CompletableFuture<>();
 
 		// (2) need to request a slot
 		if (resourceManagerGateway == null) {
@@ -433,7 +433,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	private void stashRequestWaitingForResourceManager(
 			final SlotRequestID requestId,
 			final ResourceProfile resources,
-			final CompletableFuture<SimpleSlot> future) {
+			final CompletableFuture<LogicalSlot> future) {
 
 		LOG.info("Cannot serve slot request, no ResourceManager connected. " +
 				"Adding as pending request {}",  requestId);
@@ -1087,15 +1087,15 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		@Override
-		public CompletableFuture<SimpleSlot> allocateSlot(
+		public CompletableFuture<LogicalSlot> allocateSlot(
 				ScheduledUnit task,
 				boolean allowQueued,
 				Collection<TaskManagerLocation> preferredLocations) {
 
 			final SlotRequestID requestId = new SlotRequestID();
-			CompletableFuture<SimpleSlot> slotFuture = gateway.allocateSlot(requestId, task, ResourceProfile.UNKNOWN, preferredLocations, timeout);
+			CompletableFuture<LogicalSlot> slotFuture = gateway.allocateSlot(requestId, task, ResourceProfile.UNKNOWN, preferredLocations, timeout);
 			slotFuture.whenComplete(
-				(SimpleSlot slot, Throwable failure) -> {
+				(LogicalSlot slot, Throwable failure) -> {
 					if (failure != null) {
 						gateway.cancelSlotAllocation(requestId);
 					}
@@ -1113,13 +1113,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 		private final SlotRequestID slotRequestId;
 
-		private final CompletableFuture<SimpleSlot> future;
+		private final CompletableFuture<LogicalSlot> future;
 
 		private final ResourceProfile resourceProfile;
 
 		PendingRequest(
 				SlotRequestID slotRequestId,
-				CompletableFuture<SimpleSlot> future,
+				CompletableFuture<LogicalSlot> future,
 				ResourceProfile resourceProfile) {
 			this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 			this.future = Preconditions.checkNotNull(future);
@@ -1130,7 +1130,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 			return slotRequestId;
 		}
 
-		public CompletableFuture<SimpleSlot> getFuture() {
+		public CompletableFuture<LogicalSlot> getFuture() {
 			return future;
 		}
 

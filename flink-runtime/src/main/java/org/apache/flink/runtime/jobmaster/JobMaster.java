@@ -55,7 +55,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SlotPool;
 import org.apache.flink.runtime.instance.SlotPoolGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -444,7 +444,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			return FutureUtils.completedExceptionally(new Exception("No InputSplitAssigner for vertex ID " + vertexID));
 		}
 
-		final Slot slot = execution.getAssignedResource();
+		final LogicalSlot slot = execution.getAssignedResource();
 		final int taskId = execution.getVertex().getParallelSubtaskIndex();
 		final String host = slot != null ? slot.getTaskManagerLocation().getHostname() : null;
 		final InputSplit nextInputSplit = splitAssigner.getNextInputSplit(host, taskId);

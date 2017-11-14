@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
@@ -37,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * <p>If this slot is part of a {@link SharedSlot}, then the parent attribute will point to that shared slot.
  * If not, then the parent attribute is null.
  */
-public class SimpleSlot extends Slot {
+public class SimpleSlot extends Slot implements LogicalSlot {
 
 	/** The updater used to atomically swap in the execution */
 	private static final AtomicReferenceFieldUpdater<SimpleSlot, Execution> VERTEX_UPDATER =
@@ -163,7 +164,8 @@ public class SimpleSlot extends Slot {
 	 * @param executedVertex The vertex to assign to this slot.
 	 * @return True, if the vertex was assigned, false, otherwise.
 	 */
-	public boolean setExecutedVertex(Execution executedVertex) {
+	@Override
+	public boolean setExecution(Execution executedVertex) {
 		if (executedVertex == null) {
 			throw new NullPointerException();
 		}
@@ -229,6 +231,16 @@ public class SimpleSlot extends Slot {
 				getParent().releaseChild(this);
 			}
 		}
+	}
+
+	@Override
+	public int getPhysicalSlotNumber() {
+		return getRootSlotNumber();
+	}
+
+	@Override
+	public AllocationID getAllocationId() {
+		return getAllocatedSlot().getSlotAllocationId();
 	}
 
 	// ------------------------------------------------------------------------

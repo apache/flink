@@ -29,11 +29,13 @@ import org.apache.flink.api.common.JobID;
 
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import org.mockito.Matchers;
 
-public class SimpleSlotTest {
+public class SimpleSlotTest extends TestLogger {
 
 	@Test
 	public void testStateTransitions() {
@@ -81,11 +83,11 @@ public class SimpleSlotTest {
 			{
 				SimpleSlot slot = getSlot();
 
-				assertTrue(slot.setExecutedVertex(ev));
+				assertTrue(slot.setExecution(ev));
 				assertEquals(ev, slot.getExecutedVertex());
 
 				// try to add another one
-				assertFalse(slot.setExecutedVertex(ev_2));
+				assertFalse(slot.setExecution(ev_2));
 				assertEquals(ev, slot.getExecutedVertex());
 			}
 
@@ -94,7 +96,7 @@ public class SimpleSlotTest {
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.markCancelled());
 
-				assertFalse(slot.setExecutedVertex(ev));
+				assertFalse(slot.setExecution(ev));
 				assertNull(slot.getExecutedVertex());
 			}
 
@@ -104,7 +106,7 @@ public class SimpleSlotTest {
 				assertTrue(slot.markCancelled());
 				assertTrue(slot.markReleased());
 
-				assertFalse(slot.setExecutedVertex(ev));
+				assertFalse(slot.setExecution(ev));
 				assertNull(slot.getExecutedVertex());
 			}
 			
@@ -113,7 +115,7 @@ public class SimpleSlotTest {
 				SimpleSlot slot = getSlot();
 				slot.releaseSlot();
 
-				assertFalse(slot.setExecutedVertex(ev));
+				assertFalse(slot.setExecution(ev));
 				assertNull(slot.getExecutedVertex());
 			}
 		}
@@ -129,7 +131,7 @@ public class SimpleSlotTest {
 			Execution ev = mock(Execution.class);
 
 			SimpleSlot slot = getSlot();
-			assertTrue(slot.setExecutedVertex(ev));
+			assertTrue(slot.setExecution(ev));
 			assertEquals(ev, slot.getExecutedVertex());
 
 			slot.releaseSlot();

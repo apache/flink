@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class ProgrammedSlotProvider implements SlotProvider {
 
-	private final Map<JobVertexID, CompletableFuture<SimpleSlot>[]> slotFutures = new HashMap<>();
+	private final Map<JobVertexID, CompletableFuture<LogicalSlot>[]> slotFutures = new HashMap<>();
 
 	private final Map<JobVertexID, CompletableFuture<Boolean>[]> slotFutureRequested = new HashMap<>();
 
@@ -49,17 +49,17 @@ class ProgrammedSlotProvider implements SlotProvider {
 		this.parallelism = parallelism;
 	}
 
-	public void addSlot(JobVertexID vertex, int subtaskIndex, CompletableFuture<SimpleSlot> future) {
+	public void addSlot(JobVertexID vertex, int subtaskIndex, CompletableFuture<LogicalSlot> future) {
 		checkNotNull(vertex);
 		checkNotNull(future);
 		checkArgument(subtaskIndex >= 0 && subtaskIndex < parallelism);
 
-		CompletableFuture<SimpleSlot>[] futures = slotFutures.get(vertex);
+		CompletableFuture<LogicalSlot>[] futures = slotFutures.get(vertex);
 		CompletableFuture<Boolean>[] requestedFutures = slotFutureRequested.get(vertex);
 
 		if (futures == null) {
 			@SuppressWarnings("unchecked")
-			CompletableFuture<SimpleSlot>[] newArray = (CompletableFuture<SimpleSlot>[]) new CompletableFuture<?>[parallelism];
+			CompletableFuture<LogicalSlot>[] newArray = (CompletableFuture<LogicalSlot>[]) new CompletableFuture<?>[parallelism];
 			futures = newArray;
 			slotFutures.put(vertex, futures);
 
@@ -71,7 +71,7 @@ class ProgrammedSlotProvider implements SlotProvider {
 		requestedFutures[subtaskIndex] = new CompletableFuture<>();
 	}
 
-	public void addSlots(JobVertexID vertex, CompletableFuture<SimpleSlot>[] futures) {
+	public void addSlots(JobVertexID vertex, CompletableFuture<LogicalSlot>[] futures) {
 		checkNotNull(vertex);
 		checkNotNull(futures);
 		checkArgument(futures.length == parallelism);
@@ -92,16 +92,16 @@ class ProgrammedSlotProvider implements SlotProvider {
 	}
 
 	@Override
-	public CompletableFuture<SimpleSlot> allocateSlot(
+	public CompletableFuture<LogicalSlot> allocateSlot(
 			ScheduledUnit task,
 			boolean allowQueued,
 			Collection<TaskManagerLocation> preferredLocations) {
 		JobVertexID vertexId = task.getTaskToExecute().getVertex().getJobvertexId();
 		int subtask = task.getTaskToExecute().getParallelSubtaskIndex();
 
-		CompletableFuture<SimpleSlot>[] forTask = slotFutures.get(vertexId);
+		CompletableFuture<LogicalSlot>[] forTask = slotFutures.get(vertexId);
 		if (forTask != null) {
-			CompletableFuture<SimpleSlot> future = forTask[subtask];
+			CompletableFuture<LogicalSlot> future = forTask[subtask];
 			if (future != null) {
 				slotFutureRequested.get(vertexId)[subtask].complete(true);
 

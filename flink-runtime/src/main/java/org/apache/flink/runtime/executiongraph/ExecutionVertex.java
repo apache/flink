@@ -32,6 +32,7 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -272,7 +273,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return currentExecution.getTaskManagerLocationFuture();
 	}
 
-	public SimpleSlot getCurrentAssignedResource() {
+	public LogicalSlot getCurrentAssignedResource() {
 		return currentExecution.getAssignedResource();
 	}
 
@@ -744,7 +745,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 */
 	TaskDeploymentDescriptor createDeploymentDescriptor(
 			ExecutionAttemptID executionId,
-			SimpleSlot targetSlot,
+			LogicalSlot targetSlot,
 			TaskStateSnapshot taskStateHandles,
 			int attemptNumber) throws ExecutionGraphException {
 		
@@ -779,8 +780,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		
 		
 		for (ExecutionEdge[] edges : inputEdges) {
-			InputChannelDeploymentDescriptor[] partitions = InputChannelDeploymentDescriptor
-					.fromEdges(edges, targetSlot, lazyScheduling);
+			InputChannelDeploymentDescriptor[] partitions = InputChannelDeploymentDescriptor.fromEdges(
+				edges,
+				targetSlot.getTaskManagerLocation().getResourceID(),
+				lazyScheduling);
 
 			// If the produced partition has multiple consumers registered, we
 			// need to request the one matching our sub task index.
@@ -829,10 +832,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			serializedJobInformation,
 			serializedTaskInformation,
 			executionId,
-			targetSlot.getAllocatedSlot().getSlotAllocationId(),
+			targetSlot.getAllocationId(),
 			subTaskIndex,
 			attemptNumber,
-			targetSlot.getRoot().getSlotNumber(),
+			targetSlot.getPhysicalSlotNumber(),
 			taskStateHandles,
 			producedPartitions,
 			consumedPartitions);

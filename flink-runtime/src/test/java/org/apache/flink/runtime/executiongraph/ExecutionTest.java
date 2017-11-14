@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -62,7 +63,7 @@ public class ExecutionTest extends TestLogger {
 		final JobVertex jobVertex = new JobVertex("Test vertex", jobVertexId);
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		final CompletableFuture<SimpleSlot> slotFuture = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> slotFuture = new CompletableFuture<>();
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
 		slotProvider.addSlot(jobVertexId, 0, slotFuture);
 

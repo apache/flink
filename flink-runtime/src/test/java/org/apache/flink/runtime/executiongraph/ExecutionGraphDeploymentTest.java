@@ -40,6 +40,7 @@ import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -587,10 +588,10 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		sinkVertex.connectNewDataSetAsInput(sourceVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
-		final Map<JobVertexID, CompletableFuture<SimpleSlot>[]> slotFutures = new HashMap<>(2);
+		final Map<JobVertexID, CompletableFuture<LogicalSlot>[]> slotFutures = new HashMap<>(2);
 
 		for (JobVertexID jobVertexID : Arrays.asList(sourceVertexId, sinkVertexId)) {
-			CompletableFuture<SimpleSlot>[] slotFutureArray = new CompletableFuture[parallelism];
+			CompletableFuture<LogicalSlot>[] slotFutureArray = new CompletableFuture[parallelism];
 
 			for (int i = 0; i < parallelism; i++) {
 				slotFutureArray[i] = new CompletableFuture<>();

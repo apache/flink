@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -38,7 +39,7 @@ import static org.junit.Assert.*;
 /**
  * Tests for the allocation, properties, and release of shared slots.
  */
-public class SharedSlotsTest {
+public class SharedSlotsTest extends TestLogger {
 
 	private static final Iterable<TaskManagerLocation> NO_LOCATION = Collections.emptySet();
 

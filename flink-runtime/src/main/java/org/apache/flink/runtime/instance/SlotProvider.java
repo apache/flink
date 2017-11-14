@@ -45,7 +45,7 @@ public interface SlotProvider {
 	 * @param preferredLocations preferred locations for the slot allocation
 	 * @return The future of the allocation
 	 */
-	CompletableFuture<SimpleSlot> allocateSlot(
+	CompletableFuture<LogicalSlot> allocateSlot(
 		ScheduledUnit task,
 		boolean allowQueued,
 		Collection<TaskManagerLocation> preferredLocations);

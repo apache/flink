@@ -107,7 +107,7 @@ public class SlotPoolRpcTest extends TestLogger {
 		try {
 			pool.start(JobMasterId.generate(), "foobar");
 
-			CompletableFuture<SimpleSlot> future = pool.allocateSlot(
+			CompletableFuture<LogicalSlot> future = pool.allocateSlot(
 				new SlotPoolGateway.SlotRequestID(),
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				DEFAULT_TESTING_PROFILE,
@@ -142,7 +142,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
 			SlotPoolGateway.SlotRequestID requestId = new SlotPoolGateway.SlotRequestID();
-			CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				DEFAULT_TESTING_PROFILE,
@@ -186,7 +186,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			SlotPoolGateway.SlotRequestID requestId = new SlotPoolGateway.SlotRequestID();
-			CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				DEFAULT_TESTING_PROFILE,
@@ -237,7 +237,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			pool.connectToResourceManager(resourceManagerGateway);
 
 			SlotPoolGateway.SlotRequestID requestId = new SlotPoolGateway.SlotRequestID();
-			CompletableFuture<SimpleSlot> future = slotPoolGateway.allocateSlot(
+			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				DEFAULT_TESTING_PROFILE,
@@ -300,7 +300,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			ScheduledUnit mockScheduledUnit = new ScheduledUnit(SchedulerTestUtils.getDummyTask());
 
 			// test the pending request is clear when timed out
-			CompletableFuture<SimpleSlot> future = pool.getSlotProvider().allocateSlot(
+			CompletableFuture<LogicalSlot> future = pool.getSlotProvider().allocateSlot(
 				mockScheduledUnit,
 				true,
 				Collections.emptyList());

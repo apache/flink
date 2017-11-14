@@ -86,7 +86,7 @@ public interface SlotPoolGateway extends RpcGateway {
 	//  allocating and disposing slots
 	// ------------------------------------------------------------------------
 
-	CompletableFuture<SimpleSlot> allocateSlot(
+	CompletableFuture<LogicalSlot> allocateSlot(
 			SlotRequestID requestId,
 			ScheduledUnit task,
 			ResourceProfile resources,

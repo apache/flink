@@ -29,6 +29,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotProvider;
@@ -109,8 +110,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
 
-		final CompletableFuture<SimpleSlot> sourceFuture = new CompletableFuture<>();
-		final CompletableFuture<SimpleSlot> targetFuture = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> sourceFuture = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> targetFuture = new CompletableFuture<>();
 
 		ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 		slotProvider.addSlot(sourceVertex.getID(), 0, sourceFuture);
@@ -177,9 +178,9 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] sourceFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] targetFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] targetFutures = new CompletableFuture[parallelism];
 
 		//
 		//  Create the slots, futures, and the slot provider
@@ -283,9 +284,9 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final SimpleSlot[] targetSlots = new SimpleSlot[parallelism];
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] sourceFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] targetFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] targetFutures = new CompletableFuture[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
 			sourceSlots[i] = createSlot(taskManager, jobId, slotOwner);
@@ -358,7 +359,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
 		final SimpleSlot[] slots = new SimpleSlot[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
-		final CompletableFuture<SimpleSlot>[] slotFutures = new CompletableFuture[parallelism];
+		final CompletableFuture<LogicalSlot>[] slotFutures = new CompletableFuture[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
 			slots[i] = createSlot(taskManager, jobId, slotOwner);
@@ -392,7 +393,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		//  verify that no deployments have happened
 		verify(taskManager, times(0)).submitTask(any(TaskDeploymentDescriptor.class), any(Time.class));
 
-		for (CompletableFuture<SimpleSlot> future : slotFutures) {
+		for (CompletableFuture<LogicalSlot> future : slotFutures) {
 			if (future.isDone()) {
 				assertTrue(future.get().isCanceled());
 			}
