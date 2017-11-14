@@ -156,6 +156,8 @@ class SqlExpressionTest extends ExpressionTestBase {
     // testSqlApi("('hello world', 12)", "hello world") // test base only returns field 0
     testSqlApi("ARRAY[TRUE, FALSE][2]", "false")
     testSqlApi("ARRAY[TRUE, TRUE]", "[true, true]")
+    testSqlApi("MAP['k1', 'v1', 'k2', 'v2']['k2']", "v2")
+    testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']['k1']", "true")
   }
 
   @Test

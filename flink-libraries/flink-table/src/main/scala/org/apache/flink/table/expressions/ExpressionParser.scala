@@ -86,6 +86,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val FALSE: Keyword = Keyword("false")
   lazy val PRIMITIVE_ARRAY: Keyword = Keyword("PRIMITIVE_ARRAY")
   lazy val OBJECT_ARRAY: Keyword = Keyword("OBJECT_ARRAY")
+  lazy val MAP: Keyword = Keyword("MAP")
   lazy val BYTE: Keyword = Keyword("BYTE")
   lazy val SHORT: Keyword = Keyword("SHORT")
   lazy val INTERVAL_MONTHS: Keyword = Keyword("INTERVAL_MONTHS")
@@ -141,6 +142,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val dataType: PackratParser[TypeInformation[_]] =
     PRIMITIVE_ARRAY ~ "(" ~> dataType <~ ")" ^^ { ct => Types.PRIMITIVE_ARRAY(ct) } |
     OBJECT_ARRAY ~ "(" ~> dataType <~ ")" ^^ { ct => Types.OBJECT_ARRAY(ct) } |
+    MAP ~ "(" ~> dataType ~ "," ~ dataType <~ ")" ^^ { mt => Types.MAP(mt._1._1, mt._2)} |
     BYTE ^^ { e => Types.BYTE } |
     SHORT ^^ { e => Types.SHORT } |
     INTERVAL_MONTHS ^^ { e => Types.INTERVAL_MONTHS } |

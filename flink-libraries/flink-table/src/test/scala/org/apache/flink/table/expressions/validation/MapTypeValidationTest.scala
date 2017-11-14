@@ -26,6 +26,6 @@ class MapTypeValidationTest extends MapTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testWrongKeyType(): Unit = {
-    testSqlApi("f4[12]", "FAIL")
+    testSqlApi("f2[12]", "FAIL")
   }
 }
