@@ -84,7 +84,7 @@ fi
 
 # Ascending ID depending on number of lines in pid file.
 # This allows us to start multiple daemon of each type.
-id=$([ -f "$pid" ] && echo $(wc -l < $pid) || echo "0")
+id=$([ -f "$pid" ] && echo $(wc -l < "$pid") || echo "0")
 
 FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}"
 log="${FLINK_LOG_PREFIX}.log"
@@ -108,7 +108,7 @@ case $STARTSTOP in
         rotateLogFilesWithPrefix "$FLINK_LOG_DIR" "$FLINK_LOG_PREFIX"
 
         # Print a warning if daemons are already running on host
-        if [ -f $pid ]; then
+        if [ -f "$pid" ]; then
           active=()
           while IFS='' read -r p || [[ -n "$p" ]]; do
             kill -0 $p >/dev/null 2>&1
@@ -134,7 +134,7 @@ case $STARTSTOP in
 
         # Add to pid file if successful start
         if [[ ${mypid} =~ ${IS_NUMBER} ]] && kill -0 $mypid > /dev/null 2>&1 ; then
-            echo $mypid >> $pid
+            echo $mypid >> "$pid"
         else
             echo "Error starting $DAEMON daemon."
             exit 1
@@ -142,18 +142,18 @@ case $STARTSTOP in
     ;;
 
     (stop)
-        if [ -f $pid ]; then
+        if [ -f "$pid" ]; then
             # Remove last in pid file
-            to_stop=$(tail -n 1 $pid)
+            to_stop=$(tail -n 1 "$pid")
 
             if [ -z $to_stop ]; then
-                rm $pid # If all stopped, clean up pid file
+                rm "$pid" # If all stopped, clean up pid file
                 echo "No $DAEMON daemon to stop on host $HOSTNAME."
             else
-                sed \$d $pid > $pid.tmp # all but last line
+                sed \$d "$pid" > "$pid.tmp" # all but last line
 
                 # If all stopped, clean up pid file
-                [ $(wc -l < $pid.tmp) -eq 0 ] && rm $pid $pid.tmp || mv $pid.tmp $pid
+                [ $(wc -l < "$pid.tmp") -eq 0 ] && rm "$pid" "$pid.tmp" || mv "$pid.tmp" "$pid"
 
                 if kill -0 $to_stop > /dev/null 2>&1; then
                     echo "Stopping $DAEMON daemon (pid: $to_stop) on host $HOSTNAME."
@@ -168,8 +168,8 @@ case $STARTSTOP in
     ;;
 
     (stop-all)
-        if [ -f $pid ]; then
-            mv $pid ${pid}.tmp
+        if [ -f "$pid" ]; then
+            mv "$pid" "${pid}.tmp"
 
             while read to_stop; do
                 if kill -0 $to_stop > /dev/null 2>&1; then
@@ -178,8 +178,8 @@ case $STARTSTOP in
                 else
                     echo "Skipping $DAEMON daemon (pid: $to_stop), because it is not running anymore on $HOSTNAME."
                 fi
-            done < ${pid}.tmp
-            rm ${pid}.tmp
+            done < "${pid}.tmp"
+            rm "${pid}.tmp"
         fi
     ;;
 
