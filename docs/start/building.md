@@ -109,7 +109,7 @@ Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-l
 
 Flink 1.4 currently builds only with Scala version 2.11.
 
-We are working on supporting Scala 2.12, but certain breaking changes in Scala 2.12 make this a more involved effort. Please check out (this JIRA issue)[https://issues.apache.org/jira/browse/FLINK-7811] for updates.
+We are working on supporting Scala 2.12, but certain breaking changes in Scala 2.12 make this a more involved effort. Please check out [this JIRA issue](https://issues.apache.org/jira/browse/FLINK-7811) for updates.
 
 {% top %}
 
