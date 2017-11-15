@@ -32,7 +32,7 @@ import org.apache.flink.table.plan.nodes.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.sources._
-import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PunctuatedWatermarkAssigner}
+import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PunctuatedWatermarkAssigner, PreserveWatermarks}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /** Flink RelNode to read data from an external source defined by a [[StreamTableSource]]. */
@@ -134,6 +134,9 @@ class StreamTableSourceScan(
         case p: PunctuatedWatermarkAssigner =>
           val watermarkGenerator = new PunctuatedWatermarkAssignerWrapper(rowtimeFieldIdx, p)
           ingestedTable.assignTimestampsAndWatermarks(watermarkGenerator)
+        case _: PreserveWatermarks =>
+          // The watermarks have already been provided by the underlying DataStream.
+          ingestedTable
       }
     } else {
       // No need to generate watermarks if no rowtime attribute is specified.
