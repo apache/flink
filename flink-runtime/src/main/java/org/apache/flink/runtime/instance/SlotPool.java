@@ -643,7 +643,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 			if (slot != null) {
 				// release the slot.
 				// since it is not in 'allocatedSlots' any more, it will be dropped o return'
-				slot.releaseSlot();
+				slot.releaseInstanceSlot();
 			}
 			else {
 				LOG.debug("Outdated request to fail slot [{}] with ", allocationID, cause);
@@ -683,7 +683,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 			final Set<Slot> allocatedSlotsForResource = allocatedSlots.removeSlotsForTaskManager(resourceID);
 			for (Slot slot : allocatedSlotsForResource) {
-				slot.releaseSlot();
+				slot.releaseInstanceSlot();
 			}
 		}
 
@@ -1081,9 +1081,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		@Override
-		public boolean returnAllocatedSlot(Slot slot) {
+		public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
 			gateway.returnAllocatedSlot(slot);
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override

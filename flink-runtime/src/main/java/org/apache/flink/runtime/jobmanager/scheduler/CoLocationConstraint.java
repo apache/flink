@@ -141,7 +141,7 @@ public class CoLocationConstraint {
 						"Cannot assign different location to a constraint whose location is locked.");
 			}
 			if (this.sharedSlot.isAlive()) {
-				this.sharedSlot.releaseSlot();
+				this.sharedSlot.releaseInstanceSlot();
 			}
 
 			this.sharedSlot = newSlot;

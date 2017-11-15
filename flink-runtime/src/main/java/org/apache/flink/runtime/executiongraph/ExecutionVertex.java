@@ -631,12 +631,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 *  
 	 * @return A future that completes once the execution has reached its final state.
 	 */
-	public CompletableFuture<ExecutionState> cancel() {
+	public CompletableFuture<?> cancel() {
 		// to avoid any case of mixup in the presence of concurrent calls,
 		// we copy a reference to the stack to make sure both calls go to the same Execution 
 		final Execution exec = this.currentExecution;
 		exec.cancel();
-		return exec.getTerminationFuture();
+		return exec.getReleaseFuture();
 	}
 
 	public void stop() {

@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A logical slot represents a resource on a TaskManager into
@@ -51,31 +54,29 @@ public interface LogicalSlot {
 	boolean isAlive();
 
 	/**
-	 * True if the slot is canceled.
+	 * Tries to assign a payload to this slot. This can only happens
+	 * exactly once.
 	 *
-	 * @return True if the slot is canceled, otherwise false
+	 * @param payload to be assigned to this slot.
+	 * @return true if the payload could be set, otherwise false
 	 */
-	boolean isCanceled();
+	boolean tryAssignPayload(Payload payload);
 
 	/**
-	 * True if the slot is released.
+	 * Returns the set payload or null if none.
 	 *
-	 * @return True if the slot is released, otherwise false
+	 * @return Payload of this slot of null if none
 	 */
-	boolean isReleased();
-
-	/**
-	 * Sets the execution for this slot.
-	 *
-	 * @param execution to set for this slot
-	 * @return true if the slot could be set, otherwise false
-	 */
-	boolean setExecution(Execution execution);
+	@Nullable
+	Payload getPayload();
 
 	/**
 	 * Releases this slot.
+	 *
+	 * @return Future which is completed once the slot has been released,
+	 * 		in case of a failure it is completed exceptionally
 	 */
-	void releaseSlot();
+	CompletableFuture<?> releaseSlot();
 
 	/**
 	 * Gets the slot number on the TaskManager.
@@ -90,4 +91,25 @@ public interface LogicalSlot {
 	 * @return allocation id of this slot
 	 */
 	AllocationID getAllocationId();
+
+	/**
+	 * Payload for a logical slot.
+	 */
+	interface Payload {
+
+		/**
+		 * Fail the payload with the given cause.
+		 *
+		 * @param cause of the failure
+		 */
+		void fail(Throwable cause);
+
+		/**
+		 * Gets the terminal state future which is completed once the payload
+		 * has reached a terminal state.
+		 *
+		 * @return Terminal state future
+		 */
+		CompletableFuture<?> getTerminalStateFuture();
+	}
 }

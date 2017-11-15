@@ -96,11 +96,11 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	}
 
 	@Override
-	public boolean returnAllocatedSlot(Slot slot) {
+	public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
 		synchronized (slots) {
 			slots.add(slot.getAllocatedSlot());
 		}
-		return true;
+		return CompletableFuture.completedFuture(true);
 	}
 
 	public int getNumberOfAvailableSlots() {

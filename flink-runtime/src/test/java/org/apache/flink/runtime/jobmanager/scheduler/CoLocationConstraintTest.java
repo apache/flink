@@ -143,7 +143,7 @@ public class CoLocationConstraintTest {
 			assertEquals(instance2.getTaskManagerLocation(), constraint.getLocation());
 			
 			// release the slot
-			slot2_1.releaseSlot();
+			slot2_1.releaseInstanceSlot();
 
 			// we should still have a location
 			assertTrue(constraint.isAssigned());

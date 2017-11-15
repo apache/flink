@@ -215,7 +215,7 @@ public class SlotSharingGroupAssignment {
 						// note that this does implicitly release the slot we have just added
 						// as well, because we release its last child slot. That is expected
 						// and desired.
-						constraintGroupSlot.releaseSlot();
+						constraintGroupSlot.releaseInstanceSlot();
 					}
 				}
 				else {
@@ -507,7 +507,7 @@ public class SlotSharingGroupAssignment {
 	}
 
 	/**
-	 * Called from {@link org.apache.flink.runtime.instance.SharedSlot#releaseSlot()}.
+	 * Called from {@link org.apache.flink.runtime.instance.SharedSlot#releaseInstanceSlot()}.
 	 * 
 	 * @param sharedSlot The slot to be released.
 	 */
@@ -520,7 +520,7 @@ public class SlotSharingGroupAssignment {
 					// by simply releasing all children, we should eventually release this slot.
 					Set<Slot> children = sharedSlot.getSubSlots();
 					while (children.size() > 0) {
-						children.iterator().next().releaseSlot();
+						children.iterator().next().releaseInstanceSlot();
 					}
 				}
 				else {
@@ -551,7 +551,7 @@ public class SlotSharingGroupAssignment {
 		if (parent == null) {
 			// root slot, return to the instance.
 			sharedSlot.getOwner().returnAllocatedSlot(sharedSlot);
-			
+
 			// also, make sure we remove this slot from everywhere
 			allSlots.remove(sharedSlot);
 			removeSlotFromAllEntries(availableSlotsPerJid, sharedSlot);

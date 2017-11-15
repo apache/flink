@@ -16,22 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.slots;
-
-import org.apache.flink.runtime.instance.Slot;
+package org.apache.flink.runtime.instance;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Interface for components that hold slots and to which slots get released / recycled.
+ * Simple payload implementation for testing purposes.
  */
-public interface SlotOwner {
+public class TestingPayload implements LogicalSlot.Payload {
 
-	/**
-	 * Return the given slot to the slot owner.
-	 *
-	 * @param slot to return
-	 * @return Future which is completed with true if the slot could be returned, otherwise with false
-	 */
-	CompletableFuture<Boolean> returnAllocatedSlot(Slot slot);
+	private final CompletableFuture<?> terminationFuture;
+
+	public TestingPayload() {
+		this.terminationFuture = new CompletableFuture<>();
+	}
+
+
+	@Override
+	public void fail(Throwable cause) {
+		terminationFuture.complete(null);
+	}
+
+	@Override
+	public CompletableFuture<?> getTerminalStateFuture() {
+		return terminationFuture;
+	}
 }

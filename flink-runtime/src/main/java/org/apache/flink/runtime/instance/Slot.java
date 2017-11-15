@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -26,9 +27,9 @@ import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.api.common.JobID;
 
 import javax.annotation.Nullable;
+
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -343,7 +344,7 @@ public abstract class Slot {
 	 * If this slot is a simple slot, it will be returned to its instance. If it is a shared slot,
 	 * it will release all of its sub-slots and release itself.
 	 */
-	public abstract void releaseSlot();
+	public abstract void releaseInstanceSlot();
 
 
 	// --------------------------------------------------------------------------------------------

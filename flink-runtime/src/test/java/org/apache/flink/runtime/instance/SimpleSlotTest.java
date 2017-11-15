@@ -18,22 +18,21 @@
 
 package org.apache.flink.runtime.instance;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-
-import java.net.InetAddress;
-
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.api.common.JobID;
-
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import org.mockito.Matchers;
+import java.net.InetAddress;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SimpleSlotTest extends TestLogger {
 
@@ -45,7 +44,7 @@ public class SimpleSlotTest extends TestLogger {
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
 
-				slot.releaseSlot();
+				slot.releaseInstanceSlot();
 				assertFalse(slot.isAlive());
 				assertTrue(slot.isCanceled());
 				assertTrue(slot.isReleased());
@@ -76,19 +75,19 @@ public class SimpleSlotTest extends TestLogger {
 	@Test
 	public void testSetExecutionVertex() {
 		try {
-			Execution ev = mock(Execution.class);
-			Execution ev_2 = mock(Execution.class);
+			TestingPayload payload1 = new TestingPayload();
+			TestingPayload payload2 = new TestingPayload();
 
 			// assign to alive slot
 			{
 				SimpleSlot slot = getSlot();
 
-				assertTrue(slot.setExecution(ev));
-				assertEquals(ev, slot.getExecutedVertex());
+				assertTrue(slot.tryAssignPayload(payload1));
+				assertEquals(payload1, slot.getPayload());
 
 				// try to add another one
-				assertFalse(slot.setExecution(ev_2));
-				assertEquals(ev, slot.getExecutedVertex());
+				assertFalse(slot.tryAssignPayload(payload2));
+				assertEquals(payload1, slot.getPayload());
 			}
 
 			// assign to canceled slot
@@ -96,8 +95,8 @@ public class SimpleSlotTest extends TestLogger {
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.markCancelled());
 
-				assertFalse(slot.setExecution(ev));
-				assertNull(slot.getExecutedVertex());
+				assertFalse(slot.tryAssignPayload(payload1));
+				assertNull(slot.getPayload());
 			}
 
 			// assign to released marked slot
@@ -106,39 +105,18 @@ public class SimpleSlotTest extends TestLogger {
 				assertTrue(slot.markCancelled());
 				assertTrue(slot.markReleased());
 
-				assertFalse(slot.setExecution(ev));
-				assertNull(slot.getExecutedVertex());
+				assertFalse(slot.tryAssignPayload(payload1));
+				assertNull(slot.getPayload());
 			}
 			
 			// assign to released
 			{
 				SimpleSlot slot = getSlot();
-				slot.releaseSlot();
+				slot.releaseInstanceSlot();
 
-				assertFalse(slot.setExecution(ev));
-				assertNull(slot.getExecutedVertex());
+				assertFalse(slot.tryAssignPayload(payload1));
+				assertNull(slot.getPayload());
 			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-
-	@Test
-	public void testReleaseCancelsVertex() {
-		try {
-			Execution ev = mock(Execution.class);
-
-			SimpleSlot slot = getSlot();
-			assertTrue(slot.setExecution(ev));
-			assertEquals(ev, slot.getExecutedVertex());
-
-			slot.releaseSlot();
-			slot.releaseSlot();
-			slot.releaseSlot();
-
-			verify(ev, times(1)).fail(Matchers.any(Throwable.class));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

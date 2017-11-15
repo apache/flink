@@ -21,17 +21,27 @@ package org.apache.flink.runtime.jobmanager.slots;
 import org.apache.flink.runtime.instance.Slot;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 /**
- * Interface for components that hold slots and to which slots get released / recycled.
+ * {@link SlotOwner} implementation for testing purposes.
  */
-public interface SlotOwner {
+public class TestingSlotOwner implements SlotOwner {
 
-	/**
-	 * Return the given slot to the slot owner.
-	 *
-	 * @param slot to return
-	 * @return Future which is completed with true if the slot could be returned, otherwise with false
-	 */
-	CompletableFuture<Boolean> returnAllocatedSlot(Slot slot);
+	private volatile Consumer<Slot> returnAllocatedSlotConsumer;
+
+	public void setReturnAllocatedSlotConsumer(Consumer<Slot> returnAllocatedSlotConsumer) {
+		this.returnAllocatedSlotConsumer = returnAllocatedSlotConsumer;
+	}
+
+	@Override
+	public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
+		final Consumer<Slot> currentReturnAllocatedSlotConsumer = this.returnAllocatedSlotConsumer;
+
+		if (currentReturnAllocatedSlotConsumer != null) {
+			currentReturnAllocatedSlotConsumer.accept(slot);
+		}
+
+		return CompletableFuture.completedFuture(true);
+	}
 }

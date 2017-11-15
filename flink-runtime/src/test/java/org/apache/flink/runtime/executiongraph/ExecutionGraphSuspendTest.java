@@ -219,7 +219,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 		validateCancelRpcCalls(gateway, parallelism);
 
 		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-		assertEquals(JobStatus.CANCELED, eg.getState());
+		assertEquals(JobStatus.CANCELED, eg.getTerminationFuture().get());
 
 		// suspend
 		eg.suspend(new Exception("suspend"));

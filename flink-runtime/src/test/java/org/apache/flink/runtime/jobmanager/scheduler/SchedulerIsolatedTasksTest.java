@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -49,7 +50,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link Scheduler} when scheduling individual tasks.
  */
-public class SchedulerIsolatedTasksTest {
+public class SchedulerIsolatedTasksTest extends TestLogger {
 
 	@Test
 	public void testAddAndRemoveInstance() {
@@ -297,10 +298,10 @@ public class SchedulerIsolatedTasksTest {
 			i2.markDead();
 			
 			for (LogicalSlot slot : slots) {
-				if (Objects.equals(slot.getTaskManagerLocation().getResourceID(), i2.getTaskManagerID())) {
-					assertTrue(slot.isCanceled());
+				if (slot.getTaskManagerLocation().getResourceID().equals(i2.getTaskManagerID())) {
+					assertFalse(slot.isAlive());
 				} else {
-					assertFalse(slot.isCanceled());
+					assertTrue(slot.isAlive());
 				}
 				
 				slot.releaseSlot();

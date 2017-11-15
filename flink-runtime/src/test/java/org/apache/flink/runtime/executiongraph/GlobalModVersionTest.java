@@ -88,7 +88,7 @@ public class GlobalModVersionTest extends TestLogger {
 			exec.cancelingComplete();
 		}
 
-		assertEquals(JobStatus.CANCELED, graph.getState());
+		assertEquals(JobStatus.CANCELED, graph.getTerminationFuture().get());
 
 		// no failure notification at all
 		verify(mockStrategy, times(0)).onTaskFailure(any(Execution.class), any(Throwable.class));

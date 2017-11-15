@@ -79,18 +79,18 @@ public class InstanceTest {
 			}
 
 			// release the slots. this returns them to the instance
-			slot1.releaseSlot();
-			slot2.releaseSlot();
-			slot3.releaseSlot();
-			slot4.releaseSlot();
+			slot1.releaseInstanceSlot();
+			slot2.releaseInstanceSlot();
+			slot3.releaseInstanceSlot();
+			slot4.releaseInstanceSlot();
 
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());
 
-			assertFalse(instance.returnAllocatedSlot(slot1));
-			assertFalse(instance.returnAllocatedSlot(slot2));
-			assertFalse(instance.returnAllocatedSlot(slot3));
-			assertFalse(instance.returnAllocatedSlot(slot4));
+			assertFalse(instance.returnAllocatedSlot(slot1).get());
+			assertFalse(instance.returnAllocatedSlot(slot2).get());
+			assertFalse(instance.returnAllocatedSlot(slot3).get());
+			assertFalse(instance.returnAllocatedSlot(slot4).get());
 
 			assertEquals(4, instance.getNumberOfAvailableSlots());
 			assertEquals(0, instance.getNumberOfAllocatedSlots());

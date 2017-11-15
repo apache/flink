@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,11 +39,11 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	private final TaskManagerGateway taskManagerGateway;
 
-	private final CompletableFuture<?> releaseFuture;
-
-	private final AtomicReference<Execution> executionReference;
+	private final AtomicReference<Payload> payloadReference;
 
 	private final int slotNumber;
+
+	private final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
 
 	private final AllocationID allocationId;
 
@@ -61,8 +62,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 			AllocationID allocationId) {
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
-		this.releaseFuture = new CompletableFuture<>();
-		this.executionReference = new AtomicReference<>();
+		this.payloadReference = new AtomicReference<>();
 		this.slotNumber = slotNumber;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 	}
@@ -83,23 +83,21 @@ public class TestingLogicalSlot implements LogicalSlot {
 	}
 
 	@Override
-	public boolean isCanceled() {
-		return releaseFuture.isDone();
+	public boolean tryAssignPayload(Payload payload) {
+		return payloadReference.compareAndSet(null, payload);
+	}
+
+	@Nullable
+	@Override
+	public Payload getPayload() {
+		return payloadReference.get();
 	}
 
 	@Override
-	public boolean isReleased() {
-		return releaseFuture.isDone();
-	}
-
-	@Override
-	public boolean setExecution(Execution execution) {
-		return executionReference.compareAndSet(null, execution);
-	}
-
-	@Override
-	public void releaseSlot() {
+	public CompletableFuture<?> releaseSlot() {
 		releaseFuture.complete(null);
+
+		return releaseFuture;
 	}
 
 	@Override

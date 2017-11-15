@@ -423,7 +423,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
 		exec.markFailed(new Exception("test"));
 		assertTrue(exec.getState() == ExecutionState.FAILED || exec.getState() == ExecutionState.CANCELED);
 
-		assertTrue(exec.getAssignedResource().isCanceled());
+		assertFalse(exec.getAssignedResource().isAlive());
 		assertEquals(vertices.length - 1, exec.getVertex().getExecutionGraph().getRegisteredExecutions().size());
 	}
 

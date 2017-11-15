@@ -18,26 +18,27 @@
 
 package org.apache.flink.runtime.instance;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Queue;
-import java.util.Set;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An instance represents a {@link org.apache.flink.runtime.taskmanager.TaskManager}
@@ -164,7 +165,7 @@ public class Instance implements SlotOwner {
 		 * the instance lock
 		 */
 		for (Slot slot : slots) {
-			slot.releaseSlot();
+			slot.releaseInstanceSlot();
 		}
 	}
 
@@ -285,10 +286,10 @@ public class Instance implements SlotOwner {
 	 * "released", this method will do nothing.</p>
 	 * 
 	 * @param slot The slot to return.
-	 * @return True, if the slot was returned, false if not.
+	 * @return Future which is completed with true, if the slot was returned, false if not.
 	 */
 	@Override
-	public boolean returnAllocatedSlot(Slot slot) {
+	public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
 		checkNotNull(slot);
 		checkArgument(!slot.isAlive(), "slot is still alive");
 		checkArgument(slot.getOwner() == this, "slot belongs to the wrong TaskManager.");
@@ -297,7 +298,7 @@ public class Instance implements SlotOwner {
 			LOG.debug("Return allocated slot {}.", slot);
 			synchronized (instanceLock) {
 				if (isDead) {
-					return false;
+					return CompletableFuture.completedFuture(false);
 				}
 
 				if (this.allocatedSlots.remove(slot)) {
@@ -307,7 +308,7 @@ public class Instance implements SlotOwner {
 						this.slotAvailabilityListener.newSlotAvailable(this);
 					}
 
-					return true;
+					return CompletableFuture.completedFuture(true);
 				}
 				else {
 					throw new IllegalArgumentException("Slot was not allocated from this TaskManager.");
@@ -315,7 +316,7 @@ public class Instance implements SlotOwner {
 			}
 		}
 		else {
-			return false;
+			return CompletableFuture.completedFuture(false);
 		}
 	}
 
@@ -327,7 +328,7 @@ public class Instance implements SlotOwner {
 		}
 
 		for (Slot slot : copy) {
-			slot.releaseSlot();
+			slot.releaseInstanceSlot();
 		}
 	}
 

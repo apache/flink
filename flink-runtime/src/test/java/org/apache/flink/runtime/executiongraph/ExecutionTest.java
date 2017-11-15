@@ -32,6 +32,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -77,7 +78,7 @@ public class ExecutionTest extends TestLogger {
 
 		final Execution execution = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
 			new JobID(),
@@ -117,7 +118,7 @@ public class ExecutionTest extends TestLogger {
 		final JobVertex jobVertex = new JobVertex("Test vertex", jobVertexId);
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
 			new JobID(),
@@ -167,7 +168,7 @@ public class ExecutionTest extends TestLogger {
 		final JobVertex jobVertex = new JobVertex("Test vertex", jobVertexId);
 		jobVertex.setInvokableClass(NoOpInvokable.class);
 
-		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
 			new JobID(),
@@ -269,9 +270,71 @@ public class ExecutionTest extends TestLogger {
 	}
 
 	/**
+	 * Checks that the {@link Execution} termination future is only completed after the
+	 * assigned slot has been released.
+	 *
+	 * <p>NOTE: This test only fails spuriously without the fix of this commit. Thus, one has
+	 * to execute this test multiple times to see the failure.
+	 */
+	@Test
+	public void testTerminationFutureIsCompletedAfterSlotRelease() throws Exception {
+		final JobVertexID jobVertexId = new JobVertexID();
+		final JobVertex jobVertex = new JobVertex("Test vertex", jobVertexId);
+		jobVertex.setInvokableClass(NoOpInvokable.class);
+
+		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
+
+		final SimpleSlot slot = new SimpleSlot(
+			new JobID(),
+			slotOwner,
+			new LocalTaskManagerLocation(),
+			0,
+			new SimpleAckingTaskManagerGateway());
+
+		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
+		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
+
+		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
+			new JobID(),
+			slotProvider,
+			new NoRestartStrategy(),
+			jobVertex);
+
+		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
+
+		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
+
+		assertTrue(executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY));
+
+		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
+
+		CompletableFuture<Slot> returnedSlotFuture = slotOwner.getReturnedSlotFuture();
+		CompletableFuture<?> terminationFuture = executionVertex.cancel();
+
+		// run canceling in a separate thread to allow an interleaving between termination
+		// future callback registrations
+		CompletableFuture.runAsync(
+			() -> currentExecutionAttempt.cancelingComplete(),
+			TestingUtils.defaultExecutor());
+
+		// to increase probability for problematic interleaving, let the current thread yield the processor
+		Thread.yield();
+
+		CompletableFuture<Boolean> restartFuture = terminationFuture.thenApply(
+			ignored -> {
+				assertTrue(returnedSlotFuture.isDone());
+				return true;
+			});
+
+
+		// check if the returned slot future was completed first
+		restartFuture.get();
+	}
+
+	/**
 	 * Slot owner which records the first returned slot.
 	 */
-	public static final class TestingSlotOwner implements SlotOwner {
+	private static final class SingleSlotTestingSlotOwner implements SlotOwner {
 
 		final CompletableFuture<Slot> returnedSlot = new CompletableFuture<>();
 
@@ -280,8 +343,8 @@ public class ExecutionTest extends TestLogger {
 		}
 
 		@Override
-		public boolean returnAllocatedSlot(Slot slot) {
-			return returnedSlot.complete(slot);
+		public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
+			return CompletableFuture.completedFuture(returnedSlot.complete(slot));
 		}
 	}
 }

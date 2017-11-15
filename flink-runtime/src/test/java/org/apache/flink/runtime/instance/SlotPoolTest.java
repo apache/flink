@@ -154,7 +154,7 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(future2.isDone());
 
 			assertNotEquals(slot1, slot2);
-			assertTrue(slot1.isReleased());
+			assertFalse(slot1.isAlive());
 			assertTrue(slot2.isAlive());
 			assertEquals(slot1.getTaskManagerLocation(), slot2.getTaskManagerLocation());
 			assertEquals(slot1.getPhysicalSlotNumber(), slot2.getPhysicalSlotNumber());
@@ -198,7 +198,7 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(future2.isDone());
 
 			assertNotEquals(slot1, slot2);
-			assertTrue(slot1.isReleased());
+			assertFalse(slot1.isAlive());
 			assertTrue(slot2.isAlive());
 			assertEquals(slot1.getTaskManagerLocation(), slot2.getTaskManagerLocation());
 			assertEquals(slot1.getPhysicalSlotNumber(), slot2.getPhysicalSlotNumber());
@@ -294,7 +294,7 @@ public class SlotPoolTest extends TestLogger {
 			// wait until the slot has been returned
 			slotReturnFuture.get();
 
-			assertTrue(slot1.isReleased());
+			assertFalse(slot1.isAlive());
 
 			// slot released and not usable, second allocation still not fulfilled
 			Thread.sleep(10);

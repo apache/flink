@@ -93,7 +93,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * occasional double-checking to ensure that the state after a completed call is as expected, and trigger correcting
  * actions if it is not. Many actions are also idempotent (like canceling).
  */
-public class Execution implements AccessExecution, Archiveable<ArchivedExecution> {
+public class Execution implements AccessExecution, Archiveable<ArchivedExecution>, LogicalSlot.Payload {
 
 	private static final AtomicReferenceFieldUpdater<Execution, ExecutionState> STATE_UPDATER =
 			AtomicReferenceFieldUpdater.newUpdater(Execution.class, ExecutionState.class, "state");
@@ -135,7 +135,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	private final ConcurrentLinkedQueue<PartialInputChannelDeploymentDescriptor> partialInputChannelDeploymentDescriptors;
 
 	/** A future that completes once the Execution reaches a terminal ExecutionState */
-	private final CompletableFuture<ExecutionState> terminationFuture;
+	private final CompletableFuture<ExecutionState> terminalStateFuture;
+
+	private final CompletableFuture<?> releaseFuture;
 
 	private final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture;
 
@@ -197,7 +199,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		markTimestamp(ExecutionState.CREATED, startTimestamp);
 
 		this.partialInputChannelDeploymentDescriptors = new ConcurrentLinkedQueue<>();
-		this.terminationFuture = new CompletableFuture<>();
+		this.terminalStateFuture = new CompletableFuture<>();
+		this.releaseFuture = new CompletableFuture<>();
 		this.taskManagerLocationFuture = new CompletableFuture<>();
 
 		this.assignedResource = null;
@@ -329,10 +332,21 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * Gets a future that completes once the task execution reaches a terminal state.
 	 * The future will be completed with specific state that the execution reached.
 	 *
-	 * @return A future for the execution's termination
+	 * @return A future which is completed once the execution reaches a terminal state
 	 */
-	public CompletableFuture<ExecutionState> getTerminationFuture() {
-		return terminationFuture;
+	@Override
+	public CompletableFuture<ExecutionState> getTerminalStateFuture() {
+		return terminalStateFuture;
+	}
+
+	/**
+	 * Gets the release future which is completed once the execution reaches a terminal
+	 * state and the assigned resource has been released.
+	 *
+	 * @return A future which is completed once the assigned resource has been released
+	 */
+	public CompletableFuture<?> getReleaseFuture() {
+		return releaseFuture;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -493,7 +507,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 		try {
 			// good, we are allowed to deploy
-			if (!slot.setExecution(this)) {
+			if (!slot.tryAssignPayload(this)) {
 				throw new JobException("Could not assign the ExecutionVertex to the slot " + slot);
 			}
 
@@ -608,15 +622,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					try {
 						vertex.getExecutionGraph().deregisterExecution(this);
 
-						final LogicalSlot slot = assignedResource;
-
-						if (slot != null) {
-							slot.releaseSlot();
-						}
+						releaseAssignedResource();
 					}
 					finally {
 						vertex.executionCanceled(this);
-						terminationFuture.complete(CANCELED);
 					}
 					return;
 				}
@@ -757,6 +766,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *
 	 * @param t The exception that caused the task to fail.
 	 */
+	@Override
 	public void fail(Throwable t) {
 		processFail(t, false);
 	}
@@ -880,17 +890,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
-						final LogicalSlot slot = assignedResource;
-
-						if (slot != null) {
-							slot.releaseSlot();
-						}
+						releaseAssignedResource();
 
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
 					finally {
 						vertex.executionFinished(this);
-						terminationFuture.complete(FINISHED);
 					}
 					return;
 				}
@@ -938,17 +943,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				if (transitionState(current, CANCELED)) {
 					try {
-						final LogicalSlot slot = assignedResource;
-
-						if (slot != null) {
-							slot.releaseSlot();
-						}
+						releaseAssignedResource();
 
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
 					finally {
 						vertex.executionCanceled(this);
-						terminationFuture.complete(CANCELED);
 					}
 					return;
 				}
@@ -1035,15 +1035,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 				try {
-					final LogicalSlot slot = assignedResource;
-					if (slot != null) {
-						slot.releaseSlot();
-					}
+					releaseAssignedResource();
 					vertex.getExecutionGraph().deregisterExecution(this);
 				}
 				finally {
 					vertex.executionFailed(this, t);
-					terminationFuture.complete(FAILED);
 				}
 
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
@@ -1177,6 +1173,28 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
+	/**
+	 * Releases the assigned resource and completes the release future
+	 * once the assigned resource has been successfully released
+	 */
+	private void releaseAssignedResource() {
+		final LogicalSlot slot = assignedResource;
+
+		if (slot != null) {
+			slot.releaseSlot().whenComplete(
+				(Object ignored, Throwable throwable) -> {
+					if (throwable != null) {
+						releaseFuture.completeExceptionally(throwable);
+					} else {
+						releaseFuture.complete(null);
+					}
+				});
+		} else {
+			// no assigned resource --> we can directly complete the release future
+			releaseFuture.complete(null);
+		}
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Miscellaneous
 	// --------------------------------------------------------------------------------------------
@@ -1238,6 +1256,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState);
 			} else {
 				LOG.info("{} ({}) switched from {} to {}.", getVertex().getTaskNameWithSubtaskIndex(), getAttemptId(), currentState, targetState, error);
+			}
+
+			if (targetState.isTerminal()) {
+				// complete the terminal state future
+				terminalStateFuture.complete(targetState);
 			}
 
 			// make sure that the state transition completes normally.

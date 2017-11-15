@@ -274,7 +274,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						// if there is no slot from the group, or the new slot is local,
 						// then we use the new slot
 						if (slotFromGroup != null) {
-							slotFromGroup.releaseSlot();
+							slotFromGroup.releaseInstanceSlot();
 						}
 						toUse = newSlot;
 					}
@@ -282,7 +282,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 						// both are available and usable. neither is local. in that case, we may
 						// as well use the slot from the sharing group, to minimize the number of
 						// instances that the job occupies
-						newSlot.releaseSlot();
+						newSlot.releaseInstanceSlot();
 						toUse = slotFromGroup;
 					}
 
@@ -299,10 +299,10 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				}
 				catch (Throwable t) {
 					if (slotFromGroup != null) {
-						slotFromGroup.releaseSlot();
+						slotFromGroup.releaseInstanceSlot();
 					}
 					if (newSlot != null) {
-						newSlot.releaseSlot();
+						newSlot.releaseInstanceSlot();
 					}
 
 					ExceptionUtils.rethrow(t, "An error occurred while allocating a slot in a sharing group");
@@ -444,7 +444,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 					}
 					else {
 						// could not add and allocate the sub-slot, so release shared slot
-						sharedSlot.releaseSlot();
+						sharedSlot.releaseInstanceSlot();
 					}
 				}
 			}
