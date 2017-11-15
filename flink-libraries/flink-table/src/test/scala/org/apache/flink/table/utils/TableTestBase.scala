@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils
 
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{DataSet => JDataSet, ExecutionEnvironment => JExecutionEnvironment}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
@@ -85,6 +86,16 @@ abstract class TableTestUtil {
   def printTable(resultTable: Table): Unit
 
   def printSql(query: String): Unit
+
+  protected def verifyString(expected: String, optimized: RelNode) {
+    val actual = RelOptUtil.toString(optimized)
+    // we remove the charset for testing because it
+    // depends on the native machine (Little/Big Endian)
+    val actualNoCharset = actual.replace("_UTF-16LE'", "'")
+    assertEquals(
+      expected.split("\n").map(_.trim).mkString("\n"),
+      actualNoCharset.split("\n").map(_.trim).mkString("\n"))
+  }
 }
 
 object TableTestUtil {
@@ -125,7 +136,6 @@ object TableTestUtil {
   def streamTableNode(idx: Int): String = {
     s"DataStreamScan(table=[[_DataStreamTable_$idx]])"
   }
-
 }
 
 case class BatchTableTestUtil() extends TableTestUtil {
@@ -184,10 +194,7 @@ case class BatchTableTestUtil() extends TableTestUtil {
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode)
-    val actual = RelOptUtil.toString(optimized)
-    assertEquals(
-      expected.split("\n").map(_.trim).mkString("\n"),
-      actual.split("\n").map(_.trim).mkString("\n"))
+    verifyString(expected, optimized)
   }
 
   def verifyJavaSql(query: String, expected: String): Unit = {
@@ -197,10 +204,7 @@ case class BatchTableTestUtil() extends TableTestUtil {
   def verifyJavaTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = javaTableEnv.optimize(relNode)
-    val actual = RelOptUtil.toString(optimized)
-    assertEquals(
-      expected.split("\n").map(_.trim).mkString("\n"),
-      actual.split("\n").map(_.trim).mkString("\n"))
+    verifyString(expected, optimized)
   }
 
   def printTable(resultTable: Table): Unit = {
@@ -273,10 +277,7 @@ case class StreamTableTestUtil() extends TableTestUtil {
   def verifyTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
-    val actual = RelOptUtil.toString(optimized)
-    assertEquals(
-      expected.split("\n").map(_.trim).mkString("\n"),
-      actual.split("\n").map(_.trim).mkString("\n"))
+    verifyString(expected, optimized)
   }
 
   def verifyJavaSql(query: String, expected: String): Unit = {
@@ -286,10 +287,7 @@ case class StreamTableTestUtil() extends TableTestUtil {
   def verifyJavaTable(resultTable: Table, expected: String): Unit = {
     val relNode = resultTable.getRelNode
     val optimized = javaTableEnv.optimize(relNode, updatesAsRetraction = false)
-    val actual = RelOptUtil.toString(optimized)
-    assertEquals(
-      expected.split("\n").map(_.trim).mkString("\n"),
-      actual.split("\n").map(_.trim).mkString("\n"))
+    verifyString(expected, optimized)
   }
 
   // the print methods are for debugging purposes only
@@ -302,5 +300,4 @@ case class StreamTableTestUtil() extends TableTestUtil {
   def printSql(query: String): Unit = {
     printTable(tableEnv.sqlQuery(query))
   }
-
 }
