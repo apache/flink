@@ -19,7 +19,9 @@
 package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.batch.table.JoinTest.Merger
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -300,5 +302,50 @@ class JoinTest extends TableTestBase {
     )
 
     util.verifyTable(joined, expected)
+  }
+
+  @Test
+  def testFilterJoinRule(): Unit = {
+    val util = batchTestUtil()
+    val t1 = util.addTable[(String, Int, Int)]('a, 'b, 'c)
+    val t2 = util.addTable[(String, Int, Int)]('d, 'e, 'f)
+    val results = t1
+      .leftOuterJoin(t2, 'b === 'e)
+      .select('c, Merger('c, 'f) as 'c0)
+      .select(Merger('c, 'c0) as 'c1)
+      .where('c1 >= 0)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      binaryNode(
+        "DataSetJoin",
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "b", "c")
+        ),
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(1),
+          term("select", "e", "f")
+        ),
+        term("where", "=(b, e)"),
+        term("join", "b", "c", "e", "f"),
+        term("joinType", "LeftOuterJoin")
+      ),
+      term("select", "Merger$(c, Merger$(c, f)) AS c1"),
+      term("where", ">=(Merger$(c, Merger$(c, f)), 0)")
+    )
+
+    util.verifyTable(results, expected)
+  }
+}
+
+object JoinTest {
+
+  object Merger extends ScalarFunction {
+    def eval(f0: Int, f1: Int): Int = {
+      f0 + f1
+    }
   }
 }
