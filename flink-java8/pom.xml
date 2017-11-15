@@ -137,13 +137,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>com.github.siom79.japicmp</groupId>
-				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-			</plugin>
 		</plugins>
 	
 		<pluginManagement>
