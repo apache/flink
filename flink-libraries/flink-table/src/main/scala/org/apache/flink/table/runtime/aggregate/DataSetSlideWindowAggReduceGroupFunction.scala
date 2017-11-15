@@ -63,7 +63,7 @@ class DataSetSlideWindowAggReduceGroupFunction(
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
