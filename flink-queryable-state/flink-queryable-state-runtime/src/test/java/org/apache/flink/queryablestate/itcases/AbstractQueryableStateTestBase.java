@@ -47,7 +47,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
-import org.apache.flink.queryablestate.client.VoidNamespaceTypeInfo;
 import org.apache.flink.queryablestate.exceptions.UnknownKeyOrNamespaceException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -491,9 +490,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					jobId,
 					"wrong-hankuna", // this is the wrong name.
 					0,
-					VoidNamespace.INSTANCE,
 					BasicTypeInfo.INT_TYPE_INFO,
-					VoidNamespaceTypeInfo.INSTANCE,
 					valueState);
 
 			try {
@@ -572,9 +569,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					jobId,
 					queryableState.getQueryableStateName(),
 					0,
-					VoidNamespace.INSTANCE,
 					BasicTypeInfo.INT_TYPE_INFO,
-					VoidNamespaceTypeInfo.INSTANCE,
 					valueState);
 
 			cluster.submitJobDetached(jobGraph);
@@ -1486,7 +1481,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		if (!resultFuture.isDone()) {
 			Thread.sleep(100L);
-			CompletableFuture<S> expected = client.getKvState(jobId, queryName, key, VoidNamespace.INSTANCE, keyTypeInfo, VoidNamespaceTypeInfo.INSTANCE, stateDescriptor);
+			CompletableFuture<S> expected = client.getKvState(jobId, queryName, key, keyTypeInfo, stateDescriptor);
 			expected.whenCompleteAsync((result, throwable) -> {
 				if (throwable != null) {
 					if (

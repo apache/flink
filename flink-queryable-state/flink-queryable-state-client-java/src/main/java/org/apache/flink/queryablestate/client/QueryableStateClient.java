@@ -186,8 +186,7 @@ public class QueryableStateClient {
 	 * @param stateDescriptor			The {@link StateDescriptor} of the state we want to query.
 	 * @return Future holding the immutable {@link State} object containing the result.
 	 */
-	@PublicEvolving
-	public <K, N, S extends State, V> CompletableFuture<S> getKvState(
+	private <K, N, S extends State, V> CompletableFuture<S> getKvState(
 			final JobID jobId,
 			final String queryableStateName,
 			final K key,
