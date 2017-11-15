@@ -154,6 +154,40 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
   }
 
   @Test
+  def testRowtimeTableSourceWithoutWMStrategy(): Unit = {
+    StreamITCase.testResults = mutable.MutableList()
+    val tableName = "MyTable"
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = Seq(
+      Row.of("Mary", new JLong(1L), new JInt(10)),
+      Row.of("Bob", new JLong(2L), new JInt(20)),
+      Row.of("Mary", new JLong(2L), new JInt(30)),
+      Row.of("Liz", new JLong(2001L), new JInt(40)))
+
+    val fieldNames = Array("name", "rtime", "amount")
+    val schema = new TableSchema(fieldNames, Array(Types.STRING, Types.SQL_TIMESTAMP, Types.INT))
+    val rowType = new RowTypeInfo(
+      Array(Types.STRING, Types.LONG, Types.INT).asInstanceOf[Array[TypeInformation[_]]],
+      fieldNames)
+
+    val tableSource = new TestEmptyWMStrategyTableSource(schema, rowType, data, "rtime")
+    tEnv.registerTableSource(tableName, tableSource)
+
+    tEnv.scan(tableName)
+      .where('rtime.cast(Types.LONG) > 10L)
+      .select('name, 'amount)
+      .addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = Seq(
+      "Liz,40")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
   def testProctimeRowTableSource(): Unit = {
     StreamITCase.testResults = mutable.MutableList()
     val tableName = "MyTable"

@@ -316,7 +316,7 @@ A table schema field of type `SQL_TIMESTAMP` can be declared as rowtime attribut
 
 * the name of the field, 
 * a `TimestampExtractor` that computes the actual value for the attribute (usually from one or more other attributes), and
-* a `WatermarkStrategy` that specifies how watermarks are generated for the the rowtime attribute.
+* a `WatermarkStrategy` that specifies how watermarks are generated for the the rowtime attribute (With the default value `null` to indicate no watermark should be generated).
 
 The following example shows how to configure a rowtime attribute.
 

@@ -199,3 +199,25 @@ class TestNestedProjectableTableSource(
       s"read nested fields: ${readNestedFields.mkString(", ")})"
   }
 }
+
+class TestEmptyWMStrategyTableSource(
+  tableSchema: TableSchema,
+  returnType: TypeInformation[Row],
+  values: Seq[Row],
+  rowtime: String,
+  proctime: String = null)
+  extends TestTableSourceWithTime[Row](
+    tableSchema,
+    returnType,
+    values,
+    rowtime,
+    proctime,
+    null) {
+
+  override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
+    // return a RowtimeAttributeDescriptor without watermark strategy
+    Collections.singletonList(new RowtimeAttributeDescriptor(
+      rowtime,
+      new ExistingField(rowtime)))
+  }
+}

@@ -134,6 +134,9 @@ class StreamTableSourceScan(
         case p: PunctuatedWatermarkAssigner =>
           val watermarkGenerator = new PunctuatedWatermarkAssignerWrapper(rowtimeFieldIdx, p)
           ingestedTable.assignTimestampsAndWatermarks(watermarkGenerator)
+        case null =>
+          // No need to generate watermarks if the strategy is null.
+          ingestedTable
       }
     } else {
       // No need to generate watermarks if no rowtime attribute is specified.
