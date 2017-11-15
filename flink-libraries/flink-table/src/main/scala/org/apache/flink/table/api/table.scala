@@ -1106,7 +1106,13 @@ class OverWindowedTable(
 
     new Table(
       table.tableEnv,
-      Project(expandedOverFields.map(UnresolvedAlias), table.logicalPlan).validate(table.tableEnv))
+      Project(
+        expandedOverFields.map(UnresolvedAlias),
+        table.logicalPlan,
+        // required for proper projection push down
+        explicitAlias = true)
+        .validate(table.tableEnv)
+    )
   }
 
   def select(fields: String): Table = {
