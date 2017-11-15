@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.client.proxy;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.queryablestate.exceptions.UnknownJobManagerException;
 import org.apache.flink.queryablestate.messages.KvStateRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
@@ -35,6 +36,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The default implementation of the {@link KvStateClientProxy}.
@@ -96,7 +98,13 @@ public class KvStateClientProxyImpl extends AbstractServerBase<KvStateRequest, K
 
 	@Override
 	public void shutdown() {
-		super.shutdown();
+		try {
+			Time timeout = Time.seconds(10L);
+			shutdownServer(timeout).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			log.info("{} was shutdown successfully.", getServerName());
+		} catch (Exception e) {
+			log.warn("{} shutdown failed: {}", getServerName(), e);
+		}
 	}
 
 	@Override

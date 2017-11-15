@@ -54,7 +54,9 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
-import org.junit.AfterClass;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,15 +97,20 @@ public class ClientTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ClientTest.class);
 
+	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(20L, TimeUnit.SECONDS);
+
 	// Thread pool for client bootstrap (shared between tests)
-	private static final NioEventLoopGroup NIO_GROUP = new NioEventLoopGroup();
+	private NioEventLoopGroup nioGroup;
 
-	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10L, TimeUnit.SECONDS);
+	@Before
+	public void setUp() throws Exception {
+		nioGroup = new NioEventLoopGroup();
+	}
 
-	@AfterClass
-	public static void tearDown() throws Exception {
-		if (NIO_GROUP != null) {
-			NIO_GROUP.shutdownGracefully();
+	@After
+	public void tearDown() throws Exception {
+		if (nioGroup != null) {
+			nioGroup.shutdownGracefully();
 		}
 	}
 
@@ -218,7 +225,18 @@ public class ClientTest {
 			assertEquals(expectedRequests, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+
+					// todo here we were seeing this problem:
+					// https://github.com/netty/netty/issues/4357 if we do a get().
+					// this is why we now simply wait a bit so that everything is
+					// shut down and then we check
+
+					client.shutdown().get(10L, TimeUnit.SECONDS);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				Assert.assertTrue(client.isEventGroupShutdown());
 			}
 
 			if (serverChannel != null) {
@@ -265,7 +283,12 @@ public class ClientTest {
 			}
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown().get(10L, TimeUnit.SECONDS);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				Assert.assertTrue(client.isEventGroupShutdown());
 			}
 
 			assertEquals("Channel leak", 0L, stats.getNumConnections());
@@ -366,7 +389,12 @@ public class ClientTest {
 			}
 
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown().get(10L, TimeUnit.SECONDS);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				Assert.assertTrue(client.isEventGroupShutdown());
 			}
 
 			assertEquals("Channel leak", 0L, stats.getNumConnections());
@@ -467,7 +495,12 @@ public class ClientTest {
 			assertEquals(2L, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown().get(10L, TimeUnit.SECONDS);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				Assert.assertTrue(client.isEventGroupShutdown());
 			}
 
 			if (serverChannel != null) {
@@ -548,7 +581,11 @@ public class ClientTest {
 			assertEquals(1L, stats.getNumFailed());
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown().get(10L, TimeUnit.SECONDS);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 
 			if (serverChannel != null) {
@@ -661,7 +698,7 @@ public class ClientTest {
 					Collections.shuffle(random);
 
 					// Dispatch queries
-					List<Future<KvStateResponse>> futures = new ArrayList<>(batchSize);
+					List<CompletableFuture<KvStateResponse>> futures = new ArrayList<>(batchSize);
 
 					for (int j = 0; j < batchSize; j++) {
 						int targetServer = random.get(j) % numServers;
@@ -700,8 +737,12 @@ public class ClientTest {
 				LOG.info("Number of requests {}/100_000", numRequests);
 			}
 
-			// Shut down
-			client.shutdown();
+			try {
+				client.shutdown().get(10L, TimeUnit.SECONDS);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			Assert.assertTrue(client.isEventGroupShutdown());
 
 			for (Future<Void> future : taskFutures) {
 				try {
@@ -739,7 +780,12 @@ public class ClientTest {
 			}
 		} finally {
 			if (client != null) {
-				client.shutdown();
+				try {
+					client.shutdown().get(10L, TimeUnit.SECONDS);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				Assert.assertTrue(client.isEventGroupShutdown());
 			}
 
 			for (int i = 0; i < numServers; i++) {
@@ -761,7 +807,7 @@ public class ClientTest {
 				// Bind address and port
 				.localAddress(InetAddress.getLocalHost(), 0)
 				// NIO server channels
-				.group(NIO_GROUP)
+				.group(nioGroup)
 				.channel(NioServerSocketChannel.class)
 				// See initializer for pipeline details
 				.childHandler(new ChannelInitializer<SocketChannel>() {

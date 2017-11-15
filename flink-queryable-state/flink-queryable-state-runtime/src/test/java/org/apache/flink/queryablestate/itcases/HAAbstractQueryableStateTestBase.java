@@ -65,7 +65,7 @@ public abstract class HAAbstractQueryableStateTestBase extends AbstractQueryable
 			config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
 			cluster = new TestingCluster(config, false);
-			cluster.start();
+			cluster.start(true);
 
 			client = new QueryableStateClient("localhost", proxyPortRangeStart);
 
@@ -88,11 +88,10 @@ public abstract class HAAbstractQueryableStateTestBase extends AbstractQueryable
 		try {
 			zkServer.stop();
 			zkServer.close();
-		} catch (Exception e) {
+			client.shutdownAndWait();
+		} catch (Throwable e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-
-		client.shutdown();
 	}
 }

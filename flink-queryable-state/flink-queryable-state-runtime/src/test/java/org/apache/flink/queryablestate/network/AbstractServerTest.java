@@ -18,11 +18,14 @@
 
 package org.apache.flink.queryablestate.network;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageDeserializer;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
+import org.apache.flink.queryablestate.network.stats.AtomicKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
+import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -58,25 +61,19 @@ public class AbstractServerTest {
 
 		// the expected exception along with the adequate message
 		expectedEx.expect(FlinkRuntimeException.class);
-		expectedEx.expectMessage("Unable to start the Test Server 2. All ports in provided range are occupied.");
+		expectedEx.expectMessage("Unable to start Test Server 2. All ports in provided range are occupied.");
 
-		TestServer server1 = null;
-		TestServer server2 = null;
-		try {
+		List<Integer> portList = new ArrayList<>();
+		portList.add(7777);
 
-			server1 = startServer("Test Server 1", 7777);
+		try (
+				TestServer server1 = new TestServer("Test Server 1", new DisabledKvStateRequestStats(), portList.iterator());
+				TestServer server2 = new TestServer("Test Server 2", new DisabledKvStateRequestStats(), portList.iterator())
+		) {
+			server1.start();
 			Assert.assertEquals(7777L, server1.getServerAddress().getPort());
 
-			server2 = startServer("Test Server 2", 7777);
-		} finally {
-
-			if (server1 != null) {
-				server1.shutdown();
-			}
-
-			if (server2 != null) {
-				server2.shutdown();
-			}
+			server2.start();
 		}
 	}
 
@@ -86,69 +83,81 @@ public class AbstractServerTest {
 	 */
 	@Test
 	public void testPortRangeSuccess() throws Throwable {
-		TestServer server1 = null;
-		TestServer server2 = null;
-		Client<TestMessage, TestMessage> client = null;
 
-		try {
-			server1 = startServer("Test Server 1", 7777, 7778, 7779);
+		// this is shared between the two servers.
+		AtomicKvStateRequestStats serverStats = new AtomicKvStateRequestStats();
+		AtomicKvStateRequestStats clientStats = new AtomicKvStateRequestStats();
+
+		List<Integer> portList = new ArrayList<>();
+		portList.add(7777);
+		portList.add(7778);
+		portList.add(7779);
+
+		try (
+				TestServer server1 = new TestServer("Test Server 1", serverStats, portList.iterator());
+				TestServer server2 = new TestServer("Test Server 2", serverStats, portList.iterator());
+				TestClient client = new TestClient(
+						"Test Client",
+						1,
+						new MessageSerializer<>(new TestMessage.TestMessageDeserializer(), new TestMessage.TestMessageDeserializer()),
+						clientStats
+				)
+		) {
+			server1.start();
 			Assert.assertEquals(7777L, server1.getServerAddress().getPort());
 
-			server2 = startServer("Test Server 2", 7777, 7778, 7779);
+			server2.start();
 			Assert.assertEquals(7778L, server2.getServerAddress().getPort());
-
-			client = new Client<>(
-					"Test Client",
-					1,
-					new MessageSerializer<>(new TestMessage.TestMessageDeserializer(), new TestMessage.TestMessageDeserializer()),
-					new DisabledKvStateRequestStats());
 
 			TestMessage response1 = client.sendRequest(server1.getServerAddress(), new TestMessage("ping")).join();
 			Assert.assertEquals(server1.getServerName() + "-ping", response1.getMessage());
 
 			TestMessage response2 = client.sendRequest(server2.getServerAddress(), new TestMessage("pong")).join();
 			Assert.assertEquals(server2.getServerName() + "-pong", response2.getMessage());
-		} finally {
 
-			if (server1 != null) {
-				server1.shutdown();
-			}
+			// the client connects to both servers and the stats object is shared.
+			Assert.assertEquals(2L, serverStats.getNumConnections());
 
-			if (server2 != null) {
-				server2.shutdown();
-			}
-
-			if (client != null) {
-				client.shutdown();
-			}
+			Assert.assertEquals(2L, clientStats.getNumConnections());
+			Assert.assertEquals(0L, clientStats.getNumFailed());
+			Assert.assertEquals(2L, clientStats.getNumSuccessful());
+			Assert.assertEquals(2L, clientStats.getNumRequests());
 		}
+
+		Assert.assertEquals(0L, clientStats.getNumConnections());
+		Assert.assertEquals(0L, clientStats.getNumFailed());
+		Assert.assertEquals(2L, clientStats.getNumSuccessful());
+		Assert.assertEquals(2L, clientStats.getNumRequests());
 	}
 
-	/**
-	 * Initializes a {@link TestServer} with the given port range.
-	 * @param serverName the name of the server.
-	 * @param ports a range of ports.
-	 * @return A test server with the given name.
-	 */
-	private TestServer startServer(String serverName, int... ports) throws Throwable {
-		List<Integer> portList = new ArrayList<>(ports.length);
-		for (int p : ports) {
-			portList.add(p);
+	private static class TestClient extends Client<TestMessage, TestMessage> implements AutoCloseable {
+
+		TestClient(
+				String clientName,
+				int numEventLoopThreads,
+				MessageSerializer<TestMessage, TestMessage> serializer,
+				KvStateRequestStats stats) {
+			super(clientName, numEventLoopThreads, serializer, stats);
 		}
 
-		final TestServer server = new TestServer(serverName, portList.iterator());
-		server.start();
-		return server;
+		@Override
+		public void close() throws Exception {
+			shutdown().join();
+			Assert.assertTrue(isEventGroupShutdown());
+		}
 	}
 
 	/**
 	 * A server that receives a {@link TestMessage test message} and returns another test
 	 * message containing the same string as the request with the name of the server prepended.
 	 */
-	private class TestServer extends AbstractServerBase<TestMessage, TestMessage> {
+	private static class TestServer extends AbstractServerBase<TestMessage, TestMessage> implements AutoCloseable {
 
-		protected TestServer(String name, Iterator<Integer> bindPort) throws UnknownHostException {
+		private final KvStateRequestStats requestStats;
+
+		TestServer(String name, KvStateRequestStats stats, Iterator<Integer> bindPort) throws UnknownHostException {
 			super(name, InetAddress.getLocalHost(), bindPort, 1, 1);
+			this.requestStats = stats;
 		}
 
 		@Override
@@ -156,7 +165,7 @@ public class AbstractServerTest {
 			return new AbstractServerHandler<TestMessage, TestMessage>(
 					this,
 					new MessageSerializer<>(new TestMessage.TestMessageDeserializer(), new TestMessage.TestMessageDeserializer()),
-					new DisabledKvStateRequestStats()) {
+					requestStats) {
 
 				@Override
 				public CompletableFuture<TestMessage> handleRequest(long requestId, TestMessage request) {
@@ -165,10 +174,21 @@ public class AbstractServerTest {
 				}
 
 				@Override
-				public void shutdown() {
-					// do nothing
+				public CompletableFuture<?> shutdown() {
+					return CompletableFuture.completedFuture(null);
 				}
 			};
+		}
+
+		@Override
+		public void close() throws Exception {
+			shutdownServer(Time.seconds(10L)).get();
+			if (requestStats instanceof AtomicKvStateRequestStats) {
+				AtomicKvStateRequestStats stats = (AtomicKvStateRequestStats) requestStats;
+				Assert.assertEquals(0L, stats.getNumConnections());
+			}
+			Assert.assertTrue(getQueryExecutor().isTerminated());
+			Assert.assertTrue(isEventGroupShutdown());
 		}
 	}
 
