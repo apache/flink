@@ -20,7 +20,6 @@ package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
@@ -279,7 +278,6 @@ public class PrometheusReporterTest extends TestLogger {
 
 	static Configuration createConfigWithOneReporter(String reporterName, String portString) {
 		Configuration cfg = new Configuration();
-		cfg.setString(MetricOptions.REPORTERS_LIST, reporterName);
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + "." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, PrometheusReporter.class.getName());
 		cfg.setString(ConfigConstants.METRICS_REPORTER_PREFIX + reporterName + "." + ARG_PORT, portString);
 		return cfg;

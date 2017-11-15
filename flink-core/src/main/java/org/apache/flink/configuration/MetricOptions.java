@@ -25,20 +25,9 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class MetricOptions {
 
 	/**
-	 * The list of named reporters. Names are defined here and per-reporter configs
-	 * are given with the reporter config prefix and the reporter name.
-	 *
-	 * Example:
-	 * <pre>{@code
-	 * metrics.reporters = foo, bar
-	 *
-	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
-	 * metrics.reporter.foo.interval = 10
-	 *
-	 * metrics.reporter.bar.class = org.apache.flink.metrics.graphite.GraphiteReporter
-	 * metrics.reporter.bar.port = 1337
-	 * }</pre>
+	 * @deprecated This configuration key has no effect.
 	 */
+	@Deprecated
 	public static final ConfigOption<String> REPORTERS_LIST =
 		key("metrics.reporters")
 			.noDefaultValue();

@@ -31,7 +31,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -43,8 +46,8 @@ public class MetricRegistryConfiguration {
 
 	private static volatile MetricRegistryConfiguration defaultConfiguration;
 
-	// regex pattern to split the defined reporters
-	private static final Pattern splitPattern = Pattern.compile("\\s*,\\s*");
+	// regex pattern to extract the name from reporter configuration keys, e.g. "rep" from "metrics.reporter.rep.class"
+	private static final Pattern configurationPattern = Pattern.compile("metrics\\.reporter\\.([\\S&&[^.]]*)\\..*");
 
 	// scope formats for the different components
 	private final ScopeFormats scopeFormats;
@@ -108,15 +111,27 @@ public class MetricRegistryConfiguration {
 			delim = '.';
 		}
 
-		final String definedReporters = configuration.getString(MetricOptions.REPORTERS_LIST);
+		// use a LinkedHashMap to make the reporter order deterministic, which is useful for testing
+		Set<String> namedReporters = Collections.newSetFromMap(new LinkedHashMap<>(4));
+		// scan entire configuration for "metric.reporter" keys and parse individual reporter configurations
+		for (String key : configuration.keySet()) {
+			if (key.startsWith(ConfigConstants.METRICS_REPORTER_PREFIX)) {
+				Matcher matcher = configurationPattern.matcher(key);
+				if (matcher.matches()) {
+					String reporterName = matcher.group(1);
+					namedReporters.add(reporterName);
+				} else {
+					LOG.warn("Invalid reporter configuration key: {}", key);
+				}
+			}
+		}
+
 		List<Tuple2<String, Configuration>> reporterConfigurations;
 
-		if (definedReporters == null) {
+		if (namedReporters.isEmpty()) {
 			reporterConfigurations = Collections.emptyList();
 		} else {
-			String[] namedReporters = splitPattern.split(definedReporters);
-
-			reporterConfigurations = new ArrayList<>(namedReporters.length);
+			reporterConfigurations = new ArrayList<>(namedReporters.size());
 
 			for (String namedReporter: namedReporters) {
 				DelegatingConfiguration delegatingConfiguration = new DelegatingConfiguration(
