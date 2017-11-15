@@ -133,7 +133,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
 
 	public CompletableFuture<RESP> sendRequest(final InetSocketAddress serverAddress, final REQ request) {
 		if (shutDown.get()) {
-			return FutureUtils.getFailedFuture(new IllegalStateException("Shut down"));
+			return FutureUtils.getFailedFuture(new IllegalStateException(clientName + " is already shut down."));
 		}
 
 		EstablishedConnection connection = establishedConnections.get(serverAddress);
