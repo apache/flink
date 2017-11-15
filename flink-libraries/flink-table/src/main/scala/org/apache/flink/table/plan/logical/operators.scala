@@ -42,7 +42,12 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
+case class Project(
+    projectList: Seq[NamedExpression],
+    child: LogicalNode,
+    explicitAlias: Boolean = false)
+  extends UnaryNode {
+
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
@@ -61,7 +66,7 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
             throw new RuntimeException("This should never be called and probably points to a bug.")
         }
     }
-    Project(newProjectList, child)
+    Project(newProjectList, child, explicitAlias)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
@@ -90,8 +95,19 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
+
+    val exprs = if (explicitAlias) {
+      projectList
+    } else {
+      // remove AS expressions, according to Calcite they should not be in a final RexNode
+      projectList.map {
+        case Alias(e: Expression, _, _) => e
+        case e: Expression => e
+      }
+    }
+
     relBuilder.project(
-      projectList.map(_.toRexNode(relBuilder)).asJava,
+      exprs.map(_.toRexNode(relBuilder)).asJava,
       projectList.map(_.name).asJava,
       true)
   }
@@ -116,7 +132,9 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       val input = child.output
       Project(
         names.zip(input).map { case (name, attr) =>
-          Alias(attr, name)} ++ input.drop(names.length), child)
+          Alias(attr, name)} ++ input.drop(names.length),
+        child,
+        explicitAlias = true)
     }
   }
 }
