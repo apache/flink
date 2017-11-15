@@ -66,7 +66,7 @@ class DataSetTumbleTimeWindowAggReduceCombineFunction(
     LOG.debug(s"Compiling AggregateHelper: $genPreAggregations.name \n\n " +
       s"Code:\n$genPreAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genPreAggregations.name,
       genPreAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
