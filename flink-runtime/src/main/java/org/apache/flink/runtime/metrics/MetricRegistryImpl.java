@@ -214,6 +214,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 		return reporters.size();
 	}
 
+	@VisibleForTesting
 	public List<MetricReporter> getReporters() {
 		return reporters;
 	}
