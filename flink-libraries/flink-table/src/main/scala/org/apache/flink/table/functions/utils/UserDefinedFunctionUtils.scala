@@ -607,13 +607,14 @@ object UserDefinedFunctionUtils {
     candidate == expected ||
     expected == classOf[Object] ||
     expected.isPrimitive && Primitives.wrap(expected) == candidate ||
+    // time types
     candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
     candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
     candidate == classOf[Timestamp] && (expected == classOf[Long] || expected == classOf[JLong]) ||
-    (candidate.isArray &&
-      expected.isArray &&
-      candidate.getComponentType.isInstanceOf[Object] &&
-      expected.getComponentType == classOf[Object])
+    // arrays
+    (candidate.isArray && expected.isArray &&
+      (candidate.getComponentType == expected.getComponentType ||
+        expected.getComponentType == classOf[Object]))
 
   @throws[Exception]
   def serialize(function: UserDefinedFunction): String = {

@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -321,5 +323,19 @@ public class TypeExtractionUtils {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Returns the raw class of both parameterized types and generic arrays.
+	 * Returns java.lang.Object for all other types.
+	 */
+	public static Class<?> getRawClass(Type t) {
+		if (isClassType(t)) {
+			return typeToClass(t);
+		} else if (t instanceof GenericArrayType) {
+			Type component = ((GenericArrayType)t).getGenericComponentType();
+			return Array.newInstance(getRawClass(component), 0).getClass();
+		}
+		return Object.class;
 	}
 }
