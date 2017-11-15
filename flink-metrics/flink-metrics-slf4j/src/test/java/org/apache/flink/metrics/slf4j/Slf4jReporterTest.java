@@ -63,7 +63,6 @@ public class Slf4jReporterTest extends TestLogger {
 		TestUtils.addTestAppenderForRootLogger();
 
 		Configuration configuration = new Configuration();
-		configuration.setString(MetricOptions.REPORTERS_LIST, "slf4j");
 		configuration.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "slf4j." +
 			ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, Slf4jReporter.class.getName());
 		configuration.setString(MetricOptions.SCOPE_NAMING_TASK, "<host>.<tm_id>.<job_name>");
