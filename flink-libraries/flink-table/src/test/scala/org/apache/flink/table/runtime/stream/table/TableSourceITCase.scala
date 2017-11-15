@@ -27,6 +27,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JExecEnv}
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, Types}
@@ -35,6 +36,7 @@ import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
 import org.junit.Assert._
 import org.junit.Test
 
@@ -688,6 +690,55 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
       "1,Sarah,10000,true,1000",
       "2,Rob,20000,false,2000",
       "3,Mike,30000,true,3000")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowtimeTableSourcePreserveWatermarks(): Unit = {
+    StreamITCase.testResults = mutable.MutableList()
+    val tableName = "MyTable"
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    // rows with timestamps and watermarks
+    val data = Seq(
+      Right(1L),
+      Left(5L, Row.of(new JInt(1), new JLong(5), "A")),
+      Left(2L, Row.of(new JInt(2), new JLong(1), "B")),
+      Right(10L),
+      Left(8L, Row.of(new JInt(6), new JLong(8), "C")),
+      Right(20L),
+      Left(21L, Row.of(new JInt(6), new JLong(21), "D")),
+      Right(30L)
+    )
+
+    val fieldNames = Array("id", "rtime", "name")
+    val schema = new TableSchema(fieldNames, Array(Types.INT, Types.SQL_TIMESTAMP, Types.STRING))
+    val rowType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
+      fieldNames)
+
+    val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
+    tEnv.registerTableSource(tableName, tableSource)
+
+    tEnv.scan(tableName)
+      .where('rtime.cast(Types.LONG) > 3L)
+      .select('id, 'name)
+      .toAppendStream[Row]
+      // append current watermark to each row to verify that original watermarks were preserved
+      .process(new ProcessFunction[Row, (Row, Long)] {
+        override def processElement(
+            value: Row,
+            ctx: ProcessFunction[Row, (Row, Long)]#Context,
+            out: Collector[(Row, Long)]): Unit = {
+          out.collect(value, ctx.timerService().currentWatermark())
+        }
+      })
+      .addSink(new StreamITCase.StringSink[(Row, Long)])
+    env.execute()
+
+    val expected = Seq("(1,A,1)", "(6,C,10)", "(6,D,20)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
