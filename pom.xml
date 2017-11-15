@@ -996,7 +996,6 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/assets/fonts/fontawesome*</exclude>
 
 						<!-- web dashboard non-binary image assets -->
-						<exclude>flink-runtime-web/web-dashboard/assets/images/browserconfig.xml</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/images/manifest.json</exclude>
 						<exclude>flink-runtime-web/web-dashboard/assets/images/safari-pinned-tab.svg</exclude>
 
@@ -1031,7 +1030,6 @@ under the License.
 						<!-- Configuration Files. -->
 						<exclude>**/flink-bin/conf/slaves</exclude>
 						<exclude>**/flink-bin/conf/masters</exclude>
-						<exclude>**/flink-bin/conf/zoo.cfg</exclude>
 						<!-- Administrative files in the main trunk. -->
 						<exclude>**/README.md</exclude>
 						<exclude>.github/**</exclude>
