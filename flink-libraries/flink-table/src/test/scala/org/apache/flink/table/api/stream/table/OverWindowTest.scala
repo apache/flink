@@ -96,7 +96,7 @@ class OverWindowTest extends TableTestBase {
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
           term("select", "a", "b", "c", "proctime", "WeightedAvgWithRetract(c, a) AS w0$o0")
         ),
-        term("select", "c", "w0$o0 AS _c1")
+        term("select", "c", "w0$o0 AS $1")
       )
     streamUtil.verifyTable(result, expected)
   }
@@ -131,7 +131,7 @@ class OverWindowTest extends TableTestBase {
             "WeightedAvgWithRetract(c, a) AS w0$o0"
           )
         ),
-        term("select", "a", "w0$o0 AS myAvg")
+        term("select", "a", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -157,7 +157,7 @@ class OverWindowTest extends TableTestBase {
           term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "proctime", "COUNT(c) AS w0$o0")
         ),
-        term("select", "a", "w0$o0 AS _c1")
+        term("select", "a", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -183,7 +183,7 @@ class OverWindowTest extends TableTestBase {
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
         ),
-        term("select", "c", "w0$o0 AS _c1")
+        term("select", "c", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -203,19 +203,17 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
+          streamTableNode(0),
           term("partitionBy", "c"),
           term("orderBy", "proctime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
+            "b",
             "c",
             "proctime",
+            "rowtime",
             "COUNT(a) AS w0$o0",
             "WeightedAvgWithRetract(c, a) AS w0$o1"
           )
@@ -224,8 +222,8 @@ class OverWindowTest extends TableTestBase {
           "select",
           "a",
           "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS _c3"
+          "w0$o0 AS $2",
+          "w0$o1 AS $3"
         )
       )
     streamUtil.verifyTable(result, expected)
@@ -245,19 +243,15 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
+          streamTableNode(0),
           term("partitionBy", "c"),
           term("orderBy", "proctime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime",
+          term("select", "a", "b", "c", "proctime", "rowtime",
                "COUNT(a) AS w0$o0",
                "WeightedAvgWithRetract(c, a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS _c1", "w0$o1 AS _c2")
+        term("select", "c", "w0$o0 AS $1", "w0$o1 AS $2")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -275,18 +269,16 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
+          streamTableNode(0),
           term("orderBy", "proctime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
+            "b",
             "c",
             "proctime",
+            "rowtime",
             "COUNT(a) AS w0$o0",
             "SUM(a) AS w0$o1"
           )
@@ -295,8 +287,8 @@ class OverWindowTest extends TableTestBase {
           "select",
           "a",
           "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS _c3"
+          "w0$o0 AS $2",
+          "w0$o1 AS $3"
         )
       )
 
@@ -314,16 +306,12 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "proctime")
-          ),
+          streamTableNode(0),
           term("orderBy", "proctime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "proctime", "COUNT(a) AS w0$o0")
+          term("select", "a", "b", "c", "proctime", "rowtime", "COUNT(a) AS w0$o0")
         ),
-        term("select", "c", "w0$o0 AS _c1")
+        term("select", "c", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -355,7 +343,7 @@ class OverWindowTest extends TableTestBase {
                "COUNT(b) AS w0$o0",
                "WeightedAvgWithRetract(c, a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS _c1", "w0$o1 AS wAvg")
+        term("select", "c", "w0$o0 AS $1", "w0$o1 AS $2")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -392,7 +380,7 @@ class OverWindowTest extends TableTestBase {
             "WeightedAvgWithRetract(c, a) AS w0$o1"
           )
         ),
-        term("select", "a", "w0$o0 AS _c1", "w0$o1 AS wAvg")
+        term("select", "a", "w0$o0 AS $1", "w0$o1 AS $2")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -418,7 +406,7 @@ class OverWindowTest extends TableTestBase {
           term("range", "BETWEEN 10000 PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "rowtime", "COUNT(c) AS w0$o0")
         ),
-        term("select", "a", "w0$o0 AS _c1")
+        term("select", "a", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -444,7 +432,7 @@ class OverWindowTest extends TableTestBase {
           term("rows", "BETWEEN 2 PRECEDING AND CURRENT ROW"),
           term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
         ),
-        term("select", "c", "w0$o0 AS _c1")
+        term("select", "c", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -464,18 +452,16 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
+          streamTableNode(0),
           term("partitionBy", "c"),
           term("orderBy", "rowtime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
+            "b",
             "c",
+            "proctime",
             "rowtime",
             "COUNT(a) AS w0$o0",
             "WeightedAvgWithRetract(c, a) AS w0$o1"
@@ -485,8 +471,8 @@ class OverWindowTest extends TableTestBase {
           "select",
           "a",
           "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS wAvg"
+          "w0$o0 AS $2",
+          "w0$o1 AS $3"
         )
       )
 
@@ -507,19 +493,15 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
+          streamTableNode(0),
           term("partitionBy", "c"),
           term("orderBy", "rowtime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime",
+          term("select", "a", "b", "c", "proctime", "rowtime",
                "COUNT(a) AS w0$o0",
                "WeightedAvgWithRetract(c, a) AS w0$o1")
         ),
-        term("select", "c", "w0$o0 AS _c1", "w0$o1 AS wAvg")
+        term("select", "c", "w0$o0 AS $1", "w0$o1 AS $2")
       )
 
     streamUtil.verifyTable(result, expected)
@@ -537,17 +519,15 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
+          streamTableNode(0),
           term("orderBy", "rowtime"),
           term("range", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
           term(
             "select",
             "a",
+            "b",
             "c",
+            "proctime",
             "rowtime",
             "COUNT(a) AS w0$o0",
             "SUM(a) AS w0$o1"
@@ -557,8 +537,8 @@ class OverWindowTest extends TableTestBase {
           "select",
           "a",
           "c",
-          "w0$o0 AS _c2",
-          "w0$o1 AS _c3"
+          "w0$o0 AS $2",
+          "w0$o1 AS $3"
         )
       )
 
@@ -576,16 +556,12 @@ class OverWindowTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "a", "c", "rowtime")
-          ),
+          streamTableNode(0),
           term("orderBy", "rowtime"),
           term("rows", "BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW"),
-          term("select", "a", "c", "rowtime", "COUNT(a) AS w0$o0")
+          term("select", "a", "b", "c", "proctime", "rowtime", "COUNT(a) AS w0$o0")
         ),
-        term("select", "c", "w0$o0 AS _c1")
+        term("select", "c", "w0$o0 AS $1")
       )
 
     streamUtil.verifyTable(result, expected)

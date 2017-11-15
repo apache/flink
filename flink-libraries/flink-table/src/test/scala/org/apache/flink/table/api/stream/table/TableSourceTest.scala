@@ -172,7 +172,7 @@ class TableSourceTest extends TableTestBase {
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),
           term("select", "id", "proctime", "val", "name", "SUM(val) AS w0$o0")
         ),
-        term("select", "id", "name", "w0$o0 AS valSum"),
+        term("select", "id", "name", "w0$o0"),
         term("where", ">(w0$o0, 100)")
       )
     util.verifyTable(t, expected)
