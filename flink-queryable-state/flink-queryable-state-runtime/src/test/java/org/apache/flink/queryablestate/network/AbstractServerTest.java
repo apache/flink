@@ -58,7 +58,7 @@ public class AbstractServerTest {
 
 		// the expected exception along with the adequate message
 		expectedEx.expect(FlinkRuntimeException.class);
-		expectedEx.expectMessage("Unable to start the Test Server 2. All ports in provided range are occupied.");
+		expectedEx.expectMessage("Unable to start Test Server 2. All ports in provided range are occupied.");
 
 		TestServer server1 = null;
 		TestServer server2 = null;
