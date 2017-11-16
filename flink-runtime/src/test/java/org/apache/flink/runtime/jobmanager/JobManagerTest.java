@@ -63,6 +63,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.StatefulTask;
 import org.apache.flink.runtime.jobmanager.JobManagerHARecoveryTest.BlockingStatefulInvokable;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
 import org.apache.flink.runtime.messages.JobManagerMessages.CancellationResponse;
@@ -672,7 +673,7 @@ public class JobManagerTest extends TestLogger {
 		try {
 			Await.result(lookupFuture, deadline.timeLeft());
 			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
+		} catch (FlinkJobNotFoundException ignored) {
 			// Expected
 		}
 
@@ -735,7 +736,7 @@ public class JobManagerTest extends TestLogger {
 		try {
 			Await.result(lookupFuture, deadline.timeLeft());
 			fail("Did not throw expected Exception");
-		} catch (IllegalStateException ignored) {
+		} catch (FlinkJobNotFoundException ignored) {
 			// Expected
 		}
 
