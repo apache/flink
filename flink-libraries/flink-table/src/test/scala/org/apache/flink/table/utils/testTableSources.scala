@@ -27,9 +27,10 @@ import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
-import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
+import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConverters._
@@ -198,4 +199,29 @@ class TestNestedProjectableTableSource(
     s"TestSource(" +
       s"read nested fields: ${readNestedFields.mkString(", ")})"
   }
+}
+
+class TestPreserveWMTableSource[T](
+    tableSchema: TableSchema,
+    returnType: TypeInformation[T],
+    values: Seq[Either[(Long, T), Long]],
+    rowtime: String)
+  extends StreamTableSource[T]
+    with DefinedRowtimeAttributes {
+
+  override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
+    Collections.singletonList(new RowtimeAttributeDescriptor(
+      rowtime,
+      new ExistingField(rowtime),
+      PreserveWatermarks.INSTANCE))
+  }
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
+    execEnv.addSource(new EventTimeSourceFunction[T](values)).setParallelism(1).returns(returnType)
+  }
+
+  override def getReturnType: TypeInformation[T] = returnType
+
+  override def getTableSchema: TableSchema = tableSchema
+
 }

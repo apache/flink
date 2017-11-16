@@ -27,6 +27,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JExecEnv}
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.{TableEnvironment, TableException, TableSchema, Types}
@@ -35,6 +36,7 @@ import org.apache.flink.table.runtime.utils.{CommonTestData, StreamITCase}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
 import org.junit.Assert._
 import org.junit.Test
 
@@ -150,6 +152,55 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
       "Mary,1970-01-01 00:00:00.0,40",
       "Bob,1970-01-01 00:00:00.0,20",
       "Liz,1970-01-01 00:00:02.0,40")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testRowtimeTableSourcePreserveWatermarks(): Unit = {
+    StreamITCase.testResults = mutable.MutableList()
+    val tableName = "MyTable"
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = Seq(
+      Left(5L, Row.of(new JInt(1), new JLong(5), "A")),
+      Left(1L, Row.of(new JInt(2), new JLong(1), "B")),
+      Right(10L),
+      Left(8L, Row.of(new JInt(6), new JLong(8), "C")),
+      Right(20L),
+      Left(21L, Row.of(new JInt(6), new JLong(21), "D")),
+      Right(30L)
+    )
+
+    val fieldNames = Array("id", "rtime", "name")
+    val schema = new TableSchema(fieldNames, Array(Types.INT, Types.SQL_TIMESTAMP, Types.STRING))
+    val rowType = new RowTypeInfo(
+      Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
+      fieldNames)
+
+    val tableSource = new TestPreserveWMTableSource(schema, rowType, data, "rtime")
+    tEnv.registerTableSource(tableName, tableSource)
+
+    tEnv.scan(tableName)
+      .where('rtime.cast(Types.LONG) > 3L)
+      .select('id, 'name)
+      .toAppendStream[Row]
+      .process(new ProcessFunction[Row, (Row, Long)] {
+        override def processElement(
+          value: Row,
+          ctx: ProcessFunction[Row, (Row, Long)]#Context,
+          out: Collector[(Row, Long)]): Unit = {
+          if (ctx.timerService().currentWatermark() > 0) {
+            out.collect((value, ctx.timerService().currentWatermark()))
+          } else {
+            out.collect(value, 0L)
+          }
+        }
+      }).addSink(new StreamITCase.StringSink[(Row, Long)])
+    env.execute()
+
+    val expected = Seq("(1,A,0)", "(6,C,10)", "(6,D,20)")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
