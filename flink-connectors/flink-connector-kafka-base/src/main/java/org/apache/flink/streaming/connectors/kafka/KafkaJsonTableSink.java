@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.serialization.JsonRowSerializationSchema;
 import org.apache.flink.types.Row;
@@ -42,7 +43,7 @@ public abstract class KafkaJsonTableSink extends KafkaTableSink {
 	}
 
 	@Override
-	protected SerializationSchema<Row> createSerializationSchema(String[] fieldNames) {
-		return new JsonRowSerializationSchema(fieldNames);
+	protected SerializationSchema<Row> createSerializationSchema(RowTypeInfo rowSchema) {
+		return new JsonRowSerializationSchema(rowSchema);
 	}
 }
