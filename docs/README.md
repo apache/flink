@@ -39,9 +39,9 @@ to `docs/content/index.html` and start reading.
 
 If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
 start a web server at `localhost:4000` and watch the docs directory for
-updates. Use this mode to preview changes locally. 
+updates. Use this mode to preview changes locally.
 
-If you have ruby 2.0 or greater, 
+If you have ruby 2.0 or greater,
 you can call the script with the incremental flag `build_docs.sh -i`.
 Jekyll will then serve a live preview at `localhost:4000`,
 and it will be much faster because it will only rebuild the pages corresponding
@@ -90,7 +90,7 @@ This will be replaced with the value of the variable called `NAME` when generati
 
 #### Headings
 
-All documents are structured with headings. From these headings, you can automatically generate a page table of contents (see below).
+All documents are structured with headings, written in "Title Case". From these headings, you can automatically generate a page table of contents (see below).
 
 ```
 # Level-1 Heading  <- Used for the title of the page (don't use this)
