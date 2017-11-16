@@ -276,10 +276,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 	/**
 	 * Tests that duplicate query registrations fail the job at the JobManager.
-	 *
-	 * <b>NOTE: </b> This test is only in the non-HA variant of the tests because
-	 * in the HA mode we use the actual JM code which does not recognize the
-	 * {@code NotifyWhenJobStatus} message.
 	 */
 	@Test
 	public void testDuplicateRegistrationFailsJob() throws Exception {
@@ -435,10 +431,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 	/**
 	 * Tests that the correct exception is thrown if the query
-	 * contains a wrong queryable state name.
+	 * contains a wrong jobId or wrong queryable state name.
 	 */
 	@Test
-	public void testWrongQueryableStateName() throws Exception {
+	public void testWrongJobIdAndWrongQueryableStateName() throws Exception {
 		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
@@ -486,7 +482,27 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					runningFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			assertEquals(JobStatus.RUNNING, jobStatus.state());
 
-			CompletableFuture<ValueState<Tuple2<Integer, Long>>> future = client.getKvState(
+			final JobID wrongJobId = new JobID();
+
+			CompletableFuture<ValueState<Tuple2<Integer, Long>>> unknownJobFuture = client.getKvState(
+					wrongJobId, 						// this is the wrong job id
+					"hankuna",
+					0,
+					BasicTypeInfo.INT_TYPE_INFO,
+					valueState);
+
+			try {
+				unknownJobFuture.get();
+				fail(); // by now the job must have failed.
+			} catch (ExecutionException e) {
+				Assert.assertTrue(e.getCause() instanceof RuntimeException);
+				Assert.assertTrue(e.getCause().getMessage().contains(
+						"FlinkJobNotFoundException: Could not find Flink job (" + wrongJobId + ")"));
+			} catch (Exception ignored) {
+				fail("Unexpected type of exception.");
+			}
+
+			CompletableFuture<ValueState<Tuple2<Integer, Long>>> unknownQSName = client.getKvState(
 					jobId,
 					"wrong-hankuna", // this is the wrong name.
 					0,
@@ -494,7 +510,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					valueState);
 
 			try {
-				future.get();
+				unknownQSName.get();
 				fail(); // by now the job must have failed.
 			} catch (ExecutionException e) {
 				Assert.assertTrue(e.getCause() instanceof RuntimeException);
