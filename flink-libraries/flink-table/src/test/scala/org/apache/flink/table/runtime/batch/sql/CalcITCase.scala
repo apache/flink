@@ -120,7 +120,7 @@ class CalcITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val sqlQuery = "SELECT _1 as a, _2 as b FROM MyTable"
+    val sqlQuery = "SELECT `1-_./Ü`, b FROM (SELECT _1 as `1-_./Ü`, _2 as b FROM MyTable)"
 
     val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
     tEnv.registerTable("MyTable", ds)
