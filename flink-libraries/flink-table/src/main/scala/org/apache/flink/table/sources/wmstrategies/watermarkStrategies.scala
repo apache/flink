@@ -60,3 +60,9 @@ abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
     */
   def getWatermark(row: Row, timestamp: Long): Watermark
 }
+
+/** A strategy which indicates the watermarks should be preserved from the underlying datastream.*/
+object PreserveWatermarks {
+  class PreserveWatermarks extends WatermarkStrategy
+  val INSTANCE: PreserveWatermarks = new PreserveWatermarks
+}

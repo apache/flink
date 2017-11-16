@@ -62,13 +62,12 @@ trait DefinedRowtimeAttributes {
   *
   * @param attributeName The name of the rowtime attribute.
   * @param timestampExtractor The timestamp extractor to derive the values of the attribute.
-  * @param watermarkStrategy The watermark strategy associated with the attribute. With the default
-  *                          value `null` to indicate no watermark should be generated.
+  * @param watermarkStrategy The watermark strategy associated with the attribute.
   */
 class RowtimeAttributeDescriptor(
   attributeName: String,
   timestampExtractor: TimestampExtractor,
-  watermarkStrategy: WatermarkStrategy = null) {
+  watermarkStrategy: WatermarkStrategy) {
 
   /** Returns the name of the rowtime attribute. */
   def getAttributeName: String = attributeName
