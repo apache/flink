@@ -29,9 +29,6 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateServer;
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
@@ -41,8 +38,6 @@ import java.util.Iterator;
  */
 @Internal
 public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest, KvStateResponse> implements KvStateServer {
-
-	private static final Logger LOG = LoggerFactory.getLogger(KvStateServerImpl.class);
 
 	/** The {@link KvStateRegistry} to query for state instances. */
 	private final KvStateRegistry kvStateRegistry;

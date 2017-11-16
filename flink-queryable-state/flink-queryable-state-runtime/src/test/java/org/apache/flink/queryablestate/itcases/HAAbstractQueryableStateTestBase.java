@@ -65,7 +65,7 @@ public abstract class HAAbstractQueryableStateTestBase extends AbstractQueryable
 			config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
 			cluster = new TestingCluster(config, false);
-			cluster.start();
+			cluster.start(true);
 
 			client = new QueryableStateClient("localhost", proxyPortRangeStart);
 

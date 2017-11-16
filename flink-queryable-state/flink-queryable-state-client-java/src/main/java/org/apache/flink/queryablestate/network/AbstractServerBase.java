@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends MessageBody> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AbstractServerBase.class);
+	protected final Logger log = LoggerFactory.getLogger(getClass());
 
 	/** AbstractServerBase config: low water mark. */
 	private static final int LOW_WATER_MARK = 8 * 1024;
@@ -180,16 +180,16 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 */
 	public void start() throws Throwable {
 		Preconditions.checkState(serverAddress == null,
-				"The " + serverName + " already running @ " + serverAddress + '.');
+				serverName + " is already running @ " + serverAddress + '.');
 
 		Iterator<Integer> portIterator = bindPortRange.iterator();
 		while (portIterator.hasNext() && !attemptToBind(portIterator.next())) {}
 
 		if (serverAddress != null) {
-			LOG.info("Started the {} @ {}.", serverName, serverAddress);
+			log.info("Started {} @ {}.", serverName, serverAddress);
 		} else {
-			LOG.info("Unable to start the {}. All ports in provided range are occupied.", serverName);
-			throw new FlinkRuntimeException("Unable to start the " + serverName + ". All ports in provided range are occupied.");
+			log.info("Unable to start {}. All ports in provided range are occupied.", serverName);
+			throw new FlinkRuntimeException("Unable to start " + serverName + ". All ports in provided range are occupied.");
 		}
 	}
 
@@ -203,7 +203,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 * @throws Exception If something goes wrong during the bind operation.
 	 */
 	private boolean attemptToBind(final int port) throws Throwable {
-		LOG.debug("Attempting to start server {} on port {}.", serverName, port);
+		log.debug("Attempting to start {} on port {}.", serverName, port);
 
 		this.queryExecutor = createQueryExecutor();
 		this.handler = initializeHandler();
@@ -250,7 +250,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 
 			throw future.cause();
 		} catch (BindException e) {
-			LOG.debug("Failed to start server {} on port {}: {}.", serverName, port, e.getMessage());
+			log.debug("Failed to start {} on port {}: {}.", serverName, port, e.getMessage());
 			shutdown();
 		}
 		// any other type of exception we let it bubble up.
@@ -261,7 +261,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	 * Shuts down the server and all related thread pools.
 	 */
 	public void shutdown() {
-		LOG.info("Shutting down server {} @ {}", serverName, serverAddress);
+		log.info("Shutting down {} @ {}", serverName, serverAddress);
 
 		if (handler != null) {
 			handler.shutdown();
@@ -311,7 +311,7 @@ public abstract class AbstractServerBase<REQ extends MessageBody, RESP extends M
 	}
 
 	@VisibleForTesting
-	public boolean isExecutorShutdown() {
-		return queryExecutor.isShutdown();
+	public boolean isEventGroupShutdown() {
+		return bootstrap == null || bootstrap.group().isTerminated();
 	}
 }

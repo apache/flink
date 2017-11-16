@@ -310,7 +310,6 @@ public class NetworkEnvironment {
 			if (kvStateServer != null) {
 				try {
 					kvStateServer.start();
-					LOG.info("Started the Queryable State Data Server @ {}", kvStateServer.getServerAddress());
 				} catch (Throwable ie) {
 					kvStateServer.shutdown();
 					kvStateServer = null;
@@ -321,7 +320,6 @@ public class NetworkEnvironment {
 			if (kvStateProxy != null) {
 				try {
 					kvStateProxy.start();
-					LOG.info("Started the Queryable State Client Proxy @ {}", kvStateProxy.getServerAddress());
 				} catch (Throwable ie) {
 					kvStateProxy.shutdown();
 					kvStateProxy = null;

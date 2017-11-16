@@ -391,7 +391,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
 		localTestServer.start();
 		localTestServer.shutdown();
-		assertTrue(localTestServer.isExecutorShutdown());
+		assertTrue(localTestServer.getQueryExecutor().isTerminated());
 
 		MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
 				new MessageSerializer<>(new KvStateInternalRequest.KvStateInternalRequestDeserializer(), new KvStateResponse.KvStateResponseDeserializer());
