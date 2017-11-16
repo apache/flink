@@ -4,6 +4,7 @@ nav-pos: 2
 nav-title: Distributed Runtime
 nav-parent_id: concepts
 ---
+
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
@@ -23,15 +24,15 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-* This will be replaced by the TOC
-{:toc}
+-   This will be replaced by the TOC
+    {:toc}
 
 ## Tasks and Operator Chains
 
-For distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
+For distributed execution, Flink _chains_ operator subtasks together into _tasks_. Flink executes each task with one thread.
 Chaining operators together into tasks is a useful optimization: it reduces the overhead of thread-to-thread
-handover and buffering, and increases overall throughput while decreasing latency.
-The chaining behavior can be configured; see the [chaining docs](../dev/datastream_api.html#task-chaining-and-resource-groups) for details.
+handover and buffering and increases throughput while decreasing latency.
+You can configure the chaining behavior, see the [chaining docs](../dev/datastream_api.html#task-chaining-and-resource-groups) for details.
 
 The sample dataflow in the figure below is executed with five subtasks, and hence with five parallel threads.
 
@@ -43,18 +44,18 @@ The sample dataflow in the figure below is executed with five subtasks, and henc
 
 The Flink runtime consists of two types of processes:
 
-  - The **JobManagers** (also called *masters*) coordinate the distributed execution. They schedule tasks, coordinate
+-   The **JobManagers** (also called _masters_) coordinate the distributed execution. They schedule tasks, coordinate
     checkpoints, coordinate recovery on failures, etc.
 
-    There is always at least one Job Manager. A high-availability setup will have multiple JobManagers, one of
-    which one is always the *leader*, and the others are *standby*.
+    There is always at least one JobManager. A high-availability setup will have multiple JobManagers, one of
+    which one is always the _leader_, and the others are _standby_.
 
-  - The **TaskManagers** (also called *workers*) execute the *tasks* (or more specifically, the subtasks) of a dataflow,
-    and buffer and exchange the data *streams*.
+-   The **TaskManagers** (also called _workers_) execute the _tasks_ (or more specifically, the subtasks) of a dataflow,
+    and buffer and exchange the data _streams_.
 
     There must always be at least one TaskManager.
 
-The JobManagers and TaskManagers can be started in various ways: directly on the machines as a [standalone cluster](../ops/deployment/cluster_setup.html), in
+You can start the JobManagers and TaskManagers in various ways. Directly on the machines as a [standalone cluster](../ops/deployment/cluster_setup.html), in
 containers, or managed by resource frameworks like [YARN](../ops/deployment/yarn_setup.html) or [Mesos](../ops/deployment/mesos.html).
 TaskManagers connect to JobManagers, announcing themselves as available, and are assigned work.
 
@@ -68,16 +69,16 @@ Java/Scala program that triggers the execution, or in the command line process `
 
 ## Task Slots and Resources
 
-Each worker (TaskManager) is a *JVM process*, and may execute one or more subtasks in separate threads.
-To control how many tasks a worker accepts, a worker has so called **task slots** (at least one).
+Each worker (TaskManager) is a _JVM process_ and may execute one or more subtasks in separate threads.
+To control how many tasks a worker accepts, a worker has so-called **task slots** (at least one).
 
-Each *task slot* represents a fixed subset of resources of the TaskManager. A TaskManager with three slots, for example,
+Each _task slot_ represents a fixed subset of resources of the TaskManager. A TaskManager with three slots, for example,
 will dedicate 1/3 of its managed memory to each slot. Slotting the resources means that a subtask will not
 compete with subtasks from other jobs for managed memory, but instead has a certain amount of reserved
-managed memory. Note that no CPU isolation happens here; currently slots only separate the managed memory of tasks.
+managed memory. No CPU isolation happens here, and slots only separate the managed memory of tasks.
 
 By adjusting the number of task slots, users can define how subtasks are isolated from each other.
-Having one slot per TaskManager means each task group runs in a separate JVM (which can be started in a
+Having one slot per TaskManager means each task group runs in a separate JVM (which you can start in a
 separate container, for example). Having multiple slots
 means more subtasks share the same JVM. Tasks in the same JVM share TCP connections (via multiplexing) and
 heartbeat messages. They may also share data sets and data structures, thus reducing the per-task overhead.
@@ -86,19 +87,19 @@ heartbeat messages. They may also share data sets and data structures, thus redu
 
 By default, Flink allows subtasks to share slots even if they are subtasks of different tasks, so long as
 they are from the same job. The result is that one slot may hold an entire pipeline of the
-job. Allowing this *slot sharing* has two main benefits:
+job. Allowing this _slot sharing_ has two main benefits:
 
-  - A Flink cluster needs exactly as many task slots as the highest parallelism used in the job.
+-   A Flink cluster needs exactly as many task slots as the highest parallelism used in the job.
     No need to calculate how many tasks (with varying parallelism) a program contains in total.
 
-  - It is easier to get better resource utilization. Without slot sharing, the non-intensive
-    *source/map()* subtasks would block as many resources as the resource intensive *window* subtasks.
+-   It is easier to get better resource utilization. Without slot sharing, the non-intensive
+    _source/map()_ subtasks would block as many resources as the resource-intensive _window_ subtasks.
     With slot sharing, increasing the base parallelism in our example from two to six yields full utilization of the
     slotted resources, while making sure that the heavy subtasks are fairly distributed among the TaskManagers.
 
 <img src="../fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
 
-The APIs also include a *[resource group](../dev/datastream_api.html#task-chaining-and-resource-groups)* mechanism which can be used to prevent undesirable slot sharing. 
+The APIs also include a _[resource group](../dev/datastream_api.html#task-chaining-and-resource-groups)_ mechanism which can be used to prevent undesirable slot sharing.
 
 As a rule-of-thumb, a good default number of task slots would be the number of CPU cores.
 With hyper-threading, each slot then takes 2 or more hardware thread contexts.
@@ -118,10 +119,10 @@ take a point-in-time snapshot of the key/value state and store that snapshot as 
 
 ## Savepoints
 
-Programs written in the Data Stream API can resume execution from a **savepoint**. Savepoints allow both updating your programs and your Flink cluster without losing any state. 
+Programs written in the Data Stream API can resume execution from a **savepoint**. Savepoints allow both updating your programs and your Flink cluster without losing any state.
 
-[Savepoints](../ops/state/savepoints.html) are **manually triggered checkpoints**, which take a snapshot of the program and write it out to a state backend. They rely on the regular checkpointing mechanism for this. During execution programs are periodically snapshotted on the worker nodes and produce checkpoints. For recovery only the last completed checkpoint is needed and older checkpoints can be safely discarded as soon as a new one is completed.
+[Savepoints](../ops/state/savepoints.html) are **manually triggered checkpoints**, which take a snapshot of the program and write it out to a state backend. They rely on the regular checkpointing mechanism for this. During execution, programs are periodically snapshotted on the worker nodes and produce checkpoints. For recovery, only the last completed checkpoint is needed, and older checkpoints can be safely discarded as soon as a new one is completed.
 
-Savepoints are similar to these periodic checkpoints except that they are **triggered by the user** and **don't automatically expire** when newer checkpoints are completed. Savepoints can be created from the [command line](../ops/cli.html#savepoints) or when cancelling a job via the [REST API](../monitoring/rest_api.html#cancel-job-with-savepoint).
+Savepoints are similar to these periodic checkpoints except that they are **triggered by the user** and **don't automatically expire** when newer checkpoints are completed. You can create savepoints from the [command line](../ops/cli.html#savepoints) or when canceling a job via the [REST API](../monitoring/rest_api.html#cancel-job-with-savepoint).
 
 {% top %}
