@@ -1022,7 +1022,12 @@ public class FlinkKafkaProducer011<IN>
 
 		@Override
 		public String toString() {
-			return String.format("%s [transactionalId=%s]", this.getClass().getSimpleName(), transactionalId);
+			return String.format(
+				"%s [transactionalId=%s, producerId=%s, epoch=%s]",
+				this.getClass().getSimpleName(),
+				transactionalId,
+				producerId,
+				epoch);
 		}
 
 		@Override
