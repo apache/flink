@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.aggfunctions
 
 import java.math.BigDecimal
-import java.sql.Timestamp
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
@@ -271,6 +271,68 @@ class TimestampMinWithRetractAggFunctionTest
 
   override def aggregator: AggregateFunction[Timestamp, MinWithRetractAccumulator[Timestamp]] =
     new TimestampMinWithRetractAggFunction()
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+}
+
+class DateMinWithRetractAggFunctionTest
+  extends AggFunctionTestBase[Date, MinWithRetractAccumulator[Date]] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Date(0),
+      new Date(1000),
+      new Date(100),
+      null.asInstanceOf[Date],
+      new Date(10)
+    ),
+    Seq(
+      null,
+      null,
+      null,
+      null,
+      null
+    )
+  )
+
+  override def expectedResults: Seq[Date] = Seq(
+    new Date(0),
+    null
+  )
+
+  override def aggregator: AggregateFunction[Date, MinWithRetractAccumulator[Date]] =
+    new DateMinWithRetractAggFunction()
+
+  override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
+}
+
+class TimeMinWithRetractAggFunctionTest
+  extends AggFunctionTestBase[Time, MinWithRetractAccumulator[Time]] {
+
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Time(0),
+      new Time(1000),
+      new Time(100),
+      null.asInstanceOf[Time],
+      new Time(10)
+    ),
+    Seq(
+      null,
+      null,
+      null,
+      null,
+      null
+    )
+  )
+
+  override def expectedResults: Seq[Time] = Seq(
+    new Time(0),
+    null
+  )
+
+  override def aggregator: AggregateFunction[Time, MinWithRetractAccumulator[Time]] =
+    new TimeMinWithRetractAggFunction()
 
   override def retractFunc = aggregator.getClass.getMethod("retract", accType, classOf[Any])
 }
