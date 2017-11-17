@@ -219,6 +219,53 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		deleteTestTopic(topic);
 	}
 
+	@Test(timeout = 120_000L)
+	public void testFailAndRecoverSameCheckpointTwice() throws Exception {
+		String topic = "flink-kafka-producer-fail-and-recover-same-checkpoint-twice";
+
+		OperatorStateHandles snapshot1;
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic)) {
+			testHarness.setup();
+			testHarness.open();
+			testHarness.processElement(42, 0);
+			testHarness.snapshot(0, 1);
+			testHarness.processElement(43, 2);
+			snapshot1 = testHarness.snapshot(1, 3);
+
+			testHarness.processElement(44, 4);
+		}
+
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic)) {
+			testHarness.setup();
+			// restore from snapshot1, transactions with records 44 and 45 should be aborted
+			testHarness.initializeState(snapshot1);
+			testHarness.open();
+
+			// write and commit more records, after potentially lingering transactions
+			testHarness.processElement(44, 7);
+			testHarness.snapshot(2, 8);
+			testHarness.processElement(45, 9);
+		}
+
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness = createTestHarness(topic)) {
+			testHarness.setup();
+			// restore from snapshot1, transactions with records 44 and 45 should be aborted
+			testHarness.initializeState(snapshot1);
+			testHarness.open();
+
+			// write and commit more records, after potentially lingering transactions
+			testHarness.processElement(44, 7);
+			testHarness.snapshot(3, 8);
+			testHarness.processElement(45, 9);
+		}
+
+		//now we should have:
+		// - records 42 and 43 in committed transactions
+		// - aborted transactions with records 44 and 45
+		assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42, 43), 30_000L);
+		deleteTestTopic(topic);
+	}
+
 	/**
 	 * This tests checks whether FlinkKafkaProducer011 correctly aborts lingering transactions after a failure,
 	 * which happened before first checkpoint and was followed up by reducing the parallelism.
