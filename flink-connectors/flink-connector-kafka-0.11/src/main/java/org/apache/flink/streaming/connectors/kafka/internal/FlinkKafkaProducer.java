@@ -188,7 +188,7 @@ public class FlinkKafkaProducer<K, V> implements Producer<K, V> {
 	 */
 	public void resumeTransaction(long producerId, short epoch) {
 		Preconditions.checkState(producerId >= 0 && epoch >= 0, "Incorrect values for producerId {} and epoch {}", producerId, epoch);
-		LOG.info("Attempting to resume transaction with producerId {} and epoch {}", producerId, epoch);
+		LOG.info("Attempting to resume transaction {} with producerId {} and epoch {}", transactionalId, producerId, epoch);
 
 		Object transactionManager = getValue(kafkaProducer, "transactionManager");
 		synchronized (transactionManager) {
