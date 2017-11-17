@@ -59,6 +59,7 @@ import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.errors.InvalidTxnStateException;
+import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -678,14 +679,12 @@ public class FlinkKafkaProducer011<IN>
 	protected void recoverAndCommit(KafkaTransactionState transaction) {
 		switch (semantic) {
 			case EXACTLY_ONCE:
-				FlinkKafkaProducer<byte[], byte[]> producer =
-					initTransactionalProducer(transaction.transactionalId, false);
-				producer.resumeTransaction(transaction.producerId, transaction.epoch);
-				try {
+				try (FlinkKafkaProducer<byte[], byte[]> producer =
+						initTransactionalProducer(transaction.transactionalId, false)) {
+					producer.resumeTransaction(transaction.producerId, transaction.epoch);
 					producer.commitTransaction();
-					producer.close();
 				}
-				catch (InvalidTxnStateException ex) {
+				catch (InvalidTxnStateException | ProducerFencedException ex) {
 					// That means we have committed this transaction before.
 					LOG.warn("Encountered error {} while recovering transaction {}. " +
 						"Presumably this transaction has been already committed before",
@@ -720,11 +719,10 @@ public class FlinkKafkaProducer011<IN>
 	protected void recoverAndAbort(KafkaTransactionState transaction) {
 		switch (semantic) {
 			case EXACTLY_ONCE:
-				FlinkKafkaProducer<byte[], byte[]> producer =
-					initTransactionalProducer(transaction.transactionalId, false);
-				producer.resumeTransaction(transaction.producerId, transaction.epoch);
-				producer.abortTransaction();
-				producer.close();
+				try (FlinkKafkaProducer<byte[], byte[]> producer =
+						initTransactionalProducer(transaction.transactionalId, false)) {
+					producer.initTransactions();
+				}
 				break;
 			case AT_LEAST_ONCE:
 			case NONE:
