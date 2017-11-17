@@ -209,15 +209,19 @@ class TimeIndicatorConversionTest extends TableTestBase {
 
     val result = t.unionAll(t).select('rowtime)
 
-    val expected = unaryNode(
-      "DataStreamCalc",
-      binaryNode(
-        "DataStreamUnion",
+    val expected = binaryNode(
+      "DataStreamUnion",
+      unaryNode(
+        "DataStreamCalc",
         streamTableNode(0),
-        streamTableNode(0),
-        term("union all", "rowtime", "long", "int")
+        term("select", "rowtime")
       ),
-      term("select", "rowtime")
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "rowtime")
+      ),
+      term("union all", "rowtime")
     )
 
     util.verifyTable(result, expected)
