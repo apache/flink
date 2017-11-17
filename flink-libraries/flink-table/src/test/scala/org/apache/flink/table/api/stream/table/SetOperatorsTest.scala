@@ -65,4 +65,33 @@ class SetOperatorsTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testProjectUnionTranspose(): Unit = {
+    val util = streamTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.select('a, 'b, 'c)
+      .unionAll(right.select('a, 'b, 'c))
+      .select('b, 'c)
+
+    val expected = binaryNode(
+      "DataStreamUnion",
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(0),
+        term("select", "b", "c")
+      ),
+      unaryNode(
+        "DataStreamCalc",
+        streamTableNode(1),
+        term("select", "b", "c")
+      ),
+      term("union all", "b", "c")
+    )
+
+    util.verifyTable(result, expected)
+  }
+
 }
