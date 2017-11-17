@@ -54,6 +54,8 @@ object FlinkRuleSets {
     FilterAggregateTransposeRule.INSTANCE,
     // push filter through set operation
     FilterSetOpTransposeRule.INSTANCE,
+    // push project through set operation
+    ProjectSetOpTransposeRule.INSTANCE,
 
     // aggregation and projection rules
     AggregateProjectMergeRule.INSTANCE,
