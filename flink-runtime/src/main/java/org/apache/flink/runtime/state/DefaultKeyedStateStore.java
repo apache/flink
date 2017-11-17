@@ -54,76 +54,70 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 
 	@Override
 	public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			return getPartitionedState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
+		} catch (ClassCastException cce) {
+			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
 		}
 	}
 
 	@Override
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			ListState<T> originalState = getPartitionedState(stateProperties);
 			return new UserFacingListState<>(originalState);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
+		} catch (ClassCastException cce) {
+			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
 		}
 	}
 
 	@Override
 	public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			return getPartitionedState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
+		} catch (ClassCastException cce) {
+			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
 		}
 	}
 
 	@Override
 	public <IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			return getPartitionedState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
+		} catch (ClassCastException cce) {
+			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
 		}
 	}
 
 	@Override
 	public <T, ACC> FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			return getPartitionedState(stateProperties);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
+		} catch (ClassCastException cce) {
+			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
 		}
 	}
 
 	@Override
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
-		requireNonNull(stateProperties, "The state properties must not be null");
 		try {
-			stateProperties.initializeSerializerUnlessSet(executionConfig);
 			MapState<UK, UV> originalState = getPartitionedState(stateProperties);
 			return new UserFacingMapState<>(originalState);
-		} catch (Exception e) {
-			throw new RuntimeException("Error while getting state", e);
+		} catch (ClassCastException cce) {
+			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
 		}
 	}
 
-	private <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		return keyedStateBackend.getPartitionedState(
-				VoidNamespace.INSTANCE,
-				VoidNamespaceSerializer.INSTANCE,
-				stateDescriptor);
+	private <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) {
+		requireNonNull(stateDescriptor, "The state properties must not be null");
+		try {
+			stateDescriptor.initializeSerializerUnlessSet(executionConfig);
+			return keyedStateBackend.getPartitionedState(
+					VoidNamespace.INSTANCE,
+					VoidNamespaceSerializer.INSTANCE,
+					stateDescriptor);
+		} catch (Exception e) {
+			throw new RuntimeException("Error while getting state", e);
+		}
 	}
 }
