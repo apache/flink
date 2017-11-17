@@ -45,7 +45,7 @@ public class KvStateRegistry {
 			new ConcurrentHashMap<>();
 
 	/** Registry listener to be notified on registration/unregistration. */
-	private final AtomicReference<KvStateRegistryListener> listener = new AtomicReference<>();
+	private final AtomicReference<KvStateRegistryListener> listenerRef = new AtomicReference<>();
 
 	/**
 	 * Registers a listener with the registry.
@@ -54,7 +54,7 @@ public class KvStateRegistry {
 	 * @throws IllegalStateException If there is a registered listener
 	 */
 	public void registerListener(KvStateRegistryListener listener) {
-		if (!this.listener.compareAndSet(null, listener)) {
+		if (!listenerRef.compareAndSet(null, listener)) {
 			throw new IllegalStateException("Listener already registered.");
 		}
 	}
@@ -63,18 +63,8 @@ public class KvStateRegistry {
 	 * Unregisters the listener with the registry.
 	 */
 	public void unregisterListener() {
-		listener.set(null);
+		listenerRef.set(null);
 	}
-
-	/**
-	 * Registers the KvState instance identified by the given 4-tuple of JobID,
-	 * JobVertexID, key group index, and registration name.
-	 *
-	 * @param kvStateId KvStateID to identify the KvState instance
-	 * @param kvState   KvState instance to register
-	 * @throws IllegalStateException If there is a KvState instance registered
-	 *                               with the same ID.
-	 */
 
 	/**
 	 * Registers the KvState instance and returns the assigned ID.
@@ -96,7 +86,7 @@ public class KvStateRegistry {
 		KvStateID kvStateId = new KvStateID();
 
 		if (registeredKvStates.putIfAbsent(kvStateId, kvState) == null) {
-			KvStateRegistryListener listener = this.listener.get();
+			final KvStateRegistryListener listener = listenerRef.get();
 			if (listener != null) {
 				listener.notifyKvStateRegistered(
 						jobId,
@@ -108,7 +98,8 @@ public class KvStateRegistry {
 
 			return kvStateId;
 		} else {
-			throw new IllegalStateException(kvStateId + " is already registered.");
+			throw new IllegalStateException(
+					"State \"" + registrationName + " \"(id=" + kvStateId + ") appears registered although it should not.");
 		}
 	}
 
@@ -127,7 +118,7 @@ public class KvStateRegistry {
 			KvStateID kvStateId) {
 
 		if (registeredKvStates.remove(kvStateId) != null) {
-			KvStateRegistryListener listener = this.listener.get();
+			final KvStateRegistryListener listener = listenerRef.get();
 			if (listener != null) {
 				listener.notifyKvStateUnregistered(
 						jobId,
