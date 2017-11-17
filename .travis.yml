@@ -59,7 +59,7 @@ matrix:
     - jdk: "oraclejdk8"
       env:
         - TEST="misc"
-        - PROFILE="-Dhadoop.version=2.8.0"
+        - PROFILE="-Dhadoop.version=2.8.0 -Dinclude_hadoop_aws"
         - CACHE_NAME=JDK8_H280_M
     - jdk: "openjdk8"
       env:
