@@ -234,11 +234,12 @@ abstract class StreamTableEnvironment(
             "UpsertStreamTableSink requires that Table has a full primary keys if it is updated.")
         }
         val outputType = sink.getOutputType
+        val resultType = getResultType(table.getRelNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
             optimizedPlan,
-            table.getRelNode.getRowType,
+            resultType,
             streamQueryConfig,
             withChangeFlag = true)(outputType)
         // Give the DataStream to the TableSink to emit it.
@@ -254,11 +255,12 @@ abstract class StreamTableEnvironment(
             "AppendStreamTableSink requires that Table has only insert changes.")
         }
         val outputType = sink.getOutputType
+        val resultType = getResultType(table.getRelNode, optimizedPlan)
         // translate the Table into a DataStream and provide the type that the TableSink expects.
         val result: DataStream[T] =
           translate(
             optimizedPlan,
-            table.getRelNode.getRowType,
+            resultType,
             streamQueryConfig,
             withChangeFlag = false)(outputType)
         // Give the DataStream to the TableSink to emit it.
@@ -727,19 +729,7 @@ abstract class StreamTableEnvironment(
     val relNode = table.getRelNode
     val dataStreamPlan = optimize(relNode, updatesAsRetraction)
 
-    // zip original field names with optimized field types
-    val fieldTypes = relNode.getRowType.getFieldList.asScala
-      .zip(dataStreamPlan.getRowType.getFieldList.asScala)
-      // get name of original plan and type of optimized plan
-      .map(x => (x._1.getName, x._2.getType))
-      // add field indexes
-      .zipWithIndex
-      // build new field types
-      .map(x => new RelDataTypeFieldImpl(x._1._1, x._2, x._1._2))
-
-    // build a record type from list of field types
-    val rowType = new RelRecordType(
-      fieldTypes.toList.asInstanceOf[List[RelDataTypeField]].asJava)
+    val rowType = getResultType(relNode, dataStreamPlan)
 
     translate(dataStreamPlan, rowType, queryConfig, withChangeFlag)
   }
@@ -849,6 +839,25 @@ abstract class StreamTableEnvironment(
         throw TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
+  }
+
+  /**
+    * Returns the record type of the optimized plan with field names of the logical plan.
+    */
+  private def getResultType(originRelNode: RelNode, optimizedPlan: RelNode): RelRecordType = {
+    // zip original field names with optimized field types
+    val fieldTypes = originRelNode.getRowType.getFieldList.asScala
+      .zip(optimizedPlan.getRowType.getFieldList.asScala)
+      // get name of original plan and type of optimized plan
+      .map(x => (x._1.getName, x._2.getType))
+      // add field indexes
+      .zipWithIndex
+      // build new field types
+      .map(x => new RelDataTypeFieldImpl(x._1._1, x._2, x._1._2))
+
+    // build a record type from list of field types
+    new RelRecordType(
+      fieldTypes.toList.asInstanceOf[List[RelDataTypeField]].asJava)
   }
 
   /**
