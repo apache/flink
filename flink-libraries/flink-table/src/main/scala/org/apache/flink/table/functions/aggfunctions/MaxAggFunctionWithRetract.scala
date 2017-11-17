@@ -20,13 +20,13 @@ package org.apache.flink.table.functions.aggfunctions
 import java.math.BigDecimal
 import java.util.{HashMap => JHashMap}
 import java.lang.{Iterable => JIterable}
-import java.sql.Timestamp
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, TupleTypeInfo}
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.aggfunctions.Ordering.TimestampOrdering
+import org.apache.flink.table.functions.aggfunctions.Ordering._
 import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Max with retraction aggregate function */
@@ -226,4 +226,20 @@ class StringMaxWithRetractAggFunction extends MaxWithRetractAggFunction[String] 
 class TimestampMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Timestamp] {
   override def getInitValue: Timestamp = new Timestamp(0)
   override def getValueTypeInfo = Types.SQL_TIMESTAMP
+}
+
+/**
+  * Built-in Date Max with retraction aggregate function
+  */
+class DateMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Date] {
+  override def getInitValue: Date = new Date(0)
+  override def getValueTypeInfo = Types.SQL_DATE
+}
+
+/**
+  * Built-in Time Max with retraction aggregate function
+  */
+class TimeMaxWithRetractAggFunction extends MaxWithRetractAggFunction[Time] {
+  override def getInitValue: Time = new Time(0)
+  override def getValueTypeInfo = Types.SQL_TIME
 }

@@ -19,13 +19,13 @@ package org.apache.flink.table.functions.aggfunctions
 
 import java.math.BigDecimal
 import java.lang.{Iterable => JIterable}
-import java.sql.Timestamp
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.functions.aggfunctions.Ordering.TimestampOrdering
+import org.apache.flink.table.functions.aggfunctions.Ordering._
 import org.apache.flink.table.functions.AggregateFunction
 
 /** The initial accumulator for Max aggregate function */
@@ -169,4 +169,20 @@ class StringMaxAggFunction extends MaxAggFunction[String] {
 class TimestampMaxAggFunction extends MaxAggFunction[Timestamp] {
   override def getInitValue: Timestamp = new Timestamp(0)
   override def getValueTypeInfo = Types.SQL_TIMESTAMP
+}
+
+/**
+  * Built-in Date Max aggregate function
+  */
+class DateMaxAggFunction extends MaxAggFunction[Date] {
+  override def getInitValue: Date = new Date(0)
+  override def getValueTypeInfo = Types.SQL_DATE
+}
+
+/**
+  * Built-in Time Max aggregate function
+  */
+class TimeMaxAggFunction extends MaxAggFunction[Time] {
+  override def getInitValue: Time = new Time(0)
+  override def getValueTypeInfo = Types.SQL_TIME
 }

@@ -18,10 +18,18 @@
 
 package org.apache.flink.table.functions.aggfunctions
 
-import java.sql.Timestamp
+import java.sql.{Date, Time, Timestamp}
 
 object Ordering {
   implicit object TimestampOrdering extends Ordering[Timestamp] {
     override def compare(x: Timestamp, y: Timestamp): Int = x.compareTo(y)
+  }
+
+  implicit object DateOrdering extends Ordering[Date] {
+    override def compare(x: Date, y: Date): Int = x.compareTo(y)
+  }
+
+  implicit object TimeOrdering extends Ordering[Time] {
+    override def compare(x: Time, y: Time): Int = x.compareTo(y)
   }
 }
