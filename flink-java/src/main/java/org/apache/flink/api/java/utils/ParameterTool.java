@@ -32,6 +32,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -39,8 +40,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources.
@@ -212,13 +215,38 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 
 	// ------------------ ParameterUtil  ------------------------
 	protected final Map<String, String> data;
-	protected final Map<String, String> defaultData;
-	protected final Set<String> unrequestedParameters;
+
+	// data which is only used on the client and does not need to be transmitted
+	protected transient Map<String, String> defaultData;
+	protected transient Set<String> unrequestedParameters;
 
 	private ParameterTool(Map<String, String> data) {
-		this.data = new HashMap<>(data);
-		this.defaultData = new HashMap<>();
-		this.unrequestedParameters = new HashSet<>(data.keySet());
+		this.data = Collections.unmodifiableMap(new HashMap<>(data));
+
+		this.defaultData = new ConcurrentHashMap<>(data.size());
+
+		this.unrequestedParameters = Collections.newSetFromMap(new ConcurrentHashMap<>(data.size()));
+
+		unrequestedParameters.addAll(data.keySet());
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ParameterTool that = (ParameterTool) o;
+		return Objects.equals(data, that.data) &&
+			Objects.equals(defaultData, that.defaultData) &&
+			Objects.equals(unrequestedParameters, that.unrequestedParameters);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(data, defaultData, unrequestedParameters);
 	}
 
 	/**
@@ -560,9 +588,21 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return The Merged {@link ParameterTool}
 	 */
 	public ParameterTool mergeWith(ParameterTool other) {
-		ParameterTool ret = new ParameterTool(this.data);
-		ret.data.putAll(other.data);
-		ret.unrequestedParameters.addAll(other.unrequestedParameters);
+		Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
+		resultData.putAll(data);
+		resultData.putAll(other.data);
+
+		ParameterTool ret = new ParameterTool(resultData);
+
+		final HashSet<String> requestedParametersLeft = new HashSet<>(data.keySet());
+		requestedParametersLeft.removeAll(unrequestedParameters);
+
+		final HashSet<String> requestedParametersRight = new HashSet<>(other.data.keySet());
+		requestedParametersRight.removeAll(other.unrequestedParameters);
+
+		ret.unrequestedParameters.removeAll(requestedParametersLeft);
+		ret.unrequestedParameters.removeAll(requestedParametersRight);
+
 		return ret;
 	}
 
@@ -573,4 +613,12 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return data;
 	}
 
+	// ------------------------- Serialization ---------------------------------------------
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		defaultData = Collections.emptyMap();
+		unrequestedParameters = Collections.emptySet();
+	}
 }

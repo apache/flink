@@ -23,16 +23,29 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link ParameterTool}.
@@ -572,6 +585,78 @@ public class ParameterToolTest extends AbstractParameterToolTest {
 		Assert.assertEquals("0", parameter.get("string", "0"));
 
 		Assert.assertEquals(Collections.emptySet(), parameter.getUnrequestedParameters());
+	}
+
+	/**
+	 * Tests that we can concurrently serialize and access the ParameterTool. See FLINK-7943
+	 */
+	@Test
+	public void testConcurrentExecutionConfigSerialization() throws ExecutionException, InterruptedException {
+
+		final int numInputs = 10;
+		Collection<String> input = new ArrayList<>(numInputs);
+
+		for (int i = 0; i < numInputs; i++) {
+			input.add("--" + UUID.randomUUID());
+			input.add(UUID.randomUUID().toString());
+		}
+
+		final String[] args = input.toArray(new String[0]);
+
+		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+
+		final int numThreads = 5;
+		final int numSerializations = 100;
+
+		final Collection<CompletableFuture<Void>> futures = new ArrayList<>(numSerializations);
+
+		final ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
+
+		try {
+			for (int i = 0; i < numSerializations; i++) {
+				futures.add(
+					CompletableFuture.runAsync(
+						() -> {
+							try {
+								serializeDeserialize(parameterTool);
+							} catch (Exception e) {
+								throw new CompletionException(e);
+							}
+						},
+						executorService));
+			}
+
+			for (CompletableFuture<Void> future : futures) {
+				future.get();
+			}
+		} finally {
+			executorService.shutdownNow();
+			executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+		}
+	}
+
+	/**
+	 * Accesses parameter tool parameters and then serializes the given parameter tool and deserializes again.
+	 * @param parameterTool to serialize/deserialize
+	 */
+	private void serializeDeserialize(ParameterTool parameterTool) throws IOException, ClassNotFoundException {
+		// weirdly enough, this call has side effects making the ParameterTool serialization fail if not
+		// using a concurrent data structure.
+		parameterTool.get(UUID.randomUUID().toString());
+
+		try (
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+			oos.writeObject(parameterTool);
+			oos.close();
+			baos.close();
+
+			ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+			ObjectInputStream ois = new ObjectInputStream(bais);
+
+			// this should work :-)
+			ParameterTool deserializedParameterTool = ((ParameterTool) ois.readObject());
+		}
 	}
 
 	private static <T> Set<T> createHashSet(T... elements) {
