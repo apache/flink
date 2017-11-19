@@ -545,7 +545,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 						// we might also receive RegisterTaskManager and Heartbeat messages which
 						// are queued up in the testing actor's mailbox
-						while(message == null || !(message instanceof Terminated)) {
+						while(!(message instanceof Terminated)) {
 							message = receiveOne(timeout);
 						}
 

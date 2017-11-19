@@ -104,7 +104,7 @@ public class FileInputSplit extends LocatableInputSplit {
 		if (obj == this) {
 			return true;
 		}
-		else if (obj != null && obj instanceof FileInputSplit && super.equals(obj)) {
+		else if (obj instanceof FileInputSplit && super.equals(obj)) {
 			FileInputSplit other = (FileInputSplit) obj;
 
 			return this.start == other.start &&

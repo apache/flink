@@ -70,7 +70,7 @@ public class CollectionInputFormatTest {
 
 		@Override
 		public boolean equals(Object obj) {
-			if (obj != null && obj instanceof ElementType) {
+			if (obj instanceof ElementType) {
 				ElementType et = (ElementType) obj;
 				return et.getId() == this.getId();
 			} else {

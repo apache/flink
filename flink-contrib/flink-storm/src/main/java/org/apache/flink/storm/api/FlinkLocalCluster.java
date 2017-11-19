@@ -73,7 +73,7 @@ public class FlinkLocalCluster {
 		boolean submitBlocking = false;
 		if (conf != null) {
 			Object blockingFlag = conf.get(SUBMIT_BLOCKING);
-			if (blockingFlag != null && blockingFlag instanceof Boolean) {
+			if (blockingFlag instanceof Boolean) {
 				submitBlocking = ((Boolean) blockingFlag).booleanValue();
 			}
 		}

@@ -303,7 +303,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
 		@Override
 		public boolean equals(Object o) {
-			if (o == null || !(o instanceof GenericWriteAheadSink.PendingCheckpoint)) {
+			if (!(o instanceof GenericWriteAheadSink.PendingCheckpoint)) {
 				return false;
 			}
 			PendingCheckpoint other = (PendingCheckpoint) o;

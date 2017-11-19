@@ -379,7 +379,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
-		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
 			(FileBaseStatistics) cachedStats : null;
 				
 		try {
