@@ -121,7 +121,7 @@ public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCo
 			return null;
 		}
 
-		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+		final FileBaseStatistics cachedFileStats = (cachedStats instanceof FileBaseStatistics) ?
 				(FileBaseStatistics) cachedStats : null;
 
 		try {
