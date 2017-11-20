@@ -215,4 +215,62 @@ class SetOperatorsTest extends TableTestBase {
 
     util.verifyTable(result, expected)
   }
+
+  @Test
+  def testProjectUnionTranspose(): Unit = {
+    val util = batchTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.select('a, 'b, 'c)
+                 .unionAll(right.select('a, 'b, 'c))
+                 .select('b, 'c)
+
+    val expected = binaryNode(
+      "DataSetUnion",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b", "c")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(1),
+        term("select", "b", "c")
+      ),
+      term("union", "b", "c")
+    )
+
+    util.verifyTable(result, expected)
+
+  }
+
+  @Test
+  def testProjectMinusTranspose(): Unit = {
+    val util = batchTestUtil()
+    val left = util.addTable[(Int, Long, String)]("left", 'a, 'b, 'c)
+    val right = util.addTable[(Int, Long, String)]("right", 'a, 'b, 'c)
+
+    val result = left.select('a, 'b, 'c)
+                 .minusAll(right.select('a, 'b, 'c))
+                 .select('b, 'c)
+
+    val expected = binaryNode(
+      "DataSetMinus",
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "b", "c")
+      ),
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(1),
+        term("select", "b", "c")
+      ),
+      term("minus", "b", "c")
+    )
+
+    util.verifyTable(result, expected)
+
+  }
 }
