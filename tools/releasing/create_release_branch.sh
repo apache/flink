@@ -43,7 +43,7 @@ cd ..
 
 target_branch=release-$NEW_VERSION
 if [ "$RELEASE_CANDIDATE" != "none" ]; then
-  target_branch=$target_branch-$RELEASE_CANDIDATE
+  target_branch=$target_branch-rc$RELEASE_CANDIDATE
 fi
 
 git checkout -b $target_branch
