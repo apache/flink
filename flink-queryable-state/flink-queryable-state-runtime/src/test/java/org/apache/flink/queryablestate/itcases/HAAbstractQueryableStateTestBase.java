@@ -88,11 +88,10 @@ public abstract class HAAbstractQueryableStateTestBase extends AbstractQueryable
 		try {
 			zkServer.stop();
 			zkServer.close();
-		} catch (Exception e) {
+			client.shutdownAndWait();
+		} catch (Throwable e) {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-
-		client.shutdown();
 	}
 }

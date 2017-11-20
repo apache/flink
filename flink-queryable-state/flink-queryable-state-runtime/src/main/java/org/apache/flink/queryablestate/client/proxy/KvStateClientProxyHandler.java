@@ -216,7 +216,7 @@ public class KvStateClientProxyHandler extends AbstractServerHandler<KvStateRequ
 	}
 
 	@Override
-	public void shutdown() {
-		kvStateClient.shutdown();
+	public CompletableFuture<?> shutdown() {
+		return kvStateClient.shutdown();
 	}
 }

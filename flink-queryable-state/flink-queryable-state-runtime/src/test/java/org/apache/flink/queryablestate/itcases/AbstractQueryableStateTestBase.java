@@ -92,7 +92,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
-import scala.concurrent.Await;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
@@ -163,6 +162,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
 
 		try {
@@ -199,12 +199,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			cluster.submitJobDetached(jobGraph);
-
-			//
-			// Start querying
-			//
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
+
+			cluster.submitJobDetached(jobGraph);
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
@@ -264,12 +262,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -331,10 +328,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
 
-			CompletableFuture<TestingJobManagerMessages.JobStatusIs> failedFuture = FutureUtils.toJava(
-					cluster.getLeaderGateway(deadline.timeLeft())
-							.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, JobStatus.FAILED), deadline.timeLeft())
-							.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
+			final CompletableFuture<TestingJobManagerMessages.JobStatusIs> failedFuture =
+					notifyWhenJobStatusIs(jobId, JobStatus.FAILED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -359,12 +354,12 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				scala.concurrent.Future<CancellationSuccess> cancellation = cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<JobManagerMessages.CancellationSuccess>apply(JobManagerMessages.CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				// we are not waiting for the cancellation to happen because the
+				// job has actually failed, as tested above.
 			}
 		}
 	}
@@ -382,7 +377,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -412,6 +409,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -419,12 +417,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -440,7 +437,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -469,11 +468,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
-			CompletableFuture<TestingJobManagerMessages.JobStatusIs> runningFuture = FutureUtils.toJava(
-					cluster.getLeaderGateway(deadline.timeLeft())
-							.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, JobStatus.RUNNING), deadline.timeLeft())
-							.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
+			CompletableFuture<TestingJobManagerMessages.JobStatusIs> runningFuture =
+					notifyWhenJobStatusIs(jobId, JobStatus.RUNNING, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -523,12 +521,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -544,7 +541,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -576,6 +575,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			// Now query
 			long expected = numElements;
@@ -594,12 +594,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -620,7 +619,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env =
 				StreamExecutionEnvironment.getExecutionEnvironment();
@@ -660,6 +661,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -687,12 +689,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -712,7 +713,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -739,6 +742,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -749,12 +753,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(
-						cluster.getLeaderGateway(deadline.timeLeft())
-								.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-								.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+				cluster.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -773,7 +776,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final int numElements = 1024;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -807,6 +812,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -843,12 +849,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -866,7 +871,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -898,6 +905,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -934,12 +942,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -957,7 +964,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -1007,6 +1016,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -1042,12 +1052,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -1066,7 +1075,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -1111,6 +1122,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -1162,12 +1174,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -1179,7 +1190,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 		final long numElements = 1024L;
 
+		CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture = null;
 		JobID jobId = null;
+
 		try {
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setStateBackend(stateBackend);
@@ -1215,6 +1228,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Submit the job graph
 			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 			jobId = jobGraph.getJobID();
+			cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -1249,12 +1263,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		} finally {
 			// Free cluster resources
 			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -1464,6 +1477,15 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	}
 
 	/////				General Utility Methods				//////
+
+	private CompletableFuture<TestingJobManagerMessages.JobStatusIs> notifyWhenJobStatusIs(
+			final JobID jobId, final JobStatus status, final Deadline deadline) {
+
+		return FutureUtils.toJava(
+				cluster.getLeaderGateway(deadline.timeLeft())
+						.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, status), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
+	}
 
 	private static <K, S extends State, V> CompletableFuture<S> getKvState(
 			final Deadline deadline,
