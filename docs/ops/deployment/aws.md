@@ -268,13 +268,19 @@ There are multiple ways of adding JARs to Flink's class path, the easiest being 
 Depending on which file system you use, please add the following dependencies. You can find these as part of the Hadoop binaries in `hadoop-2.7/share/hadoop/tools/lib`:
 
 - `S3AFileSystem`:
-  - `hadoop-aws-2.7.2.jar`
-  - `aws-java-sdk-1.7.4.jar`
-  - `httpcore-4.2.5.jar`
-  - `httpclient-4.2.5.jar`
+  - `hadoop-aws-2.7.3.jar`
+  - `aws-java-sdk-s3-1.11.183.jar` and its dependencies:
+    - `aws-java-sdk-core-1.11.183.jar`
+    - `aws-java-sdk-kms-1.11.183.jar`
+    - `jackson-annotations-2.6.7.jar`
+    - `jackson-core-2.6.7.jar`
+    - `jackson-databind-2.6.7.jar`
+    - `joda-time-2.8.1.jar`
+    - `httpcore-4.4.4.jar`
+    - `httpclient-4.5.3.jar`
 
 - `NativeS3FileSystem`:
-  - `hadoop-aws-2.7.2.jar`
+  - `hadoop-aws-2.7.3.jar`
   - `guava-11.0.2.jar`
 
 Note that `hadoop-common` is available as part of Flink, but Guava is shaded by Flink.
@@ -285,9 +291,13 @@ Depending on which file system you use, please add the following dependencies. Y
 
 - `S3AFileSystem`:
   - `hadoop-aws-2.6.4.jar`
-  - `aws-java-sdk-1.7.4.jar`
-  - `httpcore-4.2.5.jar`
-  - `httpclient-4.2.5.jar`
+  - `aws-java-sdk-1.7.4.jar` and its dependencies:
+    - `jackson-annotations-2.1.1.jar`
+    - `jackson-core-2.1.1.jar`
+    - `jackson-databind-2.1.1.jar`
+    - `joda-time-2.2.jar`
+    - `httpcore-4.2.5.jar`
+    - `httpclient-4.2.5.jar`
 
 - `NativeS3FileSystem`:
   - `hadoop-aws-2.6.4.jar`
