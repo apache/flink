@@ -91,11 +91,6 @@ public class PythonPlanBinder {
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
-		if (args.length < 2) {
-			System.out.println("Usage: ./bin/pyflink<2/3>.[sh/bat] <pathToScript>[ <pathToPackage1>[ <pathToPackageX]][ - <parameter1>[ <parameterX>]]");
-			return;
-		}
-
 		Configuration globalConfig = GlobalConfiguration.loadConfiguration();
 		PythonPlanBinder binder = new PythonPlanBinder(globalConfig);
 		binder.runPlan(args);
@@ -126,6 +121,10 @@ public class PythonPlanBinder {
 	}
 
 	void runPlan(String[] args) throws Exception {
+		if (args.length < 1) {
+			throw new IllegalArgumentException("Missing script file argument. Usage: ./bin/pyflink.[sh/bat] <pathToScript>[ <pathToPackage1>[ <pathToPackageX]][ - <parameter1>[ <parameterX>]]");
+		}
+
 		int split = 0;
 		for (int x = 0; x < args.length; x++) {
 			if (args[x].equals("-")) {
