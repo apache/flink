@@ -25,7 +25,7 @@ start_cluster
 mkdir -p $TEST_DATA_DIR
 if [ -z "$3" ]; then
   # need to download Kafka because no Kafka was specified on the invocation
-  KAFKA_URL="http://mirror.netcologne.de/apache.org/kafka/0.10.2.0/kafka_2.11-0.10.2.0.tgz"
+  KAFKA_URL="https://archive.apache.org/dist/kafka/0.10.2.0/kafka_2.11-0.10.2.0.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
   curl "$KAFKA_URL" > $TEST_DATA_DIR/kafka.tgz
 else
