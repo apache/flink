@@ -22,6 +22,7 @@ import org.apache.calcite.avatica.util.{DateTimeUtils, TimeUnitRange}
 import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
+import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
@@ -847,6 +848,43 @@ object ScalarOperators {
     : GeneratedExpression = {
     val operator = if (plus) "+" else "-"
     generateUnaryArithmeticOperator(operator, nullCheck, operand.resultType, operand)
+  }
+
+  def generateRow(
+      codeGenerator: CodeGenerator,
+      resultType: TypeInformation[_],
+      elements: Seq[GeneratedExpression])
+  : GeneratedExpression = {
+    val rowTerm = codeGenerator.addReusableRow(resultType.getArity, elements.size)
+
+    val boxedElements: Seq[GeneratedExpression] = resultType match {
+      case ct: CompositeType[_] =>
+        elements.zipWithIndex.map{
+          case (e, idx) =>
+            val boxedTypeTerm = boxedTypeTermForTypeInfo(ct.getTypeAt(idx))
+            val boxedExpr = codeGenerator.generateOutputFieldBoxing(e)
+            val exprOrNull: String = if (codeGenerator.nullCheck) {
+              s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
+            } else {
+              boxedExpr.resultTerm
+            }
+            boxedExpr.copy(resultTerm = exprOrNull)
+        }
+      case _ => throw new CodeGenException(s"Unsupported Row generate operation, " +
+        s"expected CompositeType but found $resultType!")
+    }
+
+    val code = boxedElements
+      .zipWithIndex
+      .map { case (element, idx) =>
+        s"""
+           |${element.code}
+           |$rowTerm.setField($idx, ${element.resultTerm});
+           |""".stripMargin
+      }
+      .mkString("\n")
+
+    GeneratedExpression(rowTerm, GeneratedExpression.NEVER_NULL, code, resultType)
   }
 
   def generateArray(

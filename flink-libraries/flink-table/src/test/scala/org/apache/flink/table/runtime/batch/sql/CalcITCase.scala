@@ -309,6 +309,27 @@ class CalcITCase(
   }
 
   @Test
+  def testValueConstructor(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT (a, b, c), ARRAY[b, b] FROM MyTable"
+
+    val ds = env.fromElements((
+      "foo",
+      12,
+      Timestamp.valueOf("1984-07-12 14:34:24")))
+    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12]"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+  }
+
+  @Test
   def testUserDefinedScalarFunction(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)

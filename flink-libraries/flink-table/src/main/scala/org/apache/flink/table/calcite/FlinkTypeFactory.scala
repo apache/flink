@@ -434,6 +434,10 @@ object FlinkTypeFactory {
       val compositeRelDataType = relDataType.asInstanceOf[CompositeRelDataType]
       compositeRelDataType.compositeType
 
+    case ROW if relDataType.isInstanceOf[RelRecordType] =>
+      val relRecordType = relDataType.asInstanceOf[RelRecordType]
+      new RowSchema(relRecordType).typeInfo
+
     // ROW and CURSOR for UDTF case, whose type info will never be used, just a placeholder
     case ROW | CURSOR => new NothingTypeInfo
 
