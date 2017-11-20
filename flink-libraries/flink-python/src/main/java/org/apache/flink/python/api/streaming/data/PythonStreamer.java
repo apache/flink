@@ -117,7 +117,8 @@ public class PythonStreamer<S extends PythonSender, OUT> implements Serializable
 
 		String pythonBinaryPath = config.getString(PythonOptions.PYTHON_BINARY_PATH);
 
-		process = Runtime.getRuntime().exec(new String[] {pythonBinaryPath, "-O", "-B", planPath, config.getString(PLAN_ARGUMENTS_KEY, "")});
+		String arguments = config.getString(PLAN_ARGUMENTS_KEY, "");
+		process = Runtime.getRuntime().exec(pythonBinaryPath + " -O -B " + planPath + arguments);
 		outPrinter = new Thread(new StreamPrinter(process.getInputStream()));
 		outPrinter.start();
 		errorPrinter = new Thread(new StreamPrinter(process.getErrorStream(), msg));

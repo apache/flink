@@ -37,18 +37,19 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 		return true;
 	}
 
-	private static String findUtilsFile() throws Exception {
+	private static Path getBaseTestPythonDir() {
 		FileSystem fs = FileSystem.getLocalFileSystem();
-		return fs.getWorkingDirectory().toString()
-				+ "/src/test/python/org/apache/flink/python/api/utils/utils.py";
+		return new Path(fs.getWorkingDirectory(), "src/test/python/org/apache/flink/python/api");
+	}
+
+	private static String findUtilsFile() throws Exception {
+		return new Path(getBaseTestPythonDir(), "utils/utils.py").toString();
 	}
 
 	private static List<String> findTestFiles() throws Exception {
 		List<String> files = new ArrayList<>();
 		FileSystem fs = FileSystem.getLocalFileSystem();
-		FileStatus[] status = fs.listStatus(
-				new Path(fs.getWorkingDirectory().toString()
-						+ "/src/test/python/org/apache/flink/python/api"));
+		FileStatus[] status = fs.listStatus(getBaseTestPythonDir());
 		for (FileStatus f : status) {
 			String file = f.getPath().toString();
 			if (file.endsWith(".py")) {
@@ -126,11 +127,13 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 		if (python2 != null) {
 			log.info("Running python2 tests");
 			runTestPrograms(python2);
+			runArgvTestPrograms(python2);
 		}
 		String python3 = getPython3Path();
 		if (python3 != null) {
 			log.info("Running python3 tests");
 			runTestPrograms(python3);
+			runArgvTestPrograms(python3);
 		}
 	}
 
@@ -175,6 +178,27 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 			new PythonPlanBinder(new Configuration()).runPlan(new String[0]);
 		} catch (IllegalArgumentException expected) {
 			// we expect this exception to be thrown since no argument was passed
+		}
+	}
+
+	private void runArgvTestPrograms(String pythonBinary) throws Exception {
+		log.info("Running runArgvTestPrograms.");
+		String utils = findUtilsFile();
+
+		{
+			String noArgTestPath = new Path(getBaseTestPythonDir(), "args/no_arg.py").toString();
+
+			Configuration configuration = new Configuration();
+			configuration.setString(PythonOptions.PYTHON_BINARY_PATH, pythonBinary);
+			new PythonPlanBinder(configuration).runPlan(new String[]{noArgTestPath, utils});
+		}
+
+		{
+			String multiArgTestPath = new Path(getBaseTestPythonDir(), "args/multiple_args.py").toString();
+
+			Configuration configuration = new Configuration();
+			configuration.setString(PythonOptions.PYTHON_BINARY_PATH, pythonBinary);
+			new PythonPlanBinder(configuration).runPlan(new String[]{multiArgTestPath, utils, "-", "hello", "world"});
 		}
 	}
 }
