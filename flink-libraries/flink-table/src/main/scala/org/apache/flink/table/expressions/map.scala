@@ -38,11 +38,10 @@ case class MapConstructor(elements: Seq[Expression]) extends Expression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.asInstanceOf[FlinkRelBuilder].getTypeFactory
-    val entryRelDataTypes = elements
-      .map(x => typeFactory.createTypeFromTypeInfo(x.resultType, isNullable = false))
-    val relDataType = SqlStdOperatorTable
-      .MAP_VALUE_CONSTRUCTOR
-      .inferReturnType(typeFactory, entryRelDataTypes.toList.asJava)
+    val relDataType = typeFactory.createMapType(
+      typeFactory.createTypeFromTypeInfo(elements.head.resultType, isNullable = true),
+      typeFactory.createTypeFromTypeInfo(elements.last.resultType, isNullable = true)
+    )
     val values = elements.map(_.toRexNode).toList.asJava
     relBuilder
       .getRexBuilder
@@ -63,7 +62,7 @@ case class MapConstructor(elements: Seq[Expression]) extends Expression {
       return ValidationFailure("Empty maps are not supported yet.")
     }
     if (elements.size % 2 != 0) {
-      return ValidationFailure("maps must have even number of elements to form key value pairs.")
+      return ValidationFailure("Maps must have even number of elements to form key value pairs.")
     }
     if (!elements.grouped(2).forall(_.head.resultType == elements.head.resultType)) {
       return ValidationFailure("Not all key elements of the map literal have the same type.")
@@ -72,37 +71,6 @@ case class MapConstructor(elements: Seq[Expression]) extends Expression {
       return ValidationFailure("Not all value elements of the map literal have the same type.")
     }
     ValidationSuccess
-  }
-}
-
-case class MapElementGetValue(map: Expression, key: Expression) extends Expression {
-
-  override private[flink] def children: Seq[Expression] = Seq(map, key)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(SqlStdOperatorTable.ITEM, map.toRexNode, key.toRexNode)
-  }
-
-  override def toString = s"($map).get($key)"
-
-  override private[flink] def resultType = map.resultType match {
-    case mti: MapTypeInfo[_, _] => mti.getValueTypeInfo
-  }
-
-  override private[flink] def validateInput(): ValidationResult = {
-    map.resultType match {
-      case mti: MapTypeInfo[_, _]  =>
-        if (key.resultType == mti.getKeyTypeInfo) {
-          ValidationSuccess
-        } else {
-          ValidationFailure(
-            s"Map key-value access needs a valid key of type " +
-              s"'${mti.getKeyTypeInfo}', found '${key.resultType}'.")
-        }
-      case other@_ => ValidationFailure(s"Map expected but was '$other'.")
-    }
   }
 }
 

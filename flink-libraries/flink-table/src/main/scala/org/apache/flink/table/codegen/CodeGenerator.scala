@@ -979,9 +979,21 @@ abstract class CodeGenerator(
         }
 
       case CARDINALITY =>
-        val array = operands.head
-        requireArray(array)
-        generateArrayCardinality(nullCheck, array)
+        operands.head.resultType match {
+          case _: ObjectArrayTypeInfo[_, _] |
+               _: BasicArrayTypeInfo[_, _] |
+               _: PrimitiveArrayTypeInfo[_] =>
+            val array = operands.head
+            requireArray(array)
+            generateArrayCardinality(nullCheck, array)
+
+          case _: MapTypeInfo[_, _] =>
+            val map = operands.head
+            requireMap(map)
+            generateMapCardinality(nullCheck, map)
+
+          case _ => throw new CodeGenException("Expect an array or a map.")
+        }
 
       case ELEMENT =>
         val array = operands.head

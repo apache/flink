@@ -100,8 +100,8 @@ class MapTypeTest extends MapTypeTestBase {
       "{{a=12, b=13}={12=a, 13=b}}")
 
     testAllApis(
-      map('f1.getValue("a"), 'f5),
-      "map(f1.getValue('a'), f5)",
+      map('f1.at("a"), 'f5),
+      "map(f1.at('a'), f5)",
       "MAP[f1['a'], f5]",
       "{null=12}")
 
@@ -118,20 +118,20 @@ class MapTypeTest extends MapTypeTestBase {
       "{a=12, b=13}")
 
     testAllApis(
-      'f2.getValue("a"),
-      "f2.getValue('a')",
+      'f2.at("a"),
+      "f2.at('a')",
       "f2['a']",
       "12")
 
     testAllApis(
-      'f3.getValue(12),
-      "f3.getValue(12)",
+      'f3.at(12),
+      "f3.at(12)",
       "f3[12]",
       "a")
 
     testAllApis(
-      map('f4, 'f3).getValue("foo").getValue(13),
-      "map(f4, f3).getValue('foo').getValue(13)",
+      map('f4, 'f3).at("foo").at(13),
+      "map(f4, f3).at('foo').at(13)",
       "MAP[f4, f3]['foo'][13]",
       "b")
   }
@@ -141,46 +141,55 @@ class MapTypeTest extends MapTypeTestBase {
 
     // comparison
     testAllApis(
-      'f5 === 'f2.getValue("a"),
-      "f5 === f2.getValue('a')",
+      'f5 === 'f2.at("a"),
+      "f5 === f2.at('a')",
       "f5 = f2['a']",
       "true")
 
     // comparison
     testAllApis(
-      'f5 === 'f2.getValue("a"),
-      "f5 === f2.getValue('a')",
+      'f5 === 'f2.at("a"),
+      "f5 === f2.at('a')",
       "f5 = f2['a']",
       "true")
 
     testAllApis(
-      'f0.getValue("map is null"),
-      "f0.getValue('map is null')",
+      'f0.at("map is null"),
+      "f0.at('map is null')",
       "f0['map is null']",
       "null")
 
     testAllApis(
-      'f1.getValue("map is empty"),
-      "f1.getValue('map is empty')",
+      'f1.at("map is empty"),
+      "f1.at('map is empty')",
       "f1['map is empty']",
       "null")
 
     testAllApis(
-      'f2.getValue("b"),
-      "f2.getValue('b')",
+      'f2.at("b"),
+      "f2.at('b')",
       "f2['b']",
       "13")
 
     testAllApis(
-      'f3.getValue(1),
-      "f3.getValue(1)",
+      'f3.at(1),
+      "f3.at(1)",
       "f3[1]",
       "null")
 
     testAllApis(
-      'f3.getValue(12),
-      "f3.getValue(12)",
+      'f3.at(12),
+      "f3.at(12)",
       "f3[12]",
       "a")
+  }
+
+  @Test
+  def testMapTypeCasting(): Unit = {
+    testTableApi(
+      'f2.cast(Types.MAP(Types.STRING, Types.INT)),
+      "f2.cast(MAP(STRING, INT))",
+      "{a=12, b=13}"
+    )
   }
 }

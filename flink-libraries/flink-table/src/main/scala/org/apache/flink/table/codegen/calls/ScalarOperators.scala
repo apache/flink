@@ -1146,6 +1146,15 @@ object ScalarOperators {
     GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
   }
 
+  def generateMapCardinality(
+      nullCheck: Boolean,
+      map: GeneratedExpression)
+  : GeneratedExpression = {
+    generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, map) {
+      (operandTerm) => s"${map.resultTerm}.size"
+    }
+  }
+
   // ----------------------------------------------------------------------------------------------
 
   private def generateUnaryOperatorIfNotNull(

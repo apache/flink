@@ -62,66 +62,6 @@ case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
   }
 }
 
-case class ArrayElementAt(array: Expression, index: Expression) extends Expression {
-
-  override private[flink] def children: Seq[Expression] = Seq(array, index)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(SqlStdOperatorTable.ITEM, array.toRexNode, index.toRexNode)
-  }
-
-  override def toString = s"($array).at($index)"
-
-  override private[flink] def resultType = array.resultType match {
-    case oati: ObjectArrayTypeInfo[_, _] => oati.getComponentInfo
-    case bati: BasicArrayTypeInfo[_, _] => bati.getComponentInfo
-    case pati: PrimitiveArrayTypeInfo[_] => pati.getComponentType
-  }
-
-  override private[flink] def validateInput(): ValidationResult = {
-    array.resultType match {
-      case ati: TypeInformation[_] if isArray(ati)  =>
-        if (index.resultType == INT_TYPE_INFO) {
-          // check for common user mistake
-          index match {
-            case Literal(value: Int, INT_TYPE_INFO) if value < 1 =>
-              ValidationFailure(
-                s"Array element access needs an index starting at 1 but was $value.")
-            case _ => ValidationSuccess
-          }
-        } else {
-          ValidationFailure(
-            s"Array element access needs an integer index but was '${index.resultType}'.")
-        }
-      case other@_ => ValidationFailure(s"Array expected but was '$other'.")
-    }
-  }
-}
-
-case class ArrayCardinality(array: Expression) extends Expression {
-
-  override private[flink] def children: Seq[Expression] = Seq(array)
-
-  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
-    relBuilder
-      .getRexBuilder
-      .makeCall(SqlStdOperatorTable.CARDINALITY, array.toRexNode)
-  }
-
-  override def toString = s"($array).cardinality()"
-
-  override private[flink] def resultType = BasicTypeInfo.INT_TYPE_INFO
-
-  override private[flink] def validateInput(): ValidationResult = {
-    array.resultType match {
-      case ati: TypeInformation[_] if isArray(ati) => ValidationSuccess
-      case other@_ => ValidationFailure(s"Array expected but was '$other'.")
-    }
-  }
-}
-
 case class ArrayElement(array: Expression) extends Expression {
 
   override private[flink] def children: Seq[Expression] = Seq(array)

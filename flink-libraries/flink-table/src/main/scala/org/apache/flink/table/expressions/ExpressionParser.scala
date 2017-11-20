@@ -142,7 +142,7 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val dataType: PackratParser[TypeInformation[_]] =
     PRIMITIVE_ARRAY ~ "(" ~> dataType <~ ")" ^^ { ct => Types.PRIMITIVE_ARRAY(ct) } |
     OBJECT_ARRAY ~ "(" ~> dataType <~ ")" ^^ { ct => Types.OBJECT_ARRAY(ct) } |
-    MAP ~ "(" ~> dataType ~ dataType <~ ")" ^^ { tt => Types.MAP(tt._1, tt._2)} |
+    MAP ~ "(" ~> dataType ~ "," ~ dataType <~ ")" ^^ { mt => Types.MAP(mt._1._1, mt._2)} |
     BYTE ^^ { e => Types.BYTE } |
     SHORT ^^ { e => Types.SHORT } |
     INTERVAL_MONTHS ^^ { e => Types.INTERVAL_MONTHS } |
