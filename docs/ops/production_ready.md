@@ -32,7 +32,7 @@ important and need **careful considerations** if you plan to bring your Flink jo
 Flink provides out-of-the-box defaults to make usage and adoption of Flink easier. For many users and scenarios, those
 defaults are good starting points for development and completely sufficient for "one-shot" jobs. 
 
-However, once you are planning to bring a Flink appplication to production the requirements typically increase. For example,
+However, once you are planning to bring a Flink application to production the requirements typically increase. For example,
 you want your job to be (re-)scalable and to have a good upgrade story for your job and new Flink versions.
 
 In the following, we present a collection of configuration options that you should check before your job goes into production.

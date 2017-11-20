@@ -29,7 +29,7 @@ programmer can benefit to the maximum from its offered functionality.
 
 The general structure of a windowed Flink program is presented below. The first snippet refers to *keyed* streams,
 while the second to *non-keyed* ones. As one can see, the only difference is the `keyBy(...)` call for the keyed streams
-and the `window(...)` which becomes `windowAll(...)` for non-keyed streams. These is also going to serve as a roadmap
+and the `window(...)` which becomes `windowAll(...)` for non-keyed streams. This is also going to serve as a roadmap
 for the rest of the page.
 
 **Keyed Windows**
@@ -1383,7 +1383,7 @@ and then calculating the top-k elements within the same window in the second ope
 
 Windows can be defined over long periods of time (such as days, weeks, or months) and therefore accumulate very large state. There are a couple of rules to keep in mind when estimating the storage requirements of your windowing computation:
 
-1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each element (an element belongs to exactly window unless it is dropped late). In contrast, sliding windows create several of each element, as explained in the [Window Assigners](#window-assigners) section. Hence, a sliding window of size 1 day and slide 1 second might not be a good idea.
+1. Flink creates one copy of each element per window to which it belongs. Given this, tumbling windows keep one copy of each element (an element belongs to exactly one window unless it is dropped late). In contrast, sliding windows create several of each element, as explained in the [Window Assigners](#window-assigners) section. Hence, a sliding window of size 1 day and slide 1 second might not be a good idea.
 
 2. `ReduceFunction`, `AggregateFunction`, and `FoldFunction` can significantly reduce the storage requirements, as they eagerly aggregate elements and store only one value per window. In contrast, just using a `ProcessWindowFunction` requires accumulating all elements.
 
