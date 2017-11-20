@@ -302,7 +302,7 @@ public abstract class RestServerEndpoint {
 	 * <p>IMPORTANT: This comparator is highly specific to how Netty path parameter are encoded. Namely
 	 * via a preceding ':' character.
 	 */
-	static final class RestHandlerUrlComparator implements Comparator<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>, Serializable {
+	public static final class RestHandlerUrlComparator implements Comparator<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>, Serializable {
 
 		private static final long serialVersionUID = 2388466767835547926L;
 
@@ -317,7 +317,7 @@ public abstract class RestServerEndpoint {
 			return CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
 		}
 
-		static final class CaseInsensitiveOrderComparator implements Comparator<String>, Serializable {
+		public static final class CaseInsensitiveOrderComparator implements Comparator<String>, Serializable {
 			private static final long serialVersionUID = 8550835445193437027L;
 
 			@Override
