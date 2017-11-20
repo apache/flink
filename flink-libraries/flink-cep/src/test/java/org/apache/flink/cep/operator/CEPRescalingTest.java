@@ -50,6 +50,8 @@ import static org.junit.Assert.assertTrue;
  */
 public class CEPRescalingTest {
 
+	private static final long PATTERN_TIMEOUT_MS = 10L;
+
 	@Test
 	public void testCEPFunctionScalingUp() throws Exception {
 		int maxParallelism = 10;
@@ -374,7 +376,8 @@ public class CEPRescalingTest {
 		return new KeyedOneInputStreamOperatorTestHarness<>(
 			getKeyedCepOpearator(
 				false,
-				new NFAFactory()),
+				new NFAFactory(),
+				PATTERN_TIMEOUT_MS),
 			keySelector,
 			BasicTypeInfo.INT_TYPE_INFO,
 			maxParallelism,
@@ -425,7 +428,7 @@ public class CEPRescalingTest {
 				})
 				// add a window timeout to test whether timestamps of elements in the
 				// priority queue in CEP operator are correctly checkpointed/restored
-				.within(Time.milliseconds(10L));
+				.within(Time.milliseconds(PATTERN_TIMEOUT_MS));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}

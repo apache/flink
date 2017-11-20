@@ -61,6 +61,8 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class CEPMigrationTest {
 
+	private static final long PATTERN_TIMEOUT_MS = 10L;
+
 	/**
 	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
 	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
@@ -100,7 +102,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-					getKeyedCepOpearator(false, new NFAFactory()),
+					getKeyedCepOpearator(false, new NFAFactory(), PATTERN_TIMEOUT_MS),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -145,7 +147,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(false, new NFAFactory()),
+						getKeyedCepOpearator(false, new NFAFactory(), PATTERN_TIMEOUT_MS),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -209,7 +211,7 @@ public class CEPMigrationTest {
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				getKeyedCepOpearator(false, new NFAFactory()),
+				getKeyedCepOpearator(false, new NFAFactory(), PATTERN_TIMEOUT_MS),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
@@ -264,7 +266,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-					getKeyedCepOpearator(false, new NFAFactory()),
+					getKeyedCepOpearator(false, new NFAFactory(), PATTERN_TIMEOUT_MS),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -307,7 +309,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-					getKeyedCepOpearator(false, new NFAFactory()),
+					getKeyedCepOpearator(false, new NFAFactory(), PATTERN_TIMEOUT_MS),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -385,7 +387,7 @@ public class CEPMigrationTest {
 			harness.close();
 
 			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				getKeyedCepOpearator(false, new NFAFactory()),
+				getKeyedCepOpearator(false, new NFAFactory(), PATTERN_TIMEOUT_MS),
 				keySelector,
 				BasicTypeInfo.INT_TYPE_INFO);
 
@@ -439,7 +441,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
+						getKeyedCepOpearator(false, new SinglePatternNFAFactory(), PATTERN_TIMEOUT_MS),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -473,7 +475,7 @@ public class CEPMigrationTest {
 
 		OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
 				new KeyedOneInputStreamOperatorTestHarness<>(
-						getKeyedCepOpearator(false, new SinglePatternNFAFactory()),
+						getKeyedCepOpearator(false, new SinglePatternNFAFactory(), PATTERN_TIMEOUT_MS),
 						keySelector,
 						BasicTypeInfo.INT_TYPE_INFO);
 
@@ -529,7 +531,7 @@ public class CEPMigrationTest {
 		public NFA<Event> createNFA() {
 
 			Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(new StartFilter())
-					.within(Time.milliseconds(10L));
+					.within(Time.milliseconds(PATTERN_TIMEOUT_MS));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}
@@ -560,7 +562,7 @@ public class CEPMigrationTest {
 					.where(new EndFilter())
 					// add a window timeout to test whether timestamps of elements in the
 					// priority queue in CEP operator are correctly checkpointed/restored
-					.within(Time.milliseconds(10L));
+					.within(Time.milliseconds(PATTERN_TIMEOUT_MS));
 
 			return NFACompiler.compile(pattern, Event.createTypeSerializer(), handleTimeout);
 		}

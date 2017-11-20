@@ -74,7 +74,8 @@ public class CEPOperatorUtils {
 					nfaFactory,
 					comparator,
 					skipStrategy,
-					selectFunction
+					selectFunction,
+					pattern.getWindowTime() != null ? pattern.getWindowTime().toMilliseconds() : -1
 				);
 			}
 
@@ -121,7 +122,8 @@ public class CEPOperatorUtils {
 					nfaFactory,
 					comparator,
 					skipStrategy,
-					selectFunction
+					selectFunction,
+					pattern.getWindowTime() != null ? pattern.getWindowTime().toMilliseconds() : -1
 				);
 			}
 
@@ -177,7 +179,8 @@ public class CEPOperatorUtils {
 					skipStrategy,
 					selectFunction,
 					timeoutFunction,
-					outputTag
+					outputTag,
+					pattern.getWindowTime() != null ? pattern.getWindowTime().toMilliseconds() : -1
 				);
 			}
 
@@ -233,7 +236,8 @@ public class CEPOperatorUtils {
 					skipStrategy,
 					selectFunction,
 					timeoutFunction,
-					outputTag
+					outputTag,
+					pattern.getWindowTime() != null ? pattern.getWindowTime().toMilliseconds() : -1
 				);
 			}
 

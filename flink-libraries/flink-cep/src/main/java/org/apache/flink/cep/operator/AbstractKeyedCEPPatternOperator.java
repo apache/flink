@@ -95,13 +95,16 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 
 	protected final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
+	private final long patternTimeoutMs;
+
 	public AbstractKeyedCEPPatternOperator(
 			final TypeSerializer<IN> inputSerializer,
 			final boolean isProcessingTime,
 			final NFACompiler.NFAFactory<IN> nfaFactory,
 			final EventComparator<IN> comparator,
 			final AfterMatchSkipStrategy afterMatchSkipStrategy,
-			final F function) {
+			final F function,
+			final long patternTimeoutMs) {
 		super(function);
 
 		this.inputSerializer = Preconditions.checkNotNull(inputSerializer);
@@ -114,6 +117,8 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 		} else {
 			this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 		}
+
+		this.patternTimeoutMs = patternTimeoutMs;
 	}
 
 	@Override
@@ -178,7 +183,7 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 				// we have an event with a valid timestamp, so
 				// we buffer it until we receive the proper watermark.
 
-				saveRegisterWatermarkTimer();
+				saveRegisterWatermarkTimer(timestamp);
 
 				bufferEvent(value, timestamp);
 			}
@@ -186,15 +191,14 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 	}
 
 	/**
-	 * Registers a timer for {@code current watermark + 1}, this means that we get triggered
-	 * whenever the watermark advances, which is what we want for working off the queue of
-	 * buffered elements.
+	 * Registers a timer for {@code elementTimestamp} and {@code elementTimestamp + patternTimeoutMs},
+	 * the first timer is used to process the buffered elements and the second timer is used to process
+	 * the timed out ones.
 	 */
-	private void saveRegisterWatermarkTimer() {
-		long currentWatermark = timerService.currentWatermark();
-		// protect against overflow
-		if (currentWatermark + 1 > currentWatermark) {
-			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
+	private void saveRegisterWatermarkTimer(long elementTimestamp) {
+		timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, elementTimestamp);
+		if (patternTimeoutMs > 0) {
+			timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, elementTimestamp + patternTimeoutMs);
 		}
 	}
 
@@ -245,10 +249,6 @@ public abstract class AbstractKeyedCEPPatternOperator<IN, KEY, OUT, F extends Fu
 			elementQueueState.clear();
 		}
 		updateNFA(nfa);
-
-		if (!sortedTimestamps.isEmpty() || !nfa.isEmpty()) {
-			saveRegisterWatermarkTimer();
-		}
 
 		// STEP 5
 		updateLastSeenWatermark(timerService.currentWatermark());
