@@ -21,7 +21,6 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -82,9 +81,6 @@ public class NetworkEnvironmentTest {
 		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
 		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 8);
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
-		final ResultPartitionWriter[] resultPartitionWriters = new ResultPartitionWriter[] {
-			new ResultPartitionWriter(rp1), new ResultPartitionWriter(rp2),
-			new ResultPartitionWriter(rp3), new ResultPartitionWriter(rp4)};
 
 		// input gates
 		SingleInputGate ig1 = createSingleInputGateMock(ResultPartitionType.PIPELINED, 2);
@@ -95,8 +91,7 @@ public class NetworkEnvironmentTest {
 
 		// overall task to register
 		Task task = mock(Task.class);
-		when(task.getProducedPartitions()).thenReturn(resultPartitions);
-		when(task.getAllWriters()).thenReturn(resultPartitionWriters);
+		when(task.getAllOutputPartitions()).thenReturn(resultPartitions);
 		when(task.getAllInputGates()).thenReturn(inputGates);
 
 		network.registerTask(task);

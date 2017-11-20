@@ -33,7 +33,7 @@ public class MockRecordWriter extends RecordWriter<SerializationDelegate<StreamR
 	public ArrayList<Integer> emittedRecords;
 
 	public MockRecordWriter(DataSourceTask<?> inputBase, Class<StreamRecord<Tuple1<Integer>>> outputClass) {
-		super(inputBase.getEnvironment().getWriter(0));
+		super(inputBase.getEnvironment().getOutputPartition(0));
 	}
 
 	public boolean initList() {

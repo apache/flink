@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 
 import java.io.IOException;
 
@@ -49,14 +49,14 @@ public class StreamRecordWriter<T extends IOReadableWritable> extends RecordWrit
 	/** The exception encountered in the flushing thread. */
 	private Throwable flusherException;
 
-	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector, long timeout) {
-		this(writer, channelSelector, timeout, null);
+	public StreamRecordWriter(ResultPartition partition, ChannelSelector<T> channelSelector, long timeout) {
+		this(partition, channelSelector, timeout, null);
 	}
 
-	public StreamRecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector,
+	public StreamRecordWriter(ResultPartition partition, ChannelSelector<T> channelSelector,
 								long timeout, String taskName) {
 
-		super(writer, channelSelector);
+		super(partition, channelSelector);
 
 		checkArgument(timeout >= -1);
 

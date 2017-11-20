@@ -22,6 +22,7 @@ import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
@@ -36,11 +37,11 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordSerial
 
 /**
  * A record-oriented runtime result writer.
- * <p>
- * The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
+ *
+ * <p>The RecordWriter wraps the runtime's {@link ResultPartition} and takes care of
  * serializing records into buffers.
- * <p>
- * <strong>Important</strong>: it is necessary to call {@link #flush()} after
+ *
+ * <p><strong>Important</strong>: it is necessary to call {@link #flush()} after
  * all records have been written with {@link #emit(IOReadableWritable)}. This
  * ensures that all produced records are written to the output stream (incl.
  * partially filled ones).
@@ -49,7 +50,7 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordSerial
  */
 public class RecordWriter<T extends IOReadableWritable> {
 
-	protected final ResultPartitionWriter targetPartition;
+	protected final ResultPartition targetPartition;
 
 	private final ChannelSelector<T> channelSelector;
 
@@ -62,16 +63,16 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 	private Counter numBytesOut = new SimpleCounter();
 
-	public RecordWriter(ResultPartitionWriter writer) {
-		this(writer, new RoundRobinChannelSelector<T>());
+	public RecordWriter(ResultPartition partition) {
+		this(partition, new RoundRobinChannelSelector<T>());
 	}
 
 	@SuppressWarnings("unchecked")
-	public RecordWriter(ResultPartitionWriter writer, ChannelSelector<T> channelSelector) {
-		this.targetPartition = writer;
+	public RecordWriter(ResultPartition partition, ChannelSelector<T> channelSelector) {
+		this.targetPartition = partition;
 		this.channelSelector = channelSelector;
 
-		this.numChannels = writer.getNumberOfOutputChannels();
+		this.numChannels = partition.getNumberOfSubpartitions();
 
 		/**
 		 * The runtime exposes a channel abstraction for the produced results
@@ -154,7 +155,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 					// retain the buffer so that it can be recycled by each channel of targetPartition
 					eventBuffer.retain();
-					targetPartition.writeBuffer(eventBuffer, targetChannel);
+					targetPartition.add(eventBuffer, targetChannel);
 				}
 			}
 		} finally {
@@ -174,7 +175,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 
 					if (buffer != null) {
 						numBytesOut.inc(buffer.getSize());
-						targetPartition.writeBuffer(buffer, targetChannel);
+						targetPartition.add(buffer, targetChannel);
 					}
 				} finally {
 					serializer.clear();
@@ -209,7 +210,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Writes the buffer to the {@link ResultPartitionWriter} and removes the
+	 * Writes the buffer to the {@link ResultPartition} and removes the
 	 * buffer from the serializer state.
 	 *
 	 * Needs to be synchronized on the serializer!
@@ -220,7 +221,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			RecordSerializer<T> serializer) throws IOException {
 
 		try {
-			targetPartition.writeBuffer(buffer, targetChannel);
+			targetPartition.add(buffer, targetChannel);
 		}
 		finally {
 			serializer.clearCurrentBuffer();

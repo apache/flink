@@ -26,6 +26,8 @@ import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -119,6 +121,36 @@ public class ResultPartitionTest {
 	@Test
 	public void testAddOnReleasedBlockingPartition() throws Exception {
 		testAddOnReleasedPartition(ResultPartitionType.BLOCKING);
+	}
+
+	/**
+	 * Tests that buffers are properly recycled after {@link ResultPartition#addToAllChannels(Buffer)}.
+	 */
+	@Test
+	public void testWriteBufferToAllChannelsReferenceCounting() throws Exception {
+		Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
+
+		ResultPartition partition = new ResultPartition(
+			"TestTask",
+			mock(TaskActions.class),
+			new JobID(),
+			new ResultPartitionID(),
+			ResultPartitionType.PIPELINED,
+			2,
+			2,
+			mock(ResultPartitionManager.class),
+			mock(ResultPartitionConsumableNotifier.class),
+			mock(IOManager.class),
+			false);
+
+		partition.addToAllChannels(buffer);
+
+		// Verify added to all queues, i.e. two buffers in total
+		assertEquals(2, partition.getTotalNumberOfBuffers());
+		// release the buffers in the partition
+		partition.release();
+
+		assertTrue(buffer.isRecycled());
 	}
 
 	/**

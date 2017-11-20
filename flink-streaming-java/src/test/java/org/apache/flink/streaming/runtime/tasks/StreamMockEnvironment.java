@@ -34,13 +34,14 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -91,7 +92,7 @@ public class StreamMockEnvironment implements Environment {
 
 	private final List<InputGate> inputs;
 
-	private final List<ResultPartitionWriter> outputs;
+	private final List<ResultPartition> outputs;
 
 	private final JobID jobID = new JobID();
 
@@ -107,6 +108,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private volatile boolean wasFailedExternally = false;
 
+	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
+
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 								long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo(
@@ -118,7 +121,7 @@ public class StreamMockEnvironment implements Environment {
 		this.jobConfiguration = jobConfig;
 		this.taskConfiguration = taskConfig;
 		this.inputs = new LinkedList<InputGate>();
-		this.outputs = new LinkedList<ResultPartitionWriter>();
+		this.outputs = new LinkedList<>();
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
@@ -157,8 +160,8 @@ public class StreamMockEnvironment implements Environment {
 				}
 			});
 
-			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			ResultPartition mockWriter = mock(ResultPartition.class);
+			when(mockWriter.getNumberOfSubpartitions()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
 			final RecordDeserializer<DeserializationDelegate<T>> recordDeserializer = new AdaptiveSpanningRecordDeserializer<DeserializationDelegate<T>>();
@@ -173,7 +176,7 @@ public class StreamMockEnvironment implements Environment {
 					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
 					return null;
 				}
-			}).when(mockWriter).writeBuffer(any(Buffer.class), anyInt());
+			}).when(mockWriter).add(any(Buffer.class), anyInt());
 
 			doAnswer(new Answer<Void>() {
 
@@ -183,7 +186,7 @@ public class StreamMockEnvironment implements Environment {
 					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
 					return null;
 				}
-			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
+			}).when(mockWriter).addToAllChannels(any(Buffer.class));
 
 			outputs.add(mockWriter);
 		}
@@ -282,13 +285,13 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public ResultPartitionWriter getWriter(int index) {
+	public ResultPartition getOutputPartition(int index) {
 		return outputs.get(index);
 	}
 
 	@Override
-	public ResultPartitionWriter[] getAllWriters() {
-		return outputs.toArray(new ResultPartitionWriter[outputs.size()]);
+	public ResultPartition[] getAllOutputPartitions() {
+		return outputs.toArray(new ResultPartition[outputs.size()]);
 	}
 
 	@Override
@@ -301,6 +304,11 @@ public class StreamMockEnvironment implements Environment {
 		InputGate[] gates = new InputGate[inputs.size()];
 		inputs.toArray(gates);
 		return gates;
+	}
+
+	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
 	}
 
 	@Override

@@ -30,7 +30,8 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -67,8 +68,10 @@ public class RuntimeEnvironment implements Environment {
 	
 	private final Map<String, Future<Path>> distCacheEntries;
 
-	private final ResultPartitionWriter[] writers;
+	private final ResultPartition[] outputPartitions;
 	private final InputGate[] inputGates;
+
+	private final TaskEventDispatcher taskEventDispatcher;
 	
 	private final CheckpointResponder checkpointResponder;
 
@@ -99,8 +102,9 @@ public class RuntimeEnvironment implements Environment {
 			TaskKvStateRegistry kvStateRegistry,
 			InputSplitProvider splitProvider,
 			Map<String, Future<Path>> distCacheEntries,
-			ResultPartitionWriter[] writers,
+			ResultPartition[] outputPartitions,
 			InputGate[] inputGates,
+			TaskEventDispatcher taskEventDispatcher,
 			CheckpointResponder checkpointResponder,
 			TaskManagerRuntimeInfo taskManagerInfo,
 			TaskMetricGroup metrics,
@@ -121,8 +125,9 @@ public class RuntimeEnvironment implements Environment {
 		this.kvStateRegistry = checkNotNull(kvStateRegistry);
 		this.splitProvider = checkNotNull(splitProvider);
 		this.distCacheEntries = checkNotNull(distCacheEntries);
-		this.writers = checkNotNull(writers);
+		this.outputPartitions = checkNotNull(outputPartitions);
 		this.inputGates = checkNotNull(inputGates);
+		this.taskEventDispatcher = checkNotNull(taskEventDispatcher);
 		this.checkpointResponder = checkNotNull(checkpointResponder);
 		this.taskManagerInfo = checkNotNull(taskManagerInfo);
 		this.containingTask = containingTask;
@@ -217,13 +222,13 @@ public class RuntimeEnvironment implements Environment {
 	}
 
 	@Override
-	public ResultPartitionWriter getWriter(int index) {
-		return writers[index];
+	public ResultPartition getOutputPartition(int index) {
+		return outputPartitions[index];
 	}
 
 	@Override
-	public ResultPartitionWriter[] getAllWriters() {
-		return writers;
+	public ResultPartition[] getAllOutputPartitions() {
+		return outputPartitions;
 	}
 
 	@Override
@@ -234,6 +239,11 @@ public class RuntimeEnvironment implements Environment {
 	@Override
 	public InputGate[] getAllInputGates() {
 		return inputGates;
+	}
+
+	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
 	}
 
 	@Override
