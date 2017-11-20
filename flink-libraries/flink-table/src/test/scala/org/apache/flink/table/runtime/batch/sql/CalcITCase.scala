@@ -32,6 +32,7 @@ import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, Ta
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -306,6 +307,32 @@ class CalcITCase(
       "1984-07-12,14:34:24,1984-07-12 14:34:24.0"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testValueConstructor(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery = "SELECT (a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
+      "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')"
+    val rowValue = ("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24"))
+
+    val ds = env.fromElements(rowValue)
+    tEnv.registerDataSet("MyTable", ds, 'a, 'b, 'c)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0}"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    // Compare actual object to avoid undetected Calcite flattening
+    val resultRow = results.asJava.get(0)
+    assertEquals(rowValue._1, resultRow.getField(0).asInstanceOf[Row].getField(0))
+    assertEquals(rowValue._2, resultRow.getField(1).asInstanceOf[Array[Integer]](1))
+    assertEquals(rowValue._3,
+      resultRow.getField(2).asInstanceOf[util.Map[String, Timestamp]].get(rowValue._1))
   }
 
   @Test

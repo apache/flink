@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.ROW
 import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions._
 import org.apache.flink.api.common.typeinfo._
@@ -954,6 +955,10 @@ abstract class CodeGenerator(
         requireString(left)
         generateArithmeticOperator("+", nullCheck, resultType, left, right)
 
+      // rows
+      case ROW =>
+        generateRow(this, resultType, operands)
+
       // arrays
       case ARRAY_VALUE_CONSTRUCTOR =>
         generateArray(this, resultType, operands)
@@ -1306,6 +1311,20 @@ abstract class CodeGenerator(
     }
   }
 
+  private[flink] def generateNullableOutputBoxing(
+      element: GeneratedExpression,
+      typeInfo: TypeInformation[_])
+    : GeneratedExpression = {
+    val boxedExpr = generateOutputFieldBoxing(element)
+    val boxedTypeTerm = boxedTypeTermForTypeInfo(typeInfo)
+    val exprOrNull: String = if (nullCheck) {
+      s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
+    } else {
+      boxedExpr.resultTerm
+    }
+    boxedExpr.copy(resultTerm = exprOrNull)
+  }
+
   private[flink] def generateStreamRecordRowtimeAccess(): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1552,6 +1571,21 @@ abstract class CodeGenerator(
     reusableConstructorStatements.add((parameters.mkString(","), body.mkString("", "\n", "\n")))
 
     fieldTerms.toArray
+  }
+
+  /**
+    * Adds a reusable [[org.apache.flink.types.Row]]
+    * to the member area of the generated [[Function]].
+    */
+  def addReusableRow(arity: Int): String = {
+    val fieldTerm = newName("row")
+    val fieldRow =
+      s"""
+         |final org.apache.flink.types.Row $fieldTerm =
+         |    new org.apache.flink.types.Row($arity);
+         |""".stripMargin
+    reusableMemberStatements.add(fieldRow)
+    fieldTerm
   }
 
   /**
