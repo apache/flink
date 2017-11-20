@@ -83,6 +83,7 @@ under the License.
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
+		<module>flink-docs</module>
 	</modules>
 
 	<properties>
@@ -1276,16 +1277,6 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
-			</plugin>
-			<plugin>
-				<artifactId>maven-clean-plugin</artifactId>
-				<configuration>
-					<filesets>
-						<fileset>
-							<directory>${generated.docs.dir}</directory>
-						</fileset>
-					</filesets>
-				</configuration>
 			</plugin>
 		</plugins>
 
