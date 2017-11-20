@@ -462,6 +462,11 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+
+				<!-- we need to explicitly override this version, because the -->
+				<!-- earlier versions of the shade plugin have a bug relocating services -->
+				<version>3.0.0</version>
+
 				<executions>
 					<execution>
 						<phase>package</phase>
@@ -495,6 +500,11 @@ under the License.
 								<relocation>
 									<pattern>org.codehaus.jackson</pattern>
 									<shadedPattern>org.apache.flink.formats.avro.shaded.org.codehaus.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<!-- relocate jackson services, which isn't done by flink-shaded-jackson -->
+									<pattern>com.fasterxml.jackson</pattern>
+									<shadedPattern>org.apache.flink.shaded.jackson2.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 							</relocations>
 							<transformers>
