@@ -21,6 +21,7 @@ import org.apache.flink.python.api.streaming.data.PythonStreamer;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -119,22 +120,52 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 	@Override
 	protected void testProgram() throws Exception {
 		testBoundCheck();
-		String utils = findUtilsFile();
+		testNotExistingPlanFile();
+		testNotExistingAdditionalFile();
 		String python2 = getPython2Path();
 		if (python2 != null) {
-			for (String file : findTestFiles()) {
-				Configuration configuration = new Configuration();
-				configuration.setString(PythonOptions.PYTHON_BINARY_PATH, python2);
-				new PythonPlanBinder(configuration).runPlan(new String[]{file, utils});
-			}
+			log.info("Running python2 tests");
+			runTestPrograms(python2);
 		}
 		String python3 = getPython3Path();
 		if (python3 != null) {
-			for (String file : findTestFiles()) {
-				Configuration configuration = new Configuration();
-				configuration.setString(PythonOptions.PYTHON_BINARY_PATH, python3);
-				new PythonPlanBinder(configuration).runPlan(new String[]{file, utils});
-			}
+			log.info("Running python3 tests");
+			runTestPrograms(python3);
+		}
+	}
+
+	private void runTestPrograms(String pythonBinary) throws Exception {
+		String utils = findUtilsFile();
+		for (String file : findTestFiles()) {
+			log.info("Running file {}.", file);
+			Configuration configuration = new Configuration();
+			configuration.setString(PythonOptions.PYTHON_BINARY_PATH, pythonBinary);
+			new PythonPlanBinder(configuration).runPlan(new String[]{file, utils});
+		}
+	}
+
+	private void testNotExistingPlanFile() throws Exception {
+		log.info("Running testNotExistingPlanFile.");
+		String utils = findUtilsFile();
+		String nonExistingPlan = utils + "abc";
+		Configuration configuration = new Configuration();
+		try {
+			new PythonPlanBinder(configuration).runPlan(new String[]{nonExistingPlan});
+		} catch (FileNotFoundException expected) {
+			// we expect this exception to be thrown since the plan file does not exist
+		}
+	}
+
+	private void testNotExistingAdditionalFile() throws Exception {
+		log.info("Running testNotExistingAdditionalFile.");
+		String utils = findUtilsFile();
+		String planFile = findTestFiles().iterator().next();
+		String nonExistingLibrary = utils + "abc";
+		Configuration configuration = new Configuration();
+		try {
+			new PythonPlanBinder(configuration).runPlan(new String[]{planFile, utils, nonExistingLibrary});
+		} catch (FileNotFoundException expected) {
+			// we expect this exception to be thrown since the plan file does not exist
 		}
 	}
 
