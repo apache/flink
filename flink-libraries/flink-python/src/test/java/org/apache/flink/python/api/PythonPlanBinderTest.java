@@ -118,6 +118,7 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 
 	@Override
 	protected void testProgram() throws Exception {
+		testBoundCheck();
 		String utils = findUtilsFile();
 		String python2 = getPython2Path();
 		if (python2 != null) {
@@ -134,6 +135,15 @@ public class PythonPlanBinderTest extends JavaProgramTestBase {
 				configuration.setString(PythonOptions.PYTHON_BINARY_PATH, python3);
 				new PythonPlanBinder(configuration).runPlan(new String[]{file, utils});
 			}
+		}
+	}
+
+	private void testBoundCheck() throws Exception {
+		log.info("Running testBoundCheck.");
+		try {
+			new PythonPlanBinder(new Configuration()).runPlan(new String[0]);
+		} catch (IllegalArgumentException expected) {
+			// we expect this exception to be thrown since no argument was passed
 		}
 	}
 }
