@@ -32,12 +32,10 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import com.esotericsoftware.kryo.Kryo;
-
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.util.Utf8;
-
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.io.IOException;

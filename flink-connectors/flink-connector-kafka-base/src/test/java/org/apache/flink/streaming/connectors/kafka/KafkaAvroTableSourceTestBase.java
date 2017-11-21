@@ -25,7 +25,6 @@ import org.apache.flink.table.api.Types;
 
 import org.apache.avro.Schema;
 import org.apache.avro.specific.SpecificRecordBase;
-
 import org.junit.Test;
 
 import java.sql.Timestamp;

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.util.HadoopUtils;
 
 import com.facebook.presto.hive.PrestoS3FileSystem;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -23,7 +23,6 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
-
 import org.junit.Test;
 
 import java.io.BufferedReader;
