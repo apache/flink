@@ -35,9 +35,11 @@ public class MergeUtilsTest {
 		List<byte[]> list = new ArrayList<>();
 		list.add(new byte[4]);
 		list.add(new byte[1]);
+		list.add(new byte[2]);
 
-		byte[] expected = new byte[6];
+		byte[] expected = new byte[9];
 		expected[4] = MergeUtils.DELIMITER;
+		expected[6] = MergeUtils.DELIMITER;
 
 		assertTrue(Arrays.equals(expected, MergeUtils.merge(list)));
 	}

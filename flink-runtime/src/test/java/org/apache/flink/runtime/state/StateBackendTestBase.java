@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import avro.shaded.com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
@@ -1318,7 +1319,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("def");
 			assertThat(state.get(), containsInAnyOrder(10L, 16L));
-
 			state.clear();
 			assertNull(state.get());
 
@@ -1332,7 +1332,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("g");
 			assertThat(state.get(), containsInAnyOrder(1L, 2L, 3L, 2L, 1L));
-
+			state.update(Arrays.asList(5L, 6L));
+			assertThat(state.get(), containsInAnyOrder(5L, 6L));
 			state.clear();
 
 			// make sure all lists / maps are cleared
