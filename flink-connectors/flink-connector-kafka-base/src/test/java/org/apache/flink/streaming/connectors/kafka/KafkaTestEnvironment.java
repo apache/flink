@@ -28,7 +28,6 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaW
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import kafka.server.KafkaServer;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.util.ArrayList;

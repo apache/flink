@@ -27,7 +27,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.Kafka08PartitionDis
 import org.apache.flink.util.NetUtils;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;

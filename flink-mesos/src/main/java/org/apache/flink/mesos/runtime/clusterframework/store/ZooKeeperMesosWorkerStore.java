@@ -28,7 +28,6 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperVersionedValue;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.mesos.Protos;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
