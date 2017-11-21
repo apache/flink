@@ -31,6 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.python.api.PythonOperationInfo.DatasizeHint;
@@ -45,6 +46,7 @@ import org.apache.flink.python.api.functions.util.StringTupleDeserializerMap;
 import org.apache.flink.python.api.streaming.plan.PythonPlanStreamer;
 import org.apache.flink.python.api.util.SetCache;
 import org.apache.flink.runtime.filecache.FileCache;
+import org.apache.flink.util.IOUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +56,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.HUGE;
 import static org.apache.flink.python.api.PythonOperationInfo.DatasizeHint.NONE;
@@ -72,11 +76,7 @@ public class PythonPlanBinder {
 	public static final String PLANBINDER_CONFIG_BCVAR_NAME_PREFIX = "PLANBINDER_BCVAR_";
 	public static final String PLAN_ARGUMENTS_KEY = "python.plan.arguments";
 
-	private static final String FLINK_PYTHON_REL_LOCAL_PATH = File.separator + "resources" + File.separator + "python";
-
 	private final Configuration operatorConfig;
-
-	private final String pythonLibraryPath;
 
 	private final String tmpPlanFilesDir;
 	private Path tmpDistributedDir;
@@ -109,13 +109,6 @@ public class PythonPlanBinder {
 			: System.getProperty("java.io.tmpdir") + File.separator + "flink_plan_" + UUID.randomUUID();
 
 		tmpDistributedDir = new Path(globalConfig.getString(PythonOptions.DC_TMP_DIR));
-
-		String flinkRootDir = System.getenv("FLINK_ROOT_DIR");
-		pythonLibraryPath = flinkRootDir != null
-				//command-line
-				? flinkRootDir + FLINK_PYTHON_REL_LOCAL_PATH
-				//testing
-				: new File(System.getProperty("user.dir"), "src/main/python/org/apache/flink/python/api").getAbsolutePath();
 
 		operatorConfig = new Configuration();
 		operatorConfig.setString(PythonOptions.PYTHON_BINARY_PATH, globalConfig.getString(PythonOptions.PYTHON_BINARY_PATH));
@@ -163,10 +156,16 @@ public class PythonPlanBinder {
 				}
 			}
 
-			// copy flink library, plan file and additional files to temporary location
+			// setup temporary local directory for flink python library and user files
+			Path targetDir = new Path(tmpPlanFilesDir);
+			deleteIfExists(targetDir);
+			targetDir.getFileSystem().mkdirs(targetDir);
+
+			// extract and unzip flink library to temporary location
+			unzipPythonLibrary(new Path(tmpPlanFilesDir));
+
+			// copy user files to temporary location
 			Path tmpPlanFilesPath = new Path(tmpPlanFilesDir);
-			deleteIfExists(tmpPlanFilesPath);
-			FileCache.copy(new Path(pythonLibraryPath), tmpPlanFilesPath, false);
 			copyFile(planPath, tmpPlanFilesPath, FLINK_PYTHON_PLAN_NAME);
 			for (String file : filesToCopy) {
 				Path source = new Path(file);
@@ -211,6 +210,34 @@ public class PythonPlanBinder {
 				}
 			}
 		}
+	}
+
+	private static void unzipPythonLibrary(Path targetDir) throws IOException {
+		FileSystem targetFs = targetDir.getFileSystem();
+		ClassLoader classLoader = PythonPlanBinder.class.getClassLoader();
+		ZipInputStream zis = new ZipInputStream(classLoader.getResourceAsStream("python-source.zip"));
+		ZipEntry entry = zis.getNextEntry();
+		while (entry != null) {
+			String fileName = entry.getName();
+			Path newFile = new Path(targetDir, fileName);
+			if (entry.isDirectory()) {
+				targetFs.mkdirs(newFile);
+			} else {
+				try {
+					LOG.debug("Unzipping to {}.", newFile);
+					FSDataOutputStream fsDataOutputStream = targetFs.create(newFile, FileSystem.WriteMode.NO_OVERWRITE);
+					IOUtils.copyBytes(zis, fsDataOutputStream, false);
+				} catch (Exception e) {
+					zis.closeEntry();
+					zis.close();
+					throw new IOException("Failed to unzip flink python library.", e);
+				}
+			}
+
+			zis.closeEntry();
+			entry = zis.getNextEntry();
+		}
+		zis.closeEntry();
 	}
 
 	//=====Setup========================================================================================================
