@@ -683,19 +683,19 @@ trait ImplicitExpressionOperations {
   def flatten() = Flattening(expr)
 
   /**
-    * Accesses the element of an array based on an index (starting at 1).
+    * Accesses the element of an array or map based on a key or an index (starting at 1).
     *
-    * @param index position of the element (starting at 1)
+    * @param index key or position of the element (array index starting at 1)
     * @return value of the element
     */
-  def at(index: Expression) = ArrayElementAt(expr, index)
+  def at(index: Expression) = ItemAt(expr, index)
 
   /**
-    * Returns the number of elements of an array.
+    * Returns the number of elements of an array or number of entries of a map.
     *
-    * @return number of elements
+    * @return number of elements or entries
     */
-  def cardinality() = ArrayCardinality(expr)
+  def cardinality() = Cardinality(expr)
 
   /**
     * Returns the sole element of an array with a single element. Returns null if the array is
@@ -956,6 +956,19 @@ object array {
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     ArrayConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
+  * Creates a map of literals. The map will be a map between two objects (not primitives).
+  */
+object map {
+
+  /**
+    * Creates a map of literals. The map will be a map between two objects (not primitives).
+    */
+  def apply(key: Expression, value: Expression, tail: Expression*): Expression = {
+    MapConstructor(Seq(key, value) ++ tail.toSeq)
   }
 }
 

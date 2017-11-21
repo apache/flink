@@ -188,6 +188,13 @@ object ScalarOperators {
         (leftTerm, rightTerm) => s"java.util.Arrays.equals($leftTerm, $rightTerm)"
       }
     }
+    // map types
+    else if (isMap(left.resultType) &&
+      left.resultType.getTypeClass == right.resultType.getTypeClass) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"java.util.Map.equals($leftTerm, $rightTerm)"
+      }
+    }
     // comparable types of same type
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
       generateComparison("==", nullCheck, left, right)
@@ -227,6 +234,13 @@ object ScalarOperators {
         left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         (leftTerm, rightTerm) => s"!java.util.Arrays.equals($leftTerm, $rightTerm)"
+      }
+    }
+    // map types
+    else if (isMap(left.resultType) &&
+      left.resultType.getTypeClass == right.resultType.getTypeClass) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"!java.util.Map.equals($leftTerm, $rightTerm)"
       }
     }
     // comparable types
@@ -1061,6 +1075,47 @@ object ScalarOperators {
     GeneratedExpression(resultTerm, nullTerm, operatorCode, Types.STRING)
   }
 
+  def generateMap(
+      codeGenerator: CodeGenerator,
+      resultType: TypeInformation[_],
+      elements: Seq[GeneratedExpression])
+  : GeneratedExpression = {
+    val mapTerm = codeGenerator.addReusableMap(resultType.getTypeClass)
+
+    val boxedElements: Seq[GeneratedExpression] = resultType match {
+      case mti: MapTypeInfo[_, _] =>
+        // we box the elements to also represent null values
+        val boxedKeyTypeTerm = boxedTypeTermForTypeInfo(mti.getKeyTypeInfo)
+        val boxedValueTypeTerm = boxedTypeTermForTypeInfo(mti.getValueTypeInfo)
+
+        elements.zipWithIndex.map { case (element, idx) =>
+          val boxedExpr = codeGenerator.generateOutputFieldBoxing(element)
+          val exprOrNull: String = if (codeGenerator.nullCheck) {
+            if (idx % 2 == 0) {
+              s"${boxedExpr.nullTerm} ? null : ($boxedKeyTypeTerm) ${boxedExpr.resultTerm}"
+            } else {
+              s"${boxedExpr.nullTerm} ? null : ($boxedValueTypeTerm) ${boxedExpr.resultTerm}"
+            }
+          } else {
+            boxedExpr.resultTerm
+          }
+          boxedExpr.copy(resultTerm = exprOrNull)
+        }
+    }
+
+    val code = boxedElements.grouped(2)
+      .map { case Seq(key, value) =>
+        s"""
+           |${key.code}
+           |${value.code}
+           |$mapTerm.put(${key.resultTerm}, ${value.resultTerm});
+           |""".stripMargin
+      }
+      .mkString("\n")
+
+    GeneratedExpression(mapTerm, GeneratedExpression.NEVER_NULL, code, resultType)
+  }
+
   def generateMapGet(
       codeGenerator: CodeGenerator,
       map: GeneratedExpression,
@@ -1089,6 +1144,15 @@ object ScalarOperators {
              |""".stripMargin
         }
     GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
+  }
+
+  def generateMapCardinality(
+      nullCheck: Boolean,
+      map: GeneratedExpression)
+  : GeneratedExpression = {
+    generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, map) {
+      (operandTerm) => s"${map.resultTerm}.size"
+    }
   }
 
   // ----------------------------------------------------------------------------------------------

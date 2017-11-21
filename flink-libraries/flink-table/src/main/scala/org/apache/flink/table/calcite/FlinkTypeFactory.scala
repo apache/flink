@@ -222,6 +222,17 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
     canonize(relType)
   }
 
+  override def createMapType(keyType: RelDataType, valueType: RelDataType): RelDataType = {
+    val relType = new MapRelDataType(
+      new MapTypeInfo(
+        FlinkTypeFactory.toTypeInfo(keyType),
+        FlinkTypeFactory.toTypeInfo(valueType)),
+      keyType,
+      valueType,
+      isNullable = false)
+    this.canonize(relType)
+  }
+
   override def createMultisetType(elementType: RelDataType, maxCardinality: Long): RelDataType = {
     val relType = new MultisetRelDataType(
       MultisetTypeInfo.getInfoFor(FlinkTypeFactory.toTypeInfo(elementType)),

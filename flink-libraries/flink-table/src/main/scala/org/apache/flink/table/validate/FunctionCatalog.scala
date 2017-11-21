@@ -237,11 +237,18 @@ object FunctionCatalog {
     "dateTimePlus" -> classOf[Plus],
     "dateFormat" -> classOf[DateFormat],
 
+    // item
+    "at" -> classOf[ItemAt],
+
+    // cardinality
+    "cardinality" -> classOf[Cardinality],
+
     // array
     "array" -> classOf[ArrayConstructor],
-    "cardinality" -> classOf[ArrayCardinality],
-    "at" -> classOf[ArrayElementAt],
     "element" -> classOf[ArrayElement],
+
+    // map
+    "map" -> classOf[MapConstructor],
 
     // window properties
     "start" -> classOf[WindowStart],
@@ -330,9 +337,12 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.VAR_SAMP,
     // ARRAY OPERATORS
     SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
+    SqlStdOperatorTable.ELEMENT,
+    // MAP OPERATORS
+    SqlStdOperatorTable.MAP_VALUE_CONSTRUCTOR,
+    // ARRAY MAP SHARED OPERATORS
     SqlStdOperatorTable.ITEM,
     SqlStdOperatorTable.CARDINALITY,
-    SqlStdOperatorTable.ELEMENT,
     // SPECIAL OPERATORS
     SqlStdOperatorTable.ROW,
     SqlStdOperatorTable.OVERLAPS,

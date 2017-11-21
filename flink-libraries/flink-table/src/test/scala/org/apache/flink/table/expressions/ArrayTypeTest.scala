@@ -295,4 +295,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "f11 <> f9",
       "false")
   }
+
+  @Test
+  def testArrayTypeCasting(): Unit = {
+    testTableApi(
+      'f3.cast(Types.OBJECT_ARRAY(Types.SQL_DATE)),
+      "f3.cast(OBJECT_ARRAY(SQL_DATE))",
+      "[1984-03-12, 1984-02-10]"
+    )
+  }
 }
