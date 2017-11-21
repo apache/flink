@@ -214,11 +214,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-
-				<!-- we need to explicitly override this version, because the -->
-				<!-- earlier versions of the shade plugin have a bug relocating services -->
-				<version>3.0.0</version>
-
 				<executions>
 					<execution>
 						<id>shade-flink</id>
