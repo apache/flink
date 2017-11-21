@@ -1050,7 +1050,7 @@ object randInteger {
   */
 object concat {
   def apply(string: Expression, strings: Expression*): Expression = {
-    new Concat(Seq(string) ++ strings)
+    Concat(Seq(string) ++ strings)
   }
 }
 
@@ -1063,7 +1063,7 @@ object concat {
   **/
 object concat_ws {
   def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
-    new ConcatWs(separator, Seq(string) ++ strings)
+    ConcatWs(separator, Seq(string) ++ strings)
   }
 }
 

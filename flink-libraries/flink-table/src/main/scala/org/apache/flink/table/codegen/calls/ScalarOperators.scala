@@ -1079,8 +1079,9 @@ object ScalarOperators {
       codeGenerator: CodeGenerator,
       resultType: TypeInformation[_],
       elements: Seq[GeneratedExpression])
-  : GeneratedExpression = {
-    val mapTerm = codeGenerator.addReusableMap(resultType.getTypeClass)
+    : GeneratedExpression = {
+
+    val mapTerm = codeGenerator.addReusableMap()
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
       case mti: MapTypeInfo[_, _] =>
@@ -1103,8 +1104,15 @@ object ScalarOperators {
         }
     }
 
+    // clear the map when it is not guaranteed that keys are constant
+    var clearMap: Boolean = false
+
     val code = boxedElements.grouped(2)
       .map { case Seq(key, value) =>
+        // check if all keys are constant
+        if (!key.literal) {
+          clearMap = true
+        }
         s"""
            |${key.code}
            |${value.code}
@@ -1113,14 +1121,18 @@ object ScalarOperators {
       }
       .mkString("\n")
 
-    GeneratedExpression(mapTerm, GeneratedExpression.NEVER_NULL, code, resultType)
+    GeneratedExpression(
+      mapTerm,
+      GeneratedExpression.NEVER_NULL,
+      (if (clearMap) s"$mapTerm.clear();\n" else "") + code,
+      resultType)
   }
 
   def generateMapGet(
       codeGenerator: CodeGenerator,
       map: GeneratedExpression,
       key: GeneratedExpression)
-  : GeneratedExpression = {
+    : GeneratedExpression = {
 
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
@@ -1128,30 +1140,30 @@ object ScalarOperators {
     val resultType = ty.getValueTypeInfo
     val resultTypeTerm = boxedTypeTermForTypeInfo(ty.getValueTypeInfo)
     val accessCode = if (codeGenerator.nullCheck) {
-          s"""
-             |${map.code}
-             |${key.code}
-             |boolean $nullTerm = (${map.nullTerm} || ${key.nullTerm});
-             |$resultTypeTerm $resultTerm = $nullTerm ?
-             |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
-             |""".stripMargin
-        } else {
-          s"""
-             |${map.code}
-             |${key.code}
-             |$resultTypeTerm $resultTerm = ($resultTypeTerm)
-             | ${map.resultTerm}.get(${key.resultTerm});
-             |""".stripMargin
-        }
+      s"""
+         |${map.code}
+         |${key.code}
+         |boolean $nullTerm = (${map.nullTerm} || ${key.nullTerm});
+         |$resultTypeTerm $resultTerm = $nullTerm ?
+         |  null : ($resultTypeTerm) ${map.resultTerm}.get(${key.resultTerm});
+         |""".stripMargin
+    } else {
+      s"""
+         |${map.code}
+         |${key.code}
+         |$resultTypeTerm $resultTerm = ($resultTypeTerm)
+         | ${map.resultTerm}.get(${key.resultTerm});
+         |""".stripMargin
+    }
     GeneratedExpression(resultTerm, nullTerm, accessCode, resultType)
   }
 
   def generateMapCardinality(
       nullCheck: Boolean,
       map: GeneratedExpression)
-  : GeneratedExpression = {
+    : GeneratedExpression = {
     generateUnaryOperatorIfNotNull(nullCheck, INT_TYPE_INFO, map) {
-      (operandTerm) => s"${map.resultTerm}.size"
+      (operandTerm) => s"$operandTerm.size()"
     }
   }
 

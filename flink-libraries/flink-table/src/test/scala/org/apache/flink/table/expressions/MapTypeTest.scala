@@ -182,6 +182,12 @@ class MapTypeTest extends MapTypeTestBase {
       "f3.at(12)",
       "f3[12]",
       "a")
+
+    testAllApis(
+      'f3.cardinality(),
+      "f3.cardinality()",
+      "CARDINALITY(f3)",
+      "2")
   }
 
   @Test

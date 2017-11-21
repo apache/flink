@@ -138,10 +138,6 @@ object ExpressionUtils {
     }
   }
 
-  private[flink] def convertMap(map: Map[Expression, Expression]): Expression = {
-    MapConstructor(map.flatMap(entry => Seq(entry._1, entry._2)).toSeq)
-  }
-
   // ----------------------------------------------------------------------------------------------
   // RexNode conversion functions (see org.apache.calcite.sql2rel.StandardConvertletTable)
   // ----------------------------------------------------------------------------------------------

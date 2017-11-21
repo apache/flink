@@ -313,4 +313,43 @@ class CalcITCase extends StreamingMultipleProgramsTestBase {
     )
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+
+  @Test
+  def testMapType(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+    val ds = StreamTestData.get3TupleDataStream(env)
+      .toTable(tEnv)
+      .select(map('_1, '_3))
+
+    val results = ds.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "{10=Comment#4}",
+      "{11=Comment#5}",
+      "{12=Comment#6}",
+      "{13=Comment#7}",
+      "{14=Comment#8}",
+      "{15=Comment#9}",
+      "{16=Comment#10}",
+      "{17=Comment#11}",
+      "{18=Comment#12}",
+      "{19=Comment#13}",
+      "{1=Hi}",
+      "{20=Comment#14}",
+      "{21=Comment#15}",
+      "{2=Hello}",
+      "{3=Hello world}",
+      "{4=Hello world, how are you?}",
+      "{5=I am fine.}",
+      "{6=Luke Skywalker}",
+      "{7=Comment#1}",
+      "{8=Comment#2}",
+      "{9=Comment#3}")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }

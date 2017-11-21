@@ -963,15 +963,13 @@ abstract class CodeGenerator(
 
       case ITEM =>
         operands.head.resultType match {
-          case _: ObjectArrayTypeInfo[_, _] |
-               _: BasicArrayTypeInfo[_, _] |
-               _: PrimitiveArrayTypeInfo[_] =>
+          case t: TypeInformation[_] if isArray(t) =>
             val array = operands.head
             val index = operands(1)
             requireInteger(index)
             generateArrayElementAt(this, array, index)
 
-          case _: MapTypeInfo[_, _] =>
+          case t: TypeInformation[_] if isMap(t) =>
             val key = operands(1)
             generateMapGet(this, operands.head, key)
 
@@ -980,16 +978,12 @@ abstract class CodeGenerator(
 
       case CARDINALITY =>
         operands.head.resultType match {
-          case _: ObjectArrayTypeInfo[_, _] |
-               _: BasicArrayTypeInfo[_, _] |
-               _: PrimitiveArrayTypeInfo[_] =>
+          case t: TypeInformation[_] if isArray(t) =>
             val array = operands.head
-            requireArray(array)
             generateArrayCardinality(nullCheck, array)
 
-          case _: MapTypeInfo[_, _] =>
+          case t: TypeInformation[_] if isMap(t) =>
             val map = operands.head
-            requireMap(map)
             generateMapCardinality(nullCheck, map)
 
           case _ => throw new CodeGenException("Expect an array or a map.")
@@ -1580,7 +1574,7 @@ abstract class CodeGenerator(
   /**
     * Adds a reusable hash map to the member area of the generated [[Function]].
     */
-  def addReusableMap(clazz: Class[_]): String = {
+  def addReusableMap(): String = {
     val fieldTerm = newName("map")
     val classQualifier = "java.util.Map"
     val initMap = "java.util.HashMap()"
