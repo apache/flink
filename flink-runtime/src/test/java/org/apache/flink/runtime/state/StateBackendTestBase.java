@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import avro.shaded.com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
