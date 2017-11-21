@@ -35,6 +35,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.runtime.state.util.DuplicateStateNameException;
 import org.apache.flink.util.Preconditions;
 
 import static java.util.Objects.requireNonNull;
@@ -57,17 +58,16 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		try {
 			return getPartitionedState(stateProperties);
 		} catch (ClassCastException cce) {
-			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
+			throw new DuplicateStateNameException("Duplicate state name: " + stateProperties, cce);
 		}
 	}
 
 	@Override
 	public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
 		try {
-			ListState<T> originalState = getPartitionedState(stateProperties);
-			return new UserFacingListState<>(originalState);
+			return new UserFacingListState<>(getPartitionedState(stateProperties));
 		} catch (ClassCastException cce) {
-			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
+			throw new DuplicateStateNameException("Duplicate state name: " + stateProperties, cce);
 		}
 	}
 
@@ -76,7 +76,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		try {
 			return getPartitionedState(stateProperties);
 		} catch (ClassCastException cce) {
-			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
+			throw new DuplicateStateNameException("Duplicate state name: " + stateProperties, cce);
 		}
 	}
 
@@ -85,7 +85,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		try {
 			return getPartitionedState(stateProperties);
 		} catch (ClassCastException cce) {
-			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
+			throw new DuplicateStateNameException("Duplicate state name: " + stateProperties, cce);
 		}
 	}
 
@@ -94,17 +94,16 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 		try {
 			return getPartitionedState(stateProperties);
 		} catch (ClassCastException cce) {
-			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
+			throw new DuplicateStateNameException("Duplicate state name: " + stateProperties, cce);
 		}
 	}
 
 	@Override
 	public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
 		try {
-			MapState<UK, UV> originalState = getPartitionedState(stateProperties);
-			return new UserFacingMapState<>(originalState);
+			return new UserFacingMapState<>(getPartitionedState(stateProperties));
 		} catch (ClassCastException cce) {
-			throw new RuntimeException("Duplicate state name: " + stateProperties.getName());
+			throw new DuplicateStateNameException("Duplicate state name: " + stateProperties, cce);
 		}
 	}
 
@@ -116,6 +115,8 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
 					VoidNamespace.INSTANCE,
 					VoidNamespaceSerializer.INSTANCE,
 					stateDescriptor);
+		} catch (ClassCastException cce) {
+			throw cce;
 		} catch (Exception e) {
 			throw new RuntimeException("Error while getting state", e);
 		}

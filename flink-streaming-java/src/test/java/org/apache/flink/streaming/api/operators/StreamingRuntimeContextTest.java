@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.util.DuplicateStateNameException;
 
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -268,6 +269,20 @@ public class StreamingRuntimeContextTest {
 		Iterable<Map.Entry<Integer, String>> value = state.entries();
 		assertNotNull(value);
 		assertFalse(value.iterator().hasNext());
+	}
+
+	@Test(expected = DuplicateStateNameException.class)
+	public void testDuplicateStateName() throws Exception {
+		StreamingRuntimeContext context = new StreamingRuntimeContext(
+				createMapPlainMockOp(),
+				createMockEnvironment(),
+				Collections.emptyMap());
+		MapStateDescriptor<Integer, String> mapStateDesc =
+				new MapStateDescriptor<>("name", Integer.class, String.class);
+		ListStateDescriptor<String> listStateDesc =
+				new ListStateDescriptor<>("name", String.class);
+		context.getMapState(mapStateDesc);
+		context.getListState(listStateDesc);
 	}
 
 	// ------------------------------------------------------------------------
