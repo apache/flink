@@ -145,13 +145,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	Buffer pollBuffer() {
 		synchronized (buffers) {
-			Buffer buffer = buffers.pollFirst();
-
-			if (buffer != null && buffer.isBuffer()) {
-				backlog--;
-			}
-
-			return buffer;
+			return buffers.pollFirst();
 		}
 	}
 
@@ -211,8 +205,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 
 		return String.format(
-			"PipelinedSubpartition [number of buffers: %d (%d bytes), backlog: %d, finished? %s, read view? %s]",
-			numBuffers, numBytes, backlog, finished, hasReadView);
+			"PipelinedSubpartition [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
+			numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
 	}
 
 	@Override

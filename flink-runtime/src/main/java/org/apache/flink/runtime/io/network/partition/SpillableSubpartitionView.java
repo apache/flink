@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class SpillableSubpartitionView implements ResultSubpartitionView {
+class SpillableSubpartitionView extends ResultSubpartitionView {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SpillableSubpartitionView.class);
 
@@ -72,6 +72,8 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		IOManager ioManager,
 		int memorySegmentSize,
 		BufferAvailabilityListener listener) {
+
+		super(parent);
 
 		this.parent = checkNotNull(parent);
 		this.buffers = checkNotNull(buffers);
@@ -133,7 +135,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
@@ -145,17 +147,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					listener.notifyBuffersAvailable(1);
 				}
 
-				if (current.isBuffer()) {
-					parent.backlog--;
-				}
-
 				return current;
 			}
 		} // else: spilled
 
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
-			return spilled.getNextBuffer();
+			return spilled.getNextBufferInternal();
 		} else {
 			throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
 		}
@@ -204,11 +202,6 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		} else {
 			return parent.getFailureCause();
 		}
-	}
-
-	@Override
-	public int getBacklog() {
-		return parent.backlog;
 	}
 
 	@Override

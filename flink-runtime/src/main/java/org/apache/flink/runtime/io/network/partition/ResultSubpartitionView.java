@@ -22,33 +22,57 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A view to consume a {@link ResultSubpartition} instance.
  */
-public interface ResultSubpartitionView {
+public abstract class ResultSubpartitionView {
+
+	/** The parent subpartition this view belongs to. */
+	private final ResultSubpartition parent;
+
+	public ResultSubpartitionView(ResultSubpartition parent) {
+		this.parent = checkNotNull(parent);
+	}
 
 	/**
-	 * Returns the next {@link Buffer} instance of this queue iterator.
-	 * <p>
-	 * If there is currently no instance available, it will return <code>null</code>.
+	 * Returns the next {@link Buffer} instance of this queue iterator and also
+	 * decreases the related statistics.
+	 */
+	public Buffer getNextBuffer() throws IOException, InterruptedException {
+		Buffer buffer = getNextBufferInternal();
+		if (buffer != null) {
+			parent.decreaseStatistics(buffer);
+		}
+		return buffer;
+	}
+
+	public int getBuffersInBacklog() {
+		return parent.getBuffersInBacklog();
+	}
+
+	/**
+	 * The internal method used by {@link ResultSubpartitionView#getNextBuffer()}
+	 * to return the next {@link Buffer} instance of this queue iterator.
+	 *
+	 * <p>If there is currently no instance available, it will return <code>null</code>.
 	 * This might happen for example when a pipelined queue producer is slower
 	 * than the consumer or a spilled queue needs to read in more data.
-	 * <p>
-	 * <strong>Important</strong>: The consumer has to make sure that each
+	 *
+	 * <p><strong>Important</strong>: The consumer has to make sure that each
 	 * buffer instance will eventually be recycled with {@link Buffer#recycle()}
 	 * after it has been consumed.
 	 */
-	Buffer getNextBuffer() throws IOException, InterruptedException;
+	protected abstract Buffer getNextBufferInternal() throws IOException, InterruptedException;
 
-	void notifyBuffersAvailable(long buffers) throws IOException;
+	public abstract void notifyBuffersAvailable(long buffers) throws IOException;
 
-	void releaseAllResources() throws IOException;
+	public abstract void releaseAllResources() throws IOException;
 
-	void notifySubpartitionConsumed() throws IOException;
+	public abstract void notifySubpartitionConsumed() throws IOException;
 
-	boolean isReleased();
+	public abstract boolean isReleased();
 
-	Throwable getFailureCause();
-
-	int getBacklog();
+	public abstract Throwable getFailureCause();
 }

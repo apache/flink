@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Reads of the spilled file are done in synchronously.
  */
-class SpilledSubpartitionView implements ResultSubpartitionView, NotificationListener {
+class SpilledSubpartitionView extends ResultSubpartitionView implements NotificationListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SpilledSubpartitionView.class);
 
@@ -81,6 +81,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		long numberOfSpilledBuffers,
 		BufferAvailabilityListener availabilityListener) throws IOException {
 
+		super(parent);
+
 		this.parent = checkNotNull(parent);
 		this.bufferPool = new SpillReadBufferPool(2, memorySegmentSize);
 		this.spillWriter = checkNotNull(spillWriter);
@@ -114,7 +116,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	}
 
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
 		if (fileReader.hasReachedEndOfFile() || isSpillInProgress) {
 			return null;
 		}
@@ -123,10 +125,6 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		// this method don't happen before recycling buffers returned earlier.
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
-
-		if (buffer != null && buffer.isBuffer()) {
-			parent.backlog--;
-		}
 
 		return buffer;
 	}
@@ -166,11 +164,6 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
-	}
-
-	@Override
-	public int getBacklog() {
-		return parent.backlog;
 	}
 
 	@Override

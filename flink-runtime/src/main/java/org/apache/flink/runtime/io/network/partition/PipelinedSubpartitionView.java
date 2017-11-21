@@ -28,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * View over a pipelined in-memory only subpartition.
  */
-class PipelinedSubpartitionView implements ResultSubpartitionView {
+class PipelinedSubpartitionView extends ResultSubpartitionView {
 
 	/** The subpartition this view belongs to. */
 	private final PipelinedSubpartition parent;
@@ -39,13 +39,15 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	private final AtomicBoolean isReleased;
 
 	PipelinedSubpartitionView(PipelinedSubpartition parent, BufferAvailabilityListener listener) {
+		super(parent);
+
 		this.parent = checkNotNull(parent);
 		this.availabilityListener = checkNotNull(listener);
 		this.isReleased = new AtomicBoolean();
 	}
 
 	@Override
-	public Buffer getNextBuffer() {
+	protected Buffer getNextBufferInternal() {
 		return parent.pollBuffer();
 	}
 
@@ -76,11 +78,6 @@ class PipelinedSubpartitionView implements ResultSubpartitionView {
 	@Override
 	public Throwable getFailureCause() {
 		return parent.getFailureCause();
-	}
-
-	@Override
-	public int getBacklog() {
-		return parent.backlog;
 	}
 
 	@Override

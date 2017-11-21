@@ -246,9 +246,9 @@ class SpillableSubpartition extends ResultSubpartition {
 	@Override
 	public String toString() {
 		return String.format("SpillableSubpartition [%d number of buffers (%d bytes)," +
-				"%d backlog, finished? %s, read view? %s, spilled? %s]",
+				"%d buffers in backlog, finished? %s, read view? %s, spilled? %s]",
 			getTotalNumberOfBuffers(), getTotalNumberOfBytes(),
-			backlog, isFinished, readView != null, spillWriter != null);
+			getBuffersInBacklog(), isFinished, readView != null, spillWriter != null);
 	}
 
 }

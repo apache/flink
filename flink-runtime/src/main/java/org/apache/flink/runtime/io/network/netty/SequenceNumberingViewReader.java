@@ -85,8 +85,8 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 		return sequenceNumber;
 	}
 
-	int getBacklog() {
-		return subpartitionView.getBacklog();
+	int getBuffersInBacklog() {
+		return subpartitionView.getBuffersInBacklog();
 	}
 
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
