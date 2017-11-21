@@ -80,7 +80,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

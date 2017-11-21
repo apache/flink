@@ -45,7 +45,6 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;

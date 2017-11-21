@@ -48,7 +48,6 @@ import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

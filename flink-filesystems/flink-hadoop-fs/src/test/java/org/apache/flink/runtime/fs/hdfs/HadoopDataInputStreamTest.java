@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
-
 import org.junit.Assert;
 import org.junit.Test;
 
