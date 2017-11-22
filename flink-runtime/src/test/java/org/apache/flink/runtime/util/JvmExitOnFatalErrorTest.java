@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -189,6 +190,7 @@ public class JvmExitOnFatalErrorTest {
 							FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 							new String[0]),
 						new FileCache(tmInfo.getTmpDirectories()),
+						mock(CheckpointCache.class),
 						tmInfo,
 						new UnregisteredTaskMetricsGroup(),
 						new NoOpResultPartitionConsumableNotifier(),

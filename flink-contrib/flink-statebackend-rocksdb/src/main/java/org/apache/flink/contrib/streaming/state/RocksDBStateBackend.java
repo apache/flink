@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.taskmanager.RuntimeEnvironment;
 import org.apache.flink.util.AbstractID;
 
 import org.rocksdb.ColumnFamilyOptions;
@@ -313,6 +314,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getExecutionConfig(),
+				((RuntimeEnvironment) env).getCheckpointCache(),
 				enableIncrementalCheckpointing);
 	}
 

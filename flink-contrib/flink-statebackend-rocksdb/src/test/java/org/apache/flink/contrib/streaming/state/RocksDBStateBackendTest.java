@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -231,6 +232,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				1,
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
+				mock(CheckpointCache.class),
 				enableIncrementalCheckpointing);
 
 			verify(columnFamilyOptions, Mockito.times(1))

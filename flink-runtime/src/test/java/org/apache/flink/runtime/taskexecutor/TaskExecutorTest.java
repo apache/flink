@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -212,6 +213,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			heartbeatServices,
 			mock(TaskManagerMetricGroup.class),
@@ -317,6 +319,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			heartbeatServices,
 			mock(TaskManagerMetricGroup.class),
@@ -434,6 +437,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			heartbeatServices,
 			mock(TaskManagerMetricGroup.class),
@@ -526,6 +530,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			mock(TaskManagerMetricGroup.class),
@@ -608,6 +613,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			mock(TaskManagerMetricGroup.class),
@@ -694,7 +700,8 @@ public class TaskExecutorTest extends TestLogger {
 				0,
 				null,
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList());
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				-1);
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
@@ -749,6 +756,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			taskManagerMetricGroup,
@@ -866,6 +874,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			mock(TaskManagerMetricGroup.class),
@@ -985,6 +994,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			mock(TaskManagerMetricGroup.class),
@@ -1079,6 +1089,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			mock(TaskManagerMetricGroup.class),
@@ -1254,6 +1265,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkMock,
+			mock(CheckpointCacheManager.class),
 			haServices,
 			mock(HeartbeatServices.class, RETURNS_MOCKS),
 			taskManagerMetricGroup,
@@ -1304,7 +1316,8 @@ public class TaskExecutorTest extends TestLogger {
 				0,
 				null,
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
-				Collections.<InputGateDeploymentDescriptor>emptyList());
+				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				-1);
 
 			CompletableFuture<Collection<SlotOffer>> offerResultFuture = new CompletableFuture<>();
 
@@ -1376,6 +1389,7 @@ public class TaskExecutorTest extends TestLogger {
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			mock(NetworkEnvironment.class),
+			mock(CheckpointCacheManager.class),
 			haServicesMock,
 			heartbeatServicesMock,
 			mock(TaskManagerMetricGroup.class),

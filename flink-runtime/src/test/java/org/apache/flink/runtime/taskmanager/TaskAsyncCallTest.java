@@ -26,6 +26,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -263,6 +264,7 @@ public class TaskAsyncCallTest {
 			blobService,
 			libCache,
 			mock(FileCache.class),
+			mock(CheckpointCache.class),
 			new TestingTaskManagerRuntimeInfo(),
 			taskMetricGroup,
 			consumableNotifier,

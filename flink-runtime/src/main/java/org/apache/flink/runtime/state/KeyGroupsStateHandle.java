@@ -20,6 +20,8 @@ package org.apache.flink.runtime.state;
 
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.checkpoint.CachedStreamStateHandle;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
@@ -85,6 +87,13 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
 	 */
 	public KeyGroupsStateHandle getIntersection(KeyGroupRange keyGroupRange) {
 		return new KeyGroupsStateHandle(groupRangeOffsets.getIntersection(keyGroupRange), stateHandle);
+	}
+
+	public void setCache(CheckpointCache cache) {
+		if (stateHandle instanceof CachedStreamStateHandle) {
+			((CachedStreamStateHandle) stateHandle).setCheckpointCache(cache);
+			((CachedStreamStateHandle) stateHandle).reCache(false);
+		}
 	}
 
 	@Override

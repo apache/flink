@@ -27,7 +27,7 @@ import org.apache.flink.api.common.io.FileOutputFormat
 import org.apache.flink.configuration._
 import org.apache.flink.core.fs.Path
 import org.apache.flink.runtime.blob.BlobServer
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory
+import org.apache.flink.runtime.checkpoint.{CheckpointCacheManager, CheckpointRecoveryFactory}
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager
 import org.apache.flink.runtime.clusterframework.types.{ResourceID, ResourceIDRetrievable}
@@ -254,6 +254,7 @@ class LocalFlinkMiniCluster(
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment,
+      taskManagerServices.getCheckpointCacheManager,
       taskManagerMetricGroup)
 
     system.actorOf(props, taskManagerActorName)
@@ -318,6 +319,7 @@ class LocalFlinkMiniCluster(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
+    checkpointCacheManager: CheckpointCacheManager,
     taskManagerMetricGroup: TaskManagerMetricGroup): Props = {
 
     TaskManager.getTaskManagerProps(
@@ -328,6 +330,7 @@ class LocalFlinkMiniCluster(
       memoryManager,
       ioManager,
       networkEnvironment,
+      checkpointCacheManager,
       highAvailabilityServices,
       taskManagerMetricGroup)
   }

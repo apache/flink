@@ -37,6 +37,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
 import org.apache.flink.runtime.blob.{BlobCacheService, BlobClient, BlobService}
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
 import org.apache.flink.runtime.clusterframework.types.ResourceID
@@ -125,6 +126,7 @@ class TaskManager(
     protected val memoryManager: MemoryManager,
     protected val ioManager: IOManager,
     protected val network: NetworkEnvironment,
+    protected val checkpointCacheManager: CheckpointCacheManager,
     protected val numberOfSlots: Int,
     protected val highAvailabilityServices: HighAvailabilityServices,
     protected val taskManagerMetricGroup: TaskManagerMetricGroup)
@@ -258,6 +260,12 @@ class TaskManager(
     }
 
     taskManagerMetricGroup.close()
+
+    try {
+      checkpointCacheManager.shutdown();
+    } catch {
+      case t: Exception => log.error("CheckpointCacheManager did not shutdown properly", t)
+    }
 
     log.info(s"Task manager ${self.path} is completely shut down.")
   }
@@ -1176,6 +1184,28 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
+      var checkpointCacheLeaseTimeout: Long = {
+        try {
+          var configuration = jobInformation.getJobConfiguration()
+          var timeoutString = configuration.getString(
+            ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
+            ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
+          var delayString = configuration.getString(
+            ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+            timeoutString
+          )
+          Duration.apply(delayString).toMillis * 2;
+        } catch {
+          case e: Exception =>
+            tdd.getCheckpointTimeout
+        }
+      }
+
+      var checkpointCache = checkpointCacheManager.registerCheckpointCache(
+        jobInformation.getJobId,
+        tdd.getCheckpointTimeout,
+        checkpointCacheLeaseTimeout)
+
       val task = new Task(
         jobInformation,
         taskInformation,
@@ -1197,6 +1227,7 @@ class TaskManager(
         blobCache,
         libCache,
         fileCache,
+        checkpointCache,
         config,
         taskMetricGroup,
         resultPartitionConsumableNotifier,
@@ -2018,6 +2049,7 @@ object TaskManager {
       taskManagerServices.getMemoryManager(),
       taskManagerServices.getIOManager(),
       taskManagerServices.getNetworkEnvironment(),
+      taskManagerServices.getCheckpointCacheManager(),
       highAvailabilityServices,
       taskManagerMetricGroup)
 
@@ -2035,6 +2067,7 @@ object TaskManager {
     memoryManager: MemoryManager,
     ioManager: IOManager,
     networkEnvironment: NetworkEnvironment,
+    checkpointCacheManager: CheckpointCacheManager,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup: TaskManagerMetricGroup
   ): Props = {
@@ -2046,6 +2079,7 @@ object TaskManager {
       memoryManager,
       ioManager,
       networkEnvironment,
+      checkpointCacheManager,
       taskManagerConfig.getNumberSlots(),
       highAvailabilityServices,
       taskManagerMetricGroup)

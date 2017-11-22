@@ -86,7 +86,8 @@ public class TaskDeploymentDescriptorTest {
 				targetSlotNumber,
 				taskStateHandles,
 				producedResults,
-				inputGates);
+				inputGates,
+				-1);
 
 			final TaskDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
 

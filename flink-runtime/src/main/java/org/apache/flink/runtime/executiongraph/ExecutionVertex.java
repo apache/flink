@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -824,6 +825,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			serializedTaskInformation = new TaskDeploymentDescriptor.Offloaded<>(taskInformationOrBlobKey.right());
 		}
 
+		// get jobCheckpointingSettings via job graph
+		CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = this.getExecutionGraph().getCheckpointCoordinatorConfiguration();
 		return new TaskDeploymentDescriptor(
 			getJobId(),
 			serializedJobInformation,
@@ -835,7 +838,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			targetSlot.getRoot().getSlotNumber(),
 			taskStateHandles,
 			producedPartitions,
-			consumedPartitions);
+			consumedPartitions,
+			checkpointCoordinatorConfiguration == null ? -1L : checkpointCoordinatorConfiguration.getCheckpointTimeout());
 	}
 
 	// --------------------------------------------------------------------------------------------

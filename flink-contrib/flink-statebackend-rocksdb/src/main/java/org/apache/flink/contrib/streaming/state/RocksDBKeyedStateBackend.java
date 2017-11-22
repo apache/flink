@@ -44,11 +44,14 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.CachedStreamStateHandle;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CachedCheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
@@ -205,6 +208,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** Unique ID of this backend. */
 	private UUID backendUID;
 
+	private CheckpointCache cache;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -216,12 +221,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
+		CheckpointCache cache,
 		boolean enableIncrementalCheckpointing
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 
 		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
+
+		this.cache = cache;
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 		this.rocksDBResourceGuard = new ResourceGuard();
@@ -370,7 +378,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final RocksDBIncrementalSnapshotOperation<K> snapshotOperation =
 			new RocksDBIncrementalSnapshotOperation<>(
 				this,
-				checkpointStreamFactory,
+				new CachedCheckpointStreamFactory(cache, checkpointStreamFactory),
 				checkpointId,
 				checkpointTimestamp);
 
@@ -416,7 +424,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			return DoneFuture.nullValue();
 		}
 
-		snapshotOperation = new RocksDBFullSnapshotOperation<>(this, streamFactory, snapshotCloseableRegistry);
+		snapshotOperation = new RocksDBFullSnapshotOperation<>(
+			this,
+			new CachedCheckpointStreamFactory(cache, streamFactory),
+			snapshotCloseableRegistry);
 		snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
 
 		// implementation of the async IO operation, based on FutureTask
@@ -488,7 +499,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private final RocksDBKeyedStateBackend<K> stateBackend;
 		private final KeyGroupRangeOffsets keyGroupRangeOffsets;
-		private final CheckpointStreamFactory checkpointStreamFactory;
+		private final CachedCheckpointStreamFactory checkpointStreamFactory;
 		private final CloseableRegistry snapshotCloseableRegistry;
 		private final ResourceGuard.Lease dbLease;
 
@@ -504,7 +515,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		RocksDBFullSnapshotOperation(
 			RocksDBKeyedStateBackend<K> stateBackend,
-			CheckpointStreamFactory checkpointStreamFactory,
+			CachedCheckpointStreamFactory checkpointStreamFactory,
 			CloseableRegistry registry) throws IOException {
 
 			this.stateBackend = stateBackend;
@@ -535,7 +546,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void openCheckpointStream() throws Exception {
 			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
-			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(checkpointId, checkpointTimeStamp);
+			outStream = checkpointStreamFactory.
+				createCheckpointStateOutputStream(checkpointId, checkpointTimeStamp, new StateHandleID(stateBackend.backendUID + "$" + checkpointId));
 			snapshotCloseableRegistry.registerCloseable(outStream);
 			outputView = new DataOutputViewStreamWrapper(outStream);
 		}
@@ -754,7 +766,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		private final RocksDBKeyedStateBackend<K> stateBackend;
 
 		/** Stream factory that creates the outpus streams to DFS. */
-		private final CheckpointStreamFactory checkpointStreamFactory;
+		private final CachedCheckpointStreamFactory checkpointStreamFactory;
 
 		/** Id for the current checkpoint. */
 		private final long checkpointId;
@@ -787,7 +799,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private RocksDBIncrementalSnapshotOperation(
 			RocksDBKeyedStateBackend<K> stateBackend,
-			CheckpointStreamFactory checkpointStreamFactory,
+			CachedCheckpointStreamFactory checkpointStreamFactory,
 			long checkpointId,
 			long checkpointTimestamp) throws IOException {
 
@@ -798,9 +810,18 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.dbLease = this.stateBackend.rocksDBResourceGuard.acquireResource();
 		}
 
-		private StreamStateHandle materializeStateData(Path filePath) throws Exception {
+		private StreamStateHandle materializeStateData(StateHandleID handleID, Path filePath) throws Exception {
 			FSDataInputStream inputStream = null;
 			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
+			//fast path for placeholder
+			if (filePath == null) {
+				outputStream = checkpointStreamFactory
+					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp, handleID, true);
+				outputStream.closeAndGetHandle();
+				outputStream = null;
+				return new PlaceholderStreamStateHandle(handleID);
+			}
 
 			try {
 				final byte[] buffer = new byte[8 * 1024];
@@ -808,9 +829,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				FileSystem backupFileSystem = backupPath.getFileSystem();
 				inputStream = backupFileSystem.open(filePath);
 				closeableRegistry.registerCloseable(inputStream);
-
 				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
+					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp, handleID);
 				closeableRegistry.registerCloseable(outputStream);
 
 				while (true) {
@@ -846,7 +866,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			try {
 				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
+					.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp, new StateHandleID(stateBackend.backendUID + "$" + checkpointId + "meta"));
 				closeableRegistry.registerCloseable(outputStream);
 
 				//no need for compression scheme support because sst-files are already compressed
@@ -924,23 +944,23 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				for (FileStatus fileStatus : fileStatuses) {
 					final Path filePath = fileStatus.getPath();
 					final String fileName = filePath.getName();
-					final StateHandleID stateHandleID = new StateHandleID(fileName);
 
 					if (fileName.endsWith(SST_FILE_SUFFIX)) {
+						final StateHandleID stateHandleID = new StateHandleID(stateBackend.backendUID + "$" + fileName);
 						final boolean existsAlready =
 							baseSstFiles != null && baseSstFiles.contains(stateHandleID);
 
 						if (existsAlready) {
 							// we introduce a placeholder state handle, that is replaced with the
 							// original from the shared state registry (created from a previous checkpoint)
-							sstFiles.put(
-								stateHandleID,
-								new PlaceholderStreamStateHandle());
+							// materializeStateData should return a placeholder in a fast path.
+							sstFiles.put(stateHandleID, materializeStateData(stateHandleID, null));
 						} else {
-							sstFiles.put(stateHandleID, materializeStateData(filePath));
+							sstFiles.put(stateHandleID, materializeStateData(stateHandleID, filePath));
 						}
 					} else {
-						StreamStateHandle fileHandle = materializeStateData(filePath);
+						final StateHandleID stateHandleID = new StateHandleID(stateBackend.backendUID + "$" + checkpointId + "$" + fileName);
+						StreamStateHandle fileHandle = materializeStateData(stateHandleID, filePath);
 						miscFiles.put(stateHandleID, fileHandle);
 					}
 				}
@@ -1136,6 +1156,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							", but found: " + keyedStateHandle.getClass());
 					}
 					this.currentKeyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
+					this.currentKeyGroupsStateHandle.setCache(rocksDBKeyedStateBackend.cache);
 					restoreKeyGroupsInStateHandle();
 				}
 			}
@@ -1289,11 +1310,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 
 		private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> readMetaData(
-			StreamStateHandle metaStateHandle) throws Exception {
+			StreamStateHandle metaStateHandle,
+			boolean hasExtraKeys) throws Exception {
 
 			FSDataInputStream inputStream = null;
 
 			try {
+				if (metaStateHandle instanceof CachedStreamStateHandle) {
+					((CachedStreamStateHandle) metaStateHandle).setCheckpointCache(stateBackend.cache);
+					((CachedStreamStateHandle) metaStateHandle).reCache(!hasExtraKeys);
+				}
 				inputStream = metaStateHandle.openInputStream();
 				stateBackend.cancelStreamRegistry.registerCloseable(inputStream);
 
@@ -1375,12 +1401,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				final Map<StateHandleID, StreamStateHandle> miscFiles =
 					restoreStateHandle.getPrivateState();
 
-				readAllStateData(sstFiles, restoreInstancePath);
-				readAllStateData(miscFiles, restoreInstancePath);
+				readAllStateData(sstFiles, restoreInstancePath, hasExtraKeys);
+				readAllStateData(miscFiles, restoreInstancePath, hasExtraKeys);
 
 				// read meta data
 				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots =
-					readMetaData(restoreStateHandle.getMetaStateHandle());
+					readMetaData(restoreStateHandle.getMetaStateHandle(), hasExtraKeys);
 
 				List<ColumnFamilyDescriptor> columnFamilyDescriptors =
 					new ArrayList<>(1 + stateMetaInfoSnapshots.size());
@@ -1516,6 +1542,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					}
 
 					stateBackend.lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
+
+					// commit re-cache
+					stateBackend.cache.commitCache(CheckpointCache.CHECKPOINT_ID_FOR_RESTORE, false);
 				}
 			} finally {
 				FileSystem restoreFileSystem = restoreInstancePath.getFileSystem();
@@ -1527,11 +1556,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private void readAllStateData(
 			Map<StateHandleID, StreamStateHandle> stateHandleMap,
-			Path restoreInstancePath) throws IOException {
+			Path restoreInstancePath,
+			boolean hasExtraKeys) throws IOException {
 
 			for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
 				StateHandleID stateHandleID = entry.getKey();
 				StreamStateHandle remoteFileHandle = entry.getValue();
+				if (remoteFileHandle instanceof CachedStreamStateHandle) {
+					((CachedStreamStateHandle) remoteFileHandle).setCheckpointCache(stateBackend.cache);
+					((CachedStreamStateHandle) remoteFileHandle).reCache(!hasExtraKeys);
+				}
 				readStateData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
 			}
 		}

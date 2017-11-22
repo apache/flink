@@ -33,6 +33,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -271,6 +272,8 @@ public class Task implements Runnable, TaskActions {
 	 */
 	private ClassLoader userCodeClassLoader;
 
+	private CheckpointCache checkpointCache;
+
 	/**
 	 * <p><b>IMPORTANT:</b> This constructor may not start any work that would need to
 	 * be undone in the case of a failing task deployment.</p>
@@ -296,6 +299,7 @@ public class Task implements Runnable, TaskActions {
 		BlobCacheService blobService,
 		LibraryCacheManager libraryCache,
 		FileCache fileCache,
+		CheckpointCache cache,
 		TaskManagerRuntimeInfo taskManagerConfig,
 		@Nonnull TaskMetricGroup metricGroup,
 		ResultPartitionConsumableNotifier resultPartitionConsumableNotifier,
@@ -411,6 +415,8 @@ public class Task implements Runnable, TaskActions {
 
 		// finally, create the executing thread, but do not start it
 		executingThread = new Thread(TASK_THREADS_GROUP, this, taskNameWithSubtask);
+
+		this.checkpointCache = cache;
 	}
 
 	// ------------------------------------------------------------------------
@@ -672,7 +678,7 @@ public class Task implements Runnable, TaskActions {
 				memoryManager, ioManager, broadcastVariableManager,
 				accumulatorRegistry, kvStateRegistry, inputSplitProvider,
 				distributedCacheEntries, writers, inputGates,
-				checkpointResponder, taskManagerConfig, metrics, this);
+				checkpointResponder, taskManagerConfig, metrics, checkpointCache, this);
 
 			// let the task code create its readers and writers
 			invokable.setEnvironment(env);
@@ -842,6 +848,11 @@ public class Task implements Runnable, TaskActions {
 				// remove all of the tasks library resources
 				libraryCache.unregisterTask(jobId, executionId);
 				blobService.getPermanentBlobService().releaseJob(jobId);
+
+				// unregister checkpoint cache
+				if (checkpointCache != null) {
+					checkpointCache.discard();
+				}
 
 				// remove all files in the distributed cache
 				removeCachedFiles(distributedCacheEntries, fileCache);

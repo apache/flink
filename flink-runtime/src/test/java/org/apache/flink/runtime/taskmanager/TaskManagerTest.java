@@ -2159,7 +2159,8 @@ public class TaskManagerTest extends TestLogger {
 			targetSlotNumber,
 			null,
 			producedPartitions,
-			inputGates);
+			inputGates,
+			-1);
 
 	}
 }

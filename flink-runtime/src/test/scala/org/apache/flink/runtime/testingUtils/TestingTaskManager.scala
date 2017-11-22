@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
@@ -38,6 +39,7 @@ class TestingTaskManager(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
+    checkpointCacheManager: CheckpointCacheManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup : TaskManagerMetricGroup)
@@ -48,6 +50,7 @@ class TestingTaskManager(
     memoryManager,
     ioManager,
     network,
+    checkpointCacheManager,
     numberOfSlots,
     highAvailabilityServices,
     taskManagerMetricGroup)
@@ -59,6 +62,7 @@ class TestingTaskManager(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
+    checkpointCacheManager: CheckpointCacheManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup : TaskManagerMetricGroup) {
@@ -69,6 +73,7 @@ class TestingTaskManager(
       memoryManager,
       ioManager,
       network,
+      checkpointCacheManager,
       numberOfSlots,
       highAvailabilityServices,
       taskManagerMetricGroup)

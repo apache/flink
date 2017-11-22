@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -1020,6 +1021,7 @@ public class TaskTest extends TestLogger {
 			blobService,
 			libCache,
 			mock(FileCache.class),
+			mock(CheckpointCache.class),
 			new TestingTaskManagerRuntimeInfo(taskManagerConfig),
 			taskMetricGroup,
 			consumableNotifier,

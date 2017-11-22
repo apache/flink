@@ -23,9 +23,11 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -74,6 +76,7 @@ public class TaskManagerServices {
 	private final TaskSlotTable taskSlotTable;
 	private final JobManagerTable jobManagerTable;
 	private final JobLeaderService jobLeaderService;
+	private final CheckpointCacheManager checkpointCacheManager;
 
 	private TaskManagerServices(
 		TaskManagerLocation taskManagerLocation,
@@ -84,7 +87,8 @@ public class TaskManagerServices {
 		FileCache fileCache,
 		TaskSlotTable taskSlotTable,
 		JobManagerTable jobManagerTable,
-		JobLeaderService jobLeaderService) {
+		JobLeaderService jobLeaderService,
+		CheckpointCacheManager checkpointCacheManager) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.memoryManager = Preconditions.checkNotNull(memoryManager);
@@ -95,6 +99,7 @@ public class TaskManagerServices {
 		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
 		this.jobManagerTable = Preconditions.checkNotNull(jobManagerTable);
 		this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
+		this.checkpointCacheManager = Preconditions.checkNotNull(checkpointCacheManager);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -135,6 +140,10 @@ public class TaskManagerServices {
 
 	public JobLeaderService getJobLeaderService() {
 		return jobLeaderService;
+	}
+
+	public CheckpointCacheManager getCheckpointCacheManager() {
+		return checkpointCacheManager;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -190,6 +199,11 @@ public class TaskManagerServices {
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
+		final CheckpointCacheManager checkpointCacheManager = new CheckpointCacheManager(
+			new ScheduledThreadPoolExecutor(1),
+			Executors.directExecutor(),
+			taskManagerServicesConfiguration.getTmpDirPaths()[0]);
+
 		return new TaskManagerServices(
 			taskManagerLocation,
 			memoryManager,
@@ -199,7 +213,8 @@ public class TaskManagerServices {
 			fileCache,
 			taskSlotTable,
 			jobManagerTable,
-			jobLeaderService);
+			jobLeaderService,
+			checkpointCacheManager);
 	}
 
 	/**
