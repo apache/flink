@@ -44,6 +44,7 @@ import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.joda.time.format.DateTimeFormatter
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -1467,7 +1468,7 @@ abstract class CodeGenerator(
 
     val field =
       s"""
-         |final org.joda.time.format.DateTimeFormatter $fieldTerm;
+         |final ${classOf[DateTimeFormatter].getCanonicalName} $fieldTerm;
          |""".stripMargin
     reusableMemberStatements.add(field)
 
