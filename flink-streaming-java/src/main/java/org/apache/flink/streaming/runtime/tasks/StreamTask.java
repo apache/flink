@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.configuration.TimerServiceOptions;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -69,6 +70,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -218,7 +220,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			LOG.debug("Initializing {}.", getName());
 
 			asyncOperationsThreadPool = Executors.newCachedThreadPool();
-
 			configuration = new StreamConfig(getTaskConfiguration());
 
 			CheckpointExceptionHandlerFactory cpExceptionHandlerFactory = createCheckpointExceptionHandlerFactory();
@@ -319,9 +320,20 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			isRunning = false;
 
 			// stop all timers and threads
-			if (timerService != null) {
+			if (timerService != null && !timerService.isTerminated()) {
 				try {
-					timerService.shutdownService();
+
+					final long timeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
+						getLong(TimerServiceOptions.TIMER_SERVICE_TERMINATION_AWAIT_MS);
+
+					// wait for a reasonable time for all pending timer threads to finish
+					boolean timerShutdownComplete =
+						timerService.shutdownAndAwaitPending(timeoutMs, TimeUnit.MILLISECONDS);
+
+					if (!timerShutdownComplete) {
+						LOG.warn("Timer service shutdown exceeded time limit of {} ms while waiting for pending " +
+							"timers. Will continue with shutdown procedure.", timeoutMs);
+					}
 				}
 				catch (Throwable t) {
 					// catch and log the exception to not replace the original exception

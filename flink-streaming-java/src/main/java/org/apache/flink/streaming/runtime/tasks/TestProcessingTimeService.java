@@ -134,6 +134,12 @@ public class TestProcessingTimeService extends ProcessingTimeService {
 		this.isTerminated = true;
 	}
 
+	@Override
+	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
+		shutdownService();
+		return true;
+	}
+
 	public int getNumActiveTimers() {
 		int count = 0;
 
