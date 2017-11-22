@@ -46,6 +46,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.types.Record;
@@ -78,6 +79,8 @@ public class MockEnvironment implements Environment {
 
 	private final IOManager ioManager;
 
+	private final TaskStateManager taskStateManager;
+
 	private final InputSplitProvider inputSplitProvider;
 
 	private final Configuration jobConfiguration;
@@ -100,11 +103,29 @@ public class MockEnvironment implements Environment {
 
 	private final ClassLoader userCodeClassLoader;
 
-	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
-		this(taskName, memorySize, inputSplitProvider, bufferSize, new Configuration(), new ExecutionConfig());
+	public MockEnvironment(
+		String taskName,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize,
+		TaskStateManager taskStateManager) {
+		this(
+			taskName,
+			memorySize,
+			inputSplitProvider,
+			bufferSize,
+			new Configuration(),
+			new ExecutionConfig(),
+			taskStateManager);
 	}
 
-	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize, Configuration taskConfiguration, ExecutionConfig executionConfig) {
+	public MockEnvironment(
+		String taskName,
+		long memorySize,
+		MockInputSplitProvider inputSplitProvider,
+		int bufferSize, Configuration taskConfiguration,
+		ExecutionConfig executionConfig,
+		TaskStateManager taskStateManager) {
 		this(
 			taskName,
 			memorySize,
@@ -112,6 +133,7 @@ public class MockEnvironment implements Environment {
 			bufferSize,
 			taskConfiguration,
 			executionConfig,
+			taskStateManager,
 			1,
 			1,
 			0);
@@ -124,6 +146,7 @@ public class MockEnvironment implements Environment {
 			int bufferSize,
 			Configuration taskConfiguration,
 			ExecutionConfig executionConfig,
+			TaskStateManager taskStateManager,
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex) {
@@ -137,7 +160,8 @@ public class MockEnvironment implements Environment {
 			maxParallelism,
 			parallelism,
 			subtaskIndex,
-			Thread.currentThread().getContextClassLoader());
+			Thread.currentThread().getContextClassLoader(),
+			taskStateManager);
 
 	}
 
@@ -151,7 +175,8 @@ public class MockEnvironment implements Environment {
 			int maxParallelism,
 			int parallelism,
 			int subtaskIndex,
-			ClassLoader userCodeClassLoader) {
+			ClassLoader userCodeClassLoader,
+			TaskStateManager taskStateManager) {
 		this.taskInfo = new TaskInfo(taskName, maxParallelism, subtaskIndex, parallelism, 0);
 		this.jobConfiguration = new Configuration();
 		this.taskConfiguration = taskConfiguration;
@@ -160,6 +185,7 @@ public class MockEnvironment implements Environment {
 
 		this.memManager = new MemoryManager(memorySize, 1);
 		this.ioManager = new IOManagerAsync();
+
 		this.executionConfig = executionConfig;
 		this.inputSplitProvider = inputSplitProvider;
 		this.bufferSize = bufferSize;
@@ -170,6 +196,7 @@ public class MockEnvironment implements Environment {
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
 
 		this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+		this.taskStateManager = Preconditions.checkNotNull(taskStateManager);
 	}
 
 
@@ -336,6 +363,11 @@ public class MockEnvironment implements Environment {
 	@Override
 	public BroadcastVariableManager getBroadcastVariableManager() {
 		return this.bcVarManager;
+	}
+
+	@Override
+	public TaskStateManager getTaskStateManager() {
+		return taskStateManager;
 	}
 
 	@Override

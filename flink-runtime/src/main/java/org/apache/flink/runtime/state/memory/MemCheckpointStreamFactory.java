@@ -45,7 +45,7 @@ public class MemCheckpointStreamFactory implements CheckpointStreamFactory {
 	}
 
 	@Override
-	public void close() throws Exception {}
+	public void close() throws IOException {}
 
 	@Override
 	public CheckpointStateOutputStream createCheckpointStateOutputStream(

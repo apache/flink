@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -360,7 +361,8 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			16,
 			1,
 			0,
-			classLoader);
+			classLoader,
+			new TestTaskStateManager());
 
 		OneInputStreamOperatorTestHarness<Long, Long> harness;
 

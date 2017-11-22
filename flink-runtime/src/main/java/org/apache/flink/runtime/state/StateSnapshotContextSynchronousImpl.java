@@ -122,7 +122,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	private <T extends StreamStateHandle> T closeAndUnregisterStreamToObtainStateHandle(
 		NonClosingCheckpointOutputStream<T> stream) throws IOException {
 
-		if (null != stream && closableRegistry.unregisterCloseable(stream.getDelegate())) {
+		if (stream != null && closableRegistry.unregisterCloseable(stream.getDelegate())) {
 			return stream.closeAndGetHandle();
 		} else {
 			return null;

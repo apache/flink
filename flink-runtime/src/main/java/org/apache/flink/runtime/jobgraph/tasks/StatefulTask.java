@@ -21,21 +21,12 @@ package org.apache.flink.runtime.jobgraph.tasks;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 
 /**
  * This interface must be implemented by any invokable that has recoverable state and participates
  * in checkpointing.
  */
 public interface StatefulTask {
-
-	/**
-	 * Sets the initial state of the operator, upon recovery. The initial state is typically
-	 * a snapshot of the state from a previous execution.
-	 *
-	 * @param taskStateHandles All state handle for the task.
-	 */
-	void setInitialState(TaskStateSnapshot taskStateHandles) throws Exception;
 
 	/**
 	 * This method is called to trigger a checkpoint, asynchronously by the checkpoint

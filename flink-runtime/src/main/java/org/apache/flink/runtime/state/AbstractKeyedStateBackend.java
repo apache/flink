@@ -138,7 +138,7 @@ public abstract class AbstractKeyedStateBackend<K>
 	@Override
 	public void dispose() {
 
-		IOUtils.closeQuietly(this);
+		IOUtils.closeQuietly(cancelStreamRegistry);
 
 		if (kvStateRegistry != null) {
 			kvStateRegistry.unregisterAll();

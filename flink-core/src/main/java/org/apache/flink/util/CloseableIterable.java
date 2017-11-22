@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,27 +15,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.runtime.state;
 
+package org.apache.flink.util;
 
-import org.apache.flink.annotation.PublicEvolving;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
 
 /**
- * This interface must be implemented by functions/operations that want to receive
- * a commit notification once a checkpoint has been completely acknowledged by all
- * participants.
+ * This interface represents an iterable that is also closeable.
+ *
+ * @param <T> type of the iterated objects.
  */
-@PublicEvolving
-public interface CheckpointListener {
+public interface CloseableIterable<T> extends Iterable<T>, Closeable {
 
-	/**
-	 * This method is called as a notification once a distributed checkpoint has been completed.
-	 * 
-	 * Note that any exception during this method will not cause the checkpoint to
-	 * fail any more.
-	 * 
-	 * @param checkpointId The ID of the checkpoint that has been completed.
-	 * @throws Exception
-	 */
-	void notifyCheckpointComplete(long checkpointId) throws Exception;
+	class Empty<T> implements CloseableIterable<T> {
+
+		private Empty() {
+		}
+
+		@Override
+		public void close() throws IOException {
+
+		}
+
+		@Override
+		public Iterator<T> iterator() {
+			return Collections.emptyIterator();
+		}
+	}
+
+	static <T> CloseableIterable<T> empty() {
+		return new CloseableIterable.Empty<>();
+	}
 }

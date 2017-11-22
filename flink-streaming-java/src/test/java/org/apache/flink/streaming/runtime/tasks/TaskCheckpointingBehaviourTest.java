@@ -62,6 +62,7 @@ import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
@@ -231,6 +232,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				mock(IOManager.class),
 				network,
 				mock(BroadcastVariableManager.class),
+				new TestTaskStateManager(),
 				mock(TaskManagerActions.class),
 				mock(InputSplitProvider.class),
 				checkpointResponder,

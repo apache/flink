@@ -28,6 +28,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -225,6 +227,9 @@ public class InterruptSensitiveRestoreTest {
 		streamConfig.setOperatorID(operatorID);
 		TaskStateSnapshot stateSnapshot = new TaskStateSnapshot();
 		stateSnapshot.putSubtaskStateByOperatorID(operatorID, operatorSubtaskState);
+
+		JobManagerTaskRestore taskRestore = new JobManagerTaskRestore(1L, stateSnapshot);
+
 		JobInformation jobInformation = new JobInformation(
 			new JobID(),
 			"test job name",
@@ -244,6 +249,13 @@ public class InterruptSensitiveRestoreTest {
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
+		TestTaskStateManager taskStateManager = new TestTaskStateManager();
+		taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
+		taskStateManager.setTaskStateSnapshotsByCheckpointId(
+			Collections.singletonMap(
+				taskRestore.getRestoreCheckpointId(),
+				taskRestore.getTaskStateSnapshot()));
+
 		return new Task(
 			jobInformation,
 			taskInformation,
@@ -254,11 +266,12 @@ public class InterruptSensitiveRestoreTest {
 			Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 			Collections.<InputGateDeploymentDescriptor>emptyList(),
 			0,
-			stateSnapshot,
+			taskRestore,
 			mock(MemoryManager.class),
 			mock(IOManager.class),
 			networkEnvironment,
 			mock(BroadcastVariableManager.class),
+			taskStateManager,
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
