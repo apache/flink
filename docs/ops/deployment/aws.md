@@ -100,8 +100,9 @@ implementation. Both ways are described below.
 
 To use either `flink-s3-fs-hadoop` or `flink-s3-fs-presto`, copy the respective JAR file from the
 `opt` directory to the `lib` directory of your Flink distribution before starting Flink, e.g.
+
 ```
-cp ./opt/flink-s3-fs-presto-1.4-SNAPSHOT.jar ./lib/
+cp ./opt/flink-s3-fs-presto-{{ site.version }}.jar ./lib/
 ```
 
 #### Configure Access Credentials
@@ -195,7 +196,7 @@ the path of the Hadoop configuration directory, for example
 fs.hdfs.hadoopconf: /path/to/etc/hadoop
 ```
 
-This registers `/path/to/etc/hadoop` as Hadoop's configuration directory with Flink. Flink will look for the `core-site.xml` and `hdfs-site.xml` files in the specified directory.  
+This registers `/path/to/etc/hadoop` as Hadoop's configuration directory with Flink. Flink will look for the `core-site.xml` and `hdfs-site.xml` files in the specified directory.
 
 {% top %}
 
