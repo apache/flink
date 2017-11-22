@@ -581,6 +581,20 @@ under the License.
 				<version>0.9.10</version>
 				<scope>test</scope>
 			</dependency>
+
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-core</artifactId>
+				<version>${powermock.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.powermock</groupId>
+				<artifactId>powermock-reflect</artifactId>
+				<version>${powermock.version}</version>
+				<scope>test</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -891,6 +905,41 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.0.2</version>
+				<executions>
+					<execution>
+						<id>analyze</id>
+						<goals>
+							<goal>analyze-only</goal>
+						</goals>
+						<configuration>
+							<!-- Ignore runtime-only dependencies in analysis -->
+							<ignoreNonCompile>true</ignoreNonCompile>
+							<outputXML>true</outputXML>
+							<failOnWarning>true</failOnWarning>
+							<ignoredUnusedDeclaredDependencies>
+								<!-- Ignore inherited from the root POM -->
+								<ignoredUnusedDeclaredDependency>org.apache.flink:force-shading</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>com.google.code.findbugs:jsr305</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>junit:junit:jar</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.mockito:mockito-all</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.powermock:powermock-module-junit4</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.powermock:powermock-api-mockito</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.powermock:powermock-core</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.powermock:powermock-reflect</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.hamcrest:hamcrest-all</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.slf4j:slf4j-api</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>org.slf4j:slf4j-log4j12</ignoredUnusedDeclaredDependency>
+								<ignoredUnusedDeclaredDependency>log4j:log4j:jar</ignoredUnusedDeclaredDependency>
+							</ignoredUnusedDeclaredDependencies>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!--
 			We need to include this here because some of our modules have transitive dependencies
 			on jdbm1, which is of type "bundle". This only works if you include the
@@ -1292,6 +1341,12 @@ under the License.
 
 		<pluginManagement>
 			<plugins>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-dependency-plugin</artifactId>
+					<version>3.0.2</version>
+				</plugin>
 
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>

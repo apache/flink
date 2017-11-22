@@ -43,4 +43,23 @@ under the License.
 		<module>flink-connector-wikiedits</module>
 		<module>flink-statebackend-rocksdb</module>
 	</modules>
+
+	<build>
+		<plugins>
+			<!-- TODO: It will be removed after Cleanup dependencies(used but undeclared / declared but unused) -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>analyze</id>
+						<goals><goal>analyze-only</goal></goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
