@@ -32,7 +32,7 @@ import java.util.Properties;
  * A version-agnostic Kafka JSON {@link StreamTableSource}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #getKafkaConsumer(String, Properties, DeserializationSchema)}}.
+ * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  *
  * <p>The field names are used to parse the JSON file and so are the types.
  */

@@ -145,7 +145,7 @@ val source: TableSource[_] = Kafka010JsonTableSource.builder()
 </div>
 </div>
 
-* **Missing Field Handling** By default, a missing JSON field is set to `null`. You can enable strict JSON parsing that will cancel the source (and query) if a field is missing.
+* **Missing Field Handling:** By default, a missing JSON field is set to `null`. You can enable strict JSON parsing that will cancel the source (and query) if a field is missing.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -164,6 +164,30 @@ val source: TableSource[_] = Kafka010JsonTableSource.builder()
   // ...
   // configure missing field behavior
   .failOnMissingField(true)
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+* **Specify the start reading position:** By default, the table source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions via the builder's methods, which correspond to the configurations in section [Kafka Consumers Start Position Configuration](../connectors/kafka.html#kafka-consumers-start-position-configuration).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableSource source = Kafka010JsonTableSource.builder()
+  // ...
+  // start reading from the earliest offset
+  .startReadingFromEarliest()
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  // start reading from the earliest offset
+  .startReadingFromEarliest()
   .build()
 {% endhighlight %}
 </div>
@@ -260,6 +284,30 @@ val source: TableSource[_] = Kafka010AvroTableSource.builder()
   .withTableToJsonMapping(Map(
     "sensorId" -> "id", 
     "temperature" -> "temp").asJava)
+  .build()
+{% endhighlight %}
+</div>
+</div>
+
+* **Specify the start reading position:** By default, the table source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions via the builder's methods, which correspond to the configurations in section [Kafka Consumers Start Position Configuration](../connectors/kafka.html#kafka-consumers-start-position-configuration).
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+TableSource source = Kafka010JsonTableSource.builder()
+  // ...
+  // start reading from the earliest offset
+  .startReadingFromEarliest()
+  .build();
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val source: TableSource[_] = Kafka010JsonTableSource.builder()
+  // ...
+  // start reading from the earliest offset
+  .startReadingFromEarliest()
   .build()
 {% endhighlight %}
 </div>
