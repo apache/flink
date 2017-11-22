@@ -60,7 +60,7 @@ The Queryable State feature consists of three main entities:
  returning it to the client, and 
  3. the `QueryableStateServer` which runs on each `TaskManager` and is responsible for serving the locally stored state.
  
-The client will connect to one of the proxies and send a request for the state associated with a specific 
+The client connects to one of the proxies and sends a request for the state associated with a specific 
 key, `k`. As stated in [Working with State]({{ site.baseurl }}/dev/stream/state/state.html), keyed state is organized in 
 *Key Groups*, and each `TaskManager` is assigned a number of these key groups. To discover which `TaskManager` is 
 responsible for the key group holding `k`, the proxy will ask the `JobManager`. Based on the answer, the proxy will 
@@ -161,7 +161,7 @@ So far, you have set up your cluster to run with queryable state and you have de
 queryable. Now it is time to see how to query this state. 
 
 For this you can use the `QueryableStateClient` helper class. This is available in the `flink-queryable-state-client` 
-jar which you have to explicitly include as a dependency in the `pom.xml` of your project along with `flink-core`, as shown below:
+jar which must explicitly included as a dependency in the `pom.xml` of your project along with `flink-core`, as shown below:
 
 <div data-lang="java" markdown="1">
 {% highlight xml %}
