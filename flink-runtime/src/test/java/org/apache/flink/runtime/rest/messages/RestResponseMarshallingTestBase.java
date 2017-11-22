@@ -57,7 +57,17 @@ public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> ex
 		JsonNode json = objectMapper.valueToTree(expected);
 
 		final R unmarshalled = objectMapper.treeToValue(json, getTestResponseClass());
-		Assert.assertEquals(expected, unmarshalled);
+		assertOriginalEqualsToUnmarshalled(expected, unmarshalled);
+	}
+
+	/**
+	 * Asserts that two objects are equal. If they are not, an {@link AssertionError} is thrown.
+	 *
+	 * @param expected expected value
+	 * @param actual   the value to check against expected
+	 */
+	protected void assertOriginalEqualsToUnmarshalled(R expected, R actual) {
+		Assert.assertEquals(expected, actual);
 	}
 
 }
