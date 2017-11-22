@@ -551,7 +551,7 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	@Override
-	public void invoke(KafkaTransactionState transaction, IN next, Context context) throws Exception {
+	public void invoke(KafkaTransactionState transaction, IN next, Context context) throws FlinkKafka011Exception {
 		checkErroneous();
 
 		byte[] serializedKey = schema.serializeKey(next);
@@ -587,7 +587,7 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() throws FlinkKafka011Exception {
 		final KafkaTransactionState currentTransaction = currentTransaction();
 		if (currentTransaction != null) {
 			// to avoid exceptions on aborting transactions with some pending records
@@ -612,7 +612,7 @@ public class FlinkKafkaProducer011<IN>
 	// ------------------- Logic for handling checkpoint flushing -------------------------- //
 
 	@Override
-	protected KafkaTransactionState beginTransaction() throws Exception {
+	protected KafkaTransactionState beginTransaction() throws FlinkKafka011Exception {
 		switch (semantic) {
 			case EXACTLY_ONCE:
 				FlinkKafkaProducer<byte[], byte[]> producer = createOrGetProducerFromPool();
@@ -631,12 +631,13 @@ public class FlinkKafkaProducer011<IN>
 		}
 	}
 
-	private FlinkKafkaProducer<byte[], byte[]> createOrGetProducerFromPool() throws Exception {
+	private FlinkKafkaProducer<byte[], byte[]> createOrGetProducerFromPool() throws FlinkKafka011Exception {
 		FlinkKafkaProducer<byte[], byte[]> producer = getProducersPool().poll();
 		if (producer == null) {
 			String transactionalId = availableTransactionalIds.poll();
 			if (transactionalId == null) {
-				throw new Exception(
+				throw new FlinkKafka011Exception(
+					FlinkKafka011ErrorCode.PRODUCERS_POOL_EMPTY,
 					"Too many ongoing snapshots. Increase kafka producers pool size or decrease number of concurrent checkpoints.");
 			}
 			producer = initTransactionalProducer(transactionalId, true);
@@ -646,7 +647,7 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	@Override
-	protected void preCommit(KafkaTransactionState transaction) throws Exception {
+	protected void preCommit(KafkaTransactionState transaction) throws FlinkKafka011Exception {
 		switch (semantic) {
 			case EXACTLY_ONCE:
 			case AT_LEAST_ONCE:
@@ -740,7 +741,7 @@ public class FlinkKafkaProducer011<IN>
 	 * Flush pending records.
 	 * @param transaction
 	 */
-	private void flush(KafkaTransactionState transaction) throws Exception {
+	private void flush(KafkaTransactionState transaction) throws FlinkKafka011Exception {
 		if (transaction.producer != null) {
 			transaction.producer.flush();
 		}
@@ -936,12 +937,15 @@ public class FlinkKafkaProducer011<IN>
 		return producer;
 	}
 
-	private void checkErroneous() throws Exception {
+	private void checkErroneous() throws FlinkKafka011Exception {
 		Exception e = asyncException;
 		if (e != null) {
 			// prevent double throwing
 			asyncException = null;
-			throw new Exception("Failed to send data to Kafka: " + e.getMessage(), e);
+			throw new FlinkKafka011Exception(
+				FlinkKafka011ErrorCode.EXTERNAL_ERROR,
+				"Failed to send data to Kafka: " + e.getMessage(),
+				e);
 		}
 	}
 
