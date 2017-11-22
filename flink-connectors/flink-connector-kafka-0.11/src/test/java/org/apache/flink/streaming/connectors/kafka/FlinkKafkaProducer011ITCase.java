@@ -29,12 +29,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import kafka.server.KafkaServer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
 import org.junit.Test;
@@ -550,17 +545,6 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		} else {
 			toShutDown.shutdown();
 			toShutDown.awaitShutdown();
-		}
-	}
-
-	private void assertRecord(String topicName, String expectedKey, String expectedValue) {
-		try (KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(extraProperties)) {
-			kafkaConsumer.subscribe(Collections.singletonList(topicName));
-			ConsumerRecords<String, String> records = kafkaConsumer.poll(10000);
-
-			ConsumerRecord<String, String> record = Iterables.getOnlyElement(records);
-			assertEquals(expectedKey, record.key());
-			assertEquals(expectedValue, record.value());
 		}
 	}
 
