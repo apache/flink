@@ -355,4 +355,21 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
 				comparatorOrders);
 		}
 	}
+
+	/**
+	 * Creates a {@link RowTypeInfo} with projected fields.
+	 *
+	 * @param rowType The original RowTypeInfo whose fields are projected
+	 * @param fieldMapping The field mapping of the projection
+	 * @return A RowTypeInfo with projected fields.
+	 */
+	public static RowTypeInfo projectFields(RowTypeInfo rowType, int[] fieldMapping) {
+		TypeInformation[] fieldTypes = new TypeInformation[fieldMapping.length];
+		String[] fieldNames = new String[fieldMapping.length];
+		for (int i = 0; i < fieldMapping.length; i++) {
+			fieldTypes[i] = rowType.getTypeAt(fieldMapping[i]);
+			fieldNames[i] = rowType.getFieldNames()[fieldMapping[i]];
+		}
+		return new RowTypeInfo(fieldTypes, fieldNames);
+	}
 }
