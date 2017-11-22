@@ -99,8 +99,8 @@ public class SocketWindowWordCount {
 	 */
 	public static class WordWithCount {
 
-		public String word;
-		public long count;
+		public final String word;
+		public final long count;
 
 		public WordWithCount() {}
 
