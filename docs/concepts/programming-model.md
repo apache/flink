@@ -33,53 +33,52 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
 
 <img src="../fig/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" />
 
-  - The lowest level abstraction simply offers **stateful streaming**. It is embedded into the [DataStream API](../dev/datastream_api.html)
-    via the [Process Function](../dev/stream/operators/process_function.html). It allows users freely process events from one or more streams,
-    and use consistent fault tolerant *state*. In addition, users can register event time and processing time callbacks,
+  - The lowest level abstraction offers **stateful streaming** and is embedded into the [DataStream API](../dev/datastream_api.html)
+    via the [Process Function](../dev/stream/operators/process_function.html). It allows users to process events from one or more streams,
+    and use consistent fault tolerant *state*. Users can register event time and processing time callbacks,
     allowing programs to realize sophisticated computations.
 
-  - In practice, most applications would not need the above described low level abstraction, but would instead program against the
+  - In practice, most applications would not need the low level abstraction describe above, but would instead program against the
     **Core APIs** like the [DataStream API](../dev/datastream_api.html) (bounded/unbounded streams) and the [DataSet API](../dev/batch/index.html)
-    (bounded data sets). These fluent APIs offer the common building blocks for data processing, like various forms of user-specified
+    (bounded data sets). These fluent APIs offer the common building blocks for data processing, like forms of user-specified
     transformations, joins, aggregations, windows, state, etc. Data types processed in these APIs are represented as classes
-    in the respective programming languages.
+    in respective programming languages.
 
-    The low level *Process Function* integrates with the *DataStream API*, making it possible to go the lower level abstraction 
-    for certain operations only. The *DataSet API* offers additional primitives on bounded data sets, like loops/iterations.
+    The low level *Process Function* integrates with the *DataStream API*, making it possible to use the lower level abstraction
+    for certain operations. The *DataSet API* offers additional primitives on bounded data sets, like loops or iterations.
 
   - The **Table API** is a declarative DSL centered around *tables*, which may be dynamically changing tables (when representing streams).
-    The [Table API](../dev/table_api.html) follows the (extended) relational model: Tables have a schema attached (similar to tables in relational databases)
+    The [Table API](../dev/table_api.html) follows the (extended) relational model. Tables have a schema attached (similar to tables in relational databases)
     and the API offers comparable operations, such as select, project, join, group-by, aggregate, etc.
-    Table API programs declaratively define *what logical operation should be done* rather than specifying exactly
-   *how the code for the operation looks*. Though the Table API is extensible by various types of user-defined
+    Table API programs declaratively define *what logical operation should to perform* rather than specifying
+   *how the code for the operation looks*. The Table API is extensible by various types of user-defined
     functions, it is less expressive than the *Core APIs*, but more concise to use (less code to write).
-    In addition, Table API programs also go through an optimizer that applies optimization rules before execution.
+    Table API programs also go through an optimizer that applies optimization rules before execution.
 
-    One can seamlessly convert between tables and *DataStream*/*DataSet*, allowing programs to mix *Table API* and with the *DataStream*
+    You can seamlessly convert between tables and *DataStream*/*DataSet*, allowing programs to mix *Table API* and with the *DataStream*
     and *DataSet* APIs.
 
   - The highest level abstraction offered by Flink is **SQL**. This abstraction is similar to the *Table API* both in semantics and
     expressiveness, but represents programs as SQL query expressions.
-    The [SQL](../dev/table_api.html#sql) abstraction closely interacts with the Table API, and SQL queries can be executed over tables defined in the *Table API*.
+    The [SQL](../dev/table_api.html#sql) abstraction closely interacts with the Table API, and you can execute SQL queries over tables defined in the *Table API*.
 
 
 ## Programs and Dataflows
 
-The basic building blocks of Flink programs are **streams** and **transformations**. (Note that the
-DataSets used in Flink's DataSet API are also streams internally -- more about that
-later.) Conceptually a *stream* is a (potentially never-ending) flow of data records, and a *transformation* is an
+The basic building blocks of Flink programs are **streams** and **transformations**. The
+DataSets used in Flink's DataSet API are also streams internally, which this document will cover later. Conceptually a *stream* is a (potentially never-ending) flow of data records, and a *transformation* is an
 operation that takes one or more streams as input, and produces one or more output streams as a
 result.
 
-When executed, Flink programs are mapped to **streaming dataflows**, consisting of **streams** and transformation **operators**.
+When executed, Flink maps programs to **streaming dataflows**, consisting of **streams** and transformation **operators**.
 Each dataflow starts with one or more **sources** and ends in one or more **sinks**. The dataflows resemble
 arbitrary **directed acyclic graphs** *(DAGs)*. Although special forms of cycles are permitted via
-*iteration* constructs, for the most part we will gloss over this for simplicity.
+*iteration* constructs, we will gloss over it for simplicity.
 
 <img src="../fig/program_dataflow.svg" alt="A DataStream program, and its dataflow." class="offset" width="80%" />
 
 Often there is a one-to-one correspondence between the transformations in the programs and the operators
-in the dataflow. Sometimes, however, one transformation may consist of multiple transformation operators.
+in the dataflow. Sometimes, one transformation may consist of multiple transformation operators.
 
 Sources and sinks are documented in the [streaming connectors](../dev/connectors/index.html) and [batch connectors](../dev/batch/connectors.html) docs.
 Transformations are documented in [DataStream operators]({{ site.baseurl }}/dev/stream/operators/index.html) and [DataSet transformations](../dev/batch/dataset_transformations.html).
@@ -115,7 +114,7 @@ Streams can transport data between two operators in a *one-to-one* (or *forwardi
     is preserved, but the parallelism does introduce non-determinism regarding the order in
     which the aggregated results for different keys arrive at the sink.
 
-Details about configuring and controlling parallelism can be found in the docs on [parallel execution](../dev/parallel.html).
+You can find details about configuring and controlling parallelism can in the [parallel execution documentation](../dev/parallel.html).
 
 {% top %}
 
@@ -132,14 +131,13 @@ One typically distinguishes different types of windows, such as *tumbling window
 
 <img src="../fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" />
 
-More window examples can be found in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html).
-More details are in the [window docs](../dev/stream/operators/windows.html).
+You can find more window examples in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) and in the [window documentation](../dev/stream/operators/windows.html).
 
 {% top %}
 
 ## Time
 
-When referring to time in a streaming program (for example to define windows), one can refer to different notions
+When referring to time in a streaming program (for example to define windows), you can refer to different notions
 of time:
 
   - **Event Time** is the time when an event was created. It is usually described by a timestamp in the events,
@@ -158,11 +156,11 @@ More details on how to handle time are in the [event time docs]({{ site.baseurl 
 
 ## Stateful Operations
 
-While many operations in a dataflow simply look at one individual *event at a time* (for example an event parser),
+While many operations in a dataflow look at one individual *event at a time* (for example an event parser),
 some operations remember information across multiple events (for example window operators).
 These operations are called **stateful**.
 
-The state of stateful operations is maintained in what can be thought of as an embedded key/value store.
+The state of stateful operations is maintained in what you can think of as an embedded key/value store.
 The state is partitioned and distributed strictly together with the streams that are read by the
 stateful operators. Hence, access to the key/value state is only possible on *keyed streams*, after a *keyBy()* function,
 and is restricted to the values associated with the current event's key. Aligning the keys of streams and state
@@ -171,7 +169,7 @@ This alignment also allows Flink to redistribute the state and adjust the stream
 
 <img src="../fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" />
 
-For more information, see the documentation on [state](../dev/stream/state/index.html).
+For more information, see the [documentation on state](../dev/stream/state/index.html).
 
 {% top %}
 
@@ -179,12 +177,12 @@ For more information, see the documentation on [state](../dev/stream/state/index
 
 Flink implements fault tolerance using a combination of **stream replay** and **checkpointing**. A
 checkpoint is related to a specific point in each of the input streams along with the corresponding state for each
-of the operators. A streaming dataflow can be resumed from a checkpoint while maintaining consistency *(exactly-once
+of the operators. You can resume a streaming dataflow from a checkpoint while maintaining consistency *(exactly-once
 processing semantics)* by restoring the state of the operators and replaying the events from the
 point of the checkpoint.
 
 The checkpoint interval is a means of trading off the overhead of fault tolerance during execution with the recovery time (the number
-of events that need to be replayed).
+of events that you need to replay).
 
 The description of the [fault tolerance internals]({{ site.baseurl }}/internals/stream_checkpointing.html) provides
 more information about how Flink manages checkpoints and related topics.
@@ -208,7 +206,7 @@ same way as well as they apply to streaming programs, with minor exceptions:
     key/value indexes.
 
   - The DataSet API introduces special synchronized (superstep-based) iterations, which are only possible on
-    bounded streams. For details, check out the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
+    bounded streams. For details, read the [iteration docs]({{ site.baseurl }}/dev/batch/iterations.html).
 
 {% top %}
 
