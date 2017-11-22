@@ -108,10 +108,11 @@ object ProjectionTranslator {
       exprs: Seq[Expression],
       tableEnv: TableEnvironment,
       aggNames: Map[Expression, String],
-      propNames: Map[Expression, String]): Seq[NamedExpression] = {
+      propNames: Map[Expression, String],
+      complexGroupKeys: Map[Expression, String] = Map.empty): Seq[NamedExpression] = {
     val projectedNames = new mutable.HashSet[String]
     exprs.map((exp: Expression) => replaceAggregationsAndProperties(exp, tableEnv,
-      aggNames, propNames, projectedNames))
+      aggNames, propNames, projectedNames, complexGroupKeys))
         .map(UnresolvedAlias)
   }
 
@@ -120,59 +121,101 @@ object ProjectionTranslator {
       tableEnv: TableEnvironment,
       aggNames: Map[Expression, String],
       propNames: Map[Expression, String],
-      projectedNames: mutable.HashSet[String]) : Expression = {
+      projectedNames: mutable.HashSet[String],
+      complexGroupKeys: Map[Expression, String]) : Expression = {
 
-    exp match {
-      case agg: Aggregation =>
-        val name = aggNames(agg)
-        if (projectedNames.add(name)) {
-          UnresolvedFieldReference(name)
-        } else {
-          Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
-        }
-      case prop: WindowProperty =>
-        val name = propNames(prop)
-        if (projectedNames.add(name)) {
-          UnresolvedFieldReference(name)
-        } else {
-          Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
-        }
-      case n @ Alias(agg: Aggregation, name, _) =>
-        val aName = aggNames(agg)
-        Alias(UnresolvedFieldReference(aName), name)
-      case n @ Alias(prop: WindowProperty, name, _) =>
-        val pName = propNames(prop)
-        Alias(UnresolvedFieldReference(pName), name)
-      case l: LeafExpression => l
-      case u: UnaryExpression =>
-        val c = replaceAggregationsAndProperties(u.child, tableEnv,
-          aggNames, propNames, projectedNames)
-        u.makeCopy(Array(c))
-      case b: BinaryExpression =>
-        val l = replaceAggregationsAndProperties(b.left, tableEnv,
-          aggNames, propNames, projectedNames)
-        val r = replaceAggregationsAndProperties(b.right, tableEnv,
-          aggNames, propNames, projectedNames)
-        b.makeCopy(Array(l, r))
+    if (complexGroupKeys.contains(exp)) {
+      UnresolvedFieldReference(complexGroupKeys.get(exp).get)
+    } else {
+      exp match {
+        case agg: Aggregation =>
+          val name = aggNames(agg)
+          if (projectedNames.add(name)) {
+            UnresolvedFieldReference(name)
+          } else {
+            Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
+          }
+        case prop: WindowProperty =>
+          val name = propNames(prop)
+          if (projectedNames.add(name)) {
+            UnresolvedFieldReference(name)
+          } else {
+            Alias(UnresolvedFieldReference(name), tableEnv.createUniqueAttributeName())
+          }
+        case n@Alias(agg: Aggregation, name, _) =>
+          val aName = aggNames(agg)
+          Alias(UnresolvedFieldReference(aName), name)
+        case n@Alias(prop: WindowProperty, name, _) =>
+          val pName = propNames(prop)
+          Alias(UnresolvedFieldReference(pName), name)
+        case l: LeafExpression => l
+        case u: UnaryExpression =>
+          val c = replaceAggregationsAndProperties(
+            u.child, tableEnv,
+            aggNames, propNames, projectedNames, complexGroupKeys)
+          u.makeCopy(Array(c))
+        case b: BinaryExpression =>
+          val l = replaceAggregationsAndProperties(
+            b.left, tableEnv,
+            aggNames, propNames, projectedNames, complexGroupKeys)
+          val r = replaceAggregationsAndProperties(
+            b.right, tableEnv,
+            aggNames, propNames, projectedNames, complexGroupKeys)
+          b.makeCopy(Array(l, r))
 
-      // Functions calls
-      case c @ Call(name, args) =>
-        val newArgs = args.map((exp: Expression) =>
-          replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
-        c.makeCopy(Array(name, newArgs))
+        // Functions calls
+        case c@Call(name, args) =>
+          val newArgs = args.map(
+            (exp: Expression) =>
+              replaceAggregationsAndProperties(
+                exp,
+                tableEnv,
+                aggNames,
+                propNames,
+                projectedNames,
+                complexGroupKeys))
+          c.makeCopy(Array(name, newArgs))
 
-      case sfc @ ScalarFunctionCall(clazz, args) =>
-        val newArgs: Seq[Expression] = args
-          .map((exp: Expression) =>
-            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
-        sfc.makeCopy(Array(clazz, newArgs))
+        case sfc@ScalarFunctionCall(clazz, args) =>
+          val newArgs: Seq[Expression] = args
+            .map(
+              (exp: Expression) =>
+                replaceAggregationsAndProperties(
+                  exp,
+                  tableEnv,
+                  aggNames,
+                  propNames,
+                  projectedNames,
+                  complexGroupKeys))
+          sfc.makeCopy(Array(clazz, newArgs))
 
-      // array constructor
-      case c @ ArrayConstructor(args) =>
-        val newArgs = c.elements
-          .map((exp: Expression) =>
-            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
-        c.makeCopy(Array(newArgs))
+        // array constructor
+        case c@ArrayConstructor(args) =>
+          val newArgs = c.elements
+            .map(
+              (exp: Expression) =>
+                replaceAggregationsAndProperties(
+                  exp,
+                  tableEnv,
+                  aggNames,
+                  propNames,
+                  projectedNames,
+                  complexGroupKeys))
+          c.makeCopy(Array(newArgs))
+
+        // General expression
+        case e: Expression =>
+          val newArgs = e.productIterator.map {
+            case arg: Expression =>
+              replaceAggregationsAndProperties(
+                arg,
+                tableEnv,
+                aggNames,
+                propNames,
+                projectedNames,
+                complexGroupKeys)
+          }
+          e.makeCopy(newArgs.toArray)
 
       // map constructor
       case c @ MapConstructor(args) =>
@@ -411,6 +454,38 @@ object ProjectionTranslator {
 
       // Other expressions
       case e: Expression => e
+    }
+  }
+
+  /**
+    * Extracts all complex group keys (zero, one, or more) from the given expressions.
+    *
+    * @param exprs a list of expressions to extract
+    * @param tableEnv the TableEnvironment
+    * @return the extracted complex group keys and internal alias
+    */
+  def extractComplexGroupKeys(
+      exprs: Seq[Expression],
+      tableEnv: TableEnvironment)
+  : Map[Expression, String] = {
+    exprs.foldLeft(Map[Expression, String]()) {
+      (x, y) => identifyComplexGroupKeys(y, tableEnv, x)
+    }
+  }
+
+  private def identifyComplexGroupKeys(
+      expr: Expression,
+      tableEnv: TableEnvironment,
+      complexGroupKeys: Map[Expression, String]): Map[Expression, String] = {
+    expr match {
+      case u: UnaryExpression =>
+        complexGroupKeys + (u -> tableEnv.createUniqueAttributeName())
+      case ba: BinaryArithmetic =>
+        complexGroupKeys + (ba -> tableEnv.createUniqueAttributeName())
+      case sfc: ScalarFunctionCall =>
+        complexGroupKeys + (sfc -> tableEnv.createUniqueAttributeName())
+      // Do not extract other expressions
+      case _ => complexGroupKeys
     }
   }
 }

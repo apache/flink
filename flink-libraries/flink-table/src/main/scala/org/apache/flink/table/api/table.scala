@@ -1004,14 +1004,18 @@ class GroupedTable(
     if (propNames.nonEmpty) {
       throw ValidationException("Window properties can only be used on windowed tables.")
     }
+    val complexGroupKeys = extractComplexGroupKeys(groupKey, table.tableEnv)
+    val newGroupKeys = groupKey.filter(!complexGroupKeys.contains(_)) ++
+      complexGroupKeys.map(a => Alias(a._1, a._2))
 
     val projectsOnAgg = replaceAggregationsAndProperties(
-      expandedFields, table.tableEnv, aggNames, propNames)
+      expandedFields, table.tableEnv, aggNames, propNames, complexGroupKeys)
+
     val projectFields = extractFieldReferences(expandedFields ++ groupKey)
 
     new Table(table.tableEnv,
       Project(projectsOnAgg,
-        Aggregate(groupKey, aggNames.map(a => Alias(a._1, a._2)).toSeq,
+        Aggregate(newGroupKeys, aggNames.map(a => Alias(a._1, a._2)).toSeq,
           Project(projectFields, table.logicalPlan).validate(table.tableEnv)
         ).validate(table.tableEnv)
       ).validate(table.tableEnv))

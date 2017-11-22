@@ -231,6 +231,26 @@ class AggregateITCase(
   }
 
   @Test
+  def testGroupedAggregateWithExpression(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val sqlQuery =
+      "SELECT _2 + 1, avg(distinct _1) as a, count(_3) as b FROM MyTable GROUP BY _2 + 1"
+
+    val ds = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    tEnv.registerTable("MyTable", ds)
+
+    val result = tEnv.sqlQuery(sqlQuery)
+
+    val expected =
+      "7,18,6\n6,13,5\n5,8,4\n4,5,3\n3,2,2\n2,1,1"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
   def testGroupingSetAggregate(): Unit = {
 
     val env = ExecutionEnvironment.getExecutionEnvironment

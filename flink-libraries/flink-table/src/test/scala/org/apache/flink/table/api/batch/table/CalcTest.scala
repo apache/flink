@@ -248,7 +248,7 @@ class CalcTest extends TableTestBase {
   def testSelectFromGroupedTableWithNonTrivialKey(): Unit = {
     val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
-    val resultTable = sourceTable.groupBy(Upper('c) as 'k).select('a.sum)
+    val resultTable = sourceTable.groupBy(Upper('c)).select('a.sum)
 
     val expected =
       unaryNode(
@@ -258,10 +258,10 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", "UPPER(c) AS k")
+            term("select", "a", "c", "UPPER(c) AS TMP_1")
           ),
-          term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("groupBy", "TMP_1"),
+          term("select", "TMP_1", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )
@@ -273,7 +273,7 @@ class CalcTest extends TableTestBase {
   def testSelectFromGroupedTableWithFunctionKey(): Unit = {
     val util = batchTestUtil()
     val sourceTable = util.addTable[(Int, Long, String, Double)]("MyTable", 'a, 'b, 'c, 'd)
-    val resultTable = sourceTable.groupBy(MyHashCode('c) as 'k).select('a.sum)
+    val resultTable = sourceTable.groupBy(MyHashCode('c)).select('a.sum)
 
     val expected =
       unaryNode(
@@ -283,10 +283,10 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", "MyHashCode$(c) AS k")
+            term("select", "a", "c", "MyHashCode$(c) AS TMP_1")
           ),
-          term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("groupBy", "TMP_1"),
+          term("select", "TMP_1", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )

@@ -25,6 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamITCase.RetractingSink
 import org.apache.flink.table.api.{StreamQueryConfig, TableEnvironment, Types}
 import org.apache.flink.table.expressions.Null
+import org.apache.flink.table.utils.UDFMod
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg}
 import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
@@ -143,16 +144,48 @@ class AggregateITCase extends StreamingWithStateTestBase {
 
     val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e, 'b % 3)
-      .select('c.min, 'e, 'a.avg, 'd.count)
+      .select('b % 3, 'c.min, 'e, 'a.avg, 'd.count)
 
     val results = t.toRetractStream[Row](queryConfig)
     results.addSink(new RetractingSink)
     env.execute()
 
     val expected = mutable.MutableList(
-      "0,1,1,1", "7,1,4,2", "2,1,3,2",
-      "3,2,3,3", "1,2,3,3", "14,2,5,1",
-      "12,3,5,1", "5,3,4,2")
+      "0,14,2,5,1",
+      "0,2,1,3,2",
+      "0,5,3,4,2",
+      "1,0,1,1,1",
+      "1,12,3,5,1",
+      "1,3,2,3,3",
+      "2,1,2,3,3",
+      "2,7,1,4,2")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
+
+  @Test
+  def testGroupAggregateWithFunctionCall(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStateBackend(getStateBackend)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    val t = StreamTestData.get5TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e, UDFMod('b, 3))
+      .select(UDFMod('b, 3), 'c.min, 'e, 'a.avg, 'd.count)
+
+    val results = t.toRetractStream[Row](queryConfig)
+    results.addSink(new RetractingSink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "0,14,2,5,1",
+      "0,2,1,3,2",
+      "0,5,3,4,2",
+      "1,0,1,1,1",
+      "1,12,3,5,1",
+      "1,3,2,3,3",
+      "2,1,2,3,3",
+      "2,7,1,4,2")
     assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 

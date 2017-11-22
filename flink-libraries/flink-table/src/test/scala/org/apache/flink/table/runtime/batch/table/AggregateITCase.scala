@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.utils.Top10
+import org.apache.flink.table.utils.UDFMod
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -341,10 +342,26 @@ class AggregationsITCase(
 
     val t = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .groupBy('e, 'b % 3)
-      .select('c.min, 'e, 'a.avg, 'd.count)
+      .select('b % 3, 'c.min, 'e, 'a.avg, 'd.count)
 
-    val expected = "0,1,1,1\n" + "3,2,3,3\n" + "7,1,4,2\n" + "14,2,5,1\n" +
-      "5,3,4,2\n" + "2,1,3,2\n" + "1,2,3,3\n" + "12,3,5,1"
+    val expected = "1,0,1,1,1\n" + "1,3,2,3,3\n" + "2,7,1,4,2\n" + "0,14,2,5,1\n" +
+      "0,5,3,4,2\n" + "0,2,1,3,2\n" + "2,1,2,3,3\n" + "1,12,3,5,1"
+    val results = t.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testGroupedAggregateWithFunctionCall(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e, UDFMod('b, 3))
+      .select(UDFMod('b, 3), 'c.min, 'e, 'a.avg, 'd.count)
+
+    val expected = "1,0,1,1,1\n" + "1,3,2,3,3\n" + "2,7,1,4,2\n" + "0,14,2,5,1\n" +
+      "0,5,3,4,2\n" + "0,2,1,3,2\n" + "2,1,2,3,3\n" + "1,12,3,5,1"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
