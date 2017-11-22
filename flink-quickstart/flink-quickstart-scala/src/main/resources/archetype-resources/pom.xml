@@ -153,7 +153,7 @@ under the License.
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-shade-plugin</artifactId>
-						<version>2.4.1</version>
+						<version>3.0.0</version>
 						<executions>
 							<execution>
 								<phase>package</phase>
@@ -184,7 +184,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
-				<version>2.4.1</version>
+				<version>3.0.0</version>
 				<executions>
 					<!-- Run shade goal on package phase -->
 					<execution>
