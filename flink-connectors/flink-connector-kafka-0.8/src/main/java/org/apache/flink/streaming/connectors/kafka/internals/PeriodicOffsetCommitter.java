@@ -45,14 +45,18 @@ public class PeriodicOffsetCommitter extends Thread {
 	/** Flag to mark the periodic committer as running. */
 	private volatile boolean running = true;
 
+	/** The task info to register in zk ownership path. */
+	private final String taskId;
+
 	PeriodicOffsetCommitter(ZookeeperOffsetHandler offsetHandler,
 			List<KafkaTopicPartitionState<TopicAndPartition>> partitionStates,
 			ExceptionProxy errorHandler,
-			long commitInterval) {
+			long commitInterval, String taskId) {
 		this.offsetHandler = checkNotNull(offsetHandler);
 		this.partitionStates = checkNotNull(partitionStates);
 		this.errorHandler = checkNotNull(errorHandler);
 		this.commitInterval = commitInterval;
+		this.taskId = taskId;
 
 		checkArgument(commitInterval > 0);
 	}
@@ -69,7 +73,7 @@ public class PeriodicOffsetCommitter extends Thread {
 					offsetsToCommit.put(partitionState.getKafkaTopicPartition(), partitionState.getOffset());
 				}
 
-				offsetHandler.prepareAndCommitOffsets(offsetsToCommit);
+				offsetHandler.prepareAndCommitOffsets(offsetsToCommit, taskId);
 			}
 		}
 		catch (Throwable t) {

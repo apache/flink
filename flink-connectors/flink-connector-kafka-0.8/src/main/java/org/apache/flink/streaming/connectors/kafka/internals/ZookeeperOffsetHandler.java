@@ -26,12 +26,17 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 
 /**
  * Handler for committing Kafka offsets to Zookeeper and to retrieve them again.
@@ -41,6 +46,8 @@ public class ZookeeperOffsetHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(ZookeeperOffsetHandler.class);
 
 	private final String groupId;
+
+	private final String consumerId;
 
 	private final CuratorFramework curatorClient;
 
@@ -64,6 +71,20 @@ public class ZookeeperOffsetHandler {
 		int backoffBaseSleepTime = Integer.valueOf(props.getProperty("flink.zookeeper.base-sleep-time.ms", "100"));
 		int backoffMaxRetries =  Integer.valueOf(props.getProperty("flink.zookeeper.max-retries", "10"));
 
+		// set consumerId to register ownership in zookeeper, just like kafka high level API
+		UUID uuid = UUID.randomUUID();
+		String hostName = "Unkonw";
+		try {
+			hostName = InetAddress.getLocalHost().getHostName();
+		} catch (UnknownHostException e) {
+			LOG.error("Can not get host name!");
+		}
+		String consumerUuid = String.format("%s-%d-%s",
+			hostName,
+			System.currentTimeMillis(),
+			Long.toHexString(uuid.getMostSignificantBits()).substring(0, 8));
+		consumerId = groupId + "_" + consumerUuid;
+
 		RetryPolicy retryPolicy = new ExponentialBackoffRetry(backoffBaseSleepTime, backoffMaxRetries);
 		curatorClient = CuratorFrameworkFactory.newClient(zkConnect, sessionTimeoutMs, connectionTimeoutMs, retryPolicy);
 		curatorClient.start();
@@ -79,15 +100,17 @@ public class ZookeeperOffsetHandler {
 	 * that the committed offsets to Zookeeper represent the next record to process.
 	 *
 	 * @param internalOffsets The internal offsets (representing last processed records) for the partitions to commit.
+	 * @param taskId The name of zookeeper owner
 	 * @throws Exception The method forwards exceptions.
 	 */
-	public void prepareAndCommitOffsets(Map<KafkaTopicPartition, Long> internalOffsets) throws Exception {
+	public void prepareAndCommitOffsets(Map<KafkaTopicPartition, Long> internalOffsets, String taskId) throws Exception {
 		for (Map.Entry<KafkaTopicPartition, Long> entry : internalOffsets.entrySet()) {
 			KafkaTopicPartition tp = entry.getKey();
 
 			Long lastProcessedOffset = entry.getValue();
 			if (lastProcessedOffset != null && lastProcessedOffset >= 0) {
 				setOffsetInZooKeeper(curatorClient, groupId, tp.getTopic(), tp.getPartition(), lastProcessedOffset + 1);
+				registerPartitionOwnership(curatorClient, groupId, consumerId, tp.getTopic(), tp.getPartition(), taskId);
 			}
 		}
 	}
@@ -146,6 +169,19 @@ public class ZookeeperOffsetHandler {
 					return null;
 				}
 			}
+		}
+	}
+
+	public static void registerPartitionOwnership(CuratorFramework curatorClient, String groupId, String consumerId, String topic, int partition, String taskId) throws Exception {
+		String path = "/consumers/" + groupId + "/owners/" + topic + "/" + Integer.toString(partition);
+		// register with task info that we can read from zookeeper which taskmanager consume the right topic
+		String info = consumerId + "_" + taskId;
+		try {
+			if (curatorClient.checkExists().forPath(path) == null) {
+				curatorClient.create().creatingParentContainersIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, info.getBytes());
+			}
+		} catch (KeeperException.NodeExistsException e) {
+			LOG.warn("NodeExists for {}", e);
 		}
 	}
 }

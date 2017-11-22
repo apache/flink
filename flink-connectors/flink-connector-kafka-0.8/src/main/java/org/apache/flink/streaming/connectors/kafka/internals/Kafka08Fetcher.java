@@ -86,6 +86,9 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 	/** Flag to track the main work loop as alive. */
 	private volatile boolean running = true;
 
+	/** The task info to register in zk ownership path. */
+	private final String taskId;
+
 	public Kafka08Fetcher(
 			SourceContext<T> sourceContext,
 			Map<KafkaTopicPartition, Long> seedPartitionsWithInitialOffsets,
@@ -111,6 +114,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		this.runtimeContext = runtimeContext;
 		this.invalidOffsetBehavior = getInvalidOffsetBehavior(kafkaProperties);
 		this.autoCommitInterval = autoCommitInterval;
+		this.taskId = runtimeContext.getTaskNameWithSubtasks();
 	}
 
 	// ------------------------------------------------------------------------
@@ -169,7 +173,8 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 						zookeeperOffsetHandler,
 						subscribedPartitionStates(),
 						errorHandler,
-						autoCommitInterval);
+						autoCommitInterval,
+						taskId);
 				periodicCommitter.setName("Periodic Kafka partition offset committer");
 				periodicCommitter.setDaemon(true);
 				periodicCommitter.start();
@@ -356,7 +361,7 @@ public class Kafka08Fetcher<T> extends AbstractFetcher<T, TopicAndPartition> {
 		if (zkHandler != null) {
 			try {
 				// the ZK handler takes care of incrementing the offsets by 1 before committing
-				zkHandler.prepareAndCommitOffsets(offsets);
+				zkHandler.prepareAndCommitOffsets(offsets, taskId);
 				commitCallback.onSuccess();
 			}
 			catch (Exception e) {
