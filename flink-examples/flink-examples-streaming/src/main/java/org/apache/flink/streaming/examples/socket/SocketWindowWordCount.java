@@ -102,8 +102,6 @@ public class SocketWindowWordCount {
 		public final String word;
 		public final long count;
 
-		public WordWithCount() {}
-
 		public WordWithCount(String word, long count) {
 			this.word = word;
 			this.count = count;
