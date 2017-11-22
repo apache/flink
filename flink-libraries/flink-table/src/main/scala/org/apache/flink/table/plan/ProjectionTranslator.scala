@@ -203,6 +203,20 @@ object ProjectionTranslator {
                   complexGroupKeys))
           c.makeCopy(Array(newArgs))
 
+        // map constructor
+        case c@MapConstructor(args) =>
+          val newArgs = c.elements
+            .map(
+              (exp: Expression) =>
+                replaceAggregationsAndProperties(
+                  exp,
+                  tableEnv,
+                  aggNames,
+                  propNames,
+                  projectedNames,
+                  complexGroupKeys))
+          c.makeCopy(Array(newArgs))
+
         // General expression
         case e: Expression =>
           val newArgs = e.productIterator.map {
@@ -216,21 +230,7 @@ object ProjectionTranslator {
                 complexGroupKeys)
           }
           e.makeCopy(newArgs.toArray)
-
-      // map constructor
-      case c @ MapConstructor(args) =>
-        val newArgs = c.elements
-          .map((exp: Expression) =>
-            replaceAggregationsAndProperties(exp, tableEnv, aggNames, propNames, projectedNames))
-        c.makeCopy(Array(newArgs))
-
-      // General expression
-      case e: Expression =>
-        val newArgs = e.productIterator.map {
-          case arg: Expression =>
-            replaceAggregationsAndProperties(arg, tableEnv, aggNames, propNames, projectedNames)
-        }
-        e.makeCopy(newArgs.toArray)
+      }
     }
   }
 
