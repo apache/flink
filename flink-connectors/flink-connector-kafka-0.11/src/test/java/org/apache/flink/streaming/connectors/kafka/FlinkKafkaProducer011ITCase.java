@@ -52,6 +52,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 /**
  * IT cases for the {@link FlinkKafkaProducer011}.
@@ -77,6 +78,49 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		extraProperties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		extraProperties.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		extraProperties.put("isolation.level", "read_committed");
+	}
+
+	/**
+	 * This test ensures that transactions reusing transactional.ids (after returning to the pool) will not clash
+	 * with previous transactions using same transactional.ids.
+	 */
+	@Test(timeout = 120_000L)
+	public void testRestoreToCheckpointAfterExceedingProducersPool() throws Exception {
+		String topic = "flink-kafka-producer-fail-before-notify";
+
+		try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness1 = createTestHarness(topic)) {
+			testHarness1.setup();
+			testHarness1.open();
+			testHarness1.processElement(42, 0);
+			OperatorStateHandles snapshot = testHarness1.snapshot(0, 0);
+			testHarness1.processElement(43, 0);
+			testHarness1.notifyOfCompletedCheckpoint(0);
+			try {
+				for (int i = 0; i < FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE; i++) {
+					testHarness1.snapshot(i + 1, 0);
+					testHarness1.processElement(i, 0);
+				}
+				throw new IllegalStateException("This should not be reached.");
+			}
+			catch (Exception ex) {
+				assertIsCausedBy(FlinkKafka011ErrorCode.PRODUCERS_POOL_EMPTY, ex);
+			}
+
+			// Resume transactions before testHrness1 is being closed (in case of failures close() might not be called)
+			try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness2 = createTestHarness(topic)) {
+				testHarness2.setup();
+				// restore from snapshot1, transactions with records 43 and 44 should be aborted
+				testHarness2.initializeState(snapshot);
+				testHarness2.open();
+			}
+
+			assertExactlyOnceForTopic(createProperties(), topic, 0, Arrays.asList(42), 30_000L);
+			deleteTestTopic(topic);
+		}
+		catch (Exception ex) {
+			// testHarness1 will be fenced off after creating and closing testHarness2
+			assertIsCausedBy(ProducerFencedException.class, ex);
+		}
 	}
 
 	@Test(timeout = 120_000L)
@@ -562,5 +606,26 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		properties.putAll(secureProps);
 		properties.put(FlinkKafkaProducer011.KEY_DISABLE_METRICS, "true");
 		return properties;
+	}
+
+	private void assertIsCausedBy(Class<?> clazz, Throwable ex) {
+		for (int depth = 0; depth < 50 && ex != null; depth++) {
+			if (clazz.isInstance(ex)) {
+				return;
+			}
+			ex = ex.getCause();
+		}
+		fail(String.format("Exception [%s] was not caused by [%s]", ex, clazz));
+	}
+
+	private void assertIsCausedBy(FlinkKafka011ErrorCode expectedErrorCode, Throwable ex) {
+		for (int depth = 0; depth < 50 && ex != null; depth++) {
+			if (ex instanceof FlinkKafka011Exception) {
+				assertEquals(expectedErrorCode, ((FlinkKafka011Exception) ex).getErrorCode());
+				return;
+			}
+			ex = ex.getCause();
+		}
+		fail(String.format("Exception [%s] was not caused by FlinkKafka011Exception[errorCode=%s]", ex, expectedErrorCode));
 	}
 }

@@ -66,7 +66,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -223,14 +222,9 @@ public class FlinkKafkaProducer011<IN>
 	private final int kafkaProducersPoolSize;
 
 	/**
-	 * Available transactional ids.
+	 * Pool of available transactional ids.
 	 */
 	private final BlockingDeque<String> availableTransactionalIds = new LinkedBlockingDeque<>();
-
-	/**
-	 * Pool of KafkaProducers objects.
-	 */
-	private transient Optional<ProducersPool> producersPool = Optional.empty();
 
 	/**
 	 * Flag controlling whether we are writing the Flink record's timestamp into Kafka.
@@ -599,12 +593,6 @@ public class FlinkKafkaProducer011<IN>
 		catch (Exception e) {
 			asyncException = ExceptionUtils.firstOrSuppressed(e, asyncException);
 		}
-		try {
-			producersPool.ifPresent(pool -> pool.close());
-		}
-		catch (Exception e) {
-			asyncException = ExceptionUtils.firstOrSuppressed(e, asyncException);
-		}
 		// make sure we propagate pending errors
 		checkErroneous();
 	}
@@ -615,7 +603,7 @@ public class FlinkKafkaProducer011<IN>
 	protected KafkaTransactionState beginTransaction() throws FlinkKafka011Exception {
 		switch (semantic) {
 			case EXACTLY_ONCE:
-				FlinkKafkaProducer<byte[], byte[]> producer = createOrGetProducerFromPool();
+				FlinkKafkaProducer<byte[], byte[]> producer = createTransactionalProducer();
 				producer.beginTransaction();
 				return new KafkaTransactionState(producer.getTransactionalId(), producer);
 			case AT_LEAST_ONCE:
@@ -629,21 +617,6 @@ public class FlinkKafkaProducer011<IN>
 			default:
 				throw new UnsupportedOperationException("Not implemented semantic");
 		}
-	}
-
-	private FlinkKafkaProducer<byte[], byte[]> createOrGetProducerFromPool() throws FlinkKafka011Exception {
-		FlinkKafkaProducer<byte[], byte[]> producer = getProducersPool().poll();
-		if (producer == null) {
-			String transactionalId = availableTransactionalIds.poll();
-			if (transactionalId == null) {
-				throw new FlinkKafka011Exception(
-					FlinkKafka011ErrorCode.PRODUCERS_POOL_EMPTY,
-					"Too many ongoing snapshots. Increase kafka producers pool size or decrease number of concurrent checkpoints.");
-			}
-			producer = initTransactionalProducer(transactionalId, true);
-			producer.initTransactions();
-		}
-		return producer;
 	}
 
 	@Override
@@ -666,7 +639,7 @@ public class FlinkKafkaProducer011<IN>
 		switch (semantic) {
 			case EXACTLY_ONCE:
 				transaction.producer.commitTransaction();
-				getProducersPool().add(transaction.producer);
+				recycleTransactionalProducer(transaction.producer);
 				break;
 			case AT_LEAST_ONCE:
 			case NONE:
@@ -706,7 +679,7 @@ public class FlinkKafkaProducer011<IN>
 		switch (semantic) {
 			case EXACTLY_ONCE:
 				transaction.producer.abortTransaction();
-				getProducersPool().add(transaction.producer);
+				recycleTransactionalProducer(transaction.producer);
 				break;
 			case AT_LEAST_ONCE:
 			case NONE:
@@ -796,10 +769,7 @@ public class FlinkKafkaProducer011<IN>
 
 		if (semantic != Semantic.EXACTLY_ONCE) {
 			nextTransactionalIdHint = null;
-			producersPool = Optional.empty();
 		} else {
-			producersPool = Optional.of(new ProducersPool());
-
 			ArrayList<NextTransactionalIdHint> transactionalIdHints = Lists.newArrayList(nextTransactionalIdHintState.get());
 			if (transactionalIdHints.size() > 1) {
 				throw new IllegalStateException(
@@ -883,14 +853,31 @@ public class FlinkKafkaProducer011<IN>
 		return currentTransaction.producer.getTransactionCoordinatorId();
 	}
 
+	/**
+	 * For each checkpoint we create new {@link FlinkKafkaProducer} so that new transactions will not clash
+	 * with transactions created during previous checkpoints ({@code producer.initTransactions()} assures that we
+	 * obtain new producerId and epoch counters).
+	 */
+	private FlinkKafkaProducer<byte[], byte[]> createTransactionalProducer() throws FlinkKafka011Exception {
+		String transactionalId = availableTransactionalIds.poll();
+		if (transactionalId == null) {
+			throw new FlinkKafka011Exception(
+				FlinkKafka011ErrorCode.PRODUCERS_POOL_EMPTY,
+				"Too many ongoing snapshots. Increase kafka producers pool size or decrease number of concurrent checkpoints.");
+		}
+		FlinkKafkaProducer<byte[], byte[]> producer = initTransactionalProducer(transactionalId, true);
+		producer.initTransactions();
+		return producer;
+	}
+
+	private void recycleTransactionalProducer(FlinkKafkaProducer<byte[], byte[]> producer) {
+		availableTransactionalIds.add(producer.getTransactionalId());
+		producer.close();
+	}
+
 	private FlinkKafkaProducer<byte[], byte[]> initTransactionalProducer(String transactionalId, boolean registerMetrics) {
 		producerConfig.put("transactional.id", transactionalId);
 		return initProducer(registerMetrics);
-	}
-
-	private ProducersPool getProducersPool() {
-		checkState(producersPool.isPresent(), "Trying to access uninitialized producer pool");
-		return producersPool.get();
 	}
 
 	private FlinkKafkaProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
@@ -951,7 +938,6 @@ public class FlinkKafkaProducer011<IN>
 
 	private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
-		producersPool = Optional.empty();
 	}
 
 	private static Properties getPropertiesFromBrokerList(String brokerList) {
@@ -1261,25 +1247,6 @@ public class FlinkKafkaProducer011<IN>
 		@Override
 		public boolean canEqual(Object obj) {
 			return obj instanceof ContextStateSerializer;
-		}
-	}
-
-	static class ProducersPool implements Closeable {
-		private final LinkedBlockingDeque<FlinkKafkaProducer<byte[], byte[]>> pool = new LinkedBlockingDeque<>();
-
-		public void add(FlinkKafkaProducer<byte[], byte[]> producer) {
-			pool.add(producer);
-		}
-
-		public FlinkKafkaProducer<byte[], byte[]> poll() {
-			return pool.poll();
-		}
-
-		@Override
-		public void close() {
-			while (!pool.isEmpty()) {
-				pool.poll().close();
-			}
 		}
 	}
 
