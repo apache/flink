@@ -122,8 +122,14 @@ public class RestClient {
 		CompletableFuture<?> groupFuture = new CompletableFuture<>();
 		if (bootstrap != null) {
 			if (bootstrap.group() != null) {
-				bootstrap.group().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-					.addListener(ignored -> groupFuture.complete(null));
+				bootstrap.group().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+					.addListener(finished -> {
+						if (finished.isSuccess()) {
+							groupFuture.complete(null);
+						} else {
+							groupFuture.completeExceptionally(finished.cause());
+						}
+					});
 			}
 		}
 
