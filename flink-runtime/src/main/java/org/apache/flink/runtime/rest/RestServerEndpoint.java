@@ -233,7 +233,13 @@ public abstract class RestServerEndpoint {
 
 			CompletableFuture<?> channelFuture = new CompletableFuture<>();
 			if (this.serverChannel != null) {
-				this.serverChannel.close().addListener(ignored -> channelFuture.complete(null));
+				this.serverChannel.close().addListener(finished -> {
+					if (finished.isSuccess()) {
+						channelFuture.complete(null);
+					} else {
+						channelFuture.completeExceptionally(finished.cause());
+					}
+				});
 				serverChannel = null;
 			}
 			CompletableFuture<?> groupFuture = new CompletableFuture<>();
@@ -242,12 +248,24 @@ public abstract class RestServerEndpoint {
 			channelFuture.thenRun(() -> {
 				if (bootstrap != null) {
 					if (bootstrap.group() != null) {
-						bootstrap.group().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-							.addListener(ignored -> groupFuture.complete(null));
+						bootstrap.group().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+							.addListener(finished -> {
+								if (finished.isSuccess()) {
+									groupFuture.complete(null);
+								} else {
+									groupFuture.completeExceptionally(finished.cause());
+								}
+							});
 					}
 					if (bootstrap.childGroup() != null) {
-						bootstrap.childGroup().shutdownGracefully(0, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
-							.addListener(ignored -> childGroupFuture.complete(null));
+						bootstrap.childGroup().shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+							.addListener(finished -> {
+								if (finished.isSuccess()) {
+									childGroupFuture.complete(null);
+								} else {
+									childGroupFuture.completeExceptionally(finished.cause());
+								}
+							});
 					}
 					bootstrap = null;
 				} else {
