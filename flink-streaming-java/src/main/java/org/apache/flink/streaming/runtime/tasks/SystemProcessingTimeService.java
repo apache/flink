@@ -191,6 +191,12 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		}
 	}
 
+	@Override
+	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
+		shutdownService();
+		return timerService.awaitTermination(time, timeUnit);
+	}
+
 	// safety net to destroy the thread pool
 	@Override
 	protected void finalize() throws Throwable {

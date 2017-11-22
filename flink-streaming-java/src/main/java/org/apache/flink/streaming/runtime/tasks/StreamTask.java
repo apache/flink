@@ -69,6 +69,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -121,6 +122,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	/** The logger used by the StreamTask and its subclasses. */
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
+
+	private static final long TIMER_SERVICE_TERMINATION_AWAIT_MS = 7500L;
 
 	// ------------------------------------------------------------------------
 
@@ -319,9 +322,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			isRunning = false;
 
 			// stop all timers and threads
-			if (timerService != null) {
+			if (timerService != null && !timerService.isTerminated()) {
 				try {
-					timerService.shutdownService();
+
+					// wait for a reasonable time for all pending timer threads to finish
+					boolean timerShutdownComplete =
+						timerService.shutdownAndAwaitPending(TIMER_SERVICE_TERMINATION_AWAIT_MS, TimeUnit.MILLISECONDS);
+
+					if (!timerShutdownComplete) {
+						LOG.warn("Timer service shutdown exceeded time limit while waiting for pending timers. " +
+							"Will continue with shutdown procedure.");
+					}
 				}
 				catch (Throwable t) {
 					// catch and log the exception to not replace the original exception
