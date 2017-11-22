@@ -32,6 +32,7 @@ import org.apache.flink.types.Row;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
@@ -44,6 +45,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Abstract test base for all Kafka table sources.
@@ -186,6 +188,48 @@ public abstract class KafkaTableSourceTestBase {
 				fail();
 			}
 		}
+	}
+
+	@Test
+	public void testKafkaTSSetConsumeOffsets() {
+		KafkaTableSource.Builder b = getBuilder();
+		configureBuilder(b);
+
+		// test the default behavior
+		KafkaTableSource source = spy(b.build());
+		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+				.thenReturn(mock(getFlinkKafkaConsumer()));
+
+		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromGroupOffsets();
+
+		// test reading from earliest
+		b.startReadingFromEarliest();
+		source = spy(b.build());
+		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+				.thenReturn(mock(getFlinkKafkaConsumer()));
+
+		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromEarliest();
+
+		// test reading from latest
+		b.startReadingFromLatest();
+		source = spy(b.build());
+		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+				.thenReturn(mock(getFlinkKafkaConsumer()));
+		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromLatest();
+
+		// test reading from group offsets
+		b.startReadingFromGroupOffsets();
+		source = spy(b.build());
+		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+				.thenReturn(mock(getFlinkKafkaConsumer()));
+		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromGroupOffsets();
+
+		// test reading from given offsets
+		b.startReadingFromSpecificOffsets(mock(Map.class));
+		source = spy(b.build());
+		when(source.createKafkaConsumer(TOPIC, PROPS, null))
+				.thenReturn(mock(getFlinkKafkaConsumer()));
+		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromSpecificOffsets(any(Map.class));
 	}
 
 	protected abstract KafkaTableSource.Builder getBuilder();

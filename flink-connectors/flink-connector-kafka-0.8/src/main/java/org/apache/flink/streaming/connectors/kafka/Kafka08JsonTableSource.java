@@ -93,7 +93,7 @@ public class Kafka08JsonTableSource extends KafkaJsonTableSource {
 	}
 
 	@Override
-	FlinkKafkaConsumerBase<Row> getKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
+	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
 		return new FlinkKafkaConsumer08<>(topic, deserializationSchema, properties);
 	}
 
