@@ -159,7 +159,7 @@ public abstract class KafkaTableSourceTestBase {
 	}
 
 	@Test
-	public void testKafkaTSRowtimeAttribute() {
+	public void testRowtimeAttribute2() {
 		KafkaTableSource.Builder b = getBuilder();
 		configureBuilder(b);
 
@@ -191,7 +191,8 @@ public abstract class KafkaTableSourceTestBase {
 	}
 
 	@Test
-	public void testKafkaTSSetConsumeOffsets() {
+	@SuppressWarnings("unchecked")
+	public void testConsumerOffsets() {
 		KafkaTableSource.Builder b = getBuilder();
 		configureBuilder(b);
 
