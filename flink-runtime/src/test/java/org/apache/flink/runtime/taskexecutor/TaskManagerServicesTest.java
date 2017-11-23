@@ -204,8 +204,16 @@ public class TaskManagerServicesTest {
 		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
 			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
-		when(EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag()).thenReturn(1000L << 20); // 1000MB
-		assertEquals(100L << 20, TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
+		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(900L << 20); // 900MB
+		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
+			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
+
+		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
+			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+			0.2f, 60L << 20, 1L << 30, MemoryType.HEAP);
+		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(800L << 20); // 800MB
+		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
+			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
 
 		tmConfig = getTmConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
@@ -242,7 +250,6 @@ public class TaskManagerServicesTest {
 			networkBufMin,
 			networkBufMax,
 			TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue(),
-			memType,
 			null,
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
 			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
@@ -257,6 +264,7 @@ public class TaskManagerServicesTest {
 			QueryableStateConfiguration.disabled(),
 			1,
 			managedMemory,
+			memType,
 			false,
 			managedMemoryFraction,
 			0);
@@ -274,9 +282,14 @@ public class TaskManagerServicesTest {
 		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1L << 30); // 1GB
 
 		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, false);
-		assertEquals(1000, TaskManagerServices.calculateHeapSizeMB(1000, config));
+		assertEquals(900, TaskManagerServices.calculateHeapSizeMB(1000, config));
+
+		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, false);
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.2f);
+		assertEquals(800, TaskManagerServices.calculateHeapSizeMB(1000, config));
 
 		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, true);
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 10); // 10MB
 		assertEquals(890, TaskManagerServices.calculateHeapSizeMB(1000, config));
 

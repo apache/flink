@@ -21,9 +21,9 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +37,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The NetworkBufferPool is a fixed size pool of {@link MemorySegment} instances
@@ -63,15 +62,14 @@ public class NetworkBufferPool implements BufferPoolFactory {
 
 	private final Object factoryLock = new Object();
 
-	private final Set<LocalBufferPool> allBufferPools = new HashSet<LocalBufferPool>();
+	private final Set<LocalBufferPool> allBufferPools = new HashSet<>();
 
 	private int numTotalRequiredBuffers;
 
 	/**
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
-	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, MemoryType memoryType) {
-		checkNotNull(memoryType);
+	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
 		
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
@@ -87,20 +85,9 @@ public class NetworkBufferPool implements BufferPoolFactory {
 		}
 
 		try {
-			if (memoryType == MemoryType.HEAP) {
-				for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-					byte[] memory = new byte[segmentSize];
-					availableMemorySegments.add(MemorySegmentFactory.wrapPooledHeapMemory(memory, null));
-				}
-			}
-			else if (memoryType == MemoryType.OFF_HEAP) {
-				for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
-					ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
-					availableMemorySegments.add(MemorySegmentFactory.wrapPooledOffHeapMemory(memory, null));
-				}
-			}
-			else {
-				throw new IllegalArgumentException("Unknown memory type " + memoryType);
+			for (int i = 0; i < numberOfSegmentsToAllocate; i++) {
+				ByteBuffer memory = ByteBuffer.allocateDirect(segmentSize);
+				availableMemorySegments.add(MemorySegmentFactory.wrapPooledOffHeapMemory(memory, null));
 			}
 		}
 		catch (OutOfMemoryError err) {
@@ -336,7 +323,7 @@ public class NetworkBufferPool implements BufferPoolFactory {
 			return;
 		}
 
-		/**
+		/*
 		 * With buffer pools being potentially limited, let's distribute the available memory
 		 * segments based on the capacity of each buffer pool, i.e. the maximum number of segments
 		 * an unlimited buffer pool can take is numAvailableMemorySegment, for limited buffer pools

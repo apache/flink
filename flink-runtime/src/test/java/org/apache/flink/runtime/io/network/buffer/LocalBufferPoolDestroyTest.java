@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.core.memory.MemoryType;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,7 +45,7 @@ public class LocalBufferPoolDestroyTest {
 		LocalBufferPool localBufferPool = null;
 
 		try {
-			networkBufferPool = new NetworkBufferPool(1, 4096, MemoryType.HEAP);
+			networkBufferPool = new NetworkBufferPool(1, 4096);
 			localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 			// Drain buffer pool

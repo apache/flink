@@ -673,6 +673,10 @@ for each point-to-point exchange of data over the network, which typically happe
 repartitioning or broadcasting steps (shuffle phase). In those, each parallel task inside the
 TaskManager has to be able to talk to all other parallel tasks.
 
+<div class="alert alert-warning">
+  <strong>Note:</strong> Since Flink 1.5, network buffers will always be allocated off-heap, i.e. outside of the JVM heap, irrespective of the value of <code>taskmanager.memory.off-heap</code>. This way, we can pass these buffers directly to the underlying network stack layers.
+</div>
+
 #### Setting Memory Fractions
 
 Previously, the number of network buffers was set manually which became a quite error-prone task

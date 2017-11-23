@@ -570,12 +570,11 @@ calculateTaskManagerHeapSizeMB() {
         exit 1
     fi
 
-    local tm_heap_size_mb=${FLINK_TM_HEAP}
+    local network_buffers_mb=$(($(calculateNetworkBufferMemory) >> 20)) # bytes to megabytes
+    # network buffers are always off-heap and thus need to be deduced from the heap memory size
+    local tm_heap_size_mb=$((${FLINK_TM_HEAP} - network_buffers_mb))
 
     if useOffHeapMemory; then
-
-        local network_buffers_mb=$(($(calculateNetworkBufferMemory) >> 20)) # bytes to megabytes
-        tm_heap_size_mb=$((tm_heap_size_mb - network_buffers_mb))
 
         if [[ "${FLINK_TM_MEM_MANAGED_SIZE}" -gt "0" ]]; then
             # We split up the total memory in heap and off-heap memory

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -47,7 +46,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -58,6 +56,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import scala.Tuple2;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.fail;
@@ -95,7 +95,7 @@ public class LocalInputChannelTest {
 
 		final NetworkBufferPool networkBuffers = new NetworkBufferPool(
 			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
-			TestBufferFactory.BUFFER_SIZE, MemoryType.HEAP);
+			TestBufferFactory.BUFFER_SIZE);
 
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
 			mock(ResultPartitionConsumableNotifier.class);
@@ -176,6 +176,7 @@ public class LocalInputChannelTest {
 			}
 		}
 		finally {
+			networkBuffers.destroyAllBufferPools();
 			networkBuffers.destroy();
 			executor.shutdown();
 		}
