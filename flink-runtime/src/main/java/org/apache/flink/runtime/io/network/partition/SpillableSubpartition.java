@@ -95,13 +95,12 @@ class SpillableSubpartition extends ResultSubpartition {
 				return false;
 			}
 
-			// The number of buffers are needed later when creating
-			// the read views. If you ever remove this line here,
-			// make sure to still count the number of buffers.
-			updateStatistics(buffer);
-
 			if (spillWriter == null) {
 				buffers.add(buffer);
+				// The number of buffers are needed later when creating
+				// the read views. If you ever remove this line here,
+				// make sure to still count the number of buffers.
+				updateStatistics(buffer);
 
 				return true;
 			}
@@ -109,6 +108,10 @@ class SpillableSubpartition extends ResultSubpartition {
 
 		// Didn't return early => go to disk
 		spillWriter.writeBlock(buffer);
+		synchronized (buffers) {
+			// See the note above, but only do this if the buffer was correctly added!
+			updateStatistics(buffer);
+		}
 
 		return true;
 	}
