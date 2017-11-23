@@ -21,8 +21,10 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -46,8 +48,12 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
 		try {
 			subpartition.finish();
+			assertEquals(1, subpartition.getTotalNumberOfBuffers());
+			assertEquals(4, subpartition.getTotalNumberOfBytes());
 
 			assertFalse(subpartition.add(mock(Buffer.class)));
+			assertEquals(1, subpartition.getTotalNumberOfBuffers());
+			assertEquals(4, subpartition.getTotalNumberOfBytes());
 		} finally {
 			if (subpartition != null) {
 				subpartition.release();
@@ -61,8 +67,12 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
 		try {
 			subpartition.release();
+			assertEquals(0, subpartition.getTotalNumberOfBuffers());
+			assertEquals(0, subpartition.getTotalNumberOfBytes());
 
 			assertFalse(subpartition.add(mock(Buffer.class)));
+			assertEquals(0, subpartition.getTotalNumberOfBuffers());
+			assertEquals(0, subpartition.getTotalNumberOfBytes());
 		} finally {
 			if (subpartition != null) {
 				subpartition.release();
