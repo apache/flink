@@ -184,13 +184,21 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.add(buffer);
 		partition.add(buffer);
 		partition.add(buffer);
+		assertEquals(3, partition.getTotalNumberOfBuffers());
+		assertEquals(4096 * 3, partition.getTotalNumberOfBytes());
 
 		assertFalse(buffer.isRecycled());
 		assertEquals(3, partition.releaseMemory());
 		// now the buffer may be freed, depending on the timing of the write operation
 		// -> let's do this check at the end of the test (to save some time)
+		// stil same statistics
+		assertEquals(3, partition.getTotalNumberOfBuffers());
+		assertEquals(4096 * 3, partition.getTotalNumberOfBytes());
 
 		partition.finish();
+		// + one EndOfPartitionEvent
+		assertEquals(4, partition.getTotalNumberOfBuffers());
+		assertEquals(4096 * 3 + 4, partition.getTotalNumberOfBytes());
 
 		BufferAvailabilityListener listener = spy(new AwaitableBufferAvailablityListener());
 		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(listener);
@@ -250,6 +258,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.add(buffer);
 		partition.add(buffer);
 		partition.finish();
+		assertEquals(4, partition.getTotalNumberOfBuffers());
+		assertEquals(4096 * 3 + 4, partition.getTotalNumberOfBytes());
 
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
 		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(listener);
@@ -267,6 +277,9 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// Spill now
 		assertEquals(2, partition.releaseMemory());
 		assertFalse(buffer.isRecycled()); // still one in the reader!
+		// still same statistics:
+		assertEquals(4, partition.getTotalNumberOfBuffers());
+		assertEquals(4096 * 3 + 4, partition.getTotalNumberOfBytes());
 
 		listener.awaitNotifications(4, 30_000);
 		assertEquals(4, listener.getNumNotifiedBuffers());
