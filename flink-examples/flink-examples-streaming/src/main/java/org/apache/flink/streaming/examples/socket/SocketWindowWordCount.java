@@ -96,11 +96,15 @@ public class SocketWindowWordCount {
 
 	/**
 	 * Data type for words with count.
+	 * Note: No need an immutable Value Object here, 
+	 * since DataStream takes care of the thread-safe issues.
 	 */
 	public static class WordWithCount {
 
-		public final String word;
-		public final long count;
+		public String word;
+		public long count;
+		
+		public WordWithCount() {}
 
 		public WordWithCount(String word, long count) {
 			this.word = word;
