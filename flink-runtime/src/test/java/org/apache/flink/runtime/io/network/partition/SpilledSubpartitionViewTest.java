@@ -44,6 +44,10 @@ import java.util.concurrent.TimeoutException;
 
 import static org.mockito.Mockito.mock;
 
+/**
+ * Tests for {@link SpillableSubpartitionView}, in addition to indirect tests via {@link
+ * SpillableSubpartitionTest}.
+ */
 public class SpilledSubpartitionViewTest {
 
 	private static final IOManager IO_MANAGER = new IOManagerAsync();
