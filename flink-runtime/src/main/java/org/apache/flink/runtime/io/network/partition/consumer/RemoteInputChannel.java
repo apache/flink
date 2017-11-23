@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -36,9 +37,9 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -90,9 +91,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/** The number of available buffers that have not been announced to the producer yet. */
 	private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
 
-	/** The number of unsent buffers in the producer's sub partition. */
+	/** The number of required buffers that equals to sender's backlog plus initial credit. */
 	@GuardedBy("bufferQueue")
-	private int senderBacklog;
+	private int numRequiredBuffers;
 
 	/** The tag indicates whether this channel is waiting for additional floating buffers from the buffer pool. */
 	@GuardedBy("bufferQueue")
@@ -137,6 +138,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		checkArgument(segments.size() > 0, "The number of exclusive buffers per channel should be larger than 0.");
 
 		this.initialCredit = segments.size();
+		this.numRequiredBuffers = segments.size();
 
 		synchronized(bufferQueue) {
 			for (MemorySegment segment : segments) {
@@ -246,13 +248,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 				}
 			}
 			synchronized (bufferQueue) {
-				Buffer buffer;
-				while ((buffer = bufferQueue.takeFloatingBuffer()) != null) {
-					buffer.recycle();
-				}
-				while ((buffer = bufferQueue.takeExclusiveBuffer()) != null) {
-					exclusiveRecyclingSegments.add(buffer.getMemorySegment());
-				}
+				bufferQueue.releaseAll(exclusiveRecyclingSegments);
 			}
 
 			if (exclusiveRecyclingSegments.size() > 0) {
@@ -297,31 +293,21 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 */
 	@Override
 	public void recycle(MemorySegment segment) {
-		boolean floatingBufferRecycled = false;
+		boolean floatingBufferRecycled;
 
 		synchronized (bufferQueue) {
-			final int numRequiredBuffers = senderBacklog + initialCredit;
-			checkState(bufferQueue.getAvailableBufferSize() <= numRequiredBuffers,
-				"The number of available buffers " + bufferQueue.getAvailableBufferSize() + " should not exceed " + numRequiredBuffers);
-
 			// Important: check the isReleased state inside synchronized block, so there is no
 			// race condition when recycle and releaseAllResources running in parallel.
 			if (isReleased.get()) {
 				try {
-					inputGate.returnExclusiveSegments(Arrays.asList(segment));
+					inputGate.returnExclusiveSegments(Collections.singletonList(segment));
 					return;
 				} catch (Throwable t) {
 					ExceptionUtils.rethrow(t);
 				}
 			}
 
-			// Recycle one extra floating buffer to always maintain (senderBacklog + initialCredit) buffers available.
-			if (bufferQueue.getAvailableBufferSize() == numRequiredBuffers) {
-				bufferQueue.takeFloatingBuffer().recycle();
-				floatingBufferRecycled = true;
-			}
-
-			bufferQueue.addExclusiveBuffer(new Buffer(segment, this));
+			floatingBufferRecycled = bufferQueue.maintainTargetSize(new Buffer(segment, this));
 		}
 
 		if (!floatingBufferRecycled && unannouncedCredit.getAndAdd(1) == 0) {
@@ -333,6 +319,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		synchronized (bufferQueue) {
 			return bufferQueue.getAvailableBufferSize();
 		}
+	}
+
+	@VisibleForTesting
+	public int getNumberOfRequiredBuffers() {
+		return numRequiredBuffers;
 	}
 
 	/**
@@ -356,8 +347,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		boolean needMoreBuffers = false;
 		synchronized (bufferQueue) {
 			checkState(isWaitingForFloatingBuffers, "This channel should be waiting for floating buffers.");
-
-			final int numRequiredBuffers = senderBacklog + initialCredit;
 			checkState(bufferQueue.getAvailableBufferSize() <= numRequiredBuffers,
 				"The number of available buffers " + bufferQueue.getAvailableBufferSize() + " should not exceed " + numRequiredBuffers);
 
@@ -429,12 +418,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	@Nullable
 	public Buffer requestBuffer() {
 		synchronized (bufferQueue) {
-			// Take the floating buffer first if possible.
-			if (bufferQueue.getFloatingBufferSize() > 0) {
-				return bufferQueue.takeFloatingBuffer();
-			} else {
-				return bufferQueue.takeExclusiveBuffer();
-			}
+			return bufferQueue.takeBuffer();
 		}
 	}
 
@@ -445,6 +429,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 *
 	 * @param backlog The number of unsent buffers in the producer's sub partition.
 	 */
+	@VisibleForTesting
 	void onSenderBacklog(int backlog) throws IOException {
 		int numRequestedBuffers = 0;
 
@@ -455,9 +440,8 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 				return;
 			}
 
-			senderBacklog = backlog;
-
-			while (bufferQueue.getAvailableBufferSize() < senderBacklog + initialCredit && !isWaitingForFloatingBuffers) {
+			numRequiredBuffers = backlog + initialCredit;
+			while (bufferQueue.getAvailableBufferSize() < numRequiredBuffers && !isWaitingForFloatingBuffers) {
 				Buffer buffer = inputGate.getBufferPool().requestBuffer();
 				if (buffer != null) {
 					bufferQueue.addFloatingBuffer(buffer);
@@ -555,6 +539,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 	}
 
+	/**
+	 * Manages the exclusive and floating buffers of this channel, and handles the
+	 * internal buffer related logic.
+	 */
 	private class AvailableBufferQueue {
 
 		/** The current available floating buffers from the fixed buffer pool. */
@@ -572,20 +560,53 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			exclusiveBuffers.add(buffer);
 		}
 
-		Buffer takeExclusiveBuffer() {
-			return exclusiveBuffers.poll();
-		}
-
 		void addFloatingBuffer(Buffer buffer) {
 			floatingBuffers.add(buffer);
 		}
 
-		Buffer takeFloatingBuffer() {
-			return floatingBuffers.poll();
+		/**
+		 * Add the exclusive buffer into the queue, and recycle one floating buffer if the
+		 * number of available buffers in queue is more than required amount.
+		 *
+		 * @param buffer The exclusive buffer of this channel.
+		 * @return Whether to recycle one floating buffer.
+		 */
+		boolean maintainTargetSize(Buffer buffer) {
+			exclusiveBuffers.add(buffer);
+
+			if (getAvailableBufferSize() > numRequiredBuffers) {
+				Buffer floatingBuffer = floatingBuffers.poll();
+				floatingBuffer.recycle();
+				return true;
+			} else {
+				return false;
+			}
 		}
 
-		int getFloatingBufferSize() {
-			return floatingBuffers.size();
+		/**
+		 * Take the floating buffer first if possible.
+		 */
+		@Nullable
+		Buffer takeBuffer() {
+			if (floatingBuffers.size() > 0) {
+				return floatingBuffers.poll();
+			} else {
+				return exclusiveBuffers.poll();
+			}
+		}
+
+		/**
+		 * The floating buffer is recycled to local buffer pool directly, and the
+		 * exclusive buffer will be gathered to return to global buffer pool later.
+		 */
+		void releaseAll(List<MemorySegment> exclusiveSegments) {
+			Buffer buffer;
+			while ((buffer = floatingBuffers.poll()) != null) {
+				buffer.recycle();
+			}
+			while ((buffer = exclusiveBuffers.poll()) != null) {
+				exclusiveSegments.add(buffer.getMemorySegment());
+			}
 		}
 
 		int getAvailableBufferSize() {
