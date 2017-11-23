@@ -31,7 +31,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.messages.job.metrics.AbstractMetricsHandlerHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.AbstractMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
@@ -101,7 +101,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 			},
 			Time.milliseconds(50),
 			Collections.emptyMap(),
-			new TestMetricsHandlerHeaders(),
+			new TestMetricsHeaders(),
 			mockMetricFetcher);
 	}
 
@@ -210,8 +210,8 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 		}
 	}
 
-	private static class TestMetricsHandlerHeaders extends
-		AbstractMetricsHandlerHeaders<TestMessageParameters> {
+	private static class TestMetricsHeaders extends
+		AbstractMetricsHeaders<TestMessageParameters> {
 
 		@Override
 		public TestMessageParameters getUnresolvedMessageParameters() {

@@ -28,7 +28,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * {@link MessageHeaders} for {@link org.apache.flink.runtime.rest.handler.job.metrics.AbstractMetricsHandler}.
  */
-public abstract class AbstractMetricsHandlerHeaders<M extends MessageParameters> implements
+public abstract class AbstractMetricsHeaders<M extends MessageParameters> implements
 	MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> {
 
 	@Override

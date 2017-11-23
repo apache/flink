@@ -32,15 +32,15 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link AbstractMetricsHandlerHeaders}.
+ * Tests for {@link AbstractMetricsHeaders}.
  */
-public class AbstractMetricsHandlerHeadersTest extends TestLogger {
+public class AbstractMetricsHeadersTest extends TestLogger {
 
-	private AbstractMetricsHandlerHeaders<EmptyMessageParameters> metricsHandlerHeaders;
+	private AbstractMetricsHeaders<EmptyMessageParameters> metricsHandlerHeaders;
 
 	@Before
 	public void setUp() throws Exception {
-		metricsHandlerHeaders = new AbstractMetricsHandlerHeaders<EmptyMessageParameters>() {
+		metricsHandlerHeaders = new AbstractMetricsHeaders<EmptyMessageParameters>() {
 			@Override
 			public EmptyMessageParameters getUnresolvedMessageParameters() {
 				return EmptyMessageParameters.getInstance();

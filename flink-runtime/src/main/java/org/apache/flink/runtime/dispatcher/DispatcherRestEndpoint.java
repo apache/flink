@@ -68,7 +68,7 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDet
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHandlerHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
@@ -350,7 +350,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		handlers.add(Tuple2.of(TaskManagersHeaders.getInstance(), taskManagersHandler));
 		handlers.add(Tuple2.of(TaskManagerDetailsHeaders.getInstance(), taskManagerDetailsHandler));
 		handlers.add(Tuple2.of(SubtasksTimesHeaders.getInstance(), subtasksTimesHandler));
-		handlers.add(Tuple2.of(JobVertexMetricsHandlerHeaders.getInstance(), jobVertexMetricsHandler));
+		handlers.add(Tuple2.of(JobVertexMetricsHeaders.getInstance(), jobVertexMetricsHandler));
 
 		optWebContent.ifPresent(
 			webContent -> handlers.add(Tuple2.of(WebContentHandlerSpecification.getInstance(), webContent)));

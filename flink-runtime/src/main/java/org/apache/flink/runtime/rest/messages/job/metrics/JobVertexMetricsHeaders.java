@@ -26,11 +26,11 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 /**
  * {@link MessageHeaders} for {@link JobVertexMetricsHandler}.
  */
-public class JobVertexMetricsHandlerHeaders extends
-	AbstractMetricsHandlerHeaders<JobVertexMetricsMessageParameters> {
+public class JobVertexMetricsHeaders extends
+	AbstractMetricsHeaders<JobVertexMetricsMessageParameters> {
 
-	private static final JobVertexMetricsHandlerHeaders INSTANCE =
-		new JobVertexMetricsHandlerHeaders();
+	private static final JobVertexMetricsHeaders INSTANCE =
+		new JobVertexMetricsHeaders();
 
 	@Override
 	public JobVertexMetricsMessageParameters getUnresolvedMessageParameters() {
@@ -42,7 +42,7 @@ public class JobVertexMetricsHandlerHeaders extends
 		return "/jobs/:" + JobIDPathParameter.KEY + "/vertices/:" + JobVertexIdPathParameter.KEY + "/metrics";
 	}
 
-	public static JobVertexMetricsHandlerHeaders getInstance() {
+	public static JobVertexMetricsHeaders getInstance() {
 		return INSTANCE;
 	}
 

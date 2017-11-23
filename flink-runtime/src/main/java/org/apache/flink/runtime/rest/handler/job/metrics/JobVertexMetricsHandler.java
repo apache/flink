@@ -28,7 +28,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
-import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHandlerHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsMessageParameters;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
@@ -50,7 +50,7 @@ public class JobVertexMetricsHandler extends AbstractMetricsHandler<JobVertexMet
 			MetricFetcher metricFetcher) {
 
 		super(localRestAddress, leaderRetriever, timeout, headers,
-			JobVertexMetricsHandlerHeaders.getInstance(),
+			JobVertexMetricsHeaders.getInstance(),
 			metricFetcher);
 	}
 
