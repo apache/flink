@@ -513,7 +513,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		// to re-acquire the lock
 		if (timeLeft <= 0 && !hasAvailability(totalLimit, outputLimit, inputLimit)) {
 			throw new IOException(String.format(
-					"Timeout while waiting for an available stream/connect. " +
+					"Timeout while waiting for an available stream/connection. " +
 					"limits: total=%d, input=%d, output=%d ; Open: input=%d, output=%d ; timeout: %d ms",
 					maxNumOpenStreamsTotal, maxNumOpenInputStreams, maxNumOpenOutputStreams,
 					numReservedInputStreams, numReservedOutputStreams, getStreamOpenTimeout()));
@@ -531,13 +531,15 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	private boolean closeInactiveStream(HashSet<? extends StreamWithTimeout> streams, long nowNanos) {
 		for (StreamWithTimeout stream : streams) {
 			try {
+				final StreamProgressTracker tracker = stream.getProgressTracker();
+
 				// If the stream is closed already, it will be removed anyways, so we
 				// do not classify it as inactive. We also skip the check if another check happened too recently.
-				if (stream.isClosed() || nowNanos < stream.getLastCheckTimestampNanos() + streamInactivityTimeoutNanos) {
+				if (stream.isClosed() || nowNanos < tracker.getLastCheckTimestampNanos() + streamInactivityTimeoutNanos) {
 					// interval since last check not yet over
 					return false;
 				}
-				else if (!stream.checkNewBytesAndMark(nowNanos)) {
+				else if (!tracker.checkNewBytesAndMark(nowNanos)) {
 					stream.closeDueToTimeout();
 					return true;
 				}
@@ -620,17 +622,14 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 	private interface StreamWithTimeout extends Closeable {
 
 		/**
-		 * Gets the timestamp when the last inactivity evaluation was made.
+		 * Gets the progress tracker for this stream.
 		 */
-		long getLastCheckTimestampNanos();
+		StreamProgressTracker getProgressTracker();
 
 		/**
-		 * Checks whether there were new bytes since the last time this method was invoked.
-		 * This also sets the given timestamp, to be read via {@link #getLastCheckTimestampNanos()}.
-		 *
-		 * @return True, if there were new bytes, false if not.
+		 * Gets the current position in the stream, as in number of bytes read or written.
 		 */
-		boolean checkNewBytesAndMark(long timestamp) throws IOException;
+		long getPos() throws IOException;
 
 		/**
 		 * Closes the stream asynchronously with a special exception that indicates closing due
@@ -642,6 +641,57 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		 * Checks whether the stream was closed already.
 		 */
 		boolean isClosed();
+	}
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * A tracker for stream progress. This records the number of bytes read / written together
+	 * with a timestamp when the last check happened.
+	 */
+	private static final class StreamProgressTracker {
+
+		/** The tracked stream. */
+		private final StreamWithTimeout stream;
+
+		/** The number of bytes written the last time that the {@link #checkNewBytesAndMark(long)}
+		 * method was called. It is important to initialize this with {@code -1} so that the
+		 * first check (0 bytes) always appears to have made progress. */
+		private volatile long lastCheckBytes = -1;
+
+		/** The timestamp when the last inactivity evaluation was made. */
+		private volatile long lastCheckTimestampNanos;
+
+		StreamProgressTracker(StreamWithTimeout stream) {
+			this.stream = stream;
+		}
+
+		/**
+		 * Gets the timestamp when the last inactivity evaluation was made.
+		 */
+		public long getLastCheckTimestampNanos() {
+			return lastCheckTimestampNanos;
+		}
+
+		/**
+		 * Checks whether there were new bytes since the last time this method was invoked.
+		 * This also sets the given timestamp, to be read via {@link #getLastCheckTimestampNanos()}.
+		 *
+		 * @return True, if there were new bytes, false if not.
+		 */
+		public boolean checkNewBytesAndMark(long timestamp) throws IOException {
+			// remember the time when checked
+			lastCheckTimestampNanos = timestamp;
+
+			final long bytesNow = stream.getPos();
+			if (bytesNow > lastCheckBytes) {
+				lastCheckBytes = bytesNow;
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -660,26 +710,19 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		/** The connection-limiting file system to un-register from. */
 		private final LimitedConnectionsFileSystem fs;
 
+		/** The progress tracker for this stream. */
+		private final StreamProgressTracker progressTracker;
+
 		/** An exception with which the stream has been externally closed. */
 		private volatile StreamTimeoutException timeoutException;
-
-		/** The number of bytes written the last time that the {@link #checkNewBytesAndMark(long)}
-		 * method was called. It is important to initialize this with {@code -1} so that the
-		 * first check (0 bytes) always appears to have made progress. */
-		private volatile long lastCheckBytes = -1;
-
-		/** The timestamp when the last inactivity evaluation was made. */
-		private volatile long lastCheckTimestampNanos;
 
 		/** Flag tracking whether the stream was already closed, for proper inactivity tracking. */
 		private AtomicBoolean closed = new AtomicBoolean();
 
-		OutStream(
-				FSDataOutputStream originalStream,
-				LimitedConnectionsFileSystem fs) {
-
+		OutStream(FSDataOutputStream originalStream, LimitedConnectionsFileSystem fs) {
 			this.originalStream = checkNotNull(originalStream);
 			this.fs = checkNotNull(fs);
+			this.progressTracker = new StreamProgressTracker(this);
 		}
 
 		// --- FSDataOutputStream API implementation
@@ -762,23 +805,8 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		}
 
 		@Override
-		public long getLastCheckTimestampNanos() {
-			return lastCheckTimestampNanos;
-		}
-
-		@Override
-		public boolean checkNewBytesAndMark(long timestamp) throws IOException {
-			// remember the time when checked
-			lastCheckTimestampNanos = timestamp;
-
-			final long bytesNow = originalStream.getPos();
-			if (bytesNow > lastCheckBytes) {
-				lastCheckBytes = bytesNow;
-				return true;
-			}
-			else {
-				return false;
-			}
+		public StreamProgressTracker getProgressTracker() {
+			return progressTracker;
 		}
 
 		private void handleIOException(IOException exception) throws IOException {
@@ -786,7 +814,10 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 				throw exception;
 			} else {
 				// throw a new exception to capture this call's stack trace
-				throw new StreamTimeoutException(timeoutException);
+				// the new exception is forwarded as a suppressed exception
+				StreamTimeoutException te = new StreamTimeoutException(timeoutException);
+				te.addSuppressed(exception);
+				throw te;
 			}
 		}
 	}
@@ -808,23 +839,16 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		/** An exception with which the stream has been externally closed. */
 		private volatile StreamTimeoutException timeoutException;
 
-		/** The number of bytes written the last time that the {@link #checkNewBytesAndMark(long)}
-		 * method was called. It is important to initialize this with {@code -1} so that the
-		 * first check (0 bytes) always appears to have made progress. */
-		private volatile long lastCheckBytes = -1;
-
-		/** The timestamp when the last inactivity evaluation was made. */
-		private volatile long lastCheckTimestampNanos;
+		/** The progress tracker for this stream. */
+		private final StreamProgressTracker progressTracker;
 
 		/** Flag tracking whether the stream was already closed, for proper inactivity tracking. */
 		private AtomicBoolean closed = new AtomicBoolean();
 
-		InStream(
-				FSDataInputStream originalStream,
-				LimitedConnectionsFileSystem fs) {
-
+		InStream(FSDataInputStream originalStream, LimitedConnectionsFileSystem fs) {
 			this.originalStream = checkNotNull(originalStream);
 			this.fs = checkNotNull(fs);
+			this.progressTracker = new StreamProgressTracker(this);
 		}
 
 		// --- FSDataOutputStream API implementation
@@ -891,7 +915,12 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 
 		@Override
 		public void reset() throws IOException {
-			originalStream.reset();
+			try {
+				originalStream.reset();
+			}
+			catch (IOException e) {
+				handleIOException(e);
+			}
 		}
 
 		@Override
@@ -947,23 +976,8 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 		}
 
 		@Override
-		public long getLastCheckTimestampNanos() {
-			return lastCheckTimestampNanos;
-		}
-
-		@Override
-		public boolean checkNewBytesAndMark(long timestamp) throws IOException {
-			// remember the time when checked
-			lastCheckTimestampNanos = timestamp;
-
-			final long bytesNow = originalStream.getPos();
-			if (bytesNow > lastCheckBytes) {
-				lastCheckBytes = bytesNow;
-				return true;
-			}
-			else {
-				return false;
-			}
+		public StreamProgressTracker getProgressTracker() {
+			return progressTracker;
 		}
 
 		private void handleIOException(IOException exception) throws IOException {
@@ -971,7 +985,10 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 				throw exception;
 			} else {
 				// throw a new exception to capture this call's stack trace
-				throw new StreamTimeoutException(timeoutException);
+				// the new exception is forwarded as a suppressed exception
+				StreamTimeoutException te = new StreamTimeoutException(timeoutException);
+				te.addSuppressed(exception);
+				throw te;
 			}
 		}
 	}
