@@ -97,7 +97,7 @@ public abstract class ProcessingTimeService {
 
 	/**
 	 * Shuts down and clean up the timer service provider hard and immediately. This does wait
-	 * for all timer to complete or until the time limit is exceeded. Any call to
+	 * for all timers to complete or until the time limit is exceeded. Any call to
 	 * {@link #registerTimer(long, ProcessingTimeCallback)} will result in a hard exception after calling this method.
 	 * @param time time to wait for termination.
 	 * @param timeUnit time unit of parameter time.

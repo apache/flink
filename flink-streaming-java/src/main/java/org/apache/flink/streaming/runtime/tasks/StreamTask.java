@@ -51,6 +51,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.configuration.TimerServiceOptions;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -122,8 +123,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	/** The logger used by the StreamTask and its subclasses. */
 	private static final Logger LOG = LoggerFactory.getLogger(StreamTask.class);
-
-	private static final long TIMER_SERVICE_TERMINATION_AWAIT_MS = 7500L;
 
 	// ------------------------------------------------------------------------
 
@@ -221,7 +220,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			LOG.debug("Initializing {}.", getName());
 
 			asyncOperationsThreadPool = Executors.newCachedThreadPool();
-
 			configuration = new StreamConfig(getTaskConfiguration());
 
 			CheckpointExceptionHandlerFactory cpExceptionHandlerFactory = createCheckpointExceptionHandlerFactory();
@@ -325,13 +323,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			if (timerService != null && !timerService.isTerminated()) {
 				try {
 
+					final long timeoutMs = getEnvironment().getTaskManagerInfo().getConfiguration().
+						getLong(TimerServiceOptions.TIMER_SERVICE_TERMINATION_AWAIT_MS);
+
 					// wait for a reasonable time for all pending timer threads to finish
 					boolean timerShutdownComplete =
-						timerService.shutdownAndAwaitPending(TIMER_SERVICE_TERMINATION_AWAIT_MS, TimeUnit.MILLISECONDS);
+						timerService.shutdownAndAwaitPending(timeoutMs, TimeUnit.MILLISECONDS);
 
 					if (!timerShutdownComplete) {
-						LOG.warn("Timer service shutdown exceeded time limit while waiting for pending timers. " +
-							"Will continue with shutdown procedure.");
+						LOG.warn("Timer service shutdown exceeded time limit of {} ms while waiting for pending " +
+							"timers. Will continue with shutdown procedure.", timeoutMs);
 					}
 				}
 				catch (Throwable t) {
