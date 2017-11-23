@@ -68,6 +68,8 @@ import static org.junit.Assert.fail;
 @SuppressWarnings("serial")
 public abstract class KafkaProducerTestBase extends KafkaTestBase {
 
+	private static final long KAFKA_READ_TIMEOUT = 60_000L;
+
 	/**
 	 * This tests verifies that custom partitioning works correctly, with a default topic
 	 * and dynamic topic. The number of partitions for each topic is deliberately different.
@@ -291,7 +293,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 				topic,
 				partition,
 				Collections.unmodifiableSet(new HashSet<>(getIntegersSequence(BrokerRestartingMapper.numElementsBeforeSnapshot))),
-				30000L);
+				KAFKA_READ_TIMEOUT);
 
 		deleteTestTopic(topic);
 	}
@@ -367,7 +369,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBase {
 			topic,
 			partition,
 			expectedElements,
-			30000L);
+			KAFKA_READ_TIMEOUT);
 
 		deleteTestTopic(topic);
 	}
