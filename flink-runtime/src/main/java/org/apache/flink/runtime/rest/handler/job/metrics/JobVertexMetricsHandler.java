@@ -37,6 +37,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler that returns metrics given a {@link JobID} and {@link JobVertexID}.
+ *
+ * @see MetricStore#getTaskMetricStore(String, String)
  */
 public class JobVertexMetricsHandler extends AbstractMetricsHandler<JobVertexMetricsMessageParameters> {
 

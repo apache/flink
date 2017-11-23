@@ -52,7 +52,7 @@ public class Metric {
 	 * Creates a new {@link Metric} with a possible value.
 	 *
 	 * @param id    Name of the metric.
-	 * @param value Value of the metric. Can be null.
+	 * @param value Value of the metric. Can be <code>null</code>.
 	 */
 	@JsonCreator
 	public Metric(

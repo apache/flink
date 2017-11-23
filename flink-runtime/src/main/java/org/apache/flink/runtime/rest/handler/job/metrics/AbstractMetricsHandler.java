@@ -60,7 +60,7 @@ import static java.util.Objects.requireNonNull;
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  *
- * @param <M> Type of the concrete MessageParameters
+ * @param <M> Type of the concrete {@link MessageParameters}
  */
 public abstract class AbstractMetricsHandler<M extends MessageParameters> extends
 	AbstractRestHandler<DispatcherGateway, EmptyRequestBody, MetricCollectionResponseBody, M> {
