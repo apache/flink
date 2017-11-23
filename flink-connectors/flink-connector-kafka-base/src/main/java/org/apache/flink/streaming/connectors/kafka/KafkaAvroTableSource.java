@@ -44,7 +44,7 @@ import java.util.Properties;
  * A version-agnostic Kafka Avro {@link StreamTableSource}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #getKafkaConsumer(String, Properties, DeserializationSchema)}}.
+ * override {@link #createKafkaConsumer(String, Properties, DeserializationSchema)}}.
  */
 public abstract class KafkaAvroTableSource extends KafkaTableSource implements DefinedFieldMapping {
 
