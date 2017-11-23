@@ -20,19 +20,26 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AsynchronousBufferFileWriter;
+import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsyncWithNoOpBufferFileWriter;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+
 import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -56,12 +63,17 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link SpillableSubpartition}.
+ */
 public class SpillableSubpartitionTest extends SubpartitionTestBase {
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
-	/** Executor service for concurrent produce/consume tests */
-	private final static ExecutorService executorService = Executors.newCachedThreadPool();
+	/** Executor service for concurrent produce/consume tests. */
+	private static final ExecutorService executorService = Executors.newCachedThreadPool();
 
-	/** Asynchronous I/O manager */
+	/** Asynchronous I/O manager. */
 	private static final IOManager ioManager = new IOManagerAsync();
 
 	@AfterClass
@@ -72,6 +84,10 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 	@Override
 	SpillableSubpartition createSubpartition() {
+		return createSubpartition(ioManager);
+	}
+
+	private static SpillableSubpartition createSubpartition(IOManager ioManager) {
 		ResultPartition parent = mock(ResultPartition.class);
 		BufferProvider bufferProvider = mock(BufferProvider.class);
 		when(parent.getBufferProvider()).thenReturn(bufferProvider);
@@ -313,6 +329,218 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertTrue(buffer.isRecycled());
 	}
 
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a spillable finished partition.
+	 */
+	@Test
+	public void testAddOnFinishedSpillablePartition() throws Exception {
+		testAddOnFinishedPartition(false);
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a spilled finished partition.
+	 */
+	@Test
+	public void testAddOnFinishedSpilledPartition() throws Exception {
+		testAddOnFinishedPartition(true);
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a finished partition.
+	 *
+	 * @param spilled
+	 * 		whether the partition should be spilled to disk (<tt>true</tt>) or not (<tt>false</tt>,
+	 * 		spillable).
+	 */
+	private void testAddOnFinishedPartition(boolean spilled) throws Exception {
+		SpillableSubpartition partition = createSubpartition();
+		if (spilled) {
+			assertEquals(0, partition.releaseMemory());
+		}
+		partition.finish();
+		// finish adds an EndOfPartitionEvent
+		assertEquals(1, partition.getTotalNumberOfBuffers());
+		assertEquals(4, partition.getTotalNumberOfBytes());
+
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		try {
+			partition.add(buffer);
+		} finally {
+			if (!buffer.isRecycled()) {
+				buffer.recycle();
+				Assert.fail("buffer not recycled");
+			}
+			// still same statistics
+			assertEquals(1, partition.getTotalNumberOfBuffers());
+			assertEquals(4, partition.getTotalNumberOfBytes());
+		}
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a spillable released partition.
+	 */
+	@Test
+	public void testAddOnReleasedSpillablePartition() throws Exception {
+		testAddOnReleasedPartition(false);
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a spilled released partition.
+	 */
+	@Test
+	public void testAddOnReleasedSpilledPartition() throws Exception {
+		testAddOnReleasedPartition(true);
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a released partition.
+	 *
+	 * @param spilled
+	 * 		whether the partition should be spilled to disk (<tt>true</tt>) or not (<tt>false</tt>,
+	 * 		spillable).
+	 */
+	private void testAddOnReleasedPartition(boolean spilled) throws Exception {
+		SpillableSubpartition partition = createSubpartition();
+		partition.release();
+		if (spilled) {
+			assertEquals(0, partition.releaseMemory());
+		}
+
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		try {
+			partition.add(buffer);
+		} finally {
+			if (!buffer.isRecycled()) {
+				buffer.recycle();
+				Assert.fail("buffer not recycled");
+			}
+			assertEquals(0, partition.getTotalNumberOfBuffers());
+			assertEquals(0, partition.getTotalNumberOfBytes());
+		}
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a spilled partition where adding the
+	 * write request fails with an exception.
+	 */
+	@Test
+	public void testAddOnSpilledPartitionWithSlowWriter() throws Exception {
+		// simulate slow writer by a no-op write operation
+		IOManager ioManager = new IOManagerAsyncWithNoOpBufferFileWriter();
+		SpillableSubpartition partition = createSubpartition(ioManager);
+		assertEquals(0, partition.releaseMemory());
+
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		try {
+			partition.add(buffer);
+		} finally {
+			ioManager.shutdown();
+			if (buffer.isRecycled()) {
+				Assert.fail("buffer recycled before the write operation completed");
+			}
+			buffer.recycle();
+			assertEquals(1, partition.getTotalNumberOfBuffers());
+			assertEquals(4096, partition.getTotalNumberOfBytes());
+		}
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#releaseMemory()} with a spillable partition without a view
+	 * but with a writer that does not do any write to check for correct buffer recycling.
+	 */
+	@Test
+	public void testReleaseOnSpillablePartitionWithoutViewWithSlowWriter() throws Exception {
+		testReleaseOnSpillablePartitionWithSlowWriter(false);
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#releaseMemory()} with a spillable partition which has a
+	 * view associated with it and a writer that does not do any write to check for correct buffer
+	 * recycling.
+	 */
+	@Test
+	public void testReleaseOnSpillablePartitionWithViewWithSlowWriter() throws Exception {
+		testReleaseOnSpillablePartitionWithSlowWriter(true);
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#releaseMemory()} with a spillable partition which has a a
+	 * writer that does not do any write to check for correct buffer recycling.
+	 */
+	private void testReleaseOnSpillablePartitionWithSlowWriter(boolean createView) throws Exception {
+		// simulate slow writer by a no-op write operation
+		IOManager ioManager = new IOManagerAsyncWithNoOpBufferFileWriter();
+		SpillableSubpartition partition = createSubpartition(ioManager);
+
+		Buffer buffer1 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		Buffer buffer2 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		try {
+			// we need two buffers because the view will use one of them and not release it
+			partition.add(buffer1);
+			partition.add(buffer2);
+			assertFalse("buffer1 should not be recycled (still in the queue)", buffer1.isRecycled());
+			assertFalse("buffer2 should not be recycled (still in the queue)", buffer2.isRecycled());
+			assertEquals(2, partition.getTotalNumberOfBuffers());
+			assertEquals(4096 * 2, partition.getTotalNumberOfBytes());
+
+			if (createView) {
+				// Create a read view
+				partition.finish();
+				partition.createReadView(numBuffers -> {});
+			}
+
+			// one instance of the buffers is placed in the view's nextBuffer and not released
+			// (if there is no view, there will be no additional EndOfPartitionEvent)
+			assertEquals(2, partition.releaseMemory());
+			assertFalse("buffer1 should not be recycled (advertised as nextBuffer)", buffer1.isRecycled());
+			assertFalse("buffer2 should not be recycled (not written yet)", buffer2.isRecycled());
+		} finally {
+			ioManager.shutdown();
+			if (!buffer1.isRecycled()) {
+				buffer1.recycle();
+			}
+			if (!buffer2.isRecycled()) {
+				buffer2.recycle();
+			}
+			// note: a view requires a finished partition which has an additional EndOfPartitionEvent
+			assertEquals(2 + (createView ? 1 : 0), partition.getTotalNumberOfBuffers());
+			assertEquals(4096 * 2 + (createView ? 4 : 0), partition.getTotalNumberOfBytes());
+		}
+	}
+
+	/**
+	 * Tests {@link SpillableSubpartition#add(Buffer)} with a spilled partition where adding the
+	 * write request fails with an exception.
+	 */
+	@Test
+	public void testAddOnSpilledPartitionWithFailingWriter() throws Exception {
+		IOManager ioManager = new IOManagerAsyncWithClosedBufferFileWriter();
+		SpillableSubpartition partition = createSubpartition(ioManager);
+		assertEquals(0, partition.releaseMemory());
+
+		exception.expect(IOException.class);
+
+		Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		try {
+			partition.add(buffer);
+		} finally {
+			ioManager.shutdown();
+
+			if (!buffer.isRecycled()) {
+				buffer.recycle();
+				Assert.fail("buffer not recycled");
+			}
+			assertEquals(0, partition.getTotalNumberOfBuffers());
+			assertEquals(0, partition.getTotalNumberOfBytes());
+		}
+	}
+
 	private static class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
 		private long numNotifiedBuffers;
@@ -333,4 +561,22 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			}
 		}
 	}
+
+	/**
+	 * An {@link IOManagerAsync} that creates closed {@link BufferFileWriter} instances in its
+	 * {@link #createBufferFileWriter(FileIOChannel.ID)} method.
+	 *
+	 * <p>These {@link BufferFileWriter} objects will thus throw an exception when trying to add
+	 * write requests, e.g. by calling {@link BufferFileWriter#writeBlock(Object)}.
+	 */
+	private static class IOManagerAsyncWithClosedBufferFileWriter extends IOManagerAsync {
+		@Override
+		public BufferFileWriter createBufferFileWriter(FileIOChannel.ID channelID)
+				throws IOException {
+			BufferFileWriter bufferFileWriter = super.createBufferFileWriter(channelID);
+			bufferFileWriter.close();
+			return bufferFileWriter;
+		}
+	}
+
 }
