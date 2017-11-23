@@ -103,7 +103,7 @@ public class SocketWindowWordCount {
 
 		public String word;
 		public long count;
-		
+
 		public WordWithCount() {}
 
 		public WordWithCount(String word, long count) {
