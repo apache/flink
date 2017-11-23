@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.4-SNAPSHOT</version>
+	<version>1.4.0</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -140,7 +140,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.4-SNAPSHOT</version>
+			<version>1.4.0</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
