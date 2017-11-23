@@ -72,10 +72,10 @@ public abstract class KafkaTableSource
 	private List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors;
 
 	/** The startup mode for the contained consumer (default is {@link StartupMode#GROUP_OFFSETS}). */
-	protected StartupMode startupMode;
+	private StartupMode startupMode;
 
 	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS}. */
-	protected Map<KafkaTopicPartition, Long> specificStartupOffsets;
+	private Map<KafkaTopicPartition, Long> specificStartupOffsets;
 
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
@@ -138,7 +138,7 @@ public abstract class KafkaTableSource
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
 	 * @return The version-specific Kafka consumer
 	 */
-	public FlinkKafkaConsumerBase<Row> getKafkaConsumer(
+	protected FlinkKafkaConsumerBase<Row> getKafkaConsumer(
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema) {
@@ -200,10 +200,28 @@ public abstract class KafkaTableSource
 		this.rowtimeAttributeDescriptors = rowtimeAttributeDescriptors;
 	}
 
+	/**
+	 * Sets the startup mode of the TableSource.
+	 *
+	 * @param startupMode The startup mode.
+	 */
+	protected void setStartupMode(StartupMode startupMode) {
+		this.startupMode = startupMode;
+	}
+
+	/**
+	 * Sets the startup offsets of the TableSource; only relevant when the startup mode is {@link StartupMode#SPECIFIC_OFFSETS}.
+	 *
+	 * @param specificStartupOffsets The startup offsets for different partitions.
+	 */
+	protected void setSpecificStartupOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		this.specificStartupOffsets = specificStartupOffsets;
+	}
+
 	//////// ABSTRACT METHODS FOR SUBCLASSES
 
 	/**
-	 * Create a version-specific Kafka consumer.
+	 * Creates a version-specific Kafka consumer.
 	 *
 	 * @param topic                 Kafka topic to consume.
 	 * @param properties            Properties for the Kafka consumer.
@@ -361,7 +379,7 @@ public abstract class KafkaTableSource
 		 *
 		 * @see FlinkKafkaConsumerBase#setStartFromEarliest()
 		 */
-		public B startReadingFromEarliest() {
+		public B fromEarliest() {
 			this.startupMode = StartupMode.EARLIEST;
 			this.specificStartupOffsets = null;
 			return builder();
@@ -372,7 +390,7 @@ public abstract class KafkaTableSource
 		 *
 		 * @see FlinkKafkaConsumerBase#setStartFromLatest()
 		 */
-		public B startReadingFromLatest() {
+		public B fromLatest() {
 			this.startupMode = StartupMode.LATEST;
 			this.specificStartupOffsets = null;
 			return builder();
@@ -383,7 +401,7 @@ public abstract class KafkaTableSource
 		 *
 		 * @see FlinkKafkaConsumerBase#setStartFromGroupOffsets()
 		 */
-		public B startReadingFromGroupOffsets() {
+		public B fromGroupOffsets() {
 			this.startupMode = StartupMode.GROUP_OFFSETS;
 			this.specificStartupOffsets = null;
 			return builder();
@@ -395,7 +413,7 @@ public abstract class KafkaTableSource
 		 * @param specificStartupOffsets the specified offsets for partitions
 		 * @see FlinkKafkaConsumerBase#setStartFromSpecificOffsets(Map)
 		 */
-		public B startReadingFromSpecificOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
+		public B fromSpecificOffsets(Map<KafkaTopicPartition, Long> specificStartupOffsets) {
 			this.startupMode = StartupMode.SPECIFIC_OFFSETS;
 			this.specificStartupOffsets = Preconditions.checkNotNull(specificStartupOffsets);
 			return builder();
@@ -449,14 +467,14 @@ public abstract class KafkaTableSource
 			} else {
 				tableSource.setRowtimeAttributeDescriptors(Collections.singletonList(rowtimeAttributeDescriptor));
 			}
-			tableSource.startupMode = startupMode;
+			tableSource.setStartupMode(startupMode);
 			switch (startupMode) {
 				case EARLIEST:
 				case LATEST:
 				case GROUP_OFFSETS:
 					break;
 				case SPECIFIC_OFFSETS:
-					tableSource.specificStartupOffsets = specificStartupOffsets;
+					tableSource.setSpecificStartupOffsets(specificStartupOffsets);
 					break;
 			}
 		}

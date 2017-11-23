@@ -203,7 +203,7 @@ public abstract class KafkaTableSourceTestBase {
 		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromGroupOffsets();
 
 		// test reading from earliest
-		b.startReadingFromEarliest();
+		b.fromEarliest();
 		source = spy(b.build());
 		when(source.createKafkaConsumer(TOPIC, PROPS, null))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
@@ -211,21 +211,21 @@ public abstract class KafkaTableSourceTestBase {
 		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromEarliest();
 
 		// test reading from latest
-		b.startReadingFromLatest();
+		b.fromLatest();
 		source = spy(b.build());
 		when(source.createKafkaConsumer(TOPIC, PROPS, null))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
 		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromLatest();
 
 		// test reading from group offsets
-		b.startReadingFromGroupOffsets();
+		b.fromGroupOffsets();
 		source = spy(b.build());
 		when(source.createKafkaConsumer(TOPIC, PROPS, null))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
 		verify(source.getKafkaConsumer(TOPIC, PROPS, null)).setStartFromGroupOffsets();
 
 		// test reading from given offsets
-		b.startReadingFromSpecificOffsets(mock(Map.class));
+		b.fromSpecificOffsets(mock(Map.class));
 		source = spy(b.build());
 		when(source.createKafkaConsumer(TOPIC, PROPS, null))
 				.thenReturn(mock(getFlinkKafkaConsumer()));
