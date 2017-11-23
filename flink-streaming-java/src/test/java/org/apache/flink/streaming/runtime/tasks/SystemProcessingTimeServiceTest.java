@@ -22,11 +22,13 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -441,5 +443,68 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 		latch.await();
 		assertTrue(exceptionWasThrown.get());
+	}
+
+	@Test
+	public void testShutdownAndWaitPending() {
+
+		final Object lock = new Object();
+		final OneShotLatch waitUntilTimerStarted = new OneShotLatch();
+		final OneShotLatch blockUntilTerminationInterrupts = new OneShotLatch();
+		final OneShotLatch blockUntilTriggered = new OneShotLatch();
+		final AtomicBoolean check = new AtomicBoolean(true);
+
+		final SystemProcessingTimeService timeService = new SystemProcessingTimeService(
+			(message, exception) -> {
+			},
+			lock);
+
+		timeService.scheduleAtFixedRate(
+			timestamp -> {
+
+				waitUntilTimerStarted.trigger();
+
+				try {
+					blockUntilTerminationInterrupts.await();
+					check.set(false);
+				} catch (InterruptedException ignore) {
+				}
+
+				try {
+					blockUntilTriggered.await();
+				} catch (InterruptedException ignore) {
+					check.set(false);
+				}
+			},
+			0L,
+			10L);
+
+		try {
+			waitUntilTimerStarted.await();
+		} catch (InterruptedException e) {
+			Assert.fail();
+		}
+
+		Assert.assertFalse(timeService.isTerminated());
+
+		// Check that we wait for the timer to terminate. As the timer blocks on the second latch, this should time out.
+		try {
+			Assert.assertFalse(timeService.shutdownAndAwaitPending(1, TimeUnit.SECONDS));
+		} catch (InterruptedException e) {
+			Assert.fail("Unexpected interruption.");
+		}
+
+		// Let the timer proceed.
+		blockUntilTriggered.trigger();
+
+		// Now we should succeed in terminating the timer.
+		try {
+			Assert.assertTrue(timeService.shutdownAndAwaitPending(60, TimeUnit.SECONDS));
+		} catch (InterruptedException e) {
+			Assert.fail("Unexpected interruption.");
+		}
+
+		Assert.assertTrue(check.get());
+		Assert.assertTrue(timeService.isTerminated());
 	}
 }

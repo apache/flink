@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Defines the current processing time and handles all related actions,
@@ -93,4 +94,15 @@ public abstract class ProcessingTimeService {
 	 * will result in a hard exception.
 	 */
 	public abstract void shutdownService();
+
+	/**
+	 * Shuts down and clean up the timer service provider hard and immediately. This does wait
+	 * for all timers to complete or until the time limit is exceeded. Any call to
+	 * {@link #registerTimer(long, ProcessingTimeCallback)} will result in a hard exception after calling this method.
+	 * @param time time to wait for termination.
+	 * @param timeUnit time unit of parameter time.
+	 * @return {@code true} if this timer service and all pending timers are terminated and
+	 *         {@code false} if the timeout elapsed before this happened.
+	 */
+	public abstract boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException;
 }
