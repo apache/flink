@@ -538,7 +538,10 @@ chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011
  be duplicated.
  * `Semantic.AT_LEAST_ONCE` (default setting): similar to `setFlushOnCheckpoint(true)` in
  `FlinkKafkaProducer010`. This guarantees that no records will be lost (although they can be duplicated).
- * `Semantic.EXACTLY_ONCE`: uses Kafka transactions to provide exactly-once semantic.
+ * `Semantic.EXACTLY_ONCE`: uses Kafka transactions to provide exactly-once semantic. Whenever you write
+ to Kafka using transactions, do not forget about setting desired `isolation.level` (`read_committed`
+ or `read_uncommitted` - the latter one is the default value) for any application consuming records
+ from Kafka.
 
 <div class="alert alert-warning">
   <strong>Attention:</strong> Depending on your Kafka configuration, even after Kafka acknowledges
