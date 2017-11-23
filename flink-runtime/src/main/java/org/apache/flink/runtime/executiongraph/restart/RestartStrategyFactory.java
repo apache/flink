@@ -87,10 +87,10 @@ public abstract class RestartStrategyFactory implements Serializable {
 		switch (restartStrategyName.toLowerCase()) {
 			case "none":
 				// support deprecated ConfigConstants values
-				final int numberExecutionRetries = configuration.getInteger(ConfigConstants.EXECUTION_RETRIES_KEY,
+				final int numberExecutionRetries = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
 					ConfigConstants.DEFAULT_EXECUTION_RETRIES);
 				String pauseString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_PAUSE);
-				String delayString = configuration.getString(ConfigConstants.EXECUTION_RETRY_DELAY_KEY,
+				String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
 					pauseString);
 
 				long delay;
@@ -104,7 +104,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 							". Value must be a valid duration (such as '10 s' or '1 min')");
 					} else {
 						throw new Exception("Invalid config value for " +
-							ConfigConstants.EXECUTION_RETRY_DELAY_KEY + ": " + delayString +
+							ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY + ": " + delayString +
 							". Value must be a valid duration (such as '100 milli' or '10 s')");
 					}
 				}
