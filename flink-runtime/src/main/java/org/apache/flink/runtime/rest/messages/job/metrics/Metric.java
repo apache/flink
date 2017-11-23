@@ -68,9 +68,8 @@ public class Metric {
 	 *
 	 * @param id Name of the metric.
 	 */
-	public Metric(
-			final String id) {
-			this(id, null);
+	public Metric(final String id) {
+		this(id, null);
 	}
 
 	public String getId() {
