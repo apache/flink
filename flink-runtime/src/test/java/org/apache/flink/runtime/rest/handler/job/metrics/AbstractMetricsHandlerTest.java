@@ -38,6 +38,8 @@ import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -177,6 +179,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 			fail("Expected exception not thrown.");
 		} catch (final RestHandlerException e) {
 			assertThat(e.getMessage(), equalTo("Metric [unknown_metric] not found"));
+			assertThat(e.getHttpResponseStatus(), equalTo(HttpResponseStatus.NOT_FOUND));
 		}
 	}
 
