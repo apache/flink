@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
@@ -27,7 +26,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * {@link MessageHeaders} for {@link JobVertexMetricsHandler}.
+ * {@link MessageHeaders} for {@link org.apache.flink.runtime.rest.handler.job.metrics.AbstractMetricsHandler}.
  */
 public abstract class AbstractMetricsHandlerHeaders<M extends MessageParameters> implements
 	MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> {
