@@ -187,7 +187,7 @@ public class TaskManagerStartupTest extends TestLogger {
 			Configuration cfg = new Configuration();
 			cfg.setString(JobManagerOptions.ADDRESS, "localhost");
 			cfg.setInteger(JobManagerOptions.PORT, 21656);
-			cfg.setString(ConfigConstants.TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY, "true");
+			cfg.setBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE, true);
 
 			// something invalid
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, -42L);

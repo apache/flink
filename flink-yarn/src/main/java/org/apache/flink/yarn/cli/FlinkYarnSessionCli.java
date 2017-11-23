@@ -118,7 +118,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	/**
 	 * @deprecated Streaming mode has been deprecated without replacement. Set the
-	 * {@link ConfigConstants#TASK_MANAGER_MEMORY_PRE_ALLOCATE_KEY} configuration
+	 * {@link TaskManagerOptions#MANAGED_MEMORY_PRE_ALLOCATE} configuration
 	 * key to true to get the previous batch mode behaviour.
 	 */
 	@Deprecated
