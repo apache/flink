@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -33,7 +34,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link AbstractMetricsHandlerHeaders}.
  */
-public class AbstractMetricsHandlerHeadersTest {
+public class AbstractMetricsHandlerHeadersTest extends TestLogger {
 
 	private AbstractMetricsHandlerHeaders<EmptyMessageParameters> metricsHandlerHeaders;
 

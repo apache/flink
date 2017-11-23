@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -28,7 +30,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link MetricsFilterParameter}.
  */
-public class MetricsFilterParameterTest {
+public class MetricsFilterParameterTest extends TestLogger {
 
 	private MetricsFilterParameter metricsFilterParameter;
 
