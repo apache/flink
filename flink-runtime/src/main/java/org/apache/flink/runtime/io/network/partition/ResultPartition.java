@@ -265,6 +265,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	@Override
 	public void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException {
+		checkNotNull(buffer);
 		boolean success = false;
 
 		try {
@@ -272,6 +273,8 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
 
+			// retain for buffer use after add() but also to have a simple path for recycle()
+			buffer.retain();
 			synchronized (subpartition) {
 				success = subpartition.add(buffer);
 
@@ -279,14 +282,11 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 				totalNumberOfBuffers++;
 				totalNumberOfBytes += buffer.getSize();
 			}
-		}
-		finally {
+		} finally {
 			if (success) {
 				notifyPipelinedConsumers();
 			}
-			else {
-				buffer.recycle();
-			}
+			buffer.recycle();
 		}
 	}
 
@@ -462,7 +462,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	// ------------------------------------------------------------------------
 
-	private void checkInProduceState() {
+	private void checkInProduceState() throws IllegalStateException {
 		checkState(!isFinished, "Partition already finished.");
 	}
 
