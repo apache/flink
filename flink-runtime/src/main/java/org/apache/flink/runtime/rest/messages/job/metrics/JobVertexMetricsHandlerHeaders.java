@@ -18,14 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
  * {@link MessageHeaders} for {@link JobVertexMetricsHandler}.
@@ -37,28 +33,8 @@ public class JobVertexMetricsHandlerHeaders extends
 		new JobVertexMetricsHandlerHeaders();
 
 	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
-
-	@Override
-	public Class<MetricCollectionResponseBody> getResponseClass() {
-		return MetricCollectionResponseBody.class;
-	}
-
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
-
-	@Override
 	public JobVertexMetricsMessageParameters getUnresolvedMessageParameters() {
 		return new JobVertexMetricsMessageParameters();
-	}
-
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
 	}
 
 	@Override
