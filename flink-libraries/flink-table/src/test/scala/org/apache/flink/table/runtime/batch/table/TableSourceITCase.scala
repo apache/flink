@@ -58,7 +58,7 @@ class TableSourceITCase(
       override def getDataSet(execEnv: JExecEnv): DataSet[Row] = {
         val data = List(Row.of("Mary", new JLong(1L), new JInt(1))).asJava
         // return DataSet[Row] with GenericTypeInfo
-        execEnv.fromCollection(data, new GenericTypeInfo[Row](classOf[Row]))
+        execEnv.fromCollection(data, new GenericTypeInfo[Row](classOf[Row])).name(getRuntimeName)
       }
       override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
       override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)

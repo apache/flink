@@ -31,7 +31,7 @@ import org.apache.flink.table.api.Table
 trait TableSink[T] {
 
   /**
-    * Return the type expected by this [[TableSink]].
+    * Returns the type expected by this [[TableSink]].
     *
     * This type should depend on the types returned by [[getFieldNames]].
     *
@@ -44,6 +44,13 @@ trait TableSink[T] {
 
   /** Returns the types of the table fields. */
   def getFieldTypes: Array[TypeInformation[_]]
+
+  /** Gets the name which is used by the visualization and logging during runtime. */
+  def getRuntimeName(): String = {
+    s"""
+      ${getClass.getSimpleName} (${getFieldNames.mkString(", ")})
+    """.stripMargin
+  }
 
   /**
     * Return a copy of this [[TableSink]] configured with the field names and types of the

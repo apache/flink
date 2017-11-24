@@ -18,10 +18,12 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -48,12 +50,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
  * Unit Tests for {@link OrcTableSource}.
@@ -127,6 +131,7 @@ public class OrcTableSourceTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testProjectFields() throws Exception {
 
 		OrcTableSource orc = OrcTableSource.builder()
@@ -155,11 +160,14 @@ public class OrcTableSourceTest {
 		OrcTableSource spyTS = spy(projected);
 		OrcRowInputFormat mockIF = mock(OrcRowInputFormat.class);
 		doReturn(mockIF).when(spyTS).buildOrcInputFormat();
-		spyTS.getDataSet(mock(ExecutionEnvironment.class));
+		ExecutionEnvironment env = mock(ExecutionEnvironment.class);
+		when(env.createInput(any(InputFormat.class))).thenReturn(mock(DataSource.class));
+		spyTS.getDataSet(env);
 		verify(mockIF).selectFields(eq(3), eq(5), eq(1), eq(0));
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testApplyPredicate() throws Exception {
 
 		OrcTableSource orc = OrcTableSource.builder()
@@ -208,7 +216,9 @@ public class OrcTableSourceTest {
 		OrcTableSource spyTS = spy(projected);
 		OrcRowInputFormat mockIF = mock(OrcRowInputFormat.class);
 		doReturn(mockIF).when(spyTS).buildOrcInputFormat();
-		spyTS.getDataSet(mock(ExecutionEnvironment.class));
+		ExecutionEnvironment environment = mock(ExecutionEnvironment.class);
+		when(environment.createInput(any(InputFormat.class))).thenReturn(mock(DataSource.class));
+		spyTS.getDataSet(environment);
 
 		ArgumentCaptor<OrcRowInputFormat.Predicate> arguments = ArgumentCaptor.forClass(OrcRowInputFormat.Predicate.class);
 		verify(mockIF, times(2)).addPredicate(arguments.capture());

@@ -78,6 +78,8 @@ class CsvTableSink(
     if (numFiles.isDefined) {
       sink.setParallelism(numFiles.get)
     }
+
+    sink.name(getRuntimeName)
   }
 
   override def emitDataStream(dataStream: DataStream[Row]): Unit = {
@@ -95,6 +97,8 @@ class CsvTableSink(
     if (numFiles.isDefined) {
       sink.setParallelism(numFiles.get)
     }
+
+    sink.name(getRuntimeName)
   }
 
   override protected def copy: TableSinkBase[Row] = {

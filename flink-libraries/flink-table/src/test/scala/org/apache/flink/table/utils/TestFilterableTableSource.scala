@@ -108,11 +108,15 @@ class TestFilterableTableSource(
   private val filterValues = new mutable.ArrayBuffer[Int]
 
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-    execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
+    execEnv
+      .fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
+      .name(getRuntimeName)
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
+    execEnv
+      .fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
+      .name(getRuntimeName)
   }
 
   override def explainSource(): String = {

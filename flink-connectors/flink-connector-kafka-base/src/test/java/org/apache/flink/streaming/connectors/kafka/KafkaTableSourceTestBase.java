@@ -20,7 +20,9 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -62,6 +64,7 @@ public abstract class KafkaTableSourceTestBase {
 	private static final Properties PROPS = createSourceProperties();
 
 	@Test
+	@SuppressWarnings("unchecked")
 	public void testKafkaConsumer() {
 		KafkaTableSource.Builder b = getBuilder();
 		configureBuilder(b);
@@ -69,6 +72,7 @@ public abstract class KafkaTableSourceTestBase {
 		// assert that correct
 		KafkaTableSource observed = spy(b.build());
 		StreamExecutionEnvironment env = mock(StreamExecutionEnvironment.class);
+		when(env.addSource(any(SourceFunction.class))).thenReturn(mock(DataStreamSource.class));
 		observed.getDataStream(env);
 
 		verify(env).addSource(any(getFlinkKafkaConsumer()));

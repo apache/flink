@@ -30,6 +30,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
 
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -132,7 +133,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType());
+		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType()).name(getRuntimeName());
 	}
 
 	@Override
@@ -154,5 +155,11 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	@Override
 	public String explainSource() {
 		return "";
+	}
+
+	@Override
+	public String getRuntimeName() {
+		return getClass().getSimpleName() + " "
+				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
 	}
 }

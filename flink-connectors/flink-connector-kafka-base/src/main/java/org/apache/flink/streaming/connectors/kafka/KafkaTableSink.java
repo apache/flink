@@ -27,6 +27,7 @@ import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Arrays;
 import java.util.Properties;
 
 /**
@@ -61,7 +62,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	/**
-	 * Returns the version-specifid Kafka producer.
+	 * Returns the version-specific Kafka producer.
 	 *
 	 * @param topic               Kafka topic to produce to.
 	 * @param properties          Properties for the Kafka producer.
@@ -94,7 +95,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 		FlinkKafkaProducerBase<Row> kafkaProducer = createKafkaProducer(topic, properties, serializationSchema, partitioner);
 		// always enable flush on checkpoint to achieve at-least-once if query runs with checkpointing enabled.
 		kafkaProducer.setFlushOnCheckpoint(true);
-		dataStream.addSink(kafkaProducer);
+		dataStream.addSink(kafkaProducer).name(getRuntimeName());
 	}
 
 	@Override
@@ -109,6 +110,12 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
 		return fieldTypes;
+	}
+
+	@Override
+	public String getRuntimeName() {
+		return getClass().getSimpleName() + " "
+				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
 	}
 
 	@Override

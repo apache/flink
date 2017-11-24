@@ -31,6 +31,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -60,7 +61,7 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
-		dataStream.addSink(new JDBCSinkFunction(outputFormat));
+		dataStream.addSink(new JDBCSinkFunction(outputFormat)).name(getRuntimeName());
 	}
 
 	@Override
@@ -81,6 +82,12 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
 		return fieldTypes;
+	}
+
+	@Override
+	public String getRuntimeName() {
+		return getClass().getSimpleName() + " "
+				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
 	}
 
 	@Override

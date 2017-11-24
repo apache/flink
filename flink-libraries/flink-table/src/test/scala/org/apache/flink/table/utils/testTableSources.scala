@@ -49,11 +49,11 @@ class TestTableSourceWithTime[T](
     with DefinedFieldMapping {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
-    execEnv.fromCollection(values.asJava, returnType)
+    execEnv.fromCollection(values.asJava, returnType).name(getRuntimeName)
   }
 
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[T] = {
-    execEnv.fromCollection(values.asJava, returnType)
+    execEnv.fromCollection(values.asJava, returnType).name(getRuntimeName)
   }
 
   override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
@@ -217,7 +217,11 @@ class TestPreserveWMTableSource[T](
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
-    execEnv.addSource(new EventTimeSourceFunction[T](values)).setParallelism(1).returns(returnType)
+    execEnv
+      .addSource(new EventTimeSourceFunction[T](values))
+      .setParallelism(1)
+      .name(getRuntimeName)
+      .returns(returnType)
   }
 
   override def getReturnType: TypeInformation[T] = returnType
