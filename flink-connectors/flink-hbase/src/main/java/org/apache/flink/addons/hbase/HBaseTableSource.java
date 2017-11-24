@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
+import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -132,7 +133,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType());
+		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType()).name(explainSource());
 	}
 
 	@Override
@@ -153,6 +154,6 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public String explainSource() {
-		return "";
+		return TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames());
 	}
 }

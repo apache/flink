@@ -130,7 +130,7 @@ class CsvTableSource private (
     *       Do not use it in Table API programs.
     */
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-    execEnv.createInput(createCsvInput(), returnType)
+    execEnv.createInput(createCsvInput(), returnType).name(explainSource())
   }
 
   /** Returns the [[RowTypeInfo]] for the return type of the [[CsvTableSource]]. */
@@ -143,7 +143,7 @@ class CsvTableSource private (
     *       Do not use it in Table API programs.
     */
   override def getDataStream(streamExecEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    streamExecEnv.createInput(createCsvInput(), returnType)
+    streamExecEnv.createInput(createCsvInput(), returnType).name(explainSource())
   }
 
   /** Returns the schema of the produced table. */

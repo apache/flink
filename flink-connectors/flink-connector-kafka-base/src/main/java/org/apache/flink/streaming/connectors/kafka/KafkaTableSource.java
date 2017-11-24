@@ -34,6 +34,7 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.tsextractors.StreamRecordTimestamp;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
+import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -107,7 +108,7 @@ public abstract class KafkaTableSource
 		DeserializationSchema<Row> deserializationSchema = getDeserializationSchema();
 		// Version-specific Kafka consumer
 		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topic, properties, deserializationSchema);
-		return env.addSource(kafkaConsumer);
+		return env.addSource(kafkaConsumer).name(explainSource());
 	}
 
 	@Override
@@ -128,6 +129,11 @@ public abstract class KafkaTableSource
 	@Override
 	public List<RowtimeAttributeDescriptor> getRowtimeAttributeDescriptors() {
 		return rowtimeAttributeDescriptors;
+	}
+
+	@Override
+	public String explainSource() {
+		return TableConnectorUtil.generateRuntimeName(this.getClass(), schema.getColumnNames());
 	}
 
 	/**

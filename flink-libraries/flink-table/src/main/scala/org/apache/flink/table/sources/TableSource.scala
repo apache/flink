@@ -22,6 +22,7 @@ import org.apache.flink.api.scala.DataSet
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.util.TableConnectorUtil
 
 /**
   * Defines an external table with the schema that is provided by [[TableSource#getTableSchema]].
@@ -54,10 +55,10 @@ trait TableSource[T] {
   def getTableSchema: TableSchema
 
   /**
-    * Describes the table source
+    * Describes the table source.
     *
     * @return A String explaining the [[TableSource]].
     */
-  def explainSource(): String = ""
-
+  def explainSource(): String =
+    TableConnectorUtil.generateRuntimeName(getClass, getTableSchema.getColumnNames)
 }

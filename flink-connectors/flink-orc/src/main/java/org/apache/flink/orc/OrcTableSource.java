@@ -154,7 +154,7 @@ public class OrcTableSource
 				orcIF.addPredicate(pred);
 			}
 		}
-		return execEnv.createInput(orcIF);
+		return execEnv.createInput(orcIF).name(explainSource());
 	}
 
 	@VisibleForTesting
