@@ -167,7 +167,7 @@ public class MetricStore {
 	}
 
 	@VisibleForTesting
-	void add(MetricDump metric) {
+	public void add(MetricDump metric) {
 		try {
 			QueryScopeInfo info = metric.scopeInfo;
 			TaskManagerMetricStore tm;
