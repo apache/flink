@@ -139,7 +139,7 @@ public class YarnFileStageTest extends TestLogger {
 	 * @param addSchemeToLocalPath
 	 * 		whether add the <tt>file://</tt> scheme to the local path to copy from
 	 */
-	public static void testCopyFromLocalRecursive(
+	static void testCopyFromLocalRecursive(
 			FileSystem targetFileSystem,
 			Path targetDir,
 			TemporaryFolder tempFolder,
