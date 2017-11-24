@@ -19,109 +19,49 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
-import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
-import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
-import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link JobVertexMetricsHandler}.
  */
-public class JobVertexMetricsHandlerTest extends TestLogger {
+public class JobVertexMetricsHandlerTest extends MetricsHandlerTestBase<JobVertexMetricsHandler> {
 
-	private static final String TEST_METRIC_NAME = "test_counter";
+	private static final String TEST_JOB_ID = new JobID().toString();
 
-	private static final int TEST_METRIC_VALUE = 1000;
+	private static final String TEST_VERTEX_ID = new JobVertexID().toString();
 
-	@Mock
-	private MetricFetcher mockMetricFetcher;
+	private static final int TEST_SUBTASK_INDEX = 1;
 
-	@Mock
-	private DispatcherGateway mockDispatcherGateway;
-
-
-	private JobVertexMetricsHandler jobVertexMetricsHandler;
-
-	private Map<String, String> pathParameters;
-
-	private int subtaskIndex = 1;
-
-	@Before
-	public void setUp() {
-		MockitoAnnotations.initMocks(this);
-
-		final String jobId = new JobID().toString();
-		final String vertexId = new JobVertexID().toString();
-
-		final MetricStore metricStore = new MetricStore();
-		metricStore.add(new MetricDump.CounterDump(
-			new QueryScopeInfo.TaskQueryScopeInfo(jobId, vertexId, subtaskIndex),
-			TEST_METRIC_NAME,
-			TEST_METRIC_VALUE));
-
-		when(mockMetricFetcher.getMetricStore()).thenReturn(metricStore);
-
-		jobVertexMetricsHandler = new JobVertexMetricsHandler(
-			CompletableFuture.completedFuture("localhost:1234"),
-			new GatewayRetriever<DispatcherGateway>() {
-				@Override
-				public CompletableFuture<DispatcherGateway> getFuture() {
-					return CompletableFuture.completedFuture(mockDispatcherGateway);
-				}
-			},
-			Time.milliseconds(50),
-			Collections.emptyMap(),
+	@Override
+	JobVertexMetricsHandler getMetricsHandler() {
+		return new JobVertexMetricsHandler(
+			TEST_REST_ADDRESS,
+			leaderRetriever,
+			TIMEOUT,
+			TEST_HEADERS,
 			mockMetricFetcher);
-
-		pathParameters = new HashMap<>();
-		pathParameters.put("jobid", jobId);
-		pathParameters.put("vertexid", vertexId);
 	}
 
-	@Test
-	public void testGetMetricsFromTaskMetricStore() throws Exception {
-		final CompletableFuture<MetricCollectionResponseBody> completableFuture =
-			jobVertexMetricsHandler.handleRequest(
-				new HandlerRequest<>(
-					EmptyRequestBody.getInstance(),
-					new JobVertexMetricsMessageParameters(),
-					pathParameters,
-					Collections.emptyMap()),
-				mockDispatcherGateway);
+	@Override
+	QueryScopeInfo getQueryScopeInfo() {
+		return new QueryScopeInfo.TaskQueryScopeInfo(TEST_JOB_ID, TEST_VERTEX_ID, TEST_SUBTASK_INDEX);
+	}
 
-		assertTrue(completableFuture.isDone());
+	@Override
+	Map<String, String> getPathParameters() {
+		final HashMap<String, String> pathParameters = new HashMap<>();
+		pathParameters.put("jobid", TEST_JOB_ID);
+		pathParameters.put("vertexid", TEST_VERTEX_ID);
+		return pathParameters;
+	}
 
-		final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-		assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
-
-		final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
-		assertThat(metric.getId(), equalTo(subtaskIndex + "." + TEST_METRIC_NAME));
+	@Override
+	String getExpectedIdForMetricName(final String metricName) {
+		return String.format("%s.%s", TEST_SUBTASK_INDEX, metricName);
 	}
 
 }
