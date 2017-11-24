@@ -82,10 +82,12 @@ public class MassiveStringSorting {
 			UnilateralSortMerger<String> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
+			MemoryManager mm = null;
+			IOManager ioMan = null;
 
 			try {
-				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
-				IOManager ioMan = new IOManagerAsync();
+				mm = new MemoryManager(1024 * 1024, 1);
+				ioMan = new IOManagerAsync();
 
 				TypeSerializer<String> serializer = StringSerializer.INSTANCE;
 				TypeComparator<String> comparator = new StringComparator(true);
@@ -121,6 +123,12 @@ public class MassiveStringSorting {
 				}
 				if (sorter != null) {
 					sorter.close();
+				}
+				if (mm != null) {
+					mm.shutdown();
+				}
+				if (ioMan != null) {
+					ioMan.shutdown();
 				}
 			}
 		}
@@ -173,10 +181,12 @@ public class MassiveStringSorting {
 			UnilateralSortMerger<Tuple2<String, String[]>> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
+			MemoryManager mm = null;
+			IOManager ioMan = null;
 
 			try {
-				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
-				IOManager ioMan = new IOManagerAsync();
+				mm = new MemoryManager(1024 * 1024, 1);
+				ioMan = new IOManagerAsync();
 
 				TupleTypeInfo<Tuple2<String, String[]>> typeInfo = (TupleTypeInfo<Tuple2<String, String[]>>)
 						TypeInfoParser.<Tuple2<String, String[]>>parse("Tuple2<String, String[]>");
@@ -242,6 +252,12 @@ public class MassiveStringSorting {
 				}
 				if (sorter != null) {
 					sorter.close();
+				}
+				if (mm != null) {
+					mm.shutdown();
+				}
+				if (ioMan != null) {
+					ioMan.shutdown();
 				}
 			}
 		}

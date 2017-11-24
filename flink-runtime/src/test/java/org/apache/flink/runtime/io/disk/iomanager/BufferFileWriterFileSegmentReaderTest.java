@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -54,6 +55,11 @@ public class BufferFileWriterFileSegmentReaderTest {
 	private AsynchronousBufferFileSegmentReader reader;
 
 	private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
+
+	@AfterClass
+	public static void shutdown() {
+		ioManager.shutdown();
+	}
 
 	@Before
 	public void setUpWriterAndReader() {
