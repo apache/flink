@@ -18,39 +18,23 @@
 
 package org.apache.flink.runtime.jobmanager.slots;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import org.apache.flink.util.FlinkException;
 
 /**
- * A combination of a {@link AllocatedSlot} and a {@link Locality}.
+ * Base class for slot related exceptions.
  */
-public class SlotAndLocality {
+public class SlotException extends FlinkException {
+	private static final long serialVersionUID = -8009227041400667546L;
 
-	private final AllocatedSlot slot;
-
-	private final Locality locality;
-
-	public SlotAndLocality(AllocatedSlot slot, Locality locality) {
-		this.slot = checkNotNull(slot);
-		this.locality = checkNotNull(locality);
+	public SlotException(String message) {
+		super(message);
 	}
 
-	// ------------------------------------------------------------------------
-
-	public AllocatedSlot slot() {
-		return slot;
+	public SlotException(Throwable cause) {
+		super(cause);
 	}
 
-	public Locality locality() {
-		return locality;
-	}
-
-	// ------------------------------------------------------------------------
-
-	@Override
-	public String toString() {
-		return "Slot: " + slot + " (" + locality + ')';
+	public SlotException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

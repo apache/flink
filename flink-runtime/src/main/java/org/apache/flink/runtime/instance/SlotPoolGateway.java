@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmanager.slots.SlotContext;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -76,9 +76,15 @@ public interface SlotPoolGateway extends RpcGateway {
 
 	CompletableFuture<Acknowledge> releaseTaskManager(ResourceID resourceID);
 
-	CompletableFuture<Boolean> offerSlot(AllocatedSlot slot);
+	CompletableFuture<Boolean> offerSlot(
+		TaskManagerLocation taskManagerLocation,
+		TaskManagerGateway taskManagerGateway,
+		SlotOffer slotOffer);
 
-	CompletableFuture<Collection<SlotOffer>> offerSlots(Collection<Tuple2<AllocatedSlot, SlotOffer>> offers);
+	CompletableFuture<Collection<SlotOffer>> offerSlots(
+		TaskManagerLocation taskManagerLocation,
+		TaskManagerGateway taskManagerGateway,
+		Collection<SlotOffer> offers);
 	
 	void failAllocation(AllocationID allocationID, Exception cause);
 
@@ -93,7 +99,7 @@ public interface SlotPoolGateway extends RpcGateway {
 			Iterable<TaskManagerLocation> locationPreferences,
 			@RpcTimeout Time timeout);
 
-	void returnAllocatedSlot(Slot slot);
+	void returnAllocatedSlot(SlotContext slotInformation);
 
 	/**
 	 * Cancel a slot allocation request.
@@ -101,7 +107,7 @@ public interface SlotPoolGateway extends RpcGateway {
 	 * @param requestId identifying the slot allocation request
 	 * @return Future acknowledge if the slot allocation has been cancelled
 	 */
-	CompletableFuture<Acknowledge> cancelSlotAllocation(SlotRequestID requestId);
+	CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID requestId);
 
 	/**
 	 * Request ID identifying different slot requests.

@@ -184,7 +184,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 			final Instance instance = getInstance(new ActorTaskManagerGateway(instanceGateway));
 
-			final SimpleSlot slot = instance.allocateSimpleSlot(jobId);
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -631,13 +631,13 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final TaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
 
-		final SimpleSlot sourceSlot1 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 0);
+		final SimpleSlot sourceSlot1 = createSlot(localTaskManagerLocation, 0);
 
-		final SimpleSlot sourceSlot2 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 1);
+		final SimpleSlot sourceSlot2 = createSlot(localTaskManagerLocation, 1);
 
-		final SimpleSlot sinkSlot1 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 0);
+		final SimpleSlot sinkSlot1 = createSlot(localTaskManagerLocation, 0);
 
-		final SimpleSlot sinkSlot2 = createSlot(executionGraph.getJobID(), localTaskManagerLocation, 1);
+		final SimpleSlot sinkSlot2 = createSlot(localTaskManagerLocation, 1);
 
 		slotFutures.get(sourceVertexId)[0].complete(sourceSlot1);
 		slotFutures.get(sourceVertexId)[1].complete(sourceSlot2);
@@ -654,9 +654,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		}
 	}
 
-	private SimpleSlot createSlot(JobID jobId, TaskManagerLocation taskManagerLocation, int index) {
+	private SimpleSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
 		return new SimpleSlot(
-			jobId,
 			mock(SlotOwner.class),
 			taskManagerLocation,
 			index,

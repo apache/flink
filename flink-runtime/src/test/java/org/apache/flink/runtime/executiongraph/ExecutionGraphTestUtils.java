@@ -29,7 +29,6 @@ import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
@@ -49,7 +48,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmanager.slots.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -240,19 +239,20 @@ public class ExecutionGraphTestUtils {
 	//  Mocking Slots
 	// ------------------------------------------------------------------------
 
-	public static SimpleSlot createMockSimpleSlot(JobID jid, TaskManagerGateway gateway) {
+	public static SimpleSlot createMockSimpleSlot(TaskManagerGateway gateway) {
 		final TaskManagerLocation location = new TaskManagerLocation(
 				ResourceID.generate(), InetAddress.getLoopbackAddress(), 6572);
 
-		final AllocatedSlot allocatedSlot = new AllocatedSlot(
+		final SimpleSlotContext allocatedSlot = new SimpleSlotContext(
 				new AllocationID(),
-				jid,
 				location,
 				0,
-				ResourceProfile.UNKNOWN,
 				gateway);
 
-		return new SimpleSlot(allocatedSlot, mock(SlotOwner.class), 0);
+		return new SimpleSlot(
+			allocatedSlot,
+			mock(SlotOwner.class),
+			0);
 	}
 
 	// ------------------------------------------------------------------------
