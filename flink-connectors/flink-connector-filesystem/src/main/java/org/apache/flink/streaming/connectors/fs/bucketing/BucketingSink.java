@@ -414,8 +414,10 @@ public class BucketingSink<T>
 
 	@Override
 	public void close() throws Exception {
-		for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
-			closeCurrentPartFile(entry.getValue());
+		if (state != null) {
+			for (Map.Entry<String, BucketState<T>> entry : state.bucketStates.entrySet()) {
+				closeCurrentPartFile(entry.getValue());
+			}
 		}
 	}
 
