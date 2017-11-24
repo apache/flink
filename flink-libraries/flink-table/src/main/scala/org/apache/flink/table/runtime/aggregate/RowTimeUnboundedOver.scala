@@ -116,7 +116,7 @@ abstract class RowTimeUnboundedOver(
     // discard late record
     if (timestamp > curWatermark) {
       // ensure every key just registers one timer
-      ctx.timerService.registerEventTimeTimer(curWatermark + 1)
+      ctx.timerService.registerEventTimeTimer(timestamp)
 
       // put row into state
       var rowList = rowMapState.get(timestamp)
@@ -167,7 +167,6 @@ abstract class RowTimeUnboundedOver(
     val keyIterator = rowMapState.keys.iterator
     if (keyIterator.hasNext) {
       val curWatermark = ctx.timerService.currentWatermark
-      var existEarlyRecord: Boolean = false
 
       // sort the record timestamps
       do {
@@ -175,8 +174,6 @@ abstract class RowTimeUnboundedOver(
         // only take timestamps smaller/equal to the watermark
         if (recordTime <= curWatermark) {
           insertToSortedList(recordTime)
-        } else {
-          existEarlyRecord = true
         }
       } while (keyIterator.hasNext)
 
@@ -199,11 +196,6 @@ abstract class RowTimeUnboundedOver(
       }
 
       accumulatorState.update(lastAccumulator)
-
-      // if are are rows with timestamp > watermark, register a timer for the next watermark
-      if (existEarlyRecord) {
-        ctx.timerService.registerEventTimeTimer(curWatermark + 1)
-      }
     }
 
     // update cleanup timer
