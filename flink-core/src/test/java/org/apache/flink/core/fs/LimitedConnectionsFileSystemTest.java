@@ -627,7 +627,7 @@ public class LimitedConnectionsFileSystemTest {
 		}
 	}
 
-	private static abstract class BlockingThread extends CheckedThread {
+	private abstract static class BlockingThread extends CheckedThread {
 
 		private final OneShotLatch waiter = new OneShotLatch();
 

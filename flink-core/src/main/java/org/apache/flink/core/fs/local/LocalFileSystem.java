@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-
-/**
- * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed by the Apache
- * Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
+/*
+ * Parts of earlier versions of this file were based on source code from the
+ * Hadoop Project (http://hadoop.apache.org/), licensed by the Apache Software Foundation (ASF)
+ * under the Apache License, Version 2.0. See the NOTICE file distributed with this work for
  * additional information regarding copyright ownership.
  */
 
@@ -65,7 +65,7 @@ public class LocalFileSystem extends FileSystem {
 	/** The URI representing the local file system. */
 	private static final URI LOCAL_URI = OperatingSystem.isWindows() ? URI.create("file:/") : URI.create("file:///");
 
-	/** The shared instance of the local file system */
+	/** The shared instance of the local file system. */
 	private static final LocalFileSystem INSTANCE = new LocalFileSystem();
 
 	/** Path pointing to the current working directory.
@@ -73,10 +73,10 @@ public class LocalFileSystem extends FileSystem {
 	private final String workingDir;
 
 	/** Path pointing to the current working directory.
-	 * Because Paths are not immutable, we cannot cache the proper path here */
+	 * Because Paths are not immutable, we cannot cache the proper path here. */
 	private final String homeDir;
 
-	/** The host name of this machine */
+	/** The host name of this machine. */
 	private final String hostName;
 
 	/**
@@ -112,7 +112,7 @@ public class LocalFileSystem extends FileSystem {
 		}
 		else {
 			throw new FileNotFoundException("File " + f + " does not exist or the user running "
-					+ "Flink ('"+System.getProperty("user.name")+"') has insufficient permissions to access it.");
+					+ "Flink ('" + System.getProperty("user.name") + "') has insufficient permissions to access it.");
 		}
 	}
 
@@ -149,7 +149,6 @@ public class LocalFileSystem extends FileSystem {
 		return new File(path.toUri().getPath());
 	}
 
-
 	@Override
 	public FileStatus[] listStatus(final Path f) throws IOException {
 
@@ -174,7 +173,6 @@ public class LocalFileSystem extends FileSystem {
 
 		return results;
 	}
-
 
 	@Override
 	public boolean delete(final Path f, final boolean recursive) throws IOException {
@@ -233,7 +231,7 @@ public class LocalFileSystem extends FileSystem {
 	public boolean mkdirs(final Path f) throws IOException {
 		final File p2f = pathToFile(f);
 
-		if(p2f.isDirectory()) {
+		if (p2f.isDirectory()) {
 			return true;
 		}
 

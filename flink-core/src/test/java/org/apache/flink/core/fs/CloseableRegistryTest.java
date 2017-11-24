@@ -24,6 +24,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Tests for the {@link CloseableRegistry}.
+ */
 public class CloseableRegistryTest extends AbstractCloseableRegistryTest<Closeable, Object> {
 
 	@Override

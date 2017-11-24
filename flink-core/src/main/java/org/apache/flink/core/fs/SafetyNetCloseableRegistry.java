@@ -39,13 +39,13 @@ import java.util.Map;
 /**
  * This implementation of an {@link AbstractCloseableRegistry} registers {@link WrappingProxyCloseable}. When
  * the proxy becomes subject to GC, this registry takes care of closing unclosed {@link Closeable}s.
- * <p>
- * Phantom references are used to track when {@link org.apache.flink.util.WrappingProxy}s of {@link Closeable} got
+ *
+ * <p>Phantom references are used to track when {@link org.apache.flink.util.WrappingProxy}s of {@link Closeable} got
  * GC'ed. We ensure that the wrapped {@link Closeable} is properly closed to avoid resource leaks.
- * <p>
- * Other than that, it works like a normal {@link CloseableRegistry}.
- * <p>
- * All methods in this class are thread-safe.
+ *
+ * <p>Other than that, it works like a normal {@link CloseableRegistry}.
+ *
+ * <p>All methods in this class are thread-safe.
  */
 @Internal
 public class SafetyNetCloseableRegistry extends
@@ -54,14 +54,18 @@ public class SafetyNetCloseableRegistry extends
 
 	private static final Logger LOG = LoggerFactory.getLogger(SafetyNetCloseableRegistry.class);
 
-	/** Lock for atomic modifications to reaper thread and registry count */
+	/** Lock for atomic modifications to reaper thread and registry count. */
 	private static final Object REAPER_THREAD_LOCK = new Object();
 
-	/** Singleton reaper thread takes care of all registries in VM */
+	//CHECKSTYLE.OFF: StaticVariableName
+
+	/** Singleton reaper thread takes care of all registries in VM. */
 	private static CloseableReaperThread REAPER_THREAD = null;
 
-	/** Global count of all instances of SafetyNetCloseableRegistry */
+	/** Global count of all instances of SafetyNetCloseableRegistry. */
 	private static int GLOBAL_SAFETY_NET_REGISTRY_COUNT = 0;
+
+	//CHECKSTYLE.ON: StaticVariableName
 
 	SafetyNetCloseableRegistry() {
 		super(new IdentityHashMap<>());
@@ -166,7 +170,7 @@ public class SafetyNetCloseableRegistry extends
 	}
 
 	/**
-	 * Reaper runnable collects and closes leaking resources
+	 * Reaper runnable collects and closes leaking resources.
 	 */
 	static final class CloseableReaperThread extends Thread {
 
@@ -187,7 +191,7 @@ public class SafetyNetCloseableRegistry extends
 			try {
 				while (running) {
 					final PhantomDelegatingCloseableRef toClose = (PhantomDelegatingCloseableRef) referenceQueue.remove();
-					
+
 					if (toClose != null) {
 						try {
 							LOG.warn("Closing unclosed resource via safety-net: {}", toClose.getDebugString());
