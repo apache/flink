@@ -1566,7 +1566,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					((CachedStreamStateHandle) remoteFileHandle).setCheckpointCache(stateBackend.cache);
 					((CachedStreamStateHandle) remoteFileHandle).reCache(!hasExtraKeys);
 				}
-				readStateData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
+				readStateData(new Path(restoreInstancePath, getFileNameFromStateHanldeId(stateHandleID)), remoteFileHandle);
 			}
 		}
 
@@ -1575,11 +1575,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			Path restoreInstancePath) throws IOException {
 
 			for (StateHandleID stateHandleID : stateHandleMap.keySet()) {
-				String newSstFileName = stateHandleID.toString();
+				String newSstFileName = getFileNameFromStateHanldeId(stateHandleID);
 				File restoreFile = new File(restoreInstancePath.getPath(), newSstFileName);
 				File targetFile = new File(stateBackend.instanceRocksDBPath, newSstFileName);
 				Files.createLink(targetFile.toPath(), restoreFile.toPath());
 			}
+		}
+
+		private String getFileNameFromStateHanldeId(StateHandleID handleID) {
+			final String[] arr = handleID.toString().split("\\$");
+			return arr[arr.length - 1];
 		}
 
 		void restore(Collection<KeyedStateHandle> restoreStateHandles) throws Exception {

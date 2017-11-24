@@ -183,6 +183,7 @@ public class CheckpointCache {
 				}
 
 				this.completedCheckpointCaches.add(completedCheckpointCache);
+				pendingCheckpointCache.cancelCanceller();
 
 				if (dropUnRetainCheckpointCache) {
 					// only maintain the last complete checkpoint

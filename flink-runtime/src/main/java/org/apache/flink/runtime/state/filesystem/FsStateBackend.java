@@ -288,13 +288,13 @@ public class FsStateBackend extends AbstractStateBackend {
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry) throws IOException {
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
@@ -303,7 +303,8 @@ public class FsStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				asynchronousSnapshots,
-				env.getExecutionConfig());
+				env.getExecutionConfig(),
+				env.getCheckpointCache());
 	}
 
 	@Override

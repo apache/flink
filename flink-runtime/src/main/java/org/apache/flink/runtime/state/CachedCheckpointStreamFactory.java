@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CachedStreamStateHandle;
 import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointCache.CachedOutputStream;
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +42,7 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	public CachedCheckpointStreamFactory(CheckpointCache cache, CheckpointStreamFactory factory) {
 		this.cache = cache;
-		this.remoteFactory = factory;
+		this.remoteFactory = Preconditions.checkNotNull(factory, "Remote stream factory is null.");
 	}
 
 	public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp, StateHandleID handleID) throws Exception {
@@ -52,7 +53,10 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("create cache output stream: cpkID:{} placeHolder:{}", checkpointID, placeholder);
 		}
-		CachedOutputStream cachedOut = cache.createOutputStream(checkpointID, handleID, placeholder);
+		CachedOutputStream cachedOut = null;
+		if (cache != null) {
+			cachedOut = cache.createOutputStream(checkpointID, handleID, placeholder);
+		}
 		CheckpointStateOutputStream remoteOut = null;
 		if (!placeholder) {
 			remoteOut = remoteFactory.createCheckpointStateOutputStream(checkpointID, timestamp);
@@ -89,18 +93,21 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
+			if (cacheOut != null) {
+				// finalize cache data
+				StateHandleID cacheId = cacheOut.getCacheID();
+				cacheOut.end();
 
-			// finalize cache data
-			StateHandleID cacheId = cacheOut.getCacheID();
-			cacheOut.end();
-
-			StreamStateHandle remoteHandle;
-			if (remoteOut != null) {
-				remoteHandle = remoteOut.closeAndGetHandle();
+				StreamStateHandle remoteHandle;
+				if (remoteOut != null) {
+					remoteHandle = remoteOut.closeAndGetHandle();
+				} else {
+					remoteHandle = new PlaceholderStreamStateHandle(cacheId);
+				}
+				return new CachedStreamStateHandle(cacheId, remoteHandle);
 			} else {
-				remoteHandle = new PlaceholderStreamStateHandle(cacheId);
+				return remoteOut.closeAndGetHandle();
 			}
-			return new CachedStreamStateHandle(cacheId, remoteHandle);
 		}
 
 		@Override
@@ -111,11 +118,13 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 		@Override
 		public void write(int b) throws IOException {
 			// write to local
-			try {
-				cacheOut.write(b);
-			} catch (Exception e) {
-				//discard
-				cacheOut.discard();
+			if (cacheOut != null) {
+				try {
+					cacheOut.write(b);
+				} catch (Exception e) {
+					//discard
+					cacheOut.discard();
+				}
 			}
 
 			// write to remote
@@ -127,11 +136,13 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
 			// write to local
-			try {
-				cacheOut.write(b, off, len);
-			} catch (Exception e) {
-				//discard
-				cacheOut.discard();
+			if (cacheOut != null) {
+				try {
+					cacheOut.write(b, off, len);
+				} catch (Exception e) {
+					//discard
+					cacheOut.discard();
+				}
 			}
 
 			// write to remote
@@ -142,7 +153,9 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void flush() throws IOException {
-			cacheOut.flush();
+			if (cacheOut != null) {
+				cacheOut.flush();
+			}
 			if (remoteOut != null) {
 				remoteOut.flush();
 			}
@@ -157,7 +170,9 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void close() throws IOException {
-			cacheOut.close();
+			if (cacheOut != null) {
+				cacheOut.close();
+			}
 			if (remoteOut != null) {
 				remoteOut.close();
 			}

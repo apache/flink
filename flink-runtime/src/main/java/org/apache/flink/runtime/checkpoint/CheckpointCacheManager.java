@@ -48,6 +48,7 @@ public class CheckpointCacheManager {
 	private final Map<JobID, ScheduledFuture<?>> cacheClearFutures;
 
 	private final Executor executor;
+	private boolean isShutdown;
 
 	public CheckpointCacheManager(ScheduledExecutorService scheduledExecutorService, Executor executor, String basePath) {
 		this.scheduledExecutorService = scheduledExecutorService;
@@ -55,6 +56,7 @@ public class CheckpointCacheManager {
 		this.basePath = new Path(basePath);
 		this.checkpointCaches = new ConcurrentHashMap<>();
 		this.cacheClearFutures = new ConcurrentHashMap<>();
+		this.isShutdown = false;
 	}
 
 	/** Reregister a {@linke CheckpointCache} from {@link CheckpointCacheManager}, create a new one or refer a exists one. */
@@ -123,6 +125,7 @@ public class CheckpointCacheManager {
 				checkpointCache.release();
 			}
 			checkpointCaches.clear();
+			isShutdown = true;
 		}
 	}
 
@@ -143,5 +146,9 @@ public class CheckpointCacheManager {
 	@VisibleForTesting
 	protected ScheduledFuture getCacheClearFuture(JobID jobID) {
 		return cacheClearFutures.get(jobID);
+	}
+
+	public boolean isShutdown() {
+		return this.isShutdown;
 	}
 }

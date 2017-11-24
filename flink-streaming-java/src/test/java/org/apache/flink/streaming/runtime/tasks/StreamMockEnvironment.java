@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -342,6 +343,11 @@ public class StreamMockEnvironment implements Environment {
 	@Override
 	public void failExternally(Throwable cause) {
 		this.wasFailedExternally = true;
+	}
+
+	@Override
+	public CheckpointCache getCheckpointCache() {
+		return mock(CheckpointCache.class);
 	}
 
 	public boolean wasFailedExternally() {

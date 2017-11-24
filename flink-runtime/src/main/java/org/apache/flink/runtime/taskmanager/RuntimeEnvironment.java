@@ -267,6 +267,7 @@ public class RuntimeEnvironment implements Environment {
 		this.containingTask.failExternally(cause);
 	}
 
+	@Override
 	public CheckpointCache getCheckpointCache() {
 		return checkpointCache;
 	}
