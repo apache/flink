@@ -23,7 +23,8 @@ import _root_.java.util.concurrent.atomic.AtomicInteger
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.functions.MapFunction
@@ -31,6 +32,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions.{Expression, TimeAttribute}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -41,6 +43,8 @@ import org.apache.flink.table.runtime.MapRunner
 import org.apache.flink.table.sinks.{BatchTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, TableSource}
 import org.apache.flink.types.Row
+
+import _root_.scala.collection.JavaConversions._
 
 /**
   * The abstract base class for batch TableEnvironments.
@@ -83,6 +87,44 @@ abstract class BatchTableEnvironment(
     }
   }
 
+  /**
+    * Checks if the chosen table type is valid
+    * @param table The table to check
+    */
+  override protected def checkValidTableType(table: Table): Unit = {
+    val types = table.getSchema.getTypes
+    for(typeInfo <- types) {
+      if (typeInfo.getClass.getMethod("hashCode").getDeclaringClass eq classOf[Any])
+        throw new TableException(s"Illegal Table type." +
+          s"Please make sure type info ${typeInfo.getClass.getCanonicalName}" +
+          s" implement own hashCode method")
+      if (typeInfo.getClass.getMethod("equals", classOf[Any]).getDeclaringClass eq classOf[Any])
+        throw new TableException(s"Illegal Table type." +
+          s"Please make sure type info ${typeInfo.getClass.getCanonicalName}" +
+          s" implement own equals method")
+    }
+  }
+
+  /**
+    * Checks if the chosen calcite table type is valid
+    * @param table The table to check
+    */
+  protected def checkValidCalciteTableType(table: AbstractTable): Unit = {
+    val typeSystem = new FlinkTypeSystem
+    val typeFactory = new FlinkTypeFactory(typeSystem)
+    val types = table.getRowType(typeFactory).getFieldList
+    for(relDataTypeField: RelDataTypeField <- types) {
+      if (relDataTypeField.getType.getClass.getMethod("hashCode").getDeclaringClass eq classOf[Any])
+        throw new TableException(s"Illegal Table type." +
+          s"Please make sure type info ${relDataTypeField.getClass.getCanonicalName}" +
+          s" implement own hashCode method")
+      if (relDataTypeField.getType.getClass.getMethod("equals", classOf[Any]).getDeclaringClass eq classOf[Any])
+        throw new TableException(s"Illegal Table type." +
+          s"Please make sure type info ${relDataTypeField.getClass.getCanonicalName}" +
+          s" implement own equals method")
+    }
+  }
+
   /** Returns a unique table name according to the internal naming pattern. */
   protected def createUniqueTableName(): String = "_DataSetTable_" + nameCntr.getAndIncrement()
 
@@ -98,7 +140,9 @@ abstract class BatchTableEnvironment(
 
     tableSource match {
       case batchTableSource: BatchTableSource[_] =>
-        registerTableInternal(name, new BatchTableSourceTable(batchTableSource))
+        val table = new BatchTableSourceTable(batchTableSource)
+        checkValidCalciteTableType(table)
+        registerTableInternal(name, table)
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")

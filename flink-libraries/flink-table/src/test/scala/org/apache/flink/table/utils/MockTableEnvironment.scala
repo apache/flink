@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.utils
 
+import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.tools.RuleSet
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
@@ -32,6 +33,10 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
       queryConfig: QueryConfig): Unit = ???
 
   override protected def checkValidTableName(name: String): Unit = ???
+
+  override protected def checkValidTableType(table: Table): Unit = ???
+
+  override protected def checkValidCalciteTableType(table: AbstractTable): Unit = ???
 
   override def sql(query: String): Table = ???
 

@@ -411,6 +411,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
 
     checkValidTableName(name)
+    checkValidTableType(table)
     val tableTable = new RelTable(table.getRelNode)
     registerTableInternal(name, tableTable)
   }
@@ -720,6 +721,18 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name The table name to check.
     */
   protected def checkValidTableName(name: String): Unit
+
+  /**
+    * Checks if the chosen table type is valid.
+    * @param table The table to check
+    */
+  protected def checkValidTableType(table: Table): Unit
+
+  /**
+    * Checks if the chosen table type is valid.
+    * @param table The calcite table to check
+    */
+  protected def checkValidCalciteTableType(table: AbstractTable): Unit
 
   /**
     * Checks if a table is registered under the given name.
