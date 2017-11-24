@@ -166,9 +166,6 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 
 			YarnFileStageTest.testCopyFromLocalRecursive(fs.getHadoopFileSystem(),
 				new org.apache.hadoop.fs.Path(directory.toUri()), tempFolder, true);
-
-			// now directory must be gone
-			assertFalse(fs.exists(directory));
 		} finally {
 			// clean up
 			fs.delete(basePath, true);
