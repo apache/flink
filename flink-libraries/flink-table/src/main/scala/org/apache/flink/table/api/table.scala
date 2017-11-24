@@ -1146,8 +1146,12 @@ class WindowGroupedTable(
     val expandedFields = expandProjectList(fields, table.logicalPlan, table.tableEnv)
     val (aggNames, propNames) = extractAggregationsAndProperties(expandedFields, table.tableEnv)
 
+    val complexGroupKeys = extractComplexGroupKeys(groupKeys, table.tableEnv)
+    val newGroupKeys = groupKeys.filter(!complexGroupKeys.contains(_)) ++
+      complexGroupKeys.map(a => Alias(a._1, a._2))
+
     val projectsOnAgg = replaceAggregationsAndProperties(
-      expandedFields, table.tableEnv, aggNames, propNames)
+      expandedFields, table.tableEnv, aggNames, propNames, complexGroupKeys)
 
     val projectFields = extractFieldReferences(expandedFields ++ groupKeys :+ window.timeField)
 
@@ -1155,7 +1159,7 @@ class WindowGroupedTable(
       Project(
         projectsOnAgg,
         WindowAggregate(
-          groupKeys,
+          newGroupKeys,
           window.toLogicalWindow,
           propNames.map(a => Alias(a._1, a._2)).toSeq,
           aggNames.map(a => Alias(a._1, a._2)).toSeq,
