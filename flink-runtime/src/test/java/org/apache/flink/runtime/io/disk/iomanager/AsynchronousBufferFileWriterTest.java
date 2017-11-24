@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
+
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +46,11 @@ public class AsynchronousBufferFileWriterTest {
 	private static final Buffer mockBuffer = mock(Buffer.class);
 
 	private AsynchronousBufferFileWriter writer;
+
+	@AfterClass
+	public static void shutdown() {
+		ioManager.shutdown();
+	}
 
 	@Before
 	public void setUp() throws IOException {

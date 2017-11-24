@@ -806,11 +806,8 @@ public class HashTableITCase extends TestLogger {
 			return;
 		}
 		
-		// create the I/O access for spilling
-		final IOManager ioManager = new IOManagerAsync();
-		
 		// ----------------------------------------------------------------------------------------
-		
+
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
 			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
@@ -906,9 +903,6 @@ public class HashTableITCase extends TestLogger {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManagerAsync();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);
@@ -1021,9 +1015,6 @@ public class HashTableITCase extends TestLogger {
 			fail("Memory for the Join could not be provided.");
 			return;
 		}
-		
-		// create the I/O access for spilling
-		IOManager ioManager = new IOManagerAsync();
 		
 		// create the map for validating the results
 		HashMap<Integer, Long> map = new HashMap<Integer, Long>(NUM_KEYS);

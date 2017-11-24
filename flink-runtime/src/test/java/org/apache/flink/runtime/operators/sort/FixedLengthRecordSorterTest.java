@@ -77,6 +77,11 @@ public class FixedLengthRecordSorterTest {
 		if (!this.memoryManager.verifyEmpty()) {
 			Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
 		}
+
+		if (this.ioManager != null) {
+			ioManager.shutdown();
+			ioManager = null;
+		}
 		
 		if (this.memoryManager != null) {
 			this.memoryManager.shutdown();

@@ -83,10 +83,12 @@ public class MassiveStringValueSorting {
 			UnilateralSortMerger<StringValue> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
+			MemoryManager mm = null;
+			IOManager ioMan = null;
 
 			try {
-				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
-				IOManager ioMan = new IOManagerAsync();
+				mm = new MemoryManager(1024 * 1024, 1);
+				ioMan = new IOManagerAsync();
 
 				TypeSerializer<StringValue> serializer = new CopyableValueSerializer<StringValue>(StringValue.class);
 				TypeComparator<StringValue> comparator = new CopyableValueComparator<StringValue>(true, StringValue.class);
@@ -123,6 +125,12 @@ public class MassiveStringValueSorting {
 				}
 				if (sorter != null) {
 					sorter.close();
+				}
+				if (mm != null) {
+					mm.shutdown();
+				}
+				if (ioMan != null) {
+					ioMan.shutdown();
 				}
 			}
 		}
@@ -177,10 +185,12 @@ public class MassiveStringValueSorting {
 			UnilateralSortMerger<Tuple2<StringValue, StringValue[]>> sorter = null;
 			BufferedReader reader = null;
 			BufferedReader verifyReader = null;
+			MemoryManager mm = null;
+			IOManager ioMan = null;
 
 			try {
-				MemoryManager mm = new MemoryManager(1024 * 1024, 1);
-				IOManager ioMan = new IOManagerAsync();
+				mm = new MemoryManager(1024 * 1024, 1);
+				ioMan = new IOManagerAsync();
 
 				TupleTypeInfo<Tuple2<StringValue, StringValue[]>> typeInfo = (TupleTypeInfo<Tuple2<StringValue, StringValue[]>>)
 						TypeInfoParser.<Tuple2<StringValue, StringValue[]>>parse("Tuple2<org.apache.flink.types.StringValue, org.apache.flink.types.StringValue[]>");
@@ -246,6 +256,12 @@ public class MassiveStringValueSorting {
 				}
 				if (sorter != null) {
 					sorter.close();
+				}
+				if (mm != null) {
+					mm.shutdown();
+				}
+				if (ioMan != null) {
+					ioMan.shutdown();
 				}
 			}
 		}
