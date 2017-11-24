@@ -82,6 +82,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public long getDefaultBlockSize() {
 		return unsafeFileSystem.getDefaultBlockSize();
 	}
@@ -107,6 +108,7 @@ public class SafetyNetWrapperFileSystem extends FileSystem implements WrappingPr
 	}
 
 	@Override
+	@SuppressWarnings("deprecation")
 	public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize)
 			throws IOException {
 

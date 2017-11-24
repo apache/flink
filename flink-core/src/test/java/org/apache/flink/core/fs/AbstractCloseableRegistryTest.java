@@ -32,6 +32,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
+/**
+ * Tests for the {@link AbstractCloseableRegistry}.
+ */
 public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
 	protected ProducerThread[] streamOpenThreads;
@@ -140,8 +143,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		try {
 			closeableRegistry.registerCloseable(testCloseable);
 			Assert.fail("Closed registry should not accept closeables!");
-		}catch (IOException ignore) {
-		}
+		} catch (IOException ignored) {}
 
 		blockCloseLatch.trigger();
 		closer.join();
@@ -151,7 +153,10 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		Assert.assertEquals(0, closeableRegistry.getNumberOfRegisteredCloseables());
 	}
 
-	protected static abstract class ProducerThread<C extends Closeable, T> extends Thread {
+	/**
+	 * A testing producer.
+	 */
+	protected abstract static class ProducerThread<C extends Closeable, T> extends Thread {
 
 		protected final AbstractCloseableRegistry<C, T> registry;
 		protected final AtomicInteger refCount;
@@ -188,6 +193,9 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 		}
 	}
 
+	/**
+	 * Testing stream which adds itself to a reference counter while not closed.
+	 */
 	protected static final class TestStream extends FSDataInputStream {
 
 		protected AtomicInteger refCount;

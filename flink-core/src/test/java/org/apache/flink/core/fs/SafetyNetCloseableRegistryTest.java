@@ -32,6 +32,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Tests for the {@link SafetyNetCloseableRegistry}.
+ */
 public class SafetyNetCloseableRegistryTest
 	extends AbstractCloseableRegistryTest<WrappingProxyCloseable<? extends Closeable>,
 	SafetyNetCloseableRegistry.PhantomDelegatingCloseableRef> {
@@ -44,9 +47,7 @@ public class SafetyNetCloseableRegistryTest
 		return new WrappingProxyCloseable<Closeable>() {
 
 			@Override
-			public void close() throws IOException {
-
-			}
+			public void close() throws IOException {}
 
 			@Override
 			public Closeable getWrappedDelegate() {
