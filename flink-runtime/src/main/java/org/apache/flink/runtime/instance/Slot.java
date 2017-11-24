@@ -61,7 +61,8 @@ public abstract class Slot {
 	private static final int RELEASED = 2;
 
 	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (prior to FLIP-6)
-	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0, 0);
+	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0L, 0L);
+	protected static final SlotRequestID NO_SLOT_REQUEST_ID = new SlotRequestID(0L, 0L);
 
 	// ------------------------------------------------------------------------
 
@@ -111,6 +112,7 @@ public abstract class Slot {
 
 		// create a simple slot context
 		this.slotContext = new SimpleSlotContext(
+			NO_SLOT_REQUEST_ID,
 			NO_ALLOCATION_ID,
 			location,
 			slotNumber,

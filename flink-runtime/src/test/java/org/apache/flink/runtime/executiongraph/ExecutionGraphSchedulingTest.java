@@ -30,8 +30,8 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.instance.SlotRequestID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -284,7 +284,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(parallelism);
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();
 		slotOwner.setReturnAllocatedSlotConsumer(
-			(Slot slot) -> returnedSlots.offer(slot.getSlotContext().getAllocationId()));
+			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
 		final SimpleSlot[] sourceSlots = new SimpleSlot[parallelism];
 		final SimpleSlot[] targetSlots = new SimpleSlot[parallelism];
@@ -365,7 +365,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(2);
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();
 		slotOwner.setReturnAllocatedSlotConsumer(
-			(Slot slot) -> returnedSlots.offer(slot.getSlotContext().getAllocationId()));
+			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
 		final TaskManagerGateway taskManager = mock(TaskManagerGateway.class);
 		final SimpleSlot[] slots = new SimpleSlot[parallelism];
@@ -448,6 +448,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 				ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
 
 		SimpleSlotContext slot = new SimpleSlotContext(
+			new SlotRequestID(),
 			new AllocationID(),
 			location,
 			0,

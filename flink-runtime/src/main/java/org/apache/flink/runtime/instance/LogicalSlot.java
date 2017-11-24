@@ -93,6 +93,14 @@ public interface LogicalSlot {
 	AllocationID getAllocationId();
 
 	/**
+	 * Gets the slot request id uniquely identifying the request with which this
+	 * slot has been allocated.
+	 *
+	 * @return Unique id identifying the slot request with which this slot was allocated
+	 */
+	SlotRequestID getSlotRequestId();
+
+	/**
 	 * Payload for a logical slot.
 	 */
 	interface Payload {

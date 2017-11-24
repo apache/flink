@@ -213,6 +213,11 @@ public class SharedSlot extends Slot implements LogicalSlot {
 		return getSlotContext().getAllocationId();
 	}
 
+	@Override
+	public SlotRequestID getSlotRequestId() {
+		return getSlotContext().getSlotRequestId();
+	}
+
 	/**
 	 * Gets the set of all slots allocated as sub-slots of this shared slot.
 	 *

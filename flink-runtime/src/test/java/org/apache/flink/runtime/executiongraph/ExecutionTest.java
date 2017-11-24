@@ -24,7 +24,6 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -306,7 +305,7 @@ public class ExecutionTest extends TestLogger {
 
 		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 
-		CompletableFuture<Slot> returnedSlotFuture = slotOwner.getReturnedSlotFuture();
+		CompletableFuture<LogicalSlot> returnedSlotFuture = slotOwner.getReturnedSlotFuture();
 		CompletableFuture<?> terminationFuture = executionVertex.cancel();
 
 		// run canceling in a separate thread to allow an interleaving between termination
@@ -334,15 +333,15 @@ public class ExecutionTest extends TestLogger {
 	 */
 	private static final class SingleSlotTestingSlotOwner implements SlotOwner {
 
-		final CompletableFuture<Slot> returnedSlot = new CompletableFuture<>();
+		final CompletableFuture<LogicalSlot> returnedSlot = new CompletableFuture<>();
 
-		public CompletableFuture<Slot> getReturnedSlotFuture() {
+		public CompletableFuture<LogicalSlot> getReturnedSlotFuture() {
 			return returnedSlot;
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
-			return CompletableFuture.completedFuture(returnedSlot.complete(slot));
+		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+			return CompletableFuture.completedFuture(returnedSlot.complete(logicalSlot));
 		}
 	}
 }

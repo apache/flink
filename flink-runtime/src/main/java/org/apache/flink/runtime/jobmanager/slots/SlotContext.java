@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.instance.SlotRequestID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 /**
@@ -30,9 +31,17 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 public interface SlotContext {
 
 	/**
-	 * Gets the ID under which the slot is allocated, which uniquely identifies the slot.
+	 * Gets the slot request id under which the slot has been requested. This id uniquely identifies the logical slot.
 	 *
-	 * @return The ID under which the slot is allocated
+	 * @return The id under which the slot has been requested
+	 */
+	SlotRequestID getSlotRequestId();
+
+	/**
+	 * Gets the id under which the slot has been allocated on the TaskManager. This id uniquely identifies the
+	 * physical slot.
+	 *
+	 * @return The id under whic teh slot has been allocated on the TaskManager
 	 */
 	AllocationID getAllocationId();
 

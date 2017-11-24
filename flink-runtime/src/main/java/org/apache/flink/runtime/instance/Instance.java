@@ -276,12 +276,15 @@ public class Instance implements SlotOwner {
 	 * <p>The method will transition the slot to the "released" state. If the slot is already in state
 	 * "released", this method will do nothing.</p>
 	 * 
-	 * @param slot The slot to return.
+	 * @param logicalSlot The slot to return.
 	 * @return Future which is completed with true, if the slot was returned, false if not.
 	 */
 	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
-		checkNotNull(slot);
+	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		checkNotNull(logicalSlot);
+		checkArgument(logicalSlot instanceof Slot);
+
+		final Slot slot = ((Slot) logicalSlot);
 		checkArgument(!slot.isAlive(), "slot is still alive");
 		checkArgument(slot.getOwner() == this, "slot belongs to the wrong TaskManager.");
 
