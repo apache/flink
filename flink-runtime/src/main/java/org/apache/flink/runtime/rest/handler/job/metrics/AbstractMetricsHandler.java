@@ -33,8 +33,6 @@ import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionRespon
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -79,7 +77,7 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters> extend
 	}
 
 	@Override
-	protected CompletableFuture<MetricCollectionResponseBody> handleRequest(
+	protected final CompletableFuture<MetricCollectionResponseBody> handleRequest(
 			@Nonnull HandlerRequest<EmptyRequestBody, M> request,
 			@Nonnull DispatcherGateway gateway) throws RestHandlerException {
 		metricFetcher.update();
@@ -128,12 +126,9 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters> extend
 		final List<Metric> metrics = new ArrayList<>(requestedMetrics.size());
 		for (final String requestedMetric : requestedMetrics) {
 			final String value = componentMetricStore.getMetric(requestedMetric, null);
-			if (value == null) {
-				throw new RestHandlerException(
-					String.format("Metric [%s] not found", requestedMetric),
-					HttpResponseStatus.NOT_FOUND);
+			if (value != null) {
+				metrics.add(new Metric(requestedMetric, value));
 			}
-			metrics.add(new Metric(requestedMetric, value));
 		}
 		return metrics;
 	}

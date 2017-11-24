@@ -23,7 +23,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.metrics.dump.MetricDump;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -37,8 +36,6 @@ import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionRespon
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -57,7 +54,6 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.when;
 
 /**
@@ -167,8 +163,8 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 	}
 
 	@Test
-	public void testGetUnknownMetrics() throws Exception {
-		try {
+	public void testReturnEmptyListIfRequestedMetricIsUnknown() throws Exception {
+		final CompletableFuture<MetricCollectionResponseBody> completableFuture =
 			testMetricsHandler.handleRequest(
 				new HandlerRequest<>(
 					EmptyRequestBody.getInstance(),
@@ -176,11 +172,11 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 					Collections.emptyMap(),
 					Collections.singletonMap(METRICS_FILTER_QUERY_PARAM, Collections.singletonList("unknown_metric"))),
 				mockDispatcherGateway);
-			fail("Expected exception not thrown.");
-		} catch (final RestHandlerException e) {
-			assertThat(e.getMessage(), equalTo("Metric [unknown_metric] not found"));
-			assertThat(e.getHttpResponseStatus(), equalTo(HttpResponseStatus.NOT_FOUND));
-		}
+
+		assertTrue(completableFuture.isDone());
+
+		final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
+		assertThat(metricCollectionResponseBody.getMetrics(), empty());
 	}
 
 	private static class TestMetricsHandler extends AbstractMetricsHandler<TestMessageParameters> {
