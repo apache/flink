@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -34,7 +33,12 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the allocation, properties, and release of shared slots.
@@ -46,7 +50,6 @@ public class SharedSlotsTest extends TestLogger {
 	@Test
 	public void allocateAndReleaseEmptySlot() {
 		try {
-			JobID jobId = new JobID();
 			JobVertexID vertexId = new JobVertexID();
 			
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(vertexId);
@@ -62,7 +65,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(2, instance.getNumberOfAvailableSlots());
 			
 			// allocate a shared slot
-			SharedSlot slot = instance.allocateSharedSlot(jobId, assignment);
+			SharedSlot slot = instance.allocateSharedSlot(assignment);
 			assertEquals(2, instance.getTotalNumberOfSlots());
 			assertEquals(1, instance.getNumberOfAllocatedSlots());
 			assertEquals(1, instance.getNumberOfAvailableSlots());
@@ -110,7 +113,6 @@ public class SharedSlotsTest extends TestLogger {
 	@Test
 	public void allocateSimpleSlotsAndReleaseFromRoot() {
 		try {
-			JobID jobId = new JobID();
 			JobVertexID vid1 = new JobVertexID();
 			JobVertexID vid2 = new JobVertexID();
 			JobVertexID vid3 = new JobVertexID();
@@ -122,7 +124,7 @@ public class SharedSlotsTest extends TestLogger {
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 			// allocate a shared slot
-			SharedSlot sharedSlot = instance.allocateSharedSlot(jobId, assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			// allocate a series of sub slots
 
@@ -134,7 +136,6 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(1, sub1.getNumberLeaves());
 			assertEquals(vid1, sub1.getGroupID());
 			assertEquals(instance.getTaskManagerID(), sub1.getTaskManagerID());
-			assertEquals(jobId, sub1.getJobID());
 			assertEquals(sharedSlot, sub1.getParent());
 			assertEquals(sharedSlot, sub1.getRoot());
 			assertEquals(0, sub1.getRootSlotNumber());
@@ -153,7 +154,6 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(1, sub2.getNumberLeaves());
 			assertEquals(vid2, sub2.getGroupID());
 			assertEquals(instance.getTaskManagerID(), sub2.getTaskManagerID());
-			assertEquals(jobId, sub2.getJobID());
 			assertEquals(sharedSlot, sub2.getParent());
 			assertEquals(sharedSlot, sub2.getRoot());
 			assertEquals(0, sub2.getRootSlotNumber());
@@ -172,7 +172,6 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(1, sub3.getNumberLeaves());
 			assertEquals(vid3, sub3.getGroupID());
 			assertEquals(instance.getTaskManagerID(), sub3.getTaskManagerID());
-			assertEquals(jobId, sub3.getJobID());
 			assertEquals(sharedSlot, sub3.getParent());
 			assertEquals(sharedSlot, sub3.getRoot());
 			assertEquals(0, sub3.getRootSlotNumber());
@@ -192,7 +191,6 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(1, sub4.getNumberLeaves());
 			assertEquals(vid4, sub4.getGroupID());
 			assertEquals(instance.getTaskManagerID(), sub4.getTaskManagerID());
-			assertEquals(jobId, sub4.getJobID());
 			assertEquals(sharedSlot, sub4.getParent());
 			assertEquals(sharedSlot, sub4.getRoot());
 			assertEquals(0, sub4.getRootSlotNumber());
@@ -235,7 +233,6 @@ public class SharedSlotsTest extends TestLogger {
 	@Test
 	public void allocateSimpleSlotsAndReleaseFromLeaves() {
 		try {
-			JobID jobId = new JobID();
 			JobVertexID vid1 = new JobVertexID();
 			JobVertexID vid2 = new JobVertexID();
 			JobVertexID vid3 = new JobVertexID();
@@ -246,7 +243,7 @@ public class SharedSlotsTest extends TestLogger {
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 			// allocate a shared slot
-			SharedSlot sharedSlot = instance.allocateSharedSlot(jobId, assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			// allocate a series of sub slots
 
@@ -320,7 +317,6 @@ public class SharedSlotsTest extends TestLogger {
 	@Test
 	public void allocateAndReleaseInMixedOrder() {
 		try {
-			JobID jobId = new JobID();
 			JobVertexID vid1 = new JobVertexID();
 			JobVertexID vid2 = new JobVertexID();
 			JobVertexID vid3 = new JobVertexID();
@@ -331,7 +327,7 @@ public class SharedSlotsTest extends TestLogger {
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 			// allocate a shared slot
-			SharedSlot sharedSlot = instance.allocateSharedSlot(jobId, assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			// allocate a series of sub slots
 
@@ -427,7 +423,7 @@ public class SharedSlotsTest extends TestLogger {
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			
 			// allocate a shared slot
-			SharedSlot sharedSlot = instance.allocateSharedSlot(new JobID(), assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 			
 			// get the first simple slot
 			SimpleSlot sourceSlot = assignment.addSharedSlotAndAllocateSubSlot(sharedSlot, Locality.LOCAL, sourceId);
@@ -563,7 +559,7 @@ public class SharedSlotsTest extends TestLogger {
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 
 			// allocate a shared slot
-			SharedSlot sharedSlot = instance.allocateSharedSlot(new JobID(), assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			// get the first simple slot
 			SimpleSlot sourceSlot = assignment.addSharedSlotAndAllocateSubSlot(sharedSlot, Locality.LOCAL, sourceId);
@@ -607,7 +603,6 @@ public class SharedSlotsTest extends TestLogger {
 	@Test
 	public void testImmediateReleaseOneLevel() {
 		try {
-			JobID jobId = new JobID();
 			JobVertexID vid = new JobVertexID();
 
 			SlotSharingGroup sharingGroup = new SlotSharingGroup(vid);
@@ -615,7 +610,7 @@ public class SharedSlotsTest extends TestLogger {
 
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			
-			SharedSlot sharedSlot = instance.allocateSharedSlot(jobId, assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			SimpleSlot sub = assignment.addSharedSlotAndAllocateSubSlot(sharedSlot, Locality.UNCONSTRAINED, vid);
 			sub.releaseInstanceSlot();
@@ -635,7 +630,6 @@ public class SharedSlotsTest extends TestLogger {
 	@Test
 	public void testImmediateReleaseTwoLevel() {
 		try {
-			JobID jobId = new JobID();
 			JobVertexID vid = new JobVertexID();
 			JobVertex vertex = new JobVertex("vertex", vid);
 			
@@ -647,7 +641,7 @@ public class SharedSlotsTest extends TestLogger {
 			
 			Instance instance = SchedulerTestUtils.getRandomInstance(1);
 			
-			SharedSlot sharedSlot = instance.allocateSharedSlot(jobId, assignment);
+			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			SimpleSlot sub = assignment.addSharedSlotAndAllocateSubSlot(sharedSlot, Locality.UNCONSTRAINED, constraint);
 			

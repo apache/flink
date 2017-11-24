@@ -18,11 +18,10 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmanager.slots.SimpleSlotContext;
+import org.apache.flink.runtime.jobmanager.slots.SlotContext;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -64,23 +63,21 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	/**
 	 * Creates a new simple slot that stands alone and does not belong to shared slot.
 	 * 
-	 * @param jobID The ID of the job that the slot is allocated for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the task slot on the instance.
 	 * @param taskManagerGateway The gateway to communicate with the TaskManager of this slot
 	 */
 	public SimpleSlot(
-			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
+			SlotOwner owner, TaskManagerLocation location, int slotNumber,
 			TaskManagerGateway taskManagerGateway) {
-		this(jobID, owner, location, slotNumber, taskManagerGateway, null, null);
+		this(owner, location, slotNumber, taskManagerGateway, null, null);
 	}
 
 	/**
 	 * Creates a new simple slot that belongs to the given shared slot and
 	 * is identified by the given ID.
 	 *
-	 * @param jobID The ID of the job that the slot is allocated for.
 	 * @param owner The component from which this slot is allocated.
 	 * @param location The location info of the TaskManager where the slot was allocated from
 	 * @param slotNumber The number of the simple slot in its parent shared slot.
@@ -89,15 +86,25 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	 * @param groupID The ID that identifies the group that the slot belongs to.
 	 */
 	public SimpleSlot(
-			JobID jobID, SlotOwner owner, TaskManagerLocation location, int slotNumber,
+			SlotOwner owner,
+			TaskManagerLocation location,
+			int slotNumber,
 			TaskManagerGateway taskManagerGateway,
-			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupID) {
 
-		super(parent != null ?
-				parent.getAllocatedSlot() :
-				new AllocatedSlot(NO_ALLOCATION_ID, jobID, location, slotNumber,
-						ResourceProfile.UNKNOWN, taskManagerGateway),
-				owner, slotNumber, parent, groupID);
+		super(
+			parent != null ?
+				parent.getSlotContext() :
+				new SimpleSlotContext(
+					NO_ALLOCATION_ID,
+					location,
+					slotNumber,
+					taskManagerGateway),
+			owner,
+			slotNumber,
+			parent,
+			groupID);
 	}
 
 	// ------------------------------------------------------------------------
@@ -107,12 +114,11 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	/**
 	 * Creates a new simple slot that stands alone and does not belong to shared slot.
 	 *
-	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param slotContext The slot context of this simple slot
 	 * @param owner The component from which this slot is allocated.
-	 * @param slotNumber The number of the task slot on the instance.
 	 */
-	public SimpleSlot(AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber) {
-		this(allocatedSlot, owner, slotNumber, null, null);
+	public SimpleSlot(SlotContext slotContext, SlotOwner owner, int slotNumber) {
+		this(slotContext, owner, slotNumber, null, null);
 	}
 
 	/**
@@ -121,27 +127,29 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	 *
 	 * @param parent The parent shared slot.
 	 * @param owner The component from which this slot is allocated.
-	 * @param slotNumber The number of the simple slot in its parent shared slot.
 	 * @param groupID The ID that identifies the group that the slot belongs to.
 	 */
 	public SimpleSlot(SharedSlot parent, SlotOwner owner, int slotNumber, AbstractID groupID) {
-		this(parent.getAllocatedSlot(), owner, slotNumber, parent, groupID);
+		this(parent.getSlotContext(), owner, slotNumber, parent, groupID);
 	}
 	
 	/**
 	 * Creates a new simple slot that belongs to the given shared slot and
 	 * is identified by the given ID..
 	 *
-	 * @param allocatedSlot The allocated slot that this slot represents.
+	 * @param slotContext The slot context of this simple slot
 	 * @param owner The component from which this slot is allocated.
 	 * @param slotNumber The number of the simple slot in its parent shared slot.
 	 * @param parent The parent shared slot.
 	 * @param groupID The ID that identifies the group that the slot belongs to.
 	 */
 	private SimpleSlot(
-			AllocatedSlot allocatedSlot, SlotOwner owner, int slotNumber,
-			@Nullable SharedSlot parent, @Nullable AbstractID groupID) {
-		super(allocatedSlot, owner, slotNumber, parent, groupID);
+			SlotContext slotContext,
+			SlotOwner owner,
+			int slotNumber,
+			@Nullable SharedSlot parent,
+			@Nullable AbstractID groupID) {
+		super(slotContext, owner, slotNumber, parent, groupID);
 	}
 
 	// ------------------------------------------------------------------------
@@ -263,7 +271,7 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 
 	@Override
 	public AllocationID getAllocationId() {
-		return getAllocatedSlot().getSlotAllocationId();
+		return getSlotContext().getAllocationId();
 	}
 
 	// ------------------------------------------------------------------------

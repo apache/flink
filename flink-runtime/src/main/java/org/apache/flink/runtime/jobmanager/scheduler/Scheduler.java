@@ -364,7 +364,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 			Locality locality = instanceLocalityPair.getRight();
 
 			try {
-				SimpleSlot slot = instanceToUse.allocateSimpleSlot(vertex.getJobId());
+				SimpleSlot slot = instanceToUse.allocateSimpleSlot();
 				
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
@@ -426,7 +426,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				JobVertexID groupID = vertex.getJobvertexId();
 				
 				// allocate a shared slot from the instance
-				SharedSlot sharedSlot = instanceToUse.allocateSharedSlot(vertex.getJobId(), groupAssignment);
+				SharedSlot sharedSlot = instanceToUse.allocateSharedSlot(groupAssignment);
 
 				// if the instance has further available slots, re-add it to the set of available resources.
 				if (instanceToUse.hasResourcesAvailable()) {
@@ -562,7 +562,7 @@ public class Scheduler implements InstanceListener, SlotAvailabilityListener, Sl
 				ExecutionVertex vertex = task.getTaskToExecute().getVertex();
 				
 				try {
-					SimpleSlot newSlot = instance.allocateSimpleSlot(vertex.getJobId());
+					SimpleSlot newSlot = instance.allocateSimpleSlot();
 					if (newSlot != null) {
 						
 						// success, remove from the task queue and notify the future

@@ -81,7 +81,6 @@ public class ExecutionTest extends TestLogger {
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
-			new JobID(),
 			slotOwner,
 			new LocalTaskManagerLocation(),
 			0,
@@ -121,7 +120,6 @@ public class ExecutionTest extends TestLogger {
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
-			new JobID(),
 			slotOwner,
 			new LocalTaskManagerLocation(),
 			0,
@@ -171,7 +169,6 @@ public class ExecutionTest extends TestLogger {
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
-			new JobID(),
 			slotOwner,
 			new LocalTaskManagerLocation(),
 			0,
@@ -285,11 +282,12 @@ public class ExecutionTest extends TestLogger {
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
 		final SimpleSlot slot = new SimpleSlot(
-			new JobID(),
 			slotOwner,
 			new LocalTaskManagerLocation(),
 			0,
-			new SimpleAckingTaskManagerGateway());
+			new SimpleAckingTaskManagerGateway(),
+			null,
+			null);
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));

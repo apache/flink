@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
@@ -210,19 +209,13 @@ public class Instance implements SlotOwner {
 	 * Allocates a simple slot on this TaskManager instance. This method returns {@code null}, if no slot
 	 * is available at the moment.
 	 *
-	 * @param jobID The ID of the job that the slot is allocated for.
-	 *
 	 * @return A simple slot that represents a task slot on this TaskManager instance, or null, if the
 	 *         TaskManager instance has no more slots available.
 	 *
 	 * @throws InstanceDiedException Thrown if the instance is no longer alive by the time the
 	 *                               slot is allocated. 
 	 */
-	public SimpleSlot allocateSimpleSlot(JobID jobID) throws InstanceDiedException {
-		if (jobID == null) {
-			throw new IllegalArgumentException();
-		}
-
+	public SimpleSlot allocateSimpleSlot() throws InstanceDiedException {
 		synchronized (instanceLock) {
 			if (isDead) {
 				throw new InstanceDiedException(this);
@@ -233,7 +226,7 @@ public class Instance implements SlotOwner {
 				return null;
 			}
 			else {
-				SimpleSlot slot = new SimpleSlot(jobID, this, location, nextSlot, taskManagerGateway);
+				SimpleSlot slot = new SimpleSlot(this, location, nextSlot, taskManagerGateway);
 				allocatedSlots.add(slot);
 				return slot;
 			}
@@ -244,7 +237,6 @@ public class Instance implements SlotOwner {
 	 * Allocates a shared slot on this TaskManager instance. This method returns {@code null}, if no slot
 	 * is available at the moment. The shared slot will be managed by the given  SlotSharingGroupAssignment.
 	 *
-	 * @param jobID The ID of the job that the slot is allocated for.
 	 * @param sharingGroupAssignment The assignment group that manages this shared slot.
 	 *
 	 * @return A shared slot that represents a task slot on this TaskManager instance and can hold other
@@ -252,13 +244,8 @@ public class Instance implements SlotOwner {
 	 *
 	 * @throws InstanceDiedException Thrown if the instance is no longer alive by the time the slot is allocated. 
 	 */
-	public SharedSlot allocateSharedSlot(JobID jobID, SlotSharingGroupAssignment sharingGroupAssignment)
-			throws InstanceDiedException
-	{
-		// the slot needs to be in the returned to taskManager state
-		if (jobID == null) {
-			throw new IllegalArgumentException();
-		}
+	public SharedSlot allocateSharedSlot(SlotSharingGroupAssignment sharingGroupAssignment)
+			throws InstanceDiedException {
 
 		synchronized (instanceLock) {
 			if (isDead) {
@@ -271,7 +258,11 @@ public class Instance implements SlotOwner {
 			}
 			else {
 				SharedSlot slot = new SharedSlot(
-						jobID, this, location, nextSlot, taskManagerGateway, sharingGroupAssignment);
+					this,
+					location,
+					nextSlot,
+					taskManagerGateway,
+					sharingGroupAssignment);
 				allocatedSlots.add(slot);
 				return slot;
 			}
