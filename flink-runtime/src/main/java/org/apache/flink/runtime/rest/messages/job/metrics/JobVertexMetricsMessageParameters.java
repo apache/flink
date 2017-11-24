@@ -19,31 +19,23 @@
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.handler.job.metrics.JobVertexMetricsHandler;
-import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
+import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
 /**
  * {@link MessageParameters} for {@link JobVertexMetricsHandler}.
  */
-public class JobVertexMetricsMessageParameters extends MessageParameters {
+public class JobVertexMetricsMessageParameters extends JobVertexMessageParameters {
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableList(Arrays.asList(
-			new JobIDPathParameter(),
-			new JobVertexIdPathParameter()));
-	}
+	private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
 
 	@Override
 	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singletonList(new MetricsFilterParameter());
+		return Collections.singletonList(metricsFilterParameter);
 	}
 
 }
