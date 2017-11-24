@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.slots;
 
-import org.apache.flink.runtime.instance.Slot;
+import org.apache.flink.runtime.instance.LogicalSlot;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -28,18 +28,18 @@ import java.util.function.Consumer;
  */
 public class TestingSlotOwner implements SlotOwner {
 
-	private volatile Consumer<Slot> returnAllocatedSlotConsumer;
+	private volatile Consumer<LogicalSlot> returnAllocatedSlotConsumer;
 
-	public void setReturnAllocatedSlotConsumer(Consumer<Slot> returnAllocatedSlotConsumer) {
+	public void setReturnAllocatedSlotConsumer(Consumer<LogicalSlot> returnAllocatedSlotConsumer) {
 		this.returnAllocatedSlotConsumer = returnAllocatedSlotConsumer;
 	}
 
 	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
-		final Consumer<Slot> currentReturnAllocatedSlotConsumer = this.returnAllocatedSlotConsumer;
+	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		final Consumer<LogicalSlot> currentReturnAllocatedSlotConsumer = this.returnAllocatedSlotConsumer;
 
 		if (currentReturnAllocatedSlotConsumer != null) {
-			currentReturnAllocatedSlotConsumer.accept(slot);
+			currentReturnAllocatedSlotConsumer.accept(logicalSlot);
 		}
 
 		return CompletableFuture.completedFuture(true);

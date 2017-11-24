@@ -97,6 +97,7 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 			parent != null ?
 				parent.getSlotContext() :
 				new SimpleSlotContext(
+					NO_SLOT_REQUEST_ID,
 					NO_ALLOCATION_ID,
 					location,
 					slotNumber,
@@ -272,6 +273,11 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	@Override
 	public AllocationID getAllocationId() {
 		return getSlotContext().getAllocationId();
+	}
+
+	@Override
+	public SlotRequestID getSlotRequestId() {
+		return getSlotContext().getSlotRequestId();
 	}
 
 	// ------------------------------------------------------------------------

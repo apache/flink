@@ -42,6 +42,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.instance.SlotRequestID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -244,10 +245,11 @@ public class ExecutionGraphTestUtils {
 				ResourceID.generate(), InetAddress.getLoopbackAddress(), 6572);
 
 		final SimpleSlotContext allocatedSlot = new SimpleSlotContext(
-				new AllocationID(),
-				location,
-				0,
-				gateway);
+			new SlotRequestID(),
+			new AllocationID(),
+			location,
+			0,
+			gateway);
 
 		return new SimpleSlot(
 			allocatedSlot,

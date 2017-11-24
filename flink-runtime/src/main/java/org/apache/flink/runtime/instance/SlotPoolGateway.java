@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.SlotContext;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -31,7 +30,6 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.AbstractID;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -99,20 +97,14 @@ public interface SlotPoolGateway extends RpcGateway {
 			Iterable<TaskManagerLocation> locationPreferences,
 			@RpcTimeout Time timeout);
 
-	void returnAllocatedSlot(SlotContext slotInformation);
+	void returnAllocatedSlot(SlotRequestID slotRequestId);
 
 	/**
 	 * Cancel a slot allocation request.
 	 *
-	 * @param requestId identifying the slot allocation request
+	 * @param slotRequestId identifying the slot allocation request
 	 * @return Future acknowledge if the slot allocation has been cancelled
 	 */
-	CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID requestId);
+	CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID slotRequestId);
 
-	/**
-	 * Request ID identifying different slot requests.
-	 */
-	final class SlotRequestID extends AbstractID {
-		private static final long serialVersionUID = -6072105912250154283L;
-	}
 }

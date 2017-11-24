@@ -41,7 +41,7 @@ public class AllocatedSlotsTest extends TestLogger {
 		SlotPool.AllocatedSlots allocatedSlots = new SlotPool.AllocatedSlots();
 
 		final AllocationID allocation1 = new AllocationID();
-		final SlotPoolGateway.SlotRequestID slotRequestID = new SlotPoolGateway.SlotRequestID();
+		final SlotRequestID slotRequestID = new SlotRequestID();
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 		final ResourceID resource1 = taskManagerLocation.getResourceID();
 		final AllocatedSlot slot1 = createSlot(allocation1, taskManagerLocation);
@@ -56,7 +56,7 @@ public class AllocatedSlotsTest extends TestLogger {
 		assertEquals(1, allocatedSlots.size());
 
 		final AllocationID allocation2 = new AllocationID();
-		final SlotPoolGateway.SlotRequestID slotRequestID2 = new SlotPoolGateway.SlotRequestID();
+		final SlotRequestID slotRequestID2 = new SlotRequestID();
 		final AllocatedSlot slot2 = createSlot(allocation2, taskManagerLocation);
 
 		allocatedSlots.add(slotRequestID2, slot2);
@@ -71,7 +71,7 @@ public class AllocatedSlotsTest extends TestLogger {
 		assertEquals(2, allocatedSlots.size());
 
 		final AllocationID allocation3 = new AllocationID();
-		final SlotPoolGateway.SlotRequestID slotRequestID3 = new SlotPoolGateway.SlotRequestID();
+		final SlotRequestID slotRequestID3 = new SlotRequestID();
 		final TaskManagerLocation taskManagerLocation2 = new LocalTaskManagerLocation();
 		final ResourceID resource2 = taskManagerLocation2.getResourceID();
 		final AllocatedSlot slot3 = createSlot(allocation3, taskManagerLocation2);

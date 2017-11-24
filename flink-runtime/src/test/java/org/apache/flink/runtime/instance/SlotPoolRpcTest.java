@@ -111,7 +111,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			pool.start(JobMasterId.generate(), "foobar");
 
 			CompletableFuture<LogicalSlot> future = pool.allocateSlot(
-				new SlotPoolGateway.SlotRequestID(),
+				new SlotRequestID(),
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
@@ -144,7 +144,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			pool.start(JobMasterId.generate(), "foobar");
 			SlotPoolGateway slotPoolGateway = pool.getSelfGateway(SlotPoolGateway.class);
 
-			SlotPoolGateway.SlotRequestID requestId = new SlotPoolGateway.SlotRequestID();
+			SlotRequestID requestId = new SlotRequestID();
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
@@ -188,7 +188,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 			pool.connectToResourceManager(resourceManagerGateway);
 
-			SlotPoolGateway.SlotRequestID requestId = new SlotPoolGateway.SlotRequestID();
+			SlotRequestID requestId = new SlotRequestID();
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
@@ -239,7 +239,7 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			pool.connectToResourceManager(resourceManagerGateway);
 
-			SlotPoolGateway.SlotRequestID requestId = new SlotPoolGateway.SlotRequestID();
+			SlotRequestID requestId = new SlotRequestID();
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
 				new ScheduledUnit(SchedulerTestUtils.getDummyTask()),
@@ -295,7 +295,7 @@ public class SlotPoolRpcTest extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
-		final CompletableFuture<SlotPoolGateway.SlotRequestID> cancelFuture = new CompletableFuture<>();
+		final CompletableFuture<SlotRequestID> cancelFuture = new CompletableFuture<>();
 
 		pool.setCancelSlotAllocationConsumer(
 			slotRequestID -> cancelFuture.complete(slotRequestID));

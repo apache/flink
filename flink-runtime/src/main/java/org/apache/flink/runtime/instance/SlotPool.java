@@ -28,7 +28,6 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.SlotContext;
 import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.SlotException;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
@@ -278,25 +277,31 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	}
 
 	@Override
-	public void returnAllocatedSlot(SlotContext allocatedSlot) {
-		internalReturnAllocatedSlot(allocatedSlot.getAllocationId());
+	public void returnAllocatedSlot(SlotRequestID slotRequestId) {
+		final AllocatedSlot allocatedSlot = allocatedSlots.remove(slotRequestId);
+
+		if (allocatedSlot != null) {
+			internalReturnAllocatedSlot(allocatedSlot);
+		} else {
+			log.debug("There is no allocated slot with request id {}. Ignoring this request.", slotRequestId);
+		}
 	}
 
 	@Override
-	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID requestId) {
-		final PendingRequest pendingRequest = removePendingRequest(requestId);
+	public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID slotRequestId) {
+		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
 
 		if (pendingRequest != null) {
-			failPendingRequest(pendingRequest, new CancellationException("Allocation with request id" + requestId + " cancelled."));
+			failPendingRequest(pendingRequest, new CancellationException("Allocation with request id" + slotRequestId + " cancelled."));
 		} else {
-			final AllocatedSlot allocatedSlot = allocatedSlots.get(requestId);
+			final AllocatedSlot allocatedSlot = allocatedSlots.get(slotRequestId);
 
 			if (allocatedSlot != null) {
-				LOG.info("Returning allocated slot {} because the corresponding allocation request {} was cancelled.", allocatedSlot, requestId);
+				LOG.info("Returning allocated slot {} because the corresponding allocation request {} was cancelled.", allocatedSlot, slotRequestId);
 				// TODO: Avoid having to send another message to do the slot releasing (e.g. introduce Slot#cancelExecution) and directly return slot
 				allocatedSlot.triggerLogicalSlotRelease();
 			} else {
-				LOG.debug("There was no slot allocation with {} to be cancelled.", requestId);
+				LOG.debug("There was no slot allocation with {} to be cancelled.", slotRequestId);
 			}
 		}
 
@@ -316,7 +321,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 
 			final SimpleSlot simpleSlot;
 			try {
-				simpleSlot = allocatedSlot.allocateSimpleSlot(slotFromPool.locality());
+				simpleSlot = allocatedSlot.allocateSimpleSlot(requestId, slotFromPool.locality());
 			} catch (SlotException e) {
 				availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
 
@@ -335,9 +340,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		return allocatedSlotFuture.thenApply(
 			(AllocatedSlot allocatedSlot) -> {
 				try {
-					return allocatedSlot.allocateSimpleSlot(Locality.UNKNOWN);
+					return allocatedSlot.allocateSimpleSlot(requestId, Locality.UNKNOWN);
 				} catch (SlotException e) {
-					returnAllocatedSlot(allocatedSlot);
+					internalReturnAllocatedSlot(allocatedSlot);
 
 					throw new CompletionException("Could not allocate a logical simple slot.", e);
 				}
@@ -495,31 +500,25 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 	 * Return the slot back to this pool without releasing it. It's mainly called by failed / cancelled tasks, and the
 	 * slot can be reused by other pending requests if the resource profile matches.n
 	 *
-	 * @param allocationId identifying the slot which is returned
+	 * @param allocatedSlot which shall be returned
 	 */
-	private void internalReturnAllocatedSlot(AllocationID allocationId) {
-		final AllocatedSlot allocatedSlot = allocatedSlots.remove(allocationId);
+	private void internalReturnAllocatedSlot(AllocatedSlot allocatedSlot) {
+		if (allocatedSlot.releaseLogicalSlot()) {
 
-		if (allocatedSlot != null) {
-			if (allocatedSlot.releaseLogicalSlot()) {
+			final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
 
-				final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
+			if (pendingRequest != null) {
+				LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
+					pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
-				if (pendingRequest != null) {
-					LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
-						pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
-
-					allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
-					pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
-				} else {
-					LOG.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
-					availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
-				}
+				allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
+				pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
 			} else {
-				LOG.debug("Failed to mark the logical slot of {} as released.", allocatedSlot);
+				LOG.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
+				availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
 			}
 		} else {
-			LOG.debug("Could not find allocated slot {}. Ignoring returning slot.", allocationId);
+			LOG.debug("Failed to mark the logical slot of {} as released.", allocatedSlot);
 		}
 	}
 
@@ -820,25 +819,48 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		/**
-		 * Remove an allocation with slot.
+		 * Removes the allocated slot specified by the provided slot allocation id.
 		 *
-		 * @param slotId The ID of the slot to be removed
+		 * @param allocationID identifying the allocated slot to remove
+		 * @return The removed allocated slot or null.
 		 */
-		AllocatedSlot remove(final AllocationID slotId) {
-			AllocatedSlot allocatedSlot = allocatedSlotsById.removeKeyA(slotId);
+		@Nullable
+		AllocatedSlot remove(final AllocationID allocationID) {
+			AllocatedSlot allocatedSlot = allocatedSlotsById.removeKeyA(allocationID);
+
 			if (allocatedSlot != null) {
-				final ResourceID taskManagerId = allocatedSlot.getTaskManagerLocation().getResourceID();
-				Set<AllocatedSlot> slotsForTM = allocatedSlotsByTaskManager.get(taskManagerId);
-
-				slotsForTM.remove(allocatedSlot);
-
-				if (slotsForTM.isEmpty()) {
-					allocatedSlotsByTaskManager.remove(taskManagerId);
-				}
-				return allocatedSlot;
+				removeAllocatedSlot(allocatedSlot);
 			}
-			else {
-				return null;
+
+			return allocatedSlot;
+		}
+
+		/**
+		 * Removes the allocated slot specified by the provided slot request id.
+		 *
+		 * @param slotRequestId identifying the allocated slot to remove
+		 * @return The removed allocated slot or null.
+		 */
+		@Nullable
+		AllocatedSlot remove(final SlotRequestID slotRequestId) {
+			final AllocatedSlot allocatedSlot = allocatedSlotsById.removeKeyB(slotRequestId);
+
+			if (allocatedSlot != null) {
+				removeAllocatedSlot(allocatedSlot);
+			}
+
+			return allocatedSlot;
+		}
+
+		private void removeAllocatedSlot(final AllocatedSlot allocatedSlot) {
+			Preconditions.checkNotNull(allocatedSlot);
+			final ResourceID taskManagerId = allocatedSlot.getTaskManagerLocation().getResourceID();
+			Set<AllocatedSlot> slotsForTM = allocatedSlotsByTaskManager.get(taskManagerId);
+
+			slotsForTM.remove(allocatedSlot);
+
+			if (slotsForTM.isEmpty()) {
+				allocatedSlotsByTaskManager.remove(taskManagerId);
 			}
 		}
 
@@ -1106,8 +1128,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway {
 		}
 
 		@Override
-		public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
-			gateway.returnAllocatedSlot(slot.getSlotContext());
+		public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot slot) {
+			gateway.returnAllocatedSlot(slot.getSlotRequestId());
 			return CompletableFuture.completedFuture(true);
 		}
 
