@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNoException;
@@ -166,9 +165,6 @@ public class YarnFileStageTestS3ITCase extends TestLogger {
 
 			YarnFileStageTest.testCopyFromLocalRecursive(fs.getHadoopFileSystem(),
 				new org.apache.hadoop.fs.Path(directory.toUri()), tempFolder, true);
-
-			// now directory must be gone
-			assertFalse(fs.exists(directory));
 		} finally {
 			// clean up
 			fs.delete(basePath, true);
