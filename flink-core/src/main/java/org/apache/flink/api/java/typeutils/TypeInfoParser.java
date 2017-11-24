@@ -293,7 +293,7 @@ public class TypeInfoParser {
 					String fieldName = fieldMatcher.group(1);
 					sb.delete(0, fieldName.length() + 1);
 
-					Field field = TypeExtractor.getDeclaredField(clazz, fieldName);
+					Field field = TypeExtractionUtils.getDeclaredField(clazz, fieldName);
 					if (field == null) {
 						throw new IllegalArgumentException("Field '" + fieldName + "'could not be accessed.");
 					}

@@ -101,7 +101,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Joda and jackson are used to test that serialization and type extraction
+		<!-- Joda, jackson, and lombok are used to test that serialization and type extraction
 			work with types from those libraries -->
 
 		<dependency>
@@ -119,6 +119,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-jackson</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.16.18</version>
 			<scope>test</scope>
 		</dependency>
 

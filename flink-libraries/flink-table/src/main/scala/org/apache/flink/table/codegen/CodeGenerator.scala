@@ -1381,7 +1381,7 @@ abstract class CodeGenerator(
     val fieldExtraction =
       s"""
         |final java.lang.reflect.Field $fieldTerm =
-        |    org.apache.flink.api.java.typeutils.TypeExtractor.getDeclaredField(
+        |    ${classOf[TypeExtractionUtils].getCanonicalName}.getDeclaredField(
         |      ${clazz.getCanonicalName}.class, "$fieldName");
         |""".stripMargin
     reusableMemberStatements.add(fieldExtraction)

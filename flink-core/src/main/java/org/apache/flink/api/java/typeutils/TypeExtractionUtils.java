@@ -18,8 +18,13 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.InvalidTypesException;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -29,9 +34,6 @@ import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.InvalidTypesException;
 
 import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getConstructorDescriptor;
 import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getMethodDescriptor;
@@ -337,5 +339,79 @@ public class TypeExtractionUtils {
 			return Array.newInstance(getRawClass(component), 0).getClass();
 		}
 		return Object.class;
+	}
+
+	/**
+	 * Count the number of all accessible fields in the current class that are not
+	 * declared static, transient, or final.
+	 */
+	public static int countFieldsInClass(Class<?> clazz) {
+		int fieldCount = 0;
+		for (Field field : getAllDeclaredFields(clazz, true)) {
+			if (!Modifier.isStatic(field.getModifiers()) && !Modifier.isTransient(field.getModifiers()) &&
+					!Modifier.isFinal(field.getModifiers())) {
+				fieldCount++;
+			}
+		}
+		return fieldCount;
+	}
+
+	/**
+	 * Returns the declared field with the given name in a class hierarchy. The field might be private. Returns
+	 * null if such a field does not exist.
+	 */
+	public static Field getDeclaredField(Class<?> clazz, String name) {
+		for (Field field : getAllDeclaredFields(clazz, true)) {
+			if (field.getName().equals(name)) {
+				return field;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Recursively determine all declared fields that are not static, transient, or final.
+	 * This is required because class.getFields() is not returning fields defined
+	 * in parent classes.
+	 *
+	 * @param clazz class to be analyzed
+	 * @param ignoreDuplicates if true, in case of duplicate field names only the lowest one
+	 *                            in a hierarchy will be returned; throws an exception otherwise
+	 * @return list of fields
+	 */
+	public static List<Field> getAllDeclaredFields(Class<?> clazz, boolean ignoreDuplicates) {
+		List<Field> result = new ArrayList<>();
+		while (clazz != null) {
+			Field[] fields = clazz.getDeclaredFields();
+			for (Field field : fields) {
+				if (Modifier.isStatic(field.getModifiers()) || Modifier.isTransient(field.getModifiers()) ||
+						Modifier.isFinal(field.getModifiers())) {
+					continue; // we have no use for transient, static, or final fields
+				}
+				if (hasFieldWithSameName(field.getName(), result)) {
+					if (ignoreDuplicates) {
+						continue;
+					} else {
+						throw new InvalidTypesException("The field " + field + " is already contained in the hierarchy of the " + clazz.getName() + ". "
+							+ "Please use unique field names through your classes hierarchy");
+					}
+				}
+				result.add(field);
+			}
+			clazz = clazz.getSuperclass();
+		}
+		return result;
+	}
+
+	/**
+	 * Check if a field with the given name exists in a list of fields.
+	 */
+	private static boolean hasFieldWithSameName(String name, List<Field> fields) {
+		for (Field field : fields) {
+			if (name.equals(field.getName())) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

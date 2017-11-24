@@ -26,10 +26,10 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.types.Either;
 
 import org.apache.avro.specific.SpecificRecordBase;
 
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,15 +96,14 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 				IN_BACKWARDS_COMPATIBLE_MODE.putIfAbsent(currentThread, useBackwardsCompatibleSerializer) == null;
 
 		try {
-			PojoTypeExtractor pte = new PojoTypeExtractor();
 			ArrayList<Type> typeHierarchy = new ArrayList<>();
 			typeHierarchy.add(typeClass);
-			TypeInformation ti = pte.analyzePojo(typeClass, typeHierarchy, null, null, null);
+			Either<TypeInformation<T>, String> ti = TypeExtractor.analyzePojo(typeClass, typeHierarchy, null, null, null);
 
-			if (!(ti instanceof PojoTypeInfo)) {
+			if (ti.isRight()) {
 				throw new IllegalStateException("Expecting type to be a PojoTypeInfo");
 			}
-			PojoTypeInfo pti =  (PojoTypeInfo) ti;
+			PojoTypeInfo pti =  (PojoTypeInfo) ti.left();
 			List<PojoField> newFields = new ArrayList<>(pti.getTotalFields());
 
 			for (int i = 0; i < pti.getArity(); i++) {
@@ -126,18 +125,6 @@ public class AvroTypeInfo<T extends SpecificRecordBase> extends PojoTypeInfo<T> 
 			if (entryPoint) {
 				IN_BACKWARDS_COMPATIBLE_MODE.remove(currentThread);
 			}
-		}
-	}
-
-	private static class PojoTypeExtractor extends TypeExtractor {
-		private PojoTypeExtractor() {
-			super();
-		}
-
-		@Override
-		public <OUT, IN1, IN2> TypeInformation<OUT> analyzePojo(Class<OUT> clazz, ArrayList<Type> typeHierarchy,
-				ParameterizedType parameterizedType, TypeInformation<IN1> in1Type, TypeInformation<IN2> in2Type) {
-			return super.analyzePojo(clazz, typeHierarchy, parameterizedType, in1Type, in2Type);
 		}
 	}
 }

@@ -245,7 +245,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, Degrees>> {
 	extends Tuple3<LongValue, LongValue, LongValue> {
 		private static final int HASH_SEED = 0x3a12fc31;
 
-		private MurmurHash hasher = new MurmurHash(HASH_SEED);
+		private final MurmurHash hasher = new MurmurHash(HASH_SEED);
 
 		public Degrees() {
 			this(new LongValue(), new LongValue(), new LongValue());

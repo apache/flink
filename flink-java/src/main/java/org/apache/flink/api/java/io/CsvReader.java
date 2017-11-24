@@ -20,6 +20,7 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.operators.DataSource;
@@ -316,14 +317,19 @@ public class CsvReader {
 		Preconditions.checkNotNull(pojoType, "The POJO type class must not be null.");
 		Preconditions.checkNotNull(pojoFields, "POJO fields must be specified (not null) if output type is a POJO.");
 
-		@SuppressWarnings("unchecked")
-		PojoTypeInfo<T> typeInfo = (PojoTypeInfo<T>) TypeExtractor.createTypeInfo(pojoType);
+		TypeInformation<T> ti = TypeExtractor.createTypeInfo(pojoType);
+		if (!(ti instanceof PojoTypeInfo)) {
+			throw new IllegalArgumentException("The POJO type class must meet the POJO requirements.");
+		}
 
-		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, pojoFields, this.includedMask);
+		@SuppressWarnings("unchecked")
+		PojoTypeInfo<T> pti = (PojoTypeInfo<T>) ti;
+
+		CsvInputFormat<T> inputFormat = new PojoCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, pti, pojoFields, this.includedMask);
 
 		configureInputFormat(inputFormat);
 
-		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+		return new DataSource<T>(executionContext, inputFormat, pti, Utils.getCallLocationName());
 	}
 
 	/**
@@ -339,18 +345,23 @@ public class CsvReader {
 		if (!Tuple.class.isAssignableFrom(targetType)) {
 			throw new IllegalArgumentException("The target type must be a subclass of " + Tuple.class.getName());
 		}
+		TypeInformation<T> ti = TypeExtractor.createTypeInfo(targetType);
+		if (!ti.isTupleType()) {
+			throw new IllegalArgumentException("The target type must be a subclass of " +
+				Tuple.class.getName() + " and meet the POJO requirements.");
+		}
 
 		@SuppressWarnings("unchecked")
-		TupleTypeInfo<T> typeInfo = (TupleTypeInfo<T>) TypeExtractor.createTypeInfo(targetType);
-		CsvInputFormat<T> inputFormat = new TupleCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, typeInfo, this.includedMask);
+		TupleTypeInfo<T> tti = (TupleTypeInfo<T>) ti;
+		CsvInputFormat<T> inputFormat = new TupleCsvInputFormat<T>(path, this.lineDelimiter, this.fieldDelimiter, tti, this.includedMask);
 
-		Class<?>[] classes = new Class<?>[typeInfo.getArity()];
-		for (int i = 0; i < typeInfo.getArity(); i++) {
-			classes[i] = typeInfo.getTypeAt(i).getTypeClass();
+		Class<?>[] classes = new Class<?>[tti.getArity()];
+		for (int i = 0; i < tti.getArity(); i++) {
+			classes[i] = tti.getTypeAt(i).getTypeClass();
 		}
 
 		configureInputFormat(inputFormat);
-		return new DataSource<T>(executionContext, inputFormat, typeInfo, Utils.getCallLocationName());
+		return new DataSource<T>(executionContext, inputFormat, tti, Utils.getCallLocationName());
 	}
 
 	// --------------------------------------------------------------------------------------------

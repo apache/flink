@@ -304,19 +304,31 @@ public class CSVReaderTest {
 	// Custom types for testing
 	// --------------------------------------------------------------------------------------------
 
-	private static class Item extends Tuple4<Integer, String, Double, String> {
+	/**
+	 * Tuple subclass for testing.
+	 */
+	public static class Item extends Tuple4<Integer, String, Double, String> {
 		private static final long serialVersionUID = -7444437337392053502L;
 	}
 
-	private static class SubItem extends Item {
+	/**
+	 * Tuple subclass for testing.
+	 */
+	public static class SubItem extends Item {
 		private static final long serialVersionUID = 1L;
 	}
 
-	private static class PartialItem<A, B, C> extends Tuple5<Integer, A, Double, B, C> {
+	/**
+	 * Tuple subclass for testing.
+	 */
+	public static class PartialItem<A, B, C> extends Tuple5<Integer, A, Double, B, C> {
 		private static final long serialVersionUID = 1L;
 	}
 
-	private static class FinalItem extends PartialItem<String, StringValue, LongValue> {
+	/**
+	 * Tuple subclass for testing.
+	 */
+	public static class FinalItem extends PartialItem<String, StringValue, LongValue> {
 		private static final long serialVersionUID = 1L;
 	}
 

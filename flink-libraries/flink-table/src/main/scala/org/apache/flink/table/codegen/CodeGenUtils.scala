@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo._
 import org.apache.flink.api.common.typeinfo.{FractionalTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
+import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo, TypeCheckUtils}
 
@@ -258,7 +258,7 @@ object CodeGenUtils {
   }
 
   def getFieldAccessor(clazz: Class[_], fieldName: String): FieldAccessor = {
-    val field = TypeExtractor.getDeclaredField(clazz, fieldName)
+    val field = TypeExtractionUtils.getDeclaredField(clazz, fieldName)
     if (field.isAccessible) {
       ObjectFieldAccessor(field)
     }

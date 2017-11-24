@@ -18,7 +18,10 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+
+import org.junit.Test;
 
 /**
  * Test for {@link PojoTypeInfo}.
@@ -33,6 +36,25 @@ public class PojoTypeInfoTest extends TypeInformationTestBase<PojoTypeInfo<?>>{
 			(PojoTypeInfo<?>) TypeExtractor.getForClass(PrimitivePojo.class),
 			(PojoTypeInfo<?>) TypeExtractor.getForClass(UnderscorePojo.class)
 		};
+	}
+
+	@Test
+	public void testEnsurePojo() {
+		PojoTypeInfo.ensurePojo(TestPojo.class);
+	}
+
+	@Test(expected = InvalidTypesException.class)
+	public void testEnsurePojoException() {
+		PojoTypeInfo.ensurePojo(InvalidPojo.class);
+	}
+
+	public static final class InvalidPojo {
+		public int test;
+
+		// default constructor is missing
+		public InvalidPojo(int test) {
+			this.test = test;
+		}
 	}
 
 	public static final class TestPojo {

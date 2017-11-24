@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -30,9 +31,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.PojoComparator;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.types.Either;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -358,6 +361,27 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return "PojoType<" + getTypeClass().getName()
 				+ ", fields = [" + StringUtils.join(fieldStrings, ", ") + "]"
 				+ ">";
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Helper method to ensure that the given type is a valid POJO that meets the
+	 * requirements of Flink's type extraction system. Throws an {@link InvalidTypesException} if
+	 * the given class is not a valid POJO. The exception gives hints about the requirements that
+	 * are not met.
+	 *
+	 * @param clazz class to be checked
+	 */
+	@SuppressWarnings("unchecked")
+	@PublicEvolving
+	public static void ensurePojo(Class<?> clazz) {
+		final ArrayList<Type> typeHierarchy = new ArrayList<>();
+		typeHierarchy.add(clazz);
+		final Either<TypeInformation<?>, String> result = TypeExtractor.analyzePojo((Class) clazz, typeHierarchy, null, null, null);
+		if (result.isRight()) {
+			throw new InvalidTypesException(result.right());
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
