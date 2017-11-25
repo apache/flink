@@ -106,12 +106,12 @@ public class Row implements Serializable{
 
 		Row row = (Row) o;
 
-		return Arrays.equals(fields, row.fields);
+		return Arrays.deepEquals(fields, row.fields);
 	}
 
 	@Override
 	public int hashCode() {
-		return Arrays.hashCode(fields);
+		return Arrays.deepHashCode(fields);
 	}
 
 	/**
