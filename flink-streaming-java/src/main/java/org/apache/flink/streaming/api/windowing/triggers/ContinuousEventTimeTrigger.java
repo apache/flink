@@ -36,7 +36,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
 @PublicEvolving
-public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object, W> {
+public class ContinuousEventTimeTrigger<T, W extends Window> extends Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long interval;
@@ -50,7 +50,7 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 
 		if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
 			// if the watermark is already past the window fire immediately
@@ -136,7 +136,7 @@ public class ContinuousEventTimeTrigger<W extends Window> extends Trigger<Object
 	 * @param interval The time interval at which to fire.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <W extends Window> ContinuousEventTimeTrigger<W> of(Time interval) {
+	public static <T, W extends Window> ContinuousEventTimeTrigger<T, W> of(Time interval) {
 		return new ContinuousEventTimeTrigger<>(interval.toMilliseconds());
 	}
 

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction, WindowFunction}
+import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor
@@ -197,7 +197,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[EventTimeSessionWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -235,7 +235,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -268,7 +268,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -301,7 +301,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -340,7 +340,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -379,7 +379,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -419,7 +419,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -458,7 +458,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -497,7 +497,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -532,7 +532,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -569,7 +569,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -602,7 +602,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -635,7 +635,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -668,7 +668,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -701,7 +701,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -734,7 +734,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -771,7 +771,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[AggregatingStateDescriptor[_, _, _]])
 
@@ -808,7 +808,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -841,7 +841,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -874,7 +874,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -916,7 +916,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -957,7 +957,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -998,7 +998,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -1039,7 +1039,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -1081,7 +1081,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -1119,7 +1119,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -1162,7 +1162,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1201,7 +1201,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1240,7 +1240,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1279,7 +1279,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[ProcessingTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingProcessingTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1314,7 +1314,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1349,7 +1349,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_]])
+    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
 
@@ -1383,7 +1383,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_]])
+    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
 
@@ -1423,7 +1423,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_]])
+    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1463,7 +1463,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[WindowOperator[String, (String, Int), _, (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_]])
+    assertTrue(winOperator.getTrigger.isInstanceOf[CountTrigger[_, _]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
 
@@ -1498,7 +1498,7 @@ class AllWindowTranslationTest {
       .asInstanceOf[
       EvictingWindowOperator[String, (String, Int), (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getEvictor.isInstanceOf[CountEvictor[_]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
@@ -1534,7 +1534,7 @@ class AllWindowTranslationTest {
       .asInstanceOf[
       EvictingWindowOperator[String, (String, Int), (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getEvictor.isInstanceOf[CountEvictor[_]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
@@ -1579,7 +1579,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[EvictingWindowOperator[String, (String, Int), (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getEvictor.isInstanceOf[CountEvictor[_]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
@@ -1620,7 +1620,7 @@ class AllWindowTranslationTest {
     val winOperator = operator
       .asInstanceOf[EvictingWindowOperator[String, (String, Int), (String, Int), _ <: Window]]
 
-    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator.getTrigger.isInstanceOf[EventTimeTrigger[_, _]])
     assertTrue(winOperator.getEvictor.isInstanceOf[CountEvictor[_]])
     assertTrue(winOperator.getWindowAssigner.isInstanceOf[TumblingEventTimeWindows])
     assertTrue(winOperator.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])

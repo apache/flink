@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
 @PublicEvolving
-public class CountTrigger<W extends Window> extends Trigger<Object, W> {
+public class CountTrigger<T, W extends Window> extends Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long maxCount;
@@ -44,7 +44,7 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> count = ctx.getPartitionedState(stateDesc);
 		count.add(1L);
 		if (count.get() >= maxCount) {
@@ -90,7 +90,7 @@ public class CountTrigger<W extends Window> extends Trigger<Object, W> {
 	 * @param maxCount The count of elements at which to fire.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <W extends Window> CountTrigger<W> of(long maxCount) {
+	public static <T, W extends Window> CountTrigger<T, W> of(long maxCount) {
 		return new CountTrigger<>(maxCount);
 	}
 

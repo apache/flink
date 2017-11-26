@@ -40,7 +40,7 @@ public class CountTriggerTest {
 	@Test
 	public void testWindowSeparationAndFiring() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(CountTrigger.<TimeWindow>of(3), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(CountTrigger.<Object, TimeWindow>of(3), new TimeWindow.Serializer());
 
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));
@@ -75,7 +75,7 @@ public class CountTriggerTest {
 	@Test
 	public void testClear() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(CountTrigger.<TimeWindow>of(3), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(CountTrigger.<Object, TimeWindow>of(3), new TimeWindow.Serializer());
 
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));
@@ -104,7 +104,7 @@ public class CountTriggerTest {
 	@Test
 	public void testMergingWindows() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(CountTrigger.<TimeWindow>of(3), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(CountTrigger.<Object, TimeWindow>of(3), new TimeWindow.Serializer());
 
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));
@@ -142,7 +142,7 @@ public class CountTriggerTest {
 	@Test
 	public void testMergeSubsumingWindow() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(CountTrigger.<TimeWindow>of(3), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(CountTrigger.<Object, TimeWindow>of(3), new TimeWindow.Serializer());
 
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(4, 6)));

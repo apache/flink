@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.scala
 import java.lang
 
 import org.apache.flink.api.common.functions._
-import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.functions.ProcessFunction
@@ -69,7 +68,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
     val windowed = connected
       .windowAll(GlobalWindows.create())
-      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
+      .trigger(PurgingTrigger.of(CountTrigger.of[(Long, Long), GlobalWindow](10)))
       .fold((0L, 0L))(func)
 
     windowed.name("testWindowFold")
@@ -248,7 +247,7 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
     val map = src.map(x => (0L, 0L))
     val windowed: DataStream[(Long, Long)] = map
       .windowAll(GlobalWindows.create())
-      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](10)))
+      .trigger(PurgingTrigger.of(CountTrigger.of[(Long, Long), GlobalWindow](10)))
       .fold((0L, 0L))((x: (Long, Long), y: (Long, Long)) => (0L, 0L))
 
     windowed.print()
@@ -379,14 +378,14 @@ class DataStreamTest extends StreamingMultipleProgramsTestBase {
 
     val window: DataStream[String] = map
       .windowAll(GlobalWindows.create())
-      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
+      .trigger(PurgingTrigger.of(CountTrigger.of[(Integer, String), GlobalWindow](5)))
       .apply((w: GlobalWindow, x: Iterable[(Integer, String)], y: Collector[String]) => {})
 
     assert(TypeExtractor.getForClass(classOf[String]) == window.getType)
 
     val flatten: DataStream[Int] = window
       .windowAll(GlobalWindows.create())
-      .trigger(PurgingTrigger.of(CountTrigger.of[GlobalWindow](5)))
+      .trigger(PurgingTrigger.of(CountTrigger.of[String, GlobalWindow](5)))
       .fold(0)((accumulator: Int, value: String) => 0)
     assert(TypeExtractor.getForClass(classOf[Int]) == flatten.getType())
 

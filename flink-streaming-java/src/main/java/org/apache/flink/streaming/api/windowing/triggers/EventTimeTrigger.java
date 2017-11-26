@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.windowing.triggers;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
  * A {@link Trigger} that fires once the watermark passes the end of the window
@@ -28,13 +28,13 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
 @PublicEvolving
-public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
+public class EventTimeTrigger<T, W extends Window> extends Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private EventTimeTrigger() {}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
 			// if the watermark is already past the window fire immediately
 			return TriggerResult.FIRE;
@@ -45,19 +45,19 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public TriggerResult onEventTime(long time, TimeWindow window, TriggerContext ctx) {
+	public TriggerResult onEventTime(long time, W window, TriggerContext ctx) {
 		return time == window.maxTimestamp() ?
 			TriggerResult.FIRE :
 			TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public TriggerResult onProcessingTime(long time, TimeWindow window, TriggerContext ctx) throws Exception {
+	public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx) throws Exception {
 		return TriggerResult.CONTINUE;
 	}
 
 	@Override
-	public void clear(TimeWindow window, TriggerContext ctx) throws Exception {
+	public void clear(W window, TriggerContext ctx) throws Exception {
 		ctx.deleteEventTimeTimer(window.maxTimestamp());
 	}
 
@@ -67,8 +67,8 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	}
 
 	@Override
-	public void onMerge(TimeWindow window,
-			OnMergeContext ctx) {
+	public void onMerge(W window,
+						OnMergeContext ctx) {
 		ctx.registerEventTimeTimer(window.maxTimestamp());
 	}
 
@@ -83,7 +83,7 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	 * <p>Once the trigger fires all elements are discarded. Elements that arrive late immediately
 	 * trigger window evaluation with just this one element.
 	 */
-	public static EventTimeTrigger create() {
-		return new EventTimeTrigger();
+	public static <T, W extends Window> EventTimeTrigger<T, W> create() {
+		return new EventTimeTrigger<>();
 	}
 }

@@ -46,7 +46,7 @@ public class ContinuousEventTimeTriggerTest {
 	@Test
 	public void testTriggerHandlesAllOnTimerCalls() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<TimeWindow>of(Time.milliseconds(5)), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<Object, TimeWindow>of(Time.milliseconds(5)), new TimeWindow.Serializer());
 
 		assertEquals(0, testHarness.numStateEntries());
 		assertEquals(0, testHarness.numProcessingTimeTimers());
@@ -70,7 +70,7 @@ public class ContinuousEventTimeTriggerTest {
 	@Test
 	public void testWindowSeparationAndFiring() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<Object, TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
 
 		// inject several elements
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
@@ -123,7 +123,7 @@ public class ContinuousEventTimeTriggerTest {
 	@Test
 	public void testLateElementTriggersImmediately() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<Object, TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
 
 		testHarness.advanceWatermark(2);
 
@@ -141,7 +141,7 @@ public class ContinuousEventTimeTriggerTest {
 	@Test
 	public void testClear() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<Object, TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
 
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));
@@ -170,9 +170,9 @@ public class ContinuousEventTimeTriggerTest {
 	@Test
 	public void testMergingWindows() throws Exception {
 		TriggerTestHarness<Object, TimeWindow> testHarness =
-				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
+				new TriggerTestHarness<>(ContinuousEventTimeTrigger.<Object, TimeWindow>of(Time.hours(1)), new TimeWindow.Serializer());
 
-		assertTrue(ContinuousEventTimeTrigger.<TimeWindow>of(Time.hours(1)).canMerge());
+		assertTrue(ContinuousEventTimeTrigger.<Object, TimeWindow>of(Time.hours(1)).canMerge());
 
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(0, 2)));
 		assertEquals(TriggerResult.CONTINUE, testHarness.processElement(new StreamRecord<Object>(1), new TimeWindow(2, 4)));

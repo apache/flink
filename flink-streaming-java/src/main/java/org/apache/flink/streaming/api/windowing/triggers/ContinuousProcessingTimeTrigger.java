@@ -34,7 +34,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * @param <W> The type of {@link Window Windows} on which this trigger can operate.
  */
 @PublicEvolving
-public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<Object, W> {
+public class ContinuousProcessingTimeTrigger<T, W extends Window> extends Trigger<T, W> {
 	private static final long serialVersionUID = 1L;
 
 	private final long interval;
@@ -48,7 +48,7 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 	}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, W window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(T element, long timestamp, W window, TriggerContext ctx) throws Exception {
 		ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
 
 		timestamp = ctx.getCurrentProcessingTime();
@@ -116,9 +116,10 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
 	 * Creates a trigger that continuously fires based on the given interval.
 	 *
 	 * @param interval The time interval at which to fire.
+	 * @param <T> The type of element on which this trigger can operate.
 	 * @param <W> The type of {@link Window Windows} on which this trigger can operate.
 	 */
-	public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(Time interval) {
+	public static <T, W extends Window> ContinuousProcessingTimeTrigger<T, W> of(Time interval) {
 		return new ContinuousProcessingTimeTrigger<>(interval.toMilliseconds());
 	}
 
