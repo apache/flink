@@ -146,13 +146,6 @@ class MapTypeTest extends MapTypeTestBase {
       "f5 = f2['a']",
       "true")
 
-    // comparison
-    testAllApis(
-      'f5 === 'f2.at("a"),
-      "f5 === f2.at('a')",
-      "f5 = f2['a']",
-      "true")
-
     testAllApis(
       'f0.at("map is null"),
       "f0.at('map is null')",
