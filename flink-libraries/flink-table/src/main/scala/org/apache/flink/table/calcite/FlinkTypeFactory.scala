@@ -438,8 +438,8 @@ object FlinkTypeFactory {
       val relRecordType = relDataType.asInstanceOf[RelRecordType]
       new RowSchema(relRecordType).typeInfo
 
-    // ROW and CURSOR for UDTF case, whose type info will never be used, just a placeholder
-    case ROW | CURSOR => new NothingTypeInfo
+    // CURSOR for UDTF case, whose type info will never be used, just a placeholder
+    case CURSOR => new NothingTypeInfo
 
     case ARRAY if relDataType.isInstanceOf[ArrayRelDataType] =>
       val arrayRelDataType = relDataType.asInstanceOf[ArrayRelDataType]

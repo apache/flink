@@ -1313,6 +1313,19 @@ abstract class CodeGenerator(
     }
   }
 
+  private[flink] def generateBoxedElementWithNullableSupport(
+      element: GeneratedExpression,
+      boxedTypeTerm: String)
+    : GeneratedExpression = {
+    val boxedExpr = generateOutputFieldBoxing(element)
+    val exprOrNull: String = if (nullCheck) {
+      s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
+    } else {
+      boxedExpr.resultTerm
+    }
+    boxedExpr.copy(resultTerm = exprOrNull)
+  }
+
   private[flink] def generateStreamRecordRowtimeAccess(): GeneratedExpression = {
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")

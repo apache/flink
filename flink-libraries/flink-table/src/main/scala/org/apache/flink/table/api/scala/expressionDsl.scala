@@ -960,6 +960,19 @@ object array {
 }
 
 /**
+  * Creates an row of literals.
+  */
+object row {
+
+  /**
+    * Creates a row of literals.
+    */
+  def apply(head: Expression, tail: Expression*): Expression = {
+    RowConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
   * Creates a map of literals. The map will be a map between two objects (not primitives).
   */
 object map {

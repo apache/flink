@@ -23,7 +23,7 @@ import org.apache.calcite.util.BuiltInMethod
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.calls.CallGenerator.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenException, CodeGenerator, GeneratedExpression}
@@ -858,20 +858,13 @@ object ScalarOperators {
     val rowTerm = codeGenerator.addReusableRow(resultType.getArity, elements.size)
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
-      case ct: CompositeType[_] =>
-        elements.zipWithIndex.map{
-          case (e, idx) =>
-            val boxedTypeTerm = boxedTypeTermForTypeInfo(ct.getTypeAt(idx))
-            val boxedExpr = codeGenerator.generateOutputFieldBoxing(e)
-            val exprOrNull: String = if (codeGenerator.nullCheck) {
-              s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
-            } else {
-              boxedExpr.resultTerm
-            }
-            boxedExpr.copy(resultTerm = exprOrNull)
+      case ct: RowTypeInfo => // should always be RowTypeInfo
+        elements.zipWithIndex.map {
+          case (e, idx) => codeGenerator.generateBoxedElementWithNullableSupport(e,
+            boxedTypeTermForTypeInfo(ct.getTypeAt(idx)))
         }
       case _ => throw new CodeGenException(s"Unsupported Row generate operation, " +
-        s"expected CompositeType but found $resultType!")
+        s"expected RowTypeInfo but found $resultType!")
     }
 
     val code = boxedElements
@@ -895,21 +888,12 @@ object ScalarOperators {
     val arrayTerm = codeGenerator.addReusableArray(resultType.getTypeClass, elements.size)
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
-
+      // we box the elements to also represent null values
       case oati: ObjectArrayTypeInfo[_, _] =>
-        // we box the elements to also represent null values
         val boxedTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
-
         elements.map { e =>
-          val boxedExpr = codeGenerator.generateOutputFieldBoxing(e)
-          val exprOrNull: String = if (codeGenerator.nullCheck) {
-            s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
-          } else {
-            boxedExpr.resultTerm
-          }
-          boxedExpr.copy(resultTerm = exprOrNull)
+          codeGenerator.generateBoxedElementWithNullableSupport(e, boxedTypeTerm)
         }
-
       // no boxing necessary
       case _: PrimitiveArrayTypeInfo[_] => elements
     }
@@ -1123,22 +1107,12 @@ object ScalarOperators {
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
       case mti: MapTypeInfo[_, _] =>
-        // we box the elements to also represent null values
         val boxedKeyTypeTerm = boxedTypeTermForTypeInfo(mti.getKeyTypeInfo)
         val boxedValueTypeTerm = boxedTypeTermForTypeInfo(mti.getValueTypeInfo)
 
-        elements.zipWithIndex.map { case (element, idx) =>
-          val boxedExpr = codeGenerator.generateOutputFieldBoxing(element)
-          val exprOrNull: String = if (codeGenerator.nullCheck) {
-            if (idx % 2 == 0) {
-              s"${boxedExpr.nullTerm} ? null : ($boxedKeyTypeTerm) ${boxedExpr.resultTerm}"
-            } else {
-              s"${boxedExpr.nullTerm} ? null : ($boxedValueTypeTerm) ${boxedExpr.resultTerm}"
-            }
-          } else {
-            boxedExpr.resultTerm
-          }
-          boxedExpr.copy(resultTerm = exprOrNull)
+        elements.zipWithIndex.map { case (e, idx) =>
+          codeGenerator.generateBoxedElementWithNullableSupport(e,
+            if (idx % 2 == 0) boxedKeyTypeTerm else boxedValueTypeTerm)
         }
     }
 
