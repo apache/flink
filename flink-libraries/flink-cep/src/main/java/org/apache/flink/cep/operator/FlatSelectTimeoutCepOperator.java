@@ -20,7 +20,9 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
@@ -28,6 +30,7 @@ import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.PatternFlatTimeoutFunction;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.util.OutputTag;
 
@@ -102,7 +105,7 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 	 * in one udf.
 	 */
 	@Internal
-	public static class FlatSelectWrapper<IN, OUT1, OUT2> implements Function {
+	public static class FlatSelectWrapper<IN, OUT1, OUT2> extends AbstractRichFunction {
 
 		private static final long serialVersionUID = -8320546120157150202L;
 
@@ -124,6 +127,26 @@ public class FlatSelectTimeoutCepOperator<IN, OUT1, OUT2, KEY> extends
 			PatternFlatTimeoutFunction<IN, OUT2> flatTimeoutFunction) {
 			this.flatSelectFunction = flatSelectFunction;
 			this.flatTimeoutFunction = flatTimeoutFunction;
+		}
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			if (flatSelectFunction instanceof RichFunction) {
+				((RichFunction) flatSelectFunction).open(parameters);
+			}
+			if (flatTimeoutFunction instanceof RichFunction) {
+				((RichFunction) flatTimeoutFunction).open(parameters);
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			if (flatSelectFunction instanceof RichFunction) {
+				((RichFunction) flatSelectFunction).close();
+			}
+			if (flatTimeoutFunction instanceof RichFunction) {
+				((RichFunction) flatTimeoutFunction).close();
+			}
 		}
 	}
 }

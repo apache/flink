@@ -19,7 +19,8 @@
 package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
@@ -27,6 +28,7 @@ import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternTimeoutFunction;
 import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
@@ -54,8 +56,8 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		final EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
-		PatternSelectFunction<IN, OUT1> flatSelectFunction,
-		PatternTimeoutFunction<IN, OUT2> flatTimeoutFunction,
+		PatternSelectFunction<IN, OUT1> selectFunction,
+		PatternTimeoutFunction<IN, OUT2> timeoutFunction,
 		OutputTag<OUT2> outputTag) {
 		super(
 			inputSerializer,
@@ -63,14 +65,14 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 			nfaFactory,
 			comparator,
 			skipStrategy,
-			new SelectWrapper<>(flatSelectFunction, flatTimeoutFunction));
+			new SelectWrapper<>(selectFunction, timeoutFunction));
 		this.timedOutOutputTag = outputTag;
 	}
 
 	@Override
 	protected void processMatchedSequences(Iterable<Map<String, List<IN>>> matchingSequences, long timestamp) throws Exception {
 		for (Map<String, List<IN>> match : matchingSequences) {
-			output.collect(new StreamRecord<>(getUserFunction().getFlatSelectFunction().select(match), timestamp));
+			output.collect(new StreamRecord<>(getUserFunction().getSelectFunction().select(match), timestamp));
 		}
 	}
 
@@ -80,7 +82,7 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 		for (Tuple2<Map<String, List<IN>>, Long> match : timedOutSequences) {
 			output.collect(timedOutOutputTag,
 				new StreamRecord<>(
-					getUserFunction().getFlatTimeoutFunction().timeout(match.f0, match.f1),
+					getUserFunction().getTimeoutFunction().timeout(match.f0, match.f1),
 					timestamp));
 		}
 	}
@@ -93,26 +95,46 @@ public class SelectTimeoutCepOperator<IN, OUT1, OUT2, KEY>
 	 * @param <OUT2> Type of the timed out output elements
 	 */
 	@Internal
-	public static class SelectWrapper<IN, OUT1, OUT2> implements Function {
+	public static class SelectWrapper<IN, OUT1, OUT2> extends AbstractRichFunction {
 
 		private static final long serialVersionUID = -8320546120157150202L;
 
-		private PatternSelectFunction<IN, OUT1> flatSelectFunction;
-		private PatternTimeoutFunction<IN, OUT2> flatTimeoutFunction;
+		private PatternSelectFunction<IN, OUT1> selectFunction;
+		private PatternTimeoutFunction<IN, OUT2> timeoutFunction;
 
-		PatternSelectFunction<IN, OUT1> getFlatSelectFunction() {
-			return flatSelectFunction;
+		PatternSelectFunction<IN, OUT1> getSelectFunction() {
+			return selectFunction;
 		}
 
-		PatternTimeoutFunction<IN, OUT2> getFlatTimeoutFunction() {
-			return flatTimeoutFunction;
+		PatternTimeoutFunction<IN, OUT2> getTimeoutFunction() {
+			return timeoutFunction;
 		}
 
 		public SelectWrapper(
-			PatternSelectFunction<IN, OUT1> flatSelectFunction,
-			PatternTimeoutFunction<IN, OUT2> flatTimeoutFunction) {
-			this.flatSelectFunction = flatSelectFunction;
-			this.flatTimeoutFunction = flatTimeoutFunction;
+			PatternSelectFunction<IN, OUT1> selectFunction,
+			PatternTimeoutFunction<IN, OUT2> timeoutFunction) {
+			this.selectFunction = selectFunction;
+			this.timeoutFunction = timeoutFunction;
+		}
+
+		@Override
+		public void open(Configuration parameters) throws Exception {
+			if (selectFunction instanceof RichFunction) {
+				((RichFunction) selectFunction).open(parameters);
+			}
+			if (timeoutFunction instanceof RichFunction) {
+				((RichFunction) timeoutFunction).open(parameters);
+			}
+		}
+
+		@Override
+		public void close() throws Exception {
+			if (selectFunction instanceof RichFunction) {
+				((RichFunction) selectFunction).close();
+			}
+			if (timeoutFunction instanceof RichFunction) {
+				((RichFunction) timeoutFunction).close();
+			}
 		}
 	}
 }
