@@ -106,7 +106,11 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 				}
 				return new CachedStreamStateHandle(cacheId, remoteHandle);
 			} else {
-				return remoteOut.closeAndGetHandle();
+				if (remoteOut != null) {
+					return remoteOut.closeAndGetHandle();
+				} else {
+					return null;
+				}
 			}
 		}
 

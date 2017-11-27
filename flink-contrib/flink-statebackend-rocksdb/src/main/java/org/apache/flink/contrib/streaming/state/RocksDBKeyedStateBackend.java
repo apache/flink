@@ -1544,7 +1544,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					stateBackend.lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
 
 					// commit re-cache
-					stateBackend.cache.commitCache(CheckpointCache.CHECKPOINT_ID_FOR_RESTORE, false);
+					if (stateBackend.cache != null) {
+						stateBackend.cache.commitCache(CheckpointCache.CHECKPOINT_ID_FOR_RESTORE, false);
+					}
 				}
 			} finally {
 				FileSystem restoreFileSystem = restoreInstancePath.getFileSystem();

@@ -37,6 +37,8 @@ import java.io.IOException;
  */
 public class CachedStreamStateHandle implements StreamStateHandle, CachedStateHandle {
 
+	private static final long serialVersionUID = 350284443258002366L;
+
 	private static Logger LOG = LoggerFactory.getLogger(CachedStreamStateHandle.class);
 
 	private transient CheckpointCache cache;
@@ -137,12 +139,15 @@ public class CachedStreamStateHandle implements StreamStateHandle, CachedStateHa
 
 		@Override
 		public void seek(long desired) throws IOException {
-			throw new FlinkRuntimeException("Unsupported method in CachedSteamStateHandle.");
+			this.remoteInputStream.seek(desired);
+			if (cacheOut != null) {
+				cacheOut.discard();
+			}
 		}
 
 		@Override
 		public long getPos() throws IOException {
-			throw new FlinkRuntimeException("Unsupported method in CachedSteamStateHandle.");
+			return this.remoteInputStream.getPos();
 		}
 
 		@Override
