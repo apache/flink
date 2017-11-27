@@ -16,31 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.rest.messages.ConversionException;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
- * TaskManager id path parameter used by TaskManager related handlers.
+ * Tests for {@link TaskManagerMetricsHandler}.
  */
-public class TaskManagerIdPathParameter extends MessagePathParameter<InstanceID> {
+public class TaskManagerMetricsHandlerTest extends
+	MetricsHandlerTestBase<TaskManagerMetricsHandler> {
 
-	public static final String KEY = "taskmanagerid";
+	private static final String TEST_TASK_MANAGER_ID = new InstanceID().toString();
 
-	public TaskManagerIdPathParameter() {
-		super(KEY);
+	@Override
+	TaskManagerMetricsHandler getMetricsHandler() {
+		return new TaskManagerMetricsHandler(
+			TEST_REST_ADDRESS,
+			leaderRetriever,
+			TIMEOUT,
+			TEST_HEADERS,
+			mockMetricFetcher);
 	}
 
 	@Override
-	protected InstanceID convertFromString(String value) throws ConversionException {
-		return new InstanceID(StringUtils.hexStringToByte(value));
+	QueryScopeInfo getQueryScopeInfo() {
+		return new QueryScopeInfo.TaskManagerQueryScopeInfo(TEST_TASK_MANAGER_ID);
 	}
 
 	@Override
-	protected String convertToString(InstanceID value) {
-		return StringUtils.byteToHexString(value.getBytes());
+	Map<String, String> getPathParameters() {
+		return Collections.singletonMap("taskmanagerid", TEST_TASK_MANAGER_ID);
 	}
+
 }
