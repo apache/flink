@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 
 import java.util.Collections;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class TaskManagerMetricsHandlerTest extends
 
 	@Override
 	Map<String, String> getPathParameters() {
-		return Collections.singletonMap("taskmanagerid", TEST_TASK_MANAGER_ID);
+		return Collections.singletonMap(TaskManagerIdPathParameter.KEY, TEST_TASK_MANAGER_ID);
 	}
 
 }
