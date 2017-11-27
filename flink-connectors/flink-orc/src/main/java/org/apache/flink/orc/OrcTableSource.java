@@ -154,7 +154,7 @@ public class OrcTableSource
 				orcIF.addPredicate(pred);
 			}
 		}
-		return execEnv.createInput(orcIF).name(getRuntimeName());
+		return execEnv.createInput(orcIF).name(explainSource());
 	}
 
 	@VisibleForTesting
@@ -201,12 +201,6 @@ public class OrcTableSource
 	@Override
 	public String explainSource() {
 		return "OrcFile[path=" + path + ", schema=" + orcSchema + ", filter=" + predicateString() + "]";
-	}
-
-	@Override
-	public String getRuntimeName() {
-		return getClass().getSimpleName() + " "
-				+ Arrays.toString(tableSchema.getColumnNames()).replace("[", "(").replace("]", ")");
 	}
 
 	private String predicateString() {

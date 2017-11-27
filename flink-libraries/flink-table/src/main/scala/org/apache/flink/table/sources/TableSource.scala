@@ -54,20 +54,10 @@ trait TableSource[T] {
   def getTableSchema: TableSchema
 
   /**
-    * Describes the table source
+    * Describes the table source.
     *
     * @return A String explaining the [[TableSource]].
     */
-  def explainSource(): String = ""
-
-  /**
-    * Gets the name which is used by the visualization and logging during runtime.
-    *
-    * @return Name of the [[TableSource]].
-    */
-  def getRuntimeName(): String = {
-    s"""
-      ${getClass.getSimpleName} (${getTableSchema.getColumnNames.mkString(", ")})
-    """.stripMargin
-  }
+  def explainSource(): String =
+    s"${getClass.getSimpleName}(${getTableSchema.getColumnNames.mkString(", ")})"
 }

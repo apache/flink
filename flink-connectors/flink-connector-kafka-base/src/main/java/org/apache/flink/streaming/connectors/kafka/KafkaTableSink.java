@@ -95,7 +95,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 		FlinkKafkaProducerBase<Row> kafkaProducer = createKafkaProducer(topic, properties, serializationSchema, partitioner);
 		// always enable flush on checkpoint to achieve at-least-once if query runs with checkpointing enabled.
 		kafkaProducer.setFlushOnCheckpoint(true);
-		dataStream.addSink(kafkaProducer).name(getRuntimeName());
+		dataStream.addSink(kafkaProducer).name(explainSink());
 	}
 
 	@Override
@@ -113,7 +113,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	@Override
-	public String getRuntimeName() {
+	public String explainSink() {
 		return getClass().getSimpleName() + " "
 				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
 	}

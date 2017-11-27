@@ -58,7 +58,7 @@ class TableSourceITCase extends StreamingMultipleProgramsTestBase {
       override def getDataStream(execEnv: JExecEnv): DataStream[Row] = {
         val data = List(Row.of("Mary", new JLong(1L), new JInt(1))).asJava
         // return DataStream[Row] with GenericTypeInfo
-        execEnv.fromCollection(data, new GenericTypeInfo[Row](classOf[Row])).name(getRuntimeName)
+        execEnv.fromCollection(data, new GenericTypeInfo[Row](classOf[Row])).name(explainSource())
       }
       override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
       override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)

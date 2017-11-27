@@ -110,13 +110,13 @@ class TestFilterableTableSource(
   override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
     execEnv
       .fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
-      .name(getRuntimeName)
+      .name(explainSource())
   }
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
     execEnv
       .fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
-      .name(getRuntimeName)
+      .name(explainSource())
   }
 
   override def explainSource(): String = {

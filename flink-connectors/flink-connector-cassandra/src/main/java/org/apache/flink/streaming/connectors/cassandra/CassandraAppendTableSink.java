@@ -82,14 +82,14 @@ public class CassandraAppendTableSink implements AppendStreamTableSink<Row> {
 				.setClusterBuilder(this.builder)
 				.setQuery(this.cql)
 				.build()
-				.name(getRuntimeName());
+				.name(explainSink());
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
 
 	@Override
-	public String getRuntimeName() {
+	public String explainSink() {
 		return getClass().getSimpleName() + " "
 				+ Arrays.toString(fieldNames).replace("[", "(").replace("]", ")");
 	}

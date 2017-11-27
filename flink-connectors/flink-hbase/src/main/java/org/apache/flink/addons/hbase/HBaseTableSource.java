@@ -133,7 +133,7 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType()).name(getRuntimeName());
+		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType()).name(explainSource());
 	}
 
 	@Override
@@ -154,11 +154,6 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public String explainSource() {
-		return "";
-	}
-
-	@Override
-	public String getRuntimeName() {
 		return getClass().getSimpleName() + " "
 				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
 	}

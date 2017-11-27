@@ -108,7 +108,7 @@ public abstract class KafkaTableSource
 		DeserializationSchema<Row> deserializationSchema = getDeserializationSchema();
 		// Version-specific Kafka consumer
 		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topic, properties, deserializationSchema);
-		return env.addSource(kafkaConsumer).name(getRuntimeName());
+		return env.addSource(kafkaConsumer).name(explainSource());
 	}
 
 	@Override
@@ -132,9 +132,9 @@ public abstract class KafkaTableSource
 	}
 
 	@Override
-	public String getRuntimeName() {
-		return getClass().getSimpleName() + " "
-				+ Arrays.toString(schema.getColumnNames()).replace("[", "(").replace("]", ")");
+	public String explainSource() {
+		return getClass().getSimpleName() +
+				Arrays.toString(schema.getColumnNames()).replace("[", "(").replace("]", ")");
 	}
 
 	/**

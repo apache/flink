@@ -45,12 +45,9 @@ trait TableSink[T] {
   /** Returns the types of the table fields. */
   def getFieldTypes: Array[TypeInformation[_]]
 
-  /** Gets the name which is used by the visualization and logging during runtime. */
-  def getRuntimeName(): String = {
-    s"""
-      ${getClass.getSimpleName} (${getFieldNames.mkString(", ")})
-    """.stripMargin
-  }
+  /** Describes the table sink. */
+  def explainSink(): String =
+   s"${getClass.getSimpleName}(${getFieldNames.mkString(", ")})"
 
   /**
     * Return a copy of this [[TableSink]] configured with the field names and types of the

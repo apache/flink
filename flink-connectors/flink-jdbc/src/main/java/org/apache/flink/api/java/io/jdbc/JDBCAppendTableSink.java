@@ -61,7 +61,7 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
-		dataStream.addSink(new JDBCSinkFunction(outputFormat)).name(getRuntimeName());
+		dataStream.addSink(new JDBCSinkFunction(outputFormat)).name(explainSink());
 	}
 
 	@Override
@@ -85,7 +85,7 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 	}
 
 	@Override
-	public String getRuntimeName() {
+	public String explainSink() {
 		return getClass().getSimpleName() + " "
 				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
 	}
