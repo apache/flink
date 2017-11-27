@@ -56,7 +56,7 @@ the program's data flow. To do that, the program must implement the
 strings passed to that method are the command line arguments. The program's plan can be created from
 the environment via the `ExecutionEnvironment#createProgramPlan()` method. When packaging the
 program's plan, the JAR manifest must point to the class implementing the
-`org.apache.flinkapi.common.Program` interface, instead of the class with the main method.
+`org.apache.flink.api.common.Program` interface, instead of the class with the main method.
 
 
 ### Summary
@@ -68,10 +68,10 @@ attributes are found, the *program-class* attribute takes precedence over the *m
 attribute. Both the command line and the web interface support a parameter to pass the entry point
 class name manually for cases where the JAR manifest contains neither attribute.
 
-2. If the entry point class implements the `org.apache.flinkapi.common.Program`, then the system
+2. If the entry point class implements the `org.apache.flink.api.common.Program`, then the system
 calls the `getPlan(String...)` method to obtain the program plan to execute.
 
-3. If the entry point class does not implement the `org.apache.flinkapi.common.Program` interface,
+3. If the entry point class does not implement the `org.apache.flink.api.common.Program` interface,
 the system will invoke the main method of the class.
 
 {% top %}
