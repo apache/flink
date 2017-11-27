@@ -151,6 +151,9 @@ web.port: 8081
 
 # Path to the Hadoop configuration directory.
 #
+# Warning: these keys are deprecated and recommend using environment variable 'HADOOP_CONF_DIR'
+# looking for hadoop configuration.
+#
 # This configuration is used when writing into HDFS. Unless specified otherwise,
 # HDFS file creation will use HDFS default settings with respect to block-size,
 # replication factor, etc.

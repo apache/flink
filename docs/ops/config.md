@@ -72,7 +72,7 @@ definition. As another example, if this is set to `hdfs://localhost:9000/`, then
 without explicit scheme definition, such as `/user/USERNAME/in.txt`, is going to be transformed into
 `hdfs://localhost:9000/user/USERNAME/in.txt`. This scheme is used **ONLY** if no other scheme is specified (explicitly) in the user-provided `URI`.
 
-- `fs.hdfs.hadoopconf`: The absolute path to the Hadoop File System's (HDFS) configuration **directory** (OPTIONAL VALUE). Specifying this value allows programs to reference HDFS files using short URIs (`hdfs:///path/to/files`, without including the address and port of the NameNode in the file URI). Without this option, HDFS files can be accessed, but require fully qualified URIs like `hdfs://address:port/path/to/files`. This option also causes file writers to pick up the HDFS's default values for block sizes and replication factors. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in the specified directory.
+- `fs.hdfs.hadoopconf`: (deprecated, recommend using `HADOOP_CONF_DIR`): The absolute path to the Hadoop File System's (HDFS) configuration **directory** (OPTIONAL VALUE). Specifying this value allows programs to reference HDFS files using short URIs (`hdfs:///path/to/files`, without including the address and port of the NameNode in the file URI). Without this option, HDFS files can be accessed, but require fully qualified URIs like `hdfs://address:port/path/to/files`. This option also causes file writers to pick up the HDFS's default values for block sizes and replication factors. Flink will look for the "core-site.xml" and "hdfs-site.xml" files in the specified directory.
 
 - `classloader.resolve-order`: Whether Flink should use a child-first `ClassLoader` when loading
 user-code classes or a parent-first `ClassLoader`. Can be one of `parent-first` or `child-first`. (default: `child-first`)
@@ -245,6 +245,10 @@ Default value is the `akka.ask.timeout`.
 ## Full Reference
 
 ### HDFS
+
+<div class="alert alert-warning">
+  <strong>Note:</strong> This way of configuring the Hadoop configuration directory is deprecated. Recommend using the environment variable *HADOOP_CONF_DIR* instead.
+</div>
 
 These parameters configure the default HDFS used by Flink. Setups that do not specify a HDFS configuration have to specify the full path to HDFS files (`hdfs://address:port/path/to/files`) Files will also be written with default HDFS parameters (block size, replication factor).
 
