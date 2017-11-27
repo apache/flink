@@ -42,5 +42,6 @@ under the License.
 		<module>flink-streaming-contrib</module>
 		<module>flink-connector-wikiedits</module>
 		<module>flink-statebackend-rocksdb</module>
+		<module>flink-siddhi</module>
 	</modules>
 </project>
