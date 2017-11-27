@@ -22,7 +22,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointCache.CachedOutputStream;
 import org.apache.flink.runtime.state.CachedStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
