@@ -28,43 +28,45 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
-import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHeaders;
-import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsMessageParameters;
+import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubtaskMetricsHeaders;
+import org.apache.flink.runtime.rest.messages.job.metrics.SubtaskMetricsMessageParameters;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+
+import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Handler that returns metrics given a {@link JobID} and {@link JobVertexID}.
+ * Handler that returns subtask metrics.
  *
- * @see MetricStore#getTaskMetricStore(String, String)
- * @deprecated This class is subsumed by {@link SubtaskMetricsHandler} and is only kept for
- * backwards-compatibility.
+ * @see MetricStore#getSubtaskMetricStore(String, String, int)
  */
-public class JobVertexMetricsHandler extends AbstractMetricsHandler<JobVertexMetricsMessageParameters> {
+public class SubtaskMetricsHandler extends AbstractMetricsHandler<SubtaskMetricsMessageParameters> {
 
-	public JobVertexMetricsHandler(
+	public SubtaskMetricsHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<DispatcherGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MetricFetcher metricFetcher) {
 
-		super(localRestAddress, leaderRetriever, timeout, headers,
-			JobVertexMetricsHeaders.getInstance(),
+		super(localRestAddress, leaderRetriever, timeout, headers, SubtaskMetricsHeaders.getInstance(),
 			metricFetcher);
 	}
 
+	@Nullable
 	@Override
 	protected MetricStore.ComponentMetricStore getComponentMetricStore(
-			HandlerRequest<EmptyRequestBody, JobVertexMetricsMessageParameters> request,
+			HandlerRequest<EmptyRequestBody, SubtaskMetricsMessageParameters> request,
 			MetricStore metricStore) {
 
 		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 		final JobVertexID vertexId = request.getPathParameter(JobVertexIdPathParameter.class);
+		final int subtaskIndex = request.getPathParameter(SubtaskIndexPathParameter.class);
 
-		return metricStore.getTaskMetricStore(jobId.toString(), vertexId.toString());
+		return metricStore.getSubtaskMetricStore(jobId.toString(), vertexId.toString(), subtaskIndex);
 	}
 
 }
