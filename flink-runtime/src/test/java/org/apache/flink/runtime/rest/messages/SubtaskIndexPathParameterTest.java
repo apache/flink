@@ -23,6 +23,7 @@ import org.junit.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -56,6 +57,11 @@ public class SubtaskIndexPathParameterTest {
 	@Test
 	public void testConvertToString() throws Exception {
 		assertThat(subtaskIndexPathParameter.convertToString(Integer.MAX_VALUE), equalTo("2147483647"));
+	}
+
+	@Test
+	public void testIsMandatoryParameter() {
+		assertTrue(subtaskIndexPathParameter.isMandatory());
 	}
 
 }
