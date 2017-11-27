@@ -35,8 +35,6 @@ import java.util.concurrent.Executor;
  * The handler will then return a list containing the values of the requested metrics.
  * {@code [ { "id" : "X", "value" : "S" }, { "id" : "Y", "value" : "T" } ] }
  *
- * <p>The "agg" query parameter is used to define which aggregates should be calculated. Available aggregations are
- * "sum", "max", "min" and "avg".
  */
 public class SubtaskMetricsHandler extends AbstractMetricsHandler {
 	private static final String SUBTASK_METRICS_REST_PATH = "/jobs/:jobid/vertices/:vertexid/subtasks/:subtasknum/metrics";
