@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -88,6 +89,7 @@ public class StreamSourceContextIdleDetectionTests {
 		processingTimeService.setCurrentTime(initialTime);
 
 		final List<StreamElement> output = new ArrayList<>();
+		WatermarkGauge watermarkGauge = new WatermarkGauge();
 
 		MockStreamStatusMaintainer mockStreamStatusMaintainer = new MockStreamStatusMaintainer();
 
@@ -98,7 +100,8 @@ public class StreamSourceContextIdleDetectionTests {
 			mockStreamStatusMaintainer,
 			new CollectorOutput<String>(output),
 			0,
-			idleTimeout);
+			idleTimeout,
+			watermarkGauge);
 
 		// -------------------------- begin test scenario --------------------------
 
@@ -186,7 +189,8 @@ public class StreamSourceContextIdleDetectionTests {
 			mockStreamStatusMaintainer,
 			new CollectorOutput<String>(output),
 			watermarkInterval,
-			idleTimeout);
+			idleTimeout,
+			new WatermarkGauge());
 
 		// -------------------------- begin test scenario --------------------------
 

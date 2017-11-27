@@ -55,6 +55,7 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 		if (nextWatermark != null && nextWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = nextWatermark.getTimestamp();
 			output.emitWatermark(nextWatermark);
+			watermarkGauge.setCurrentLowWatermark(currentWatermark);
 		}
 	}
 
@@ -70,6 +71,7 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
 			currentWatermark = Long.MAX_VALUE;
 			output.emitWatermark(mark);
+			watermarkGauge.setCurrentLowWatermark(currentWatermark);
 		}
 	}
 }

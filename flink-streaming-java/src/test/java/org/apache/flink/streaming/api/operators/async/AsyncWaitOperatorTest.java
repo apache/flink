@@ -288,6 +288,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		expectedOutput.add(new Watermark(initialTime + 2));
 		expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
 
+		Assert.assertEquals(initialTime + 2, operator.getWatermarkGauge().getValue().longValue());
+
 		if (AsyncDataStream.OutputMode.ORDERED == mode) {
 			TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
 		}

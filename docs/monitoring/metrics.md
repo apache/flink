@@ -968,12 +968,7 @@ Thus, in order to infer the metric identifier:
   </thead>
   <tbody>
     <tr>
-      <th rowspan="7"><strong>Task</strong></th>
-      <td>currentLowWatermark</td>
-      <td>The lowest watermark this task has received (in milliseconds).</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
+      <th rowspan="6"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td>The total number of bytes this task has read from a local source.</td>
       <td>Counter</td>
@@ -1030,7 +1025,15 @@ Thus, in order to infer the metric identifier:
       <td>Counter</td>
     </tr>
     <tr>
-      <th rowspan="2"><strong>Operator</strong></th>
+      <th rowspan="3"><strong>Operator</strong></th>
+      <td>currentLowWatermark</td>
+      <td>
+        The lowest watermark this operator has received (in milliseconds).
+        <p><strong>Note:</strong> For sources and watermark assigners this is the lowest watermark this operator has emitted (in milliseconds).</p>
+      </td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>latency</td>
       <td>The latency distributions from all incoming sources (in milliseconds).</td>
       <td>Histogram</td>

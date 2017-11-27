@@ -75,6 +75,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
 			output.emitWatermark(newWatermark);
+			watermarkGauge.setCurrentLowWatermark(currentWatermark);
 		}
 
 		long now = getProcessingTimeService().getCurrentProcessingTime();
@@ -93,6 +94,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
 			currentWatermark = Long.MAX_VALUE;
 			output.emitWatermark(mark);
+			watermarkGauge.setCurrentLowWatermark(currentWatermark);
 		}
 	}
 
@@ -106,6 +108,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
 			output.emitWatermark(newWatermark);
+			watermarkGauge.setCurrentLowWatermark(currentWatermark);
 		}
 	}
 }

@@ -230,6 +230,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void processWatermark(Watermark mark) throws Exception {
+		watermarkGauge.setCurrentLowWatermark(mark.getTimestamp());
 		WatermarkQueueEntry watermarkBufferEntry = new WatermarkQueueEntry(mark);
 
 		addAsyncBufferEntry(watermarkBufferEntry);
