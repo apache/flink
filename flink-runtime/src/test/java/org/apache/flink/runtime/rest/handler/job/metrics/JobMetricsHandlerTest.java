@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class JobMetricsHandlerTest extends MetricsHandlerTestBase<JobMetricsHand
 	@Override
 	Map<String, String> getPathParameters() {
 		Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put("jobid", TEST_JOB_ID);
+		pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
 		return pathParameters;
 	}
 
