@@ -16,29 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.taskmanager;
+package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
+
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * TaskManager id path parameter used by TaskManager related handlers.
+ * {@link MessageParameters} for
+ * {@link org.apache.flink.runtime.rest.handler.job.metrics.TaskManagerMetricsHandler}.
  */
-public class TaskManagerIdPathParameter extends MessagePathParameter<ResourceID> {
+public class TaskManagerMetricsMessageParameters extends TaskManagerMessageParameters {
 
-	public static final String KEY = "taskmanagerid";
-
-	public TaskManagerIdPathParameter() {
-		super(KEY);
-	}
+	private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
 
 	@Override
-	protected ResourceID convertFromString(String value) {
-		return new ResourceID(value);
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.singletonList(metricsFilterParameter);
 	}
 
-	@Override
-	protected String convertToString(ResourceID value) {
-		return value.getResourceIdString();
-	}
 }
