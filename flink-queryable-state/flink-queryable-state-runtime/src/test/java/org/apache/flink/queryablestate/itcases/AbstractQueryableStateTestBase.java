@@ -107,6 +107,7 @@ import static org.junit.Assert.fail;
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 	private static final FiniteDuration TEST_TIMEOUT = new FiniteDuration(10000L, TimeUnit.SECONDS);
+	public static final long RETRY_TIMEOUT = 50L;
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 	private final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
@@ -196,11 +197,12 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
+			final List<CompletableFuture<ReducingState<Tuple2<Integer, Long>>>> futures = new ArrayList<>(numKeys);
+
 			boolean allNonZero = false;
 			while (!allNonZero && deadline.hasTimeLeft()) {
 				allNonZero = true;
-
-				final List<CompletableFuture<ReducingState<Tuple2<Integer, Long>>>> futures = new ArrayList<>(numKeys);
+				futures.clear();
 
 				for (int i = 0; i < numKeys; i++) {
 					final int key = i;
@@ -712,7 +714,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						success = true;
 					} else {
 						// Retry
-						Thread.sleep(50L);
+						Thread.sleep(RETRY_TIMEOUT);
 					}
 				}
 
@@ -785,7 +787,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						success = true;
 					} else {
 						// Retry
-						Thread.sleep(50L);
+						Thread.sleep(RETRY_TIMEOUT);
 					}
 				}
 
@@ -877,7 +879,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						success = true;
 					} else {
 						// Retry
-						Thread.sleep(50L);
+						Thread.sleep(RETRY_TIMEOUT);
 					}
 				}
 
@@ -973,7 +975,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						results.put(key, res);
 					} else {
 						// Retry
-						Thread.sleep(50L);
+						Thread.sleep(RETRY_TIMEOUT);
 					}
 				}
 
@@ -1050,7 +1052,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 						success = true;
 					} else {
 						// Retry
-						Thread.sleep(50L);
+						Thread.sleep(RETRY_TIMEOUT);
 					}
 				}
 
@@ -1129,6 +1131,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		private final int numKeys;
 		private final ThreadLocalRandom random = ThreadLocalRandom.current();
 		private volatile boolean isRunning = true;
+		private int counter = 0;
 
 		TestKeyRangeSource(int numKeys) {
 			this.numKeys = numKeys;
@@ -1151,9 +1154,13 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				synchronized (ctx.getCheckpointLock()) {
 					record.f0 = random.nextInt(numKeys);
 					ctx.collect(record);
+					counter++;
 				}
-				// mild slow down
-				Thread.sleep(1L);
+
+				if (counter % 50 == 0) {
+					// mild slow down
+					Thread.sleep(1L);
+				}
 			}
 		}
 
@@ -1327,7 +1334,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final TypeInformation<K> keyTypeInfo,
 			final StateDescriptor<S, V> stateDescriptor,
 			final boolean failForUnknownKeyOrNamespace,
-			final ScheduledExecutor executor) throws InterruptedException {
+			final ScheduledExecutor executor) {
 
 		final CompletableFuture<S> resultFuture = new CompletableFuture<>();
 		getKvStateIgnoringCertainExceptions(
@@ -1346,10 +1353,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			final TypeInformation<K> keyTypeInfo,
 			final StateDescriptor<S, V> stateDescriptor,
 			final boolean failForUnknownKeyOrNamespace,
-			final ScheduledExecutor executor) throws InterruptedException {
+			final ScheduledExecutor executor) {
 
 		if (!resultFuture.isDone()) {
-			Thread.sleep(100L);
 			CompletableFuture<S> expected = client.getKvState(jobId, queryName, key, keyTypeInfo, stateDescriptor);
 			expected.whenCompleteAsync((result, throwable) -> {
 				if (throwable != null) {
@@ -1360,13 +1366,9 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					) {
 						resultFuture.completeExceptionally(throwable.getCause());
 					} else if (deadline.hasTimeLeft()) {
-						try {
-							getKvStateIgnoringCertainExceptions(
-									deadline, resultFuture, client, jobId, queryName, key, keyTypeInfo,
-									stateDescriptor, failForUnknownKeyOrNamespace, executor);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
+						getKvStateIgnoringCertainExceptions(
+								deadline, resultFuture, client, jobId, queryName, key, keyTypeInfo,
+								stateDescriptor, failForUnknownKeyOrNamespace, executor);
 					}
 				} else {
 					resultFuture.complete(result);
@@ -1410,7 +1412,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					success = true;
 				} else {
 					// Retry
-					Thread.sleep(50L);
+					Thread.sleep(RETRY_TIMEOUT);
 				}
 			}
 
