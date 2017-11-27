@@ -109,13 +109,14 @@ public abstract class YarnTestBase extends TestLogger {
 
 	/** These strings are white-listed, overriding teh prohibited strings. */
 	protected static final String[] WHITELISTED_STRINGS = {
-			"akka.remote.RemoteTransportExceptionNoStackTrace",
-			// workaround for annoying InterruptedException logging:
-			// https://issues.apache.org/jira/browse/YARN-1022
-			"java.lang.InterruptedException",
-			// very specific on purpose
-			"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
-			"java.io.IOException: Connection reset by peer"
+		"akka.remote.RemoteTransportExceptionNoStackTrace",
+		// workaround for annoying InterruptedException logging:
+		// https://issues.apache.org/jira/browse/YARN-1022
+		"java.lang.InterruptedException",
+		// very specific on purpose
+		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
+		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
+		"java.io.IOException: Connection reset by peer"
 	};
 
 	// Temp directory which is deleted after the unit test.
