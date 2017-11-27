@@ -21,6 +21,9 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
+import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -57,9 +60,9 @@ public class SubtaskMetricsHandlerTest extends MetricsHandlerTestBase<SubtaskMet
 	@Override
 	Map<String, String> getPathParameters() {
 		final Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put("jobid", TEST_JOB_ID);
-		pathParameters.put("vertexid", TEST_VERTEX_ID);
-		pathParameters.put("subtaskindex", Integer.toString(TEST_SUBTASK_INDEX));
+		pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
+		pathParameters.put(JobVertexIdPathParameter.KEY, TEST_VERTEX_ID);
+		pathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(TEST_SUBTASK_INDEX));
 		return pathParameters;
 	}
 
