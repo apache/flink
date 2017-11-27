@@ -49,10 +49,15 @@ cd ..
 
 echo "Creating source package"
 
+# create a temporary git clone to ensure that we have a pristine source release
+git clone . flink-tmp-clone
+cd flink-tmp-clone
+
 rsync -a \
   --exclude ".git" --exclude ".gitignore" --exclude ".gitattributes" --exclude ".travis.yml" \
   --exclude "deploysettings.xml" --exclude "CHANGELOG" --exclude ".github" --exclude "target" \
   --exclude ".idea" --exclude "*.iml" --exclude ".DS_Store" --exclude "build-target" \
+  --exclude "docs/content" --exclude ".rubydeps" \
   . flink-$RELEASE_VERSION
 
 tar czf flink-${RELEASE_VERSION}-src.tgz flink-$RELEASE_VERSION
@@ -60,4 +65,6 @@ gpg --armor --detach-sig flink-$RELEASE_VERSION-src.tgz
 $MD5SUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.md5
 $SHASUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha
 
-rm -rf flink-$RELEASE_VERSION
+mv flink-$RELEASE_VERSION-src.* ../
+cd ..
+rm -r flink-tmp-clone
