@@ -378,6 +378,31 @@ public final class ExceptionUtils {
 	}
 
 	// ------------------------------------------------------------------------
+	//  Lambda exception utilities
+	// ------------------------------------------------------------------------
+
+	public static void suppressExceptions(RunnableWithException action) {
+		try {
+			action.run();
+		}
+		catch (InterruptedException e) {
+			// restore interrupted state
+			Thread.currentThread().interrupt();
+		}
+		catch (Throwable t) {
+			if (isJvmFatalError(t)) {
+				rethrow(t);
+			}
+		}
+	}
+
+	@FunctionalInterface
+	public interface RunnableWithException {
+
+		void run() throws Exception;
+	}
+
+	// ------------------------------------------------------------------------
 
 	/** Private constructor to prevent instantiation. */
 	private ExceptionUtils() {}
