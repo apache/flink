@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.core.memory.DataOutputSerializer;
 
 /**
  * Record serializer which serializes the complete record to an intermediate
@@ -51,6 +51,9 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	/** Current target {@link Buffer} of the serializer */
 	private Buffer targetBuffer;
+
+	/** Current {@link MemorySegment} of target buffer */
+	private MemorySegment targetMemorySegment;
 
 	/** Position in current {@link MemorySegment} of target buffer */
 	private int position;
@@ -107,6 +110,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public SerializationResult setNextBuffer(Buffer buffer) throws IOException {
 		this.targetBuffer = buffer;
+		this.targetMemorySegment = buffer.getMemorySegment();
 		this.position = 0;
 		this.limit = buffer.getSize();
 
@@ -145,7 +149,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		int available = this.limit - this.position;
 		int toCopy = Math.min(needed, available);
 
-		this.targetBuffer.getMemorySegment().put(this.position, source, toCopy);
+		targetMemorySegment.put(this.position, source, toCopy);
 
 		this.position += toCopy;
 	}
