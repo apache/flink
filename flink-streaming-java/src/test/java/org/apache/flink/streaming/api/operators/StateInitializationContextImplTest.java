@@ -30,6 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -61,7 +62,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -140,10 +140,10 @@ public class StateInitializationContextImplTest {
 		}
 
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			Collections.emptyList(),
-			operatorStateHandles,
-			Collections.emptyList(),
-			keyedStateHandles);
+			StateObjectCollection.empty(),
+			new StateObjectCollection<>(operatorStateHandles),
+			StateObjectCollection.empty(),
+			new StateObjectCollection<>(keyedStateHandles));
 
 		OperatorID operatorID = new OperatorID();
 		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();

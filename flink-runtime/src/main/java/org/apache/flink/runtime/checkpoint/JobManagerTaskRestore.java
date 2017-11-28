@@ -46,7 +46,7 @@ public class JobManagerTaskRestore implements Serializable {
 
 	@Override
 	public String toString() {
-		return "TaskRestore{" +
+		return "JobManagerTaskRestore{" +
 			"restoreCheckpointId=" + restoreCheckpointId +
 			", taskStateSnapshot=" + taskStateSnapshot +
 			'}';

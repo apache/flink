@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.Environment;
@@ -551,10 +552,10 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			checkpointStateHandles.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),
 				new OperatorSubtaskState(
-					Collections.singletonList(operatorStateHandle),
-					Collections.emptyList(),
-					Collections.emptyList(),
-					Collections.emptyList()));
+					StateObjectCollection.singleton(operatorStateHandle),
+					StateObjectCollection.empty(),
+					StateObjectCollection.empty(),
+					StateObjectCollection.empty()));
 
 			getEnvironment().acknowledgeCheckpoint(
 					checkpointMetaData.getCheckpointId(),

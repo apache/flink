@@ -30,6 +30,7 @@ import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -220,10 +221,10 @@ public class InterruptSensitiveRestoreTest {
 		}
 
 		OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-			operatorStateBackend,
-			operatorStateStream,
-			keyedStateFromBackend,
-			keyedStateFromStream);
+			new StateObjectCollection<>(operatorStateBackend),
+			new StateObjectCollection<>(operatorStateStream),
+			new StateObjectCollection<>(keyedStateFromBackend),
+			new StateObjectCollection<>(keyedStateFromStream));
 
 		JobVertexID jobVertexID = new JobVertexID();
 		OperatorID operatorID = OperatorID.fromJobVertexID(jobVertexID);

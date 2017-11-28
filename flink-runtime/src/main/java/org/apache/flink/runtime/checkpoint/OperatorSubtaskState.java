@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -63,25 +61,25 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Snapshot from the {@link org.apache.flink.runtime.state.OperatorStateBackend}.
 	 */
 	@Nonnull
-	private final Collection<OperatorStateHandle> managedOperatorState;
+	private final StateObjectCollection<OperatorStateHandle> managedOperatorState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream}.
 	 */
 	@Nonnull
-	private final Collection<OperatorStateHandle> rawOperatorState;
+	private final StateObjectCollection<OperatorStateHandle> rawOperatorState;
 
 	/**
 	 * Snapshot from {@link org.apache.flink.runtime.state.KeyedStateBackend}.
 	 */
 	@Nonnull
-	private final Collection<KeyedStateHandle> managedKeyedState;
+	private final StateObjectCollection<KeyedStateHandle> managedKeyedState;
 
 	/**
 	 * Snapshot written using {@link org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream}.
 	 */
 	@Nonnull
-	private final Collection<KeyedStateHandle> rawKeyedState;
+	private final StateObjectCollection<KeyedStateHandle> rawKeyedState;
 
 	/**
 	 * The state size. This is also part of the deserialized state handle.
@@ -95,32 +93,28 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 */
 	public OperatorSubtaskState() {
 		this(
-			Collections.emptyList(),
-			Collections.emptyList(),
-			Collections.emptyList(),
-			Collections.emptyList());
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty(),
+			StateObjectCollection.empty());
 	}
 
 	public OperatorSubtaskState(
-		Collection<OperatorStateHandle> managedOperatorState,
-		Collection<OperatorStateHandle> rawOperatorState,
-		Collection<KeyedStateHandle> managedKeyedState,
-		Collection<KeyedStateHandle> rawKeyedState) {
+		StateObjectCollection<OperatorStateHandle> managedOperatorState,
+		StateObjectCollection<OperatorStateHandle> rawOperatorState,
+		StateObjectCollection<KeyedStateHandle> managedKeyedState,
+		StateObjectCollection<KeyedStateHandle> rawKeyedState) {
 
 		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
 		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
 		this.managedKeyedState = Preconditions.checkNotNull(managedKeyedState);
 		this.rawKeyedState = Preconditions.checkNotNull(rawKeyedState);
 
-		try {
-			long calculateStateSize = sumAllSizes(managedOperatorState);
-			calculateStateSize += sumAllSizes(rawOperatorState);
-			calculateStateSize += sumAllSizes(managedKeyedState);
-			calculateStateSize += sumAllSizes(rawKeyedState);
-			stateSize = calculateStateSize;
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to get state size.", e);
-		}
+		long calculateStateSize = managedOperatorState.getStateSize();
+		calculateStateSize += rawOperatorState.getStateSize();
+		calculateStateSize += managedKeyedState.getStateSize();
+		calculateStateSize += rawKeyedState.getStateSize();
+		stateSize = calculateStateSize;
 	}
 
 	/**
@@ -140,21 +134,8 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 			singletonOrEmptyOnNull(rawKeyedState));
 	}
 
-	private static <T> Collection<T> singletonOrEmptyOnNull(T element) {
-		return element != null ? Collections.singletonList(element) : Collections.<T>emptyList();
-	}
-
-	private static long sumAllSizes(Collection<? extends StateObject> stateObject) throws Exception {
-		long size = 0L;
-		for (StateObject object : stateObject) {
-			size += getSizeNullSafe(object);
-		}
-
-		return size;
-	}
-
-	private static long getSizeNullSafe(StateObject stateObject) throws Exception {
-		return stateObject != null ? stateObject.getStateSize() : 0L;
+	private static <T extends StateObject> StateObjectCollection<T> singletonOrEmptyOnNull(T element) {
+		return element != null ? StateObjectCollection.singleton(element) : StateObjectCollection.empty();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -163,7 +144,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Returns a handle to the managed operator state.
 	 */
 	@Nonnull
-	public Collection<OperatorStateHandle> getManagedOperatorState() {
+	public StateObjectCollection<OperatorStateHandle> getManagedOperatorState() {
 		return managedOperatorState;
 	}
 
@@ -171,7 +152,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Returns a handle to the raw operator state.
 	 */
 	@Nonnull
-	public Collection<OperatorStateHandle> getRawOperatorState() {
+	public StateObjectCollection<OperatorStateHandle> getRawOperatorState() {
 		return rawOperatorState;
 	}
 
@@ -179,7 +160,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Returns a handle to the managed keyed state.
 	 */
 	@Nonnull
-	public Collection<KeyedStateHandle> getManagedKeyedState() {
+	public StateObjectCollection<KeyedStateHandle> getManagedKeyedState() {
 		return managedKeyedState;
 	}
 
@@ -187,7 +168,7 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	 * Returns a handle to the raw keyed state.
 	 */
 	@Nonnull
-	public Collection<KeyedStateHandle> getRawKeyedState() {
+	public StateObjectCollection<KeyedStateHandle> getRawKeyedState() {
 		return rawKeyedState;
 	}
 
@@ -281,18 +262,9 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	}
 
 	public boolean hasState() {
-		return hasState(managedOperatorState)
-			|| hasState(rawOperatorState)
-			|| hasState(managedKeyedState)
-			|| hasState(rawKeyedState);
-	}
-
-	private boolean hasState(Iterable<? extends StateObject> states) {
-		for (StateObject state : states) {
-			if (state != null) {
-				return true;
-			}
-		}
-		return false;
+		return managedOperatorState.hasState()
+			|| rawOperatorState.hasState()
+			|| managedKeyedState.hasState()
+			|| rawKeyedState.hasState();
 	}
 }

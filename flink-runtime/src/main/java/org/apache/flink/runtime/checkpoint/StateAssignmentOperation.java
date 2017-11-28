@@ -242,10 +242,10 @@ public class StateAssignmentOperation {
 			checkState(!subRawKeyedState.containsKey(instanceID));
 		}
 		return new OperatorSubtaskState(
-			subManagedOperatorState.getOrDefault(instanceID, Collections.emptyList()),
-			subRawOperatorState.getOrDefault(instanceID, Collections.emptyList()),
-			subManagedKeyedState.getOrDefault(instanceID, Collections.emptyList()),
-			subRawKeyedState.getOrDefault(instanceID, Collections.emptyList()));
+			new StateObjectCollection<>(subManagedOperatorState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(subRawOperatorState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(subManagedKeyedState.getOrDefault(instanceID, Collections.emptyList())),
+			new StateObjectCollection<>(subRawKeyedState.getOrDefault(instanceID, Collections.emptyList())));
 	}
 
 	private static boolean isHeadOperator(int opIdx, List<OperatorID> operatorIDs) {

@@ -3769,10 +3769,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			OperatorSubtaskState operatorSubtaskState =
 				spy(new OperatorSubtaskState(
-					Collections.<OperatorStateHandle>emptyList(),
-					Collections.<OperatorStateHandle>emptyList(),
-					Collections.<KeyedStateHandle>singletonList(managedState),
-					Collections.<KeyedStateHandle>emptyList()));
+					StateObjectCollection.empty(),
+					StateObjectCollection.empty(),
+					StateObjectCollection.singleton(managedState),
+					StateObjectCollection.empty()));
 
 			Map<OperatorID, OperatorSubtaskState> opStates = new HashMap<>();
 
