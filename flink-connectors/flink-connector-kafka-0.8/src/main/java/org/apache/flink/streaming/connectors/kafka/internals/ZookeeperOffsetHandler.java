@@ -73,11 +73,11 @@ public class ZookeeperOffsetHandler {
 
 		// set consumerId to register ownership in zookeeper, just like kafka high level API
 		UUID uuid = UUID.randomUUID();
-		String hostName = "Unkonw";
+		String hostName = "Unkonwn";
 		try {
 			hostName = InetAddress.getLocalHost().getHostName();
 		} catch (UnknownHostException e) {
-			LOG.error("Can not get host name!");
+			LOG.error("Can not get host name", e);
 		}
 		String consumerUuid = String.format("%s-%d-%s",
 			hostName,
@@ -181,7 +181,7 @@ public class ZookeeperOffsetHandler {
 				curatorClient.create().creatingParentContainersIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path, info.getBytes());
 			}
 		} catch (KeeperException.NodeExistsException e) {
-			LOG.warn("NodeExists for {}", e);
+			LOG.warn("Node exists for {}", consumerId, e);
 		}
 	}
 }

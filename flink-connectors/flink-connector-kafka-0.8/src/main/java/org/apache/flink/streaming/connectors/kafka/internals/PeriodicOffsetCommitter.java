@@ -51,7 +51,8 @@ public class PeriodicOffsetCommitter extends Thread {
 	PeriodicOffsetCommitter(ZookeeperOffsetHandler offsetHandler,
 			List<KafkaTopicPartitionState<TopicAndPartition>> partitionStates,
 			ExceptionProxy errorHandler,
-			long commitInterval, String taskId) {
+			long commitInterval,
+			String taskId) {
 		this.offsetHandler = checkNotNull(offsetHandler);
 		this.partitionStates = checkNotNull(partitionStates);
 		this.errorHandler = checkNotNull(errorHandler);
