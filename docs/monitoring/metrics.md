@@ -424,14 +424,17 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
 ## Scope
 
-Every metric is assigned an identifier under which it will be reported that is based on 3 components: the user-provided name when registering the metric, an optional user-defined scope and a system-provided scope.
+Every metric is assigned an identifier and a set of key-value pairs under which the metric will be reported.
+
+THe identifier is based on 3 components: the user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the system scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
 You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
 
 ### User Scope
 
-You can define a user scope by calling either `MetricGroup#addGroup(String name)` or `MetricGroup#addGroup(int name)`.
+You can define a user scope by calling `MetricGroup#addGroup(String name)`, `MetricGroup#addGroup(int name)` or `Metric#addGroup(String key, String value)`.
+These methods affect what `MetricGroup#getMetricIdentifier` and `MetricGroup#getScopeComponents` return.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -440,6 +443,11 @@ You can define a user scope by calling either `MetricGroup#addGroup(String name)
 counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetrics")
+  .counter("myCounter");
+
+counter = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter");
 
 {% endhighlight %}
@@ -451,6 +459,11 @@ counter = getRuntimeContext()
 counter = getRuntimeContext()
   .getMetricGroup()
   .addGroup("MyMetrics")
+  .counter("myCounter")
+
+counter = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyMetricsKey", "MyMetricsValue")
   .counter("myCounter")
 
 {% endhighlight %}
@@ -507,6 +520,40 @@ or by assigning unique names to jobs and operators.
 - Operator: &lt;operator_id&gt;,&lt;operator_name&gt;, &lt;subtask_index&gt;
 
 **Important:** For the Batch API, &lt;operator_id&gt; is always equal to &lt;task_id&gt;.
+
+### User Variables
+
+You can define a user variable by calling `MetricGroup#addGroup(String key, String value)`.
+This method affects what `MetricGroup#getMetricIdentifier`, `MetricGroup#getScopeComponents` and `MetricGroup#getAllVariables()` returns.
+
+**Important:** User variables cannot be used in scope formats.
+
+{% highlight java %}
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+counter = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyMetricsKey", "MyMetricsValue")
+  .counter("myCounter");
+
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+counter = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyMetricsKey", "MyMetricsValue")
+  .counter("myCounter")
+
+{% endhighlight %}
+</div>
+
+</div>
 
 ## Reporter
 

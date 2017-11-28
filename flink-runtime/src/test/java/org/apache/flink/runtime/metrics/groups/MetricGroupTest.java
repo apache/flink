@@ -27,7 +27,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
@@ -39,6 +41,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -76,6 +79,141 @@ public class MetricGroupTest extends TestLogger {
 		assertNotNull(subgroup1);
 		assertNotNull(subgroup2);
 		assertTrue(subgroup1 == subgroup2);
+	}
+
+	/**
+	 * Verifies the basic behavior when defining user-defined variables.
+	 */
+	@Test
+	public void testUserDefinedVariable() {
+		MetricRegistry registry = new NoOpMetricRegistry();
+		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+
+		String key = "key";
+		String value = "value";
+		MetricGroup group = root.addGroup(key, value);
+
+		String variableValue = group.getAllVariables().get(ScopeFormat.asVariable("key"));
+		assertEquals(value, variableValue);
+
+		String identifier = group.getMetricIdentifier("metric");
+		assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
+		assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+
+		String logicalScope = ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
+		assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
+		assertFalse("Value is present in logical scope.", logicalScope.contains(value));
+	}
+
+	/**
+	 * Verifies that calling {@link MetricGroup#addGroup(String, String)} on a {@link GenericKeyMetricGroup} goes
+	 * through the generic code path.
+	 */
+	@Test
+	public void testUserDefinedVariableOnKeyGroup() {
+		MetricRegistry registry = new NoOpMetricRegistry();
+		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+
+		String key1 = "key1";
+		String value1 = "value1";
+		root.addGroup(key1, value1);
+
+		String key2 = "key2";
+		String value2 = "value2";
+		MetricGroup group = root.addGroup(key1).addGroup(key2, value2);
+
+		String variableValue = group.getAllVariables().get("value2");
+		assertNull(variableValue);
+
+		String identifier = group.getMetricIdentifier("metric");
+		assertTrue("Key1 is missing from metric identifier.", identifier.contains("key1"));
+		assertTrue("Key2 is missing from metric identifier.", identifier.contains("key2"));
+		assertTrue("Value2 is missing from metric identifier.", identifier.contains("value2"));
+
+		String logicalScope = ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
+		assertTrue("Key1 is missing from logical scope.", logicalScope.contains(key1));
+		assertTrue("Key2 is missing from logical scope.", logicalScope.contains(key2));
+		assertTrue("Value2 is missing from logical scope.", logicalScope.contains(value2));
+	}
+
+	/**
+	 * Verifies that calling {@link MetricGroup#addGroup(String, String)} if a generic group with the key name already
+	 * exists goes through the generic code path.
+	 */
+	@Test
+	public void testNameCollisionForKeyAfterGenericGroup() {
+		MetricRegistry registry = new NoOpMetricRegistry();
+		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+
+		String key = "key";
+		String value = "value";
+
+		root.addGroup(key);
+		MetricGroup group = root.addGroup(key, value);
+
+		String variableValue = group.getAllVariables().get(ScopeFormat.asVariable("key"));
+		assertNull(variableValue);
+
+		String identifier = group.getMetricIdentifier("metric");
+		assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
+		assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+
+		String logicalScope = ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
+		assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
+		assertTrue("Value is missing from logical scope.", logicalScope.contains(value));
+	}
+
+	/**
+	 * Verifies that calling {@link MetricGroup#addGroup(String, String)} if a generic group with the key and value name
+	 * already exists goes through the generic code path.
+	 */
+	@Test
+	public void testNameCollisionForKeyAndValueAfterGenericGroup() {
+		MetricRegistry registry = new NoOpMetricRegistry();
+		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+
+		String key = "key";
+		String value = "value";
+
+		root.addGroup(key).addGroup(value);
+		MetricGroup group = root.addGroup(key, value);
+
+		String variableValue = group.getAllVariables().get(ScopeFormat.asVariable("key"));
+		assertNull(variableValue);
+
+		String identifier = group.getMetricIdentifier("metric");
+		assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
+		assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+
+		String logicalScope = ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
+		assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
+		assertTrue("Value is missing from logical scope.", logicalScope.contains(value));
+	}
+
+	/**
+	 * Verifies that existing key/value groups are returned when calling {@link MetricGroup#addGroup(String)}.
+	 */
+	@Test
+	public void testNameCollisionAfterKeyValueGroup() {
+		MetricRegistry registry = new NoOpMetricRegistry();
+		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
+
+		String key = "key";
+		String value = "value";
+
+		root.addGroup(key, value);
+		MetricGroup group = root.addGroup(key).addGroup(value);
+
+		String variableValue = group.getAllVariables().get(ScopeFormat.asVariable("key"));
+		assertEquals(value, variableValue);
+
+		String identifier = group.getMetricIdentifier("metric");
+		assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
+		assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+
+		String logicalScope = ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
+		assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
+		assertFalse("Value is present in logical scope.", logicalScope.contains(value));
 	}
 
 	@Test
