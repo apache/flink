@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.metrics.util;
+package org.apache.flink.metrics.util;
 
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
@@ -24,7 +24,7 @@ import org.apache.flink.metrics.HistogramStatistics;
 /**
  * Stateless test histogram for which all methods return a static value.
  */
-public class TestingHistogram implements Histogram {
+public class TestHistogram implements Histogram {
 
 	@Override
 	public void update(long value) {

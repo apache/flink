@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.AbstractID;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
@@ -151,7 +151,7 @@ public class PrometheusReporterTaskScopeTest {
 
 	@Test
 	public void histogramsCanBeAddedSeveralTimesIfTheyDifferInLabels() throws UnirestException {
-		Histogram histogram = new TestingHistogram();
+		Histogram histogram = new TestHistogram();
 
 		taskMetricGroup1.histogram("my_histogram", histogram);
 		taskMetricGroup2.histogram("my_histogram", histogram);
