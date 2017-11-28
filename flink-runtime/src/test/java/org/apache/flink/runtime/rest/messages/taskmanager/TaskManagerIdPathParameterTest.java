@@ -19,26 +19,38 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
- * TaskManager id path parameter used by TaskManager related handlers.
+ * Tests for {@link TaskManagerIdPathParameter}.
  */
-public class TaskManagerIdPathParameter extends MessagePathParameter<ResourceID> {
+public class TaskManagerIdPathParameterTest {
 
-	public static final String KEY = "taskmanagerid";
+	private TaskManagerIdPathParameter taskManagerIdPathParameter;
 
-	protected TaskManagerIdPathParameter() {
-		super(KEY);
+	@Before
+	public void setUp() {
+		taskManagerIdPathParameter = new TaskManagerIdPathParameter();
 	}
 
-	@Override
-	protected ResourceID convertFromString(String value) {
-		return new ResourceID(value);
+	@Test
+	public void testConversions() {
+		final String resourceIdString = "foo";
+		final ResourceID resourceId = taskManagerIdPathParameter.convertFromString(resourceIdString);
+		assertThat(resourceId.getResourceIdString(), equalTo(resourceIdString));
+
+		assertThat(taskManagerIdPathParameter.convertToString(resourceId), equalTo(resourceIdString));
 	}
 
-	@Override
-	protected String convertToString(ResourceID value) {
-		return value.getResourceIdString();
+	@Test
+	public void testIsMandatory() {
+		assertTrue(taskManagerIdPathParameter.isMandatory());
 	}
+
 }

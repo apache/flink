@@ -40,6 +40,7 @@ public class ResourceIDSerializer extends StdSerializer<ResourceID> {
 
 	@Override
 	public void serialize(ResourceID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		gen.writeString(value.toString());
+		gen.writeString(value.getResourceIdString());
 	}
+
 }
