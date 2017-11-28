@@ -45,8 +45,9 @@ public class FlatSelectCepOperator<IN, KEY, OUT>
 		NFACompiler.NFAFactory<IN> nfaFactory,
 		EventComparator<IN> comparator,
 		AfterMatchSkipStrategy skipStrategy,
-		PatternFlatSelectFunction<IN, OUT> function) {
-		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function);
+		PatternFlatSelectFunction<IN, OUT> function,
+		long patternTimeoutMs) {
+		super(inputSerializer, isProcessingTime, nfaFactory, comparator, skipStrategy, function, patternTimeoutMs);
 	}
 
 	private transient TimestampedCollector<OUT> collector;

@@ -57,15 +57,17 @@ public class CepOperatorTestUtilities {
 
 	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
 		boolean isProcessingTime,
-		NFACompiler.NFAFactory<Event> nfaFactory) {
+		NFACompiler.NFAFactory<Event> nfaFactory,
+		long patternTimeoutMs) {
 
-		return getKeyedCepOpearator(isProcessingTime, nfaFactory, null);
+		return getKeyedCepOpearator(isProcessingTime, nfaFactory, null, patternTimeoutMs);
 	}
 
 	public static <K> SelectCepOperator<Event, K, Map<String, List<Event>>> getKeyedCepOpearator(
 		boolean isProcessingTime,
 		NFACompiler.NFAFactory<Event> nfaFactory,
-		EventComparator<Event> comparator) {
+		EventComparator<Event> comparator,
+		long patternTimeoutMs) {
 		return new SelectCepOperator<>(
 			Event.createTypeSerializer(),
 			isProcessingTime,
@@ -77,7 +79,8 @@ public class CepOperatorTestUtilities {
 				public Map<String, List<Event>> select(Map<String, List<Event>> pattern) throws Exception {
 					return pattern;
 				}
-			});
+			},
+			patternTimeoutMs);
 	}
 
 	private CepOperatorTestUtilities() {
