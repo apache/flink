@@ -588,6 +588,9 @@ public abstract class NettyMessage {
 		}
 	}
 
+	/**
+	 * Incremental credit announcement from the client to the server.
+	 */
 	static class AddCredit extends NettyMessage {
 
 		private static final byte ID = 6;

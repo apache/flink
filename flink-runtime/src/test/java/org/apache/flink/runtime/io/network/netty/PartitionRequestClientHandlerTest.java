@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -136,7 +135,7 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testReceiveBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, MemoryType.HEAP);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
 		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
@@ -171,7 +170,7 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, MemoryType.HEAP);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
 		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);

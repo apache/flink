@@ -102,13 +102,21 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	/**
+	 * The credit is announced based on sender's backlog from buffer response, so the channel is
+	 * already active then. If the channel is closed because of error, we can skip this announcement.
+	 *
+	 * @param inputChannel The input channel with unannounced credits.
+	 */
 	void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-		ctx.executor().execute(new Runnable() {
-			@Override
-			public void run() {
-				ctx.pipeline().fireUserEventTriggered(inputChannel);
-			}
-		});
+		if (ctx != null) {
+			ctx.executor().execute(new Runnable() {
+				@Override
+				public void run() {
+					ctx.pipeline().fireUserEventTriggered(inputChannel);
+				}
+			});
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -177,6 +185,9 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	@Override
 	public void userEventTriggered(ChannelHandlerContext ctx, Object msg) throws Exception {
 		if (msg instanceof RemoteInputChannel) {
+			// Queue an input channel for available credits announcement.
+			// If the queue is empty, we try to trigger the actual write. Otherwise
+			// this will be handled by the writeAndFlushNextMessageIfPossible calls.
 			boolean triggerWrite = inputChannelsWithCredit.isEmpty();
 
 			inputChannelsWithCredit.add((RemoteInputChannel) msg);
@@ -318,6 +329,11 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 		}
 	}
 
+	/**
+	 * Fetches one un-released input channel from the queue and writes the
+	 * unannounced credits immediately. After this is done, we will continue
+	 * with the next input channel via listener's callback.
+	 */
 	private void writeAndFlushNextMessageIfPossible(Channel channel) {
 		if (channelError.get() != null || !channel.isWritable()) {
 			return;
