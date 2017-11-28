@@ -304,7 +304,7 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
-		taskStateManager.reportStateHandles(
+		taskStateManager.reportTaskStateSnapshot(
 			new CheckpointMetaData(checkpointId, 0L),
 			checkpointMetrics,
 			subtaskState);

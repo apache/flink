@@ -171,8 +171,6 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 				}
 
 				// Now start collection the partitions for the parallel instance into this list
-				List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>> parallelOperatorState =
-						new ArrayList<>();
 
 				while (numberOfPartitionsToAssign > 0) {
 					Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo> handleWithOffsets =
@@ -193,10 +191,6 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 						offsetIdx = 0;
 						++lstIdx;
 					}
-
-					parallelOperatorState.add(new Tuple2<>(
-							handleWithOffsets.f0,
-							new OperatorStateHandle.StateMetaInfo(offs, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE)));
 
 					numberOfPartitionsToAssign -= remaining;
 

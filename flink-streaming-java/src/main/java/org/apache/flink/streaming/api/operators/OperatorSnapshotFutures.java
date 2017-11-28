@@ -28,18 +28,18 @@ import java.util.concurrent.RunnableFuture;
 /**
  * Result of {@link StreamOperator#snapshotState}.
  */
-public class OperatorSnapshotResult {
+public class OperatorSnapshotFutures {
 
 	private RunnableFuture<KeyedStateHandle> keyedStateManagedFuture;
 	private RunnableFuture<KeyedStateHandle> keyedStateRawFuture;
 	private RunnableFuture<OperatorStateHandle> operatorStateManagedFuture;
 	private RunnableFuture<OperatorStateHandle> operatorStateRawFuture;
 
-	public OperatorSnapshotResult() {
+	public OperatorSnapshotFutures() {
 		this(null, null, null, null);
 	}
 
-	public OperatorSnapshotResult(
+	public OperatorSnapshotFutures(
 			RunnableFuture<KeyedStateHandle> keyedStateManagedFuture,
 			RunnableFuture<KeyedStateHandle> keyedStateRawFuture,
 			RunnableFuture<OperatorStateHandle> operatorStateManagedFuture,

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -47,7 +48,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
-import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
@@ -370,10 +371,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 					numSubtasks).get(subtaskIndex);
 
 			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-				nullToEmptyCollection(localManagedOperatorState),
-				nullToEmptyCollection(localRawOperatorState),
-				nullToEmptyCollection(localManagedKeyGroupState),
-				nullToEmptyCollection(localRawKeyGroupState));
+				new StateObjectCollection<>(nullToEmptyCollection(localManagedOperatorState)),
+				new StateObjectCollection<>(nullToEmptyCollection(localRawOperatorState)),
+				new StateObjectCollection<>(nullToEmptyCollection(localManagedKeyGroupState)),
+				new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupState)));
 
 			TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
 			taskStateSnapshot.putSubtaskStateByOperatorID(operator.getOperatorID(), operatorSubtaskState);
@@ -472,7 +473,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 */
 	public OperatorStateHandles snapshot(long checkpointId, long timestamp) throws Exception {
 
-		OperatorSnapshotResult operatorStateResult = operator.snapshotState(
+		OperatorSnapshotFutures operatorStateResult = operator.snapshotState(
 			checkpointId,
 			timestamp,
 			CheckpointOptions.forCheckpointWithDefaultLocation(),

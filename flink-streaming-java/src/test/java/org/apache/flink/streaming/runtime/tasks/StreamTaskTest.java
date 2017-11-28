@@ -94,7 +94,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
-import org.apache.flink.streaming.api.operators.OperatorSnapshotResult;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
@@ -342,8 +342,8 @@ public class StreamTaskTest extends TestLogger {
 		StreamOperator<?> streamOperator3 = mock(StreamOperator.class);
 
 		// mock the returned snapshots
-		OperatorSnapshotResult operatorSnapshotResult1 = mock(OperatorSnapshotResult.class);
-		OperatorSnapshotResult operatorSnapshotResult2 = mock(OperatorSnapshotResult.class);
+		OperatorSnapshotFutures operatorSnapshotResult1 = mock(OperatorSnapshotFutures.class);
+		OperatorSnapshotFutures operatorSnapshotResult2 = mock(OperatorSnapshotFutures.class);
 
 		final Exception testException = new Exception("Test exception");
 
@@ -416,9 +416,9 @@ public class StreamTaskTest extends TestLogger {
 		StreamOperator<?> streamOperator3 = mock(StreamOperator.class);
 
 		// mock the new state operator snapshots
-		OperatorSnapshotResult operatorSnapshotResult1 = mock(OperatorSnapshotResult.class);
-		OperatorSnapshotResult operatorSnapshotResult2 = mock(OperatorSnapshotResult.class);
-		OperatorSnapshotResult operatorSnapshotResult3 = mock(OperatorSnapshotResult.class);
+		OperatorSnapshotFutures operatorSnapshotResult1 = mock(OperatorSnapshotFutures.class);
+		OperatorSnapshotFutures operatorSnapshotResult2 = mock(OperatorSnapshotFutures.class);
+		OperatorSnapshotFutures operatorSnapshotResult3 = mock(OperatorSnapshotFutures.class);
 
 		RunnableFuture<OperatorStateHandle> failingFuture = mock(RunnableFuture.class);
 		when(failingFuture.get()).thenThrow(new ExecutionException(new Exception("Test exception")));
@@ -526,7 +526,7 @@ public class StreamTaskTest extends TestLogger {
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 
-		OperatorSnapshotResult operatorSnapshotResult = new OperatorSnapshotResult(
+		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			new DoneFuture<>(managedKeyedStateHandle),
 			new DoneFuture<>(rawKeyedStateHandle),
 			new DoneFuture<>(managedOperatorStateHandle),
@@ -645,7 +645,7 @@ public class StreamTaskTest extends TestLogger {
 		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
 		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
 
-		OperatorSnapshotResult operatorSnapshotResult = new OperatorSnapshotResult(
+		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			new DoneFuture<>(managedKeyedStateHandle),
 			new DoneFuture<>(rawKeyedStateHandle),
 			new DoneFuture<>(managedOperatorStateHandle),
@@ -755,7 +755,7 @@ public class StreamTaskTest extends TestLogger {
 		when(statelessOperator.getOperatorID()).thenReturn(operatorID);
 
 		// mock the returned empty snapshot result (all state handles are null)
-		OperatorSnapshotResult statelessOperatorSnapshotResult = new OperatorSnapshotResult();
+		OperatorSnapshotFutures statelessOperatorSnapshotResult = new OperatorSnapshotFutures();
 		when(statelessOperator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class), any(CheckpointStreamFactory.class)))
 				.thenReturn(statelessOperatorSnapshotResult);
 

@@ -31,9 +31,9 @@ import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 /**
- * Tests for {@link OperatorSnapshotResult}.
+ * Tests for {@link OperatorSnapshotFutures}.
  */
-public class OperatorSnapshotResultTest extends TestLogger {
+public class OperatorSnapshotFuturesTest extends TestLogger {
 
 	/**
 	 * Tests that all runnable futures in an OperatorSnapshotResult are properly cancelled and if
@@ -41,7 +41,7 @@ public class OperatorSnapshotResultTest extends TestLogger {
 	 */
 	@Test
 	public void testCancelAndCleanup() throws Exception {
-		OperatorSnapshotResult operatorSnapshotResult = new OperatorSnapshotResult();
+		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures();
 
 		operatorSnapshotResult.cancel();
 
@@ -61,7 +61,7 @@ public class OperatorSnapshotResultTest extends TestLogger {
 		RunnableFuture<OperatorStateHandle> operatorStateRawFuture = mock(RunnableFuture.class);
 		when(operatorStateRawFuture.get()).thenReturn(operatorRawStateHandle);
 
-		operatorSnapshotResult = new OperatorSnapshotResult(
+		operatorSnapshotResult = new OperatorSnapshotFutures(
 			keyedStateManagedFuture,
 			keyedStateRawFuture,
 			operatorStateManagedFuture,

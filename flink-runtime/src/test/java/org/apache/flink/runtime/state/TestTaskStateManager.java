@@ -72,7 +72,7 @@ public class TestTaskStateManager implements TaskStateManager {
 	}
 
 	@Override
-	public void reportStateHandles(
+	public void reportTaskStateSnapshot(
 		@Nonnull CheckpointMetaData checkpointMetaData,
 		@Nonnull CheckpointMetrics checkpointMetrics,
 		@Nullable TaskStateSnapshot acknowledgedState) {

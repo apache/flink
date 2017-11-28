@@ -1202,25 +1202,24 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		if (executionState == ExecutionState.RUNNING && invokable != null) {
 
-				Runnable runnable = new Runnable() {
-					@Override
-					public void run() {
-						try {
-							invokable.notifyCheckpointComplete(checkpointID);
-						taskStateManager.notifyCheckpointComplete(checkpointID);}
-						catch (Throwable t) {
-							if (getExecutionState() == ExecutionState.RUNNING) {
-								// fail task if checkpoint confirmation failed.
-								failExternally(new RuntimeException(
-									"Error while confirming checkpoint",
-									t));
-							}
+			Runnable runnable = new Runnable() {
+				@Override
+				public void run() {
+					try {
+						invokable.notifyCheckpointComplete(checkpointID);
+						taskStateManager.notifyCheckpointComplete(checkpointID);
+					} catch (Throwable t) {
+						if (getExecutionState() == ExecutionState.RUNNING) {
+							// fail task if checkpoint confirmation failed.
+							failExternally(new RuntimeException(
+								"Error while confirming checkpoint",
+								t));
 						}
 					}
-				};
-				executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " +
-						taskNameWithSubtask);
-
+				}
+			};
+			executeAsyncCallRunnable(runnable, "Checkpoint Confirmation for " +
+				taskNameWithSubtask);
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
