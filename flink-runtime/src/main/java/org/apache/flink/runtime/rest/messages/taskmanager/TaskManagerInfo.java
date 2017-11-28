@@ -38,7 +38,7 @@ import java.util.Objects;
  */
 public class TaskManagerInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_INSTANCE_ID = "id";
+	public static final String FIELD_NAME_RESOURCE_ID = "id";
 
 	public static final String FIELD_NAME_ADDRESS = "path";
 
@@ -52,7 +52,7 @@ public class TaskManagerInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_HARDWARE = "hardware";
 
-	@JsonProperty(FIELD_NAME_INSTANCE_ID)
+	@JsonProperty(FIELD_NAME_RESOURCE_ID)
 	@JsonSerialize(using = ResourceIDSerializer.class)
 	private final ResourceID resourceId;
 
@@ -76,7 +76,7 @@ public class TaskManagerInfo implements ResponseBody {
 
 	@JsonCreator
 	public TaskManagerInfo(
-			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_INSTANCE_ID) ResourceID resourceId,
+			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
 			@JsonProperty(FIELD_NAME_ADDRESS) String address,
 			@JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,

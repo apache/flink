@@ -41,4 +41,5 @@ public class ResourceIDDeserializer extends StdDeserializer<ResourceID> {
 	public ResourceID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
 		return new ResourceID(p.getValueAsString());
 	}
+
 }

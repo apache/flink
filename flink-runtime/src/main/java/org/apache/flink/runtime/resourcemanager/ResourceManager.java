@@ -503,14 +503,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		final ArrayList<TaskManagerInfo> taskManagerInfos = new ArrayList<>(taskExecutors.size());
 
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> taskExecutorEntry : taskExecutors.entrySet()) {
+			final ResourceID resourceId = taskExecutorEntry.getKey();
 			final WorkerRegistration<WorkerType> taskExecutor = taskExecutorEntry.getValue();
 
 			taskManagerInfos.add(
 				new TaskManagerInfo(
-					taskExecutorEntry.getKey(),
+					resourceId,
 					taskExecutor.getTaskExecutorGateway().getAddress(),
 					taskExecutor.getDataPort(),
-					taskManagerHeartbeatManager.getLastHeartbeatFrom(taskExecutorEntry.getKey()),
+					taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
 					slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
 					slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
 					taskExecutor.getHardwareDescription()));
@@ -527,13 +528,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		if (taskExecutor == null) {
 			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskManager " + resourceId + " is not registered."));
 		} else {
+			final InstanceID instanceId = taskExecutor.getInstanceID();
 			final TaskManagerInfo taskManagerInfo = new TaskManagerInfo(
 				resourceId,
 				taskExecutor.getTaskExecutorGateway().getAddress(),
 				taskExecutor.getDataPort(),
 				taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
-				slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
-				slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
+				slotManager.getNumberRegisteredSlotsOf(instanceId),
+				slotManager.getNumberFreeSlotsOf(instanceId),
 				taskExecutor.getHardwareDescription());
 
 			return CompletableFuture.completedFuture(taskManagerInfo);
