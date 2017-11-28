@@ -185,11 +185,11 @@ public interface ResourceManagerGateway extends FencedRpcGateway<ResourceManager
 	/**
 	 * Requests information about the given {@link TaskExecutor}.
 	 *
-	 * @param instanceId identifying the TaskExecutor for which to return information
+	 * @param taskManagerId identifying the TaskExecutor for which to return information
 	 * @param timeout of the request
 	 * @return Future TaskManager information
 	 */
-	CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(InstanceID instanceId, @RpcTimeout Time timeout);
+	CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(ResourceID taskManagerId, @RpcTimeout Time timeout);
 	 
 	/**
 	 * Requests the resource overview. The resource overview provides information about the

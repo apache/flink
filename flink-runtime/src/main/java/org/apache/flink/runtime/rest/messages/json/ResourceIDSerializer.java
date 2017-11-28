@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.json;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.InstanceID;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -29,16 +30,16 @@ import java.io.IOException;
 /**
  * Json serializer for {@link InstanceID}.
  */
-public class InstanceIDSerializer extends StdSerializer<InstanceID> {
+public class ResourceIDSerializer extends StdSerializer<ResourceID> {
 
 	private static final long serialVersionUID = 5798852092159615938L;
 
-	protected InstanceIDSerializer() {
-		super(InstanceID.class);
+	protected ResourceIDSerializer() {
+		super(ResourceID.class);
 	}
 
 	@Override
-	public void serialize(InstanceID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+	public void serialize(ResourceID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
 		gen.writeString(value.toString());
 	}
 }
