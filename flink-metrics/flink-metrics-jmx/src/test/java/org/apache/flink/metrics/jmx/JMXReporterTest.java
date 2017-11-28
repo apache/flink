@@ -23,13 +23,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -243,7 +243,7 @@ public class JMXReporterTest extends TestLogger {
 
 			TaskManagerMetricGroup metricGroup = new TaskManagerMetricGroup(registry, "localhost", "tmId");
 
-			TestingHistogram histogram = new TestingHistogram();
+			TestHistogram histogram = new TestHistogram();
 
 			metricGroup.histogram(histogramName, histogram);
 
@@ -307,7 +307,7 @@ public class JMXReporterTest extends TestLogger {
 
 			assertEquals(2, attributeInfos.length);
 
-			assertEquals(meter.getRate(),  mBeanServer.getAttribute(objectName, "Rate"));
+			assertEquals(meter.getRate(), mBeanServer.getAttribute(objectName, "Rate"));
 			assertEquals(meter.getCount(), mBeanServer.getAttribute(objectName, "Count"));
 
 		} finally {
