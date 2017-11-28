@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
@@ -76,6 +77,12 @@ public class TestPooledBufferProvider implements BufferProvider {
 		}
 
 		return buffers.take();
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+		Buffer buffer = requestBufferBlocking();
+		return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
 	}
 
 	@Override

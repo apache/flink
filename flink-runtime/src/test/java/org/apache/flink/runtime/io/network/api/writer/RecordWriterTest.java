@@ -31,11 +31,12 @@ import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
@@ -54,6 +55,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -70,7 +73,6 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -97,16 +99,18 @@ public class RecordWriterTest {
 
 			final CountDownLatch sync = new CountDownLatch(2);
 
-			final Buffer buffer = spy(TestBufferFactory.createBuffer(4));
+			final TrackingBufferRecycler recycler = new TrackingBufferRecycler();
+
+			final MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(4);
 
 			// Return buffer for first request, but block for all following requests.
-			Answer<Buffer> request = new Answer<Buffer>() {
+			Answer<BufferBuilder> request = new Answer<BufferBuilder>() {
 				@Override
-				public Buffer answer(InvocationOnMock invocation) throws Throwable {
+				public BufferBuilder answer(InvocationOnMock invocation) throws Throwable {
 					sync.countDown();
 
 					if (sync.getCount() == 1) {
-						return buffer;
+						return new BufferBuilder(memorySegment, recycler);
 					}
 
 					final Object o = new Object();
@@ -119,7 +123,7 @@ public class RecordWriterTest {
 			};
 
 			BufferProvider bufferProvider = mock(BufferProvider.class);
-			when(bufferProvider.requestBufferBlocking()).thenAnswer(request);
+			when(bufferProvider.requestBufferBuilderBlocking()).thenAnswer(request);
 
 			ResultPartitionWriter partitionWriter = createResultPartitionWriter(bufferProvider);
 
@@ -156,13 +160,13 @@ public class RecordWriterTest {
 			recordWriter.clearBuffers();
 
 			// Verify that buffer have been requested, but only one has been written out.
-			verify(bufferProvider, times(2)).requestBufferBlocking();
+			verify(bufferProvider, times(2)).requestBufferBuilderBlocking();
 			verify(partitionWriter, times(1)).writeBuffer(any(Buffer.class), anyInt());
 
 			// Verify that the written out buffer has only been recycled once
 			// (by the partition writer).
-			assertTrue("Buffer not recycled.", buffer.isRecycled());
-			verify(buffer, times(1)).recycle();
+			assertEquals(1, recycler.getRecycledMemorySegments().size());
+			assertEquals(memorySegment, recycler.getRecycledMemorySegments().get(0));
 		}
 		finally {
 			if (executor != null) {
@@ -564,6 +568,19 @@ public class RecordWriterTest {
 		public int[] selectChannels(final T record, final int numberOfOutputChannels) {
 			nextChannel[0] = (nextChannel[0] + 1) % numberOfOutputChannels;
 			return nextChannel;
+		}
+	}
+
+	private static class TrackingBufferRecycler implements BufferRecycler {
+		private final ArrayList<MemorySegment> recycledMemorySegments = new ArrayList<>();
+
+		@Override
+		public synchronized void recycle(MemorySegment memorySegment) {
+			recycledMemorySegments.add(memorySegment);
+		}
+
+		public synchronized List<MemorySegment> getRecycledMemorySegments() {
+			return recycledMemorySegments;
 		}
 	}
 }

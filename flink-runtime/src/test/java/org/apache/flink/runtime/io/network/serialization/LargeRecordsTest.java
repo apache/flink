@@ -18,28 +18,27 @@
 
 package org.apache.flink.runtime.io.network.serialization;
 
-import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 public class LargeRecordsTest {
 
@@ -51,8 +50,6 @@ public class LargeRecordsTest {
 
 			final RecordSerializer<SerializationTestType> serializer = new SpanningRecordSerializer<SerializationTestType>();
 			final RecordDeserializer<SerializationTestType> deserializer = new AdaptiveSpanningRecordDeserializer<SerializationTestType>();
-
-			final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(SEGMENT_SIZE), mock(BufferRecycler.class));
 
 			List<SerializationTestType> originalRecords = new ArrayList<SerializationTestType>((NUM_RECORDS + 1) / 2);
 			List<SerializationTestType> deserializedRecords = new ArrayList<SerializationTestType>((NUM_RECORDS + 1) / 2);
@@ -73,7 +70,7 @@ public class LargeRecordsTest {
 
 			// -------------------------------------------------------------------------------------------------------------
 
-			serializer.setNextBuffer(buffer);
+			serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE));
 			
 			int numRecordsDeserialized = 0;
 			
@@ -98,7 +95,7 @@ public class LargeRecordsTest {
 					}
 
 					// move buffers as long as necessary (for long records)
-					while (serializer.setNextBuffer(buffer).isFullBuffer()) {
+					while (serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE)).isFullBuffer()) {
 						deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
 					}
 					
@@ -152,8 +149,6 @@ public class LargeRecordsTest {
 					new SpillingAdaptiveSpanningRecordDeserializer<SerializationTestType>(
 							new String[] { System.getProperty("java.io.tmpdir") } );
 
-			final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(SEGMENT_SIZE), mock(BufferRecycler.class));
-
 			List<SerializationTestType> originalRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
 			List<SerializationTestType> deserializedRecords = new ArrayList<>((NUM_RECORDS + 1) / 2);
 			
@@ -173,7 +168,7 @@ public class LargeRecordsTest {
 
 			// -------------------------------------------------------------------------------------------------------------
 
-			serializer.setNextBuffer(buffer);
+			serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE));
 			
 			int numRecordsDeserialized = 0;
 			
@@ -198,7 +193,7 @@ public class LargeRecordsTest {
 					}
 
 					// move buffers as long as necessary (for long records)
-					while (serializer.setNextBuffer(buffer).isFullBuffer()) {
+					while (serializer.setNextBufferBuilder(createBufferBuilder(SEGMENT_SIZE)).isFullBuffer()) {
 						deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), SEGMENT_SIZE);
 					}
 					
