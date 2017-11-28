@@ -65,6 +65,7 @@ import org.apache.flink.types.Row
 import _root_.scala.annotation.varargs
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
+import _root_.scala.util.control.Breaks._
 
 /**
   * The abstract base class for batch and stream TableEnvironments.
@@ -726,13 +727,35 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Checks if the chosen table type is valid.
     * @param table The table to check
     */
-  protected def checkValidTableType(table: Table): Unit
+  protected def checkValidTableType(table: Table): Unit = {
+    val types = table.getSchema.getTypes
+    checkTypeArray(types)
+  }
+
+  private def checkTypeArray(types: Array[TypeInformation[_]]) = {
+    for (typeInfo <- types) {
+      val typeClass = typeInfo.asInstanceOf[TypeInformation[_]].getTypeClass
+
+      if (typeClass.getMethod("hashCode").getDeclaringClass eq classOf[Object])
+        throw new ValidationException(s"Illegal Table type." +
+          s"Please make sure type ${typeClass.getCanonicalName}" +
+          s" implement own hashCode method")
+      if (typeClass.getMethod("equals", classOf[Any]).getDeclaringClass eq classOf[Object])
+        throw new ValidationException(s"Illegal Table type." +
+          s"Please make sure type ${typeClass.getCanonicalName}" +
+          s" implement own equals method")
+    }
+  }
 
   /**
-    * Checks if the chosen table type is valid.
-    * @param table The calcite table to check
+    * Checks if the chosen table source type is valid.
+    *
+    * @param table The table source to check
     */
-  protected def checkValidCalciteTableType(table: AbstractTable): Unit
+  protected def checkValidTableSourceType(table: TableSource[_]): Unit = {
+    val types = table.getTableSchema.getTypes
+    checkTypeArray(types)
+  }
 
   /**
     * Checks if a table is registered under the given name.

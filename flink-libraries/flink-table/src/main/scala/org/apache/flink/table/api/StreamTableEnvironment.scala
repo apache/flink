@@ -25,7 +25,6 @@ import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl, RelRecordType}
-import org.apache.calcite.schema.impl.AbstractTable
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
@@ -37,7 +36,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem, RelTimeIndicatorConverter}
+import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.explain.PlanJsonParser
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -53,7 +52,6 @@ import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSour
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
 
 import _root_.scala.collection.JavaConverters._
-import _root_.scala.collection.JavaConversions._
 
 /**
   * The base class for stream TableEnvironments.
@@ -98,28 +96,6 @@ abstract class StreamTableEnvironment(
     }
   }
 
-  override protected def checkValidTableType(table: Table): Unit = {}
-
-  /**
-    * Checks if the chosen calcite table type is valid
-    * @param table The table to check
-    */
-  protected def checkValidCalciteTableType(table: AbstractTable): Unit = {
-    val typeSystem = new FlinkTypeSystem
-    val typeFactory = new FlinkTypeFactory(typeSystem)
-    val types = table.getRowType(typeFactory).getFieldList
-    for(relDataTypeField: RelDataTypeField <- types) {
-      if (relDataTypeField.getType.getClass.getMethod("hashCode").getDeclaringClass eq classOf[Any])
-        throw new TableException(s"Illegal Table type." +
-          s"Please make sure type info ${relDataTypeField.getClass.getCanonicalName}" +
-          s" implement own hashCode method")
-      if (relDataTypeField.getType.getClass.getMethod("equals", classOf[Any]).getDeclaringClass eq classOf[Any])
-        throw new TableException(s"Illegal Table type." +
-          s"Please make sure type info ${relDataTypeField.getClass.getCanonicalName}" +
-          s" implement own equals method")
-    }
-  }
-
   /** Returns a unique table name according to the internal naming pattern. */
   protected def createUniqueTableName(): String = "_DataStreamTable_" + nameCntr.getAndIncrement()
 
@@ -143,7 +119,7 @@ abstract class StreamTableEnvironment(
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
         val tableSourceTable = new StreamTableSourceTable(streamTableSource)
-        checkValidCalciteTableType(tableSourceTable)
+        checkValidTableSourceType(tableSource)
         registerTableInternal(name, tableSourceTable)
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
