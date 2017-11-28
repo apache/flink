@@ -28,7 +28,7 @@ under the License.
 
 ## Tasks and Operator Chains
 
-For distributed execution, Flink *chains* operator subtasks together into *tasks*. One thread executes each task.
+For distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
 Chaining operators together into tasks is a useful optimization, it reduces the overhead of thread-to-thread
 handover and buffering, and increases overall throughput while decreasing latency.
 You can configure the chaining behavior, read the [chaining documentation](../dev/datastream_api.html#task-chaining-and-resource-groups) for details.
@@ -119,7 +119,7 @@ The state backends also implement the logic to take a point-in-time snapshot of 
 
 Programs written in the Data Stream API can resume execution from a **savepoint**. Savepoints allow both updating your programs and your Flink cluster without losing any state.
 
-[Savepoints](../ops/state/savepoints.html) are **manually triggered checkpoints**, which take a snapshot of the program and write it out to a state backend. They rely on the regular checkpointing mechanism for this. During execution programs are periodically snapshotted on the worker nodes and produce checkpoints. The last completed checkpoint is only needed for recovery and you can safely discard older checkpoints as soon as a new one is completed.
+[Savepoints](../ops/state/savepoints.html) are **manually triggered checkpoints**, which take a snapshot of the program and write it out to a state backend using the regular checkpointing mechanism. During execution programs are periodically snapshotted on the worker nodes and produce checkpoints. For recovery only the last completed checkpoint is needed and you can safely discarded older checkpoints as soon as a new one is completed.
 
 Savepoints are similar to these periodic checkpoints except that they are **triggered by the user** and **don't automatically expire** when newer checkpoints are completed. You can create savepoints from the [command line](../ops/cli.html#savepoints) or when cancelling a job via the [REST API](../monitoring/rest_api.html#cancel-job-with-savepoint).
 

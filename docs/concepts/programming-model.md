@@ -38,7 +38,7 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
     and use consistent fault tolerant *state*. Users can register event time and processing time callbacks,
     allowing programs to realize sophisticated computations.
 
-  - In practice, most applications would not need the low level abstraction describe above, but would instead program against the
+  - In practice, most applications would not need the low level abstraction described above, but would instead program against the
     **Core APIs** like the [DataStream API](../dev/datastream_api.html) (bounded/unbounded streams) and the [DataSet API](../dev/batch/index.html)
     (bounded data sets). These fluent APIs offer the common building blocks for data processing, like forms of user-specified
     transformations, joins, aggregations, windows, state, etc. Data types processed in these APIs are represented as classes
@@ -50,9 +50,9 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
   - The **Table API** is a declarative DSL centered around *tables*, which may be dynamically changing tables (when representing streams).
     The [Table API](../dev/table_api.html) follows the (extended) relational model. Tables have a schema attached (similar to tables in relational databases)
     and the API offers comparable operations, such as select, project, join, group-by, aggregate, etc.
-    Table API programs declaratively define *what logical operation should to perform* rather than specifying
+    Table API programs declaratively define *what logical operation to perform* rather than specifying
    *how the code for the operation looks*. The Table API is extensible by various types of user-defined
-    functions, it is less expressive than the *Core APIs*, but more concise to use (less code to write).
+    functions. It is less expressive than the *Core APIs*, but more concise to use (less code to write).
     Table API programs also go through an optimizer that applies optimization rules before execution.
 
     You can seamlessly convert between tables and *DataStream*/*DataSet*, allowing programs to mix *Table API* and with the *DataStream*
@@ -66,9 +66,9 @@ Flink offers different levels of abstraction to develop streaming/batch applicat
 ## Programs and Dataflows
 
 The basic building blocks of Flink programs are **streams** and **transformations**. The
-DataSets used in Flink's DataSet API are also streams internally, which this document will cover later. Conceptually a *stream* is a (potentially never-ending) flow of data records, and a *transformation* is an
-operation that takes one or more streams as input, and produces one or more output streams as a
-result.
+DataSets used in Flink's DataSet API are also streams internally, which this document will cover later.
+Conceptually a *stream* is a (potentially never-ending) flow of data records, and a *transformation* is an
+operation that takes one or more streams as input, and produces one or more output streams as a result.
 
 When executed, Flink maps programs to **streaming dataflows**, consisting of **streams** and transformation **operators**.
 Each dataflow starts with one or more **sources** and ends in one or more **sinks**. The dataflows resemble
@@ -131,7 +131,8 @@ One typically distinguishes different types of windows, such as *tumbling window
 
 <img src="../fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" />
 
-You can find more window examples in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) and in the [window documentation](../dev/stream/operators/windows.html).
+You can find more window examples in this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html)
+and in the [window documentation](../dev/stream/operators/windows.html).
 
 {% top %}
 
