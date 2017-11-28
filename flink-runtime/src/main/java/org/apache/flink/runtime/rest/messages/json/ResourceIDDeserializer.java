@@ -18,8 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.json;
 
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
@@ -28,18 +27,18 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import java.io.IOException;
 
 /**
- * Json deserializer for {@link InstanceID}.
+ * Json deserializer for {@link ResourceID}.
  */
-public class InstanceIDDeserializer extends StdDeserializer<InstanceID> {
+public class ResourceIDDeserializer extends StdDeserializer<ResourceID> {
 
 	private static final long serialVersionUID = -9058463293913469849L;
 
-	protected InstanceIDDeserializer() {
-		super(InstanceID.class);
+	protected ResourceIDDeserializer() {
+		super(ResourceID.class);
 	}
 
 	@Override
-	public InstanceID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-		return new InstanceID(StringUtils.hexStringToByte(p.getValueAsString()));
+	public ResourceID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+		return new ResourceID(p.getValueAsString());
 	}
 }

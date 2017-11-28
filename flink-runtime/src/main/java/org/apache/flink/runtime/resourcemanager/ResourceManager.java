@@ -500,14 +500,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	@Override
 	public CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(Time timeout) {
 
-		ArrayList<TaskManagerInfo> taskManagerInfos = new ArrayList<>(taskExecutors.size());
+		final ArrayList<TaskManagerInfo> taskManagerInfos = new ArrayList<>(taskExecutors.size());
 
 		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> taskExecutorEntry : taskExecutors.entrySet()) {
 			final WorkerRegistration<WorkerType> taskExecutor = taskExecutorEntry.getValue();
 
 			taskManagerInfos.add(
 				new TaskManagerInfo(
-					taskExecutor.getInstanceID(),
+					taskExecutorEntry.getKey(),
 					taskExecutor.getTaskExecutorGateway().getAddress(),
 					taskExecutor.getDataPort(),
 					taskManagerHeartbeatManager.getLastHeartbeatFrom(taskExecutorEntry.getKey()),
@@ -520,29 +520,20 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	}
 
 	@Override
-	public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(InstanceID instanceId, Time timeout) {
+	public CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(ResourceID resourceId, Time timeout) {
 
-		Map.Entry<ResourceID, WorkerRegistration<WorkerType>> taskExecutorEntry = null;
+		WorkerRegistration<WorkerType> taskExecutor = taskExecutors.get(resourceId);
 
-		// TODO: Implement more efficiently
-		for (Map.Entry<ResourceID, WorkerRegistration<WorkerType>> workerEntry : taskExecutors.entrySet()) {
-			if (Objects.equals(workerEntry.getValue().getInstanceID(), instanceId)) {
-				taskExecutorEntry = workerEntry;
-				break;
-			}
-		}
-
-		if (taskExecutorEntry == null) {
-			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskManager " + instanceId + " is not registered."));
+		if (taskExecutor == null) {
+			return FutureUtils.completedExceptionally(new FlinkException("Requested TaskManager " + resourceId + " is not registered."));
 		} else {
-			WorkerRegistration<?> taskExecutor = taskExecutorEntry.getValue();
 			final TaskManagerInfo taskManagerInfo = new TaskManagerInfo(
-				taskExecutor.getInstanceID(),
+				resourceId,
 				taskExecutor.getTaskExecutorGateway().getAddress(),
 				taskExecutor.getDataPort(),
-				taskManagerHeartbeatManager.getLastHeartbeatFrom(taskExecutorEntry.getKey()),
-				slotManager.getNumberRegisteredSlotsOf(instanceId),
-				slotManager.getNumberFreeSlotsOf(instanceId),
+				taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
+				slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
+				slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
 				taskExecutor.getHardwareDescription());
 
 			return CompletableFuture.completedFuture(taskManagerInfo);
