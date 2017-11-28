@@ -150,6 +150,14 @@ public interface MetricGroup {
 	 */
 	MetricGroup addGroup(String name);
 
+	/**
+	 * TODO: add javadoc.
+	 * @param key
+	 * @param value
+	 * @return
+	 */
+	MetricGroup addGroup(String key, String value);
+
 	// ------------------------------------------------------------------------
 	// Scope
 	// ------------------------------------------------------------------------
