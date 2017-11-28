@@ -18,20 +18,23 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
+import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.core.memory.DataOutputSerializer;
-
 /**
  * Record serializer which serializes the complete record to an intermediate
  * data serialization buffer and copies this buffer to target buffers
- * one-by-one using {@link #setNextBuffer(Buffer)}.
+ * one-by-one using {@link #setNextBufferBuilder(BufferBuilder)}.
  *
  * @param <T>
  */
@@ -50,13 +53,8 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	private final ByteBuffer lengthBuffer;
 
 	/** Current target {@link Buffer} of the serializer */
-	private Buffer targetBuffer;
-
-	/** Position in current {@link MemorySegment} of target buffer */
-	private int position;
-
-	/** Limit of current {@link MemorySegment} of target buffer */
-	private int limit;
+	@Nullable
+	private BufferBuilder targetBuffer;
 
 	public SpanningRecordSerializer() {
 		serializationBuffer = new DataOutputSerializer(128);
@@ -64,7 +62,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		lengthBuffer = ByteBuffer.allocate(4);
 		lengthBuffer.order(ByteOrder.BIG_ENDIAN);
 
-		// ensure initial state with hasRemaining false (for correct setNextBuffer logic)
+		// ensure initial state with hasRemaining false (for correct setNextBufferBuilder logic)
 		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 		lengthBuffer.position(4);
 	}
@@ -105,10 +103,8 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	@Override
-	public SerializationResult setNextBuffer(Buffer buffer) throws IOException {
+	public SerializationResult setNextBufferBuilder(BufferBuilder buffer) throws IOException {
 		targetBuffer = buffer;
-		position = 0;
-		limit = buffer.getSize();
 
 		if (lengthBuffer.hasRemaining()) {
 			copyToTargetBufferFrom(lengthBuffer);
@@ -140,19 +136,12 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		if (targetBuffer == null) {
 			return;
 		}
-
-		int needed = source.remaining();
-		int available = limit - position;
-		int toCopy = Math.min(needed, available);
-
-		targetBuffer.getMemorySegment().put(position, source, toCopy);
-
-		position += toCopy;
+		targetBuffer.append(source);
 	}
 
 	private SerializationResult getSerializationResult() {
 		if (!dataBuffer.hasRemaining() && !lengthBuffer.hasRemaining()) {
-			return (position < limit)
+			return !targetBuffer.isFull()
 					? SerializationResult.FULL_RECORD
 					: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
 		}
@@ -165,25 +154,21 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		if (targetBuffer == null) {
 			return null;
 		}
-
-		targetBuffer.setSize(position);
-		return targetBuffer;
+		Buffer result = targetBuffer.build();
+		targetBuffer = null;
+		return result;
 	}
 
 	@Override
 	public void clearCurrentBuffer() {
 		targetBuffer = null;
-		position = 0;
-		limit = 0;
 	}
 
 	@Override
 	public void clear() {
 		targetBuffer = null;
-		position = 0;
-		limit = 0;
 
-		// ensure clear state with hasRemaining false (for correct setNextBuffer logic)
+		// ensure clear state with hasRemaining false (for correct setNextBufferBuilder logic)
 		dataBuffer.position(dataBuffer.limit());
 		lengthBuffer.position(4);
 	}
@@ -191,7 +176,7 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public boolean hasData() {
 		// either data in current target buffer or intermediate buffers
-		return position > 0 || (lengthBuffer.hasRemaining() || dataBuffer.hasRemaining());
+		return (targetBuffer != null && !targetBuffer.isEmpty()) || lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
 	}
 
 	@Override

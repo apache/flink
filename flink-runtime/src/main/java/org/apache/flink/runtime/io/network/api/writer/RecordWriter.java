@@ -21,12 +21,13 @@ package org.apache.flink.runtime.io.network.api.writer;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.io.IOException;
@@ -129,8 +130,9 @@ public class RecordWriter<T extends IOReadableWritable> {
 						break;
 					}
 				} else {
-					buffer = targetPartition.getBufferProvider().requestBufferBlocking();
-					result = serializer.setNextBuffer(buffer);
+					BufferBuilder bufferBuilder =
+						targetPartition.getBufferProvider().requestBufferBuilderBlocking();
+					result = serializer.setNextBufferBuilder(bufferBuilder);
 				}
 			}
 		}

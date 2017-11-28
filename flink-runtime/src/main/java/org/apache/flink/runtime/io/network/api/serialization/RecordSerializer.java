@@ -19,11 +19,12 @@
 
 package org.apache.flink.runtime.io.network.api.serialization;
 
-import java.io.IOException;
-
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+
+import java.io.IOException;
 
 /**
  * Interface for turning records into sequences of memory segments.
@@ -79,19 +80,19 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * Sets a (next) target buffer to use and continues writing remaining data
 	 * to it until it is full.
 	 *
-	 * @param buffer the new target buffer to use
+	 * @param bufferBuilder the new target buffer to use
 	 * @return how much information was written to the target buffer and
 	 *         whether this buffer is full
 	 * @throws IOException
 	 */
-	SerializationResult setNextBuffer(Buffer buffer) throws IOException;
+	SerializationResult setNextBufferBuilder(BufferBuilder bufferBuilder) throws IOException;
 
 	/**
 	 * Retrieves the current target buffer and sets its size to the actual
 	 * number of written bytes.
 	 *
 	 * After calling this method, a new target buffer is required to continue
-	 * writing (see {@link #setNextBuffer(Buffer)}).
+	 * writing (see {@link #setNextBufferBuilder(BufferBuilder)}).
 	 *
 	 * @return the target buffer that was used
 	 */
@@ -102,7 +103,7 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 *
 	 * <p><strong>NOTE:</strong> After calling this method, <strong>a new target
 	 * buffer is required to continue writing</strong> (see
-	 * {@link #setNextBuffer(Buffer)}).</p>
+	 * {@link #setNextBufferBuilder(BufferBuilder)}).</p>
 	 */
 	void clearCurrentBuffer();
 
@@ -112,7 +113,7 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 *
 	 * <p><strong>NOTE:</strong> After calling this method, a <strong>new record
 	 * and a new target buffer is required to start writing again</strong>
-	 * (see {@link #setNextBuffer(Buffer)}). If you want to continue
+	 * (see {@link #setNextBufferBuilder(BufferBuilder)}). If you want to continue
 	 * with the current record, use {@link #clearCurrentBuffer()} instead.</p>
 	 */
 	void clear();
