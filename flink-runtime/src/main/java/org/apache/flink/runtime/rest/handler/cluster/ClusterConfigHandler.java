@@ -38,16 +38,14 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler which serves the cluster's configuration.
- *
- * @param <T> type of the leader gateway
  */
-public class ClusterConfigHandler<T extends RestfulGateway> extends AbstractRestHandler<T, EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> {
+public class ClusterConfigHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> {
 
 	private final ClusterConfigurationInfo clusterConfig;
 
 	public ClusterConfigHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<? extends T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, ClusterConfigurationInfo, EmptyMessageParameters> messageHeaders,
@@ -59,7 +57,7 @@ public class ClusterConfigHandler<T extends RestfulGateway> extends AbstractRest
 	}
 
 	@Override
-	protected CompletableFuture<ClusterConfigurationInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull T gateway) throws RestHandlerException {
+	protected CompletableFuture<ClusterConfigurationInfo> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
 		return CompletableFuture.completedFuture(clusterConfig);
 	}
 }

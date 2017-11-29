@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobManagerMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobManagerMetricsMessageParameters;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
@@ -40,7 +40,7 @@ public class JobManagerMetricsHandler extends AbstractMetricsHandler<JobManagerM
 
 	public JobManagerMetricsHandler(
 			final CompletableFuture<String> localRestAddress,
-			final GatewayRetriever<DispatcherGateway> leaderRetriever,
+			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			final Time timeout,
 			final Map<String, String> headers,
 			final MetricFetcher metricFetcher) {
