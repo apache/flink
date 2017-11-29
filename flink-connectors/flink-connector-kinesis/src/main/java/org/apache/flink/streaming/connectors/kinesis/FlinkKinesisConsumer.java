@@ -128,6 +128,26 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
 	 * @param configProps
 	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
+	 *
+	 * @deprecated Use {@link #FlinkKinesisConsumer(String, DeserializationSchema, Properties)} instead.
+	 */
+	@Deprecated
+	public FlinkKinesisConsumer(String stream, org.apache.flink.streaming.util.serialization.DeserializationSchema<T> deserializer, Properties configProps) {
+		this(stream, new KinesisDeserializationSchemaWrapper<>(deserializer), configProps);
+	}
+
+	/**
+	 * Creates a new Flink Kinesis Consumer.
+	 *
+	 * <p>The AWS credentials to be used, AWS region of the Kinesis streams, initial position to start streaming
+	 * from are configured with a {@link Properties} instance.</p>
+	 *
+	 * @param stream
+	 *           The single AWS Kinesis stream to read from.
+	 * @param deserializer
+	 *           The deserializer used to convert raw bytes of Kinesis records to Java objects (without key).
+	 * @param configProps
+	 *           The properties used to configure AWS credentials, AWS region, and initial starting position.
 	 */
 	public FlinkKinesisConsumer(String stream, DeserializationSchema<T> deserializer, Properties configProps) {
 		this(stream, new KinesisDeserializationSchemaWrapper<>(deserializer), configProps);
