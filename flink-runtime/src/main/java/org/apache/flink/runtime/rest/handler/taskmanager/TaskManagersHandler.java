@@ -37,11 +37,11 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Returns an overview over all registered TaskManagers of the cluster.
  */
-public class TaskManagersHandler<T extends RestfulGateway> extends AbstractTaskManagerHandler<T, EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
+public class TaskManagersHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> {
 
 	public TaskManagersHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, TaskManagersInfo, EmptyMessageParameters> messageHeaders,

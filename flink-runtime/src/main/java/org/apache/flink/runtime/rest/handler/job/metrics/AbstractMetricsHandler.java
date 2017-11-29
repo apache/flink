@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
@@ -61,13 +61,13 @@ import static java.util.Objects.requireNonNull;
  * @param <M> Type of the concrete {@link MessageParameters}
  */
 public abstract class AbstractMetricsHandler<M extends MessageParameters> extends
-	AbstractRestHandler<DispatcherGateway, EmptyRequestBody, MetricCollectionResponseBody, M> {
+	AbstractRestHandler<RestfulGateway, EmptyRequestBody, MetricCollectionResponseBody, M> {
 
 	private final MetricFetcher metricFetcher;
 
 	public AbstractMetricsHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MessageHeaders<EmptyRequestBody, MetricCollectionResponseBody, M> messageHeaders,
@@ -79,7 +79,7 @@ public abstract class AbstractMetricsHandler<M extends MessageParameters> extend
 	@Override
 	protected final CompletableFuture<MetricCollectionResponseBody> handleRequest(
 			@Nonnull HandlerRequest<EmptyRequestBody, M> request,
-			@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+			@Nonnull RestfulGateway gateway) throws RestHandlerException {
 		metricFetcher.update();
 
 		final MetricStore.ComponentMetricStore componentMetricStore = getComponentMetricStore(
