@@ -188,6 +188,13 @@ object ScalarOperators {
         (leftTerm, rightTerm) => s"java.util.Arrays.equals($leftTerm, $rightTerm)"
       }
     }
+    // map types
+    else if (isMap(left.resultType) &&
+      left.resultType.getTypeClass == right.resultType.getTypeClass) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
+      }
+    }
     // comparable types of same type
     else if (isComparable(left.resultType) && left.resultType == right.resultType) {
       generateComparison("==", nullCheck, left, right)
@@ -227,6 +234,13 @@ object ScalarOperators {
         left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
         (leftTerm, rightTerm) => s"!java.util.Arrays.equals($leftTerm, $rightTerm)"
+      }
+    }
+    // map types
+    else if (isMap(left.resultType) &&
+      left.resultType.getTypeClass == right.resultType.getTypeClass) {
+      generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
+        (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
       }
     }
     // comparable types
