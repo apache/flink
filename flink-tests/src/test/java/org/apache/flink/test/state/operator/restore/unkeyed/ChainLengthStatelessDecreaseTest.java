@@ -26,7 +26,6 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createFirstStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSecondStatefulMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createSource;
-import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createStatelessMap;
 import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.createThirdStatefulMap;
 
 /**

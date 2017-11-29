@@ -90,7 +90,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
 	private static final FiniteDuration timeout = new FiniteDuration(30L, TimeUnit.SECONDS);
 	private final boolean allowNonRestoredState;
-	
+
 	protected AbstractOperatorRestoreTestBase() {
 		this(true);
 	}
