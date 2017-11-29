@@ -16,26 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.handler.job.metrics;
 
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
- * Exception which is thrown if an input cannot be converted into the requested type.
+ * Tests for {@link JobManagerMetricsHandler}.
  */
-public class ConversionException extends FlinkException {
+public class JobManagerMetricsHandlerTest extends MetricsHandlerTestBase<JobManagerMetricsHandler> {
 
-	private static final long serialVersionUID = -3994595267407963335L;
-
-	public ConversionException(String message) {
-		super(message);
+	@Override
+	JobManagerMetricsHandler getMetricsHandler() {
+		return new JobManagerMetricsHandler(
+			TEST_REST_ADDRESS,
+			leaderRetriever,
+			TIMEOUT,
+			TEST_HEADERS,
+			mockMetricFetcher);
 	}
 
-	public ConversionException(Throwable cause) {
-		super(cause);
+	@Override
+	QueryScopeInfo getQueryScopeInfo() {
+		return new QueryScopeInfo.JobManagerQueryScopeInfo();
 	}
 
-	public ConversionException(String message, Throwable cause) {
-		super(message, cause);
+	@Override
+	Map<String, String> getPathParameters() {
+		return Collections.emptyMap();
 	}
+
 }

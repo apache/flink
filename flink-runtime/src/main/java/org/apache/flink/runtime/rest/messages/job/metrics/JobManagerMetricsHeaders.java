@@ -16,26 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 /**
- * Exception which is thrown if an input cannot be converted into the requested type.
+ * {@link MessageHeaders} for
+ * {@link org.apache.flink.runtime.rest.handler.job.metrics.JobManagerMetricsHandler}.
  */
-public class ConversionException extends FlinkException {
+public final class JobManagerMetricsHeaders extends
+	AbstractMetricsHeaders<JobManagerMetricsMessageParameters> {
 
-	private static final long serialVersionUID = -3994595267407963335L;
+	private static final JobManagerMetricsHeaders INSTANCE = new JobManagerMetricsHeaders();
 
-	public ConversionException(String message) {
-		super(message);
+	private JobManagerMetricsHeaders() {
 	}
 
-	public ConversionException(Throwable cause) {
-		super(cause);
+	@Override
+	public JobManagerMetricsMessageParameters getUnresolvedMessageParameters() {
+		return new JobManagerMetricsMessageParameters();
 	}
 
-	public ConversionException(String message, Throwable cause) {
-		super(message, cause);
+	@Override
+	public String getTargetRestEndpointURL() {
+		return "/jobmanager/metrics";
 	}
+
+	public static JobManagerMetricsHeaders getInstance() {
+		return INSTANCE;
+	}
+
 }

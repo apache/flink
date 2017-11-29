@@ -16,26 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.util.FlinkException;
+import org.junit.Test;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertThat;
 
 /**
- * Exception which is thrown if an input cannot be converted into the requested type.
+ * Tests for {@link JobManagerMetricsHeaders}.
  */
-public class ConversionException extends FlinkException {
+public class JobManagerMetricsHeadersTest {
 
-	private static final long serialVersionUID = -3994595267407963335L;
+	private final JobManagerMetricsHeaders jobManagerMetricsHeaders =
+		JobManagerMetricsHeaders.getInstance();
 
-	public ConversionException(String message) {
-		super(message);
+	@Test
+	public void testUrl() {
+		assertThat(jobManagerMetricsHeaders.getTargetRestEndpointURL(), equalTo("/jobmanager/metrics"));
 	}
 
-	public ConversionException(Throwable cause) {
-		super(cause);
+	@Test
+	public void testMessageParameters() {
+		assertThat(jobManagerMetricsHeaders.getUnresolvedMessageParameters(), instanceOf
+			(JobManagerMetricsMessageParameters.class));
 	}
 
-	public ConversionException(String message, Throwable cause) {
-		super(message, cause);
-	}
 }
