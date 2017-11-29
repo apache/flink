@@ -62,14 +62,14 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	private int limit;
 
 	public SpanningRecordSerializer() {
-		this.serializationBuffer = new DataOutputSerializer(128);
+		serializationBuffer = new DataOutputSerializer(128);
 
-		this.lengthBuffer = ByteBuffer.allocate(4);
-		this.lengthBuffer.order(ByteOrder.BIG_ENDIAN);
+		lengthBuffer = ByteBuffer.allocate(4);
+		lengthBuffer.order(ByteOrder.BIG_ENDIAN);
 
 		// ensure initial state with hasRemaining false (for correct setNextBuffer logic)
-		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
-		this.lengthBuffer.position(4);
+		dataBuffer = serializationBuffer.wrapAsByteBuffer();
+		lengthBuffer.position(4);
 	}
 
 	/**
@@ -84,51 +84,51 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	@Override
 	public SerializationResult addRecord(T record) throws IOException {
 		if (CHECKED) {
-			if (this.dataBuffer.hasRemaining()) {
+			if (dataBuffer.hasRemaining()) {
 				throw new IllegalStateException("Pending serialization of previous record.");
 			}
 		}
 
-		this.serializationBuffer.clear();
-		this.lengthBuffer.clear();
+		serializationBuffer.clear();
+		lengthBuffer.clear();
 
 		// write data and length
-		record.write(this.serializationBuffer);
+		record.write(serializationBuffer);
 
-		int len = this.serializationBuffer.length();
-		this.lengthBuffer.putInt(0, len);
+		int len = serializationBuffer.length();
+		lengthBuffer.putInt(0, len);
 
-		this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
+		dataBuffer = serializationBuffer.wrapAsByteBuffer();
 
 		// Copy from intermediate buffers to current target memory segment
-		copyToTargetBufferFrom(this.lengthBuffer);
-		copyToTargetBufferFrom(this.dataBuffer);
+		copyToTargetBufferFrom(lengthBuffer);
+		copyToTargetBufferFrom(dataBuffer);
 
 		return getSerializationResult();
 	}
 
 	@Override
 	public SerializationResult setNextBuffer(Buffer buffer) throws IOException {
-		this.targetBuffer = buffer;
-		this.targetMemorySegment = buffer.getMemorySegment();
-		this.position = 0;
-		this.limit = buffer.getSize();
+		targetBuffer = buffer;
+		targetMemorySegment = buffer.getMemorySegment();
+		position = 0;
+		limit = buffer.getSize();
 
-		if (this.lengthBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(this.lengthBuffer);
+		if (lengthBuffer.hasRemaining()) {
+			copyToTargetBufferFrom(lengthBuffer);
 		}
 
-		if (this.dataBuffer.hasRemaining()) {
-			copyToTargetBufferFrom(this.dataBuffer);
+		if (dataBuffer.hasRemaining()) {
+			copyToTargetBufferFrom(dataBuffer);
 		}
 
 		SerializationResult result = getSerializationResult();
 		
 		// make sure we don't hold onto the large buffers for too long
 		if (result.isFullRecord()) {
-			this.serializationBuffer.clear();
-			this.serializationBuffer.pruneBuffer();
-			this.dataBuffer = this.serializationBuffer.wrapAsByteBuffer();
+			serializationBuffer.clear();
+			serializationBuffer.pruneBuffer();
+			dataBuffer = serializationBuffer.wrapAsByteBuffer();
 		}
 		
 		return result;
@@ -141,22 +141,22 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	 * @param source the {@link ByteBuffer} to copy data from
 	 */
 	private void copyToTargetBufferFrom(ByteBuffer source) {
-		if (this.targetBuffer == null) {
+		if (targetBuffer == null) {
 			return;
 		}
 
 		int needed = source.remaining();
-		int available = this.limit - this.position;
+		int available = limit - position;
 		int toCopy = Math.min(needed, available);
 
-		targetMemorySegment.put(this.position, source, toCopy);
+		targetMemorySegment.put(position, source, toCopy);
 
-		this.position += toCopy;
+		position += toCopy;
 	}
 
 	private SerializationResult getSerializationResult() {
-		if (!this.dataBuffer.hasRemaining() && !this.lengthBuffer.hasRemaining()) {
-			return (this.position < this.limit)
+		if (!dataBuffer.hasRemaining() && !lengthBuffer.hasRemaining()) {
+			return (position < limit)
 					? SerializationResult.FULL_RECORD
 					: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
 		}
@@ -170,8 +170,8 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 			return null;
 		}
 
-		this.targetBuffer.setSize(this.position);
-		return this.targetBuffer;
+		targetBuffer.setSize(position);
+		return targetBuffer;
 	}
 
 	@Override
@@ -183,19 +183,19 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 
 	@Override
 	public void clear() {
-		this.targetBuffer = null;
-		this.position = 0;
-		this.limit = 0;
+		targetBuffer = null;
+		position = 0;
+		limit = 0;
 
 		// ensure clear state with hasRemaining false (for correct setNextBuffer logic)
-		this.dataBuffer.position(this.dataBuffer.limit());
-		this.lengthBuffer.position(4);
+		dataBuffer.position(dataBuffer.limit());
+		lengthBuffer.position(4);
 	}
 
 	@Override
 	public boolean hasData() {
 		// either data in current target buffer or intermediate buffers
-		return this.position > 0 || (this.lengthBuffer.hasRemaining() || this.dataBuffer.hasRemaining());
+		return position > 0 || (lengthBuffer.hasRemaining() || dataBuffer.hasRemaining());
 	}
 
 	@Override
