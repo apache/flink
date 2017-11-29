@@ -96,7 +96,7 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (cacheOut != null) {
 				// finalize cache data
 				StateHandleID cacheId = cacheOut.getCacheID();
-				cacheOut.end();
+				cacheOut.closeAndGetHandle();
 
 				StreamStateHandle remoteHandle;
 				if (remoteOut != null) {
@@ -116,7 +116,17 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public long getPos() throws IOException {
-			return remoteOut != null ? remoteOut.getPos() :-1L;
+			if (cacheOut != null && remoteOut != null) {
+				// See if the position is aligned
+				try {
+					if (cacheOut.getPos() != remoteOut.getPos()) {
+						cacheOut.discard();
+					}
+				} catch (Exception ignored) {
+					cacheOut.discard();
+				}
+			}
+			return remoteOut != null ? remoteOut.getPos() : -1L;
 		}
 
 		@Override
@@ -125,7 +135,7 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (cacheOut != null) {
 				try {
 					cacheOut.write(b);
-				} catch (Exception e) {
+				} catch (Exception ignored) {
 					//discard
 					cacheOut.discard();
 				}
@@ -143,7 +153,7 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 			if (cacheOut != null) {
 				try {
 					cacheOut.write(b, off, len);
-				} catch (Exception e) {
+				} catch (Exception ignored) {
 					//discard
 					cacheOut.discard();
 				}
@@ -158,7 +168,12 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 		@Override
 		public void flush() throws IOException {
 			if (cacheOut != null) {
-				cacheOut.flush();
+				try {
+					cacheOut.flush();
+				} catch (Exception ignored) {
+					//discard
+					cacheOut.discard();
+				}
 			}
 			if (remoteOut != null) {
 				remoteOut.flush();
@@ -167,6 +182,14 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 
 		@Override
 		public void sync() throws IOException {
+			if (cacheOut != null) {
+				try {
+					cacheOut.sync();
+				} catch (Exception ignored) {
+					//discard
+					cacheOut.discard();
+				}
+			}
 			if (remoteOut != null) {
 				remoteOut.sync();
 			}
@@ -175,7 +198,12 @@ public class CachedCheckpointStreamFactory implements CheckpointStreamFactory {
 		@Override
 		public void close() throws IOException {
 			if (cacheOut != null) {
-				cacheOut.close();
+				try {
+					cacheOut.close();
+				} catch (Exception ignored) {
+					//discard
+					cacheOut.discard();
+				}
 			}
 			if (remoteOut != null) {
 				remoteOut.close();

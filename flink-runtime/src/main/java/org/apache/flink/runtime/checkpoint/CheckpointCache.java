@@ -21,8 +21,10 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
@@ -30,16 +32,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -113,7 +112,7 @@ public class CheckpointCache {
 		LOG.info("new checkpoint cache, pendingCacheTimeout: {}, leaseTimeout: {}", pendingCheckpointCacheTimeout, leaseTimeout);
 	}
 
-	protected void registerCacheEntry(long checkpointID, StateHandleID handleID, String filePath) {
+	protected void registerCacheEntry(long checkpointID, StateHandleID handleID, StreamStateHandle stateHandle) {
 		synchronized (lock) {
 			LOG.debug("register cache entry: { cpkID:[{}] handleID:[{}] }", checkpointID, handleID);
 			PendingCheckpointCache pendingCheckpointCache = pendingCacheMap.get(checkpointID);
@@ -143,16 +142,7 @@ public class CheckpointCache {
 
 			pendingCheckpointCache.addEntry(
 				new CacheKey(handleID),
-				new CacheEntry(new FileStateHandle(new Path(filePath), getFileSize(filePath))));
-		}
-	}
-
-	private long getFileSize(String filePath) {
-		File file = new File(filePath);
-		if (file.exists() && file.isFile()) {
-			return file.length();
-		} else {
-			return 0L;
+				new CacheEntry(stateHandle));
 		}
 	}
 
@@ -266,8 +256,7 @@ public class CheckpointCache {
 					return null;
 				}
 			}
-			final String cacheFilePath = basePath + File.separator + handleID + "_" + UUID.randomUUID();
-			return new CachedOutputStream(checkpointID, handleID, cacheFilePath, this, placeholder);
+			return new FsCachedOutputStream(checkpointID, handleID, basePath, this, placeholder);
 		} catch (Exception ignore) {
 			// warning
 			LOG.warn("create output stream failed: {}", ignore);
@@ -280,7 +269,7 @@ public class CheckpointCache {
 		CacheEntry entry = sharedCacheRegistry.getCacheEntry(new CacheKey(cacheId));
 		if (entry != null) {
 			try {
-				LOG.debug("entry path: {}", entry.getHandle().getFilePath());
+				LOG.debug("entry path: {}", entry.getHandle());
 				return entry.getHandle().openInputStream();
 			} catch (Exception ignore) {
 				entry.rot(true);
@@ -302,78 +291,121 @@ public class CheckpointCache {
 		return this.reference.get();
 	}
 
-	public static class CachedOutputStream extends OutputStream {
+	public long getLeaseTimeout() {
+		return leaseTimeout;
+	}
 
-		private final OutputStream outputStream;
+	/**
+	 * CachedOutputStream interface
+	 */
+	public abstract static class CachedOutputStream extends CheckpointStreamFactory.CheckpointStateOutputStream {
+		private boolean discarded;
+
+		public CachedOutputStream() {
+			discarded = false;
+		}
+
+		public boolean isDiscarded() {
+			return discarded;
+		}
+
+		public void discard() {
+			this.discarded = true;
+		}
+
+		public abstract StateHandleID getCacheID();
+	}
+
+	/**
+	 * {@link CachedOutputStream} which is implemented base on File System
+	 */
+	public static class FsCachedOutputStream extends CachedOutputStream {
+
+		private FsCheckpointStreamFactory.FsCheckpointStateOutputStream outputStream;
 		private final StateHandleID cacheID;
 		private final long checkpointID;
 
-		private final String cacheFilePath;
+		private final Path cacheBasePath;
 		private final CheckpointCache cache;
-		private boolean discarded;
 
-		public CachedOutputStream(
+		public FsCachedOutputStream(
 			long checkpointID,
 			StateHandleID cacheID,
-			String cacheFilePath,
+			Path basePath,
 			CheckpointCache cache,
 			boolean placeholder
 		) throws FileNotFoundException {
+			super();
+
 			this.checkpointID = checkpointID;
 			this.cacheID = cacheID;
-			this.cacheFilePath = cacheFilePath;
+			this.cacheBasePath = basePath;
 			if (!placeholder) {
-				this.outputStream = new FileOutputStream(cacheFilePath);
+				try {
+					this.outputStream = new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+						cacheBasePath,
+						cacheBasePath.getFileSystem(),
+						4096,
+						1024 * 1024);
+				} catch (Exception ignored) {
+					this.outputStream = null;
+				}
 			} else {
 				this.outputStream = null;
 			}
 			this.cache = cache;
-			this.discarded = false;
 		}
 
 		public long getCheckpointID() {
 			return this.checkpointID;
 		}
 
+		@Override
 		public StateHandleID getCacheID() {
 			return this.cacheID;
 		}
 
-		public boolean isDiscarded() {
-			return this.discarded;
-		}
-
-		public void discard() {
-			LOG.info("cache output stream discard: {}", checkpointID);
-			discarded = true;
-		}
-
 		@Override
 		public void write(int b) throws IOException {
-			if (!discarded && outputStream != null) {
+			if (!isDiscarded() && outputStream != null) {
 				outputStream.write(b);
 			}
 		}
 
 		@Override
 		public void write(byte[] b) throws IOException {
-			if (!discarded && outputStream != null) {
+			if (!isDiscarded() && outputStream != null) {
 				outputStream.write(b);
 			}
 		}
 
 		@Override
 		public void write(byte[] b, int off, int len) throws IOException {
-			if (!discarded && outputStream != null) {
+			if (!isDiscarded() && outputStream != null) {
 				outputStream.write(b, off, len);
 			}
 		}
 
 		@Override
 		public void flush() throws IOException {
-			if (!discarded && outputStream != null) {
+			if (!isDiscarded() && outputStream != null) {
 				outputStream.flush();
 			}
+		}
+
+		@Override
+		public void sync() throws IOException {
+			if (!isDiscarded() && outputStream != null) {
+				outputStream.sync();
+			}
+		}
+
+		@Override
+		public long getPos() throws IOException {
+			if (!isDiscarded() && outputStream != null) {
+				return outputStream.getPos();
+			}
+			return -1;
 		}
 
 		@Override
@@ -383,21 +415,17 @@ public class CheckpointCache {
 			}
 		}
 
-		public void end() {
-			if (!discarded) {
-				this.cache.registerCacheEntry(checkpointID, cacheID, cacheFilePath);
+		@Override
+		public StreamStateHandle closeAndGetHandle() throws IOException {
+			if (!isDiscarded() && outputStream != null) {
+				StreamStateHandle stateHandle = outputStream.closeAndGetHandle();
+				this.cache.registerCacheEntry(checkpointID, cacheID, stateHandle);
+				return stateHandle;
 			} else {
 				this.cache.abortPendingCache(checkpointID);
 			}
+			return null;
 		}
-
-		public String getCacheFilePath() {
-			return cacheFilePath;
-		}
-	}
-
-	public long getLeaseTimeout() {
-		return leaseTimeout;
 	}
 
 	public static class CacheKey {
@@ -433,7 +461,7 @@ public class CheckpointCache {
 	}
 
 	public static class CacheEntry {
-		private final FileStateHandle handle;
+		private final StreamStateHandle handle;
 		private final AtomicInteger reference;
 
 		public boolean isRot() {
@@ -446,13 +474,13 @@ public class CheckpointCache {
 
 		private boolean rot;
 
-		public CacheEntry(FileStateHandle handle) {
+		public CacheEntry(StreamStateHandle handle) {
 			this.handle = handle;
 			this.reference = new AtomicInteger(0);
 			this.rot = false;
 		}
 
-		public FileStateHandle getHandle() {
+		public StreamStateHandle getHandle() {
 			return handle;
 		}
 

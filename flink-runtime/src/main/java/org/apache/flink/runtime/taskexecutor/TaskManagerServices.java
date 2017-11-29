@@ -202,7 +202,7 @@ public class TaskManagerServices {
 		final CheckpointCacheManager checkpointCacheManager = new CheckpointCacheManager(
 			new ScheduledThreadPoolExecutor(1),
 			Executors.directExecutor(),
-			taskManagerServicesConfiguration.getTmpDirPaths()[0]);
+			taskManagerServicesConfiguration.getTmpDirPaths());
 
 		return new TaskManagerServices(
 			taskManagerLocation,

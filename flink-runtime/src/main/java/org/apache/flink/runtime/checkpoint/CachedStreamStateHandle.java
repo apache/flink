@@ -152,7 +152,7 @@ public class CachedStreamStateHandle implements StreamStateHandle, CachedStateHa
 		@Override
 		public void close() throws IOException {
 			if (this.cacheOut != null) {
-				this.cacheOut.end();
+				this.cacheOut.closeAndGetHandle();
 			}
 			this.remoteInputStream.close();
 		}

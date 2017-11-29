@@ -157,7 +157,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 			network.start();
 
-			final CheckpointCacheManager checkpointCacheManager = new CheckpointCacheManager(java.util.concurrent.Executors.newSingleThreadScheduledExecutor(), Executors.directExecutor(), TMP_DIR[0]);
+			final CheckpointCacheManager checkpointCacheManager = new CheckpointCacheManager(java.util.concurrent.Executors.newSingleThreadScheduledExecutor(), Executors.directExecutor(), TMP_DIR);
 
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 

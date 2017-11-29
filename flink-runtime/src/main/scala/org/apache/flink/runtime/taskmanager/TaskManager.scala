@@ -1184,27 +1184,10 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
-      var checkpointCacheLeaseTimeout: Long = {
-        try {
-          var configuration = jobInformation.getJobConfiguration()
-          var timeoutString = configuration.getString(
-            ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-            ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT)
-          var delayString = configuration.getString(
-            ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
-            timeoutString
-          )
-          Duration.apply(delayString).toMillis * 2;
-        } catch {
-          case e: Exception =>
-            tdd.getCheckpointTimeout
-        }
-      }
-
       var checkpointCache = checkpointCacheManager.registerCheckpointCache(
         jobInformation.getJobId,
         tdd.getCheckpointTimeout,
-        checkpointCacheLeaseTimeout)
+        tdd.getLeaseTimeout)
 
       val task = new Task(
         jobInformation,

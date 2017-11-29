@@ -148,6 +148,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/** checkpoint timeout. */
 	private final long checkpointTimeout;
 
+	/** checkpoint cache lease timeout. */
+	private final long leaseTimeout;
+
 	public TaskDeploymentDescriptor(
 			JobID jobId,
 			MaybeOffloaded<JobInformation> serializedJobInformation,
@@ -160,7 +163,8 @@ public final class TaskDeploymentDescriptor implements Serializable {
 			TaskStateSnapshot taskStateHandles,
 			Collection<ResultPartitionDeploymentDescriptor> resultPartitionDeploymentDescriptors,
 			Collection<InputGateDeploymentDescriptor> inputGateDeploymentDescriptors,
-			long checkpointTimeout) {
+			long checkpointTimeout,
+			long leaseTimeout) {
 
 		this.jobId = Preconditions.checkNotNull(jobId);
 
@@ -185,6 +189,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
 		this.inputGates = Preconditions.checkNotNull(inputGateDeploymentDescriptors);
 
 		this.checkpointTimeout = checkpointTimeout;
+		this.leaseTimeout = leaseTimeout;
 	}
 
 	/**
@@ -330,6 +335,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
 	public long getCheckpointTimeout() {
 		return this.checkpointTimeout;
+	}
+
+	public long getLeaseTimeout() {
+		return leaseTimeout;
 	}
 
 	@Override

@@ -45,7 +45,7 @@ public class CheckpointCacheManagerTest {
 
 	@Test
 	public void testCheckpointCacheManager() throws Exception {
-		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), tmp.newFolder().getAbsolutePath());
+		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), new String[] {tmp.newFolder().getAbsolutePath()});
 		JobID jobID1 = new JobID(1L, 1L);
 		cacheManager.registerCheckpointCache(jobID1, 10000, 5);
 		Assert.assertEquals(1, cacheManager.getCheckpointCacheSize());
@@ -57,7 +57,7 @@ public class CheckpointCacheManagerTest {
 	@Test
 	public void testCheckpointCacheRetouchFromRelease() throws Exception {
 
-		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), tmp.newFolder().getAbsolutePath());
+		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), new String[] {tmp.newFolder().getAbsolutePath()});
 		JobID jobID = new JobID(1L, 1L);
 		CheckpointCache cache1 = cacheManager.registerCheckpointCache(jobID, 10000, 5);
 
@@ -79,7 +79,7 @@ public class CheckpointCacheManagerTest {
 
 	@Test
 	public void testConcurrencyRequest() throws Exception {
-		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), tmp.newFolder().getAbsolutePath());
+		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), new String[] {tmp.newFolder().getAbsolutePath()});
 		// init jobs
 		int[] referenceCount = new int[10];
 		JobID[] jobIDS = new JobID[10];
@@ -130,7 +130,7 @@ public class CheckpointCacheManagerTest {
 
 	@Test
 	public void testShowdown() throws Exception {
-		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), tmp.newFolder().getAbsolutePath());
+		CheckpointCacheManager cacheManager = new CheckpointCacheManager(new ScheduledThreadPoolExecutor(1), Executors.directExecutor(), new String[] {tmp.newFolder().getAbsolutePath()});
 		JobID jobID1 = new JobID(1L, 1L);
 		cacheManager.registerCheckpointCache(jobID1, 10000, 5);
 		cacheManager.shutdown();

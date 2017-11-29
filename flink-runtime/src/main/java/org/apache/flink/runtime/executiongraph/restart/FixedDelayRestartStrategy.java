@@ -49,6 +49,10 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 		currentRestartAttempt = 0;
 	}
 
+	public long getDelayBetweenRestartAttempts() {
+		return this.delayBetweenRestartAttempts;
+	}
+
 	public int getCurrentRestartAttempt() {
 		return currentRestartAttempt;
 	}

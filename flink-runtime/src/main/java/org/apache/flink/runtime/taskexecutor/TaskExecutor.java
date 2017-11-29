@@ -21,8 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -93,7 +91,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import scala.concurrent.duration.Duration;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -391,22 +388,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
 			PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();
 
-			long checkpointCacheLeaseTimeout;
-			try {
-				Configuration configuration = jobInformation.getJobConfiguration();
-				String timeoutString = configuration.getString(
-					ConfigConstants.AKKA_WATCH_HEARTBEAT_INTERVAL,
-					ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT);
-				String delayString = configuration.getString(
-					ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
-					timeoutString
-				);
-				checkpointCacheLeaseTimeout = Duration.apply(delayString).toMillis() * 2;
-			} catch (Exception nfe) {
-				checkpointCacheLeaseTimeout = tdd.getCheckpointTimeout();
-			}
-
-			CheckpointCache checkpointCache = checkpointCacheManager.registerCheckpointCache(jobInformation.getJobId(), tdd.getCheckpointTimeout(), checkpointCacheLeaseTimeout);
+			CheckpointCache checkpointCache = checkpointCacheManager.registerCheckpointCache(jobInformation.getJobId(), tdd.getCheckpointTimeout(), tdd.getLeaseTimeout());
 
 			Task task = new Task(
 				jobInformation,

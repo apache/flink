@@ -701,6 +701,7 @@ public class TaskExecutorTest extends TestLogger {
 				null,
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				-1,
 				-1);
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
@@ -1317,6 +1318,7 @@ public class TaskExecutorTest extends TestLogger {
 				null,
 				Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
 				Collections.<InputGateDeploymentDescriptor>emptyList(),
+				-1,
 				-1);
 
 			CompletableFuture<Collection<SlotOffer>> offerResultFuture = new CompletableFuture<>();

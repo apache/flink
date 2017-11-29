@@ -32,6 +32,8 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -827,6 +829,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		// get jobCheckpointingSettings via job graph
 		CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = this.getExecutionGraph().getCheckpointCoordinatorConfiguration();
+
+		long leaseTimeout = 60000; //1 min
+		RestartStrategy restartStrategy = this.getExecutionGraph().getRestartStrategy();
+		if (restartStrategy != null && restartStrategy instanceof FixedDelayRestartStrategy) {
+			leaseTimeout += ((FixedDelayRestartStrategy) restartStrategy).getDelayBetweenRestartAttempts();
+		}
+
 		return new TaskDeploymentDescriptor(
 			getJobId(),
 			serializedJobInformation,
@@ -839,7 +848,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			taskStateHandles,
 			producedPartitions,
 			consumedPartitions,
-			checkpointCoordinatorConfiguration == null ? -1L : checkpointCoordinatorConfiguration.getCheckpointTimeout());
+			checkpointCoordinatorConfiguration == null ? -1L : checkpointCoordinatorConfiguration.getCheckpointTimeout(),
+			leaseTimeout);
 	}
 
 	// --------------------------------------------------------------------------------------------

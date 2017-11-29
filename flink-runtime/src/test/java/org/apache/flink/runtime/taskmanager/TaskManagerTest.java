@@ -2160,6 +2160,7 @@ public class TaskManagerTest extends TestLogger {
 			null,
 			producedPartitions,
 			inputGates,
+			-1,
 			-1);
 
 	}

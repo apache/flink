@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -30,7 +31,9 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
@@ -53,8 +56,8 @@ public class CheckpointCacheTest {
 
 		Assert.assertEquals(cache.getPendingCheckpointCacheSize(), 0);
 
-		cache.registerCacheEntry(1, handleID1, tmp.newFile().getAbsolutePath());
-		cache.registerCacheEntry(1, handleID2, tmp.newFile().getAbsolutePath());
+		cache.registerCacheEntry(1, handleID1, new FileStateHandle(new Path(tmp.newFile().getAbsolutePath()), 0L));
+		cache.registerCacheEntry(1, handleID2, new FileStateHandle(new Path(tmp.newFile().getAbsolutePath()), 0L));
 
 		Assert.assertEquals(cache.getPendingCheckpointCacheSize(), 1);
 
@@ -72,17 +75,18 @@ public class CheckpointCacheTest {
 		final CheckpointCache cache = new CheckpointCache(new JobID(), tmpFolder.getAbsolutePath(), 10000, 10000, mock(CheckpointCacheManager.class), Executors.directExecutor());
 
 		StateHandleID handleID1 = new StateHandleID("handle1");
-		cache.registerCacheEntry(1, handleID1, "handle1");
+		cache.registerCacheEntry(1, handleID1, new FileStateHandle(new Path("handle1"), 0L));
 
 		File handle2File = tmp.newFile("handle2");
 
-		final String testStr = "hello";
+		final String testStr = "test str";
 
 		FileOutputStream outputStream = new FileOutputStream(handle2File);
 		outputStream.write(testStr.getBytes(), 0, testStr.getBytes().length);
 		outputStream.close();
+
 		StateHandleID handleID2 = new StateHandleID(handle2File.getAbsolutePath());
-		cache.registerCacheEntry(1, handleID2, handle2File.getAbsolutePath());
+		cache.registerCacheEntry(1, handleID2, new FileStateHandle(new Path(handle2File.getAbsolutePath()), 0L));
 
 		cache.commitCache(1);
 
@@ -105,9 +109,9 @@ public class CheckpointCacheTest {
 		StateHandleID handleID1 = new StateHandleID("handle1");
 		CheckpointCache.CachedOutputStream outputStream = cache.createOutputStream(1, handleID1);
 
-		final String testStr = "hello";
+		final String testStr = "test str";
 		outputStream.write(testStr.getBytes(), 0, testStr.length());
-		outputStream.end();
+		outputStream.closeAndGetHandle();
 
 		cache.commitCache(1);
 
@@ -130,7 +134,7 @@ public class CheckpointCacheTest {
 		final String testStr = "test str";
 		outputStream.write(testStr.getBytes(), 0, testStr.length());
 		outputStream.discard();
-		outputStream.end();
+		outputStream.closeAndGetHandle();
 		Assert.assertEquals(cache.getPendingCheckpointCacheSize(), 0);
 
 		cache.release();
@@ -145,7 +149,7 @@ public class CheckpointCacheTest {
 		CheckpointCache.CachedOutputStream outputStream = cache.createOutputStream(1, handleID1);
 		final String testStr = "test str";
 		outputStream.write(testStr.getBytes(), 0, testStr.length());
-		outputStream.end();
+		outputStream.closeAndGetHandle();
 		outputStream.close();
 		cache.commitCache(1);
 
@@ -155,7 +159,7 @@ public class CheckpointCacheTest {
 		CheckpointCache.CachedOutputStream outputStream2 = cache.createOutputStream(2, handleID2);
 		final String testStr2 = "test str2";
 		outputStream2.write(testStr2.getBytes(), 0, testStr2.length());
-		outputStream2.end();
+		outputStream2.closeAndGetHandle();
 		outputStream2.close();
 		cache.commitCache(2);
 
@@ -175,7 +179,7 @@ public class CheckpointCacheTest {
 				final CheckpointCache.CachedOutputStream output = cache.createOutputStream(i, handleID);
 				String testStr = "123";
 				output.write(testStr.getBytes(), 0, testStr.getBytes().length);
-				output.end();
+				output.closeAndGetHandle();
 				output.close();
 			}
 		}
@@ -203,7 +207,7 @@ public class CheckpointCacheTest {
 
 		CachedStreamStateHandle[] cachedHandles = new CachedStreamStateHandle[5];
 		final String testStr = "test re-cache logic.";
-		String[] cacheFilePaths = new String[5];
+		StreamStateHandle[] cacheFilePaths = new StreamStateHandle[5];
 
 		// checkpoint
 		for (int i = 0; i < 5; ++i) {
@@ -211,8 +215,7 @@ public class CheckpointCacheTest {
 			final StateHandleID handleID = new StateHandleID("cache_" + i);
 			final CheckpointCache.CachedOutputStream output = cache.createOutputStream(1, handleID);
 			output.write(testStr.getBytes(), 0, testStr.getBytes().length);
-			output.end();
-			cacheFilePaths[i] = output.getCacheFilePath();
+			cacheFilePaths[i] = output.closeAndGetHandle();
 			output.close();
 
 			// remote output stream
@@ -225,7 +228,7 @@ public class CheckpointCacheTest {
 
 		// delete cache file
 		for (int i = 0; i < 5; ++i) {
-			new File(cacheFilePaths[i]).delete();
+			cacheFilePaths[i].discardState();
 		}
 
 		// read from cached handle, this should read from remote
@@ -265,7 +268,7 @@ public class CheckpointCacheTest {
 		File tmpFolder = tmp.newFolder();
 		final CheckpointCache cache = new CheckpointCache(new JobID(), tmpFolder.getAbsolutePath(), 10000, 10000, mock(CheckpointCacheManager.class), Executors.directExecutor());
 		final String testStr = "test re-cache logic.";
-		String[] cacheFilePaths = new String[5];
+		StreamStateHandle[] cacheHandles = new StreamStateHandle[5];
 
 		// checkpoint
 		for (int i = 0; i < 5; ++i) {
@@ -273,8 +276,7 @@ public class CheckpointCacheTest {
 			final StateHandleID handleID = new StateHandleID("cache_" + i);
 			final CheckpointCache.CachedOutputStream output = cache.createOutputStream(1, handleID);
 			output.write(testStr.getBytes(), 0, testStr.getBytes().length);
-			output.end();
-			cacheFilePaths[i] = output.getCacheFilePath();
+			cacheHandles[i] = output.closeAndGetHandle();
 			output.close();
 		}
 		cache.commitCache(1);
@@ -285,13 +287,16 @@ public class CheckpointCacheTest {
 			final StateHandleID handleID = new StateHandleID("cache_" + i);
 			final CheckpointCache.CachedOutputStream output = cache.createOutputStream(2, handleID);
 			output.write(testStr.getBytes(), 0, testStr.getBytes().length);
-			output.end();
+			output.closeAndGetHandle();
 			output.close();
 		}
 		cache.commitCache(2);
 
 		for (int i = 0; i < 4; ++i) {
-			Assert.assertTrue(!new File(cacheFilePaths[i]).exists());
+			try {
+				cacheHandles[i].openInputStream();
+				Assert.fail();
+			} catch (IOException expected) {}
 		}
 	}
 }

@@ -19,7 +19,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +39,10 @@ public class CheckpointCacheManager {
 
 	private static Logger LOG = LoggerFactory.getLogger(CheckpointCacheManager.class);
 
+	private final long DEFAULT_LEASE_TIMEOUT = 60000;
 	private final Object lock = new Object();
-	private final Path basePath;
+	private int nextBasePathIndex;
+	private final String[] basePaths;
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final Map<JobID, CheckpointCache> checkpointCaches;
@@ -50,10 +51,10 @@ public class CheckpointCacheManager {
 	private final Executor executor;
 	private boolean isShutdown;
 
-	public CheckpointCacheManager(ScheduledExecutorService scheduledExecutorService, Executor executor, String basePath) {
+	public CheckpointCacheManager(ScheduledExecutorService scheduledExecutorService, Executor executor, String[] basePaths) {
 		this.scheduledExecutorService = scheduledExecutorService;
 		this.executor = executor;
-		this.basePath = new Path(basePath);
+		this.basePaths = basePaths;
 		this.checkpointCaches = new ConcurrentHashMap<>();
 		this.cacheClearFutures = new ConcurrentHashMap<>();
 		this.isShutdown = false;
@@ -68,8 +69,11 @@ public class CheckpointCacheManager {
 			CheckpointCache checkpointCache = checkpointCaches.get(jobID);
 			if (checkpointCache == null) {
 				LOG.info("jobID: {} create checkpoint cache", jobID);
+				if (leaseTimeout < 0) {
+					leaseTimeout = DEFAULT_LEASE_TIMEOUT;
+				}
 				checkpointCache = new CheckpointCache(jobID,
-					basePath.getPath(),
+					basePaths[nextBasePathIndex++ % basePaths.length],
 					pendingCheckpointCacheTimeout,
 					leaseTimeout,
 					this,
