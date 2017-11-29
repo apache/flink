@@ -20,12 +20,10 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -86,9 +84,6 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 		StreamGraph streamGraph = getStreamGraph();
 		streamGraph.setJobName(jobName);
 
-		// TODO - temp fix to enforce restarts due to a bug in the allocation protocol
-		streamGraph.getExecutionConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 5));
-
 		JobGraph jobGraph = streamGraph.getJobGraph();
 		jobGraph.setAllowQueuedScheduling(true);
 
@@ -99,16 +94,9 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
 
-		// Currently we do not reuse slot anymore,
-		// so we need to sum up the parallelism of all vertices
-		int slotsCount = 0;
-		for (JobVertex jobVertex : jobGraph.getVertices()) {
-			slotsCount += jobVertex.getParallelism();
-		}
-
 		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
 			.setConfiguration(configuration)
-			.setNumSlotsPerTaskManager(slotsCount)
+			.setNumSlotsPerTaskManager(jobGraph.getMaximumParallelism())
 			.build();
 
 		if (LOG.isInfoEnabled()) {
@@ -116,9 +104,9 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 		}
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
+
 		try {
 			miniCluster.start();
-			miniCluster.waitUntilTaskManagerRegistrationsComplete();
 			return miniCluster.runJobBlocking(jobGraph);
 		}
 		finally {

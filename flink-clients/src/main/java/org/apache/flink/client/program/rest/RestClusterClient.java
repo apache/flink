@@ -98,7 +98,7 @@ public class RestClusterClient extends ClusterClient {
 	protected JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		log.info("Submitting job.");
 		try {
-			// temporary hack for FLIP-6 since slot-sharing isn't implemented yet
+			// we have to enable queued scheduling because slot will be allocated lazily
 			jobGraph.setAllowQueuedScheduling(true);
 			submitJob(jobGraph);
 		} catch (JobSubmissionException e) {
