@@ -60,60 +60,43 @@ public class KinesisConfigUtilTest {
 	}
 
 	@Test
-	public void testDefaultRateLimitInProducerConfiguration() {
+	public void testRateLimitInProducerConfiguration() {
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-
 		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(100, kpc.getRateLimit());
-	}
 
-	@Test
-	public void testCustomizedRateLimitInProducerConfiguration() {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigUtil.RATE_LIMIT, "150");
-
-		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+		kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(150, kpc.getRateLimit());
 	}
 
 	@Test
-	public void testDefaultThreadingModelInProducerConfiguration() {
+	public void testThreadingModelInProducerConfiguration() {
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(KinesisProducerConfiguration.ThreadingModel.POOLED, kpc.getThreadingModel());
-	}
 
-	@Test
-	public void testCustomizedThreadingModelInProducerConfiguration() {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigUtil.THREADING_MODEL, "PER_REQUEST");
-		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+		kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(KinesisProducerConfiguration.ThreadingModel.PER_REQUEST, kpc.getThreadingModel());
 	}
 
 	@Test
-	public void testDefaultThreadPoolSizeInProducerConfiguration() {
+	public void testThreadPoolSizeInProducerConfiguration() {
 		Properties testConfig = new Properties();
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(10, kpc.getThreadPoolSize());
-	}
 
-	@Test
-	public void testCustomizedThreadPoolSizeInProducerConfiguration() {
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		testConfig.setProperty(KinesisConfigUtil.THREAD_POOL_SIZE, "12");
-		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+		kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
 		assertEquals(12, kpc.getThreadPoolSize());
 	}
@@ -178,11 +161,8 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid AWS Credential Provider Type");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "wrongProviderType");
-		testConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 
 		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
@@ -196,11 +176,8 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid initial position in stream");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "wrongInitPosition");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -212,11 +189,8 @@ public class KinesisConfigUtilTest {
 		exception.expectMessage("Please set value for initial timestamp ('"
 				+ ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -227,11 +201,8 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "unparsableDate");
 
@@ -243,11 +214,8 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "-1.0");
 
@@ -258,11 +226,8 @@ public class KinesisConfigUtilTest {
 	public void testDateStringForValidateOptionDateProperty() {
 		String timestamp = "2016-04-04T19:58:46.480-00:00";
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, timestamp);
 
@@ -278,11 +243,8 @@ public class KinesisConfigUtilTest {
 	public void testUnixTimestampForValidateOptionDateProperty() {
 		String unixTimestamp = "1459799926.480";
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
 
@@ -299,11 +261,8 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "2016-03-14");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "InvalidPattern");
@@ -316,11 +275,8 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "stillUnparsable");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, "yyyy-MM-dd");
@@ -333,11 +289,8 @@ public class KinesisConfigUtilTest {
 		String unixTimestamp = "2016-04-04";
 		String pattern = "yyyy-MM-dd";
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT, pattern);
@@ -355,10 +308,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -369,10 +319,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -383,10 +330,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -397,10 +341,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum retry attempts for getRecords shard operation");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -411,10 +352,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum records per getRecords shard operation");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -425,10 +363,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation base backoff milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -439,10 +374,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation max backoff milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -453,10 +385,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation backoff exponential constant");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -467,10 +396,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for getRecords sleep interval in milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -481,10 +407,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum retry attempts for getShardIterator shard operation");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -495,10 +418,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation base backoff milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -509,10 +429,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation max backoff milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -523,10 +440,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation backoff exponential constant");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -537,12 +451,18 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for shard discovery sleep interval in milliseconds");
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		Properties testConfig = getPropertiesWithRequiredFields();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
+	}
+
+	private Properties getPropertiesWithRequiredFields() {
+		Properties config = new Properties();
+		config.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
+		config.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		config.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		return config;
 	}
 }
