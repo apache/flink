@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -71,32 +71,31 @@ public class TaskManagerDetailsHandler<T extends RestfulGateway> extends Abstrac
 	protected CompletableFuture<TaskManagerDetailsInfo> handleRequest(
 			@Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
 			@Nonnull ResourceManagerGateway gateway) throws RestHandlerException {
-		final InstanceID taskManagerInstanceId = request.getPathParameter(TaskManagerIdPathParameter.class);
+		final ResourceID taskManagerResourceId = request.getPathParameter(TaskManagerIdPathParameter
+			.class);
 
-		CompletableFuture<TaskManagerInfo> taskManagerInfoFuture = gateway.requestTaskManagerInfo(taskManagerInstanceId, timeout);
+		CompletableFuture<TaskManagerInfo> taskManagerInfoFuture = gateway.requestTaskManagerInfo(taskManagerResourceId, timeout);
 
 		metricFetcher.update();
 
 		return taskManagerInfoFuture.thenApply(
 			(TaskManagerInfo taskManagerInfo) -> {
-				// the MetricStore is not yet thread safe, therefore we still have to synchronize it
-				synchronized (metricStore) {
-					final MetricStore.TaskManagerMetricStore tmMetrics = metricStore.getTaskManagerMetricStore(taskManagerInstanceId.toString());
+				final MetricStore.TaskManagerMetricStore tmMetrics =
+					metricStore.getTaskManagerMetricStore(taskManagerResourceId.getResourceIdString());
 
-					final TaskManagerMetricsInfo taskManagerMetricsInfo;
+				final TaskManagerMetricsInfo taskManagerMetricsInfo;
 
-					if (tmMetrics != null) {
-						log.debug("Create metrics info for TaskManager {}.", taskManagerInstanceId);
-						taskManagerMetricsInfo = createTaskManagerMetricsInfo(tmMetrics);
-					} else {
-						log.debug("No metrics for TaskManager {}.", taskManagerInstanceId);
-						taskManagerMetricsInfo = TaskManagerMetricsInfo.empty();
-					}
-
-					return new TaskManagerDetailsInfo(
-						taskManagerInfo,
-						taskManagerMetricsInfo);
+				if (tmMetrics != null) {
+					log.debug("Create metrics info for TaskManager {}.", taskManagerResourceId);
+					taskManagerMetricsInfo = createTaskManagerMetricsInfo(tmMetrics);
+				} else {
+					log.debug("No metrics for TaskManager {}.", taskManagerResourceId);
+					taskManagerMetricsInfo = TaskManagerMetricsInfo.empty();
 				}
+
+				return new TaskManagerDetailsInfo(
+					taskManagerInfo,
+					taskManagerMetricsInfo);
 			});
 	}
 

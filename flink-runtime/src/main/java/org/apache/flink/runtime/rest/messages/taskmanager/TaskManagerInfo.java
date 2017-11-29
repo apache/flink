@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.runtime.rest.messages.json.InstanceIDDeserializer;
-import org.apache.flink.runtime.rest.messages.json.InstanceIDSerializer;
+import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
+import org.apache.flink.runtime.rest.messages.json.ResourceIDSerializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -38,7 +38,7 @@ import java.util.Objects;
  */
 public class TaskManagerInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_INSTANCE_ID = "id";
+	public static final String FIELD_NAME_RESOURCE_ID = "id";
 
 	public static final String FIELD_NAME_ADDRESS = "path";
 
@@ -52,9 +52,9 @@ public class TaskManagerInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_HARDWARE = "hardware";
 
-	@JsonProperty(FIELD_NAME_INSTANCE_ID)
-	@JsonSerialize(using = InstanceIDSerializer.class)
-	private final InstanceID instanceId;
+	@JsonProperty(FIELD_NAME_RESOURCE_ID)
+	@JsonSerialize(using = ResourceIDSerializer.class)
+	private final ResourceID resourceId;
 
 	@JsonProperty(FIELD_NAME_ADDRESS)
 	private final String address;
@@ -76,14 +76,14 @@ public class TaskManagerInfo implements ResponseBody {
 
 	@JsonCreator
 	public TaskManagerInfo(
-			@JsonDeserialize(using = InstanceIDDeserializer.class) @JsonProperty(FIELD_NAME_INSTANCE_ID) InstanceID instanceId,
+			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
 			@JsonProperty(FIELD_NAME_ADDRESS) String address,
 			@JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
 			@JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
 			@JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
 			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription) {
-		this.instanceId = Preconditions.checkNotNull(instanceId);
+		this.resourceId = Preconditions.checkNotNull(resourceId);
 		this.address = Preconditions.checkNotNull(address);
 		this.dataPort = dataPort;
 		this.lastHeartbeat = lastHeartbeat;
@@ -92,8 +92,8 @@ public class TaskManagerInfo implements ResponseBody {
 		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
 	}
 
-	public InstanceID getInstanceId() {
-		return instanceId;
+	public ResourceID getResourceId() {
+		return resourceId;
 	}
 
 	public String getAddress() {
@@ -133,7 +133,7 @@ public class TaskManagerInfo implements ResponseBody {
 			lastHeartbeat == that.lastHeartbeat &&
 			numberSlots == that.numberSlots &&
 			numberAvailableSlots == that.numberAvailableSlots &&
-			Objects.equals(instanceId, that.instanceId) &&
+			Objects.equals(resourceId, that.resourceId) &&
 			Objects.equals(address, that.address) &&
 			Objects.equals(hardwareDescription, that.hardwareDescription);
 	}
@@ -141,7 +141,7 @@ public class TaskManagerInfo implements ResponseBody {
 	@Override
 	public int hashCode() {
 		return Objects.hash(
-			instanceId,
+			resourceId,
 			address,
 			dataPort,
 			lastHeartbeat,
