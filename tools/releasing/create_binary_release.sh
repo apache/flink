@@ -55,7 +55,11 @@ make_binary_release() {
   SCALA_VERSION=$3
 
   echo "Creating binary release name: $NAME, flags: $FLAGS, SCALA_VERSION: ${SCALA_VERSION}"
-  dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
+  if [[ -z $NAME ]]; then
+    dir_name="flink-$RELEASE_VERSION-bin-scala_${SCALA_VERSION}"
+  else
+    dir_name="flink-$RELEASE_VERSION-bin-$NAME-scala_${SCALA_VERSION}"
+  fi
 
   # enable release profile here (to check for the maven version)
   $MVN clean package $FLAGS -DskipTests -Prelease,scala-${SCALA_VERSION} -Dgpg.skip
@@ -78,6 +82,7 @@ cd ..
 
 
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
+  make_binary_release "" "-DwithoutHadoop" "2.11"
   make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "2.11"
   make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"
   make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "2.11"
@@ -87,6 +92,7 @@ then
   make_binary_release "hadoop2" "-Dhadoop.version=$HADOOP_VERSION" "2.11"
 elif [ "$SCALA_VERSION" != none ] && [ "$HADOOP_VERSION" == "none" ]
 then
+  make_binary_release "" "-DwithoutHadoop" "$SCALA_VERSION"
   make_binary_release "hadoop24" "-Dhadoop.version=2.4.1" "$SCALA_VERSION"
   make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "$SCALA_VERSION"
   make_binary_release "hadoop27" "-Dhadoop.version=2.7.3" "$SCALA_VERSION"
