@@ -2355,6 +2355,41 @@ map ‘[’ key ‘]’
   </tbody>
 </table>
 
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Row functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight text %}
+(value, [, value]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROW(value, [, value]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of literals. </p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
 ### Unsupported Functions
 
 The following functions are not supported yet:
