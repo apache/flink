@@ -33,7 +33,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.Files;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
@@ -267,7 +266,11 @@ public class CheckpointCacheTest {
 
 		File tmpFolder = tmp.newFolder();
 		final CheckpointCache cache = new CheckpointCache(new JobID(), tmpFolder.getAbsolutePath(), 10000, 10000, mock(CheckpointCacheManager.class), Executors.directExecutor());
-		final String testStr = "test re-cache logic.";
+		StringBuilder builder = new StringBuilder(4097);
+		for (int i = 0; i < 500; ++i) {
+			builder.append("1234567890");
+		}
+		final String testStr = builder.toString();
 		StreamStateHandle[] cacheHandles = new StreamStateHandle[5];
 
 		// checkpoint

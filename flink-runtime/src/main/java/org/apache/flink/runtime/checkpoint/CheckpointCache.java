@@ -346,7 +346,7 @@ public class CheckpointCache {
 						cacheBasePath,
 						cacheBasePath.getFileSystem(),
 						4096,
-						1024 * 1024);
+						2048);
 				} catch (Exception ignored) {
 					this.outputStream = null;
 				}
