@@ -69,6 +69,7 @@ import org.apache.flink.runtime.messages.TaskManagerMessages.Heartbeat
 import org.apache.flink.runtime.messages.TaskMessages.UpdateTaskExecutionState
 import org.apache.flink.runtime.messages.accumulators._
 import org.apache.flink.runtime.messages.checkpoint.{AbstractCheckpointMessage, AcknowledgeCheckpoint, DeclineCheckpoint}
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus
 import org.apache.flink.runtime.messages.webmonitor.{InfoMessage, _}
 import org.apache.flink.runtime.messages.{Acknowledge, FlinkJobNotFoundException, StackTrace}
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup
@@ -1627,8 +1628,8 @@ class JobManager(
           val future = (archive ? RequestJobsWithIDsOverview.getInstance())(timeout)
 
           future.onSuccess {
-            case archiveOverview: JobIdsWithStatusesOverview =>
-              theSender ! new JobIdsWithStatusesOverview(ourJobs, archiveOverview)
+            case archiveOverview: JobIdsWithStatusOverview =>
+              theSender ! new JobIdsWithStatusOverview(ourJobs, archiveOverview)
           }(context.dispatcher)
 
         case _ : RequestStatusOverview =>
@@ -1694,17 +1695,16 @@ class JobManager(
     new JobsOverview(runningOrPending, finished, canceled, failed)
   }
 
-  private def createJobStatusWithIDsOverview() : JobIdsWithStatusesOverview = {
+  private def createJobStatusWithIDsOverview() : JobIdsWithStatusOverview = {
     val jobIdsWithStatuses =
-      new java.util.ArrayList[
-        org.apache.flink.api.java.tuple.Tuple2[JobID, JobStatus]](currentJobs.size)
+      new java.util.ArrayList[JobIdWithStatus](currentJobs.size)
 
     currentJobs.values.foreach { job =>
       jobIdsWithStatuses.add(
-        org.apache.flink.api.java.tuple.Tuple2.of(job._1.getJobID, job._1.getState))
+        new JobIdWithStatus(job._1.getJobID, job._1.getState))
     }
 
-    new JobIdsWithStatusesOverview(jobIdsWithStatuses)
+    new JobIdsWithStatusOverview(jobIdsWithStatuses)
   }
 
   /**

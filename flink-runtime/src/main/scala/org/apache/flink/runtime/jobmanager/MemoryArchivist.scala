@@ -35,6 +35,7 @@ import org.apache.flink.runtime.executiongraph.{ArchivedExecutionGraph, Executio
 import org.apache.flink.runtime.history.FsJobArchivist
 import org.apache.flink.runtime.messages.ArchiveMessages._
 import org.apache.flink.runtime.messages.JobManagerMessages._
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview.JobIdWithStatus
 
 import scala.collection.mutable
 import scala.concurrent.future
@@ -222,17 +223,16 @@ class MemoryArchivist(
     new JobsOverview(0, finishedCnt, canceledCnt, failedCnt)
   }
 
-  private def createJobsWithIDsOverview() : JobIdsWithStatusesOverview = {
+  private def createJobsWithIDsOverview() : JobIdsWithStatusOverview = {
     val jobIdsWithStatuses =
-      new java.util.ArrayList[
-        org.apache.flink.api.java.tuple.Tuple2[JobID, JobStatus]](graphs.size)
+      new java.util.ArrayList[JobIdWithStatus](graphs.size)
 
     graphs.values.foreach { graph =>
       jobIdsWithStatuses.add(
-        org.apache.flink.api.java.tuple.Tuple2.of(graph.getJobID, graph.getState))
+        new JobIdWithStatus(graph.getJobID, graph.getState))
     }
 
-    new JobIdsWithStatusesOverview(jobIdsWithStatuses)
+    new JobIdsWithStatusOverview(jobIdsWithStatuses)
   }
 
   // --------------------------------------------------------------------------

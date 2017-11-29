@@ -19,18 +19,17 @@
 package org.apache.flink.runtime.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusesOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
-import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 
 import org.junit.Test;
 
@@ -58,12 +57,12 @@ public class WebMonitorMessagesTest {
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(ClusterOverview.class, rnd));
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(JobsOverview.class, rnd));
 			
-			GenericMessageTester.testMessageInstance(new JobIdsWithStatusesOverview(Arrays.asList(
-				Tuple2.of(JobID.generate(), JobStatus.RUNNING),
-				Tuple2.of(JobID.generate(), JobStatus.CANCELED),
-				Tuple2.of(JobID.generate(), JobStatus.CREATED),
-				Tuple2.of(JobID.generate(), JobStatus.FAILED),
-				Tuple2.of(JobID.generate(), JobStatus.RESTARTING))));
+			GenericMessageTester.testMessageInstance(new JobIdsWithStatusOverview(Arrays.asList(
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.RUNNING),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.CANCELED),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.CREATED),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.FAILED),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.RESTARTING))));
 		}
 		catch (Exception e) {
 			e.printStackTrace();

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusesOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import javax.annotation.Nullable;
@@ -127,5 +127,5 @@ public interface JobManagerGateway extends RestfulGateway {
 	 * @param timeout for the asynchronous operation
 	 * @return Future containing the job overview
 	 */
-	CompletableFuture<JobIdsWithStatusesOverview> requestJobsOverview(Time timeout);
+	CompletableFuture<JobIdsWithStatusOverview> requestJobsOverview(Time timeout);
 }

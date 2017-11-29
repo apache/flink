@@ -18,12 +18,9 @@
 
 package org.apache.flink.runtime.rest.handler.legacy;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
-import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusesOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
 import org.apache.flink.util.FlinkException;
 
@@ -68,18 +65,17 @@ public class CurrentJobIdsHandler extends AbstractJsonRequestHandler {
 				// we need no parameters, get all requests
 				try {
 					if (jobManagerGateway != null) {
-						CompletableFuture<JobIdsWithStatusesOverview> overviewFuture = jobManagerGateway.requestJobsOverview(timeout);
-						JobIdsWithStatusesOverview overview = overviewFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+						CompletableFuture<JobIdsWithStatusOverview> overviewFuture = jobManagerGateway.requestJobsOverview(timeout);
+						JobIdsWithStatusOverview overview = overviewFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 						StringWriter writer = new StringWriter();
 						JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
 						gen.writeStartObject();
-						gen.writeArrayFieldStart(JobIdsWithStatusesOverview.FIELD_NAME_JOB_IDS);
+						gen.writeArrayFieldStart(JobIdsWithStatusOverview.FIELD_NAME_JOBS);
 
-						final JobIdsWithStatusesOverview.JobIdWithStatusSerializer jobIdWithStatusSerializer = new JobIdsWithStatusesOverview.JobIdWithStatusSerializer();
-						for (Tuple2<JobID, JobStatus> jobIdWithStatus : overview.getJobIds()) {
-							jobIdWithStatusSerializer.serialize(jobIdWithStatus, gen, null);
+						for (JobIdsWithStatusOverview.JobIdWithStatus jobIdWithStatus : overview.getJobsWithStatus()) {
+							gen.writeObject(jobIdWithStatus);
 						}
 
 						gen.writeEndArray();

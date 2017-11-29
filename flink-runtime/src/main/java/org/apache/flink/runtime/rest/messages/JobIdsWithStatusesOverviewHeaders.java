@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusesOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 /**
- * Message headers for the {@link JobIdsWithStatusesOverview}.
+ * Message headers for the {@link JobIdsWithStatusOverview}.
  */
-public class JobIdsWithStatusesOverviewHeaders implements MessageHeaders<EmptyRequestBody, JobIdsWithStatusesOverview, EmptyMessageParameters> {
+public class JobIdsWithStatusesOverviewHeaders implements MessageHeaders<EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
 
 	public static final String CURRENT_JOB_IDS_REST_PATH = "/jobs";
 
@@ -50,8 +50,8 @@ public class JobIdsWithStatusesOverviewHeaders implements MessageHeaders<EmptyRe
 	}
 
 	@Override
-	public Class<JobIdsWithStatusesOverview> getResponseClass() {
-		return JobIdsWithStatusesOverview.class;
+	public Class<JobIdsWithStatusOverview> getResponseClass() {
+		return JobIdsWithStatusOverview.class;
 	}
 
 	@Override

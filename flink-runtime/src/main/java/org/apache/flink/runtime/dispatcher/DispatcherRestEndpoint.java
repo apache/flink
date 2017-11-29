@@ -165,19 +165,19 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			DashboardConfigurationHeaders.getInstance(),
 			restConfiguration.getRefreshInterval());
 
-		JobsOverviewHandler<DispatcherGateway> jobsOverviewHandler = new JobsOverviewHandler<>(
-			restAddressFuture,
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			JobsOverviewHeaders.getInstance());
-
 		JobIdsHandler<DispatcherGateway> jobIdsHandler = new JobIdsHandler<>(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobIdsWithStatusesOverviewHeaders.getInstance());
+
+		JobsOverviewHandler<DispatcherGateway> jobsOverviewHandler = new JobsOverviewHandler<>(
+			restAddressFuture,
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			JobsOverviewHeaders.getInstance());
 
 		ClusterConfigHandler<DispatcherGateway> clusterConfigurationHandler = new ClusterConfigHandler<>(
 			restAddressFuture,
@@ -378,8 +378,8 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		handlers.add(Tuple2.of(ClusterOverviewHeaders.getInstance(), clusterOverviewHandler));
 		handlers.add(Tuple2.of(ClusterConfigurationInfoHeaders.getInstance(), clusterConfigurationHandler));
 		handlers.add(Tuple2.of(DashboardConfigurationHeaders.getInstance(), dashboardConfigHandler));
-		handlers.add(Tuple2.of(JobsOverviewHeaders.getInstance(), jobsOverviewHandler));
 		handlers.add(Tuple2.of(JobIdsWithStatusesOverviewHeaders.getInstance(), jobIdsHandler));
+		handlers.add(Tuple2.of(JobsOverviewHeaders.getInstance(), jobsOverviewHandler));
 		handlers.add(Tuple2.of(JobTerminationHeaders.getInstance(), jobTerminationHandler));
 		handlers.add(Tuple2.of(JobConfigHeaders.getInstance(), jobConfigHandler));
 		handlers.add(Tuple2.of(CheckpointConfigHeaders.getInstance(), checkpointConfigHandler));

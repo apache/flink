@@ -19,8 +19,7 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusesOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -42,14 +41,14 @@ import java.util.stream.Collectors;
  * @param <T> type of the leader gateway
  */
 public class JobIdsHandler<T extends RestfulGateway>
-		extends AbstractRestHandler<T, EmptyRequestBody, JobIdsWithStatusesOverview, EmptyMessageParameters> {
+		extends AbstractRestHandler<T, EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
 
 	public JobIdsHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends T> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobIdsWithStatusesOverview, EmptyMessageParameters> messageHeaders) {
+			MessageHeaders<EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> messageHeaders) {
 		super(
 			localRestAddress,
 			leaderRetriever,
@@ -59,13 +58,21 @@ public class JobIdsHandler<T extends RestfulGateway>
 	}
 
 	@Override
-	protected CompletableFuture<JobIdsWithStatusesOverview> handleRequest(
+	protected CompletableFuture<JobIdsWithStatusOverview> handleRequest(
 			@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
 			@Nonnull T gateway) throws RestHandlerException {
 
 		return gateway.requestJobDetails(timeout).thenApply(
-			multipleJobDetails -> new JobIdsWithStatusesOverview(
-				multipleJobDetails.getJobs().stream().map(jobDetails -> Tuple2.of(jobDetails.getJobId(), jobDetails.getStatus())).collect(Collectors.toList())
+			multipleJobDetails -> new JobIdsWithStatusOverview(
+				multipleJobDetails
+					.getJobs()
+					.stream()
+					.map(
+						jobDetails ->
+							new JobIdsWithStatusOverview.JobIdWithStatus(
+								jobDetails.getJobId(),
+								jobDetails.getStatus()))
+					.collect(Collectors.toList())
 			)
 		);
 	}
