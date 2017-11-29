@@ -19,11 +19,12 @@
 package org.apache.flink.runtime.messages;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusesOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsOverview;
@@ -57,8 +58,12 @@ public class WebMonitorMessagesTest {
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(ClusterOverview.class, rnd));
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(JobsOverview.class, rnd));
 			
-			GenericMessageTester.testMessageInstance(new JobsWithIDsOverview(
-					randomIds(rnd), randomIds(rnd), randomIds(rnd), randomIds(rnd)));
+			GenericMessageTester.testMessageInstance(new JobIdsWithStatusesOverview(Arrays.asList(
+				Tuple2.of(JobID.generate(), JobStatus.RUNNING),
+				Tuple2.of(JobID.generate(), JobStatus.CANCELED),
+				Tuple2.of(JobID.generate(), JobStatus.CREATED),
+				Tuple2.of(JobID.generate(), JobStatus.FAILED),
+				Tuple2.of(JobID.generate(), JobStatus.RESTARTING))));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
