@@ -908,7 +908,6 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
-				<version>3.0.2</version>
 				<executions>
 					<execution>
 						<id>analyze</id>
@@ -928,8 +927,6 @@ under the License.
 								<ignoredUnusedDeclaredDependency>org.mockito:mockito-all</ignoredUnusedDeclaredDependency>
 								<ignoredUnusedDeclaredDependency>org.powermock:powermock-module-junit4</ignoredUnusedDeclaredDependency>
 								<ignoredUnusedDeclaredDependency>org.powermock:powermock-api-mockito</ignoredUnusedDeclaredDependency>
-								<ignoredUnusedDeclaredDependency>org.powermock:powermock-core</ignoredUnusedDeclaredDependency>
-								<ignoredUnusedDeclaredDependency>org.powermock:powermock-reflect</ignoredUnusedDeclaredDependency>
 								<ignoredUnusedDeclaredDependency>org.hamcrest:hamcrest-all</ignoredUnusedDeclaredDependency>
 								<ignoredUnusedDeclaredDependency>org.slf4j:slf4j-api</ignoredUnusedDeclaredDependency>
 								<ignoredUnusedDeclaredDependency>org.slf4j:slf4j-log4j12</ignoredUnusedDeclaredDependency>
