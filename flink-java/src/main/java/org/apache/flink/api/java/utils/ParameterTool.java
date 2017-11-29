@@ -618,7 +618,7 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
 		in.defaultReadObject();
 
-		defaultData = Collections.emptyMap();
-		unrequestedParameters = Collections.emptySet();
+		defaultData = new ConcurrentHashMap<>(data.size());
+		unrequestedParameters = Collections.newSetFromMap(new ConcurrentHashMap<>(data.size()));
 	}
 }
