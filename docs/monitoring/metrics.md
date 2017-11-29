@@ -45,8 +45,8 @@ You can create and register a `Counter` by calling `counter(String name)` on a `
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-public class MyMapper extends RichMapFunction<String, String> {
-  private Counter counter;
+RichMapFunction<String, String> {
+  private transient Counter counter;
 
   @Override
   public void open(Configuration config) {
@@ -68,8 +68,8 @@ public class MyMapper extends RichMapFunction<String, String> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[String,String] {
-  var counter: Counter
+RichMapFunction[String,String] {
+  @transient private var counter: Counter
 
   override def open(parameters: Configuration): Unit = {
     counter = getRuntimeContext()
@@ -94,8 +94,8 @@ Alternatively you can also use your own `Counter` implementation:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-public class MyMapper extends RichMapFunction<String, String> {
-  private Counter counter;
+RichMapFunction<String, String> {
+  private transient Counter counter;
 
   @Override
   public void open(Configuration config) {
@@ -118,8 +118,8 @@ public class MyMapper extends RichMapFunction<String, String> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[String,String] {
-  var counter: Counter
+RichMapFunction[String,String] {
+  @transient private var counter: Counter
 
   override def open(parameters: Configuration): Unit = {
     counter = getRuntimeContext()
@@ -148,8 +148,8 @@ You can register a gauge by calling `gauge(String name, Gauge gauge)` on a `Metr
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-public class MyMapper extends RichMapFunction<String, String> {
-  private int valueToExpose = 0;
+RichMapFunction<String, String> {
+  private transient int valueToExpose = 0;
 
   @Override
   public void open(Configuration config) {
@@ -176,8 +176,8 @@ public class MyMapper extends RichMapFunction<String, String> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[String,String] {
-  val valueToExpose = 0
+new RichMapFunction[String,String] {
+  @transient private var valueToExpose = 0
 
   override def open(parameters: Configuration): Unit = {
     getRuntimeContext()
@@ -206,8 +206,8 @@ You can register one by calling `histogram(String name, Histogram histogram)` on
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Long> {
-  private Histogram histogram;
+RichMapFunction<Long, Long> {
+  private transient Histogram histogram;
 
   @Override
   public void open(Configuration config) {
@@ -228,8 +228,8 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[Long,Long] {
-  var histogram: Histogram
+RichMapFunction[Long,Long] {
+  @transient private var histogram: Histogram
 
   override def open(parameters: Configuration): Unit = {
     histogram = getRuntimeContext()
@@ -263,8 +263,8 @@ You can then register a Codahale/DropWizard histogram like this:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Long> {
-  private Histogram histogram;
+RichMapFunction<Long, Long> {
+  private transient Histogram histogram;
 
   @Override
   public void open(Configuration config) {
@@ -288,8 +288,8 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[Long, Long] {
-  var histogram: Histogram
+RichMapFunction[Long, Long] {
+  @transient private var histogram: Histogram
 
   override def open(config: Configuration): Unit = {
     com.codahale.metrics.Histogram dropwizardHistogram =
@@ -319,8 +319,8 @@ You can register a meter by calling `meter(String name, Meter meter)` on a `Metr
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Long> {
-  private Meter meter;
+RichMapFunction<Long, Long> {
+  private transient Meter meter;
 
   @Override
   public void open(Configuration config) {
@@ -341,8 +341,8 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[Long,Long] {
-  var meter: Meter
+RichMapFunction[Long,Long] {
+  @transient private var meter: Meter
 
   override def open(config: Configuration): Unit = {
     meter = getRuntimeContext()
@@ -376,8 +376,8 @@ You can then register a Codahale/DropWizard meter like this:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-public class MyMapper extends RichMapFunction<Long, Long> {
-  private Meter meter;
+RichMapFunction<Long, Long> {
+  private transient Meter meter;
 
   @Override
   public void open(Configuration config) {
@@ -400,8 +400,8 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-public class MyMapper extends RichMapFunction[Long,Long] {
-  var meter: Meter
+RichMapFunction[Long,Long] {
+  @transient private var meter: Meter
 
   override def open(config: Configuration): Unit = {
     com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter()
