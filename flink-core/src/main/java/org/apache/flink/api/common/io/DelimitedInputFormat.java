@@ -345,7 +345,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 	@Override
 	public FileBaseStatistics getStatistics(BaseStatistics cachedStats) throws IOException {
 		
-		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
 				(FileBaseStatistics) cachedStats : null;
 		
 		// store properties

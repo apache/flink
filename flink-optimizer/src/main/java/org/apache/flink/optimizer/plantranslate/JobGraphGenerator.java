@@ -810,8 +810,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			
 			// cannot chain the nodes that produce the next workset or the next solution set, if they are not the
 			// in a tail 
-			if (this.currentIteration != null && this.currentIteration instanceof WorksetIterationPlanNode &&
-					node.getOutgoingChannels().size() > 0)
+			if (this.currentIteration instanceof WorksetIterationPlanNode && node.getOutgoingChannels().size() > 0)
 			{
 				WorksetIterationPlanNode wspn = (WorksetIterationPlanNode) this.currentIteration;
 				if (wspn.getSolutionSetDeltaPlanNode() == pred || wspn.getNextWorkSetPlanNode() == pred) {
@@ -819,7 +818,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 				}
 			}
 			// cannot chain the nodes that produce the next workset in a bulk iteration if a termination criterion follows
-			if (this.currentIteration != null && this.currentIteration instanceof BulkIterationPlanNode)
+			if (this.currentIteration instanceof BulkIterationPlanNode)
 			{
 				BulkIterationPlanNode wspn = (BulkIterationPlanNode) this.currentIteration;
 				if (node == wspn.getRootOfTerminationCriterion() && wspn.getRootOfStepFunction() == pred){
@@ -1284,7 +1283,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		headConfig.setRelativeBackChannelMemory(relativeMemForBackChannel);
 		
 		// --------------------------- create the sync task ---------------------------
-		final JobVertex sync = new JobVertex("Sync(" + bulkNode.getNodeName() + ")");
+		final JobVertex sync = new JobVertex("Sync (" + bulkNode.getNodeName() + ")");
 		sync.setResources(bulkNode.getMinResources(), bulkNode.getPreferredResources());
 		sync.setInvokableClass(IterationSynchronizationSinkTask.class);
 		sync.setParallelism(1);

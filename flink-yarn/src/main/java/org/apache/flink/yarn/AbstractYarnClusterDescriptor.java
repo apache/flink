@@ -466,8 +466,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		int port = report.getRpcPort();
 
 		// Correctly initialize the Flink config
-		flinkConfiguration.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, host);
-		flinkConfiguration.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, port);
+		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
