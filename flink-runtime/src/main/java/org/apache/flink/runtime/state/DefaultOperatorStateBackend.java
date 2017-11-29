@@ -36,6 +36,7 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.util.Preconditions;
@@ -48,7 +49,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -469,8 +469,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		return task;
 	}
 
-	@Override
-	public void restore(Collection<OperatorStateHandle> restoreSnapshots) throws Exception {
+	public void restore(StateObjectCollection<OperatorStateHandle> restoreSnapshots) throws Exception {
 
 		if (null == restoreSnapshots) {
 			return;

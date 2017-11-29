@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -318,7 +319,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		backendCloseableRegistry.registerCloseable(operatorStateBackend);
 
-		Collection<OperatorStateHandle> managedOperatorState = null;
+		StateObjectCollection<OperatorStateHandle> managedOperatorState = null;
 
 		if (operatorSubtaskStateFromJobManager != null) {
 			managedOperatorState = operatorSubtaskStateFromJobManager.getManagedOperatorState();
@@ -341,7 +342,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
 		backendCloseableRegistry.registerCloseable(keyedStateBackend);
 
-		Collection<KeyedStateHandle> managedKeyedState = null;
+		StateObjectCollection<KeyedStateHandle> managedKeyedState = null;
 
 		if (operatorSubtaskStateFromJobManager != null) {
 			managedKeyedState = operatorSubtaskStateFromJobManager.getManagedKeyedState();

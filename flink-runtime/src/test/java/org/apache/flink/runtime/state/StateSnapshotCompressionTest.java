@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalValueState;
@@ -32,7 +33,6 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Collections;
 import java.util.concurrent.RunnableFuture;
 
 import static org.mockito.Mockito.mock;
@@ -156,7 +156,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			executionConfig);
 		try {
 
-			stateBackend.restore(Collections.singletonList(stateHandle));
+			stateBackend.restore(StateObjectCollection.singleton(stateHandle));
 
 			InternalValueState<VoidNamespace, String> state = stateBackend.createValueState(
 				new VoidNamespaceSerializer(),
