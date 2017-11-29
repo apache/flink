@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -159,6 +161,9 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected transient LatencyGauge latencyGauge;
 
+	protected transient WatermarkGauge inputWatermarkGauge;
+	protected transient WatermarkGauge outputWatermarkGauge;
+
 	// ---------------- time handler ------------------
 
 	protected transient InternalTimeServiceManager<?, ?> timeServiceManager;
@@ -180,8 +185,16 @@ public abstract class AbstractStreamOperator<OUT>
 		this.container = containingTask;
 		this.config = config;
 		try {
+			if (useSeparateWatermarkGauges()) {
+				inputWatermarkGauge = new WatermarkGauge();
+				outputWatermarkGauge = new WatermarkGauge();
+			} else {
+				WatermarkGauge commonGauge = new WatermarkGauge();
+				inputWatermarkGauge = commonGauge;
+				outputWatermarkGauge = commonGauge;
+			}
 			OperatorMetricGroup operatorMetricGroup = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorID(), config.getOperatorName());
-			this.output = new CountingOutput(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+			this.output = new OutputWithMetrics(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter(), outputWatermarkGauge);
 			if (config.isChainStart()) {
 				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
 			}
@@ -189,6 +202,8 @@ public abstract class AbstractStreamOperator<OUT>
 				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
 			}
 			this.metrics = operatorMetricGroup;
+			metrics.gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge);
+			metrics.gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, outputWatermarkGauge);
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating task metrics.", e);
 			this.metrics = new UnregisteredMetricsGroup();
@@ -206,6 +221,25 @@ public abstract class AbstractStreamOperator<OUT>
 
 		stateKeySelector1 = config.getStatePartitioner(0, getUserCodeClassloader());
 		stateKeySelector2 = config.getStatePartitioner(1, getUserCodeClassloader());
+	}
+
+	/**
+	 * Specifies whether the input/output watermarks should be measured separately or not.
+	 *
+	 * <p>If this method returns false, {@link #inputWatermarkGauge} and {@link #outputWatermarkGauge} are guaranteed
+	 * to always return the same value. This is useful for operators that generate watermarks or only either receive or
+	 * emit records.
+	 *
+	 * <p>Input watermarks are automatically measured for all sub-classes so long as {@link #processWatermark(Watermark)}
+	 * is not overridden without a call to {@code super.processWatermark(Watermark)}. Otherwise, if this method returns
+	 * true, it is the responsibility of the sub-class to ensure that {@link #inputWatermarkGauge} is properly updated.
+	 *
+	 * <p>Output watermarks are automatically measured for all sub-classes.
+	 *
+	 * @return true, if the input/output watermarks should be measured separately, false otherwise.
+	 */
+	protected boolean useSeparateWatermarkGauges() {
+		return true;
 	}
 
 	@Override
@@ -806,18 +840,21 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Wrapping {@link Output} that updates metrics on the number of emitted elements.
 	 */
-	public class CountingOutput implements Output<StreamRecord<OUT>> {
+	public class OutputWithMetrics implements Output<StreamRecord<OUT>> {
 		private final Output<StreamRecord<OUT>> output;
 		private final Counter numRecordsOut;
+		private final WatermarkGauge outputWatermarkGauge;
 
-		public CountingOutput(Output<StreamRecord<OUT>> output, Counter counter) {
+		public OutputWithMetrics(Output<StreamRecord<OUT>> output, Counter counter, WatermarkGauge outputWatermarkGauge) {
 			this.output = output;
 			this.numRecordsOut = counter;
+			this.outputWatermarkGauge = outputWatermarkGauge;
 		}
 
 		@Override
 		public void emitWatermark(Watermark mark) {
 			output.emitWatermark(mark);
+			outputWatermarkGauge.setCurrentWatermark(mark.getTimestamp());
 		}
 
 		@Override
@@ -882,6 +919,7 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
+		inputWatermarkGauge.setCurrentWatermark(mark.getTimestamp());
 		if (timeServiceManager != null) {
 			timeServiceManager.advanceWatermark(mark);
 		}
@@ -929,5 +967,15 @@ public abstract class AbstractStreamOperator<OUT>
 	public int numEventTimeTimers() {
 		return timeServiceManager == null ? 0 :
 			timeServiceManager.numEventTimeTimers();
+	}
+
+	@VisibleForTesting
+	public WatermarkGauge getInputWatermarkGauge() {
+		return inputWatermarkGauge;
+	}
+
+	@VisibleForTesting
+	public WatermarkGauge getOutputWatermarkGauge() {
+		return outputWatermarkGauge;
 	}
 }

@@ -70,6 +70,11 @@ public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFuncti
 		this.currentWatermark = mark.getTimestamp();
 	}
 
+	@Override
+	protected boolean useSeparateWatermarkGauges() {
+		return false;
+	}
+
 	private class SimpleContext<IN> implements SinkFunction.Context<IN> {
 
 		private StreamRecord<IN> element;

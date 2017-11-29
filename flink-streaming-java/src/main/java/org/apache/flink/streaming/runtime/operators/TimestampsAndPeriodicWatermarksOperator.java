@@ -108,4 +108,9 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			output.emitWatermark(newWatermark);
 		}
 	}
+
+	@Override
+	protected boolean useSeparateWatermarkGauges() {
+		return false;
+	}
 }

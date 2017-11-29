@@ -72,4 +72,9 @@ public class TimestampsAndPunctuatedWatermarksOperator<T>
 			output.emitWatermark(mark);
 		}
 	}
+
+	@Override
+	protected boolean useSeparateWatermarkGauges() {
+		return false;
+	}
 }

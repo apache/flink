@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -47,18 +48,32 @@ public class TimestampsAndPunctuatedWatermarksOperatorTest {
 
 		testHarness.open();
 
+		assertEquals(operator.getInputWatermarkGauge(), operator.getOutputWatermarkGauge());
+		WatermarkGauge watermarkGauge = operator.getOutputWatermarkGauge();
+
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(3L, true), 0L));
+		assertEquals(3L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(5L, false), 0L));
+		assertEquals(3L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(4L, false), 0L));
+		assertEquals(3L, watermarkGauge.getValue().longValue());
 		testHarness.processWatermark(new Watermark(10)); // this watermark should be ignored
+		assertEquals(3L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(4L, false), 0L));
+		assertEquals(3L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(4L, true), 0L));
+		assertEquals(4L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(9L, false), 0L));
+		assertEquals(4L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(5L, false), 0L));
+		assertEquals(4L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(7L, true), 0L));
+		assertEquals(7L, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>(10L, false), 0L));
+		assertEquals(7L, watermarkGauge.getValue().longValue());
 
 		testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+		assertEquals(Long.MAX_VALUE, watermarkGauge.getValue().longValue());
 
 		ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
 

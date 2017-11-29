@@ -116,6 +116,11 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 	}
 
 	@Override
+	protected boolean useSeparateWatermarkGauges() {
+		return false;
+	}
+
+	@Override
 	public void open() throws Exception {
 		super.open();
 
