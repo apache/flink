@@ -127,8 +127,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single
  * {@link JobGraph}.
- * <p>
- * It offers the following methods as part of its rpc interface to interact with the JobMaster
+ *
+ * <p>It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
  * <ul>
  * <li>{@link #updateTaskExecutionState} updates the task execution state for
@@ -137,7 +137,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMasterGateway {
 
-	/** Default names for Flink's distributed components */
+	/** Default names for Flink's distributed components. */
 	public static final String JOB_MANAGER_NAME = "jobmanager";
 	public static final String ARCHIVE_NAME = "archive";
 
@@ -147,36 +147,36 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final ResourceID resourceId;
 
-	/** Logical representation of the job */
+	/** Logical representation of the job. */
 	private final JobGraph jobGraph;
 
-	/** Configuration of the JobManager */
+	/** Configuration of the JobManager. */
 	private final Configuration configuration;
 
 	private final Time rpcTimeout;
 
-	/** Service to contend for and retrieve the leadership of JM and RM */
+	/** Service to contend for and retrieve the leadership of JM and RM. */
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	/** Blob server used across jobs */
+	/** Blob server used across jobs. */
 	private final BlobServer blobServer;
 
-	/** Blob library cache manager used across jobs */
+	/** Blob library cache manager used across jobs. */
 	private final BlobLibraryCacheManager libraryCacheManager;
 
-	/** The metrics for the JobManager itself */
+	/** The metrics for the JobManager itself. */
 	private final MetricGroup jobManagerMetricGroup;
 
-	/** The metrics for the job */
+	/** The metrics for the job. */
 	private final MetricGroup jobMetricGroup;
 
-	/** The heartbeat manager with task managers */
+	/** The heartbeat manager with task managers. */
 	private final HeartbeatManager<Void, Void> taskManagerHeartbeatManager;
 
-	/** The heartbeat manager with resource manager */
+	/** The heartbeat manager with resource manager. */
 	private final HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
-	/** The execution context which is used to execute futures */
+	/** The execution context which is used to execute futures. */
 	private final Executor executor;
 
 	private final OnCompletionActions jobCompletionActions;
@@ -185,7 +185,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final ClassLoader userCodeLoader;
 
-	/** The execution graph of this job */
+	/** The execution graph of this job. */
 	private final ExecutionGraph executionGraph;
 
 	private final SlotPool slotPool;
@@ -198,10 +198,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	// --------- ResourceManager --------
 
-	/** Leader retriever service used to locate ResourceManager's address */
+	/** Leader retriever service used to locate ResourceManager's address. */
 	private LeaderRetrievalService resourceManagerLeaderRetriever;
 
-	/** Connection with ResourceManager, null if not located address yet or we close it initiative */
+	/** Connection with ResourceManager, null if not located address yet or we close it initiative. */
 	private ResourceManagerConnection resourceManagerConnection;
 
 	// --------- TaskManagers --------
@@ -320,7 +320,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	// Lifecycle management
 	//----------------------------------------------------------------------------------------------
 
-
 	@Override
 	public void start() {
 		throw new UnsupportedOperationException("Should never call start() without leader ID");
@@ -405,8 +404,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	 */
 	@Override
 	public CompletableFuture<Acknowledge> updateTaskExecutionState(
-			final TaskExecutionState taskExecutionState)
-	{
+			final TaskExecutionState taskExecutionState) {
 		checkNotNull(taskExecutionState, "taskExecutionState");
 
 		if (executionGraph.updateState(taskExecutionState)) {
@@ -534,8 +532,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final TaskStateSnapshot checkpointState) {
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
-		final AcknowledgeCheckpoint ackMessage = 
-				new AcknowledgeCheckpoint(jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
+		final AcknowledgeCheckpoint ackMessage = new AcknowledgeCheckpoint(
+			jobID,
+			executionAttemptID,
+			checkpointId,
+			checkpointMetrics,
+			checkpointState);
 
 		if (checkpointCoordinator != null) {
 			getRpcService().execute(new Runnable() {
@@ -560,8 +562,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final JobID jobID,
 			final ExecutionAttemptID executionAttemptID,
 			final long checkpointID,
-			final Throwable reason)
-	{
+			final Throwable reason) {
 		final DeclineCheckpoint decline = new DeclineCheckpoint(
 				jobID, executionAttemptID, checkpointID, reason);
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
@@ -605,8 +606,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			final KeyGroupRange keyGroupRange,
 			final String registrationName,
 			final KvStateID kvStateId,
-			final InetSocketAddress kvStateServerAddress)
-	{
+			final InetSocketAddress kvStateServerAddress) {
 		if (log.isDebugEnabled()) {
 			log.debug("Key value state registered for job {} under name {}.",
 					jobGraph.getJobID(), registrationName);
@@ -624,8 +624,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	public void notifyKvStateUnregistered(
 			JobVertexID jobVertexId,
 			KeyGroupRange keyGroupRange,
-			String registrationName)
-	{
+			String registrationName) {
 		if (log.isDebugEnabled()) {
 			log.debug("Key value state unregistered for job {} under name {}.",
 					jobGraph.getJobID(), registrationName);
@@ -786,7 +785,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	@Override
 	public CompletableFuture<AccessExecutionGraph> requestJob(JobID jobId, Time timeout) {
-		if (Objects.equals(jobGraph.getJobID(), jobId)) {
+		if (jobGraph.getJobID().equals(jobId)) {
 			return requestArchivedExecutionGraph(timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
@@ -952,7 +951,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final JobID jobID = executionGraph.getJobID();
 		final String jobName = executionGraph.getJobName();
-		
+
 		if (newJobStatus.isGloballyTerminalState()) {
 			switch (newJobStatus) {
 				case FINISHED:
@@ -960,14 +959,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 						// TODO get correct job duration
 						// job done, let's get the accumulators
 						Map<String, Object> accumulatorResults = executionGraph.getAccumulators();
-						JobExecutionResult result = new JobExecutionResult(jobID, 0L, accumulatorResults); 
+						JobExecutionResult result = new JobExecutionResult(jobID, 0L, accumulatorResults);
 
 						executor.execute(() -> jobCompletionActions.jobFinished(result));
 					}
 					catch (Exception e) {
 						log.error("Cannot fetch final accumulators for job {} ({})", jobName, jobID, e);
 
-						final JobExecutionException exception = new JobExecutionException(jobID, 
+						final JobExecutionException exception = new JobExecutionException(jobID,
 								"Failed to retrieve accumulator results. " +
 								"The job is registered as 'FINISHED (successful), but this notification describes " +
 								"a failure, since the resulting accumulators could not be fetched.", e);
@@ -1038,7 +1037,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void establishResourceManagerConnection(final JobMasterRegistrationSuccess success) {
 		final ResourceManagerId resourceManagerId = success.getResourceManagerId();
-	
+
 		// verify the response with current connection
 		if (resourceManagerConnection != null
 				&& Objects.equals(resourceManagerConnection.getTargetLeaderId(), resourceManagerId)) {
@@ -1105,8 +1104,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	//----------------------------------------------------------------------------------------------
 
 	private class ResourceManagerConnection
-			extends RegisteredRpcConnection<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>
-	{
+			extends RegisteredRpcConnection<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> {
 		private final JobID jobID;
 
 		private final ResourceID jobManagerResourceID;
@@ -1125,8 +1123,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 				final JobMasterId jobMasterId,
 				final String resourceManagerAddress,
 				final ResourceManagerId resourceManagerId,
-				final Executor executor)
-		{
+				final Executor executor) {
 			super(log, resourceManagerAddress, resourceManagerId, executor);
 			this.jobID = checkNotNull(jobID);
 			this.jobManagerResourceID = checkNotNull(jobManagerResourceID);
@@ -1138,12 +1135,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess> generateRegistration() {
 			return new RetryingRegistration<ResourceManagerId, ResourceManagerGateway, JobMasterRegistrationSuccess>(
 					log, getRpcService(), "ResourceManager", ResourceManagerGateway.class,
-					getTargetAddress(), getTargetLeaderId())
-			{
+					getTargetAddress(), getTargetLeaderId()) {
 				@Override
 				protected CompletableFuture<RegistrationResponse> invokeRegistration(
-						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) throws Exception
-				{
+						ResourceManagerGateway gateway, ResourceManagerId fencingToken, long timeoutMillis) throws Exception {
 					Time timeout = Time.milliseconds(timeoutMillis);
 
 					return gateway.registerJobManager(
