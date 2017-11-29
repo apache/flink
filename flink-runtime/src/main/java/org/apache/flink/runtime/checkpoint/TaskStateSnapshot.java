@@ -86,6 +86,18 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 		return subtaskStatesByOperatorID.entrySet();
 	}
 
+	/**
+	 * Returns true if at least one {@link OperatorSubtaskState} in subtaskStatesByOperatorID has state.
+	 */
+	public boolean hasState() {
+		for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
+			if (operatorSubtaskState != null && operatorSubtaskState.hasState()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	@Override
 	public void discardState() throws Exception {
 		StateUtil.bestEffortDiscardAllStateObjects(subtaskStatesByOperatorID.values());

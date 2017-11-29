@@ -72,10 +72,11 @@ public class TestTaskStateManager implements TaskStateManager {
 	}
 
 	@Override
-	public void reportTaskStateSnapshot(
+	public void reportTaskStateSnapshots(
 		@Nonnull CheckpointMetaData checkpointMetaData,
 		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState) {
+		@Nullable TaskStateSnapshot acknowledgedState,
+		@Nullable TaskStateSnapshot localState) {
 
 		if (taskStateSnapshotsByCheckpointId != null) {
 			taskStateSnapshotsByCheckpointId.put(

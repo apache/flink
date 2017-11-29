@@ -75,10 +75,11 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	}
 
 	@Override
-	public void reportStateHandles(
+	public void reportTaskStateSnapshots(
 		@Nonnull CheckpointMetaData checkpointMetaData,
 		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState) {
+		@Nullable TaskStateSnapshot acknowledgedState,
+		@Nullable TaskStateSnapshot localState) {
 
 		checkpointResponder.acknowledgeCheckpoint(
 			jobId,
@@ -86,6 +87,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
 			checkpointMetaData.getCheckpointId(),
 			checkpointMetrics,
 			acknowledgedState);
+
+		localStateStore.storeLocalState(checkpointMetaData, localState);
 	}
 
 	@Override

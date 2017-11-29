@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -30,55 +31,55 @@ import java.util.concurrent.RunnableFuture;
  */
 public class OperatorSnapshotFutures {
 
-	private RunnableFuture<KeyedStateHandle> keyedStateManagedFuture;
-	private RunnableFuture<KeyedStateHandle> keyedStateRawFuture;
-	private RunnableFuture<OperatorStateHandle> operatorStateManagedFuture;
-	private RunnableFuture<OperatorStateHandle> operatorStateRawFuture;
+	private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture;
+	private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture;
+	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture;
+	private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture;
 
 	public OperatorSnapshotFutures() {
 		this(null, null, null, null);
 	}
 
 	public OperatorSnapshotFutures(
-			RunnableFuture<KeyedStateHandle> keyedStateManagedFuture,
-			RunnableFuture<KeyedStateHandle> keyedStateRawFuture,
-			RunnableFuture<OperatorStateHandle> operatorStateManagedFuture,
-			RunnableFuture<OperatorStateHandle> operatorStateRawFuture) {
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
+			RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
+			RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
 		this.keyedStateManagedFuture = keyedStateManagedFuture;
 		this.keyedStateRawFuture = keyedStateRawFuture;
 		this.operatorStateManagedFuture = operatorStateManagedFuture;
 		this.operatorStateRawFuture = operatorStateRawFuture;
 	}
 
-	public RunnableFuture<KeyedStateHandle> getKeyedStateManagedFuture() {
+	public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateManagedFuture() {
 		return keyedStateManagedFuture;
 	}
 
-	public void setKeyedStateManagedFuture(RunnableFuture<KeyedStateHandle> keyedStateManagedFuture) {
+	public void setKeyedStateManagedFuture(RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture) {
 		this.keyedStateManagedFuture = keyedStateManagedFuture;
 	}
 
-	public RunnableFuture<KeyedStateHandle> getKeyedStateRawFuture() {
+	public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedStateRawFuture() {
 		return keyedStateRawFuture;
 	}
 
-	public void setKeyedStateRawFuture(RunnableFuture<KeyedStateHandle> keyedStateRawFuture) {
+	public void setKeyedStateRawFuture(RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture) {
 		this.keyedStateRawFuture = keyedStateRawFuture;
 	}
 
-	public RunnableFuture<OperatorStateHandle> getOperatorStateManagedFuture() {
+	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateManagedFuture() {
 		return operatorStateManagedFuture;
 	}
 
-	public void setOperatorStateManagedFuture(RunnableFuture<OperatorStateHandle> operatorStateManagedFuture) {
+	public void setOperatorStateManagedFuture(RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture) {
 		this.operatorStateManagedFuture = operatorStateManagedFuture;
 	}
 
-	public RunnableFuture<OperatorStateHandle> getOperatorStateRawFuture() {
+	public RunnableFuture<SnapshotResult<OperatorStateHandle>> getOperatorStateRawFuture() {
 		return operatorStateRawFuture;
 	}
 
-	public void setOperatorStateRawFuture(RunnableFuture<OperatorStateHandle> operatorStateRawFuture) {
+	public void setOperatorStateRawFuture(RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture) {
 		this.operatorStateRawFuture = operatorStateRawFuture;
 	}
 
@@ -118,17 +119,5 @@ public class OperatorSnapshotFutures {
 		if (exception != null) {
 			throw exception;
 		}
-	}
-
-	public boolean hasKeyedState() {
-		return keyedStateManagedFuture != null || keyedStateRawFuture != null;
-	}
-
-	public boolean hasOperatorState() {
-		return operatorStateManagedFuture != null || operatorStateRawFuture != null;
-	}
-
-	public boolean hasState() {
-		return hasKeyedState() || hasOperatorState();
 	}
 }

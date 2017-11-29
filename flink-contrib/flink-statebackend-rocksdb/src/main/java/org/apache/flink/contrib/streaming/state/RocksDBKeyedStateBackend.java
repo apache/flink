@@ -63,6 +63,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
@@ -116,7 +117,6 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
@@ -340,7 +340,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * @throws Exception
 	 */
 	@Override
-	public RunnableFuture<KeyedStateHandle> snapshot(
+	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 		final long checkpointId,
 		final long timestamp,
 		final CheckpointStreamFactory streamFactory,
@@ -354,7 +354,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
-	private RunnableFuture<KeyedStateHandle> snapshotIncrementally(
+	private RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotIncrementally(
 		final long checkpointId,
 		final long checkpointTimestamp,
 		final CheckpointStreamFactory checkpointStreamFactory) throws Exception {
@@ -386,13 +386,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			throw e;
 		}
 
-		return new FutureTask<KeyedStateHandle>(
-			new Callable<KeyedStateHandle>() {
-				@Override
-				public KeyedStateHandle call() throws Exception {
-					return snapshotOperation.materializeSnapshot();
-				}
-			}
+		return new FutureTask<SnapshotResult<KeyedStateHandle>>(
+			() -> snapshotOperation.materializeSnapshot()
 		) {
 			@Override
 			public boolean cancel(boolean mayInterruptIfRunning) {
@@ -407,7 +402,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		};
 	}
 
-	private RunnableFuture<KeyedStateHandle> snapshotFully(
+	private RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotFully(
 		final long checkpointId,
 		final long timestamp,
 		final CheckpointStreamFactory streamFactory) throws Exception {
@@ -429,8 +424,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
 
 		// implementation of the async IO operation, based on FutureTask
-		AbstractAsyncCallableWithResources<KeyedStateHandle> ioCallable =
-			new AbstractAsyncCallableWithResources<KeyedStateHandle>() {
+		AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
+			new AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>>() {
 
 				@Override
 				protected void acquireResources() throws Exception {
@@ -465,7 +460,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				}
 
 				@Override
-				public KeyGroupsStateHandle performOperation() throws Exception {
+				public SnapshotResult<KeyedStateHandle> performOperation() throws Exception {
 					long startTime = System.currentTimeMillis();
 
 					if (isStopped()) {
@@ -477,7 +472,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
 						streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 
-					return snapshotOperation.getSnapshotResultStateHandle();
+					KeyGroupsStateHandle stateHandle = snapshotOperation.getSnapshotResultStateHandle();
+					return new SnapshotResult<>(stateHandle, null);
 				}
 			};
 
@@ -922,7 +918,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			checkpoint.createCheckpoint(backupPath.getPath());
 		}
 
-		KeyedStateHandle materializeSnapshot() throws Exception {
+		SnapshotResult<KeyedStateHandle> materializeSnapshot() throws Exception {
 
 			stateBackend.cancelStreamRegistry.registerCloseable(closeableRegistry);
 
@@ -963,13 +959,15 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				stateBackend.materializedSstFiles.put(checkpointId, sstFiles.keySet());
 			}
 
-			return new IncrementalKeyedStateHandle(
+			IncrementalKeyedStateHandle incrementalKeyedStateHandle = new IncrementalKeyedStateHandle(
 				stateBackend.backendUID,
 				stateBackend.keyGroupRange,
 				checkpointId,
 				sstFiles,
 				miscFiles,
 				metaStateHandle);
+
+			return new SnapshotResult<>(incrementalKeyedStateHandle, null);
 		}
 
 		void stop() {

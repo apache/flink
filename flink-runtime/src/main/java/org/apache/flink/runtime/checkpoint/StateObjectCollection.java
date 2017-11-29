@@ -21,6 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 
+import org.apache.commons.collections.CollectionUtils;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,6 +33,8 @@ import java.util.function.Predicate;
  * @param <T> type of the contained state objects.
  */
 public class StateObjectCollection<T extends StateObject> implements Collection<T>, StateObject {
+
+	private static final long serialVersionUID = 1L;
 
 	private static final StateObjectCollection<?> EMPTY = new StateObjectCollection<>(Collections.emptyList());
 	private final Collection<T> stateObjects;
@@ -164,7 +168,8 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 
 		StateObjectCollection<?> that = (StateObjectCollection<?>) o;
 
-		return stateObjects.equals(that.stateObjects);
+		// simple equals can cause troubles here because of how equals works e.g. between lists and sets.
+		return CollectionUtils.isEqualCollection(stateObjects, that.stateObjects);
 	}
 
 	@Override

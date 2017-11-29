@@ -134,10 +134,11 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			state.setCurrentNamespace(VoidNamespace.INSTANCE);
 			state.update("45");
 			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4 * 1024 * 1024);
-			RunnableFuture<KeyedStateHandle> snapshot =
+			RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
 				stateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 			snapshot.run();
-			stateHandle = snapshot.get();
+			SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
+			stateHandle = snapshotResult != null ? snapshotResult.getJobManagerOwnedSnapshot() : null;
 
 		} finally {
 			IOUtils.closeQuietly(stateBackend);

@@ -69,7 +69,7 @@ public class TaskStateManagerImplTest {
 		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, operatorSubtaskState_1);
 		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID_2, operatorSubtaskState_2);
 
-		taskStateManager.reportTaskStateSnapshot(checkpointMetaData, checkpointMetrics, taskStateSnapshot);
+		taskStateManager.reportTaskStateSnapshots(checkpointMetaData, checkpointMetrics, taskStateSnapshot, null);
 
 		TestCheckpointResponder.AcknowledgeReport acknowledgeReport =
 			checkpointResponderMock.getAcknowledgeReports().get(0);

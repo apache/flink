@@ -64,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractKeyedStateBackend<K> implements
 	KeyedStateBackend<K>,
-	Snapshotable<KeyedStateHandle, StateObjectCollection<KeyedStateHandle>>,
+	Snapshotable<SnapshotResult<KeyedStateHandle>, StateObjectCollection<KeyedStateHandle>>,
 	Closeable,
 	CheckpointListener {
 

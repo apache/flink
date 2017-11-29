@@ -30,7 +30,7 @@ import java.io.Closeable;
  */
 public interface OperatorStateBackend extends
 	OperatorStateStore,
-	Snapshotable<OperatorStateHandle, StateObjectCollection<OperatorStateHandle>>,
+	Snapshotable<SnapshotResult<OperatorStateHandle>, StateObjectCollection<OperatorStateHandle>>,
 	Closeable {
 
 	/**

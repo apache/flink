@@ -457,9 +457,9 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 				OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
 
 				outputStates.addAll(snapshot.getManagedOperatorState());
-				checkState(snapshot.getRawOperatorState() == null, "Unexpected raw operator state");
-				checkState(snapshot.getManagedKeyedState() == null, "Unexpected managed keyed state");
-				checkState(snapshot.getRawKeyedState() == null, "Unexpected raw keyed state");
+				checkState(snapshot.getRawOperatorState().isEmpty(), "Unexpected raw operator state");
+				checkState(snapshot.getManagedKeyedState().isEmpty(), "Unexpected managed keyed state");
+				checkState(snapshot.getRawKeyedState().isEmpty(), "Unexpected raw keyed state");
 
 				for (int i = 1; i < FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE - 1; i++) {
 					testHarness.processElement(-nextValue, 0);

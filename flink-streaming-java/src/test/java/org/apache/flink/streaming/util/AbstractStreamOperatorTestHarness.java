@@ -48,6 +48,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorTest;
+import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -62,7 +63,6 @@ import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
-import org.apache.flink.util.FutureUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -479,18 +479,15 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
 			checkpointStorage.resolveCheckpointStorageLocation(checkpointId, CheckpointStorageLocationReference.getDefault()));
 
-		KeyedStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
-		KeyedStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
-
-		OperatorStateHandle opManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateManagedFuture());
-		OperatorStateHandle opRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getOperatorStateRawFuture());
+		OperatorSnapshotFinalizer operatorSnapshotFinalizer = new OperatorSnapshotFinalizer(operatorStateResult);
+		OperatorSubtaskState jobManagerOwnedState = operatorSnapshotFinalizer.getJobManagerOwnedState();
 
 		return new OperatorStateHandles(
 			0,
-			keyedManaged != null ? Collections.singletonList(keyedManaged) : null,
-			keyedRaw != null ? Collections.singletonList(keyedRaw) : null,
-			opManaged != null ? Collections.singletonList(opManaged) : null,
-			opRaw != null ? Collections.singletonList(opRaw) : null);
+			jobManagerOwnedState.getManagedKeyedState(),
+			jobManagerOwnedState.getRawKeyedState(),
+			jobManagerOwnedState.getManagedOperatorState(),
+			jobManagerOwnedState.getRawOperatorState());
 	}
 
 	/**

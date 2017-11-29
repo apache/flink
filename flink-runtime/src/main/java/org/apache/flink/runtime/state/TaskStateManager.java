@@ -47,10 +47,11 @@ public interface TaskStateManager extends CheckpointListener {
 	 * @param checkpointMetrics task level metrics for the checkpoint.
 	 * @param acknowledgedState the reported states from the owning task.
 	 */
-	void reportTaskStateSnapshot(
+	void reportTaskStateSnapshots(
 		@Nonnull CheckpointMetaData checkpointMetaData,
 		@Nonnull CheckpointMetrics checkpointMetrics,
-		@Nullable TaskStateSnapshot acknowledgedState);
+		@Nullable TaskStateSnapshot acknowledgedState,
+		@Nullable TaskStateSnapshot localState);
 
 	/**
 	 * Returns means to restore previously reported state of an operator running in the owning task.

@@ -19,7 +19,12 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This class will service as a task-manager-level local storage for local checkpointed state. The purpose is to provide
@@ -51,11 +56,16 @@ public class TaskLocalStateStore {
 		this.subtaskIndex = subtaskIndex;
 	}
 
-	public void storeSnapshot(/* TODO */) {
-		throw new UnsupportedOperationException("TODO!");
+	public void storeLocalState(
+		@Nonnull CheckpointMetaData checkpointMetaData,
+		@Nullable TaskStateSnapshot localState) {
+
+		if (localState != null) {
+			throw new UnsupportedOperationException("Implement this before actually providing local state!");
+		}
 	}
 
 	public void dispose() {
-		throw new UnsupportedOperationException("TODO!");
+		//TODO
 	}
 }
