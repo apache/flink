@@ -68,7 +68,7 @@ public class JobsOverviewHandler extends AbstractJsonRequestHandler {
 	@Override
 	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
 		if (jobManagerGateway != null) {
-			CompletableFuture<MultipleJobsDetails> jobDetailsFuture = jobManagerGateway.requestJobDetails(timeout);
+			CompletableFuture<MultipleJobsDetails> jobDetailsFuture = jobManagerGateway.requestMultipleJobDetails(timeout);
 
 			return jobDetailsFuture.thenApplyAsync(
 				(MultipleJobsDetails result) -> {

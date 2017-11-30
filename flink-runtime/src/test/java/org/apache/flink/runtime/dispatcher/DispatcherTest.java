@@ -51,7 +51,6 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -224,7 +223,7 @@ public class DispatcherTest extends TestLogger {
 				heartbeatServices,
 				metricRegistry,
 				fatalErrorHandler,
-				Optional.empty());
+				null);
 
 			this.jobManagerRunner = jobManagerRunner;
 			this.expectedJobId = expectedJobId;

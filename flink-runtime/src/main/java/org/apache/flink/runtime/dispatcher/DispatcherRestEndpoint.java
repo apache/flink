@@ -150,14 +150,14 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 		final Time timeout = restConfiguration.getTimeout();
 		final Map<String, String> responseHeaders = restConfiguration.getResponseHeaders();
 
-		ClusterOverviewHandler<DispatcherGateway> clusterOverviewHandler = new ClusterOverviewHandler<>(
+		ClusterOverviewHandler clusterOverviewHandler = new ClusterOverviewHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			ClusterOverviewHeaders.getInstance());
 
-		DashboardConfigHandler<DispatcherGateway> dashboardConfigHandler = new DashboardConfigHandler<>(
+		DashboardConfigHandler dashboardConfigHandler = new DashboardConfigHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
@@ -165,21 +165,21 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			DashboardConfigurationHeaders.getInstance(),
 			restConfiguration.getRefreshInterval());
 
-		JobIdsHandler<DispatcherGateway> jobIdsHandler = new JobIdsHandler<>(
+		JobIdsHandler jobIdsHandler = new JobIdsHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobIdsWithStatusesOverviewHeaders.getInstance());
 
-		JobsOverviewHandler<DispatcherGateway> jobsOverviewHandler = new JobsOverviewHandler<>(
+		JobsOverviewHandler jobsOverviewHandler = new JobsOverviewHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
 			JobsOverviewHeaders.getInstance());
 
-		ClusterConfigHandler<DispatcherGateway> clusterConfigurationHandler = new ClusterConfigHandler<>(
+		ClusterConfigHandler clusterConfigurationHandler = new ClusterConfigHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
@@ -280,7 +280,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			timeout,
 			responseHeaders);
 
-		TaskManagersHandler<DispatcherGateway> taskManagersHandler = new TaskManagersHandler<>(
+		TaskManagersHandler taskManagersHandler = new TaskManagersHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,
@@ -288,7 +288,7 @@ public class DispatcherRestEndpoint extends RestServerEndpoint {
 			TaskManagersHeaders.getInstance(),
 			resourceManagerRetriever);
 
-		TaskManagerDetailsHandler<DispatcherGateway> taskManagerDetailsHandler = new TaskManagerDetailsHandler<>(
+		TaskManagerDetailsHandler taskManagerDetailsHandler = new TaskManagerDetailsHandler(
 			restAddressFuture,
 			leaderRetriever,
 			timeout,

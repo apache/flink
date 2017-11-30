@@ -37,15 +37,12 @@ import java.util.stream.Collectors;
 
 /**
  * Handler for job IDs.
- *
- * @param <T> type of the leader gateway
  */
-public class JobIdsHandler<T extends RestfulGateway>
-		extends AbstractRestHandler<T, EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
+public class JobIdsHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> {
 
 	public JobIdsHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<? extends T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobIdsWithStatusOverview, EmptyMessageParameters> messageHeaders) {
@@ -60,9 +57,9 @@ public class JobIdsHandler<T extends RestfulGateway>
 	@Override
 	protected CompletableFuture<JobIdsWithStatusOverview> handleRequest(
 			@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-			@Nonnull T gateway) throws RestHandlerException {
+			@Nonnull RestfulGateway gateway) throws RestHandlerException {
 
-		return gateway.requestJobDetails(timeout).thenApply(
+		return gateway.requestMultipleJobDetails(timeout).thenApply(
 			multipleJobDetails -> new JobIdsWithStatusOverview(
 				multipleJobDetails
 					.getJobs()

@@ -45,17 +45,15 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler which serves detailed TaskManager information.
- *
- * @param <T> type of the owning {@link RestfulGateway}
  */
-public class TaskManagerDetailsHandler<T extends RestfulGateway> extends AbstractTaskManagerHandler<T, EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
+public class TaskManagerDetailsHandler extends AbstractTaskManagerHandler<RestfulGateway, EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> {
 
 	private final MetricFetcher metricFetcher;
 	private final MetricStore metricStore;
 
 	public TaskManagerDetailsHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<? extends T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters> messageHeaders,
