@@ -45,7 +45,7 @@ You can create and register a `Counter` by calling `counter(String name)` on a `
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-RichMapFunction<String, String> {
+class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
@@ -68,7 +68,7 @@ RichMapFunction<String, String> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-RichMapFunction[String,String] {
+class MyMapper extends RichMapFunction[String,String] {
   @transient private var counter: Counter
 
   override def open(parameters: Configuration): Unit = {
@@ -94,7 +94,7 @@ Alternatively you can also use your own `Counter` implementation:
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-RichMapFunction<String, String> {
+class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
@@ -118,7 +118,7 @@ RichMapFunction<String, String> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-RichMapFunction[String,String] {
+class MyMapper extends RichMapFunction[String,String] {
   @transient private var counter: Counter
 
   override def open(parameters: Configuration): Unit = {
@@ -148,7 +148,7 @@ You can register a gauge by calling `gauge(String name, Gauge gauge)` on a `Metr
 <div data-lang="java" markdown="1">
 {% highlight java %}
 
-RichMapFunction<String, String> {
+class MyMapper extends RichMapFunction<String, String> {
   private transient int valueToExpose = 0;
 
   @Override
@@ -176,7 +176,7 @@ RichMapFunction<String, String> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-new RichMapFunction[String,String] {
+new class MyMapper extends RichMapFunction[String,String] {
   @transient private var valueToExpose = 0
 
   override def open(parameters: Configuration): Unit = {
@@ -206,7 +206,7 @@ You can register one by calling `histogram(String name, Histogram histogram)` on
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RichMapFunction<Long, Long> {
+class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
@@ -228,7 +228,7 @@ RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-RichMapFunction[Long,Long] {
+class MyMapper extends RichMapFunction[Long,Long] {
   @transient private var histogram: Histogram
 
   override def open(parameters: Configuration): Unit = {
@@ -263,7 +263,7 @@ You can then register a Codahale/DropWizard histogram like this:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RichMapFunction<Long, Long> {
+class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
@@ -288,7 +288,7 @@ RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-RichMapFunction[Long, Long] {
+class MyMapper extends RichMapFunction[Long, Long] {
   @transient private var histogram: Histogram
 
   override def open(config: Configuration): Unit = {
@@ -319,7 +319,7 @@ You can register a meter by calling `meter(String name, Meter meter)` on a `Metr
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RichMapFunction<Long, Long> {
+class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
@@ -341,7 +341,7 @@ RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-RichMapFunction[Long,Long] {
+class MyMapper extends RichMapFunction[Long,Long] {
   @transient private var meter: Meter
 
   override def open(config: Configuration): Unit = {
@@ -376,7 +376,7 @@ You can then register a Codahale/DropWizard meter like this:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-RichMapFunction<Long, Long> {
+class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
@@ -400,7 +400,7 @@ RichMapFunction<Long, Long> {
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 
-RichMapFunction[Long,Long] {
+class MyMapper extends RichMapFunction[Long,Long] {
   @transient private var meter: Meter
 
   override def open(config: Configuration): Unit = {
