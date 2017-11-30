@@ -855,13 +855,19 @@ object ScalarOperators {
       resultType: TypeInformation[_],
       elements: Seq[GeneratedExpression])
   : GeneratedExpression = {
-    val rowTerm = codeGenerator.addReusableRow(resultType.getArity, elements.size)
+    val rowTerm = codeGenerator.addReusableRow(resultType.getArity)
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
       case ct: RowTypeInfo => // should always be RowTypeInfo
-        elements.zipWithIndex.map {
-          case (e, idx) => codeGenerator.generateBoxedElementWithNullableSupport(e,
-            boxedTypeTermForTypeInfo(ct.getTypeAt(idx)))
+        if (resultType.getArity == elements.size) {
+          elements.zipWithIndex.map {
+            case (e, idx) => codeGenerator.generateNullableOutputBoxing(e,
+              ct.getTypeAt(idx))
+          }
+        } else {
+          throw new CodeGenException(s"Illegal Row generate operation, " +
+            s"expected row arity: ${resultType.getArity} does not match with " +
+            s"expression element size: ${elements.size}!")
         }
       case _ => throw new CodeGenException(s"Unsupported Row generate operation, " +
         s"expected RowTypeInfo but found $resultType!")
@@ -890,9 +896,8 @@ object ScalarOperators {
     val boxedElements: Seq[GeneratedExpression] = resultType match {
       // we box the elements to also represent null values
       case oati: ObjectArrayTypeInfo[_, _] =>
-        val boxedTypeTerm = boxedTypeTermForTypeInfo(oati.getComponentInfo)
         elements.map { e =>
-          codeGenerator.generateBoxedElementWithNullableSupport(e, boxedTypeTerm)
+          codeGenerator.generateNullableOutputBoxing(e, oati.getComponentInfo)
         }
       // no boxing necessary
       case _: PrimitiveArrayTypeInfo[_] => elements
@@ -1107,12 +1112,9 @@ object ScalarOperators {
 
     val boxedElements: Seq[GeneratedExpression] = resultType match {
       case mti: MapTypeInfo[_, _] =>
-        val boxedKeyTypeTerm = boxedTypeTermForTypeInfo(mti.getKeyTypeInfo)
-        val boxedValueTypeTerm = boxedTypeTermForTypeInfo(mti.getValueTypeInfo)
-
         elements.zipWithIndex.map { case (e, idx) =>
-          codeGenerator.generateBoxedElementWithNullableSupport(e,
-            if (idx % 2 == 0) boxedKeyTypeTerm else boxedValueTypeTerm)
+          codeGenerator.generateNullableOutputBoxing(e,
+            if (idx % 2 == 0) mti.getKeyTypeInfo else mti.getValueTypeInfo)
         }
     }
 

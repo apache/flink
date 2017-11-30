@@ -36,6 +36,7 @@ import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
 import org.junit._
+import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -468,6 +469,29 @@ class CalcITCase(
     val expected = "Hello"
     val results = result.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testValueConstructor(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val rowValue = ("foo", 12, Timestamp.valueOf("1984-07-12 14:34:24"))
+
+    val table = env.fromElements(rowValue).toTable(tEnv, 'a, 'b, 'c)
+
+    val result = table.select(row('a, 'b, 'c), array(12, 'b), map('a, 'c))
+
+    val expected = "foo,12,1984-07-12 14:34:24.0,[12, 12],{foo=1984-07-12 14:34:24.0}"
+    val results = result.toDataSet[Row].collect()
+    TestBaseUtils.compareResultAsText(results.asJava, expected)
+
+    // Compare actual object to avoid undetected Calcite flattening
+    val resultRow = results.asJava.get(0)
+    assertEquals(rowValue._1, resultRow.getField(0).asInstanceOf[Row].getField(0))
+    assertEquals(rowValue._2, resultRow.getField(1).asInstanceOf[Array[Integer]](1))
+    assertEquals(rowValue._3,
+      resultRow.getField(2).asInstanceOf[util.Map[String, Timestamp]].get(rowValue._1))
   }
 
   @Test

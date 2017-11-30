@@ -1313,11 +1313,12 @@ abstract class CodeGenerator(
     }
   }
 
-  private[flink] def generateBoxedElementWithNullableSupport(
+  private[flink] def generateNullableOutputBoxing(
       element: GeneratedExpression,
-      boxedTypeTerm: String)
+      typeInfo: TypeInformation[_])
     : GeneratedExpression = {
     val boxedExpr = generateOutputFieldBoxing(element)
+    val boxedTypeTerm = boxedTypeTermForTypeInfo(typeInfo)
     val exprOrNull: String = if (nullCheck) {
       s"${boxedExpr.nullTerm} ? null : ($boxedTypeTerm) ${boxedExpr.resultTerm}"
     } else {
@@ -1575,10 +1576,10 @@ abstract class CodeGenerator(
   }
 
   /**
-    * Add a reusable [[org.apache.flink.types.Row]]
+    * Adds a reusable [[org.apache.flink.types.Row]]
     * to the member area of the generated [[Function]].
     */
-  def addReusableRow(arity: Int, size: Int): String = {
+  def addReusableRow(arity: Int): String = {
     val fieldTerm = newName("row")
     val fieldRow =
       s"""

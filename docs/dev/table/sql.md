@@ -2257,12 +2257,34 @@ tableName.compositeType.*
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 40%">Array functions</th>
+      <th class="text-left" style="width: 40%">Value constructor functions</th>
       <th class="text-center">Description</th>
     </tr>
   </thead>
 
   <tbody>
+
+    <tr>
+      <td>
+        {% highlight text %}
+(value, [, value]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values. </p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROW(value, [, value]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of literals. </p>
+      </td>
+    </tr>
 
     <tr>
       <td>
@@ -2274,6 +2296,30 @@ ARRAY ‘[’ value [, value ]* ‘]’
         <p>Creates an array from a list of values.</p>
       </td>
     </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+MAP ‘[’ key, value [, key, value ]* ‘]’
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a map from a list of key-value pairs.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Array functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
 
     <tr>
       <td>
@@ -2323,17 +2369,6 @@ ELEMENT(ARRAY)
     <tr>
       <td>
         {% highlight text %}
-MAP ‘[’ key, value [, key, value ]* ‘]’
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates a map from a list of key-value pairs.</p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
 CARDINALITY(MAP)
 {% endhighlight %}
       </td>
@@ -2352,41 +2387,6 @@ map ‘[’ key ‘]’
         <p>Returns the value specified by a particular key in a map.</p>
       </td>
     </tr>
-  </tbody>
-</table>
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 40%">Row functions</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-
-  <tbody>
-
-    <tr>
-      <td>
-        {% highlight text %}
-(value, [, value]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates a row from a list of values. </p>
-      </td>
-    </tr>
-
-    <tr>
-      <td>
-        {% highlight text %}
-ROW(value, [, value]*)
-{% endhighlight %}
-      </td>
-      <td>
-        <p>Creates a row from a list of literals. </p>
-      </td>
-    </tr>
-
   </tbody>
 </table>
 

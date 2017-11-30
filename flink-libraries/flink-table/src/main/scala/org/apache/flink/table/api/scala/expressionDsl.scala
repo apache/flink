@@ -960,12 +960,12 @@ object array {
 }
 
 /**
-  * Creates an row of literals.
+  * Creates a row of expressions.
   */
 object row {
 
   /**
-    * Creates a row of literals.
+    * Creates a row of expressions.
     */
   def apply(head: Expression, tail: Expression*): Expression = {
     RowConstructor(head +: tail.toSeq)
@@ -973,12 +973,12 @@ object row {
 }
 
 /**
-  * Creates a map of literals. The map will be a map between two objects (not primitives).
+  * Creates a map of expressions. The map will be a map between two objects (not primitives).
   */
 object map {
 
   /**
-    * Creates a map of literals. The map will be a map between two objects (not primitives).
+    * Creates a map of expressions. The map will be a map between two objects (not primitives).
     */
   def apply(key: Expression, value: Expression, tail: Expression*): Expression = {
     MapConstructor(Seq(key, value) ++ tail.toSeq)

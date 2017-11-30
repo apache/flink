@@ -3010,7 +3010,7 @@ row(ANY, [, ANY]*)
 {% endhighlight %}
       </td>
       <td>
-        <p>Creates a row from a list of values. row can be access via <a href="tableApi.html#built-in-functions">built-in functions</a> (see Value access functions section) </p>
+        <p>Creates a row from a list of values. Row is composite type and can be access via <a href="tableApi.html#built-in-functions">value access functions</a>. </p>
       </td>
     </tr>
 
@@ -4311,7 +4311,29 @@ ARRAY.element()
   </tbody>
 </table>
 
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Row functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
 
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+row(ANY, [, ANY]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values. Row is composite type and can be access via <a href="tableApi.html#built-in-functions">value access functions</a>. </p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
 
 <table class="table table-bordered">
   <thead>
