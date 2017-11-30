@@ -395,11 +395,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	// ------------------------------------------------------------------------
 
 	@Override
-	public MetricGroup addGroup(String key, String value) {
-		return addGroup(key, true).addGroup(value);
-	}
-
-	@Override
 	public MetricGroup addGroup(int name) {
 		return addGroup(String.valueOf(name), false);
 	}
@@ -407,6 +402,22 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	@Override
 	public MetricGroup addGroup(String name) {
 		return addGroup(name, false);
+	}
+
+	@Override
+	public MetricGroup addGroup(String key, String value) {
+		MetricGroup metricGroup;
+		if (this instanceof GenericKeyMetricGroup) {
+			metricGroup = addGroup(key);
+		} else {
+			metricGroup = addGroup(key, true);
+		}
+		if (metricGroup instanceof GenericKeyMetricGroup) {
+			return ((AbstractMetricGroup) metricGroup).addGroup(value, true);
+		}
+		else {
+			return metricGroup.addGroup(value);
+		}
 	}
 
 	private MetricGroup addGroup(String name, boolean keyed) {
@@ -421,8 +432,8 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 				}
 
 				AbstractMetricGroup newGroup = keyed
-					? new GenericKeyMetricGroup(registry, this, name)
-					: createChildGroup(name);
+					? createChildGroup(name)
+					: new GenericMetricGroup(registry, this, name);
 				AbstractMetricGroup prior = groups.put(name, newGroup);
 				if (prior == null) {
 					// no prior group with that name
@@ -443,6 +454,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	}
 
 	protected GenericMetricGroup createChildGroup(String name) {
-		return new GenericMetricGroup(registry, this, name);
+		return new GenericKeyMetricGroup(registry, this, name);
 	}
 }

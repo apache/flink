@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 
 /**
  * A simple named {@link org.apache.flink.metrics.MetricGroup} that is used to hold

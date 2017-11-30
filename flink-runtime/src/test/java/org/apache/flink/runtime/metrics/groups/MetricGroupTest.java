@@ -28,6 +28,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
@@ -35,6 +36,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -76,6 +79,134 @@ public class MetricGroupTest extends TestLogger {
 		assertNotNull(subgroup1);
 		assertNotNull(subgroup2);
 		assertTrue(subgroup1 == subgroup2);
+	}
+
+	@Test
+	public void createGroupWithUserDefinedVariables() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String keyName = "sometestkey";
+		String valueName1 = "sometestvalue1";
+		MetricGroup subgroup1 = group.addGroup(keyName, valueName1);
+		Map<String, String> variables1 = subgroup1.getAllVariables();
+
+		assertNotNull(subgroup1);
+		assertTrue(subgroup1 instanceof GenericValueMetricGroup);
+		assertTrue(((AbstractMetricGroup) subgroup1).parent instanceof GenericKeyMetricGroup);
+		assertTrue(variables1.containsKey(ScopeFormat.asVariable(keyName)));
+		assertEquals(valueName1, variables1.get(ScopeFormat.asVariable(keyName)));
+
+		String valueName2 = "sometestvalue2";
+		MetricGroup subgroup2 = group.addGroup(keyName, valueName2);
+		Map<String, String> variables2 = subgroup2.getAllVariables();
+
+		assertNotNull(subgroup2);
+		assertTrue(subgroup2 instanceof GenericValueMetricGroup);
+		assertEquals(((AbstractMetricGroup) subgroup1).parent, ((AbstractMetricGroup) subgroup2).parent);
+		assertTrue(variables2.containsKey(ScopeFormat.asVariable(keyName)));
+		assertEquals(valueName2, variables2.get(ScopeFormat.asVariable(keyName)));
+	}
+
+	@Test
+	public void forbidToCreateGenericKeyMetricGroupAfterGenericKeyMetricGroup() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String keyName = "somekeyname";
+		String valueName = "somevaluename";
+		group.addGroup(keyName, valueName);
+
+		String keyName2 = "somekeyname2";
+		String valueName2 = "somevaluename2";
+		MetricGroup subgroup = group.addGroup(keyName).addGroup(keyName2, valueName2);
+
+		assertTrue(((AbstractMetricGroup) subgroup).parent instanceof GenericMetricGroup);
+		assertTrue(subgroup instanceof GenericMetricGroup);
+	}
+
+	@Test
+	public void forbidToCreateGenericValueMetricGroupAfterGenericMetricGroup() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String groupName = "sometestname";
+		group.addGroup(groupName);
+
+		String valueName = "somevaluename";
+		MetricGroup subgroup = group.addGroup(groupName, valueName);
+
+		assertTrue(subgroup instanceof  GenericMetricGroup);
+	}
+
+	@Test
+	public void alwaysCanCreateGenericMetricGroup() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String groupName = "sometestname";
+		MetricGroup group1 = group.addGroup(groupName);
+		assertTrue(group1 instanceof GenericMetricGroup);
+
+		String keyName = "somekeyname";
+		String valueName = "somevaluename";
+		MetricGroup valueGroup = group.addGroup(keyName, valueName);
+		MetricGroup group2 = group.addGroup(keyName).addGroup(groupName);
+		assertTrue(group2 instanceof GenericMetricGroup);
+
+		MetricGroup group3 = valueGroup.addGroup(groupName);
+		assertTrue(group3 instanceof GenericMetricGroup);
+	}
+
+	@Test
+	public void tolerateGroupNameCollisionsWhenGenericMetricGroupCreatedFirst() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String groupName = "sometestname";
+		String valueName = "somevaluename";
+		MetricGroup subgroup1 = group.addGroup(groupName);
+		MetricGroup subgroup2 = group.addGroup(groupName, valueName);
+
+		assertEquals(subgroup1, ((AbstractMetricGroup) subgroup2).parent);
+		assertTrue(subgroup2 instanceof GenericMetricGroup);
+
+		String groupName2 = "sometestname2";
+		String valueName2 = "somevaluename2";
+		group.addGroup(groupName2, valueName);
+		MetricGroup subgroup3 = group.addGroup(groupName2).addGroup(valueName2);
+		MetricGroup subgroup4 = group.addGroup(groupName2, valueName2);
+
+		assertEquals(subgroup3, subgroup4);
+		assertTrue(subgroup4 instanceof GenericMetricGroup);
+	}
+
+	@Test
+	public void tolerateGroupNameCollisionsWhenGenericKeyMetricGroupCreatedFirst() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String keyName = "sometestname";
+		String valueName = "somevaluename";
+		MetricGroup subgroup1 = group.addGroup(keyName, valueName);
+		MetricGroup subgroup2 = group.addGroup(keyName);
+
+		assertEquals(((AbstractMetricGroup) subgroup1).parent, subgroup2);
+		assertTrue(subgroup2 instanceof GenericKeyMetricGroup);
+	}
+
+	@Test
+	public void tolerateGroupNameCollisionsWhenGenericValueMetricGroupCreatedFirst() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String keyName = "sometestname";
+		String valueName = "somevaluename";
+		MetricGroup subgroup1 = group.addGroup(keyName, valueName);
+		MetricGroup subgroup2 = group.addGroup(keyName).addGroup(valueName);
+
+		assertEquals(subgroup1, subgroup2);
+		assertTrue(subgroup2 instanceof GenericValueMetricGroup);
 	}
 
 	@Test

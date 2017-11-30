@@ -263,7 +263,7 @@ You can configure which delimiter to use for the identifier (default: `.`) by se
 
 ### User Scope
 
-You can define a user scope by calling either `MetricGroup#addGroup(String name)` or `MetricGroup#addGroup(int name)`.
+You can define a user scope by calling `MetricGroup#addGroup(String name)`, `MetricGroup#addGroup(int name)` or `Metric#addGroup(String key, String value)`.
 
 {% highlight java %}
 
@@ -272,7 +272,15 @@ counter = getRuntimeContext()
   .addGroup("MyMetrics")
   .counter("myCounter");
 
+counter = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyMetricsKey", "MyMetricsValue")
+  .counter("myCounter");
+
 {% endhighlight %}
+
+**Important:** The behavior of `group.addGroup(String key, String value)` is like `group.addGroup(String string).addGroup(value)` when define user scope,
+but it is different when specify user-defined variables. 
 
 ### System Scope
 
@@ -323,6 +331,20 @@ or by assigning unique names to jobs and operators.
 - Operator: &lt;operator_id&gt;,&lt;operator_name&gt;, &lt;subtask_index&gt;
 
 **Important:** For the Batch API, &lt;operator_id&gt; is always equal to &lt;task_id&gt;.
+
+### User-Defined Variables
+
+You can define a user-defined variable by calling `MetricGroup#addGroup(String key, String value)`.
+It will create a key-value pair in the second group (i.e. the returned group),
+which has a variable name as `key` and corresponding value as `value`.
+
+{% highlight java %}
+
+group = getRuntimeContext()
+  .getMetricGroup()
+  .addGroup("MyVariable", "MyVariableValue");
+
+{% endhighlight %}
 
 ## Reporter
 
