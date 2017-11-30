@@ -275,7 +275,7 @@ class DataStreamWindowJoin(
           returnTypeInfo,
           new KeyedCoProcessOperatorWithWatermarkDelay[Tuple, CRow, CRow, CRow](
             rowTimeInnerJoinFunc,
-            rowTimeInnerJoinFunc.getMaxOutputDelay)
+            rowTimeInnerJoinFunc.getMaxOutputDelay + 1) // WatermarkDelay = MaxOutputDelay + 1
         )
     } else {
       leftDataStream.connect(rightDataStream)
@@ -285,7 +285,7 @@ class DataStreamWindowJoin(
           returnTypeInfo,
           new KeyedCoProcessOperatorWithWatermarkDelay[java.lang.Byte, CRow, CRow, CRow](
             rowTimeInnerJoinFunc,
-            rowTimeInnerJoinFunc.getMaxOutputDelay)
+            rowTimeInnerJoinFunc.getMaxOutputDelay + 1) // WatermarkDelay = MaxOutputDelay + 1
         )
         .setParallelism(1)
         .setMaxParallelism(1)
