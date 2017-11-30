@@ -73,7 +73,8 @@ import java.util.concurrent.CompletableFuture;
  * the jobs and to recover them in case of a master failure. Furthermore, it knows
  * about the state of the Flink session cluster.
  */
-public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements DispatcherGateway, LeaderContender {
+public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements
+	DispatcherGateway, LeaderContender, SubmittedJobGraphStore.SubmittedJobGraphListener {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
@@ -173,6 +174,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public void start() throws Exception {
 		super.start();
 
+		submittedJobGraphStore.start(this);
 		leaderElectionService.start(this);
 	}
 
@@ -505,6 +507,40 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public void handleError(final Exception exception) {
 		onFatalError(new DispatcherException("Received an error from the LeaderElectionService.", exception));
+	}
+
+	//------------------------------------------------------
+	// SubmittedJobGraphListener
+	//------------------------------------------------------
+
+	@Override
+	public void onAddedJobGraph(final JobID jobId) {
+		runAsync(() -> {
+			final SubmittedJobGraph submittedJobGraph;
+			try {
+				submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
+			} catch (final Exception e) {
+				log.error("Could not submit job {}.", jobId, e);
+				return;
+			}
+
+			if (!jobManagerRunners.containsKey(jobId)) {
+				submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
+			}
+		});
+	}
+
+	@Override
+	public void onRemovedJobGraph(final JobID jobId) {
+		runAsync(() -> {
+			if (jobManagerRunners.containsKey(jobId)) {
+				try {
+					removeJob(jobId, false);
+				} catch (final Exception e) {
+					log.error("Could not remove job {}.", jobId, e);
+				}
+			}
+		});
 	}
 
 	//------------------------------------------------------
