@@ -52,7 +52,6 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
-import org.apache.flink.runtime.util.TestByteStreamStateHandleDeepCompare;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
@@ -62,7 +61,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.verification.VerificationMode;
@@ -2817,7 +2815,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange, serializedDataWithOffsets.f1.get(0));
 
-		ByteStreamStateHandle allSerializedStatesHandle = new TestByteStreamStateHandleDeepCompare(
+		ByteStreamStateHandle allSerializedStatesHandle = new ByteStreamStateHandle(
 				String.valueOf(UUID.randomUUID()),
 				serializedDataWithOffsets.f0);
 
@@ -2936,7 +2934,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			++idx;
 		}
 
-		ByteStreamStateHandle streamStateHandle = new TestByteStreamStateHandleDeepCompare(
+		ByteStreamStateHandle streamStateHandle = new ByteStreamStateHandle(
 			String.valueOf(UUID.randomUUID()),
 			serializationWithOffsets.f0);
 
