@@ -94,6 +94,34 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	 *
 	 * @param schema Serialization schema for the data type
 	 * @param configProps The properties used to configure KinesisProducer, including AWS credentials and AWS region
+	 *
+	 * @deprecated Use {@link #FlinkKinesisProducer(SerializationSchema, Properties)} instead.
+	 */
+	@Deprecated
+	public FlinkKinesisProducer(final org.apache.flink.streaming.util.serialization.SerializationSchema<OUT> schema, Properties configProps) {
+
+		// create a simple wrapper for the serialization schema
+		this(new KinesisSerializationSchema<OUT>() {
+			@Override
+			public ByteBuffer serialize(OUT element) {
+				// wrap into ByteBuffer
+				return ByteBuffer.wrap(schema.serialize(element));
+			}
+			// use default stream and hash key
+
+			@Override
+			public String getTargetStream(OUT element) {
+				return null;
+			}
+		}, configProps);
+	}
+
+	/**
+	 * Create a new FlinkKinesisProducer.
+	 * This is a constructor supporting Flink's {@see SerializationSchema}.
+	 *
+	 * @param schema Serialization schema for the data type
+	 * @param configProps The properties used to configure KinesisProducer, including AWS credentials and AWS region
 	 */
 	public FlinkKinesisProducer(final SerializationSchema<OUT> schema, Properties configProps) {
 
