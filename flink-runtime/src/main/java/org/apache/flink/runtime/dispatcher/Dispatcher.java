@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -63,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -73,7 +75,8 @@ import java.util.concurrent.CompletableFuture;
  * the jobs and to recover them in case of a master failure. Furthermore, it knows
  * about the state of the Flink session cluster.
  */
-public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements DispatcherGateway, LeaderContender {
+public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements
+	DispatcherGateway, LeaderContender, SubmittedJobGraphStore.SubmittedJobGraphListener {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
@@ -173,6 +176,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public void start() throws Exception {
 		super.start();
 
+		submittedJobGraphStore.start(this);
 		leaderElectionService.start(this);
 	}
 
@@ -197,7 +201,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				new JobSubmissionException(jobId, "Could not retrieve the job status.", e));
 		}
 
-		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.PENDING) {
+		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.PENDING &&
+			!jobManagerRunners.containsKey(jobId)) {
 			try {
 				submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
 			} catch (Exception e) {
@@ -248,7 +253,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
-		return CompletableFuture.completedFuture(jobManagerRunners.keySet());
+		return CompletableFuture.completedFuture(
+			Collections.unmodifiableSet(new HashSet<>(jobManagerRunners.keySet())));
 	}
 
 	@Override
@@ -399,7 +405,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	/**
 	 * Recovers all jobs persisted via the submitted job graph store.
 	 */
-	private void recoverJobs() {
+	@VisibleForTesting
+	void recoverJobs() {
 		log.info("Recovering all persisted jobs.");
 
 		getRpcService().execute(
@@ -505,6 +512,37 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public void handleError(final Exception exception) {
 		onFatalError(new DispatcherException("Received an error from the LeaderElectionService.", exception));
+	}
+
+	//------------------------------------------------------
+	// SubmittedJobGraphListener
+	//------------------------------------------------------
+
+	@Override
+	public void onAddedJobGraph(final JobID jobId) {
+		getRpcService().execute(() -> {
+			final SubmittedJobGraph submittedJobGraph;
+			try {
+				submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
+			} catch (final Exception e) {
+				log.error("Could not recover job graph for job {}.", jobId, e);
+				return;
+			}
+			runAsync(() -> {
+				submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
+			});
+		});
+	}
+
+	@Override
+	public void onRemovedJobGraph(final JobID jobId) {
+		runAsync(() -> {
+			try {
+				removeJob(jobId, false);
+			} catch (final Exception e) {
+				log.error("Could not remove job {}.", jobId, e);
+			}
+		});
 	}
 
 	//------------------------------------------------------
