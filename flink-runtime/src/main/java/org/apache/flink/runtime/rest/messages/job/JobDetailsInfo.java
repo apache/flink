@@ -27,10 +27,12 @@ import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDSerializer;
+import org.apache.flink.runtime.rest.messages.json.RawJsonDeserializer;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonRawValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -103,6 +105,7 @@ public class JobDetailsInfo implements ResponseBody {
 	private final Map<ExecutionState, Integer> jobVerticesPerState;
 
 	@JsonProperty(FIELD_NAME_JSON_PLAN)
+	@JsonRawValue
 	private final String jsonPlan;
 
 	@JsonCreator
@@ -118,7 +121,7 @@ public class JobDetailsInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_TIMESTAMPS) Map<JobStatus, Long> timestamps,
 			@JsonProperty(FIELD_NAME_JOB_VERTEX_INFOS) Collection<JobVertexDetailsInfo> jobVertexInfos,
 			@JsonProperty(FIELD_NAME_JOB_VERTICES_PER_STATE) Map<ExecutionState, Integer> jobVerticesPerState,
-			@JsonProperty(FIELD_NAME_JSON_PLAN) String jsonPlan) {
+			@JsonProperty(FIELD_NAME_JSON_PLAN) @JsonDeserialize(using = RawJsonDeserializer.class) String jsonPlan) {
 		this.jobId = Preconditions.checkNotNull(jobId);
 		this.name = Preconditions.checkNotNull(name);
 		this.isStoppable = isStoppable;

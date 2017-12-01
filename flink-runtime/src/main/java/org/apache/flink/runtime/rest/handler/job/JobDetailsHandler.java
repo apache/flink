@@ -126,7 +126,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 			executionGraph.getJsonPlan());
 	}
 
-	public static JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(
+	private static JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(
 			AccessExecutionJobVertex ejv,
 			long now,
 			JobID jobId,
