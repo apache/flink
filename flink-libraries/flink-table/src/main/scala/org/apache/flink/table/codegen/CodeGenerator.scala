@@ -1210,10 +1210,8 @@ abstract class CodeGenerator(
       fieldType: TypeInformation[_],
       fieldTerm: String)
     : GeneratedExpression = {
-    val tmpTerm = newName("tmp")
     val resultTerm = newName("result")
     val nullTerm = newName("isNull")
-    val tmpTypeTerm = boxedTypeTermForTypeInfo(fieldType)
     val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
 
@@ -1244,12 +1242,12 @@ abstract class CodeGenerator(
         |  $resultTerm = $defaultValue;
         |}
         |else {
-        |  $resultTerm = $unboxedFieldCode;
+        |  $resultTerm = ($resultTypeTerm) $unboxedFieldCode;
         |}
         |""".stripMargin
     } else {
       s"""
-        |$resultTypeTerm $resultTerm = $unboxedFieldCode;
+        |$resultTypeTerm $resultTerm = ($resultTypeTerm) $unboxedFieldCode;
         |""".stripMargin
     }
 
