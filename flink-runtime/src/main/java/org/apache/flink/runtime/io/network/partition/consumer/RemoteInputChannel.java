@@ -309,7 +309,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			numAddedBuffers = bufferQueue.addExclusiveBuffer(new Buffer(segment, this), numRequiredBuffers);
 		}
 
-		if (numAddedBuffers > 0 && unannouncedCredit.getAndAdd(1) == 0) {
+		if (numAddedBuffers > 0 && unannouncedCredit.getAndAdd(numAddedBuffers) == 0) {
 			notifyCreditAvailable();
 		}
 	}
