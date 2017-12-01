@@ -65,10 +65,6 @@ case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
 case class MapConstructor(elements: Seq[Expression]) extends Expression {
   override private[flink] def children: Seq[Expression] = elements
 
-  private[flink] var mapResultType: TypeInformation[_] = new MapTypeInfo(
-    new GenericTypeInfo[AnyRef](classOf[AnyRef]),
-    new GenericTypeInfo[AnyRef](classOf[AnyRef]))
-
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.asInstanceOf[FlinkRelBuilder].getTypeFactory
     val relDataType = typeFactory.createMapType(

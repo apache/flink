@@ -192,7 +192,7 @@ object ScalarOperators {
     else if (isMap(left.resultType) &&
       left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-        (leftTerm, rightTerm) => s"java.util.Map.equals($leftTerm, $rightTerm)"
+        (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
       }
     }
     // comparable types of same type
@@ -240,7 +240,7 @@ object ScalarOperators {
     else if (isMap(left.resultType) &&
       left.resultType.getTypeClass == right.resultType.getTypeClass) {
       generateOperatorIfNotNull(nullCheck, BOOLEAN_TYPE_INFO, left, right) {
-        (leftTerm, rightTerm) => s"!java.util.Map.equals($leftTerm, $rightTerm)"
+        (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
       }
     }
     // comparable types
