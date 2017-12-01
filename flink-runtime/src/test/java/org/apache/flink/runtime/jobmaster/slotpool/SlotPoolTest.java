@@ -25,8 +25,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.DummyScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -44,33 +44,31 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.AvailableSlotsTest.DEFAULT_TESTING_PROFILE;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.RETURNS_MOCKS;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class SlotPoolTest extends TestLogger {
 
@@ -84,7 +82,7 @@ public class SlotPoolTest extends TestLogger {
 
 	private TaskManagerLocation taskManagerLocation;
 
-	private TaskManagerGateway taskManagerGateway;
+	private SimpleAckingTaskManagerGateway taskManagerGateway;
 
 	@Before
 	public void setUp() throws Exception {
@@ -102,7 +100,10 @@ public class SlotPoolTest extends TestLogger {
 
 	@Test
 	public void testAllocateSimpleSlot() throws Exception {
-		ResourceManagerGateway resourceManagerGateway = createResourceManagerGatewayMock();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+
 		final SlotPool slotPool = new SlotPool(rpcService, jobId);
 
 		try {
@@ -112,17 +113,14 @@ public class SlotPoolTest extends TestLogger {
 			SlotRequestId requestId = new SlotRequestId();
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				requestId,
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
 				timeout);
 			assertFalse(future.isDone());
 
-			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
-
-			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
+			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final SlotOffer slotOffer = new SlotOffer(
 				slotRequest.getAllocationId(),
@@ -136,13 +134,21 @@ public class SlotPoolTest extends TestLogger {
 			assertTrue(slot.isAlive());
 			assertEquals(taskManagerLocation, slot.getTaskManagerLocation());
 		} finally {
-			slotPool.shutDown();
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 
 	@Test
 	public void testAllocationFulfilledByReturnedSlot() throws Exception {
-		ResourceManagerGateway resourceManagerGateway = createResourceManagerGatewayMock();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final ArrayBlockingQueue<SlotRequest> slotRequestQueue = new ArrayBlockingQueue<>(2);
+
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> {
+			while (!slotRequestQueue.offer(slotRequest)) {
+				// noop
+			}
+		});
+
 		final SlotPool slotPool = new SlotPool(rpcService, jobId);
 
 		try {
@@ -151,14 +157,14 @@ public class SlotPoolTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> future1 = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
 				timeout);
 			CompletableFuture<LogicalSlot> future2 = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
@@ -167,11 +173,11 @@ public class SlotPoolTest extends TestLogger {
 			assertFalse(future1.isDone());
 			assertFalse(future2.isDone());
 
-			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds()).times(2))
-				.requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
+			final List<SlotRequest> slotRequests = new ArrayList<>(2);
 
-			final List<SlotRequest> slotRequests = slotRequestArgumentCaptor.getAllValues();
+			for (int i = 0; i < 2; i++) {
+				slotRequests.add(slotRequestQueue.poll(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+			}
 
 			final SlotOffer slotOffer = new SlotOffer(
 				slotRequests.get(0).getAllocationId(),
@@ -198,13 +204,16 @@ public class SlotPoolTest extends TestLogger {
 			assertEquals(slot1.getPhysicalSlotNumber(), slot2.getPhysicalSlotNumber());
 			assertEquals(slot1.getAllocationId(), slot2.getAllocationId());
 		} finally {
-			slotPool.shutDown();
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
 		}
 	}
 
 	@Test
 	public void testAllocateWithFreeSlot() throws Exception {
-		ResourceManagerGateway resourceManagerGateway = createResourceManagerGatewayMock();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+
 		final SlotPool slotPool = new SlotPool(rpcService, jobId);
 
 		try {
@@ -213,17 +222,14 @@ public class SlotPoolTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> future1 = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
 				timeout);
 			assertFalse(future1.isDone());
 
-			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
-
-			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
+			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final SlotOffer slotOffer = new SlotOffer(
 				slotRequest.getAllocationId(),
@@ -240,7 +246,7 @@ public class SlotPoolTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> future2 = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
@@ -262,7 +268,11 @@ public class SlotPoolTest extends TestLogger {
 
 	@Test
 	public void testOfferSlot() throws Exception {
-		ResourceManagerGateway resourceManagerGateway = createResourceManagerGatewayMock();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
+
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
+
 		final SlotPool slotPool = new SlotPool(rpcService, jobId);
 
 		try {
@@ -271,17 +281,14 @@ public class SlotPoolTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> future = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
 				timeout);
 			assertFalse(future.isDone());
 
-			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
-
-			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
+			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			final SlotOffer slotOffer = new SlotOffer(
 				slotRequest.getAllocationId(),
@@ -320,7 +327,10 @@ public class SlotPoolTest extends TestLogger {
 
 	@Test
 	public void testReleaseResource() throws Exception {
-		ResourceManagerGateway resourceManagerGateway = createResourceManagerGatewayMock();
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
+
+		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> slotRequestFuture.complete(slotRequest));
 
 		final CompletableFuture<Boolean> slotReturnFuture = new CompletableFuture<>();
 
@@ -347,20 +357,17 @@ public class SlotPoolTest extends TestLogger {
 
 			CompletableFuture<LogicalSlot> future1 = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
 				timeout);
 
-			ArgumentCaptor<SlotRequest> slotRequestArgumentCaptor = ArgumentCaptor.forClass(SlotRequest.class);
-			verify(resourceManagerGateway, Mockito.timeout(timeout.toMilliseconds())).requestSlot(any(JobMasterId.class), slotRequestArgumentCaptor.capture(), any(Time.class));
-
-			final SlotRequest slotRequest = slotRequestArgumentCaptor.getValue();
+			final SlotRequest slotRequest = slotRequestFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 			CompletableFuture<LogicalSlot> future2 = slotPoolGateway.allocateSlot(
 				new SlotRequestId(),
-				mock(ScheduledUnit.class),
+				new DummyScheduledUnit(),
 				DEFAULT_TESTING_PROFILE,
 				Collections.emptyList(),
 				true,
@@ -527,13 +534,58 @@ public class SlotPoolTest extends TestLogger {
 		}
 	}
 
-	private static ResourceManagerGateway createResourceManagerGatewayMock() {
-		ResourceManagerGateway resourceManagerGateway = mock(ResourceManagerGateway.class);
-		when(resourceManagerGateway
-			.requestSlot(any(JobMasterId.class), any(SlotRequest.class), any(Time.class)))
-			.thenReturn(mock(CompletableFuture.class, RETURNS_MOCKS));
+	/**
+	 * Tests that a SlotPool shutdown releases all registered slots
+	 */
+	@Test
+	public void testShutdownReleasesAllSlots() throws Exception {
+		final SlotPool slotPool = new SlotPool(rpcService, jobId);
+		final TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
-		return resourceManagerGateway;
+		try {
+			final SlotPoolGateway slotPoolGateway = setupSlotPool(slotPool, resourceManagerGateway);
+
+			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID());
+
+			final int numSlotOffers = 2;
+
+			final Collection<SlotOffer> slotOffers = new ArrayList<>(numSlotOffers);
+
+			for (int i = 0; i < numSlotOffers; i++) {
+				slotOffers.add(
+					new SlotOffer(
+						new AllocationID(),
+						i,
+						ResourceProfile.UNKNOWN));
+			}
+
+			final ArrayBlockingQueue<AllocationID> freedSlotQueue = new ArrayBlockingQueue<>(numSlotOffers);
+
+			taskManagerGateway.setFreeSlotConsumer(tuple -> {
+				while(!freedSlotQueue.offer(tuple.f0)) {}
+			});
+
+			final CompletableFuture<Collection<SlotOffer>> acceptedSlotOffersFuture = slotPoolGateway.offerSlots(taskManagerLocation, taskManagerGateway, slotOffers);
+
+			final Collection<SlotOffer> acceptedSlotOffers = acceptedSlotOffersFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			assertThat(acceptedSlotOffers, Matchers.equalTo(slotOffers));
+
+			// shut down the slot pool
+			slotPool.shutDown();
+			slotPool.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+
+			// the shut down operation should have freed all registered slots
+			ArrayList<AllocationID> freedSlots = new ArrayList<>(numSlotOffers);
+
+			while (freedSlots.size() < numSlotOffers) {
+				freedSlotQueue.drainTo(freedSlots);
+			}
+
+			assertThat(freedSlots, Matchers.containsInAnyOrder(slotOffers.stream().map(SlotOffer::getAllocationId).toArray()));
+		} finally {
+			RpcUtils.terminateRpcEndpoint(slotPool, timeout);
+		}
 	}
 
 	private static SlotPoolGateway setupSlotPool(

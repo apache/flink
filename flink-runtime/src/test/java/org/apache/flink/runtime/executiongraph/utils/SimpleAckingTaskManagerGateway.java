@@ -20,9 +20,11 @@ package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -46,21 +48,27 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private final String address = UUID.randomUUID().toString();
 
-	private Optional<Consumer<ExecutionAttemptID>> optSubmitCondition;
+	private Optional<Consumer<ExecutionAttemptID>> optSubmitConsumer;
 
-	private Optional<Consumer<ExecutionAttemptID>> optCancelCondition;
+	private Optional<Consumer<ExecutionAttemptID>> optCancelConsumer;
+
+	private volatile Consumer<Tuple2<AllocationID, Throwable>> freeSlotConsumer;
 
 	public SimpleAckingTaskManagerGateway() {
-		optSubmitCondition = Optional.empty();
-		optCancelCondition = Optional.empty();
+		optSubmitConsumer = Optional.empty();
+		optCancelConsumer = Optional.empty();
 	}
 
-	public void setCondition(Consumer<ExecutionAttemptID> predicate) {
-		optSubmitCondition = Optional.of(predicate);
+	public void setSubmitConsumer(Consumer<ExecutionAttemptID> predicate) {
+		optSubmitConsumer = Optional.of(predicate);
 	}
 
-	public void setCancelCondition(Consumer<ExecutionAttemptID> predicate) {
-		optCancelCondition = Optional.of(predicate);
+	public void setCancelConsumer(Consumer<ExecutionAttemptID> predicate) {
+		optCancelConsumer = Optional.of(predicate);
+	}
+
+	public void setFreeSlotConsumer(Consumer<Tuple2<AllocationID, Throwable>> consumer) {
+		freeSlotConsumer = consumer;
 	}
 
 	@Override
@@ -92,7 +100,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		optSubmitCondition.ifPresent(condition -> condition.accept(tdd.getExecutionAttemptId()));
+		optSubmitConsumer.ifPresent(condition -> condition.accept(tdd.getExecutionAttemptId()));
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -103,7 +111,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
-		optCancelCondition.ifPresent(condition -> condition.accept(executionAttemptID));
+		optCancelConsumer.ifPresent(condition -> condition.accept(executionAttemptID));
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
@@ -138,5 +146,16 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 	@Override
 	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
 		return FutureUtils.completedExceptionally(new UnsupportedOperationException());
+	}
+
+	@Override
+	public CompletableFuture<Acknowledge> freeSlot(AllocationID allocationId, Throwable cause, Time timeout) {
+		final Consumer<Tuple2<AllocationID, Throwable>> currentFreeSlotConsumer = freeSlotConsumer;
+
+		if (currentFreeSlotConsumer != null) {
+			currentFreeSlotConsumer.accept(Tuple2.of(allocationId, cause));
+		}
+
+		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 }

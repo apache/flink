@@ -131,8 +131,9 @@ public interface JobMasterGateway extends CheckpointCoordinatorGateway, FencedRp
 	 *
 	 * @param resourceID identifying the TaskManager to disconnect
 	 * @param cause for the disconnection of the TaskManager
+	 * @return Future acknowledge once the JobMaster has been disconnected from the TaskManager
 	 */
-	void disconnectTaskManager(ResourceID resourceID, Exception cause);
+	CompletableFuture<Acknowledge> disconnectTaskManager(ResourceID resourceID, Exception cause);
 
 	/**
 	 * Disconnects the resource manager from the job manager because of the given cause.

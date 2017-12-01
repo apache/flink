@@ -356,8 +356,7 @@ public class JobLeaderService {
 	 * Retrying registration for the job manager <--> task manager connection.
 	 */
 	private static final class JobManagerRetryingRegistration
-			extends RetryingRegistration<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess>
-	{
+			extends RetryingRegistration<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> {
 
 		private final String taskManagerRpcAddress;
 

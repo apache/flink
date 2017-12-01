@@ -51,9 +51,6 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.util.Collection;
@@ -89,16 +86,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedSlotActions {
 
-	/** The log for the pool - shared also with the internal classes. */
-	static final Logger LOG = LoggerFactory.getLogger(SlotPool.class);
-
 	// ------------------------------------------------------------------------
 
 	private static final Time DEFAULT_SLOT_REQUEST_TIMEOUT = Time.minutes(5);
 
 	private static final Time DEFAULT_RM_ALLOCATION_TIMEOUT = Time.minutes(10);
 
-	private static final Time DEFAULT_RM_REQUEST_TIMEOUT = Time.seconds(10);
+	private static final Time DEFAULT_TIMEOUT = Time.seconds(10);
 
 	// ------------------------------------------------------------------------
 
@@ -121,8 +115,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	/** The requests that are waiting for the resource manager to be connected. */
 	private final HashMap<SlotRequestId, PendingRequest> waitingForResourceManager;
 
-	/** Timeout for request calls to the ResourceManager. */
-	private final Time resourceManagerRequestsTimeout;
+	/** Timeout for external request calls (e.g. to the ResourceManager or the TaskExecutor). */
+	private final Time timeout;
 
 	/** Timeout for allocation round trips (RM -> launch TM -> offer slot). */
 	private final Time resourceManagerAllocationTimeout;
@@ -143,8 +137,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	// ------------------------------------------------------------------------
 
 	public SlotPool(RpcService rpcService, JobID jobId) {
-		this(rpcService, jobId, SystemClock.getInstance(),
-				DEFAULT_SLOT_REQUEST_TIMEOUT, DEFAULT_RM_ALLOCATION_TIMEOUT, DEFAULT_RM_REQUEST_TIMEOUT);
+		this(
+			rpcService,
+			jobId,
+			SystemClock.getInstance(),
+			DEFAULT_SLOT_REQUEST_TIMEOUT,
+			DEFAULT_RM_ALLOCATION_TIMEOUT,
+			DEFAULT_TIMEOUT);
 	}
 
 	public SlotPool(
@@ -159,10 +158,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		this.jobId = checkNotNull(jobId);
 		this.clock = checkNotNull(clock);
-		this.resourceManagerRequestsTimeout = checkNotNull(resourceManagerRequestTimeout);
+		this.timeout = checkNotNull(resourceManagerRequestTimeout);
 		this.resourceManagerAllocationTimeout = checkNotNull(resourceManagerAllocationTimeout);
 
-		this.registeredTaskManagers = new HashSet<>();
+		this.registeredTaskManagers = new HashSet<>(16);
 		this.allocatedSlots = new AllocatedSlots();
 		this.availableSlots = new AvailableSlots();
 		this.pendingRequests = new DualKeyMap<>(16);
@@ -204,6 +203,25 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		}
 	}
 
+	@Override
+	public void postStop() throws Exception {
+		// cancel all pending allocations
+		Set<AllocationID> allocationIds = pendingRequests.keySetB();
+
+		for (AllocationID allocationId : allocationIds) {
+			resourceManagerGateway.cancelSlotRequest(allocationId);
+		}
+
+		// release all registered slots by releasing the corresponding TaskExecutors
+		for (ResourceID taskManagerResourceId : registeredTaskManagers) {
+			releaseTaskManagerInternal(taskManagerResourceId);
+		}
+
+		clear();
+
+		super.postStop();
+	}
+
 	/**
 	 * Suspends this pool, meaning it has lost its authority to accept and distribute slots.
 	 */
@@ -220,9 +238,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 		// Clear (but not release!) the available slots. The TaskManagers should re-register them
 		// at the new leader JobManager/SlotPool
-		availableSlots.clear();
-		allocatedSlots.clear();
-		pendingRequests.clear();
+		clear();
 	}
 
 	// ------------------------------------------------------------------------
@@ -644,7 +660,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		Preconditions.checkNotNull(resourceManagerGateway);
 		Preconditions.checkNotNull(pendingRequest);
 
-		LOG.info("Requesting slot with profile {} from resource manager (request = {}).", pendingRequest.getResourceProfile(), pendingRequest.getSlotRequestId());
+		log.info("Requesting slot with profile {} from resource manager (request = {}).", pendingRequest.getResourceProfile(), pendingRequest.getSlotRequestId());
 
 		final AllocationID allocationId = new AllocationID();
 
@@ -660,7 +676,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		CompletableFuture<Acknowledge> rmResponse = resourceManagerGateway.requestSlot(
 			jobMasterId,
 			new SlotRequest(jobId, allocationId, pendingRequest.getResourceProfile(), jobManagerAddress),
-			resourceManagerRequestsTimeout);
+			timeout);
 
 		CompletableFuture<Void> slotRequestProcessingFuture = rmResponse.thenAcceptAsync(
 			(Acknowledge value) -> {
@@ -695,8 +711,8 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			request.getAllocatedSlotFuture().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
 		} else {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Unregistered slot request {} failed.", slotRequestID, failure);
+			if (log.isDebugEnabled()) {
+				log.debug("Unregistered slot request {} failed.", slotRequestID, failure);
 			}
 		}
 	}
@@ -710,7 +726,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 
 	private void stashRequestWaitingForResourceManager(final PendingRequest pendingRequest) {
 
-		LOG.info("Cannot serve slot request, no ResourceManager connected. " +
+		log.info("Cannot serve slot request, no ResourceManager connected. " +
 				"Adding as pending request {}",  pendingRequest.getSlotRequestId());
 
 		waitingForResourceManager.put(pendingRequest.getSlotRequestId(), pendingRequest);
@@ -720,7 +736,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			public void run() {
 				checkTimeoutRequestWaitingForResourceManager(pendingRequest.getSlotRequestId());
 			}
-		}, resourceManagerRequestsTimeout);
+		}, timeout);
 	}
 
 	private void checkTimeoutRequestWaitingForResourceManager(SlotRequestId slotRequestId) {
@@ -802,7 +818,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		Preconditions.checkNotNull(e);
 
 		if (!pendingRequest.getAllocatedSlotFuture().isDone()) {
-			LOG.info("Failing pending request {}.", pendingRequest.getSlotRequestId());
+			log.info("Failing pending request {}.", pendingRequest.getSlotRequestId());
 			pendingRequest.getAllocatedSlotFuture().completeExceptionally(e);
 		}
 	}
@@ -833,13 +849,13 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		final PendingRequest pendingRequest = pollMatchingPendingRequest(allocatedSlot);
 
 		if (pendingRequest != null) {
-			LOG.debug("Fulfilling pending request [{}] early with returned slot [{}]",
+			log.debug("Fulfilling pending request [{}] early with returned slot [{}]",
 				pendingRequest.getSlotRequestId(), allocatedSlot.getAllocationId());
 
 			allocatedSlots.add(pendingRequest.getSlotRequestId(), allocatedSlot);
 			pendingRequest.getAllocatedSlotFuture().complete(allocatedSlot);
 		} else {
-			LOG.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
+			log.debug("Adding returned slot [{}] to available slots", allocatedSlot.getAllocationId());
 			availableSlots.add(allocatedSlot, clock.relativeTimeMillis());
 		}
 	}
@@ -932,14 +948,14 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		final AllocationID allocationID = slotOffer.getAllocationId();
 
 		if (!registeredTaskManagers.contains(resourceID)) {
-			LOG.debug("Received outdated slot offering [{}] from unregistered TaskManager: {}",
+			log.debug("Received outdated slot offering [{}] from unregistered TaskManager: {}",
 					slotOffer.getAllocationId(), taskManagerLocation);
 			return CompletableFuture.completedFuture(false);
 		}
 
 		// check whether we have already using this slot
 		if (allocatedSlots.contains(allocationID) || availableSlots.contains(allocationID)) {
-			LOG.debug("Received repeated offer for slot [{}]. Ignoring.", allocationID);
+			log.debug("Received repeated offer for slot [{}]. Ignoring.", allocationID);
 
 			// return true here so that the sender will get a positive acknowledgement to the retry
 			// and mark the offering as a success
@@ -1003,7 +1019,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 			failPendingRequest(pendingRequest, cause);
 		}
 		else if (availableSlots.tryRemove(allocationID)) {
-			LOG.debug("Failed available slot [{}] with ", allocationID, cause);
+			log.debug("Failed available slot [{}] with ", allocationID, cause);
 		}
 		else {
 			AllocatedSlot allocatedSlot = allocatedSlots.remove(allocationID);
@@ -1013,7 +1029,7 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				allocatedSlot.releasePayload(cause);
 			}
 			else {
-				LOG.debug("Outdated request to fail slot [{}] with ", allocationID, cause);
+				log.debug("Outdated request to fail slot [{}] with ", allocationID, cause);
 			}
 		}
 		// TODO: add some unit tests when the previous two are ready, the allocation may failed at any phase
@@ -1041,21 +1057,48 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 	 * Unregister TaskManager from this pool, all the related slots will be released and tasks be canceled. Called
 	 * when we find some TaskManager becomes "dead" or "abnormal", and we decide to not using slots from it anymore.
 	 *
-	 * @param resourceID The id of the TaskManager
+	 * @param resourceId The id of the TaskManager
 	 */
 	@Override
-	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceID) {
-		if (registeredTaskManagers.remove(resourceID)) {
-			availableSlots.removeAllForTaskManager(resourceID);
-
-			final Set<AllocatedSlot> allocatedSlotsForResource = allocatedSlots.removeSlotsForTaskManager(resourceID);
-
-			for (AllocatedSlot allocatedSlot : allocatedSlotsForResource) {
-				allocatedSlot.releasePayload(new FlinkException("TaskManager " + resourceID + " was released."));
-			}
+	public CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId) {
+		if (registeredTaskManagers.remove(resourceId)) {
+			releaseTaskManagerInternal(resourceId);
 		}
 
 		return CompletableFuture.completedFuture(Acknowledge.get());
+	}
+
+	// ------------------------------------------------------------------------
+	//  Internal methods
+	// ------------------------------------------------------------------------
+
+	private void releaseTaskManagerInternal(final ResourceID resourceId) {
+		final FlinkException cause = new FlinkException("Releasing TaskManager " + resourceId + '.');
+
+		final Set<AllocatedSlot> removedSlots = new HashSet<>(allocatedSlots.removeSlotsForTaskManager(resourceId));
+
+		for (AllocatedSlot allocatedSlot : removedSlots) {
+			allocatedSlot.releasePayload(cause);
+		}
+
+		removedSlots.addAll(availableSlots.removeAllForTaskManager(resourceId));
+
+		for (AllocatedSlot removedSlot : removedSlots) {
+			TaskManagerGateway taskManagerGateway = removedSlot.getTaskManagerGateway();
+			taskManagerGateway.freeSlot(removedSlot.getAllocationId(), cause, timeout);
+		}
+	}
+
+	/**
+	 * Clear the internal state of the SlotPool.
+	 */
+	private void clear() {
+		availableSlots.clear();
+		allocatedSlots.clear();
+		pendingRequests.clear();
+		waitingForResourceManager.clear();
+		registeredTaskManagers.clear();
+		slotSharingManagers.clear();
 	}
 
 	// ------------------------------------------------------------------------
@@ -1363,8 +1406,9 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 		 * Remove all available slots come from specified TaskManager.
 		 *
 		 * @param taskManager The id of the TaskManager
+		 * @return The set of removed slots for the given TaskManager
 		 */
-		void removeAllForTaskManager(final ResourceID taskManager) {
+		Set<AllocatedSlot> removeAllForTaskManager(final ResourceID taskManager) {
 			// remove from the by-TaskManager view
 			final Set<AllocatedSlot> slotsForTm = availableSlotsByTaskManager.remove(taskManager);
 
@@ -1381,6 +1425,10 @@ public class SlotPool extends RpcEndpoint implements SlotPoolGateway, AllocatedS
 				if (slotsForHost.isEmpty()) {
 					availableSlotsByHost.remove(host);
 				}
+
+				return slotsForTm;
+			} else {
+				return Collections.emptySet();
 			}
 		}
 

@@ -599,8 +599,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 		WaitForTasks waitForTasks = new WaitForTasks(parallelism);
 		WaitForTasks waitForTasksCancelled = new WaitForTasks(parallelism);
-		taskManagerGateway.setCondition(waitForTasks);
-		taskManagerGateway.setCancelCondition(waitForTasksCancelled);
+		taskManagerGateway.setSubmitConsumer(waitForTasks);
+		taskManagerGateway.setCancelConsumer(waitForTasksCancelled);
 
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
@@ -649,7 +649,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		waitUntilJobStatus(eg, JobStatus.FAILING, 1000);
 
 		WaitForTasks waitForTasksAfterRestart = new WaitForTasks(parallelism);
-		taskManagerGateway.setCondition(waitForTasksAfterRestart);
+		taskManagerGateway.setSubmitConsumer(waitForTasksAfterRestart);
 
 		waitForTasksCancelled.getFuture().get(1000L, TimeUnit.MILLISECONDS);
 
@@ -685,7 +685,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final ExecutionGraph eg = createSimpleTestGraph(jid, slots, restartStrategy, vertex);
 
 		WaitForTasks waitForTasks = new WaitForTasks(parallelism);
-		taskManagerGateway.setCondition(waitForTasks);
+		taskManagerGateway.setSubmitConsumer(waitForTasks);
 
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
@@ -699,7 +699,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.FAILING, eg.getState());
 
 		WaitForTasks waitForTasksRestart = new WaitForTasks(parallelism);
-		taskManagerGateway.setCondition(waitForTasksRestart);
+		taskManagerGateway.setSubmitConsumer(waitForTasksRestart);
 
 		completeCancellingForAllVertices(eg);
 		waitUntilJobStatus(eg, JobStatus.RESTARTING, 1000);
@@ -750,7 +750,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			new JobID(), scheduler, new FixedDelayRestartStrategy(Integer.MAX_VALUE, 0), executor, source, sink);
 
 		WaitForTasks waitForTasks = new WaitForTasks(parallelism * 2);
-		taskManagerGateway.setCondition(waitForTasks);
+		taskManagerGateway.setSubmitConsumer(waitForTasks);
 
 		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
@@ -766,7 +766,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		assertEquals(JobStatus.FAILING, eg.getState());
 
 		WaitForTasks waitForTasksAfterRestart = new WaitForTasks(parallelism * 2);
-		taskManagerGateway.setCondition(waitForTasksAfterRestart);
+		taskManagerGateway.setSubmitConsumer(waitForTasksAfterRestart);
 
 		completeCancellingForAllVertices(eg);
 

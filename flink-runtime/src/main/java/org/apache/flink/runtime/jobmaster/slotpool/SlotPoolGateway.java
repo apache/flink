@@ -84,10 +84,10 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	/**
 	 * Releases a TaskExecutor with the given {@link ResourceID} from the {@link SlotPool}.
 	 *
-	 * @param resourceID identifying the TaskExecutor which shall be released from the SlotPool
+	 * @param resourceId identifying the TaskExecutor which shall be released from the SlotPool
 	 * @return Future acknowledge which is completed after the TaskExecutor has been released
 	 */
-	CompletableFuture<Acknowledge> releaseTaskManager(ResourceID resourceID);
+	CompletableFuture<Acknowledge> releaseTaskManager(final ResourceID resourceId);
 
 	/**
 	 * Offers a slot to the {@link SlotPool}. The slot offer can be accepted or

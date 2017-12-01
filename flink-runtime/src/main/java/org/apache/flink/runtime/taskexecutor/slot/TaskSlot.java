@@ -38,34 +38,34 @@ import java.util.Map;
  *     <li>Allocated - The slot has been allocated for a job.</li>
  *     <li>Active - The slot is in active use by a job manager which is the leader of the allocating job.</li>
  * </ul>
- * <p>
- * A task slot can only be allocated if it is in state free. An allocated task slot can transition
+ *
+ * <p>A task slot can only be allocated if it is in state free. An allocated task slot can transition
  * to state active.
- *<p>
- * An active slot allows to add tasks from the respective job and with the correct allocation id.
+ *
+ * <p>An active slot allows to add tasks from the respective job and with the correct allocation id.
  * An active slot can be marked as inactive which sets the state back to allocated.
- * <p>
- * An allocated or active slot can only be freed if it is empty. If it is not empty, then it's state
+ *
+ * <p>An allocated or active slot can only be freed if it is empty. If it is not empty, then it's state
  * can be set to releasing indicating that it can be freed once it becomes empty.
  */
 public class TaskSlot {
 
-	/** Index of the task slot */
+	/** Index of the task slot. */
 	private final int index;
 
-	/** Resource characteristics for this slot */
+	/** Resource characteristics for this slot. */
 	private final ResourceProfile resourceProfile;
 
-	/** Tasks running in this slot */
+	/** Tasks running in this slot. */
 	private final Map<ExecutionAttemptID, Task> tasks;
 
-	/** State of this slot */
+	/** State of this slot. */
 	private TaskSlotState state;
 
-	/** Job id to which the slot has been allocated; null if not allocated */
+	/** Job id to which the slot has been allocated; null if not allocated. */
 	private JobID jobId;
 
-	/** Allocation id of this slot; null if not allocated */
+	/** Allocation id of this slot; null if not allocated. */
 	private AllocationID allocationId;
 
 	TaskSlot(final int index, final ResourceProfile resourceProfile) {
@@ -151,7 +151,7 @@ public class TaskSlot {
 	 * task with the same execution attempt id added to the task slot. In this case, the method
 	 * returns true. Otherwise the task slot is left unchanged and false is returned.
 	 *
-	 * In case that the task slot state is not active an {@link IllegalStateException} is thrown.
+	 * <p>In case that the task slot state is not active an {@link IllegalStateException} is thrown.
 	 * In case that the task's job id and allocation id don't match with the job id and allocation
 	 * id for which the task slot has been allocated, an {@link IllegalArgumentException} is thrown.
 	 *
@@ -199,7 +199,7 @@ public class TaskSlot {
 	 * or is already allocated/active for the given job and allocation id, then the method returns
 	 * true. Otherwise it returns false.
 	 *
-	 * A slot can only be allocated if it's current state is free.
+	 * <p>A slot can only be allocated if it's current state is free.
 	 *
 	 * @param newJobId to allocate the slot for
 	 * @param newAllocationId to identify the slot allocation
@@ -230,7 +230,7 @@ public class TaskSlot {
 	/**
 	 * Mark this slot as active. A slot can only be marked active if it's in state allocated.
 	 *
-	 * The method returns true if the slot was set to active. Otherwise it returns false.
+	 * <p>The method returns true if the slot was set to active. Otherwise it returns false.
 	 *
 	 * @return True if the new state of the slot is active; otherwise false
 	 */
