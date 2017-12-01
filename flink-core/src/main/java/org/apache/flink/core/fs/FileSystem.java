@@ -752,7 +752,7 @@ public abstract class FileSystem {
 						return true;
 					} else {
 						// file may not be overwritten
-						throw new IOException("File or directory already exists. Existing files and directories " +
+						throw new IOException("File or directory " + outPath + " already exists. Existing files and directories " +
 								"are not overwritten in " + WriteMode.NO_OVERWRITE.name() + " mode. Use " +
 								WriteMode.OVERWRITE.name() + " mode to overwrite existing files and directories.");
 					}

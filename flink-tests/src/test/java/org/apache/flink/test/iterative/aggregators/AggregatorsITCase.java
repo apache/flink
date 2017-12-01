@@ -49,6 +49,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.Random;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 
@@ -78,9 +79,10 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
 
 	@Before
 	public void before() throws Exception{
-		File tempFile = tempFolder.newFile();
-		testPath = tempFile.toString();
-		resultPath = tempFile.toURI().toString();
+		final File folder = tempFolder.newFolder();
+		final File resultFile = new File(folder, UUID.randomUUID().toString());
+		testPath = resultFile.toString();
+		resultPath = resultFile.toURI().toString();
 	}
 
 	@After
