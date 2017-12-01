@@ -334,7 +334,6 @@ class JoinHarnessTest extends HarnessTestBase {
     expectedOutput.add(new Watermark(41))
 
     val result = testHarness.getOutput
-    println(result)
     verify(
       expectedOutput,
       result,
