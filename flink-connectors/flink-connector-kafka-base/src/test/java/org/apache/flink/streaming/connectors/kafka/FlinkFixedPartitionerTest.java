@@ -40,22 +40,24 @@ public class FlinkFixedPartitionerTest {
 	 */
 	@Test
 	public void testMoreFlinkThanBrokers() {
-		FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
+		final int[] partitions = new int[]{0};
 
-		int[] partitions = new int[]{0};
+		final FlinkFixedPartitioner<String> partitioner1 = new FlinkFixedPartitioner<>();
+		partitioner1.open(0, 4);
+		Assert.assertEquals(0, partitioner1.partition("abc1", null, null, null, partitions));
 
-		part.open(0, 4);
-		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner2 = new FlinkFixedPartitioner<>();
+		partitioner2.open(1, 4);
+		Assert.assertEquals(0, partitioner2.partition("abc2", null, null, null, partitions));
 
-		part.open(1, 4);
-		Assert.assertEquals(0, part.partition("abc2", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner3 = new FlinkFixedPartitioner<>();
+		partitioner3.open(2, 4);
+		Assert.assertEquals(0, partitioner3.partition("abc3", null, null, null, partitions));
+		Assert.assertEquals(0, partitioner3.partition("abc3", null, null, null, partitions)); // check if it is changing ;)
 
-		part.open(2, 4);
-		Assert.assertEquals(0, part.partition("abc3", null, null, null, partitions));
-		Assert.assertEquals(0, part.partition("abc3", null, null, null, partitions)); // check if it is changing ;)
-
-		part.open(3, 4);
-		Assert.assertEquals(0, part.partition("abc4", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner4 = new FlinkFixedPartitioner<>();
+		partitioner4.open(3, 4);
+		Assert.assertEquals(0, partitioner4.partition("abc4", null, null, null, partitions));
 	}
 
 	/**
@@ -72,16 +74,17 @@ public class FlinkFixedPartitionerTest {
 	 */
 	@Test
 	public void testFewerPartitions() {
-		FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
+		final int[] partitions = new int[]{0, 1, 2, 3, 4};
 
-		int[] partitions = new int[]{0, 1, 2, 3, 4};
-		part.open(0, 2);
-		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));
-		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner1 = new FlinkFixedPartitioner<>();
+		partitioner1.open(0, 2);
+		Assert.assertEquals(0, partitioner1.partition("abc1", null, null, null, partitions));
+		Assert.assertEquals(0, partitioner1.partition("abc1", null, null, null, partitions));
 
-		part.open(1, 2);
-		Assert.assertEquals(1, part.partition("abc1", null, null, null, partitions));
-		Assert.assertEquals(1, part.partition("abc1", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner2 = new FlinkFixedPartitioner<>();
+		partitioner2.open(1, 2);
+		Assert.assertEquals(1, partitioner2.partition("abc1", null, null, null, partitions));
+		Assert.assertEquals(1, partitioner2.partition("abc1", null, null, null, partitions));
 	}
 
 	/*
@@ -92,17 +95,19 @@ public class FlinkFixedPartitionerTest {
 	 */
 	@Test
 	public void testMixedCase() {
-		FlinkFixedPartitioner<String> part = new FlinkFixedPartitioner<>();
-		int[] partitions = new int[]{0, 1};
+		final int[] partitions = new int[]{0, 1};
 
-		part.open(0, 3);
-		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner1 = new FlinkFixedPartitioner<>();
+		partitioner1.open(0, 3);
+		Assert.assertEquals(0, partitioner1.partition("abc1", null, null, null, partitions));
 
-		part.open(1, 3);
-		Assert.assertEquals(1, part.partition("abc1", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner2 = new FlinkFixedPartitioner<>();
+		partitioner2.open(1, 3);
+		Assert.assertEquals(1, partitioner2.partition("abc1", null, null, null, partitions));
 
-		part.open(2, 3);
-		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));
+		final FlinkFixedPartitioner<String> partitioner3 = new FlinkFixedPartitioner<>();
+		partitioner3.open(2, 3);
+		Assert.assertEquals(0, partitioner3.partition("abc1", null, null, null, partitions));
 	}
 
 	/**
