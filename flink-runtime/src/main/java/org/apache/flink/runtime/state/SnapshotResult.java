@@ -19,15 +19,34 @@ package org.apache.flink.runtime.state;/*
 import org.apache.flink.util.ExceptionUtils;
 
 /**
+ * This class contains the combined results from the snapshot of a state backend:
+ * <ul>
+ *   <li>A state object representing the state that will be reported to the Job Manager to acknowledge the checkpoint.</li>
+ *   <li>A state object that represents the state for the {@link TaskLocalStateStore}.</li>
+ * </ul>
  *
+ * Both state objects are optional and can be null, e.g. if there was no state to snapshot in the backend. A local
+ * state object that is not null also requires a state to report to the job manager that is not null, because the
+ * Job Manager always owns the ground truth about the checkpointed state.
  */
 public class SnapshotResult<T extends StateObject> implements StateObject {
 
 	private static final long serialVersionUID = 1L;
 
+	/** This is the state snapshot that will be reported to the Job Manager to acknowledge a checkpoint. */
 	private final T jobManagerOwnedSnapshot;
+
+	/** This is the state snapshot that will be reported to the Job Manager to acknowledge a checkpoint. */
 	private final T taskLocalSnapshot;
 
+	/**
+	 * Creates a {@link SnapshotResult} for the given jobManagerOwnedSnapshot and taskLocalSnapshot. If the
+	 * jobManagerOwnedSnapshot is null, taskLocalSnapshot must also be null.
+	 *
+	 * @param jobManagerOwnedSnapshot Snapshot for report to job manager. Can be null.
+	 * @param taskLocalSnapshot Snapshot for report to local state manager. This is optional and requires
+	 *                             jobManagerOwnedSnapshot to be not null if this is not also null.
+	 */
 	public SnapshotResult(T jobManagerOwnedSnapshot, T taskLocalSnapshot) {
 
 		if (jobManagerOwnedSnapshot == null && taskLocalSnapshot != null) {
@@ -44,10 +63,6 @@ public class SnapshotResult<T extends StateObject> implements StateObject {
 
 	public T getTaskLocalSnapshot() {
 		return taskLocalSnapshot;
-	}
-
-	public boolean hasState() {
-		return jobManagerOwnedSnapshot != null;
 	}
 
 	@Override

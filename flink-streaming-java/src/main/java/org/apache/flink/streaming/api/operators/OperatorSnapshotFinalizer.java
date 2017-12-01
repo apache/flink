@@ -25,10 +25,13 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.FutureUtil;
 
+import javax.annotation.Nonnull;
+
 import java.util.concurrent.ExecutionException;
 
 /**
- * TODO write comment.
+ * This class finalizes {@link OperatorSnapshotFutures}. Each object is created with a {@link OperatorSnapshotFutures}
+ * that is executed. The object can then deliver the results from the execution as {@link OperatorSubtaskState}.
  */
 public class OperatorSnapshotFinalizer {
 
@@ -36,7 +39,7 @@ public class OperatorSnapshotFinalizer {
 	private final OperatorSubtaskState taskLocalState;
 
 	public OperatorSnapshotFinalizer(
-		OperatorSnapshotFutures snapshotFutures) throws ExecutionException, InterruptedException {
+		@Nonnull OperatorSnapshotFutures snapshotFutures) throws ExecutionException, InterruptedException {
 
 		SnapshotResult<KeyedStateHandle> keyedManaged =
 			FutureUtil.runIfNotDoneAndGet(snapshotFutures.getKeyedStateManagedFuture());

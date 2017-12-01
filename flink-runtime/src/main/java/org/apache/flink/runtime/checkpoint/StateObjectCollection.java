@@ -30,19 +30,33 @@ import java.util.Iterator;
 import java.util.function.Predicate;
 
 /**
+ * This class represents a generic collection for {@link StateObject}s. Being a state object itself, it delegates
+ * {@link #discardState()} to all contained state objects and computes {@link #getStateSize()} as sum of the state
+ * sizes of all contained objects.
+ *
  * @param <T> type of the contained state objects.
  */
 public class StateObjectCollection<T extends StateObject> implements Collection<T>, StateObject {
 
 	private static final long serialVersionUID = 1L;
 
+	/** The empty StateObjectCollection. */
 	private static final StateObjectCollection<?> EMPTY = new StateObjectCollection<>(Collections.emptyList());
+
+	/** Wrapped collection that contains the state objects. */
 	private final Collection<T> stateObjects;
 
+	/**
+	 * Creates a new StateObjectCollection that is backed by an {@link ArrayList}.
+	 */
 	public StateObjectCollection() {
 		this.stateObjects = new ArrayList<>();
 	}
 
+	/**
+	 * Creates a new StateObjectCollection wraps the given collection and delegates to it.
+	 * @param stateObjects collection of state objects to wrap.
+	 */
 	public StateObjectCollection(Collection<T> stateObjects) {
 		this.stateObjects = stateObjects != null ? stateObjects : Collections.emptyList();
 	}
@@ -117,19 +131,6 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 		stateObjects.clear();
 	}
 
-	private static long sumAllSizes(Collection<? extends StateObject> stateObject) {
-		long size = 0L;
-		for (StateObject object : stateObject) {
-			size += getSizeNullSafe(object);
-		}
-
-		return size;
-	}
-
-	private static long getSizeNullSafe(StateObject stateObject) {
-		return stateObject != null ? stateObject.getStateSize() : 0L;
-	}
-
 	@Override
 	public void discardState() throws Exception {
 		StateUtil.bestEffortDiscardAllStateObjects(stateObjects);
@@ -140,6 +141,9 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 		return sumAllSizes(stateObjects);
 	}
 
+	/**
+	 * Returns true if this contains at least one {@link StateObject}.
+	 */
 	public boolean hasState() {
 		for (StateObject state : stateObjects) {
 			if (state != null) {
@@ -147,14 +151,6 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 			}
 		}
 		return false;
-	}
-
-	public static <T extends StateObject> StateObjectCollection<T> empty() {
-		return (StateObjectCollection<T>) EMPTY;
-	}
-
-	public static <T extends StateObject> StateObjectCollection<T> singleton(T stateObject) {
-		return new StateObjectCollection<>(Collections.singleton(stateObject));
 	}
 
 	@Override
@@ -180,5 +176,30 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 	@Override
 	public String toString() {
 		return "StateObjectCollection{" + stateObjects + '}';
+	}
+
+	// ------------------------------------------------------------------------
+	//  Helper methods.
+	// ------------------------------------------------------------------------
+
+	public static <T extends StateObject> StateObjectCollection<T> empty() {
+		return (StateObjectCollection<T>) EMPTY;
+	}
+
+	public static <T extends StateObject> StateObjectCollection<T> singleton(T stateObject) {
+		return new StateObjectCollection<>(Collections.singleton(stateObject));
+	}
+
+	private static long sumAllSizes(Collection<? extends StateObject> stateObject) {
+		long size = 0L;
+		for (StateObject object : stateObject) {
+			size += getSizeNullSafe(object);
+		}
+
+		return size;
+	}
+
+	private static long getSizeNullSafe(StateObject stateObject) {
+		return stateObject != null ? stateObject.getStateSize() : 0L;
 	}
 }
