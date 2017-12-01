@@ -37,12 +37,12 @@ import org.apache.flink.runtime.taskmanager.Task;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link TaskExecutor} RPC gateway interface
+ * {@link TaskExecutor} RPC gateway interface.
  */
 public interface TaskExecutorGateway extends RpcGateway {
 
 	/**
-	 * Requests a slot from the TaskManager
+	 * Requests a slot from the TaskManager.
 	 *
 	 * @param slotId slot id for the request
 	 * @param jobId for which to request a slot
