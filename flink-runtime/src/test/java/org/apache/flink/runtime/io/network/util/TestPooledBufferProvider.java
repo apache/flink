@@ -43,10 +43,14 @@ public class TestPooledBufferProvider implements BufferProvider {
 	private final PooledBufferProviderRecycler bufferRecycler;
 
 	public TestPooledBufferProvider(int poolSize) {
+		this(poolSize, 32 * 1024);
+	}
+
+	public TestPooledBufferProvider(int poolSize, int bufferSize) {
 		checkArgument(poolSize > 0);
 
 		this.bufferRecycler = new PooledBufferProviderRecycler(buffers);
-		this.bufferFactory = new TestBufferFactory(poolSize, 32 * 1024, bufferRecycler);
+		this.bufferFactory = new TestBufferFactory(poolSize, bufferSize, bufferRecycler);
 	}
 
 	@Override
