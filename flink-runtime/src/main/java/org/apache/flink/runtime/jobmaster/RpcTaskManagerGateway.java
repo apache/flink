@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
@@ -37,7 +38,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Implementation of the {@link TaskManagerGateway} for Flink's RPC system
+ * Implementation of the {@link TaskManagerGateway} for Flink's RPC system.
  */
 public class RpcTaskManagerGateway implements TaskManagerGateway {
 
@@ -112,14 +113,16 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
 	@Override
 	public void notifyCheckpointComplete(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp) {
-//		taskExecutorGateway.notifyCheckpointComplete(executionAttemptID, jobId, checkpointId, timestamp);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+		taskExecutorGateway.confirmCheckpoint(executionAttemptID, checkpointId, timestamp);
 	}
 
 	@Override
 	public void triggerCheckpoint(ExecutionAttemptID executionAttemptID, JobID jobId, long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-//		taskExecutorGateway.triggerCheckpoint(executionAttemptID, jobId, checkpointId, timestamp);
-		throw new UnsupportedOperationException("Operation is not yet supported.");
+		taskExecutorGateway.triggerCheckpoint(
+			executionAttemptID,
+			checkpointId,
+			timestamp,
+			checkpointOptions);
 	}
 
 	@Override
