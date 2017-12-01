@@ -59,7 +59,7 @@ Other parameters for checkpointing include:
     started no sooner than 5 seconds after the previous checkpoint completed, regardless of the checkpoint duration and the checkpoint interval.
     Note that this implies that the checkpoint interval will never be smaller than this parameter.
     
-    It is often easier to configure applications by defining the "time between checkpoints" then the checkpoint interval, because the "time between checkpoints"
+    It is often easier to configure applications by defining the "time between checkpoints" than the checkpoint interval, because the "time between checkpoints"
     is not susceptible to the fact that checkpoints may sometimes take longer than on average (for example if the target storage system is temporarily slow).
 
     Note that this value also implies that the number of concurrent checkpoints is *one*.
