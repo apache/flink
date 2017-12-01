@@ -103,7 +103,75 @@ public class FlinkFixedPartitionerTest {
 
 		part.open(2, 3);
 		Assert.assertEquals(0, part.partition("abc1", null, null, null, partitions));
+	}
 
+	/**
+	 * Tests that the determined target partition is independently calculated for different topics.
+	 */
+	@Test
+	public void testDifferentTopics() {
+		final String topic1 = "topic-1";
+		final String topic2 = "topic-2";
+
+		final int[] partitionsTopic1 = new int[]{0, 1, 2};
+		final int[] partitionsTopic2 = new int[]{0, 1};
+
+		final FlinkFixedPartitioner<String> partitioner1 = new FlinkFixedPartitioner<>();
+		partitioner1.open(0, 3);
+		Assert.assertEquals(0, partitioner1.partition("abc1", null, null, topic1, partitionsTopic1));
+		Assert.assertEquals(0, partitioner1.partition("abc1", null, null, topic2, partitionsTopic2));
+
+		final FlinkFixedPartitioner<String> partitioner2 = new FlinkFixedPartitioner<>();
+		partitioner2.open(1, 3);
+		Assert.assertEquals(1, partitioner2.partition("abc1", null, null, topic1, partitionsTopic1));
+		Assert.assertEquals(1, partitioner2.partition("abc1", null, null, topic2, partitionsTopic2));
+
+		final FlinkFixedPartitioner<String> partitioner3 = new FlinkFixedPartitioner<>();
+		partitioner3.open(2, 3);
+		Assert.assertEquals(2, partitioner3.partition("abc1", null, null, topic1, partitionsTopic1));
+		Assert.assertEquals(0, partitioner3.partition("abc1", null, null, topic2, partitionsTopic2));
+	}
+
+	/**
+	 * Tests that the determined target partition for individual topics remains identical in the case of new partitions.
+	 */
+	@Test
+	public void testIncreasingPartitions() {
+		final String topic1 = "topic-1";
+		final String topic2 = "topic-2";
+
+		final int[] initialPartitionsTopic1 = new int[]{0, 1};
+		final int[] increasedPartitionsTopic1 = new int[]{0, 1, 2, 3};
+
+		final int[] initialPartitionsTopic2 = new int[]{0, 1, 2};
+		final int[] increasedPartitionsTopic2 = new int[]{0, 1, 2, 3, 4};
+
+		final FlinkFixedPartitioner<String> partitioner1 = new FlinkFixedPartitioner<>();
+		partitioner1.open(0, 3);
+		Assert.assertEquals(
+			partitioner1.partition("abc1", null, null, topic1, initialPartitionsTopic1),
+			partitioner1.partition("abc1", null, null, topic1, increasedPartitionsTopic1));
+		Assert.assertEquals(
+			partitioner1.partition("abc1", null, null, topic2, initialPartitionsTopic2),
+			partitioner1.partition("abc1", null, null, topic2, increasedPartitionsTopic2));
+
+		final FlinkFixedPartitioner<String> partitioner2 = new FlinkFixedPartitioner<>();
+		partitioner2.open(1, 3);
+		Assert.assertEquals(
+			partitioner2.partition("abc1", null, null, topic1, initialPartitionsTopic1),
+			partitioner2.partition("abc1", null, null, topic1, increasedPartitionsTopic1));
+		Assert.assertEquals(
+			partitioner2.partition("abc1", null, null, topic2, initialPartitionsTopic2),
+			partitioner2.partition("abc1", null, null, topic2, increasedPartitionsTopic2));
+
+		final FlinkFixedPartitioner<String> partitioner3 = new FlinkFixedPartitioner<>();
+		partitioner3.open(2, 3);
+		Assert.assertEquals(
+			partitioner3.partition("abc1", null, null, topic1, initialPartitionsTopic1),
+			partitioner3.partition("abc1", null, null, topic1, increasedPartitionsTopic1));
+		Assert.assertEquals(
+			partitioner3.partition("abc1", null, null, topic2, initialPartitionsTopic2),
+			partitioner3.partition("abc1", null, null, topic2, increasedPartitionsTopic2));
 	}
 
 }
