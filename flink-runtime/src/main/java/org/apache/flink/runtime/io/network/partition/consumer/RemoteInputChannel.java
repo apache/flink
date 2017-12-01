@@ -229,6 +229,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Releases all exclusive and floating buffers, closes the partition request client.
 	 */
+	@VisibleForTesting
 	@Override
 	public void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
@@ -282,8 +283,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 * Enqueue this input channel in the pipeline for notifying the producer of unannounced credit.
 	 */
 	void notifyCreditAvailable() {
+		checkState(partitionRequestClient != null, "Tried to send task event to producer before requesting a queue.");
+
 		// We should skip the notification if this channel is already released.
-		if (!isReleased.get() && partitionRequestClient != null) {
+		if (!isReleased.get()) {
 			partitionRequestClient.notifyCreditAvailable(this);
 		}
 	}
@@ -376,6 +379,11 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	@Override
 	public void notifyBufferDestroyed() {
 		// Nothing to do actually.
+	}
+
+	@VisibleForTesting
+	public void increaseCredit(int credit) {
+		unannouncedCredit.addAndGet(credit);
 	}
 
 	// ------------------------------------------------------------------------

@@ -602,6 +602,8 @@ public abstract class NettyMessage {
 		final InputChannelID receiverId;
 
 		AddCredit(ResultPartitionID partitionId, int credit, InputChannelID receiverId) {
+			checkArgument(credit > 0, "The announced credit should be greater than 0");
+
 			this.partitionId = partitionId;
 			this.credit = credit;
 			this.receiverId = receiverId;

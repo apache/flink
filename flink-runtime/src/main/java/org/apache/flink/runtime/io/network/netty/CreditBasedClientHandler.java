@@ -103,20 +103,19 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 	}
 
 	/**
-	 * The credit is announced based on sender's backlog from buffer response, so the channel is
-	 * already active then. If the channel is closed because of error, we can skip this announcement.
+	 * The credit begins to announce after receiving the sender's backlog from buffer response.
+	 * Than means it should only happen after some interactions with the channel to make sure
+	 * the context will not be null.
 	 *
 	 * @param inputChannel The input channel with unannounced credits.
 	 */
 	void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-		if (ctx != null) {
-			ctx.executor().execute(new Runnable() {
-				@Override
-				public void run() {
-					ctx.pipeline().fireUserEventTriggered(inputChannel);
-				}
-			});
-		}
+		ctx.executor().execute(new Runnable() {
+			@Override
+			public void run() {
+				ctx.pipeline().fireUserEventTriggered(inputChannel);
+			}
+		});
 	}
 
 	// ------------------------------------------------------------------------

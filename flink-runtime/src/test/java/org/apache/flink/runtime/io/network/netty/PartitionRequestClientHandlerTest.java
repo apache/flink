@@ -41,6 +41,7 @@ import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
+import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -51,6 +52,8 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -144,20 +147,19 @@ public class PartitionRequestClientHandlerTest {
 			inputGate.setBufferPool(bufferPool);
 			inputGate.assignExclusiveSegments(networkBufferPool, 2);
 
-			final int backlog = 2;
-			final BufferResponse bufferResponse = createBufferResponse(
-				inputChannel.requestBuffer(), 0, inputChannel.getInputChannelId(), backlog);
-
 			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
 			handler.addInputChannel(inputChannel);
 
+			final int backlog = 2;
+			final BufferResponse bufferResponse = createBufferResponse(
+				TestBufferFactory.createBuffer(32), 0, inputChannel.getInputChannelId(), backlog);
 			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
 			verify(inputChannel, times(1)).onBuffer(any(Buffer.class), anyInt(), anyInt());
 			verify(inputChannel, times(1)).onSenderBacklog(backlog);
 		} finally {
 			// Release all the buffer resources
-			inputChannel.releaseAllResources();
+			inputGate.releaseAllResources();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
@@ -170,29 +172,20 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testThrowExceptionForNoAvailableBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
 		final SingleInputGate inputGate = createSingleInputGate();
 		final RemoteInputChannel inputChannel = spy(createRemoteInputChannel(inputGate));
-		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
-		try {
-			inputGate.assignExclusiveSegments(networkBufferPool, 1);
 
-			final BufferResponse bufferResponse = createBufferResponse(
-				inputChannel.requestBuffer(), 0, inputChannel.getInputChannelId(), 2);
+		final CreditBasedClientHandler handler = new CreditBasedClientHandler();
+		handler.addInputChannel(inputChannel);
 
-			final CreditBasedClientHandler handler = new CreditBasedClientHandler();
-			handler.addInputChannel(inputChannel);
+		assertEquals("There should be no buffers available in the channel.",
+			0, inputChannel.getNumberOfAvailableBuffers());
 
-			handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
+		final BufferResponse bufferResponse = createBufferResponse(
+			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), 2);
+		handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-			verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
-		} finally {
-			// Release all the buffer resources
-			inputChannel.releaseAllResources();
-
-			networkBufferPool.destroyAllBufferPools();
-			networkBufferPool.destroy();
-		}
+		verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
 	}
 
 	/**
@@ -244,54 +237,89 @@ public class PartitionRequestClientHandlerTest {
 	}
 
 	/**
-	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline, and
-	 * {@link AddCredit} message is sent to the producer.
+	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline for notifying credits,
+	 * and verifies the behaviour of credit notification by triggering channel's writability changed.
 	 */
 	@Test
 	public void testNotifyCreditAvailable() throws Exception {
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel inputChannel1 = spy(createRemoteInputChannel(inputGate));
+		final RemoteInputChannel inputChannel2 = spy(createRemoteInputChannel(inputGate));
 		final CreditBasedClientHandler handler = new CreditBasedClientHandler();
-		final EmbeddedChannel channel = new EmbeddedChannel(handler);
+		final EmbeddedChannel channel = spy(new EmbeddedChannel(handler));
 
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(mock(SingleInputGate.class));
-
-		// Enqueue the input channel
-		handler.notifyCreditAvailable(inputChannel);
+		// Increase the credits to enqueue the input channels
+		inputChannel1.increaseCredit(1);
+		inputChannel2.increaseCredit(1);
+		handler.notifyCreditAvailable(inputChannel1);
+		handler.notifyCreditAvailable(inputChannel2);
 
 		channel.runPendingTasks();
 
-		// Read the enqueued msg
-		Object msg1 = channel.readOutbound();
+		// The two input channels should notify credits via writable channel
+		assertTrue(channel.isWritable());
+		assertEquals(channel.readOutbound().getClass(), AddCredit.class);
+		verify(inputChannel1, times(1)).getAndResetCredit();
+		verify(inputChannel2, times(1)).getAndResetCredit();
 
-		// Should notify credit
-		assertEquals(msg1.getClass(), AddCredit.class);
+		final int highWaterMark = channel.config().getWriteBufferHighWaterMark();
+		// Set the writer index to the high water mark to ensure that all bytes are written
+		// to the wire although the buffer is "empty".
+		channel.write(Unpooled.buffer(highWaterMark).writerIndex(highWaterMark));
+
+		// Enqueue the input channel on the condition of un-writable channel
+		inputChannel1.increaseCredit(1);
+		handler.notifyCreditAvailable(inputChannel1);
+
+		channel.runPendingTasks();
+
+		// The input channel will not notify credits via un-writable channel
+		assertFalse(channel.isWritable());
+		verify(inputChannel1, times(1)).getAndResetCredit();
+
+		// Flush the buffer to make the channel writable again
+		channel.flush();
+
+		// The input channel should notify credits via triggering channel's writability changed event
+		assertTrue(channel.isWritable());
+		assertEquals(channel.readOutbound().getClass(), AddCredit.class);
+		verify(inputChannel1, times(2)).getAndResetCredit();
 	}
 
 	/**
 	 * Verifies that {@link RemoteInputChannel} is enqueued in the pipeline, but {@link AddCredit}
-	 * message is not sent actually after this input channel is released.
+	 * message is not sent actually when this input channel is released.
 	 */
 	@Test
 	public void testNotifyCreditAvailableAfterReleased() throws Exception {
+		final SingleInputGate inputGate = createSingleInputGate();
+		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		inputGate.setInputChannel(inputChannel.getPartitionId().getPartitionId(), inputChannel);
+
 		final CreditBasedClientHandler handler = new CreditBasedClientHandler();
 		final EmbeddedChannel channel = new EmbeddedChannel(handler);
 
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(mock(SingleInputGate.class));
-
-		// Enqueue the input channel then release it
+		// Increase the credits to enqueue the input channel, then release it
+		inputChannel.increaseCredit(1);
 		handler.notifyCreditAvailable(inputChannel);
-		inputChannel.releaseAllResources();
+		inputGate.releaseAllResources();
 
 		channel.runPendingTasks();
 
 		// Read the enqueued msg
-		Object msg2 = channel.readOutbound();
+		Object msg = channel.readOutbound();
 
-		// No need to notify credit for released input channel
-		assertEquals(msg2, null);
+		// No need to notify credits for released input channel
+		assertEquals(msg, null);
 	}
 
 	// ---------------------------------------------------------------------------------------------
 
+	/**
+	 * Creates and returns the single input gate for credit-based testing.
+	 *
+	 * @return The new created single input gate.
+	 */
 	private SingleInputGate createSingleInputGate() {
 		return new SingleInputGate(
 			"InputGate",
@@ -304,6 +332,12 @@ public class PartitionRequestClientHandlerTest {
 			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
 	}
 
+	/**
+	 * Creates and returns a remote input channel for the specific input gate.
+	 *
+	 * @param inputGate The input gate owns the created input channel.
+	 * @return The new created remote input channel.
+	 */
 	private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) {
 		return new RemoteInputChannel(
 			inputGate,
