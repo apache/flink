@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.scala
+package org.apache.flink.streaming.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.contrib.streaming.{DataStreamUtils => JavaStreamUtils}
-import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.util.datastream.{DataStreamUtils => JavaStreamUtils}
+import org.apache.flink.streaming.api.scala.DataStream
 
-import _root_.scala.reflect.ClassTag
+import scala.reflect.ClassTag
 import scala.collection.JavaConverters._
 
 package object utils {
 
   /**
-   * This class provides simple utility methods for collecting a [[DataStream]],
-   * effectively enriching it with the functionality encapsulated by [[JavaStreamUtils]].
-   *
-   * @param self DataStream
-   */
+    * This class provides simple utility methods for collecting a [[DataStream]],
+    * effectively enriching it with the functionality encapsulated by [[JavaStreamUtils]].
+    *
+    * @param self DataStream
+    */
   implicit class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
 
     /**
@@ -42,7 +42,5 @@ package object utils {
     def collect() : Iterator[T] = {
       JavaStreamUtils.collect(self.javaStream).asScala
     }
-
   }
-
 }

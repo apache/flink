@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming;
+package org.apache.flink.streaming.util.datastream;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
