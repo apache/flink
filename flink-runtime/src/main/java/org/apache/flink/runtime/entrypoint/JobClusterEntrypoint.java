@@ -37,6 +37,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 /**
  * Base class for per-job cluster entry points.
  */
@@ -80,7 +82,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			jobManagerServices,
 			heartbeatServices,
 			metricRegistry,
-			this);
+			this,
+			null);
 
 		LOG.debug("Starting ResourceManager.");
 		resourceManager.start();
@@ -97,7 +100,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			JobManagerServices jobManagerServices,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			@Nullable String restAddress) throws Exception {
 
 		JobGraph jobGraph = retrieveJobGraph(configuration);
 
@@ -111,7 +115,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			jobManagerServices,
 			metricRegistry,
 			new TerminatingOnCompleteActions(jobGraph.getJobID()),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			restAddress);
 	}
 
 	@Override

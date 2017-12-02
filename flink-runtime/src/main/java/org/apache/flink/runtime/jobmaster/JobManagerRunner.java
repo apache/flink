@@ -45,6 +45,8 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -114,7 +116,8 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 			final JobManagerServices jobManagerServices,
 			final MetricRegistry metricRegistry,
 			final OnCompletionActions toNotifyOnComplete,
-			final FatalErrorHandler errorHandler) throws Exception {
+			final FatalErrorHandler errorHandler,
+			@Nullable final String restAddress) throws Exception {
 
 		JobManagerMetricGroup jobManagerMetrics = null;
 
@@ -165,7 +168,9 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 				jobManagerMetrics,
 				this,
 				this,
-				userCodeLoader);
+				userCodeLoader,
+				restAddress,
+				metricRegistry.getMetricQueryServicePath());
 
 			this.timeout = jobManagerServices.rpcAskTimeout;
 		}

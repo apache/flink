@@ -27,6 +27,8 @@ public class ResourceOverview implements Serializable {
 
 	private static final long serialVersionUID = 7618746920569224557L;
 
+	private static final ResourceOverview EMPTY_RESOURCE_OVERVIEW = new ResourceOverview(0, 0, 0);
+
 	private final int numberTaskManagers;
 
 	private final int numberRegisteredSlots;
@@ -49,5 +51,9 @@ public class ResourceOverview implements Serializable {
 
 	public int getNumberFreeSlots() {
 		return numberFreeSlots;
+	}
+
+	public static ResourceOverview empty() {
+		return EMPTY_RESOURCE_OVERVIEW;
 	}
 }
