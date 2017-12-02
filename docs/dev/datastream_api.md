@@ -626,6 +626,9 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 
 {% top %}
 
+**Note:** `flink-streaming-contrib` module is removed from Flink 1.5.0.
+Its classes have been moved into `flink-streaming-java` and `flink-streaming-scala`.
+
 Where to go next?
 -----------------
 
