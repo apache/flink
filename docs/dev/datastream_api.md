@@ -598,7 +598,7 @@ Flink also provides a sink to collect DataStream results for testing and debuggi
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-import org.apache.flink.contrib.streaming.DataStreamUtils
+import org.apache.flink.streaming.experimental.DataStreamUtils
 
 DataStream<Tuple2<String, Integer>> myResult = ...
 Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
@@ -608,7 +608,7 @@ Iterator<Tuple2<String, Integer>> myOutput = DataStreamUtils.collect(myResult)
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-import org.apache.flink.contrib.streaming.DataStreamUtils
+import org.apache.flink.streaming.experimental.DataStreamUtils
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 val myResult: DataStream[(String, Int)] = ...
@@ -618,6 +618,9 @@ val myOutput: Iterator[(String, Int)] = DataStreamUtils.collect(myResult.javaStr
 </div>
 
 {% top %}
+
+**Note:** `flink-streaming-contrib` module is removed from Flink 1.5.0.
+Its classes have been moved into `flink-streaming-java` and `flink-streaming-scala`.
 
 Where to go next?
 -----------------

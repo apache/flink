@@ -16,33 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming.scala
+package org.apache.flink.streaming.experimental.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.contrib.streaming.{DataStreamUtils => JavaStreamUtils}
-import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.experimental.{DataStreamUtils => JavaStreamUtils}
 
-import _root_.scala.reflect.ClassTag
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
-package object utils {
+/**
+  * This class provides simple utility methods for collecting a [[DataStream]],
+  * effectively enriching it with the functionality encapsulated by [[DataStreamUtils]].
+  *
+  * This experimental class is relocated from flink-streaming-contrib.
+  *
+  * @param self DataStream
+  */
+@PublicEvolving
+class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
 
   /**
-   * This class provides simple utility methods for collecting a [[DataStream]],
-   * effectively enriching it with the functionality encapsulated by [[JavaStreamUtils]].
-   *
-   * @param self DataStream
-   */
-  implicit class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
-
-    /**
-      * Returns a scala iterator to iterate over the elements of the DataStream.
-      * @return The iterator
-      */
-    def collect() : Iterator[T] = {
-      JavaStreamUtils.collect(self.javaStream).asScala
-    }
-
+    * Returns a scala iterator to iterate over the elements of the DataStream.
+    * @return The iterator
+    */
+  def collect() : Iterator[T] = {
+    JavaStreamUtils.collect(self.javaStream).asScala
   }
-
 }
+
