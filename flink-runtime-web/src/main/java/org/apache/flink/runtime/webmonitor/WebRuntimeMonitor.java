@@ -302,22 +302,21 @@ public class WebRuntimeMonitor implements WebMonitor {
 		get(router, new JobAccumulatorsHandler(executionGraphCache, scheduledExecutor));
 
 		get(router, new TaskManagersHandler(scheduledExecutor, DEFAULT_REQUEST_TIMEOUT, metricFetcher));
-		get(router,
-			new TaskManagerLogHandler(
-				retriever,
-				scheduledExecutor,
-				localRestAddress,
-				timeout,
-				TaskManagerLogHandler.FileMode.LOG,
-				config));
-		get(router,
-			new TaskManagerLogHandler(
-				retriever,
-				scheduledExecutor,
-				localRestAddress,
-				timeout,
-				TaskManagerLogHandler.FileMode.STDOUT,
-				config));
+		get(router, new TaskManagerLogHandler(
+							retriever,
+							scheduledExecutor,
+							localRestAddress,
+							timeout,
+							TaskManagerLogHandler.FileMode.LOG,
+							config));
+		get(router, new TaskManagerLogHandler(
+							retriever,
+							scheduledExecutor,
+							localRestAddress,
+							timeout,
+							TaskManagerLogHandler.FileMode.STDOUT,
+							config));
+		get(router, new TaskManagerMetricsHandler(scheduledExecutor, metricFetcher));
 
 		router
 			// log and stdout
