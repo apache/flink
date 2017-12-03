@@ -47,6 +47,7 @@ import scala.collection.JavaConverters._
 import org.apache.flink.mesos.Utils.range
 import org.apache.flink.mesos.Utils.ranges
 import org.apache.flink.mesos.Utils.scalar
+import org.apache.flink.mesos.util.MesosResourceAllocation
 
 @RunWith(classOf[JUnitRunner])
 class LaunchCoordinatorTest
@@ -95,7 +96,7 @@ class LaunchCoordinatorTest
       override def taskRequest: TaskRequest = generateTaskRequest
       override def launch(
           slaveId: SlaveID,
-          taskAssignment: TaskAssignmentResult): Protos.TaskInfo = {
+          allocation: MesosResourceAllocation): Protos.TaskInfo = {
         Protos.TaskInfo.newBuilder
           .setTaskId(taskID).setName(taskID.getValue)
           .setCommand(Protos.CommandInfo.newBuilder.setValue("whoami"))

@@ -25,8 +25,13 @@ import org.apache.mesos.Protos;
 
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 import scala.Option;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Collection of utility methods.
@@ -91,7 +96,7 @@ public class Utils {
 	}
 
 	/**
-	 * Construct a ranges resource value.
+	 * Construct a range resource.
 	 */
 	public static Protos.Resource ranges(String name, String role, Protos.Value.Range... ranges) {
 		return Protos.Resource.newBuilder()
@@ -100,5 +105,60 @@ public class Utils {
 			.setRanges(Protos.Value.Ranges.newBuilder().addAllRange(Arrays.asList(ranges)).build())
 			.setRole(role)
 			.build();
+	}
+
+	/**
+	 * Gets a stream of values from a collection of range resources.
+	 */
+	public static LongStream rangeValues(Collection<Protos.Resource> resources) {
+		return resources.stream()
+			.filter(Protos.Resource::hasRanges)
+			.flatMap(r -> r.getRanges().getRangeList().stream())
+			.flatMapToLong(Utils::rangeValues);
+	}
+
+	/**
+	 * Gets a stream of values from a range.
+	 */
+	public static LongStream rangeValues(Protos.Value.Range range) {
+		return LongStream.rangeClosed(range.getBegin(), range.getEnd());
+	}
+
+	/**
+	 * Gets a string representation of a collection of resources.
+	 */
+	public static String print(Collection<Protos.Resource> resources) {
+		checkNotNull(resources);
+		return resources.stream().map(Utils::print).collect(Collectors.joining("; ", "[", "]"));
+	}
+
+	/**
+	 * Gets a string representation of a resource.
+	 */
+	public static String print(Protos.Resource resource) {
+		checkNotNull(resource);
+		if (resource.hasScalar()) {
+			return String.format("%s(%s):%.1f", resource.getName(), resource.getRole(), resource.getScalar().getValue());
+		}
+		if (resource.hasRanges()) {
+			return String.format("%s(%s):%s", resource.getName(), resource.getRole(), print(resource.getRanges()));
+		}
+		return resource.toString();
+	}
+
+	/**
+	 * Gets a string representation of a collection of ranges.
+	 */
+	public static String print(Protos.Value.Ranges ranges) {
+		checkNotNull(ranges);
+		return ranges.getRangeList().stream().map(Utils::print).collect(Collectors.joining(",", "[", "]"));
+	}
+
+	/**
+	 * Gets a string representation of a range.
+	 */
+	public static String print(Protos.Value.Range range) {
+		checkNotNull(range);
+		return String.format("%d-%d", range.getBegin(), range.getEnd());
 	}
 }

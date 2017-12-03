@@ -23,12 +23,13 @@ import java.util.Collections
 import akka.actor.{Actor, ActorRef, FSM, Props}
 import com.netflix.fenzo._
 import com.netflix.fenzo.functions.Action1
-import com.netflix.fenzo.plugins.VMLeaseObject
 import grizzled.slf4j.Logger
 import org.apache.flink.api.java.tuple.{Tuple2=>FlinkTuple2}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.mesos.Utils
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
 import org.apache.flink.mesos.scheduler.messages._
+import org.apache.flink.mesos.util.MesosResourceAllocation
 import org.apache.mesos.{SchedulerDriver, Protos}
 
 import scala.collection.JavaConverters._
@@ -148,14 +149,17 @@ class LaunchCoordinator(
 
     case Event(offers: ResourceOffers, data: GatherData) =>
       val leases = offers.offers().asScala.map(
-        new VMLeaseObject(_).asInstanceOf[VirtualMachineLease])
+        new Offer(_).asInstanceOf[VirtualMachineLease])
       if(LOG.isInfoEnabled) {
         val (cpus, mem) = leases.foldLeft((0.0,0.0)) {
           (z,o) => (z._1 + o.cpuCores(), z._2 + o.memoryMB())
         }
         LOG.info(s"Received offer(s) of $mem MB, $cpus cpus:")
         for(l <- leases) {
-          LOG.info(s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB, ${l.cpuCores()} cpus")
+          val reservations = l.asInstanceOf[Offer].getResources.asScala.map(_.getRole).toSet
+          LOG.info(
+            s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB, ${l.cpuCores()} cpus" +
+            s" for ${reservations.mkString("[", ",", "]")}")
         }
       }
       stay using data.copy(newLeases = data.newLeases ++ leases) forMax (1 seconds)
@@ -185,7 +189,7 @@ class LaunchCoordinator(
         // process the assignments into a set of operations (reserve and/or launch)
         val slaveId = assignments.getLeasesUsed.get(0).getOffer.getSlaveId
         val offerIds = assignments.getLeasesUsed.asScala.map(_.getOffer.getId)
-        val operations = processAssignments(slaveId, assignments, remaining.toMap)
+        val operations = processAssignments(LOG, slaveId, assignments, remaining.toMap)
 
         // update the state to reflect the launched tasks
         val launchedTasks = operations
@@ -322,12 +326,19 @@ object LaunchCoordinator {
     * @return the operations to perform.
     */
   private def processAssignments(
+      LOG: Logger,
       slaveId: Protos.SlaveID,
       assignments: VMAssignmentResult,
       allTasks: Map[String, LaunchableTask]): Seq[Protos.Offer.Operation] = {
 
+    val resources =
+      assignments.getLeasesUsed.asScala.flatMap(_.asInstanceOf[Offer].getResources.asScala)
+    val allocator = new MesosResourceAllocation(resources.asJava)
+    LOG.debug(s"Assigning resources: ${Utils.print(allocator.getRemaining)}")
+
     def taskInfo(assignment: TaskAssignmentResult): Protos.TaskInfo = {
-      allTasks(assignment.getTaskId).launch(slaveId, assignment)
+      LOG.debug(s"Processing task ${assignment.getTaskId}")
+      allTasks(assignment.getTaskId).launch(slaveId, allocator)
     }
 
     val launches = Protos.Offer.Operation.newBuilder()
@@ -337,6 +348,8 @@ object LaunchCoordinator {
           assignments.getTasksAssigned.asScala.map(taskInfo).asJava
         ))
       .build()
+
+    LOG.debug(s"Remaining resources: ${Utils.print(allocator.getRemaining)}")
 
     Seq(launches)
   }
