@@ -171,7 +171,8 @@ under the License.
 		commons-collections dependency-->
 		<dependency>
 			<groupId>commons-beanutils</groupId>
-			<artifactId>commons-beanutils-bean-collections</artifactId>
+			<artifactId>commons-beanutils</artifactId>
+			<version>1.9.3</version>
 		</dependency>
 
 		<dependency>
