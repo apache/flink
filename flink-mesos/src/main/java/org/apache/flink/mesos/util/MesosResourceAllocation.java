@@ -36,6 +36,13 @@ import static org.apache.flink.mesos.Utils.print;
 /**
  * An allocation of resources on a particular host from one or more Mesos offers, to be portioned out to tasks.
  *
+ * <p>A typical offer contains a mix of reserved and unreserved resources.
+ * The below example depicts 2 cpus reserved for 'myrole' plus 3 unreserved cpus for a total of 5 cpus:
+ * <pre>{@code
+ *   cpus(myrole):2.0; mem(myrole):4096.0; ports(myrole):[1025-2180];
+ *   disk(*):28829.0; cpus(*):3.0; mem(*):10766.0; ports(*):[2182-3887,8082-8180,8182-32000]
+ * }</pre>
+ *
  * <p>This class assumes that the resources were offered <b>without</b> the {@code RESERVATION_REFINEMENT} capability,
  * as detailed in the "Resource Format" section of the Mesos protocol definition.
  *

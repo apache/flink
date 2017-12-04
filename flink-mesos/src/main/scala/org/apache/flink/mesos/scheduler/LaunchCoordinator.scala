@@ -333,12 +333,12 @@ object LaunchCoordinator {
 
     val resources =
       assignments.getLeasesUsed.asScala.flatMap(_.asInstanceOf[Offer].getResources.asScala)
-    val allocator = new MesosResourceAllocation(resources.asJava)
-    LOG.debug(s"Assigning resources: ${Utils.print(allocator.getRemaining)}")
+    val allocation = new MesosResourceAllocation(resources.asJava)
+    LOG.debug(s"Assigning resources: ${Utils.print(allocation.getRemaining)}")
 
     def taskInfo(assignment: TaskAssignmentResult): Protos.TaskInfo = {
       LOG.debug(s"Processing task ${assignment.getTaskId}")
-      allTasks(assignment.getTaskId).launch(slaveId, allocator)
+      allTasks(assignment.getTaskId).launch(slaveId, allocation)
     }
 
     val launches = Protos.Offer.Operation.newBuilder()
@@ -349,7 +349,7 @@ object LaunchCoordinator {
         ))
       .build()
 
-    LOG.debug(s"Remaining resources: ${Utils.print(allocator.getRemaining)}")
+    LOG.debug(s"Remaining resources: ${Utils.print(allocation.getRemaining)}")
 
     Seq(launches)
   }
