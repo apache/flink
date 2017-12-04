@@ -116,10 +116,6 @@ under the License.
 					<artifactId>jasper-runtime</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
 					<artifactId>jsp-api</artifactId>
 				</exclusion>
@@ -242,10 +238,6 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -372,10 +364,6 @@ under the License.
 					<artifactId>jasper-runtime</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
 					<artifactId>jsp-api</artifactId>
 				</exclusion>
@@ -500,10 +488,6 @@ under the License.
 					<artifactId>jasper-runtime</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
 					<artifactId>jsp-api</artifactId>
 				</exclusion>
@@ -626,10 +610,6 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
