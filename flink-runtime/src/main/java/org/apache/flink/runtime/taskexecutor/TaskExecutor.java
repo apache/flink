@@ -24,6 +24,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -165,6 +167,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private final JobLeaderService jobLeaderService;
 
+	private final CheckpointCacheManager checkpointCacheManager;
+
 	// ------------------------------------------------------------------------
 
 	private final HardwareDescription hardwareDescription;
@@ -176,6 +180,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			MemoryManager memoryManager,
 			IOManager ioManager,
 			NetworkEnvironment networkEnvironment,
+			CheckpointCacheManager checkpointCacheManager,
 			HighAvailabilityServices haServices,
 			HeartbeatServices heartbeatServices,
 			TaskManagerMetricGroup taskManagerMetricGroup,
@@ -203,6 +208,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		this.fileCache = checkNotNull(fileCache);
 		this.jobManagerTable = checkNotNull(jobManagerTable);
 		this.jobLeaderService = checkNotNull(jobLeaderService);
+		this.checkpointCacheManager = checkpointCacheManager;
 
 		this.jobManagerConnections = new HashMap<>(4);
 
@@ -277,6 +283,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		networkEnvironment.shutdown();
 
 		fileCache.shutdown();
+
+		checkpointCacheManager.shutdown();
 
 		try {
 			super.postStop();
@@ -380,6 +388,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			ResultPartitionConsumableNotifier resultPartitionConsumableNotifier = jobManagerConnection.getResultPartitionConsumableNotifier();
 			PartitionProducerStateChecker partitionStateChecker = jobManagerConnection.getPartitionStateChecker();
 
+			CheckpointCache checkpointCache = checkpointCacheManager.registerCheckpointCache(jobInformation.getJobId(), tdd.getCheckpointTimeout(), tdd.getLeaseTimeout());
+
 			Task task = new Task(
 				jobInformation,
 				taskInformation,
@@ -401,6 +411,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				blobService,
 				libraryCache,
 				fileCache,
+				checkpointCache,
 				taskManagerConfiguration,
 				taskMetricGroup,
 				resultPartitionConsumableNotifier,

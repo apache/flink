@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.CachedStreamStateHandle;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -77,6 +78,7 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
 	private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
+	private static final byte CACHED_STREAM_STATE_HANDLE = 6;
 
 	/** The singleton instance of the serializer */
 	public static final SavepointV2Serializer INSTANCE = new SavepointV2Serializer();
@@ -510,6 +512,13 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			byte[] internalData = byteStreamStateHandle.getData();
 			dos.writeInt(internalData.length);
 			dos.write(byteStreamStateHandle.getData());
+		} else if (stateHandle instanceof CachedStreamStateHandle) {
+			dos.writeByte(CACHED_STREAM_STATE_HANDLE);
+			CachedStreamStateHandle cachedStreamStateHandle = (CachedStreamStateHandle) stateHandle;
+			StateHandleID handleID = cachedStreamStateHandle.getStateHandleId();
+			StreamStateHandle streamHandle = cachedStreamStateHandle.getRemoteHandle();
+			dos.writeUTF(handleID.getKeyString());
+			serializeStreamStateHandle(streamHandle, dos);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle: " + stateHandle.getClass());
 		}
@@ -531,6 +540,10 @@ class SavepointV2Serializer implements SavepointSerializer<SavepointV2> {
 			byte[] data = new byte[numBytes];
 			dis.readFully(data);
 			return new ByteStreamStateHandle(handleName, data);
+		} else if (CACHED_STREAM_STATE_HANDLE == type) {
+			String handleID = dis.readUTF();
+			StreamStateHandle remoteHandle = deserializeStreamStateHandle(dis);
+			return new CachedStreamStateHandle(new StateHandleID(handleID), remoteHandle);
 		} else {
 			throw new IOException("Unknown implementation of StreamStateHandle, code: " + type);
 		}

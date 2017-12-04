@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.junit.runner.RunWith;
@@ -54,6 +55,7 @@ public abstract class HeapStateBackendTestBase {
 			16,
 			new KeyGroupRange(0, 15),
 			async,
-			new ExecutionConfig());
+			new ExecutionConfig(),
+			mock(CheckpointCache.class));
 	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -151,6 +152,7 @@ public class TaskExecutorITCase extends TestLogger {
 			memoryManager,
 			ioManager,
 			networkEnvironment,
+			mock(CheckpointCacheManager.class),
 			testingHAServices,
 			heartbeatServices,
 			taskManagerMetricGroup,

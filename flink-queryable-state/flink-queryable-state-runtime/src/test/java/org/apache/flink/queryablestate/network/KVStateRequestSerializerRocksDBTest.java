@@ -28,6 +28,7 @@ import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -76,7 +77,9 @@ public final class KVStateRequestSerializerRocksDBTest {
 			super(operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
-				numberOfKeyGroups, keyGroupRange, executionConfig, false);
+				numberOfKeyGroups, keyGroupRange, executionConfig,
+				mock(CheckpointCache.class),
+				false);
 		}
 
 		@Override
@@ -152,6 +155,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 				LongSerializer.INSTANCE,
 				1, new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
+				mock(CheckpointCache.class),
 				false);
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);

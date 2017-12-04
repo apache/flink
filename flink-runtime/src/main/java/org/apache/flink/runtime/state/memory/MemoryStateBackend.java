@@ -123,12 +123,12 @@ public class MemoryStateBackend extends AbstractStateBackend {
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env, JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) {
+		Environment env, JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry) {
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
@@ -137,6 +137,7 @@ public class MemoryStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				asynchronousSnapshots,
-				env.getExecutionConfig());
+				env.getExecutionConfig(),
+				env.getCheckpointCache());
 	}
 }

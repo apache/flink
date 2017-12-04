@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -197,6 +198,12 @@ public interface Environment {
 	 * <p>This method never blocks.
 	 */
 	void failExternally(Throwable cause);
+
+	/**
+	 * Get the CheckpointCache for manage local checkpoint data.
+	 * @return The CheckpointCache instance
+	 */
+	CheckpointCache getCheckpointCache();
 
 	// --------------------------------------------------------------------------------------------
 	//  Fields relevant to the I/O system. Should go into Task

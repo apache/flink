@@ -27,6 +27,7 @@ import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
@@ -164,6 +165,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
 				new String[0]),
 			mock(FileCache.class),
+			mock(CheckpointCache.class),
 			taskManagerRuntimeInfo,
 			new UnregisteredTaskMetricsGroup(),
 			mock(ResultPartitionConsumableNotifier.class),

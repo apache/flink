@@ -32,6 +32,8 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -41,6 +43,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -824,6 +827,15 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			serializedTaskInformation = new TaskDeploymentDescriptor.Offloaded<>(taskInformationOrBlobKey.right());
 		}
 
+		// get jobCheckpointingSettings via job graph
+		CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = this.getExecutionGraph().getCheckpointCoordinatorConfiguration();
+
+		long leaseTimeout = 60000; //1 min
+		RestartStrategy restartStrategy = this.getExecutionGraph().getRestartStrategy();
+		if (restartStrategy != null && restartStrategy instanceof FixedDelayRestartStrategy) {
+			leaseTimeout += ((FixedDelayRestartStrategy) restartStrategy).getDelayBetweenRestartAttempts();
+		}
+
 		return new TaskDeploymentDescriptor(
 			getJobId(),
 			serializedJobInformation,
@@ -835,7 +847,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			targetSlot.getRoot().getSlotNumber(),
 			taskStateHandles,
 			producedPartitions,
-			consumedPartitions);
+			consumedPartitions,
+			checkpointCoordinatorConfiguration == null ? -1L : checkpointCoordinatorConfiguration.getCheckpointTimeout(),
+			leaseTimeout);
 	}
 
 	// --------------------------------------------------------------------------------------------

@@ -35,12 +35,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.ArrayListSerializer;
+import org.apache.flink.runtime.state.CachedCheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.HashMapSerializer;
@@ -51,6 +53,7 @@ import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
@@ -77,6 +80,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Stream;
 
@@ -116,6 +120,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 */
 	private final boolean asynchronousSnapshots;
 
+	private final CheckpointCache checkpointCache;
+
+	private final UUID backendUID;
+
 	public HeapKeyedStateBackend(
 			TaskKvStateRegistry kvStateRegistry,
 			TypeSerializer<K> keySerializer,
@@ -123,13 +131,16 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			boolean asynchronousSnapshots,
-			ExecutionConfig executionConfig) {
+			ExecutionConfig executionConfig,
+			CheckpointCache checkpointCache) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.asynchronousSnapshots = asynchronousSnapshots;
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 
 		this.restoredKvStateMetaInfos = new HashMap<>();
+		this.checkpointCache = checkpointCache;
+		this.backendUID = UUID.randomUUID();
 	}
 
 	// ------------------------------------------------------------------------
@@ -333,6 +344,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
 
 		//--------------------------------------------------- this becomes the end of sync part
+		final CachedCheckpointStreamFactory cachedCheckpointStreamFactory = new CachedCheckpointStreamFactory(checkpointCache, streamFactory);
 
 		// implementation of the async IO operation, based on FutureTask
 		final AbstractAsyncCallableWithResources<KeyedStateHandle> ioCallable =
@@ -342,7 +354,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 				@Override
 				protected void acquireResources() throws Exception {
-					stream = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+					stream = cachedCheckpointStreamFactory.createCheckpointStateOutputStream(
+						checkpointId, timestamp, new StateHandleID(backendUID + "-" + checkpointId));
 					cancelStreamRegistry.registerCloseable(stream);
 				}
 
@@ -399,7 +412,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						if (asynchronousSnapshots) {
 							LOG.info("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
-								streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
+								cachedCheckpointStreamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
 						}
 
 						if (streamStateHandle != null) {
@@ -468,6 +481,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 
 			KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) keyedStateHandle;
+			keyGroupsStateHandle.setCache(checkpointCache);
 			FSDataInputStream fsDataInputStream = keyGroupsStateHandle.openInputStream();
 			cancelStreamRegistry.registerCloseable(fsDataInputStream);
 

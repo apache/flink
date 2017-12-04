@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
@@ -52,7 +53,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			mock(CheckpointCache.class));
 
 		try {
 			Assert.assertTrue(
@@ -73,7 +75,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			mock(CheckpointCache.class));
 
 		try {
 			Assert.assertTrue(
@@ -112,7 +115,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			mock(CheckpointCache.class));
 
 		try {
 
@@ -153,7 +157,8 @@ public class StateSnapshotCompressionTest extends TestLogger {
 			16,
 			new KeyGroupRange(0, 15),
 			true,
-			executionConfig);
+			executionConfig,
+			mock(CheckpointCache.class));
 		try {
 
 			stateBackend.restore(Collections.singletonList(stateHandle));

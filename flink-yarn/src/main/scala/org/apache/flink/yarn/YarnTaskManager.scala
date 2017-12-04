@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn
 
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager
 import org.apache.flink.runtime.clusterframework.types.ResourceID
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import org.apache.flink.runtime.io.disk.iomanager.IOManager
@@ -37,6 +38,7 @@ class YarnTaskManager(
     memoryManager: MemoryManager,
     ioManager: IOManager,
     network: NetworkEnvironment,
+    checkpointCacheManager: CheckpointCacheManager,
     numberOfSlots: Int,
     highAvailabilityServices: HighAvailabilityServices,
     taskManagerMetricGroup: TaskManagerMetricGroup)
@@ -47,6 +49,7 @@ class YarnTaskManager(
     memoryManager,
     ioManager,
     network,
+    checkpointCacheManager,
     numberOfSlots,
     highAvailabilityServices,
     taskManagerMetricGroup) {

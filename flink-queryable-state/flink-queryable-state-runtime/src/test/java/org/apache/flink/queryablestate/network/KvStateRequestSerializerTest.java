@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
@@ -194,7 +195,8 @@ public class KvStateRequestSerializerTest {
 				1,
 				new KeyGroupRange(0, 0),
 				async,
-				new ExecutionConfig()
+				new ExecutionConfig(),
+				mock(CheckpointCache.class)
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
@@ -296,7 +298,8 @@ public class KvStateRequestSerializerTest {
 					1,
 					new KeyGroupRange(0, 0),
 					async,
-					new ExecutionConfig()
+					new ExecutionConfig(),
+					mock(CheckpointCache.class)
 			);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

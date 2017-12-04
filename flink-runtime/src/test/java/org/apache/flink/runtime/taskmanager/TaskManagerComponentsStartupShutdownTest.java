@@ -24,9 +24,11 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.checkpoint.CheckpointCacheManager;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.standalone.StandaloneResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
@@ -155,6 +157,8 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 
 			network.start();
 
+			final CheckpointCacheManager checkpointCacheManager = new CheckpointCacheManager(java.util.concurrent.Executors.newSingleThreadScheduledExecutor(), Executors.directExecutor(), TMP_DIR);
+
 			MetricRegistryConfiguration metricRegistryConfiguration = MetricRegistryConfiguration.fromConfiguration(config);
 
 			// create the task manager
@@ -166,6 +170,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 				memManager,
 				ioManager,
 				network,
+				checkpointCacheManager,
 				numberOfSlots,
 				highAvailabilityServices,
 				new TaskManagerMetricGroup(new NoOpMetricRegistry(), connectionInfo.getHostname(), connectionInfo.getResourceID().getResourceIdString()));
@@ -202,6 +207,7 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 			assertTrue(network.isShutdown());
 			assertTrue(ioManager.isProperlyShutDown());
 			assertTrue(memManager.isShutdown());
+			assertTrue(checkpointCacheManager.isShutdown());
 		} finally {
 			if (actorSystem != null) {
 				actorSystem.shutdown();

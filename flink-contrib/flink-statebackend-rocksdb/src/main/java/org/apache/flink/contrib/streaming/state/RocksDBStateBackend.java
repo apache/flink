@@ -284,13 +284,13 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 
 	@Override
 	public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-			Environment env,
-			JobID jobID,
-			String operatorIdentifier,
-			TypeSerializer<K> keySerializer,
-			int numberOfKeyGroups,
-			KeyGroupRange keyGroupRange,
-			TaskKvStateRegistry kvStateRegistry) throws IOException {
+		Environment env,
+		JobID jobID,
+		String operatorIdentifier,
+		TypeSerializer<K> keySerializer,
+		int numberOfKeyGroups,
+		KeyGroupRange keyGroupRange,
+		TaskKvStateRegistry kvStateRegistry) throws IOException {
 
 		// first, make sure that the RocksDB JNI library is loaded
 		// we do this explicitly here to have better error handling
@@ -313,6 +313,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getExecutionConfig(),
+				env.getCheckpointCache(),
 				enableIncrementalCheckpointing);
 	}
 

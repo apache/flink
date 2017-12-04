@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
+import org.apache.flink.runtime.checkpoint.CheckpointCache;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -663,6 +664,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					if (operator != null) {
 						operator.notifyOfCompletedCheckpoint(checkpointId);
 					}
+				}
+				final CheckpointCache checkpointCache = getEnvironment().getCheckpointCache();
+				if (checkpointCache != null) {
+					checkpointCache.commitCache(checkpointId);
 				}
 			}
 			else {
