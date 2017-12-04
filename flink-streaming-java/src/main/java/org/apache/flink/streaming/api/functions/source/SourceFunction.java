@@ -34,9 +34,9 @@ import java.io.Serializable;
  * The run method can run for as long as necessary. The source must, however, react to an
  * invocation of {@link #cancel()} by breaking out of its main loop.
  *
- * <h3>Checkpointed Sources</h3>
+ * <h3>CheckpointedFunction Sources</h3>
  *
- * <p>Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
+ * <p>Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}
  * interface must ensure that state checkpointing, updating of internal state and emission of
  * elements are not done concurrently. This is achieved by using the provided checkpointing lock
  * object to protect update of state and emission of elements in a synchronized block.
@@ -44,7 +44,7 @@ import java.io.Serializable;
  * <p>This is the basic pattern one should follow when implementing a (checkpointed) source:
  *
  * <pre>{@code
- *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
+ *  public class ExampleSource<T> implements SourceFunction<T>, CheckpointedFunction<Long> {
  *      private long count = 0L;
  *      private volatile boolean isRunning = true;
  *
@@ -96,12 +96,12 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 * Starts the source. Implementations can use the {@link SourceContext} emit
 	 * elements.
 	 *
-	 * <p>Sources that implement {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
+	 * <p>Sources that implement {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}
 	 * must lock on the checkpoint lock (using a synchronized block) before updating internal
 	 * state and emitting elements, to make both an atomic operation:
 	 *
 	 * <pre>{@code
-	 *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
+	 *  public class ExampleSource<T> implements SourceFunction<T>, CheckpointedFunction<Long> {
 	 *      private long count = 0L;
 	 *      private volatile boolean isRunning = true;
 	 *
