@@ -52,6 +52,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile SubmittedJobGraphStore submittedJobGraphStore;
 
+	private final RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
+
 	// ------------------------------------------------------------------------
 	//  Setters for mock / testing implementations
 	// ------------------------------------------------------------------------
@@ -185,7 +187,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	@Override
 	public RunningJobsRegistry getRunningJobsRegistry() {
-		return new StandaloneRunningJobsRegistry();
+		return runningJobsRegistry;
 	}
 
 	@Override
