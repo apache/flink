@@ -26,8 +26,12 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * In-Memory implementation of {@link SubmittedJobGraphStore} for testing purposes.
@@ -36,43 +40,45 @@ public class InMemorySubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 	private final Map<JobID, SubmittedJobGraph> storedJobs = new HashMap<>();
 
-	private volatile boolean started;
+	private boolean started;
 
 	@Override
-	public void start(@Nullable SubmittedJobGraphListener jobGraphListener) throws Exception {
+	public synchronized void start(@Nullable SubmittedJobGraphListener jobGraphListener) throws Exception {
 		started = true;
 	}
 
 	@Override
-	public void stop() throws Exception {
+	public synchronized void stop() throws Exception {
 		started = false;
 	}
 
 	@Override
-	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+	public synchronized SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
 		verifyIsStarted();
-		return storedJobs.getOrDefault(jobId, null);
+		return requireNonNull(
+			storedJobs.get(jobId),
+			"Job graph for job " + jobId + " does not exist");
 	}
 
 	@Override
-	public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+	public synchronized void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
 		verifyIsStarted();
 		storedJobs.put(jobGraph.getJobId(), jobGraph);
 	}
 
 	@Override
-	public void removeJobGraph(JobID jobId) throws Exception {
+	public synchronized void removeJobGraph(JobID jobId) throws Exception {
 		verifyIsStarted();
 		storedJobs.remove(jobId);
 	}
 
 	@Override
-	public Collection<JobID> getJobIds() throws Exception {
+	public synchronized Collection<JobID> getJobIds() throws Exception {
 		verifyIsStarted();
-		return storedJobs.keySet();
+		return Collections.unmodifiableSet(new HashSet<>(storedJobs.keySet()));
 	}
 
-	public boolean contains(JobID jobId) {
+	public synchronized boolean contains(JobID jobId) {
 		verifyIsStarted();
 		return storedJobs.containsKey(jobId);
 	}
