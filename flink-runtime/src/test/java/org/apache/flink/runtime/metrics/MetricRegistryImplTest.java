@@ -88,6 +88,26 @@ public class MetricRegistryImplTest extends TestLogger {
 	}
 
 	/**
+	 * Verifies that the reporter name list is correctly used to determine which reporters should be instantiated.
+	 */
+	@Test
+	public void testReporterInclusion() {
+		Configuration config = new Configuration();
+
+		config.setString(MetricOptions.REPORTERS_LIST, "test");
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+
+		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+
+		assertTrue(metricRegistry.getReporters().size() == 1);
+
+		Assert.assertTrue(TestReporter1.wasOpened);
+
+		metricRegistry.shutdown();
+	}
+
+	/**
 	 * Reporter that exposes whether open() was called.
 	 */
 	protected static class TestReporter1 extends TestReporter {

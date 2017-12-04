@@ -333,6 +333,7 @@ reporters will be instantiated on each job and task manager when they are starte
 - `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
+- `metrics.reporters`: (optional) An include list for reporters to instantiate. By default all configured reporters will be used.
 
 All reporters must at least have the `class` property, some allow specifying a reporting `interval`. Below,
 we will list more settings specific to each reporter.
@@ -340,6 +341,8 @@ we will list more settings specific to each reporter.
 Example reporter configuration that specifies multiple reporters:
 
 ```
+metrics.reporters: my_jmx_reporter,my_other_reporter
+
 metrics.reporter.my_jmx_reporter.class: org.apache.flink.metrics.jmx.JMXReporter
 metrics.reporter.my_jmx_reporter.port: 9020-9040
 

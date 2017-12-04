@@ -31,11 +31,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Configuration object for {@link MetricRegistryImpl}.
@@ -46,8 +47,11 @@ public class MetricRegistryConfiguration {
 
 	private static volatile MetricRegistryConfiguration defaultConfiguration;
 
+	// regex pattern to split the defined reporters
+	private static final Pattern reporterListPattern = Pattern.compile("\\s*,\\s*");
+
 	// regex pattern to extract the name from reporter configuration keys, e.g. "rep" from "metrics.reporter.rep.class"
-	private static final Pattern configurationPattern = Pattern.compile(
+	private static final Pattern reporterClassPattern = Pattern.compile(
 		Pattern.quote(ConfigConstants.METRICS_REPORTER_PREFIX) +
 		"([\\S&&[^.]]*)\\." +
 		Pattern.quote(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX));
@@ -114,21 +118,26 @@ public class MetricRegistryConfiguration {
 			delim = '.';
 		}
 
+		Set<String> includedReporters = reporterListPattern.splitAsStream(configuration.getString(MetricOptions.REPORTERS_LIST, ""))
+			.collect(Collectors.toSet());
+
 		// use a TreeSet to make the reporter order deterministic, which is useful for testing
 		Set<String> namedReporters = new TreeSet<>(String::compareTo);
 		// scan entire configuration for "metric.reporter" keys and parse individual reporter configurations
 		for (String key : configuration.keySet()) {
 			if (key.startsWith(ConfigConstants.METRICS_REPORTER_PREFIX)) {
-				Matcher matcher = configurationPattern.matcher(key);
+				Matcher matcher = reporterClassPattern.matcher(key);
 				if (matcher.matches()) {
 					String reporterName = matcher.group(1);
-					if (namedReporters.contains(reporterName)) {
-						LOG.warn("Duplicate class configuration detected for reporter {}.", reporterName);
+					if (includedReporters.isEmpty() || includedReporters.contains(reporterName)) {
+						if (namedReporters.contains(reporterName)) {
+							LOG.warn("Duplicate class configuration detected for reporter {}.", reporterName);
+						} else {
+							namedReporters.add(reporterName);
+						}
 					} else {
-						namedReporters.add(reporterName);
+						LOG.info("Excluding reporter {}.", reporterName);
 					}
-				} else {
-					LOG.warn("Invalid reporter configuration key: {}", key);
 				}
 			}
 		}

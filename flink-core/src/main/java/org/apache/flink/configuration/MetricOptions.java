@@ -25,9 +25,20 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class MetricOptions {
 
 	/**
-	 * @deprecated This configuration key has no effect.
+	 * An optional list of reporter names. If configured, only reporters whose name matches any of the names in the list
+	 * will be started. Otherwise, all reporters that could be found in the configuration will be started.
+	 *
+	 * <p>Example:
+	 * <pre>{@code
+	 * metrics.reporters = foo,bar
+	 *
+	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
+	 * metrics.reporter.foo.interval = 10
+	 *
+	 * metrics.reporter.bar.class = org.apache.flink.metrics.graphite.GraphiteReporter
+	 * metrics.reporter.bar.port = 1337
+	 * }</pre>
 	 */
-	@Deprecated
 	public static final ConfigOption<String> REPORTERS_LIST =
 		key("metrics.reporters")
 			.noDefaultValue();
