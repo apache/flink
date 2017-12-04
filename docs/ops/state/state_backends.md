@@ -26,7 +26,7 @@ Programs written in the [Data Stream API]({{ site.baseurl }}/dev/datastream_api.
 
 - Windows gather elements or aggregates until they are triggered
 - Transformation functions may use the key/value state interface to store values
-- Transformation functions may implement the `Checkpointed` interface to make their local variables fault tolerant
+- Transformation functions may implement the `CheckpointedFunction` interface to make their local variables fault tolerant
 
 See also [state section]({{ site.baseurl }}/dev/stream/state/index.html) in the streaming API guide.
 
