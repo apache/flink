@@ -114,8 +114,8 @@ public class MetricRegistryConfiguration {
 			delim = '.';
 		}
 
-		// use a LinkedHashMap to make the reporter order deterministic, which is useful for testing
-		Set<String> namedReporters = Collections.newSetFromMap(new LinkedHashMap<>(4));
+		// use a TreeSet to make the reporter order deterministic, which is useful for testing
+		Set<String> namedReporters = new TreeSet<>(String::compareTo);
 		// scan entire configuration for "metric.reporter" keys and parse individual reporter configurations
 		for (String key : configuration.keySet()) {
 			if (key.startsWith(ConfigConstants.METRICS_REPORTER_PREFIX)) {
