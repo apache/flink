@@ -20,8 +20,13 @@ package org.apache.flink.streaming.connectors.kafka.partitioner;
 
 import org.apache.flink.util.Preconditions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * A partitioner ensuring that each internal Flink partition ends up in one Kafka partition.
+ * A partitioner ensuring that each internal Flink partition ends up in one Kafka partition of any given topic.
+ * In the case of a target Kafka topic being rescaled and has new partitions, the determined Kafka partition for that
+ * topic is guaranteed to remain identical.
  *
  * <p>Note, one Kafka partition can contain multiple Flink partitions.
  *
@@ -46,13 +51,17 @@ import org.apache.flink.util.Preconditions;
  * 										5
  * </pre>
  *
- * <p>Not all Kafka partitions contain data
+ * <p>Not all Kafka partitions contain data.
  * To avoid such an unbalanced partitioning, use a round-robin kafka partitioner (note that this will
  * cause a lot of network connections between all the Flink instances and all the Kafka brokers).
  */
 public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
+	private static final long serialVersionUID = -6002230350113297637L;
+
 	private int parallelInstanceId;
+
+	private Map<String, Integer> topicToFixedPartition;
 
 	@Override
 	public void open(int parallelInstanceId, int parallelInstances) {
@@ -60,6 +69,7 @@ public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 		Preconditions.checkArgument(parallelInstances > 0, "Number of subtasks must be larger than 0.");
 
 		this.parallelInstanceId = parallelInstanceId;
+		this.topicToFixedPartition = new HashMap<>();
 	}
 
 	@Override
@@ -68,6 +78,13 @@ public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 			partitions != null && partitions.length > 0,
 			"Partitions of the target topic is empty.");
 
-		return partitions[parallelInstanceId % partitions.length];
+		if (topicToFixedPartition.containsKey(targetTopic)) {
+			return topicToFixedPartition.get(targetTopic);
+		}
+
+		int targetPartition = partitions[parallelInstanceId % partitions.length];
+		topicToFixedPartition.put(targetTopic, targetPartition);
+
+		return targetPartition;
 	}
 }
