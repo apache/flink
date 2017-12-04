@@ -36,7 +36,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.io.network.util.TestInfiniteBufferProvider;
+import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
 import org.apache.flink.types.IntValue;
@@ -421,8 +421,7 @@ public class RecordWriterTest {
 			new ArrayDeque[]{new ArrayDeque(), new ArrayDeque()};
 
 		ResultPartitionWriter partition =
-			createCollectingPartitionWriter(queues,
-				new TestInfiniteBufferProvider());
+			createCollectingPartitionWriter(queues, new TestPooledBufferProvider(Integer.MAX_VALUE));
 		RecordWriter<?> writer = new RecordWriter<>(partition);
 
 		writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);

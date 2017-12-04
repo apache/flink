@@ -28,8 +28,9 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 
 import java.io.IOException;
 import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -37,7 +38,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 
 	private final Object bufferCreationLock = new Object();
 
-	private final ArrayBlockingQueue<Buffer> buffers;
+	private final BlockingQueue<Buffer> buffers = new LinkedBlockingDeque<>();
 
 	private final TestBufferFactory bufferFactory;
 
@@ -49,7 +50,6 @@ public class TestPooledBufferProvider implements BufferProvider {
 		checkArgument(poolSize > 0);
 		this.poolSize = poolSize;
 
-		this.buffers = new ArrayBlockingQueue<Buffer>(poolSize);
 		this.bufferRecycler = new PooledBufferProviderRecycler(buffers);
 		this.bufferFactory = new TestBufferFactory(32 * 1024, bufferRecycler);
 	}
@@ -107,6 +107,10 @@ public class TestPooledBufferProvider implements BufferProvider {
 
 	public int getNumberOfAvailableBuffers() {
 		return buffers.size();
+	}
+
+	public int getNumberOfCreatedBuffers() {
+		return bufferFactory.getNumberOfCreatedBuffers();
 	}
 
 	private static class PooledBufferProviderRecycler implements BufferRecycler {
