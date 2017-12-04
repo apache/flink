@@ -26,7 +26,6 @@ import akka.testkit._
 import com.netflix.fenzo.TaskRequest.{AssignedResources, NamedResourceSetRequest}
 import com.netflix.fenzo._
 import com.netflix.fenzo.functions.{Action1, Action2}
-import com.netflix.fenzo.plugins.VMLeaseObject
 import org.apache.flink.api.java.tuple.{Tuple2=>FlinkTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
@@ -130,7 +129,7 @@ class LaunchCoordinatorTest
   }
 
   def lease(offer: Protos.Offer) = {
-    new VMLeaseObject(offer)
+    new Offer(offer)
   }
 
   /**
