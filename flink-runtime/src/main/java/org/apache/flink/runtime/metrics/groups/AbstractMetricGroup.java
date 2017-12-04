@@ -406,12 +406,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	@Override
 	public MetricGroup addGroup(String key, String value) {
-		MetricGroup metricGroup;
-		if (this instanceof GenericKeyMetricGroup) {
-			metricGroup = addGroup(key);
-		} else {
-			metricGroup = addGroup(key, true);
-		}
+		MetricGroup metricGroup = addGroup(key, true);
 		if (metricGroup instanceof GenericKeyMetricGroup) {
 			return ((AbstractMetricGroup) metricGroup).addGroup(value, true);
 		}

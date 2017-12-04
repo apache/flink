@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
 /**
@@ -30,6 +31,11 @@ public class GenericKeyMetricGroup extends GenericMetricGroup {
 
 	GenericKeyMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
 		super(registry, parent, name);
+	}
+
+	@Override
+	public MetricGroup addGroup(String key, String value) {
+		return addGroup(key).addGroup(value);
 	}
 
 	@Override
