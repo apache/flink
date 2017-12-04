@@ -37,12 +37,14 @@ public abstract class AvroUtils {
 
 	private static final String AVRO_KRYO_UTILS = "org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils";
 
-	private static final AvroUtils INSTANCE = loadAvroKryoUtils();
-
-	private static AvroUtils loadAvroKryoUtils() {
+	/**
+	 * Returns either the default {@link AvroUtils} which throw an exception in cases where Avro
+	 * would be needed or loads the specific utils for Avro from flink-avro.
+	 */
+	public static AvroUtils getAvroUtils() {
 		// try and load the special AvroUtils from the flink-avro package
 		try {
-			Class<?> clazz = Class.forName(AVRO_KRYO_UTILS, false, AvroUtils.class.getClassLoader());
+			Class<?> clazz = Class.forName(AVRO_KRYO_UTILS, false, Thread.currentThread().getContextClassLoader());
 			return clazz.asSubclass(AvroUtils.class).getConstructor().newInstance();
 		} catch (ClassNotFoundException e) {
 			// cannot find the utils, return the default implementation
@@ -50,14 +52,6 @@ public abstract class AvroUtils {
 		} catch (Exception e) {
 			throw new RuntimeException("Could not instantiate " + AVRO_KRYO_UTILS + ".", e);
 		}
-	}
-
-	/**
-	 * Returns either the default {@link AvroUtils} which throw an exception in cases where Avro
-	 * would be needed or loads the specific utils for Avro from flink-avro.
-	 */
-	public static AvroUtils getAvroUtils() {
-		return INSTANCE;
 	}
 
 	// ------------------------------------------------------------------------
