@@ -581,20 +581,6 @@ under the License.
 				<version>0.9.10</version>
 				<scope>test</scope>
 			</dependency>
-
-			<dependency>
-				<groupId>org.powermock</groupId>
-				<artifactId>powermock-core</artifactId>
-				<version>${powermock.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.powermock</groupId>
-				<artifactId>powermock-reflect</artifactId>
-				<version>${powermock.version}</version>
-				<scope>test</scope>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
