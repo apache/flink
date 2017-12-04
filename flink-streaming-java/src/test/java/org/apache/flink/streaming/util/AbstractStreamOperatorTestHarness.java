@@ -380,7 +380,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			taskStateSnapshot.putSubtaskStateByOperatorID(operator.getOperatorID(), operatorSubtaskState);
 
 			taskStateManager.setReportedCheckpointId(0);
-			taskStateManager.setTaskStateSnapshotsByCheckpointId(Collections.singletonMap(0L, taskStateSnapshot));
+			taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(Collections.singletonMap(0L, taskStateSnapshot));
 		}
 
 		operator.initializeState();

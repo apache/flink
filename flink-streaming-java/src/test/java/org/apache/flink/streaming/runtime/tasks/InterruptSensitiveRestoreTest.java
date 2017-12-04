@@ -255,7 +255,7 @@ public class InterruptSensitiveRestoreTest {
 
 		TestTaskStateManager taskStateManager = new TestTaskStateManager();
 		taskStateManager.setReportedCheckpointId(taskRestore.getRestoreCheckpointId());
-		taskStateManager.setTaskStateSnapshotsByCheckpointId(
+		taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
 			Collections.singletonMap(
 				taskRestore.getRestoreCheckpointId(),
 				taskRestore.getTaskStateSnapshot()));

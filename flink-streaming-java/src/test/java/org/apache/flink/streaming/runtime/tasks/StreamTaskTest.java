@@ -69,7 +69,6 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
@@ -224,7 +223,7 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testStateBackendLoadingAndClosing() throws Exception {
 		Configuration taskManagerConfig = new Configuration();
-		taskManagerConfig.setString(CheckpointingOptions.STATE_BACKEND, MockStateBackend.class.getName());
+		taskManagerConfig.setString(CheckpointingOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -256,7 +255,7 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testStateBackendClosingOnFailure() throws Exception {
 		Configuration taskManagerConfig = new Configuration();
-		taskManagerConfig.setString(CheckpointingOptions.STATE_BACKEND, MockStateBackend.class.getName());
+		taskManagerConfig.setString(CheckpointingOptions.STATE_BACKEND, TestMemoryStateBackendFactory.class.getName());
 
 		StreamConfig cfg = new StreamConfig(new Configuration());
 		cfg.setStateKeySerializer(mock(TypeSerializer.class));
@@ -523,6 +522,7 @@ public class StreamTaskTest extends TestLogger {
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
 		StreamOperator<?> streamOperator = mock(StreamOperator.class);
+		when(streamOperator.getOperatorID()).thenReturn(new OperatorID(42, 42));
 
 		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
@@ -828,7 +828,7 @@ public class StreamTaskTest extends TestLogger {
 	//  Test Utilities
 	// ------------------------------------------------------------------------
 
-	private static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
+	public static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
 		public NoOpStreamTask(Environment environment) {
 			super(environment, null);
@@ -903,9 +903,17 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	public static Task createTask(
+		Class<? extends AbstractInvokable> invokable,
+		StreamConfig taskConfig,
+		Configuration taskManagerConfig) throws Exception {
+		return createTask(invokable, taskConfig, taskManagerConfig, new TestTaskStateManager());
+	}
+
+	public static Task createTask(
 			Class<? extends AbstractInvokable> invokable,
 			StreamConfig taskConfig,
-			Configuration taskManagerConfig) throws Exception {
+			Configuration taskManagerConfig,
+			TestTaskStateManager taskStateManager) throws Exception {
 
 		BlobCacheService blobService =
 			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
@@ -956,7 +964,7 @@ public class StreamTaskTest extends TestLogger {
 			mock(IOManager.class),
 			network,
 			mock(BroadcastVariableManager.class),
-			new TestTaskStateManager(),
+			taskStateManager,
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
@@ -1026,22 +1034,16 @@ public class StreamTaskTest extends TestLogger {
 	/**
 	 * Mocked state backend factory which returns mocks for the operator and keyed state backends.
 	 */
-	public static final class MockStateBackend implements StateBackendFactory<AbstractStateBackend> {
+	public static final class TestMemoryStateBackendFactory implements StateBackendFactory<AbstractStateBackend> {
 		private static final long serialVersionUID = 1L;
 
 		@Override
 		public AbstractStateBackend createFromConfig(Configuration config) {
-			return new MemoryStateBackend() {
-				@Override
-				public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
-					return spy(super.createOperatorStateBackend(env, operatorIdentifier));
-				}
+			return new TestSpyWrapperStateBackend(createInnerBackend(config));
+		}
 
-				@Override
-				public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(Environment env, JobID jobID, String operatorIdentifier, TypeSerializer<K> keySerializer, int numberOfKeyGroups, KeyGroupRange keyGroupRange, TaskKvStateRegistry kvStateRegistry) {
-					return spy(super.createKeyedStateBackend(env, jobID, operatorIdentifier, keySerializer, numberOfKeyGroups, keyGroupRange, kvStateRegistry));
-				}
-			};
+		protected AbstractStateBackend createInnerBackend(Configuration config) {
+			return new MemoryStateBackend();
 		}
 	}
 

@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Implementation of {@link TaskStateManager} for tests.
@@ -45,7 +46,8 @@ public class TestTaskStateManager implements TaskStateManager {
 	private JobID jobId;
 	private ExecutionAttemptID executionAttemptID;
 
-	private final Map<Long, TaskStateSnapshot> taskStateSnapshotsByCheckpointId;
+	private final Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId;
+	private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
 	private CheckpointResponder checkpointResponder;
 	private OneShotLatch waitForReportLatch;
 
@@ -67,8 +69,11 @@ public class TestTaskStateManager implements TaskStateManager {
 		this.jobId = jobId;
 		this.executionAttemptID = executionAttemptID;
 		this.checkpointResponder = checkpointResponder;
-		this.taskStateSnapshotsByCheckpointId = new HashMap<>();
+		this.jobManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
+		this.taskManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
 		this.reportedCheckpointId = -1L;
+		this.subtaskLocalStateBaseDirectory =
+			new File(System.getProperty("java.io.tmpdir"), "testLocalState_" + UUID.randomUUID());
 	}
 
 	@Override
@@ -78,11 +83,14 @@ public class TestTaskStateManager implements TaskStateManager {
 		@Nullable TaskStateSnapshot acknowledgedState,
 		@Nullable TaskStateSnapshot localState) {
 
-		if (taskStateSnapshotsByCheckpointId != null) {
-			taskStateSnapshotsByCheckpointId.put(
-				checkpointMetaData.getCheckpointId(),
-				acknowledgedState);
-		}
+
+		jobManagerTaskStateSnapshotsByCheckpointId.put(
+			checkpointMetaData.getCheckpointId(),
+			acknowledgedState);
+
+		taskManagerTaskStateSnapshotsByCheckpointId.put(
+			checkpointMetaData.getCheckpointId(),
+			localState);
 
 		if (checkpointResponder != null) {
 			checkpointResponder.acknowledgeCheckpoint(
@@ -102,7 +110,7 @@ public class TestTaskStateManager implements TaskStateManager {
 
 	@Override
 	public OperatorSubtaskState operatorStates(OperatorID operatorID) {
-		TaskStateSnapshot taskStateSnapshot = getLastTaskStateSnapshot();
+		TaskStateSnapshot taskStateSnapshot = getLastJobManagerTaskStateSnapshot();
 		return taskStateSnapshot != null ? taskStateSnapshot.getSubtaskStateByOperatorID(operatorID) : null;
 	}
 
@@ -135,13 +143,24 @@ public class TestTaskStateManager implements TaskStateManager {
 		this.checkpointResponder = checkpointResponder;
 	}
 
-	public Map<Long, TaskStateSnapshot> getTaskStateSnapshotsByCheckpointId() {
-		return taskStateSnapshotsByCheckpointId;
+	public Map<Long, TaskStateSnapshot> getJobManagerTaskStateSnapshotsByCheckpointId() {
+		return jobManagerTaskStateSnapshotsByCheckpointId;
 	}
 
-	public void setTaskStateSnapshotsByCheckpointId(Map<Long, TaskStateSnapshot> taskStateSnapshotsByCheckpointId) {
-		this.taskStateSnapshotsByCheckpointId.clear();
-		this.taskStateSnapshotsByCheckpointId.putAll(taskStateSnapshotsByCheckpointId);
+	public void setJobManagerTaskStateSnapshotsByCheckpointId(
+		Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId) {
+		this.jobManagerTaskStateSnapshotsByCheckpointId.clear();
+		this.jobManagerTaskStateSnapshotsByCheckpointId.putAll(jobManagerTaskStateSnapshotsByCheckpointId);
+	}
+
+	public Map<Long, TaskStateSnapshot> getTaskManagerTaskStateSnapshotsByCheckpointId() {
+		return taskManagerTaskStateSnapshotsByCheckpointId;
+	}
+
+	public void setTaskManagerTaskStateSnapshotsByCheckpointId(
+		Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId) {
+		this.taskManagerTaskStateSnapshotsByCheckpointId.clear();
+		this.taskManagerTaskStateSnapshotsByCheckpointId.putAll(taskManagerTaskStateSnapshotsByCheckpointId);
 	}
 
 	public long getReportedCheckpointId() {
@@ -152,9 +171,15 @@ public class TestTaskStateManager implements TaskStateManager {
 		this.reportedCheckpointId = reportedCheckpointId;
 	}
 
-	public TaskStateSnapshot getLastTaskStateSnapshot() {
-		return taskStateSnapshotsByCheckpointId != null ?
-			taskStateSnapshotsByCheckpointId.get(reportedCheckpointId)
+	public TaskStateSnapshot getLastJobManagerTaskStateSnapshot() {
+		return jobManagerTaskStateSnapshotsByCheckpointId != null ?
+			jobManagerTaskStateSnapshotsByCheckpointId.get(reportedCheckpointId)
+			: null;
+	}
+
+	public TaskStateSnapshot getLastTaskManagerTaskStateSnapshot() {
+		return taskManagerTaskStateSnapshotsByCheckpointId != null ?
+			taskManagerTaskStateSnapshotsByCheckpointId.get(reportedCheckpointId)
 			: null;
 	}
 
@@ -182,6 +207,6 @@ public class TestTaskStateManager implements TaskStateManager {
 		}
 
 		setReportedCheckpointId(latestId);
-		setTaskStateSnapshotsByCheckpointId(taskStateSnapshotsByCheckpointId);
+		setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshotsByCheckpointId);
 	}
 }

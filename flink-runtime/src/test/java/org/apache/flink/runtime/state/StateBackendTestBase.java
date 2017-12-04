@@ -141,7 +141,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
-		return createKeyedBackend(keySerializer, new DummyEnvironment("test", 1, 0));
+		return createKeyedBackend(keySerializer, new DummyEnvironment());
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer, Environment env) throws Exception {
@@ -173,7 +173,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
-		return restoreKeyedBackend(keySerializer, state, new DummyEnvironment("test", 1, 0));
+		return restoreKeyedBackend(keySerializer, state, new DummyEnvironment());
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
@@ -246,7 +246,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@SuppressWarnings("unchecked")
 	public void testBackendUsesRegisteredKryoDefaultSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
 		// cast because our test serializer is not typed to TestPojo
@@ -301,7 +301,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@SuppressWarnings("unchecked")
 	public void testBackendUsesRegisteredKryoDefaultSerializerUsingGetOrCreate() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
 		// cast because our test serializer is not typed to TestPojo
@@ -360,7 +360,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testBackendUsesRegisteredKryoSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
 		env.getExecutionConfig()
@@ -415,7 +415,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@SuppressWarnings("unchecked")
 	public void testBackendUsesRegisteredKryoSerializerUsingGetOrCreate() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
 		env.getExecutionConfig().registerTypeWithKryoSerializer(TestPojo.class, ExceptionThrowingTestSerializer.class);
@@ -479,7 +479,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 		AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE, env);
 
 		TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
@@ -541,7 +541,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 		AbstractKeyedStateBackend<Integer> backend = null;
 
 		try {
@@ -643,7 +643,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 
 		AbstractKeyedStateBackend<Integer> backend = null;
 
@@ -733,7 +733,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testKryoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 
 		// register A first then B
 		env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
@@ -768,7 +768,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// ========== restore snapshot, with a different registration order in the configuration ==========
 
-		env = new DummyEnvironment("test", 1, 0);
+		env = new DummyEnvironment();
 
 		env.getExecutionConfig().registerKryoType(TestNestedPojoClassB.class); // this time register B first
 		env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
@@ -800,7 +800,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	@Test
 	public void testPojoRestoreResilienceWithDifferentRegistrationOrder() throws Exception {
 		CheckpointStreamFactory streamFactory = createStreamFactory();
-		Environment env = new DummyEnvironment("test", 1, 0);
+		Environment env = new DummyEnvironment();
 
 		// register A first then B
 		env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
@@ -835,7 +835,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// ========== restore snapshot, with a different registration order in the configuration ==========
 
-		env = new DummyEnvironment("test", 1, 0);
+		env = new DummyEnvironment();
 
 		env.getExecutionConfig().registerPojoType(TestNestedPojoClassB.class); // this time register B first
 		env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
@@ -1082,7 +1082,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				IntSerializer.INSTANCE,
 				1,
 				new KeyGroupRange(0, 0),
-				new DummyEnvironment("test_op", 1, 0));
+				new DummyEnvironment());
 
 		ValueStateDescriptor<String> desc1 = new ValueStateDescriptor<>("a-string", StringSerializer.INSTANCE);
 		ValueStateDescriptor<Integer> desc2 = new ValueStateDescriptor<>("an-integer", IntSerializer.INSTANCE);
@@ -1115,7 +1115,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				1,
 				new KeyGroupRange(0, 0),
 				Collections.singletonList(snapshot1),
-				new DummyEnvironment("test_op", 1, 0));
+				new DummyEnvironment());
 
 		snapshot1.discardState();
 
@@ -2533,7 +2533,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				IntSerializer.INSTANCE,
 				MAX_PARALLELISM,
 				new KeyGroupRange(0, MAX_PARALLELISM - 1),
-				new DummyEnvironment("test", 1, 0));
+				new DummyEnvironment());
 
 		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
@@ -2578,7 +2578,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				MAX_PARALLELISM,
 				new KeyGroupRange(0, 4),
 				firstHalfKeyGroupStates,
-				new DummyEnvironment("test", 1, 0));
+				new DummyEnvironment());
 
 		// backend for the second half of the key group range
 		final AbstractKeyedStateBackend<Integer> secondHalfBackend = restoreKeyedBackend(
@@ -2586,7 +2586,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				MAX_PARALLELISM,
 				new KeyGroupRange(5, 9),
 				secondHalfKeyGroupStates,
-				new DummyEnvironment("test", 1, 0));
+				new DummyEnvironment());
 
 
 		ValueState<String> firstHalfState = firstHalfBackend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
@@ -2883,7 +2883,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 				IntSerializer.INSTANCE,
 				numberOfKeyGroups,
 				new KeyGroupRange(0, 0),
-				new DummyEnvironment("test_op", 1, 0));
+				new DummyEnvironment());
 
 		{
 			// ValueState
@@ -3026,7 +3026,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	 */
 	@Test
 	public void testQueryableStateRegistration() throws Exception {
-		DummyEnvironment env = new DummyEnvironment("test", 1, 0);
+		DummyEnvironment env = new DummyEnvironment();
 		KvStateRegistry registry = env.getKvStateRegistry();
 
 		CheckpointStreamFactory streamFactory = createStreamFactory();
