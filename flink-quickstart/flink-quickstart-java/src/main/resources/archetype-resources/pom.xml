@@ -63,15 +63,9 @@ under the License.
 			and remove the exclude from there.
 
 		b) Build a jar for running on the cluster:
-			There are two options for creating a jar from this project
 
-			b.1) "mvn clean package" -> this will create a fat jar which contains all
-					dependencies necessary for running the jar created by this pom in a cluster.
-					The "maven-shade-plugin" excludes everything that is provided on a running Flink cluster.
-
-			b.2) "mvn clean package -Pbuild-jar" -> This will also create a fat-jar, but with much
-					nicer dependency exclusion handling. This approach is preferred and leads to
-					much cleaner jar files.
+			"mvn clean package -Pbuild-jar"
+			This will create a fat-jar which contain all dependencies necessary for running the created jar in a cluster.
 	-->
 
 	<dependencies>
@@ -147,30 +141,6 @@ under the License.
 					<scope>provided</scope>
 				</dependency>
 			</dependencies>
-
-			<build>
-				<plugins>
-					<!-- disable the exclusion rules -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<version>3.0.0</version>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<artifactSet>
-										<excludes combine.self="override"></excludes>
-									</artifactSet>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
 		</profile>
 	</profiles>
 
@@ -191,89 +161,7 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<artifactSet>
-								<excludes>
-									<!-- This list contains all dependencies of flink-dist
-									Everything else will be packaged into the fat-jar
-									-->
-									<exclude>org.apache.flink:flink-annotations</exclude>
-									<exclude>org.apache.flink:flink-shaded-hadoop2</exclude>
-									<exclude>org.apache.flink:flink-shaded-curator</exclude>
-									<exclude>org.apache.flink:flink-core</exclude>
-									<exclude>org.apache.flink:flink-java</exclude>
-									<exclude>org.apache.flink:flink-scala_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-runtime_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-optimizer_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-clients_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-avro</exclude>
-									<exclude>org.apache.flink:flink-examples-batch_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-examples-streaming_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-streaming-java_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-streaming-scala_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-scala-shell_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-python</exclude>
-									<exclude>org.apache.flink:flink-metrics-core</exclude>
-									<exclude>org.apache.flink:flink-metrics-jmx</exclude>
-									<exclude>org.apache.flink:flink-statebackend-rocksdb_${scala.binary.version}</exclude>
-									<exclude>org.apache.flink:flink-shaded-jackson</exclude>
-
-									<!-- Also exclude very big transitive dependencies of Flink
-
-									WARNING: You have to remove these excludes if your code relies on other
-									versions of these dependencies.
-
-									-->
-
-									<exclude>log4j:log4j</exclude>
-									<exclude>org.scala-lang:scala-library</exclude>
-									<exclude>org.scala-lang:scala-compiler</exclude>
-									<exclude>org.scala-lang:scala-reflect</exclude>
-									<exclude>com.typesafe.akka:akka-actor_*</exclude>
-									<exclude>com.typesafe.akka:akka-remote_*</exclude>
-									<exclude>com.typesafe.akka:akka-slf4j_*</exclude>
-									<exclude>io.netty:netty-all</exclude>
-									<exclude>io.netty:netty</exclude>
-									<exclude>commons-fileupload:commons-fileupload</exclude>
-									<exclude>org.apache.avro:avro</exclude>
-									<exclude>commons-collections:commons-collections</exclude>
-									<exclude>org.codehaus.jackson:jackson-core-asl</exclude>
-									<exclude>org.codehaus.jackson:jackson-mapper-asl</exclude>
-									<exclude>com.thoughtworks.paranamer:paranamer</exclude>
-									<exclude>org.xerial.snappy:snappy-java</exclude>
-									<exclude>org.apache.commons:commons-compress</exclude>
-									<exclude>org.tukaani:xz</exclude>
-									<exclude>com.esotericsoftware.kryo:kryo</exclude>
-									<exclude>com.esotericsoftware.minlog:minlog</exclude>
-									<exclude>org.objenesis:objenesis</exclude>
-									<exclude>com.twitter:chill_*</exclude>
-									<exclude>com.twitter:chill-java</exclude>
-									<exclude>commons-lang:commons-lang</exclude>
-									<exclude>junit:junit</exclude>
-									<exclude>org.apache.commons:commons-lang3</exclude>
-									<exclude>org.slf4j:slf4j-api</exclude>
-									<exclude>org.slf4j:slf4j-log4j12</exclude>
-									<exclude>log4j:log4j</exclude>
-									<exclude>org.apache.commons:commons-math</exclude>
-									<exclude>org.apache.sling:org.apache.sling.commons.json</exclude>
-									<exclude>commons-logging:commons-logging</exclude>
-									<exclude>commons-codec:commons-codec</exclude>
-									<exclude>stax:stax-api</exclude>
-									<exclude>com.typesafe:config</exclude>
-									<exclude>org.uncommons.maths:uncommons-maths</exclude>
-									<exclude>com.github.scopt:scopt_*</exclude>
-									<exclude>commons-io:commons-io</exclude>
-									<exclude>commons-cli:commons-cli</exclude>
-								</excludes>
-							</artifactSet>
 							<filters>
-								<filter>
-									<artifact>org.apache.flink:*</artifact>
-									<excludes>
-										<!-- exclude shaded google but include shaded curator -->
-										<exclude>org/apache/flink/shaded/com/**</exclude>
-										<exclude>web-docs/**</exclude>
-									</excludes>
-								</filter>
 								<filter>
 									<!-- Do not copy the signatures in the META-INF folder.
 									Otherwise, this might cause SecurityExceptions when using the JAR. -->
