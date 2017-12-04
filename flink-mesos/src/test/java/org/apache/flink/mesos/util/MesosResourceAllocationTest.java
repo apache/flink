@@ -22,15 +22,15 @@ import org.apache.mesos.Protos;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static org.apache.flink.mesos.Utils.UNRESERVED_ROLE;
+import static org.apache.flink.mesos.Utils.cpus;
+import static org.apache.flink.mesos.Utils.ports;
 import static org.apache.flink.mesos.Utils.range;
-import static org.apache.flink.mesos.Utils.ranges;
-import static org.apache.flink.mesos.Utils.scalar;
-import static org.apache.flink.mesos.util.MesosResourceAllocation.UNRESERVED_ROLE;
+import static org.apache.flink.mesos.Utils.resources;
 
 /**
  * Tests {@link MesosResourceAllocation}.
@@ -267,30 +267,6 @@ public class MesosResourceAllocationTest {
 			resources(ports(range(80, 80))),
 			allocation.takeRanges("ports", 2, AS_NO_ROLE));
 		Assert.assertEquals(resources(), allocation.getRemaining());
-	}
-
-	// endregion
-
-	// region Utilities
-
-	private static List<Protos.Resource> resources(Protos.Resource... resources) {
-		return Arrays.asList(resources);
-	}
-
-	private static Protos.Resource cpus(double amount) {
-		return cpus(UNRESERVED_ROLE, amount);
-	}
-
-	private static Protos.Resource cpus(String role, double amount) {
-		return scalar("cpus", role, amount);
-	}
-
-	private static Protos.Resource ports(Protos.Value.Range... ranges) {
-		return ports(UNRESERVED_ROLE, ranges);
-	}
-
-	private static Protos.Resource ports(String role, Protos.Value.Range... ranges) {
-		return ranges("ports", role, ranges);
 	}
 
 	// endregion

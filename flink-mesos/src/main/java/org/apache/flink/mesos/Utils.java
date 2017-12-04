@@ -26,6 +26,7 @@ import org.apache.mesos.Protos;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
@@ -37,6 +38,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Collection of utility methods.
  */
 public class Utils {
+
+	/**
+	 * The special 'unreserved' role.
+	 */
+	public static final String UNRESERVED_ROLE = "*";
+
 	/**
 	 * Construct a Mesos environment variable.
 	 */
@@ -77,7 +84,84 @@ public class Utils {
 	}
 
 	/**
-	 * Construct a scalar resource value.
+	 * Construct a list of resources.
+	 */
+	public static List<Protos.Resource> resources(Protos.Resource... resources) {
+		return Arrays.asList(resources);
+	}
+
+	/**
+	 * Construct a cpu resource.
+	 */
+	public static Protos.Resource cpus(double amount) {
+		return cpus(UNRESERVED_ROLE, amount);
+	}
+
+	/**
+	 * Construct a cpu resource.
+	 */
+	public static Protos.Resource cpus(String role, double amount) {
+		return scalar("cpus", role, amount);
+	}
+
+	/**
+	 * Construct a mem resource.
+	 */
+	public static Protos.Resource mem(double amount) {
+		return mem(UNRESERVED_ROLE, amount);
+	}
+
+	/**
+	 * Construct a mem resource.
+	 */
+	public static Protos.Resource mem(String role, double amount) {
+		return scalar("mem", role, amount);
+	}
+
+	/**
+	 * Construct a network resource.
+	 */
+	public static Protos.Resource network(double amount) {
+		return network(UNRESERVED_ROLE, amount);
+	}
+
+	/**
+	 * Construct a network resource.
+	 */
+	public static Protos.Resource network(String role, double amount) {
+		return scalar("network", role, amount);
+	}
+
+	/**
+	 * Construct a disk resource.
+	 */
+	public static Protos.Resource disk(double amount) {
+		return disk(UNRESERVED_ROLE, amount);
+	}
+
+	/**
+	 * Construct a disk resource.
+	 */
+	public static Protos.Resource disk(String role, double amount) {
+		return scalar("disk", role, amount);
+	}
+
+	/**
+	 * Construct a port resource.
+	 */
+	public static Protos.Resource ports(Protos.Value.Range... ranges) {
+		return ports(UNRESERVED_ROLE, ranges);
+	}
+
+	/**
+	 * Construct a port resource.
+	 */
+	public static Protos.Resource ports(String role, Protos.Value.Range... ranges) {
+		return ranges("ports", role, ranges);
+	}
+
+	/**
+	 * Construct a scalar resource.
 	 */
 	public static Protos.Resource scalar(String name, String role, double value) {
 		return Protos.Resource.newBuilder()

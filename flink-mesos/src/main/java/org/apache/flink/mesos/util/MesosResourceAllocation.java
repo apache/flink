@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 
+import static org.apache.flink.mesos.Utils.UNRESERVED_ROLE;
 import static org.apache.flink.mesos.Utils.print;
 
 /**
@@ -45,7 +46,6 @@ public class MesosResourceAllocation {
 	protected static final Logger LOG = LoggerFactory.getLogger(MesosResourceAllocation.class);
 
 	static final double EPSILON = 1e-5;
-	static final String UNRESERVED_ROLE = "*";
 
 	private final List<Protos.Resource> resources;
 
