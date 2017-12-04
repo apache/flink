@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
@@ -152,6 +153,7 @@ public class CheckpointCache {
 			PendingCheckpointCache pendingCheckpointCache = pendingCacheMap.get(checkpointID);
 			if (pendingCheckpointCache != null) {
 				pendingCheckpointCache.abortSubsumed();
+				pendingCacheMap.remove(checkpointID);
 			}
 		}
 	}
@@ -164,7 +166,7 @@ public class CheckpointCache {
 		synchronized (lock) {
 			final PendingCheckpointCache pendingCheckpointCache;
 			pendingCheckpointCache = pendingCacheMap.remove(checkpointID);
-			if (pendingCheckpointCache != null) {
+			if (pendingCheckpointCache != null && !pendingCheckpointCache.isDiscarded()) {
 				LOG.info("commit pending checkpoint cache: {}", checkpointID);
 				// here will build reference on cache entry
 				CompletedCheckpointCache completedCheckpointCache = new CompletedCheckpointCache(sharedCacheRegistry, checkpointID);
@@ -417,8 +419,13 @@ public class CheckpointCache {
 
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
-			if (!isDiscarded() && outputStream != null) {
-				StreamStateHandle stateHandle = outputStream.closeAndGetHandle();
+			if (!isDiscarded()) {
+				StreamStateHandle stateHandle;
+				if (outputStream != null) {
+					stateHandle = outputStream.closeAndGetHandle();
+				} else {
+					stateHandle = new PlaceholderStreamStateHandle(cacheID)	;
+				}
 				this.cache.registerCacheEntry(checkpointID, cacheID, stateHandle);
 				return stateHandle;
 			} else {
