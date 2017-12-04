@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -63,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -199,7 +201,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				new JobSubmissionException(jobId, "Could not retrieve the job status.", e));
 		}
 
-		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.PENDING) {
+		if (jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.PENDING &&
+			!jobManagerRunners.containsKey(jobId)) {
 			try {
 				submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph, null));
 			} catch (Exception e) {
@@ -250,7 +253,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public CompletableFuture<Collection<JobID>> listJobs(Time timeout) {
-		return CompletableFuture.completedFuture(jobManagerRunners.keySet());
+		return CompletableFuture.completedFuture(
+			Collections.unmodifiableSet(new HashSet<>(jobManagerRunners.keySet())));
 	}
 
 	@Override
@@ -401,7 +405,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	/**
 	 * Recovers all jobs persisted via the submitted job graph store.
 	 */
-	private void recoverJobs() {
+	@VisibleForTesting
+	void recoverJobs() {
 		log.info("Recovering all persisted jobs.");
 
 		getRpcService().execute(
@@ -515,18 +520,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	@Override
 	public void onAddedJobGraph(final JobID jobId) {
-		runAsync(() -> {
+		getRpcService().execute(() -> {
 			final SubmittedJobGraph submittedJobGraph;
 			try {
 				submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
 			} catch (final Exception e) {
-				log.error("Could not submit job {}.", jobId, e);
+				log.error("Could not recover job graph for job {}.", jobId, e);
 				return;
 			}
-
-			if (!jobManagerRunners.containsKey(jobId)) {
-				submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
-			}
+			runAsync(() -> {
+				if (!jobManagerRunners.containsKey(jobId)) {
+					submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
+				}
+			});
 		});
 	}
 
