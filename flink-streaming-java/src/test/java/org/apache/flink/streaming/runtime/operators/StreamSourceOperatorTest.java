@@ -23,6 +23,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -225,6 +227,39 @@ public class StreamSourceOperatorTest {
 	}
 
 	@Test
+	public void testManualWatermarkContextWatermarkMetric() throws Exception {
+
+		// regular stream source operator
+		final StoppableStreamSource<String, InfiniteSource<String>> operator =
+			new StoppableStreamSource<>(new InfiniteSource<String>());
+
+		long watermarkInterval = 10;
+		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+		processingTimeService.setCurrentTime(0);
+
+		setupSourceOperator(operator, TimeCharacteristic.EventTime, watermarkInterval, 0, processingTimeService);
+
+		WatermarkGauge watermarkGauge = new WatermarkGauge();
+
+		SourceFunction.SourceContext<String> sourceContext = StreamSourceContexts.getSourceContext(TimeCharacteristic.EventTime,
+			operator.getContainingTask().getProcessingTimeService(),
+			operator.getContainingTask().getCheckpointLock(),
+			operator.getContainingTask().getStreamStatusMaintainer(),
+			new CollectorOutput<String>(new ArrayList<>(1)),
+			operator.getExecutionConfig().getAutoWatermarkInterval(),
+			-1,
+			watermarkGauge);
+
+		Watermark wm1 = new Watermark(64);
+		sourceContext.emitWatermark(wm1);
+		assertEquals(wm1.getTimestamp(), watermarkGauge.getValue().longValue());
+
+		Watermark wm2 = new Watermark(128);
+		sourceContext.emitWatermark(wm2);
+		assertEquals(wm2.getTimestamp(), watermarkGauge.getValue().longValue());
+	}
+
+	@Test
 	public void testAutomaticWatermarkContext() throws Exception {
 
 		// regular stream source operator
@@ -238,6 +273,7 @@ public class StreamSourceOperatorTest {
 		setupSourceOperator(operator, TimeCharacteristic.IngestionTime, watermarkInterval, 0, processingTimeService);
 
 		final List<StreamElement> output = new ArrayList<>();
+		WatermarkGauge watermarkGauge = new WatermarkGauge();
 
 		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
 			operator.getContainingTask().getProcessingTimeService(),
@@ -245,7 +281,8 @@ public class StreamSourceOperatorTest {
 			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),
 			operator.getExecutionConfig().getAutoWatermarkInterval(),
-			-1);
+			-1,
+			watermarkGauge);
 
 		// periodically emit the watermarks
 		// even though we start from 1 the watermark are still
@@ -263,6 +300,7 @@ public class StreamSourceOperatorTest {
 			Watermark wm = (Watermark) el;
 			assertTrue(wm.getTimestamp() == nextWatermark);
 		}
+		assertEquals(nextWatermark, watermarkGauge.getValue().longValue());
 	}
 
 	// ------------------------------------------------------------------------
@@ -290,6 +328,8 @@ public class StreamSourceOperatorTest {
 		cfg.setStateBackend(new MemoryStateBackend());
 
 		cfg.setTimeCharacteristic(timeChar);
+
+		cfg.setOperatorID(new OperatorID());
 
 		Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
 

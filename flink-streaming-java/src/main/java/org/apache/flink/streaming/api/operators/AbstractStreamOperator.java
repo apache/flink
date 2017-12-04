@@ -38,6 +38,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -59,6 +60,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -159,6 +161,8 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected transient LatencyGauge latencyGauge;
 
+	protected transient WatermarkGauge watermarkGauge;
+
 	// ---------------- time handler ------------------
 
 	protected transient InternalTimeServiceManager<?, ?> timeServiceManager;
@@ -188,6 +192,7 @@ public abstract class AbstractStreamOperator<OUT>
 			if (config.isChainEnd()) {
 				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
 			}
+			this.watermarkGauge = operatorMetricGroup.gauge(MetricNames.IO_CURRENT_LOW_WATERMARK, new WatermarkGauge());
 			this.metrics = operatorMetricGroup;
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating task metrics.", e);
@@ -882,6 +887,7 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	public void processWatermark(Watermark mark) throws Exception {
+		watermarkGauge.setCurrentLowWatermark(mark.getTimestamp());
 		if (timeServiceManager != null) {
 			timeServiceManager.advanceWatermark(mark);
 		}
@@ -929,5 +935,10 @@ public abstract class AbstractStreamOperator<OUT>
 	public int numEventTimeTimers() {
 		return timeServiceManager == null ? 0 :
 			timeServiceManager.numEventTimeTimers();
+	}
+
+	@VisibleForTesting
+	public WatermarkGauge getWatermarkGauge() {
+		return watermarkGauge;
 	}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -50,7 +51,8 @@ public class StreamSourceContexts {
 			StreamStatusMaintainer streamStatusMaintainer,
 			Output<StreamRecord<OUT>> output,
 			long watermarkInterval,
-			long idleTimeout) {
+			long idleTimeout,
+			WatermarkGauge watermarkGauge) {
 
 		final SourceFunction.SourceContext<OUT> ctx;
 		switch (timeCharacteristic) {
@@ -60,7 +62,8 @@ public class StreamSourceContexts {
 					processingTimeService,
 					checkpointLock,
 					streamStatusMaintainer,
-					idleTimeout);
+					idleTimeout,
+					watermarkGauge);
 
 				break;
 			case IngestionTime:
@@ -70,7 +73,8 @@ public class StreamSourceContexts {
 					processingTimeService,
 					checkpointLock,
 					streamStatusMaintainer,
-					idleTimeout);
+					idleTimeout,
+					watermarkGauge);
 
 				break;
 			case ProcessingTime:
@@ -144,6 +148,8 @@ public class StreamSourceContexts {
 		private volatile ScheduledFuture<?> nextWatermarkTimer;
 		private volatile long nextWatermarkTime;
 
+		private final WatermarkGauge watermarkGauge;
+
 		private long lastRecordTime;
 
 		private AutomaticWatermarkContext(
@@ -152,11 +158,13 @@ public class StreamSourceContexts {
 				final ProcessingTimeService timeService,
 				final Object checkpointLock,
 				final StreamStatusMaintainer streamStatusMaintainer,
-				final long idleTimeout) {
+				final long idleTimeout,
+				final WatermarkGauge watermarkGauge) {
 
 			super(timeService, checkpointLock, streamStatusMaintainer, idleTimeout);
 
 			this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
+			this.watermarkGauge = Preconditions.checkNotNull(watermarkGauge);
 
 			Preconditions.checkArgument(watermarkInterval >= 1L, "The watermark interval cannot be smaller than 1 ms.");
 			this.watermarkInterval = watermarkInterval;
@@ -262,6 +270,7 @@ public class StreamSourceContexts {
 							final long watermarkTime = currentTime - (currentTime % watermarkInterval);
 
 							output.emitWatermark(new Watermark(watermarkTime));
+							watermarkGauge.setCurrentLowWatermark(watermarkTime);
 							nextWatermarkTime = watermarkTime + watermarkInterval;
 						}
 					}
@@ -286,18 +295,21 @@ public class StreamSourceContexts {
 
 		private final Output<StreamRecord<T>> output;
 		private final StreamRecord<T> reuse;
+		private final WatermarkGauge watermarkGauge;
 
 		private ManualWatermarkContext(
 				final Output<StreamRecord<T>> output,
 				final ProcessingTimeService timeService,
 				final Object checkpointLock,
 				final StreamStatusMaintainer streamStatusMaintainer,
-				final long idleTimeout) {
+				final long idleTimeout,
+				final WatermarkGauge watermarkGauge) {
 
 			super(timeService, checkpointLock, streamStatusMaintainer, idleTimeout);
 
 			this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
 			this.reuse = new StreamRecord<>(null);
+			this.watermarkGauge = Preconditions.checkNotNull(watermarkGauge);
 		}
 
 		@Override
@@ -313,6 +325,7 @@ public class StreamSourceContexts {
 		@Override
 		protected void processAndEmitWatermark(Watermark mark) {
 			output.emitWatermark(mark);
+			watermarkGauge.setCurrentLowWatermark(mark.getTimestamp());
 		}
 
 		@Override

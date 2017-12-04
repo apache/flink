@@ -112,11 +112,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
 
-	// ---------------- Metrics ------------------
-
-	private long lastEmittedWatermark1;
-	private long lastEmittedWatermark2;
-
 	private Counter numRecordsIn;
 
 	private boolean isFinished;
@@ -181,9 +176,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 
 		this.numInputChannels1 = numInputChannels1;
 		this.numInputChannels2 = inputGate.getNumberOfInputChannels() - numInputChannels1;
-
-		this.lastEmittedWatermark1 = Long.MIN_VALUE;
-		this.lastEmittedWatermark2 = Long.MIN_VALUE;
 
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
@@ -307,13 +299,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
-		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return Math.min(lastEmittedWatermark1, lastEmittedWatermark2);
-			}
-		});
-
 		metrics.gauge("checkpointAlignmentTime", new Gauge<Long>() {
 			@Override
 			public Long getValue() {
@@ -349,7 +334,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					lastEmittedWatermark1 = watermark.getTimestamp();
 					operator.processWatermark1(watermark);
 				}
 			} catch (Exception e) {
@@ -393,7 +377,6 @@ public class StreamTwoInputProcessor<IN1, IN2> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					lastEmittedWatermark2 = watermark.getTimestamp();
 					operator.processWatermark2(watermark);
 				}
 			} catch (Exception e) {
