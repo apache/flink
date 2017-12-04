@@ -47,7 +47,10 @@ public class MetricRegistryConfiguration {
 	private static volatile MetricRegistryConfiguration defaultConfiguration;
 
 	// regex pattern to extract the name from reporter configuration keys, e.g. "rep" from "metrics.reporter.rep.class"
-	private static final Pattern configurationPattern = Pattern.compile("metrics\\.reporter\\.([\\S&&[^.]]*)\\..*");
+	private static final Pattern configurationPattern = Pattern.compile(
+		Pattern.quote(ConfigConstants.METRICS_REPORTER_PREFIX) +
+		"([\\S&&[^.]]*)\\." +
+		Pattern.quote(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX));
 
 	// scope formats for the different components
 	private final ScopeFormats scopeFormats;
@@ -119,7 +122,11 @@ public class MetricRegistryConfiguration {
 				Matcher matcher = configurationPattern.matcher(key);
 				if (matcher.matches()) {
 					String reporterName = matcher.group(1);
-					namedReporters.add(reporterName);
+					if (namedReporters.contains(reporterName)) {
+						LOG.warn("Duplicate class configuration detected for reporter {}.", reporterName);
+					} else {
+						namedReporters.add(reporterName);
+					}
 				} else {
 					LOG.warn("Invalid reporter configuration key: {}", key);
 				}
