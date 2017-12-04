@@ -224,6 +224,9 @@ object AkkaUtils {
         |
         | actor {
         |   guardian-supervisor-strategy = $supervisorStrategy
+        |
+        |   warn-about-java-serializer-usage = off
+        |
         |   default-dispatcher {
         |     throughput = $akkaThroughput
         |
