@@ -36,58 +36,42 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 public class TestPooledBufferProvider implements BufferProvider {
 
-	private final Object bufferCreationLock = new Object();
-
 	private final BlockingQueue<Buffer> buffers = new LinkedBlockingDeque<>();
 
 	private final TestBufferFactory bufferFactory;
 
 	private final PooledBufferProviderRecycler bufferRecycler;
 
-	private final int poolSize;
-
 	public TestPooledBufferProvider(int poolSize) {
 		checkArgument(poolSize > 0);
-		this.poolSize = poolSize;
 
 		this.bufferRecycler = new PooledBufferProviderRecycler(buffers);
-		this.bufferFactory = new TestBufferFactory(32 * 1024, bufferRecycler);
+		this.bufferFactory = new TestBufferFactory(poolSize, 32 * 1024, bufferRecycler);
 	}
 
 	@Override
 	public Buffer requestBuffer() throws IOException {
 		final Buffer buffer = buffers.poll();
-
 		if (buffer != null) {
 			return buffer;
 		}
-		else {
-			synchronized (bufferCreationLock) {
-				if (bufferFactory.getNumberOfCreatedBuffers() < poolSize) {
-					return bufferFactory.create();
-				}
-			}
 
-			return null;
-		}
+		return bufferFactory.create();
 	}
 
 	@Override
 	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		final Buffer buffer = buffers.poll();
-
+		Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
 		}
-		else {
-			synchronized (bufferCreationLock) {
-				if (bufferFactory.getNumberOfCreatedBuffers() < poolSize) {
-					return bufferFactory.create();
-				}
-			}
 
-			return buffers.take();
+		buffer = bufferFactory.create();
+		if (buffer != null) {
+			return buffer;
 		}
+
+		return buffers.take();
 	}
 
 	@Override

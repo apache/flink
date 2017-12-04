@@ -18,18 +18,17 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import org.apache.flink.core.memory.HeapMemorySegment;
-import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.testutils.DiscardingRecycler;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.concurrent.ThreadSafe;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+@ThreadSafe
 public class TestBufferFactory {
 
 	public static final int BUFFER_SIZE = 32 * 1024;
@@ -40,37 +39,31 @@ public class TestBufferFactory {
 
 	private final BufferRecycler bufferRecycler;
 
-	private AtomicInteger numberOfCreatedBuffers = new AtomicInteger();
+	private final int poolSize;
 
-	public TestBufferFactory() {
-		this(BUFFER_SIZE, RECYCLER);
-	}
+	private int numberOfCreatedBuffers = 0;
 
-	public TestBufferFactory(int bufferSize) {
-		this(bufferSize, RECYCLER);
-	}
-
-	public TestBufferFactory(int bufferSize, BufferRecycler bufferRecycler) {
+	public TestBufferFactory(int poolSize, int bufferSize, BufferRecycler bufferRecycler) {
 		checkArgument(bufferSize > 0);
+		this.poolSize = poolSize;
 		this.bufferSize = bufferSize;
 		this.bufferRecycler = checkNotNull(bufferRecycler);
 	}
 
-	public Buffer create() {
-		numberOfCreatedBuffers.incrementAndGet();
+	public synchronized Buffer create() {
+		if (numberOfCreatedBuffers >= poolSize) {
+			return null;
+		}
 
+		numberOfCreatedBuffers++;
 		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), bufferRecycler);
 	}
 
-	public Buffer createFrom(MemorySegment segment) {
-		return new Buffer(segment, bufferRecycler);
+	public synchronized int getNumberOfCreatedBuffers() {
+		return numberOfCreatedBuffers;
 	}
 
-	public int getNumberOfCreatedBuffers() {
-		return numberOfCreatedBuffers.get();
-	}
-
-	public int getBufferSize() {
+	public synchronized int getBufferSize() {
 		return bufferSize;
 	}
 
