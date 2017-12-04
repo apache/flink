@@ -294,7 +294,9 @@ Flink on YARN supports automatic restart of lost YARN containers.
 
 If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
-### Kafka Consumers Partition Discovery
+### Kafka Consumers Topic and Partition Discovery
+
+#### Partition discovery
 
 The Flink Kafka Consumer supports discovering dynamically created Kafka partitions, and consumes them with
 exactly-once guarantees. All partitions discovered after the initial retrieval of partition metadata (i.e., when the
@@ -308,6 +310,57 @@ representing the discovery interval in milliseconds.
 prior to Flink 1.3.x, partition discovery cannot be enabled on the restore run. If enabled, the restore would fail
 with an exception. In this case, in order to use partition discovery, please first take a savepoint in Flink 1.3.x and
 then restore again from that.
+
+#### Topic discovery
+
+At a higher-level, the Flink Kafka Consumer is also capable of discovering topics, based on pattern matching on the
+topic names using regular expressions. See the below for an example:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+Properties properties = new Properties();
+properties.setProperty("bootstrap.servers", "localhost:9092");
+properties.setProperty("group.id", "test");
+
+FlinkKafkaConsumer011<String> myConsumer = new FlinkKafkaConsumer011<>(
+    java.util.regex.Pattern.compile("test-topic-[0-9]"),
+    new SimpleStringSchema(),
+    properties);
+
+DataStream<String> stream = env.addSource(myConsumer);
+...
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val properties = new Properties()
+properties.setProperty("bootstrap.servers", "localhost:9092")
+properties.setProperty("group.id", "test")
+
+val myConsumer = new FlinkKafkaConsumer08[String](
+  java.util.regex.Pattern.compile("test-topic-[0-9]"),
+  new SimpleStringSchema,
+  properties)
+
+val stream = env.addSource(myConsumer)
+...
+{% endhighlight %}
+</div>
+</div>
+
+In the above example, all topics with names that match the specified regular expression
+(starting with `test-topic-` and ending with a single digit) will be subscribed by the consumer
+when the job starts running.
+
+To allow the consumer to discover dynamically created topics after the job started running,
+set a non-negative value for `flink.partition-discovery.interval-millis`. This allows
+the consumer to discover partitions of new topics with names that also match the specified
+pattern.
 
 ### Kafka Consumers Offset Committing Behaviour Configuration
 
