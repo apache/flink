@@ -75,7 +75,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for {@link Utils}.
  */
-
 public class UtilsTest extends TestLogger {
 
 	private static ActorSystem system;
