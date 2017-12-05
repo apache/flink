@@ -61,8 +61,6 @@ under the License.
 
 		a) Adding new dependencies:
 			You can add dependencies to the list below.
-			Please check if the maven-shade-plugin below is filtering out your dependency
-			and remove the exclude from there.
 
 		b) Build a jar for running on the cluster:
 
