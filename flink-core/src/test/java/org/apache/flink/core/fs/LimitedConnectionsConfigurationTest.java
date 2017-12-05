@@ -19,6 +19,8 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
 import org.apache.flink.testutils.TestFileSystem;
 
 import org.junit.Rule;
@@ -29,6 +31,8 @@ import java.net.URI;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -40,6 +44,10 @@ public class LimitedConnectionsConfigurationTest {
 	@Rule
 	public final TemporaryFolder tempDir = new TemporaryFolder();
 
+	/**
+	 * This test validates that the File System is correctly wrapped by the
+	 * file system factories when the corresponding entries are in the configuration.
+	 */
 	@Test
 	public void testConfiguration() throws Exception {
 		final String fsScheme = TestFileSystem.SCHEME;
@@ -79,6 +87,54 @@ public class LimitedConnectionsConfigurationTest {
 		finally {
 			// clear all settings
 			FileSystem.initialize(new Configuration());
+		}
+	}
+
+	/**
+	 * This test checks that the file system connection limiting configuration object
+	 * is properly created.
+	 */
+	@Test
+	public void testConnectionLimitingSettings() {
+		final String scheme = "testscheme";
+
+		// empty config
+		assertNull(ConnectionLimitingSettings.fromConfig(new Configuration(), scheme));
+
+		// only total limit set
+		{
+			Configuration conf = new Configuration();
+			conf.setInteger(CoreOptions.fileSystemConnectionLimit(scheme), 10);
+
+			ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(conf, scheme);
+			assertNotNull(settings);
+			assertEquals(10, settings.limitTotal);
+			assertEquals(0, settings.limitInput);
+			assertEquals(0, settings.limitOutput);
+		}
+
+		// only input limit set
+		{
+			Configuration conf = new Configuration();
+			conf.setInteger(CoreOptions.fileSystemConnectionLimitIn(scheme), 10);
+
+			ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(conf, scheme);
+			assertNotNull(settings);
+			assertEquals(0, settings.limitTotal);
+			assertEquals(10, settings.limitInput);
+			assertEquals(0, settings.limitOutput);
+		}
+
+		// only output limit set
+		{
+			Configuration conf = new Configuration();
+			conf.setInteger(CoreOptions.fileSystemConnectionLimitOut(scheme), 10);
+
+			ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(conf, scheme);
+			assertNotNull(settings);
+			assertEquals(0, settings.limitTotal);
+			assertEquals(0, settings.limitInput);
+			assertEquals(10, settings.limitOutput);
 		}
 	}
 }
