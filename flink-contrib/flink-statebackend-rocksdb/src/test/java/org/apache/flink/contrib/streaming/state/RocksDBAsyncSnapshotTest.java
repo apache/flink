@@ -96,7 +96,7 @@ import static org.mockito.Mockito.verify;
 public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 	/**
-	 * Temporary fold for test
+	 * Temporary fold for test.
 	 */
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
