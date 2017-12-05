@@ -154,8 +154,9 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Requests a remote subpartition.
 	 */
+	@VisibleForTesting
 	@Override
-	void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
+	public void requestSubpartition(int subpartitionIndex) throws IOException, InterruptedException {
 		if (partitionRequestClient == null) {
 			// Create a client and request the partition
 			partitionRequestClient = connectionManager
@@ -229,9 +230,8 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	/**
 	 * Releases all exclusive and floating buffers, closes the partition request client.
 	 */
-	@VisibleForTesting
 	@Override
-	public void releaseAllResources() throws IOException {
+	void releaseAllResources() throws IOException {
 		if (isReleased.compareAndSet(false, true)) {
 
 			// Gather all exclusive buffers and recycle them to global pool in batch, because
@@ -326,7 +326,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 	}
 
-	@VisibleForTesting
 	public int getNumberOfRequiredBuffers() {
 		return numRequiredBuffers;
 	}
@@ -381,17 +380,16 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		// Nothing to do actually.
 	}
 
-	@VisibleForTesting
-	public void increaseCredit(int credit) {
-		unannouncedCredit.addAndGet(credit);
-	}
-
 	// ------------------------------------------------------------------------
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------
 
 	public int getAndResetCredit() {
 		return unannouncedCredit.getAndSet(0);
+	}
+
+	public int getUnannouncedCredit() {
+		return unannouncedCredit.get();
 	}
 
 	public int getNumberOfQueuedBuffers() {
@@ -441,8 +439,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	 *
 	 * @param backlog The number of unsent buffers in the producer's sub partition.
 	 */
-	@VisibleForTesting
-	public void onSenderBacklog(int backlog) throws IOException {
+	void onSenderBacklog(int backlog) throws IOException {
 		int numRequestedBuffers = 0;
 
 		synchronized (bufferQueue) {
