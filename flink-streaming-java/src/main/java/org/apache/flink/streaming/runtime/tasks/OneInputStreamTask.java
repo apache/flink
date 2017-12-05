@@ -23,9 +23,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 import javax.annotation.Nullable;
 
@@ -38,6 +40,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	private StreamInputProcessor<IN> inputProcessor;
 
 	private volatile boolean running = true;
+
+	private final WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
 	/**
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
@@ -84,11 +88,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 					getEnvironment().getIOManager(),
 					getEnvironment().getTaskManagerInfo().getConfiguration(),
 					getStreamStatusMaintainer(),
-					this.headOperator);
-
-			// make sure that stream tasks report their I/O statistics
-			inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
+					this.headOperator,
+					getEnvironment().getMetricGroup().getIOMetricGroup(),
+					inputWatermarkGauge);
 		}
+		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 	}
 
 	@Override
