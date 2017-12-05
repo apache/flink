@@ -26,6 +26,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -569,6 +570,17 @@ public class Graph<K, VV, EV> {
 	}
 
 	/**
+	 * Apply a function to the attribute of each vertex in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @param returnType the explicit return type.
+	 * @return a new graph
+	 */
+	public <NV> Graph<K, NV, EV> mapVertices(final MapFunction<Vertex<K, VV>, NV> mapper, TypeHint<Vertex<K, NV>> returnType) {
+		return mapVertices(mapper, returnType.getTypeInfo());
+	}
+
+	/**
 	 * Apply a function to the attribute of each edge in the graph.
 	 *
 	 * @param mapper the map function to apply.
@@ -617,6 +629,17 @@ public class Graph<K, VV, EV> {
 				.name("Map edges");
 
 		return new Graph<>(this.vertices, mappedEdges, this.context);
+	}
+
+	/**
+	 * Apply a function to the attribute of each edge in the graph.
+	 *
+	 * @param mapper the map function to apply.
+	 * @param returnType the explicit return type.
+	 * @return a new graph
+	 */
+	public <NV> Graph<K, VV, NV> mapEdges(final MapFunction<Edge<K, EV>, NV> mapper, TypeHint<Edge<K, NV>> returnType) {
+		return mapEdges(mapper, returnType.getTypeInfo());
 	}
 
 	/**
