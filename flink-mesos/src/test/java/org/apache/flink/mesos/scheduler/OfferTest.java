@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos.scheduler;
 
+import org.apache.flink.util.TestLogger;
+
 import com.netflix.fenzo.VirtualMachineLease;
 import org.apache.mesos.Protos;
 import org.junit.Assert;
@@ -41,7 +43,7 @@ import static org.apache.flink.mesos.Utils.scalar;
 /**
  * Tests {@link Offer} which adapts a Mesos offer as a lease for use with Fenzo.
  */
-public class OfferTest {
+public class OfferTest extends TestLogger {
 
 	private static final double EPSILON = 1e-5;
 

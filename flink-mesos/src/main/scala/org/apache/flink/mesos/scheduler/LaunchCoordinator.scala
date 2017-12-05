@@ -320,13 +320,14 @@ object LaunchCoordinator {
     *
     * The operations may include reservations and task launches.
     *
+    * @param log the logger to use.
     * @param slaveId the slave associated with the given assignments.
     * @param assignments the task assignments as provided by the optimizer.
     * @param allTasks all known tasks, keyed by taskId.
     * @return the operations to perform.
     */
   private def processAssignments(
-      LOG: Logger,
+      log: Logger,
       slaveId: Protos.SlaveID,
       assignments: VMAssignmentResult,
       allTasks: Map[String, LaunchableTask]): Seq[Protos.Offer.Operation] = {
@@ -334,10 +335,10 @@ object LaunchCoordinator {
     val resources =
       assignments.getLeasesUsed.asScala.flatMap(_.asInstanceOf[Offer].getResources.asScala)
     val allocation = new MesosResourceAllocation(resources.asJava)
-    LOG.debug(s"Assigning resources: ${Utils.print(allocation.getRemaining)}")
+    log.debug(s"Assigning resources: ${Utils.toString(allocation.getRemaining)}")
 
     def taskInfo(assignment: TaskAssignmentResult): Protos.TaskInfo = {
-      LOG.debug(s"Processing task ${assignment.getTaskId}")
+      log.debug(s"Processing task ${assignment.getTaskId}")
       allTasks(assignment.getTaskId).launch(slaveId, allocation)
     }
 
@@ -349,7 +350,7 @@ object LaunchCoordinator {
         ))
       .build()
 
-    LOG.debug(s"Remaining resources: ${Utils.print(allocation.getRemaining)}")
+    log.debug(s"Remaining resources: ${Utils.toString(allocation.getRemaining)}")
 
     Seq(launches)
   }

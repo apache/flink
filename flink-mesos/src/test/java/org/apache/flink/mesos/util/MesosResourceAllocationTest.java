@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos.util;
 
+import org.apache.flink.util.TestLogger;
+
 import org.apache.mesos.Protos;
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,7 +37,7 @@ import static org.apache.flink.mesos.Utils.resources;
 /**
  * Tests {@link MesosResourceAllocation}.
  */
-public class MesosResourceAllocationTest {
+public class MesosResourceAllocationTest extends TestLogger {
 
 	// possible roles
 	private static final String ROLE_A = "A";

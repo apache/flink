@@ -48,6 +48,7 @@ public class Utils {
 	 * Construct a Mesos environment variable.
 	 */
 	public static Protos.Environment.Variable variable(String name, String value) {
+		checkNotNull(name);
 		return Protos.Environment.Variable.newBuilder()
 			.setName(name)
 			.setValue(value)
@@ -58,6 +59,7 @@ public class Utils {
 	 * Construct a Mesos URI.
 	 */
 	public static Protos.CommandInfo.URI uri(URL url, boolean cacheable) {
+		checkNotNull(url);
 		return Protos.CommandInfo.URI.newBuilder()
 			.setValue(url.toExternalForm())
 			.setExtract(false)
@@ -69,6 +71,8 @@ public class Utils {
 	 * Construct a Mesos URI.
 	 */
 	public static Protos.CommandInfo.URI uri(MesosArtifactResolver resolver, ContainerSpecification.Artifact artifact) {
+		checkNotNull(resolver);
+		checkNotNull(artifact);
 		Option<URL> url = resolver.resolve(artifact.dest);
 		if (url.isEmpty()) {
 			throw new IllegalArgumentException("Unresolvable artifact: " + artifact.dest);
@@ -87,6 +91,7 @@ public class Utils {
 	 * Construct a list of resources.
 	 */
 	public static List<Protos.Resource> resources(Protos.Resource... resources) {
+		checkNotNull(resources);
 		return Arrays.asList(resources);
 	}
 
@@ -164,6 +169,9 @@ public class Utils {
 	 * Construct a scalar resource.
 	 */
 	public static Protos.Resource scalar(String name, String role, double value) {
+		checkNotNull(name);
+		checkNotNull(role);
+		checkNotNull(value);
 		return Protos.Resource.newBuilder()
 			.setName(name)
 			.setType(Protos.Value.Type.SCALAR)
@@ -183,6 +191,9 @@ public class Utils {
 	 * Construct a range resource.
 	 */
 	public static Protos.Resource ranges(String name, String role, Protos.Value.Range... ranges) {
+		checkNotNull(name);
+		checkNotNull(role);
+		checkNotNull(ranges);
 		return Protos.Resource.newBuilder()
 			.setName(name)
 			.setType(Protos.Value.Type.RANGES)
@@ -195,6 +206,7 @@ public class Utils {
 	 * Gets a stream of values from a collection of range resources.
 	 */
 	public static LongStream rangeValues(Collection<Protos.Resource> resources) {
+		checkNotNull(resources);
 		return resources.stream()
 			.filter(Protos.Resource::hasRanges)
 			.flatMap(r -> r.getRanges().getRangeList().stream())
@@ -205,27 +217,28 @@ public class Utils {
 	 * Gets a stream of values from a range.
 	 */
 	public static LongStream rangeValues(Protos.Value.Range range) {
+		checkNotNull(range);
 		return LongStream.rangeClosed(range.getBegin(), range.getEnd());
 	}
 
 	/**
 	 * Gets a string representation of a collection of resources.
 	 */
-	public static String print(Collection<Protos.Resource> resources) {
+	public static String toString(Collection<Protos.Resource> resources) {
 		checkNotNull(resources);
-		return resources.stream().map(Utils::print).collect(Collectors.joining("; ", "[", "]"));
+		return resources.stream().map(Utils::toString).collect(Collectors.joining("; ", "[", "]"));
 	}
 
 	/**
 	 * Gets a string representation of a resource.
 	 */
-	public static String print(Protos.Resource resource) {
+	public static String toString(Protos.Resource resource) {
 		checkNotNull(resource);
 		if (resource.hasScalar()) {
 			return String.format("%s(%s):%.1f", resource.getName(), resource.getRole(), resource.getScalar().getValue());
 		}
 		if (resource.hasRanges()) {
-			return String.format("%s(%s):%s", resource.getName(), resource.getRole(), print(resource.getRanges()));
+			return String.format("%s(%s):%s", resource.getName(), resource.getRole(), toString(resource.getRanges()));
 		}
 		return resource.toString();
 	}
@@ -233,15 +246,15 @@ public class Utils {
 	/**
 	 * Gets a string representation of a collection of ranges.
 	 */
-	public static String print(Protos.Value.Ranges ranges) {
+	public static String toString(Protos.Value.Ranges ranges) {
 		checkNotNull(ranges);
-		return ranges.getRangeList().stream().map(Utils::print).collect(Collectors.joining(",", "[", "]"));
+		return ranges.getRangeList().stream().map(Utils::toString).collect(Collectors.joining(",", "[", "]"));
 	}
 
 	/**
 	 * Gets a string representation of a range.
 	 */
-	public static String print(Protos.Value.Range range) {
+	public static String toString(Protos.Value.Range range) {
 		checkNotNull(range);
 		return String.format("%d-%d", range.getBegin(), range.getEnd());
 	}

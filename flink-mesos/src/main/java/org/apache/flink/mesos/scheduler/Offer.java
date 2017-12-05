@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos.scheduler;
 
+import org.apache.flink.mesos.Utils;
+
 import com.netflix.fenzo.VirtualMachineLease;
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
@@ -30,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.mesos.Utils.print;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An adapter class to transform a Mesos resource offer to a Fenzo {@link VirtualMachineLease}.
@@ -49,17 +51,22 @@ public class Offer implements VirtualMachineLease {
 	private final long offeredTime;
 
 	private final List<Protos.Resource> resources;
-	private final Map<String, List<Protos.Resource>> resourceMap;
 	private final Map<String, Protos.Attribute> attributeMap;
 
+	private final double cpuCores;
+	private final double memoryMB;
+	private final double networkMbps;
+	private final double diskMB;
+	private final List<Range> portRanges;
+
 	public Offer(Protos.Offer offer) {
-		this.offer = offer;
+		this.offer = checkNotNull(offer);
 		this.hostname = offer.getHostname();
 		this.vmID = offer.getSlaveId().getValue();
 		this.offeredTime = System.currentTimeMillis();
 
-		this.resources = new ArrayList<>(offer.getResourcesList().size());
-		this.resourceMap = new HashMap<>();
+		List<Protos.Resource> resources = new ArrayList<>(offer.getResourcesList().size());
+		Map<String, List<Protos.Resource>> resourceMap = new HashMap<>();
 		for (Protos.Resource resource : offer.getResourcesList()) {
 			switch (resource.getType()) {
 				case SCALAR:
@@ -72,6 +79,13 @@ public class Offer implements VirtualMachineLease {
 						" in offer, hostname=" + hostname + ", offerId=" + offer.getId());
 			}
 		}
+		this.resources = Collections.unmodifiableList(resources);
+
+		this.cpuCores = aggregateScalarResource(resourceMap, "cpus");
+		this.memoryMB = aggregateScalarResource(resourceMap, "mem");
+		this.networkMbps = aggregateScalarResource(resourceMap, "network");
+		this.diskMB = aggregateScalarResource(resourceMap, "disk");
+		this.portRanges = Collections.unmodifiableList(aggregateRangesResource(resourceMap, "ports"));
 
 		if (offer.getAttributesCount() > 0) {
 			Map<String, Protos.Attribute> attributeMap = new HashMap<>();
@@ -85,7 +99,7 @@ public class Offer implements VirtualMachineLease {
 	}
 
 	public List<Protos.Resource> getResources() {
-		return Collections.unmodifiableList(resources);
+		return resources;
 	}
 
 	@Override
@@ -100,22 +114,22 @@ public class Offer implements VirtualMachineLease {
 
 	@Override
 	public double cpuCores() {
-		return aggregateScalarResource("cpus");
+		return cpuCores;
 	}
 
 	@Override
 	public double memoryMB() {
-		return aggregateScalarResource("mem");
+		return memoryMB;
 	}
 
 	@Override
 	public double networkMbps() {
-		return aggregateScalarResource("network");
+		return networkMbps;
 	}
 
 	@Override
 	public double diskMB() {
-		return aggregateScalarResource("disk");
+		return diskMB;
 	}
 
 	public Protos.Offer getOffer(){
@@ -134,7 +148,7 @@ public class Offer implements VirtualMachineLease {
 
 	@Override
 	public List<Range> portRanges() {
-		return aggregateRangesResource("ports");
+		return portRanges;
 	}
 
 	@Override
@@ -146,7 +160,7 @@ public class Offer implements VirtualMachineLease {
 	public String toString() {
 		return "Offer{" +
 			"offer=" + offer +
-			", resources='" + print(resources) + '\'' +
+			", resources='" + Utils.toString(resources) + '\'' +
 			", hostname='" + hostname + '\'' +
 			", vmID='" + vmID + '\'' +
 			", attributeMap=" + attributeMap +
@@ -154,14 +168,14 @@ public class Offer implements VirtualMachineLease {
 			'}';
 	}
 
-	private double aggregateScalarResource(String resourceName) {
+	private static double aggregateScalarResource(Map<String, List<Protos.Resource>> resourceMap, String resourceName) {
 		if (resourceMap.get(resourceName) == null) {
 			return 0.0;
 		}
 		return resourceMap.get(resourceName).stream().mapToDouble(r -> r.getScalar().getValue()).sum();
 	}
 
-	private List<Range> aggregateRangesResource(String resourceName) {
+	private static List<Range> aggregateRangesResource(Map<String, List<Protos.Resource>> resourceMap, String resourceName) {
 		if (resourceMap.get(resourceName) == null) {
 			return Collections.emptyList();
 		}

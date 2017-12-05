@@ -18,6 +18,8 @@
 
 package org.apache.flink.mesos.util;
 
+import org.apache.flink.mesos.Utils;
+
 import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +33,7 @@ import java.util.ListIterator;
 import java.util.Set;
 
 import static org.apache.flink.mesos.Utils.UNRESERVED_ROLE;
-import static org.apache.flink.mesos.Utils.print;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * An allocation of resources on a particular host from one or more Mesos offers, to be portioned out to tasks.
@@ -62,7 +64,7 @@ public class MesosResourceAllocation {
 	 * @param resources the resources to add to the allocation.
 	 */
 	public MesosResourceAllocation(Collection<Protos.Resource> resources) {
-		this.resources = new ArrayList<>(resources);
+		this.resources = new ArrayList<>(checkNotNull(resources));
 
 		// sort the resources to prefer reserved resources
 		this.resources.sort(Comparator.comparing(r -> UNRESERVED_ROLE.equals(r.getRole())));
@@ -106,7 +108,7 @@ public class MesosResourceAllocation {
 			amount -= amountToTake;
 			result.add(taken);
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Taking {} from {}", amountToTake, print(available));
+				LOG.debug("Taking {} from {}", amountToTake, Utils.toString(available));
 			}
 
 			// keep remaining amount (if any)
@@ -120,7 +122,7 @@ public class MesosResourceAllocation {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Allocated: {}, unsatisfied: {}", print(result), amount);
+			LOG.debug("Allocated: {}, unsatisfied: {}", Utils.toString(result), amount);
 		}
 		return result;
 	}
@@ -168,7 +170,7 @@ public class MesosResourceAllocation {
 				// keep remaining range (if any)
 				long remaining = availableRange.getEnd() - takenRange.getEnd();
 				if (remaining > 0) {
-					j.set(availableRange.toBuilder().setBegin(availableRange.getEnd() - remaining + 1).build());
+					j.set(availableRange.toBuilder().setBegin(takenRange.getEnd() + 1).build());
 				}
 				else {
 					j.remove();
@@ -176,7 +178,7 @@ public class MesosResourceAllocation {
 			}
 			Protos.Resource taken = available.toBuilder().setRanges(Protos.Value.Ranges.newBuilder().addAllRange(takenRanges)).build();
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Taking {} from {}", print(taken.getRanges()), print(available));
+				LOG.debug("Taking {} from {}", Utils.toString(taken.getRanges()), Utils.toString(available));
 			}
 			result.add(taken);
 
@@ -190,7 +192,7 @@ public class MesosResourceAllocation {
 		}
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("Allocated: {}, unsatisfied: {}", print(result), amount);
+			LOG.debug("Allocated: {}, unsatisfied: {}", Utils.toString(result), amount);
 		}
 		return result;
 	}
@@ -198,7 +200,7 @@ public class MesosResourceAllocation {
 	@Override
 	public String toString() {
 		return "MesosResourceAllocation{" +
-			"resources=" + print(resources) +
+			"resources=" + Utils.toString(resources) +
 			'}';
 	}
 }
