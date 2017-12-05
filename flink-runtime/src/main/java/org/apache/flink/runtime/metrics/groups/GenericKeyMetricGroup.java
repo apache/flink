@@ -39,7 +39,7 @@ public class GenericKeyMetricGroup extends GenericMetricGroup {
 	}
 
 	@Override
-	protected GenericMetricGroup createChildGroup(String name) {
+	protected GenericMetricGroup createChildGroupInKeyedContext(String name) {
 		return new GenericValueMetricGroup(registry, this, name);
 	}
 }

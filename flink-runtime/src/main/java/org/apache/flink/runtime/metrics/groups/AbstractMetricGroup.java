@@ -427,7 +427,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 				}
 
 				AbstractMetricGroup newGroup = keyed
-					? createChildGroup(name)
+					? createChildGroupInKeyedContext(name)
 					: new GenericMetricGroup(registry, this, name);
 				AbstractMetricGroup prior = groups.put(name, newGroup);
 				if (prior == null) {
@@ -441,14 +441,14 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 			}
 			else {
 				// return a non-registered group that is immediately closed already
-				GenericMetricGroup closedGroup = createChildGroup(name);
+				GenericMetricGroup closedGroup = createChildGroupInKeyedContext(name);
 				closedGroup.close();
 				return closedGroup;
 			}
 		}
 	}
 
-	protected GenericMetricGroup createChildGroup(String name) {
+	protected GenericMetricGroup createChildGroupInKeyedContext(String name) {
 		return new GenericKeyMetricGroup(registry, this, name);
 	}
 }
