@@ -339,7 +339,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
 		RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
 
-		backend.setDbStoragePath("file://" + temporaryFolder.newFolder().getAbsolutePath());
+		backend.setDbStoragePath(temporaryFolder.newFolder().toURI().toString());
 
 		AbstractKeyedStateBackend<Void> keyedStateBackend = backend.createKeyedStateBackend(
 			env,
