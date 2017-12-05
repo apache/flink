@@ -86,7 +86,7 @@ public class DispatcherTest extends TestLogger {
 
 	private static RpcService rpcService;
 
-	private static final Time timeout = Time.seconds(10L);
+	private static final Time TIMEOUT = Time.seconds(10L);
 
 	private static final JobID TEST_JOB_ID = new JobID();
 
@@ -129,9 +129,9 @@ public class DispatcherTest extends TestLogger {
 	public void setUp() throws Exception {
 		MockitoAnnotations.initMocks(this);
 
-		final JobVertex test = new JobVertex("testVertex");
-		test.setInvokableClass(NoOpInvokable.class);
-		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", test);
+		final JobVertex testVertex = new JobVertex("testVertex");
+		testVertex.setInvokableClass(NoOpInvokable.class);
+		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
 		jobGraph.setAllowQueuedScheduling(true);
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
@@ -174,7 +174,7 @@ public class DispatcherTest extends TestLogger {
 		try {
 			fatalErrorHandler.rethrowError();
 		} finally {
-			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
+			RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
 		}
 	}
 
@@ -191,7 +191,7 @@ public class DispatcherTest extends TestLogger {
 
 		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, timeout);
+		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
 
 		acknowledgeFuture.get();
 
@@ -212,11 +212,11 @@ public class DispatcherTest extends TestLogger {
 		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
 
 		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
-			.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
 		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
 
-		verify(submittedJobGraphStore, Mockito.timeout(timeout.toMilliseconds()).atLeast(1)).getJobIds();
+		verify(submittedJobGraphStore, Mockito.timeout(TIMEOUT.toMilliseconds()).atLeast(1)).getJobIds();
 	}
 
 	/**
@@ -231,7 +231,7 @@ public class DispatcherTest extends TestLogger {
 
 		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		dispatcherGateway.submitJob(jobGraph, timeout).get();
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
 		final SubmittedJobGraph submittedJobGraph = submittedJobGraphStore.recoverJobGraph(TEST_JOB_ID);
@@ -239,14 +239,14 @@ public class DispatcherTest extends TestLogger {
 		// pretend that other Dispatcher has removed job from submittedJobGraphStore
 		submittedJobGraphStore.removeJobGraph(TEST_JOB_ID);
 		dispatcher.onRemovedJobGraph(TEST_JOB_ID);
-		assertThat(dispatcherGateway.listJobs(timeout).get(), empty());
+		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), empty());
 
 		// pretend that other Dispatcher has added a job to submittedJobGraphStore
 		runningJobsRegistry.clearJob(TEST_JOB_ID);
 		submittedJobGraphStore.putJobGraph(submittedJobGraph);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 		dispatcher.submitJobLatch.await();
-		assertThat(dispatcherGateway.listJobs(timeout).get(), hasSize(1));
+		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
@@ -303,7 +303,7 @@ public class DispatcherTest extends TestLogger {
 
 			return new JobManagerRunner(resourceId, jobGraph, configuration, rpcService,
 				highAvailabilityServices, heartbeatServices, jobManagerServices, metricRegistry,
-				onCompleteActions, fatalErrorHandler);
+				onCompleteActions, fatalErrorHandler, null);
 		}
 
 		@Override
