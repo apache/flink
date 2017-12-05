@@ -61,6 +61,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -68,6 +69,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.Mockito;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -143,7 +145,11 @@ public class TaskExecutorITCase extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
-		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager();
+		final File taskExecutorLocalStateRootDir =
+			new File(Preconditions.checkNotNull(ioManager.getSpillingDirectories()[0]), "localState");
+
+		final TaskExecutorLocalStateStoresManager taskStateManager =
+			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDir);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
 			rpcService,

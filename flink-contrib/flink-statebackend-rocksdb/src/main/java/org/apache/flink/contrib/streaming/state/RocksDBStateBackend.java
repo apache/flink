@@ -37,6 +37,8 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
@@ -49,6 +51,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
@@ -103,10 +106,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	@Nullable
 	private OptionsFactory optionsFactory;
 
-	/** True if incremental checkpointing is enabled.
-	 * Null if not yet set, in which case the configuration values will be used. */
-	@Nullable
-	private Boolean enableIncrementalCheckpointing;
+	/** True if incremental checkpointing is enabled. */
+	private TernaryBoolean enableIncrementalCheckpointing;
 
 	// -- runtime values, set on TaskManager when initializing / using the backend
 
@@ -121,6 +122,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized;
+
+	/** Mode for local recovery (disabled by default). */
+	private LocalRecoveryMode localRecoveryMode;
 
 	// ------------------------------------------------------------------------
 
@@ -201,7 +205,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
 	 */
 	public RocksDBStateBackend(StateBackend checkpointStreamBackend) {
-		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
+		this(checkpointStreamBackend, TernaryBoolean.UNDEFINED);
 	}
 
 	/**
@@ -233,8 +237,21 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	@Deprecated
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
+		this(checkpointStreamBackend, TernaryBoolean.fromBoolean(enableIncrementalCheckpointing));
+	}
+
+	/**
+	 * Private constructor to help with the ternary boolean.
+	 *
+	 * @param checkpointStreamBackend The backend write the checkpoint streams to.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
+	 */
+	private RocksDBStateBackend(
+		AbstractStateBackend checkpointStreamBackend,
+		TernaryBoolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
-		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		this.enableIncrementalCheckpointing = checkNotNull(enableIncrementalCheckpointing);
+		this.localRecoveryMode = LocalRecoveryMode.DISABLED;
 	}
 
 	/**
@@ -251,13 +268,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				originalStreamBackend;
 
 		// configure incremental checkpoints
-		if (original.enableIncrementalCheckpointing != null) {
-			this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing;
-		}
-		else {
-			this.enableIncrementalCheckpointing =
-					config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS);
-		}
+		this.enableIncrementalCheckpointing = original.enableIncrementalCheckpointing.resolveUndefined(
+			config.getBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS));
 
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
@@ -281,6 +293,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		// copy remaining settings
 		this.predefinedOptions = original.predefinedOptions;
 		this.optionsFactory = original.optionsFactory;
+		this.localRecoveryMode = original.localRecoveryMode;
 	}
 
 	// ------------------------------------------------------------------------
@@ -407,6 +420,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		File instanceBasePath =
 				new File(getNextStoragePath(), "job-" + jobId + "_op-" + operatorIdentifier + "_uuid-" + UUID.randomUUID());
 
+		File subtaskLocalStateBaseDirectory = env.getTaskStateManager().getSubtaskLocalStateBaseDirectory();
+
+		LocalRecoveryConfig localRecoveryConfig =
+			new LocalRecoveryConfig(localRecoveryMode, subtaskLocalStateBaseDirectory);
+
 		return new RocksDBKeyedStateBackend<>(
 				operatorIdentifier,
 				env.getUserClassLoader(),
@@ -418,7 +436,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getExecutionConfig(),
-				isIncrementalCheckpointsEnabled());
+				isIncrementalCheckpointsEnabled(),
+				localRecoveryConfig);
 	}
 
 	@Override
@@ -511,12 +530,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * Gets whether incremental checkpoints are enabled for this state backend.
 	 */
 	public boolean isIncrementalCheckpointsEnabled() {
-		if (enableIncrementalCheckpointing != null) {
-			return enableIncrementalCheckpointing;
-		}
-		else {
-			return CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue();
-		}
+		return enableIncrementalCheckpointing.getOrDefault(CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue());
 	}
 
 	// ------------------------------------------------------------------------
@@ -609,6 +623,20 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		return opt;
 	}
 
+	/**
+	 * Returns the currently configured local recovery mode.
+	 */
+	public LocalRecoveryMode getLocalRecoveryMode() {
+		return localRecoveryMode;
+	}
+
+	/**
+	 * Sets the local recovery mode.
+	 */
+	public void setLocalRecoveryMode(LocalRecoveryMode localRecoveryMode) {
+		this.localRecoveryMode = Preconditions.checkNotNull(localRecoveryMode);
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
@@ -687,5 +715,54 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		final Field initField = org.rocksdb.NativeLibraryLoader.class.getDeclaredField("initialized");
 		initField.setAccessible(true);
 		initField.setBoolean(null, false);
+	}
+
+	/**
+	 * This enum represents the different modes for local recovery.
+	 */
+	public enum LocalRecoveryMode {
+		DISABLED, ENABLE_FILE_BASED
+	}
+
+	/**
+	 * This class encapsulates the configuration for local recovery of this backend.
+	 */
+	public static final class LocalRecoveryConfig implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+		private static final LocalRecoveryConfig DISABLED_SINGLETON =
+			new LocalRecoveryConfig(LocalRecoveryMode.DISABLED, null);
+
+		private final LocalRecoveryMode localRecoveryMode;
+		private final File localStateDirectory;
+
+		LocalRecoveryConfig(LocalRecoveryMode localRecoveryMode, File localStateDirectory) {
+			this.localRecoveryMode = Preconditions.checkNotNull(localRecoveryMode);
+			this.localStateDirectory = localStateDirectory;
+			if (LocalRecoveryMode.ENABLE_FILE_BASED.equals(localRecoveryMode) && localStateDirectory == null) {
+				throw new IllegalStateException("Local state directory must be specified if local recovery mode is " +
+					LocalRecoveryMode.ENABLE_FILE_BASED);
+			}
+		}
+
+		public LocalRecoveryMode getLocalRecoveryMode() {
+			return localRecoveryMode;
+		}
+
+		public File getLocalStateDirectory() {
+			return localStateDirectory;
+		}
+
+		public static LocalRecoveryConfig disabled() {
+			return DISABLED_SINGLETON;
+		}
+
+		@Override
+		public String toString() {
+			return "LocalRecoveryConfig{" +
+				"localRecoveryMode=" + localRecoveryMode +
+				", localStateDirectory=" + localStateDirectory +
+				'}';
+		}
 	}
 }

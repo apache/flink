@@ -71,7 +71,7 @@ import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, Task
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.NetUtils
+import org.apache.flink.util.{NetUtils, Preconditions}
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
@@ -1195,8 +1195,14 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
+      //TODO: make configurable, this is just the future fallback case,
+      // integrate with ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY
+      val taskExecutorLocalStateRootDir =
+        new File(Preconditions.checkNotNull(ioManager.getSpillingDirectories()(0)), "localState")
+
       // TODO: wire this so that the manager survives the end of the task
-      val taskExecutorLocalStateStoresManager = new TaskExecutorLocalStateStoresManager
+      val taskExecutorLocalStateStoresManager =
+        new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDir)
 
       val localStateStore = taskExecutorLocalStateStoresManager.localStateStoreForTask(
         jobInformation.getJobId,

@@ -27,6 +27,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
+
 /**
  * This interface provides methods to report and retrieve state for a task.
  *
@@ -60,4 +62,9 @@ public interface TaskStateManager extends CheckpointListener {
 	 * @return previous state for the operator. Null if no previous state exists.
 	 */
 	OperatorSubtaskState operatorStates(OperatorID operatorID);
+
+	/**
+	 * Returns the base directory for all file-based local state of the owning subtask.
+	 */
+	File getSubtaskLocalStateBaseDirectory();
 }

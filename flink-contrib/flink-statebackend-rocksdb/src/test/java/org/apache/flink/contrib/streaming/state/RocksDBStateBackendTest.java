@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
@@ -46,6 +47,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -232,7 +234,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				1,
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
-				enableIncrementalCheckpointing);
+				enableIncrementalCheckpointing,
+				RocksDBStateBackend.LocalRecoveryConfig.disabled());
 
 			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
@@ -473,6 +476,45 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				IOUtils.closeQuietly(backend);
 				backend.dispose();
 			}
+		}
+	}
+
+	@Test
+	public void testLocalRecoveryConfigurationForwarding() throws Exception {
+
+		RocksDBStateBackend stateBackend = getStateBackend();
+		Assert.assertEquals(RocksDBStateBackend.LocalRecoveryMode.DISABLED, stateBackend.getLocalRecoveryMode());
+		stateBackend.setLocalRecoveryMode(RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED);
+		Assert.assertEquals(RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED, stateBackend.getLocalRecoveryMode());
+
+		DummyEnvironment environment = new DummyEnvironment();
+		File tmpDir = tempFolder.newFolder();
+		TestTaskStateManager taskStateManager = new TestTaskStateManager();
+		taskStateManager.setSubtaskLocalStateBaseDirectory(tmpDir);
+		environment.setTaskStateManager(taskStateManager);
+
+		RocksDBKeyedStateBackend<Integer> keyedBackend =
+			(RocksDBKeyedStateBackend<Integer>) stateBackend.createKeyedStateBackend(
+				environment,
+				new JobID(),
+				"test",
+				IntSerializer.INSTANCE,
+				1,
+				new KeyGroupRange(0, 0),
+				null);
+
+		try {
+			RocksDBStateBackend.LocalRecoveryConfig localRecoveryConfig = keyedBackend.getLocalRecoveryConfig();
+			Assert.assertEquals(
+				RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED,
+				localRecoveryConfig.getLocalRecoveryMode());
+
+			Assert.assertEquals(
+				tmpDir,
+				localRecoveryConfig.getLocalStateDirectory());
+		} finally {
+			IOUtils.closeQuietly(keyedBackend);
+			keyedBackend.dispose();
 		}
 	}
 

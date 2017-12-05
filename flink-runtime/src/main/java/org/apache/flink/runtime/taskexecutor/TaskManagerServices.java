@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
@@ -64,6 +65,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
  */
 public class TaskManagerServices {
 	private static final Logger LOG = LoggerFactory.getLogger(TaskManagerServices.class);
+
+	@VisibleForTesting
+	public static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState";
 
 	/** TaskManager services. */
 	private final TaskManagerLocation taskManagerLocation;
@@ -197,7 +201,13 @@ public class TaskManagerServices {
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
-		final TaskExecutorLocalStateStoresManager taskStateManager = new TaskExecutorLocalStateStoresManager();
+
+		final File taskExecutorLocalStateRootDir =
+			new File(taskManagerServicesConfiguration.getLocalStateRootDir(), LOCAL_STATE_SUB_DIRECTORY_ROOT);
+
+		final TaskExecutorLocalStateStoresManager taskStateManager =
+			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDir);
+
 		return new TaskManagerServices(
 			taskManagerLocation,
 			memoryManager,

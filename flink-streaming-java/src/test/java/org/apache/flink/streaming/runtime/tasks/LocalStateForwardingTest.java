@@ -43,6 +43,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -73,7 +74,7 @@ public class LocalStateForwardingTest {
 			new Configuration(),
 			new Configuration(),
 			new ExecutionConfig(),
-			1024*1024,
+			1024 * 1024,
 			new MockInputSplitProvider(),
 			0,
 			taskStateManager);
@@ -156,30 +157,38 @@ public class LocalStateForwardingTest {
 			}
 		};
 
-		TaskLocalStateStore taskLocalStateStore = new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx) {
-			@Override
-			public void storeLocalState(
-				@Nonnull CheckpointMetaData checkpointMetaData,
-				@Nullable TaskStateSnapshot localState) {
+		TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-				Assert.assertEquals(tm, localState);
-				tmReported.set(true);
-			}
-		};
+		try {
+			TaskLocalStateStore taskLocalStateStore =
+				new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx, temporaryFolder.newFolder()) {
+					@Override
+					public void storeLocalState(
+						@Nonnull CheckpointMetaData checkpointMetaData,
+						@Nullable TaskStateSnapshot localState) {
 
-		TaskStateManagerImpl taskStateManager =
-			new TaskStateManagerImpl(
-				jobID,
-				executionAttemptID,
-				taskLocalStateStore,
-				null,
-				checkpointResponder);
+						Assert.assertEquals(tm, localState);
+						tmReported.set(true);
+					}
+				};
 
-		taskStateManager.reportTaskStateSnapshots(
-			checkpointMetaData,
-			checkpointMetrics,
-			jm,
-			tm);
+			TaskStateManagerImpl taskStateManager =
+				new TaskStateManagerImpl(
+					jobID,
+					executionAttemptID,
+					taskLocalStateStore,
+					null,
+					checkpointResponder);
+
+			taskStateManager.reportTaskStateSnapshots(
+				checkpointMetaData,
+				checkpointMetrics,
+				jm,
+				tm);
+		} catch (Exception ex) {
+			temporaryFolder.delete();
+			throw new RuntimeException(ex);
+		}
 
 		Assert.assertTrue("Reporting for JM state was not called.", jmReported.get());
 		Assert.assertTrue("Reporting for TM state was not called.", tmReported.get());

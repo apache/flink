@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -40,8 +43,12 @@ public class TaskExecutorLocalStateStoresManager {
 	 */
 	private final Map<JobID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateManagers;
 
-	public TaskExecutorLocalStateStoresManager() {
+	/** This is the root directory for all local state of this task manager / executor. */
+	private final File localStateRootDirectory;
+
+	public TaskExecutorLocalStateStoresManager(File localStateRootDirectory) {
 		this.taskStateManagers = new HashMap<>();
+		this.localStateRootDirectory = Preconditions.checkNotNull(localStateRootDirectory);
 	}
 
 	public TaskLocalStateStore localStateStoreForTask(
@@ -56,7 +63,7 @@ public class TaskExecutorLocalStateStoresManager {
 			this.taskStateManagers.computeIfAbsent(jobId, k -> new HashMap<>());
 
 		return taskStateManagers.computeIfAbsent(
-			taskKey, k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex));
+			taskKey, k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex, localStateRootDirectory));
 	}
 
 	public void releaseJob(JobID jobID) {
@@ -64,25 +71,42 @@ public class TaskExecutorLocalStateStoresManager {
 		Map<JobVertexSubtaskKey, TaskLocalStateStore> cleanupLocalStores = taskStateManagers.remove(jobID);
 
 		if (cleanupLocalStores != null) {
-			doRelease(cleanupLocalStores.values());
+//			doRelease(cleanupLocalStores.values());
 		}
 	}
 
 	public void releaseAll() {
 
 		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : taskStateManagers.values()) {
-			doRelease(stateStoreMap.values());
+//			doRelease(stateStoreMap.values());
 		}
 
 		taskStateManagers.clear();
 	}
 
-	private void doRelease(Iterable<TaskLocalStateStore> toRelease) {
+	private void doRelease(Iterable<TaskLocalStateStore> toRelease) throws Exception {
+
 		if (toRelease != null) {
+
+			Exception collectedExceptions = null;
+
 			for (TaskLocalStateStore stateStore : toRelease) {
-				stateStore.dispose();
+				try {
+					stateStore.dispose();
+				} catch (Exception disposeEx) {
+					collectedExceptions = ExceptionUtils.firstOrSuppressed(disposeEx, collectedExceptions);
+				}
+			}
+
+			if(collectedExceptions != null) {
+				throw collectedExceptions;
 			}
 		}
+	}
+
+	@VisibleForTesting
+	File getLocalStateRootDirectory() {
+		return localStateRootDirectory;
 	}
 
 	private static final class JobVertexSubtaskKey {

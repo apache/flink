@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -313,7 +314,8 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 				numberOfKeyGroups,
 				keyGroupRange,
 				isUsingAsynchronousSnapshots(),
-				env.getExecutionConfig());
+				env.getExecutionConfig(),
+			    FsStateBackend.LocalRecoveryConfig.disabled());
 	}
 
 	// ------------------------------------------------------------------------

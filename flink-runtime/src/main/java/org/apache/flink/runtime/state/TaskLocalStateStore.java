@@ -22,9 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This class will service as a task-manager-level local storage for local checkpointed state. The purpose is to provide
@@ -46,26 +52,63 @@ public class TaskLocalStateStore {
 	/** */
 	private final int subtaskIndex;
 
+	/** */
+	private final Map<Long, TaskStateSnapshot> storedTaskStateByCheckpointID;
+
+	/** This is the base directory for all local state of the subtask that owns this {@link TaskLocalStateStore}. */
+	private final File subtaskLocalStateBaseDirectory;
+
 	public TaskLocalStateStore(
 		JobID jobID,
 		JobVertexID jobVertexID,
-		int subtaskIndex) {
+		int subtaskIndex,
+		File localStateRootDir) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
 		this.subtaskIndex = subtaskIndex;
+		this.storedTaskStateByCheckpointID = new HashMap<>();
+		this.subtaskLocalStateBaseDirectory =
+			new File(localStateRootDir, createSubtaskPath(jobID, jobVertexID, subtaskIndex));
+	}
+
+	static String createSubtaskPath(JobID jobID, JobVertexID jobVertexID, int subtaskIndex) {
+		return "jid-" + jobID + "_vtx-" + jobVertexID + "_sti-" + subtaskIndex;
 	}
 
 	public void storeLocalState(
 		@Nonnull CheckpointMetaData checkpointMetaData,
 		@Nullable TaskStateSnapshot localState) {
 
-		if (localState != null) {
-			throw new UnsupportedOperationException("Implement this before actually providing local state!");
+		TaskStateSnapshot previous =
+			storedTaskStateByCheckpointID.put(checkpointMetaData.getCheckpointId(), localState);
+
+		if (previous != null) {
+			throw new IllegalStateException("Found previously registered local state for checkpoint with id " +
+				checkpointMetaData.getCheckpointId() + "! This indicated a problem.");
 		}
 	}
 
-	public void dispose() {
-		//TODO
+	public void dispose() throws Exception {
+
+		Exception collectedException = null;
+
+		for (TaskStateSnapshot snapshot : storedTaskStateByCheckpointID.values()) {
+			try {
+				snapshot.discardState();
+			} catch (Exception discardEx) {
+				collectedException = ExceptionUtils.firstOrSuppressed(discardEx, collectedException);
+			}
+		}
+
+		if (collectedException != null) {
+			throw collectedException;
+		}
+
+		FileUtils.deleteDirectoryQuietly(subtaskLocalStateBaseDirectory);
+	}
+
+	public File getSubtaskLocalStateBaseDirectory() {
+		return subtaskLocalStateBaseDirectory;
 	}
 }

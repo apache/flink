@@ -56,6 +56,7 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalFoldingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
@@ -112,6 +113,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	private final Map<String, RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> restoredKvStateMetaInfos;
 
 	/**
+	 * The configuration for local recovery.
+	 */
+	private final FsStateBackend.LocalRecoveryConfig localRecoveryConfig;
+
+	/**
 	 * Determines whether or not we run snapshots asynchronously. This impacts the choice of the underlying
 	 * {@link StateTable} implementation.
 	 */
@@ -124,9 +130,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			int numberOfKeyGroups,
 			KeyGroupRange keyGroupRange,
 			boolean asynchronousSnapshots,
-			ExecutionConfig executionConfig) {
+			ExecutionConfig executionConfig,
+			FsStateBackend.LocalRecoveryConfig localRecoveryConfig) {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
+		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
 		this.asynchronousSnapshots = asynchronousSnapshots;
 		LOG.info("Initializing heap keyed state backend with stream factory.");
 
@@ -622,5 +630,10 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	@Override
 	public boolean supportsAsynchronousSnapshots() {
 		return asynchronousSnapshots;
+	}
+
+	@VisibleForTesting
+	public FsStateBackend.LocalRecoveryConfig getLocalRecoveryConfig() {
+		return localRecoveryConfig;
 	}
 }

@@ -70,6 +70,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -137,9 +138,12 @@ public class JvmExitOnFatalErrorTest {
 
 			System.err.println("creating task");
 
+			TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 			// we suppress process exits via errors here to not
-			// have a test that exits accidentally due to a programming error 
+			// have a test that exits accidentally due to a programming error
 			try {
+				temporaryFolder.create();
 				final Configuration taskManagerConfig = new Configuration();
 				taskManagerConfig.setBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
 
@@ -172,7 +176,9 @@ public class JvmExitOnFatalErrorTest {
 				BlobCacheService blobService =
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
-				final TaskLocalStateStore localStateStore = new TaskLocalStateStore(jid, jobVertexId, 0);
+				final TaskLocalStateStore localStateStore =
+					new TaskLocalStateStore(jid, jobVertexId, 0, temporaryFolder.newFolder());
+
 				final TaskStateManager slotStateManager =
 					new TaskStateManagerImpl(
 						jid,
@@ -218,6 +224,7 @@ public class JvmExitOnFatalErrorTest {
 			catch (Throwable t) {
 				System.err.println("ERROR STARTING TASK");
 				t.printStackTrace();
+				temporaryFolder.delete();
 			}
 
 			System.err.println("parking the main thread");

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -76,7 +77,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 			super(operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
-				numberOfKeyGroups, keyGroupRange, executionConfig, false);
+				numberOfKeyGroups, keyGroupRange, executionConfig, false,
+				RocksDBStateBackend.LocalRecoveryConfig.disabled());
 		}
 
 		@Override
@@ -152,7 +154,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 				LongSerializer.INSTANCE,
 				1, new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
-				false);
+				false,
+				RocksDBStateBackend.LocalRecoveryConfig.disabled());
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 

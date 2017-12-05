@@ -25,17 +25,24 @@ import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
 
 import static org.mockito.Mockito.mock;
 
 public class TaskStateManagerImplTest {
 
+	/**
+	 * TODO complete this test to also include the local state part!!
+	 */
 	@Test
 	public void testStateReportingAndRetrieving() {
 
@@ -97,6 +104,39 @@ public class TaskStateManagerImplTest {
 		Assert.assertNull(taskStateManager.operatorStates(operatorID_3));
 	}
 
+	/**
+	 * This tests if the {@link TaskStateManager} properly returns the the subtask local state dir from the
+	 * corresponding {@link TaskLocalStateStore}.
+	 */
+	@Test
+	public void testForwardingSubtaskLocalStateBaseDirFromLocalStateStore() throws IOException {
+		JobID jobID = new JobID(42L, 43L);
+		JobVertexID jobVertexID = new JobVertexID(12L, 34L);
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID(23L, 24L);
+		TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
+
+		TemporaryFolder tmpFolder = new TemporaryFolder();
+
+		try {
+			tmpFolder.create();
+			TaskLocalStateStore taskLocalStateStore =
+				new TaskLocalStateStore(jobID, jobVertexID, 13, tmpFolder.newFolder());
+
+			TaskStateManager taskStateManager = taskStateManager(
+				jobID,
+				executionAttemptID,
+				checkpointResponderMock,
+				null,
+				taskLocalStateStore);
+
+			Assert.assertEquals(
+				taskLocalStateStore.getSubtaskLocalStateBaseDirectory(),
+				taskStateManager.getSubtaskLocalStateBaseDirectory());
+		} finally {
+			tmpFolder.delete();
+		}
+	}
+
 	public static TaskStateManager taskStateManager(
 		JobID jobID,
 		ExecutionAttemptID executionAttemptID,
@@ -106,10 +146,25 @@ public class TaskStateManagerImplTest {
 		// for now just a mock because this is not yet implemented
 		TaskLocalStateStore taskLocalStateStore = mock(TaskLocalStateStore.class);
 
+		return taskStateManager(
+			jobID,
+			executionAttemptID,
+			checkpointResponderMock,
+			jobManagerTaskRestore,
+			taskLocalStateStore);
+	}
+
+	public static TaskStateManager taskStateManager(
+		JobID jobID,
+		ExecutionAttemptID executionAttemptID,
+		CheckpointResponder checkpointResponderMock,
+		JobManagerTaskRestore jobManagerTaskRestore,
+		TaskLocalStateStore localStateStore) {
+
 		return new TaskStateManagerImpl(
 			jobID,
 			executionAttemptID,
-			taskLocalStateStore,
+			localStateStore,
 			jobManagerTaskRestore,
 			checkpointResponderMock);
 	}

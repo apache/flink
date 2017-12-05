@@ -46,7 +46,6 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
@@ -159,8 +158,6 @@ public class StreamMockEnvironment implements Environment {
 
 		KvStateRegistry registry = new KvStateRegistry();
 		this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
-
-		final TaskLocalStateStore localStateStore = new TaskLocalStateStore(jobID, getJobVertexId(), subtaskIndex);
 	}
 
 	public StreamMockEnvironment(

@@ -28,10 +28,12 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -50,6 +52,7 @@ public class TestTaskStateManager implements TaskStateManager {
 	private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
 	private CheckpointResponder checkpointResponder;
 	private OneShotLatch waitForReportLatch;
+	private File subtaskLocalStateBaseDirectory;
 
 	public TestTaskStateManager() {
 		this(new JobID(), new ExecutionAttemptID(), new TestCheckpointResponder());
@@ -112,6 +115,16 @@ public class TestTaskStateManager implements TaskStateManager {
 	public OperatorSubtaskState operatorStates(OperatorID operatorID) {
 		TaskStateSnapshot taskStateSnapshot = getLastJobManagerTaskStateSnapshot();
 		return taskStateSnapshot != null ? taskStateSnapshot.getSubtaskStateByOperatorID(operatorID) : null;
+	}
+
+	@Override
+	public File getSubtaskLocalStateBaseDirectory() {
+		return Preconditions.checkNotNull(subtaskLocalStateBaseDirectory,
+			"Local state directory was never set for this test object!");
+	}
+
+	public void setSubtaskLocalStateBaseDirectory(File subtaskLocalStateBaseDirectory) {
+		this.subtaskLocalStateBaseDirectory = subtaskLocalStateBaseDirectory;
 	}
 
 	@Override

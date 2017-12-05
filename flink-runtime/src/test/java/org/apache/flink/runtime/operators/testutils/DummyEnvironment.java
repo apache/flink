@@ -60,6 +60,10 @@ public class DummyEnvironment implements Environment {
 	private TaskStateManager taskStateManager;
 	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
+	public DummyEnvironment() {
+		this("Test Job", 1, 0, 1);
+	}
+
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this(taskName, numSubTasks, subTaskIndex, numSubTasks);
 	}
