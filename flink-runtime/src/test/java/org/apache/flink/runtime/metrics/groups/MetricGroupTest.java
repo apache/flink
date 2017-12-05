@@ -92,8 +92,8 @@ public class MetricGroupTest extends TestLogger {
 		Map<String, String> variables1 = subgroup1.getAllVariables();
 
 		assertNotNull(subgroup1);
-		assertTrue(subgroup1 instanceof GenericValueMetricGroup);
-		assertTrue(((AbstractMetricGroup) subgroup1).parent instanceof GenericKeyMetricGroup);
+		assertEquals(GenericValueMetricGroup.class, subgroup1.getClass());
+		assertEquals(GenericKeyMetricGroup.class, ((AbstractMetricGroup) subgroup1).parent.getClass());
 		assertTrue(variables1.containsKey(ScopeFormat.asVariable(keyName)));
 		assertEquals(valueName1, variables1.get(ScopeFormat.asVariable(keyName)));
 
@@ -102,7 +102,7 @@ public class MetricGroupTest extends TestLogger {
 		Map<String, String> variables2 = subgroup2.getAllVariables();
 
 		assertNotNull(subgroup2);
-		assertTrue(subgroup2 instanceof GenericValueMetricGroup);
+		assertEquals(GenericValueMetricGroup.class, subgroup2.getClass());
 		assertEquals(((AbstractMetricGroup) subgroup1).parent, ((AbstractMetricGroup) subgroup2).parent);
 		assertTrue(variables2.containsKey(ScopeFormat.asVariable(keyName)));
 		assertEquals(valueName2, variables2.get(ScopeFormat.asVariable(keyName)));
@@ -121,8 +121,10 @@ public class MetricGroupTest extends TestLogger {
 		String valueName2 = "somevaluename2";
 		MetricGroup subgroup = group.addGroup(keyName).addGroup(keyName2, valueName2);
 
-		assertTrue(((AbstractMetricGroup) subgroup).parent instanceof GenericMetricGroup);
-		assertTrue(subgroup instanceof GenericMetricGroup);
+		// Is is illegal to call `MetricGroup#addGroup(String key, String value)` after `GenericKeyMetricGroup`.
+		// The behavior will fall back to `group.addGroup(key).addGroup(value)`.
+		assertEquals(GenericMetricGroup.class, ((AbstractMetricGroup) subgroup).parent.getClass());
+		assertEquals(GenericMetricGroup.class, subgroup.getClass());
 	}
 
 	@Test
@@ -136,7 +138,9 @@ public class MetricGroupTest extends TestLogger {
 		String valueName = "somevaluename";
 		MetricGroup subgroup = group.addGroup(groupName, valueName);
 
-		assertTrue(subgroup instanceof  GenericMetricGroup);
+		// Is is illegal to call `MetricGroup#addGroup(String key, String value)` when there is already a
+		// `GenericMetricGroup` named as `key`. The behavior will fall back to `group.addGroup(key).addGroup(value)`.
+		assertEquals(GenericMetricGroup.class, subgroup.getClass());
 	}
 
 	@Test
@@ -146,16 +150,16 @@ public class MetricGroupTest extends TestLogger {
 
 		String groupName = "sometestname";
 		MetricGroup group1 = group.addGroup(groupName);
-		assertTrue(group1 instanceof GenericMetricGroup);
+		assertEquals(GenericMetricGroup.class, group1.getClass());
 
 		String keyName = "somekeyname";
 		String valueName = "somevaluename";
 		MetricGroup valueGroup = group.addGroup(keyName, valueName);
 		MetricGroup group2 = group.addGroup(keyName).addGroup(groupName);
-		assertTrue(group2 instanceof GenericMetricGroup);
+		assertEquals(GenericMetricGroup.class, group2.getClass());
 
 		MetricGroup group3 = valueGroup.addGroup(groupName);
-		assertTrue(group3 instanceof GenericMetricGroup);
+		assertEquals(GenericMetricGroup.class, group3.getClass());
 	}
 
 	@Test
@@ -169,7 +173,7 @@ public class MetricGroupTest extends TestLogger {
 		MetricGroup subgroup2 = group.addGroup(groupName, valueName);
 
 		assertEquals(subgroup1, ((AbstractMetricGroup) subgroup2).parent);
-		assertTrue(subgroup2 instanceof GenericMetricGroup);
+		assertEquals(GenericMetricGroup.class, subgroup2.getClass());
 
 		String groupName2 = "sometestname2";
 		String valueName2 = "somevaluename2";
@@ -178,7 +182,7 @@ public class MetricGroupTest extends TestLogger {
 		MetricGroup subgroup4 = group.addGroup(groupName2, valueName2);
 
 		assertEquals(subgroup3, subgroup4);
-		assertTrue(subgroup4 instanceof GenericMetricGroup);
+		assertEquals(GenericMetricGroup.class, subgroup4.getClass());
 	}
 
 	@Test
@@ -192,7 +196,7 @@ public class MetricGroupTest extends TestLogger {
 		MetricGroup subgroup2 = group.addGroup(keyName);
 
 		assertEquals(((AbstractMetricGroup) subgroup1).parent, subgroup2);
-		assertTrue(subgroup2 instanceof GenericKeyMetricGroup);
+		assertEquals(GenericKeyMetricGroup.class, subgroup2.getClass());
 	}
 
 	@Test
@@ -206,7 +210,7 @@ public class MetricGroupTest extends TestLogger {
 		MetricGroup subgroup2 = group.addGroup(keyName).addGroup(valueName);
 
 		assertEquals(subgroup1, subgroup2);
-		assertTrue(subgroup2 instanceof GenericValueMetricGroup);
+		assertEquals(GenericValueMetricGroup.class, subgroup2.getClass());
 	}
 
 	@Test
