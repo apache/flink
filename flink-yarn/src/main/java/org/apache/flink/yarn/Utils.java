@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -408,17 +409,26 @@ public final class Utils {
 			log.debug("Writing TaskManager configuration to {}", taskManagerConfigFile.getAbsolutePath());
 			BootstrapTools.writeConfiguration(taskManagerConfig, taskManagerConfigFile);
 
-			Path homeDirPath = new Path(clientHomeDir);
-			FileSystem fs = homeDirPath.getFileSystem(yarnConfig);
+			try {
+				Path homeDirPath = new Path(clientHomeDir);
+				FileSystem fs = homeDirPath.getFileSystem(yarnConfig);
 
-			flinkConf = setupLocalResource(
-				fs,
-				appId,
-				new Path(taskManagerConfigFile.toURI()),
-				homeDirPath,
-				"").f1;
+				flinkConf = setupLocalResource(
+					fs,
+					appId,
+					new Path(taskManagerConfigFile.toURI()),
+					homeDirPath,
+					"").f1;
 
-			log.info("Prepared local resource for modified yaml: {}", flinkConf);
+				log.info("Prepared local resource for modified yaml: {}", flinkConf);
+			} finally {
+				try {
+					FileUtils.deleteFileOrDirectory(taskManagerConfigFile);
+				} catch (IOException e) {
+					log.info("Could not delete temporary configuration file " +
+						taskManagerConfigFile.getAbsolutePath() + '.', e);
+				}
+			}
 		}
 
 		Map<String, LocalResource> taskManagerLocalResources = new HashMap<>();
