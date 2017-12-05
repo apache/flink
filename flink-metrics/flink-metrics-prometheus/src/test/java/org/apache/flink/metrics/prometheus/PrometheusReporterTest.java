@@ -27,12 +27,12 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.TestLogger;
 
 import com.mashape.unirest.http.HttpResponse;
@@ -141,7 +141,7 @@ public class PrometheusReporterTest extends TestLogger {
 
 	@Test
 	public void histogramIsReportedAsPrometheusSummary() throws UnirestException {
-		Histogram testHistogram = new TestingHistogram();
+		Histogram testHistogram = new TestHistogram();
 
 		String histogramName = "testHistogram";
 		String summaryName = SCOPE_PREFIX + histogramName;
