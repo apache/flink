@@ -351,7 +351,7 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 			if (!inputChannel.isReleased()) {
 				AddCredit msg = new AddCredit(
 					inputChannel.getPartitionId(),
-					inputChannel.getAndResetCredit(),
+					inputChannel.getAndResetUnannouncedCredit(),
 					inputChannel.getInputChannelId());
 
 				// Write and flush and wait until this is done before

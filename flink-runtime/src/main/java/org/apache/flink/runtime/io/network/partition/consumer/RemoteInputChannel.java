@@ -330,6 +330,10 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return numRequiredBuffers;
 	}
 
+	public int getSenderBacklog() {
+		return numRequiredBuffers - initialCredit;
+	}
+
 	/**
 	 * The Buffer pool notifies this channel of an available floating buffer. If the channel is released or
 	 * currently does not need extra buffers, the buffer should be recycled to the buffer pool. Otherwise,
@@ -384,14 +388,29 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 	// Network I/O notifications (called by network I/O thread)
 	// ------------------------------------------------------------------------
 
-	public int getAndResetCredit() {
-		return unannouncedCredit.getAndSet(0);
-	}
-
+	/**
+	 * Gets the currently unannounced credit.
+	 *
+	 * @return Credit which was not announced to the sender yet.
+	 */
 	public int getUnannouncedCredit() {
 		return unannouncedCredit.get();
 	}
 
+	/**
+	 * Gets the unannounced credit and resets it to <tt>0</tt> atomically.
+	 *
+	 * @return Credit which was not announced to the sender yet.
+	 */
+	public int getAndResetUnannouncedCredit() {
+		return unannouncedCredit.getAndSet(0);
+	}
+
+	/**
+	 * Gets the current number of received buffers which have not been processed yet.
+	 *
+	 * @return Buffers queued for processing.
+	 */
 	public int getNumberOfQueuedBuffers() {
 		synchronized (receivedBuffers) {
 			return receivedBuffers.size();
