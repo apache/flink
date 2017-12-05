@@ -441,7 +441,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 			}
 			else {
 				// return a non-registered group that is immediately closed already
-				GenericMetricGroup closedGroup = createChildGroupInKeyedContext(name);
+				GenericMetricGroup closedGroup = new GenericMetricGroup(registry, this, name);
 				closedGroup.close();
 				return closedGroup;
 			}
