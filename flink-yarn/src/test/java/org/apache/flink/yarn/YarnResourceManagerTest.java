@@ -130,7 +130,7 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
 		env.put(FLINK_JAR_PATH, root.toURI().toString());
-		// env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
+		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 	}
 
 	@After
