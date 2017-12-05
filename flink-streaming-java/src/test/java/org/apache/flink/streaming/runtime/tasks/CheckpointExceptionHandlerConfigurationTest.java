@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
@@ -90,6 +91,11 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
 			@Override
 			protected void cancelTask() throws Exception {
 
+			}
+
+			@Override
+			protected Gauge<Long> getInputWatermarkGauge() {
+				return null;
 			}
 
 			@Override

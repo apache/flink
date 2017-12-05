@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
@@ -194,6 +195,11 @@ public class StreamTaskCancellationBarrierTest {
 			synchronized (lock) {
 				lock.notifyAll();
 			}
+		}
+
+		@Override
+		protected Gauge<Long> getInputWatermarkGauge() {
+			return null;
 		}
 	}
 

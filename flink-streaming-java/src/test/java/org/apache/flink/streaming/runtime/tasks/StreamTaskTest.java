@@ -27,6 +27,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -815,6 +816,11 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		protected void cancelTask() throws Exception {}
+
+		@Override
+		protected Gauge<Long> getInputWatermarkGauge() {
+			return null;
+		}
 	}
 
 	private static class BlockingCloseStreamOperator extends AbstractStreamOperator<Void> {
@@ -1075,6 +1081,11 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		protected void cancelTask() throws Exception {}
 
+		@Override
+		protected Gauge<Long> getInputWatermarkGauge() {
+			return null;
+		}
+
 	}
 
 	/**
@@ -1117,6 +1128,11 @@ public class StreamTaskTest extends TestLogger {
 			holder.cancel();
 			// do not interrupt the lock holder here, to simulate spawned threads that
 			// we cannot properly interrupt on cancellation
+		}
+
+		@Override
+		protected Gauge<Long> getInputWatermarkGauge() {
+			return null;
 		}
 
 	}
@@ -1165,6 +1181,11 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		protected void cancelTask() throws Exception {
 			throw new Exception("test exception");
+		}
+
+		@Override
+		protected Gauge<Long> getInputWatermarkGauge() {
+			return null;
 		}
 
 	}

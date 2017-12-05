@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
 import org.apache.flink.runtime.blob.TransientBlobCache;
@@ -226,6 +227,11 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		@Override
 		protected void cancelTask() throws Exception {
+		}
+
+		@Override
+		protected Gauge<Long> getInputWatermarkGauge() {
+			return null;
 		}
 
 		@Override

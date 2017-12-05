@@ -150,7 +150,7 @@ public class StreamOperatorChainingTest {
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
 				createMockTask(streamConfig, chainedVertex.getName());
 
-		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
+		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask, null);
 
 		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
@@ -290,7 +290,7 @@ public class StreamOperatorChainingTest {
 		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
 				createMockTask(streamConfig, chainedVertex.getName());
 
-		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
+		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask, null);
 
 		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
