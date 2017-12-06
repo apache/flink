@@ -95,7 +95,7 @@ public class JobSubmitTest {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
-			new NoOpMetricRegistry(),
+			NoOpMetricRegistry.INSTANCE,
 			Option.empty(),
 			JobManager.class,
 			MemoryArchivist.class)._1();

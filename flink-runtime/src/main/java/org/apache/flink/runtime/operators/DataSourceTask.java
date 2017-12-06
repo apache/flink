@@ -27,12 +27,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProviderException;
+import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
@@ -102,12 +104,25 @@ public class DataSourceTask<OT> extends AbstractInvokable {
 		LOG.debug(getLogString("Starting data source operator"));
 
 		RuntimeContext ctx = createRuntimeContext();
-		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
-		((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseInputMetricsForTask();
-		Counter numRecordsOut = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().getNumRecordsOutCounter();
-		if (this.config.getNumberOfChainedStubs() == 0) {
-			((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup().reuseOutputMetricsForTask();
+
+		final Counter numRecordsOut;
+		{
+			Counter tmpNumRecordsOut;
+			try {
+				OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) ctx.getMetricGroup()).getIOMetricGroup();
+				ioMetricGroup.reuseInputMetricsForTask();
+				if (this.config.getNumberOfChainedStubs() == 0) {
+					ioMetricGroup.reuseOutputMetricsForTask();
+				}
+				tmpNumRecordsOut = ioMetricGroup.getNumRecordsOutCounter();
+			} catch (Exception e) {
+				LOG.warn("An exception occurred during the metrics setup.", e);
+				tmpNumRecordsOut = new SimpleCounter();
+			}
+			numRecordsOut = tmpNumRecordsOut;
 		}
+		
+		Counter completedSplitsCounter = ctx.getMetricGroup().counter("numSplitsProcessed");
 
 		if (RichInputFormat.class.isAssignableFrom(this.format.getClass())) {
 			((RichInputFormat) this.format).setRuntimeContext(ctx);

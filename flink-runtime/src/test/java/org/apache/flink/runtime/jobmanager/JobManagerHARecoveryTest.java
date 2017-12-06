@@ -64,6 +64,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.TaskManager;
@@ -206,7 +207,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				mySubmittedJobGraphStore,
 				checkpointStateFactory,
 				jobRecoveryTimeout,
-				new JobManagerMetricGroup(new NoOpMetricRegistry(), "localhost"),
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				Option.<String>empty());
 
 			jobManager = system.actorOf(jobManagerProps);
@@ -217,7 +218,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				ResourceID.generate(),
 				system,
 				testingHighAvailabilityServices,
-				new NoOpMetricRegistry(),
+				NoOpMetricRegistry.INSTANCE,
 				"localhost",
 				Option.apply("taskmanager"),
 				true,
@@ -381,7 +382,7 @@ public class JobManagerHARecoveryTest extends TestLogger {
 				submittedJobGraphStore,
 				mock(CheckpointRecoveryFactory.class),
 				jobRecoveryTimeout,
-				new JobManagerMetricGroup(new NoOpMetricRegistry(), "localhost"),
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 				recoveredJobs).withDispatcher(CallingThreadDispatcher.Id());
 
 			jobManager = system.actorOf(jobManagerProps);

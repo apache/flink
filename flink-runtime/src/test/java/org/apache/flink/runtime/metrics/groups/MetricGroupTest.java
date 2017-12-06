@@ -86,7 +86,7 @@ public class MetricGroupTest extends TestLogger {
 	 */
 	@Test
 	public void testUserDefinedVariable() {
-		MetricRegistry registry = new NoOpMetricRegistry();
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
 
 		String key = "key";
@@ -111,7 +111,7 @@ public class MetricGroupTest extends TestLogger {
 	 */
 	@Test
 	public void testUserDefinedVariableOnKeyGroup() {
-		MetricRegistry registry = new NoOpMetricRegistry();
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
 
 		String key1 = "key1";
@@ -142,7 +142,7 @@ public class MetricGroupTest extends TestLogger {
 	 */
 	@Test
 	public void testNameCollisionForKeyAfterGenericGroup() {
-		MetricRegistry registry = new NoOpMetricRegistry();
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
 
 		String key = "key";
@@ -169,7 +169,7 @@ public class MetricGroupTest extends TestLogger {
 	 */
 	@Test
 	public void testNameCollisionForKeyAndValueAfterGenericGroup() {
-		MetricRegistry registry = new NoOpMetricRegistry();
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
 
 		String key = "key";
@@ -195,7 +195,7 @@ public class MetricGroupTest extends TestLogger {
 	 */
 	@Test
 	public void testNameCollisionAfterKeyValueGroup() {
-		MetricRegistry registry = new NoOpMetricRegistry();
+		MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 		GenericMetricGroup root = new GenericMetricGroup(registry, new DummyAbstractMetricGroup(registry), "root");
 
 		String key = "key";

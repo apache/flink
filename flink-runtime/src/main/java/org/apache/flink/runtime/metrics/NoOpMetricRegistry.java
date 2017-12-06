@@ -26,13 +26,16 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import javax.annotation.Nullable;
 
 /**
- * Metric registry which does nothing and is intended for testing purposes.
+ * Metric registry which does nothing.
  */
 public class NoOpMetricRegistry implements MetricRegistry {
+	private static final char delimiter = '.';
+	private static final ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
 
-	final char delimiter = ',';
+	public static final MetricRegistry INSTANCE = new NoOpMetricRegistry();
 
-	final ScopeFormats scopeFormats = ScopeFormats.fromConfig(new Configuration());
+	private NoOpMetricRegistry() {
+	}
 
 	@Override
 	public char getDelimiter() {
@@ -50,10 +53,12 @@ public class NoOpMetricRegistry implements MetricRegistry {
 	}
 
 	@Override
-	public void register(Metric metric, String metricName, AbstractMetricGroup group) {}
+	public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+	}
 
 	@Override
-	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
+	public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {
+	}
 
 	@Override
 	public ScopeFormats getScopeFormats() {

@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -716,7 +716,7 @@ public class KafkaConsumerThreadTest {
 					handover,
 					new Properties(),
 					unassignedPartitionsQueue,
-					mock(MetricGroup.class),
+					new UnregisteredMetricsGroup(),
 					new KafkaConsumerCallBridge(),
 					"test-kafka-consumer-thread",
 					0,
