@@ -69,7 +69,7 @@ public interface StateBinder {
 	 * @param <T> Type of the values folded into the state
 	 * @param <ACC> Type of the value in the state
 	 *
-	 * @deprecated will be removed in a future version
+	 * @deprecated will be removed in a future version in favor of {@link AggregatingState}
 	 */
 	@Deprecated
 	<T, ACC> FoldingState<T, ACC> createFoldingState(FoldingStateDescriptor<T, ACC> stateDesc) throws Exception;
