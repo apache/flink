@@ -65,7 +65,7 @@ under the License.
 		b) Build a jar for running on the cluster:
 
 			"mvn clean package -Pbuild-jar"
-			This will create a fat-jar which contain all dependencies necessary for running the created jar in a cluster.
+			This will create a fat-jar which contains all dependencies necessary for running the created jar in a cluster.
 	-->
 
 	<dependencies>
