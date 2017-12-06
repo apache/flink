@@ -67,4 +67,4 @@ $SHASUM flink-$RELEASE_VERSION-src.tgz > flink-$RELEASE_VERSION-src.tgz.sha
 
 mv flink-$RELEASE_VERSION-src.* ../
 cd ..
-rm -r flink-tmp-clone
+rm -rf flink-tmp-clone
