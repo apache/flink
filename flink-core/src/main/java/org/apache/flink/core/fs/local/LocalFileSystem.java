@@ -108,7 +108,7 @@ public class LocalFileSystem extends FileSystem {
 	public FileStatus getFileStatus(Path f) throws IOException {
 		final File path = pathToFile(f);
 		if (path.exists()) {
-			return new LocalFileStatus(pathToFile(f), this);
+			return new LocalFileStatus(path, this);
 		}
 		else {
 			throw new FileNotFoundException("File " + f + " does not exist or the user running "
