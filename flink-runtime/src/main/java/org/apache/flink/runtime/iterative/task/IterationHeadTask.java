@@ -441,6 +441,6 @@ public class IterationHeadTask<X, Y, S extends Function, OT> extends AbstractIte
 			log.info(formatLogString("sending " + WorkerDoneEvent.class.getSimpleName() + " to sync"));
 		}
 
-		this.toSync.writeBufferToAllChannels(EventSerializer.toBuffer(event));
+		this.toSync.writeBufferToAllSubpartitions(EventSerializer.toBuffer(event));
 	}
 }

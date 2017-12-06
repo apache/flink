@@ -187,8 +187,6 @@ public class Task implements Runnable, TaskActions {
 
 	private final ResultPartition[] producedPartitions;
 
-	private final ResultPartitionWriter[] writers;
-
 	private final SingleInputGate[] inputGates;
 
 	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
@@ -360,7 +358,6 @@ public class Task implements Runnable, TaskActions {
 
 		// Produced intermediate result partitions
 		this.producedPartitions = new ResultPartition[resultPartitionDeploymentDescriptors.size()];
-		this.writers = new ResultPartitionWriter[resultPartitionDeploymentDescriptors.size()];
 
 		int counter = 0;
 
@@ -379,8 +376,6 @@ public class Task implements Runnable, TaskActions {
 				resultPartitionConsumableNotifier,
 				ioManager,
 				desc.sendScheduleOrUpdateConsumersMessage());
-
-			writers[counter] = new ResultPartitionWriter(producedPartitions[counter]);
 
 			++counter;
 		}
@@ -443,10 +438,6 @@ public class Task implements Runnable, TaskActions {
 
 	public Configuration getTaskConfiguration() {
 		return this.taskConfiguration;
-	}
-
-	public ResultPartitionWriter[] getAllWriters() {
-		return writers;
 	}
 
 	public SingleInputGate[] getAllInputGates() {
@@ -682,7 +673,7 @@ public class Task implements Runnable, TaskActions {
 				kvStateRegistry,
 				inputSplitProvider,
 				distributedCacheEntries,
-				writers,
+				producedPartitions,
 				inputGates,
 				network.getTaskEventDispatcher(),
 				checkpointResponder,

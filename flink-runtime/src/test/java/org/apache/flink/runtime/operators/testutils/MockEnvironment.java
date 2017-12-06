@@ -204,7 +204,7 @@ public class MockEnvironment implements Environment {
 			});
 
 			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			when(mockWriter.getNumberOfSubpartitions()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
 			final Record record = new Record();

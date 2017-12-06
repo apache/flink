@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
@@ -74,7 +75,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <h2>State management</h2>
  */
-public class ResultPartition implements BufferPoolOwner {
+public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartition.class);
 	
@@ -209,10 +210,12 @@ public class ResultPartition implements BufferPoolOwner {
 		return partitionId;
 	}
 
+	@Override
 	public int getNumberOfSubpartitions() {
 		return subpartitions.length;
 	}
 
+	@Override
 	public BufferProvider getBufferProvider() {
 		return bufferPool;
 	}
@@ -260,13 +263,8 @@ public class ResultPartition implements BufferPoolOwner {
 
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Adds a buffer to the subpartition with the given index.
-	 *
-	 * <p> For PIPELINED results, this will trigger the deployment of consuming tasks after the
-	 * first buffer has been added.
-	 */
-	public void add(Buffer buffer, int subpartitionIndex) throws IOException {
+	@Override
+	public void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException {
 		boolean success = false;
 
 		try {
@@ -381,6 +379,7 @@ public class ResultPartition implements BufferPoolOwner {
 		return cause;
 	}
 
+	@Override
 	public int getNumTargetKeyGroups() {
 		return numTargetKeyGroups;
 	}

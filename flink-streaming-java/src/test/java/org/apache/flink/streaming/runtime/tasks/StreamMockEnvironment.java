@@ -161,7 +161,7 @@ public class StreamMockEnvironment implements Environment {
 			});
 
 			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			when(mockWriter.getNumberOfSubpartitions()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
 			final RecordDeserializer<DeserializationDelegate<T>> recordDeserializer = new AdaptiveSpanningRecordDeserializer<DeserializationDelegate<T>>();
@@ -186,7 +186,7 @@ public class StreamMockEnvironment implements Environment {
 					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
 					return null;
 				}
-			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
+			}).when(mockWriter).writeBufferToAllSubpartitions(any(Buffer.class));
 
 			outputs.add(mockWriter);
 		}
