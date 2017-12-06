@@ -39,6 +39,8 @@ import org.apache.flink.yarn.YarnResourceManager;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Map;
 
@@ -69,7 +71,8 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			HighAvailabilityServices highAvailabilityServices,
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
+			FatalErrorHandler fatalErrorHandler,
+			@Nullable String webInterfaceUrl) throws Exception {
 		final ResourceManagerConfiguration rmConfiguration = ResourceManagerConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServicesConfiguration rmServicesConfiguration = ResourceManagerRuntimeServicesConfiguration.fromConfiguration(configuration);
 		final ResourceManagerRuntimeServices rmRuntimeServices = ResourceManagerRuntimeServices.fromConfiguration(
@@ -89,7 +92,8 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 			rmRuntimeServices.getSlotManager(),
 			metricRegistry,
 			rmRuntimeServices.getJobLeaderIdService(),
-			fatalErrorHandler);
+			fatalErrorHandler,
+			webInterfaceUrl);
 	}
 
 	public static void main(String[] args) {
