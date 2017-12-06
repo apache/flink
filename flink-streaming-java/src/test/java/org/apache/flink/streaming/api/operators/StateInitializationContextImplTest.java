@@ -38,7 +38,6 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.util.LongArrayList;
-import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -251,19 +250,20 @@ public class StateInitializationContextImplTest {
 
 		@Override
 		public FSDataInputStream openInputStream() throws IOException {
+			final FSDataInputStream original = super.openInputStream();
+
 			return new FSDataInputStream() {
-				private int index = 0;
+
 				private boolean closed = false;
 
 				@Override
 				public void seek(long desired) throws IOException {
-					Preconditions.checkArgument(desired >= 0 && desired < Integer.MAX_VALUE);
-					index = (int) desired;
+					original.seek(desired);
 				}
 
 				@Override
 				public long getPos() throws IOException {
-					return index;
+					return original.getPos();
 				}
 
 				@Override
@@ -271,12 +271,12 @@ public class StateInitializationContextImplTest {
 					if (closed) {
 						throw new IOException("Stream closed");
 					}
-					return index < data.length ? data[index++] & 0xFF : -1;
+					return original.read();
 				}
 
 				@Override
 				public void close() throws IOException {
-					super.close();
+					original.close();
 					this.closed = true;
 				}
 			};
