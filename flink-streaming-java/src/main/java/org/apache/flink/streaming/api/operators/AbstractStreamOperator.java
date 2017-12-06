@@ -33,12 +33,12 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -155,7 +155,7 @@ public abstract class AbstractStreamOperator<OUT>
 	// --------------- Metrics ---------------------------
 
 	/** Metric group for the operator. */
-	protected transient MetricGroup metrics;
+	protected transient OperatorMetricGroup metrics;
 
 	protected transient LatencyGauge latencyGauge;
 
@@ -191,7 +191,7 @@ public abstract class AbstractStreamOperator<OUT>
 			this.metrics = operatorMetricGroup;
 		} catch (Exception e) {
 			LOG.warn("An error occurred while instantiating task metrics.", e);
-			this.metrics = new UnregisteredMetricsGroup();
+			this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 			this.output = output;
 		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
