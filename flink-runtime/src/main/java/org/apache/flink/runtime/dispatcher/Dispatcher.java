@@ -529,9 +529,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 				return;
 			}
 			runAsync(() -> {
-				if (!jobManagerRunners.containsKey(jobId)) {
-					submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
-				}
+				submitJob(submittedJobGraph.getJobGraph(), RpcUtils.INF_TIMEOUT);
 			});
 		});
 	}
@@ -539,12 +537,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public void onRemovedJobGraph(final JobID jobId) {
 		runAsync(() -> {
-			if (jobManagerRunners.containsKey(jobId)) {
-				try {
-					removeJob(jobId, false);
-				} catch (final Exception e) {
-					log.error("Could not remove job {}.", jobId, e);
-				}
+			try {
+				removeJob(jobId, false);
+			} catch (final Exception e) {
+				log.error("Could not remove job {}.", jobId, e);
 			}
 		});
 	}
