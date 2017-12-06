@@ -61,7 +61,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -127,8 +126,6 @@ public class DispatcherTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		MockitoAnnotations.initMocks(this);
-
 		final JobVertex testVertex = new JobVertex("testVertex");
 		testVertex.setInvokableClass(NoOpInvokable.class);
 		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
