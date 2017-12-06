@@ -237,7 +237,7 @@ public interface KeyedStateStore {
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part of a KeyedStream).
 	 *
-	 * @deprecated will be removed in a future version
+	 * @deprecated will be removed in a future version in favor of {@link AggregatingState}
 	 */
 	@PublicEvolving
 	@Deprecated
