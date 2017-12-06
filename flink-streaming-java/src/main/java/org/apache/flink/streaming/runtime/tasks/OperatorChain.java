@@ -21,11 +21,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
@@ -426,7 +428,21 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamStatusProvider streamStatusProvider,
 				OutputTag<T> outputTag) {
 			this.operator = operator;
-			this.numRecordsIn = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+
+			{
+				Counter tmpNumRecordsIn;
+				try {
+					OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup();
+					ioMetricGroup.reuseInputMetricsForTask();
+					ioMetricGroup.reuseOutputMetricsForTask();
+					tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
+				} catch (Exception e) {
+					LOG.warn("An exception occurred during the metrics setup.", e);
+					tmpNumRecordsIn = new SimpleCounter();
+				}
+				numRecordsIn = tmpNumRecordsIn;
+			}
+
 			this.streamStatusProvider = streamStatusProvider;
 			this.outputTag = outputTag;
 		}
