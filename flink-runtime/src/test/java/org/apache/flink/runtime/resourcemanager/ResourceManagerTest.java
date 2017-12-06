@@ -97,7 +97,7 @@ public class ResourceManagerTest extends TestLogger {
 			highAvailabilityServices,
 			new HeartbeatServices(1000L, 10000L),
 			slotManager,
-			new NoOpMetricRegistry(),
+			NoOpMetricRegistry.INSTANCE,
 			jobLeaderIdService,
 			testingFatalErrorHandler);
 

@@ -257,7 +257,7 @@ public class YarnResourceManagerTest extends TestLogger {
 				rmLeaderElectionService = new TestingLeaderElectionService();
 				highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 				heartbeatServices = new TestingHeartbeatServices(5L, 5L, scheduledExecutor);
-				metricRegistry = new NoOpMetricRegistry();
+				metricRegistry = NoOpMetricRegistry.INSTANCE;
 				slotManager = new SlotManager(
 						new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()),
 						Time.seconds(10), Time.seconds(10), Time.minutes(1));

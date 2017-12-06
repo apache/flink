@@ -282,7 +282,7 @@ public class JobManagerHAProcessFailureBatchRecoveryITCase extends TestLogger {
 					ResourceID.generate(),
 					tmActorSystem[i],
 					highAvailabilityServices,
-					new NoOpMetricRegistry(),
+					NoOpMetricRegistry.INSTANCE,
 					"localhost",
 					Option.<String>empty(),
 					false,
