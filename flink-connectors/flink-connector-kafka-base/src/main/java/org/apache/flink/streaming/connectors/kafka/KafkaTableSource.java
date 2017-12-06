@@ -34,10 +34,10 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.tsextractors.StreamRecordTimestamp;
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor;
 import org.apache.flink.table.sources.wmstrategies.WatermarkStrategy;
+import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -133,8 +133,8 @@ public abstract class KafkaTableSource
 
 	@Override
 	public String explainSource() {
-		return getClass().getSimpleName() +
-				Arrays.toString(schema.getColumnNames()).replace("[", "(").replace("]", ")");
+		return TableConnectorUtil.genRuntimeName(
+				this.getClass().getSimpleName(), schema.getColumnNames());
 	}
 
 	/**

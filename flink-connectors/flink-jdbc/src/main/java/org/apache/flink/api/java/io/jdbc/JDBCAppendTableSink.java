@@ -26,12 +26,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -86,8 +86,7 @@ public class JDBCAppendTableSink implements AppendStreamTableSink<Row>, BatchTab
 
 	@Override
 	public String explainSink() {
-		return getClass().getSimpleName() + " "
-				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
+		return TableConnectorUtil.genRuntimeName(this.getClass().getSimpleName(), fieldNames);
 	}
 
 	@Override

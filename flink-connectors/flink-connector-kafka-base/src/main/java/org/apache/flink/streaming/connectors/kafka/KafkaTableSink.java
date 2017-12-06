@@ -24,10 +24,10 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.util.TableConnectorUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
 import java.util.Properties;
 
 /**
@@ -114,8 +114,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 
 	@Override
 	public String explainSink() {
-		return getClass().getSimpleName() + " "
-				+ Arrays.toString(getFieldNames()).replace("[", "(").replace("]", ")");
+		return TableConnectorUtil.genRuntimeName(this.getClass().getSimpleName(), fieldNames);
 	}
 
 	@Override

@@ -50,11 +50,11 @@ object MemoryTableSinkUtil {
     }
 
     override def emitDataSet(dataSet: DataSet[Row]): Unit = {
-      dataSet.output(new MemoryCollectionOutputFormat).name(explainSink)
+      dataSet.output(new MemoryCollectionOutputFormat).name(explainSink())
     }
 
     override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-      dataStream.addSink(new MemoryAppendSink).name(explainSink)
+      dataStream.addSink(new MemoryAppendSink).name(explainSink())
     }
   }
 
