@@ -44,11 +44,21 @@ public class TaskExecutorLocalStateStoresManager {
 	private final Map<JobID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateManagers;
 
 	/** This is the root directory for all local state of this task manager / executor. */
-	private final File localStateRootDirectory;
+	private final File[] localStateRootDirectories;
 
-	public TaskExecutorLocalStateStoresManager(File localStateRootDirectory) {
+	public TaskExecutorLocalStateStoresManager(File[] localStateRootDirectories) {
 		this.taskStateManagers = new HashMap<>();
-		this.localStateRootDirectory = Preconditions.checkNotNull(localStateRootDirectory);
+		this.localStateRootDirectories = Preconditions.checkNotNull(localStateRootDirectories);
+
+		for (File localStateRecoveryRootDir : localStateRootDirectories) {
+			if (!localStateRecoveryRootDir.exists()) {
+
+				if (!localStateRecoveryRootDir.mkdirs()) {
+					throw new IllegalStateException("Could not create root directory for local recovery: " +
+						localStateRecoveryRootDir);
+				}
+			}
+		}
 	}
 
 	public TaskLocalStateStore localStateStoreForTask(
@@ -63,7 +73,7 @@ public class TaskExecutorLocalStateStoresManager {
 			this.taskStateManagers.computeIfAbsent(jobId, k -> new HashMap<>());
 
 		return taskStateManagers.computeIfAbsent(
-			taskKey, k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex, localStateRootDirectory));
+			taskKey, k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex, localStateRootDirectories));
 	}
 
 	public void releaseJob(JobID jobID) {
@@ -105,8 +115,8 @@ public class TaskExecutorLocalStateStoresManager {
 	}
 
 	@VisibleForTesting
-	File getLocalStateRootDirectory() {
-		return localStateRootDirectory;
+	File[] getLocalStateRootDirectories() {
+		return localStateRootDirectories;
 	}
 
 	private static final class JobVertexSubtaskKey {

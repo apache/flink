@@ -54,7 +54,7 @@ public class TaskManagerServicesConfiguration {
 
 	private final String[] tmpDirPaths;
 
-	private final String localStateRootDir;
+	private final String[] localRecoveryStateRootDirectories;
 
 	private final int numberOfSlots;
 
@@ -80,7 +80,7 @@ public class TaskManagerServicesConfiguration {
 	public TaskManagerServicesConfiguration(
 			InetAddress taskManagerAddress,
 			String[] tmpDirPaths,
-			String localStateRootDir,
+			String[] LocalRecoveryStateRootDirectories,
 			NetworkEnvironmentConfiguration networkConfig,
 			QueryableStateConfiguration queryableStateConfig,
 			int numberOfSlots,
@@ -92,7 +92,7 @@ public class TaskManagerServicesConfiguration {
 
 		this.taskManagerAddress = checkNotNull(taskManagerAddress);
 		this.tmpDirPaths = checkNotNull(tmpDirPaths);
-		this.localStateRootDir = checkNotNull(localStateRootDir);
+		this.localRecoveryStateRootDirectories = checkNotNull(LocalRecoveryStateRootDirectories);
 		this.networkConfig = checkNotNull(networkConfig);
 		this.queryableStateConfig = checkNotNull(queryableStateConfig);
 		this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -119,8 +119,8 @@ public class TaskManagerServicesConfiguration {
 		return tmpDirPaths;
 	}
 
-	public String getLocalStateRootDir() {
-		return localStateRootDir;
+	public String[] getLocalRecoveryStateRootDirectories() {
+		return localRecoveryStateRootDirectories;
 	}
 
 	public NetworkEnvironmentConfiguration getNetworkConfig() {
@@ -193,10 +193,7 @@ public class TaskManagerServicesConfiguration {
 		}
 
 		final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
-
-		final String localStateRootDir = configuration.getString(
-			ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY,
-			tmpDirs[0]);
+		final String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,

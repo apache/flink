@@ -34,6 +34,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 
 import static org.mockito.Mockito.mock;
@@ -60,7 +61,7 @@ public class TaskStateManagerImplTest {
 
 		CheckpointMetaData checkpointMetaData = new CheckpointMetaData(74L, 11L);
 		CheckpointMetrics checkpointMetrics = new CheckpointMetrics();
-		TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
+		TaskStateSnapshot jmTaskStateSnapshot = new TaskStateSnapshot();
 
 		OperatorID operatorID_1 = new OperatorID(1L, 1L);
 		OperatorID operatorID_2 = new OperatorID(2L, 2L);
@@ -70,13 +71,23 @@ public class TaskStateManagerImplTest {
 		Assert.assertNull(taskStateManager.operatorStates(operatorID_2));
 		Assert.assertNull(taskStateManager.operatorStates(operatorID_3));
 
-		OperatorSubtaskState operatorSubtaskState_1 = new OperatorSubtaskState();
-		OperatorSubtaskState operatorSubtaskState_2 = new OperatorSubtaskState();
+		OperatorSubtaskState jmOperatorSubtaskState_1 = new OperatorSubtaskState();
+		OperatorSubtaskState jmOperatorSubtaskState_2 = new OperatorSubtaskState();
 
-		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, operatorSubtaskState_1);
-		taskStateSnapshot.putSubtaskStateByOperatorID(operatorID_2, operatorSubtaskState_2);
+		jmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_1, jmOperatorSubtaskState_1);
+		jmTaskStateSnapshot.putSubtaskStateByOperatorID(operatorID_2, jmOperatorSubtaskState_2);
 
-		taskStateManager.reportTaskStateSnapshots(checkpointMetaData, checkpointMetrics, taskStateSnapshot, null);
+		//---
+
+		TaskStateSnapshot tmTaskStateSnapshot = new TaskStateSnapshot();
+
+		//TODO orthogonal for tmTaskStateSnapshot!
+
+		taskStateManager.reportTaskStateSnapshots(
+			checkpointMetaData,
+			checkpointMetrics,
+			jmTaskStateSnapshot,
+			tmTaskStateSnapshot);
 
 		TestCheckpointResponder.AcknowledgeReport acknowledgeReport =
 			checkpointResponderMock.getAcknowledgeReports().get(0);
@@ -85,7 +96,7 @@ public class TaskStateManagerImplTest {
 		Assert.assertEquals(checkpointMetrics, acknowledgeReport.getCheckpointMetrics());
 		Assert.assertEquals(executionAttemptID, acknowledgeReport.getExecutionAttemptID());
 		Assert.assertEquals(jobID, acknowledgeReport.getJobID());
-		Assert.assertEquals(taskStateSnapshot, acknowledgeReport.getSubtaskState());
+		Assert.assertEquals(jmTaskStateSnapshot, acknowledgeReport.getSubtaskState());
 
 		//---------------------------------------- test retrieving -----------------------------------------
 
@@ -99,8 +110,8 @@ public class TaskStateManagerImplTest {
 			checkpointResponderMock,
 			taskRestore);
 
-		Assert.assertEquals(operatorSubtaskState_1, taskStateManager.operatorStates(operatorID_1));
-		Assert.assertEquals(operatorSubtaskState_2, taskStateManager.operatorStates(operatorID_2));
+		Assert.assertTrue(jmOperatorSubtaskState_1 == taskStateManager.operatorStates(operatorID_1));
+		Assert.assertTrue(jmOperatorSubtaskState_2 == taskStateManager.operatorStates(operatorID_2));
 		Assert.assertNull(taskStateManager.operatorStates(operatorID_3));
 	}
 
@@ -119,8 +130,11 @@ public class TaskStateManagerImplTest {
 
 		try {
 			tmpFolder.create();
+
+			File[] rootDirs = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
+
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStore(jobID, jobVertexID, 13, tmpFolder.newFolder());
+				new TaskLocalStateStore(jobID, jobVertexID, 13, rootDirs);
 
 			TaskStateManager taskStateManager = taskStateManager(
 				jobID,
@@ -129,9 +143,24 @@ public class TaskStateManagerImplTest {
 				null,
 				taskLocalStateStore);
 
+			LocalRecoveryDirectoryProvider directoryProviderFromTaskLocalStateStore =
+				taskLocalStateStore.createLocalRecoveryRootDirectoryProvider();
+
+			LocalRecoveryDirectoryProvider directoryProviderFromTaskStateManager =
+				taskStateManager.createLocalRecoveryRootDirectoryProvider();
+
+
+			for (int i = 0; i < 10; ++i) {
+				Assert.assertEquals(rootDirs[i % rootDirs.length],
+					directoryProviderFromTaskLocalStateStore.nextRootDirectory());
+				Assert.assertEquals(rootDirs[i % rootDirs.length],
+					directoryProviderFromTaskStateManager.nextRootDirectory());
+			}
+
 			Assert.assertEquals(
-				taskLocalStateStore.getSubtaskLocalStateBaseDirectory(),
-				taskStateManager.getSubtaskLocalStateBaseDirectory());
+				directoryProviderFromTaskLocalStateStore.getSubtaskSpecificPath(),
+				directoryProviderFromTaskStateManager.getSubtaskSpecificPath());
+
 		} finally {
 			tmpFolder.delete();
 		}

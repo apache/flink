@@ -42,6 +42,7 @@ import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.HashMapSerializer;
@@ -50,12 +51,12 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
@@ -66,6 +67,7 @@ import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
+import org.apache.flink.util.ThrowingSupplier;
 
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.io.IOUtils;
@@ -136,12 +138,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
 		this.localRecoveryConfig = Preconditions.checkNotNull(localRecoveryConfig);
 
-		this.snapshotStrategy = asynchronousSnapshots ?
-			new AsyncHeapSnapshotStrategy() :
-			new SyncHeapSnapshotStrategy();
+		SnapshotStrategySynchronicityBehavior<K> synchronicityTrait = asynchronousSnapshots ?
+			new AsyncSnapshotStrategySynchronicityBehavior() :
+			new SyncSnapshotStrategySynchronicityBehavior();
 
+		this.snapshotStrategy = new HeapSnapshotStrategy(synchronicityTrait);
 		LOG.info("Initializing heap keyed state backend with stream factory.");
-
 		this.restoredKvStateMetaInfos = new HashMap<>();
 	}
 
@@ -507,17 +509,78 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		return localRecoveryConfig;
 	}
 
+	private interface SnapshotStrategySynchronicityBehavior<K> {
+
+		default void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+
+		}
+
+		default void logOperationCompleted(CheckpointStreamFactory streamFactory, long startTime) {
+
+		}
+
+		boolean isAsynchronous();
+
+		<N, V> StateTable<K, N, V> newStateTable(RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo);
+	}
+
+	private class AsyncSnapshotStrategySynchronicityBehavior implements SnapshotStrategySynchronicityBehavior<K> {
+
+		@Override
+		public void logOperationCompleted(CheckpointStreamFactory streamFactory, long startTime) {
+			LOG.info("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
+				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+		}
+
+		@Override
+		public boolean isAsynchronous() {
+			return true;
+		}
+
+		@Override
+		public <N, V> StateTable<K, N, V> newStateTable(RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo) {
+			return new CopyOnWriteStateTable<>(HeapKeyedStateBackend.this, newMetaInfo);
+		}
+	}
+
+	private class SyncSnapshotStrategySynchronicityBehavior implements SnapshotStrategySynchronicityBehavior<K> {
+
+		@Override
+		public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+			// this triggers a synchronous execution from the main checkpointing thread.
+			runnable.run();
+		}
+
+		@Override
+		public boolean isAsynchronous() {
+			return false;
+		}
+
+		@Override
+		public <N, V> StateTable<K, N, V> newStateTable(RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo) {
+			return new NestedMapsStateTable<>(HeapKeyedStateBackend.this, newMetaInfo);
+		}
+	}
+
 	/**
 	 * Base class for the snapshots of the heap backend that outlines the algorithm and offers some hooks to realize
-	 * the concrete strategies.
+	 * the concrete strategies. Subclasses must be threadsafe.
 	 */
-	private abstract class HeapSnapshotStrategy implements SnapshotStrategy<SnapshotResult<KeyedStateHandle>> {
+	private class HeapSnapshotStrategy
+		implements SnapshotStrategy<SnapshotResult<KeyedStateHandle>>, SnapshotStrategySynchronicityBehavior<K> {
+
+		private final SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait;
+
+		public HeapSnapshotStrategy(
+			SnapshotStrategySynchronicityBehavior<K> snapshotStrategySynchronicityTrait) {
+			this.snapshotStrategySynchronicityTrait = snapshotStrategySynchronicityTrait;
+		}
 
 		@Override
 		public RunnableFuture<SnapshotResult<KeyedStateHandle>> performSnapshot(
 			long checkpointId,
 			long timestamp,
-			CheckpointStreamFactory streamFactory,
+			CheckpointStreamFactory primaryStreamFactory,
 			CheckpointOptions checkpointOptions) throws Exception {
 
 			if (!hasRegisteredState()) {
@@ -553,27 +616,36 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					metaInfoSnapshots,
 					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, keyGroupCompressionDecorator));
 
+			LocalRecoveryDirectoryProvider directoryProvider =
+				FsStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED.equals(localRecoveryConfig.getLocalRecoveryMode()) ?
+					localRecoveryConfig.getLocalStateDirectories() :
+					null;
+
+			final ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier =
+				() -> new CheckpointStreamWithResultProvider.Factory().create(
+					checkpointId,
+					CheckpointedStateScope.EXCLUSIVE,
+					primaryStreamFactory,
+					directoryProvider);
+
 			//--------------------------------------------------- this becomes the end of sync part
 
 			// implementation of the async IO operation, based on FutureTask
 			final AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
 				new AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>>() {
 
-					CheckpointStreamFactory.CheckpointStateOutputStream stream = null;
+					CheckpointStreamWithResultProvider streamAndResultExtractor = null;
 
 					@Override
 					protected void acquireResources() throws Exception {
-						stream = streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
-						cancelStreamRegistry.registerCloseable(stream);
+						streamAndResultExtractor = checkpointStreamSupplier.get();
+						cancelStreamRegistry.registerCloseable(streamAndResultExtractor);
 					}
 
 					@Override
 					protected void releaseResources() throws Exception {
 
-						if (cancelStreamRegistry.unregisterCloseable(stream)) {
-							IOUtils.closeQuietly(stream);
-							stream = null;
-						}
+						unregisterAndCloseStreamAndResultExtractor();
 
 						for (StateTableSnapshot tableSnapshot : cowStateStableSnapshots.values()) {
 							tableSnapshot.release();
@@ -582,9 +654,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 					@Override
 					protected void stopOperation() throws Exception {
-						if (cancelStreamRegistry.unregisterCloseable(stream)) {
-							IOUtils.closeQuietly(stream);
-							stream = null;
+						unregisterAndCloseStreamAndResultExtractor();
+					}
+
+					private void unregisterAndCloseStreamAndResultExtractor() {
+						if (cancelStreamRegistry.unregisterCloseable(streamAndResultExtractor)) {
+							IOUtils.closeQuietly(streamAndResultExtractor);
+							streamAndResultExtractor = null;
 						}
 					}
 
@@ -593,7 +669,8 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						long startTime = System.currentTimeMillis();
 
-						CheckpointStreamFactory.CheckpointStateOutputStream localStream = this.stream;
+						CheckpointStreamFactory.CheckpointStateOutputStream localStream =
+							this.streamAndResultExtractor.getCheckpointOutputStream();
 
 						DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(localStream);
 						serializationProxy.write(outView);
@@ -614,23 +691,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							}
 						}
 
-						if (cancelStreamRegistry.unregisterCloseable(stream)) {
-
-							final StreamStateHandle streamStateHandle = stream.closeAndGetHandle();
-							stream = null;
-
-							operationCompletionLogHook(streamFactory, startTime);
-
-							if (streamStateHandle != null) {
-
-								KeyGroupRangeOffsets offsets =
-									new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
-
-								final KeyGroupsStateHandle keyGroupsStateHandle =
-									new KeyGroupsStateHandle(offsets, streamStateHandle);
-
-								return new SnapshotResult<>(keyGroupsStateHandle, null);
-							}
+						if (cancelStreamRegistry.unregisterCloseable(streamAndResultExtractor)) {
+							KeyGroupRangeOffsets kgOffs = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
+							SnapshotResult<KeyedStateHandle> result =
+								streamAndResultExtractor.closeAndFinalizeCheckpointStreamResult(kgOffs);
+							streamAndResultExtractor = null;
+							logOperationCompleted(primaryStreamFactory, startTime);
+							return result;
 						}
 
 						return null;
@@ -642,65 +709,30 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			finalizeSnapshotBeforeReturnHook(task);
 
-			LOG.info("Heap backend snapshot (" + streamFactory + ", synchronous part) in thread " +
+			LOG.info("Heap backend snapshot (" + primaryStreamFactory + ", synchronous part) in thread " +
 				Thread.currentThread() + " took " + (System.currentTimeMillis() - syncStartTime) + " ms.");
 
 			return task;
 		}
 
-		protected void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+		@Override
+		public void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
+			snapshotStrategySynchronicityTrait.finalizeSnapshotBeforeReturnHook(runnable);
 		}
-
-		protected void operationCompletionLogHook(
-			CheckpointStreamFactory streamFactory,
-			long startTime) {
-		}
-
-		public abstract boolean isAsynchronous();
-
-		public abstract <N, V> StateTable<K, N, V> newStateTable(RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo);
-	}
-
-	/**
-	 * Asynchronous snapshots.
-	 */
-	private class AsyncHeapSnapshotStrategy extends HeapSnapshotStrategy {
 
 		@Override
-		protected void operationCompletionLogHook(CheckpointStreamFactory streamFactory, long startTime) {
-			LOG.info("Heap backend snapshot ({}, asynchronous part) in thread {} took {} ms.",
-				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+		public void logOperationCompleted(CheckpointStreamFactory streamFactory, long startTime) {
+			snapshotStrategySynchronicityTrait.logOperationCompleted(streamFactory, startTime);
 		}
 
 		@Override
 		public boolean isAsynchronous() {
-			return true;
+			return snapshotStrategySynchronicityTrait.isAsynchronous();
 		}
 
 		@Override
 		public <N, V> StateTable<K, N, V> newStateTable(RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo) {
-			return new CopyOnWriteStateTable<>(HeapKeyedStateBackend.this, newMetaInfo);
-		}
-	}
-
-	/**
-	 * Synchronous snapshots.
-	 */
-	private class SyncHeapSnapshotStrategy extends HeapSnapshotStrategy {
-
-		@Override
-		protected void finalizeSnapshotBeforeReturnHook(Runnable runnable) {
-			runnable.run();
-		}
-
-		@Override
-		public boolean isAsynchronous() {
-			return false;
-		}
-
-		@Override
-		public <N, V> StateTable<K, N, V> newStateTable(RegisteredKeyedBackendStateMetaInfo<N, V> newMetaInfo) {
-			return new NestedMapsStateTable<>(HeapKeyedStateBackend.this, newMetaInfo);
+			return snapshotStrategySynchronicityTrait.newStateTable(newMetaInfo);
 		}
 	}
 }

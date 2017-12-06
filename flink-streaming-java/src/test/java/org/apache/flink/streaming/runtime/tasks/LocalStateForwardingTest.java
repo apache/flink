@@ -48,6 +48,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -124,7 +125,7 @@ public class LocalStateForwardingTest {
 	 * reported to {@link org.apache.flink.runtime.taskmanager.CheckpointResponder} and {@link TaskLocalStateStore}.
 	 */
 	@Test
-	public void testForwardingFromTaskStateManagerToResponderAndTaskLocalStateStore() {
+	public void testForwardingFromTaskStateManagerToResponderAndTaskLocalStateStore() throws Exception {
 
 		final JobID jobID = new JobID();
 		final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
@@ -158,10 +159,11 @@ public class LocalStateForwardingTest {
 		};
 
 		TemporaryFolder temporaryFolder = new TemporaryFolder();
+		temporaryFolder.create();
 
 		try {
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx, temporaryFolder.newFolder()) {
+				new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}) {
 					@Override
 					public void storeLocalState(
 						@Nonnull CheckpointMetaData checkpointMetaData,

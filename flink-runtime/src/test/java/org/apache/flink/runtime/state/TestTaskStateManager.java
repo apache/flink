@@ -52,7 +52,7 @@ public class TestTaskStateManager implements TaskStateManager {
 	private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
 	private CheckpointResponder checkpointResponder;
 	private OneShotLatch waitForReportLatch;
-	private File subtaskLocalStateBaseDirectory;
+	private LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
 
 	public TestTaskStateManager() {
 		this(new JobID(), new ExecutionAttemptID(), new TestCheckpointResponder());
@@ -69,14 +69,21 @@ public class TestTaskStateManager implements TaskStateManager {
 		JobID jobId,
 		ExecutionAttemptID executionAttemptID,
 		CheckpointResponder checkpointResponder) {
+		this(jobId, executionAttemptID, checkpointResponder, createTestLocalRecoveryDirectoryProvider());
+	}
+
+	public TestTaskStateManager(
+		JobID jobId,
+		ExecutionAttemptID executionAttemptID,
+		CheckpointResponder checkpointResponder,
+		LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider) {
 		this.jobId = jobId;
 		this.executionAttemptID = executionAttemptID;
 		this.checkpointResponder = checkpointResponder;
+		this.localRecoveryDirectoryProvider = localRecoveryDirectoryProvider;
 		this.jobManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
 		this.taskManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
 		this.reportedCheckpointId = -1L;
-		this.subtaskLocalStateBaseDirectory =
-			new File(System.getProperty("java.io.tmpdir"), "testLocalState_" + UUID.randomUUID());
 	}
 
 	@Override
@@ -118,13 +125,13 @@ public class TestTaskStateManager implements TaskStateManager {
 	}
 
 	@Override
-	public File getSubtaskLocalStateBaseDirectory() {
-		return Preconditions.checkNotNull(subtaskLocalStateBaseDirectory,
+	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
+		return Preconditions.checkNotNull(localRecoveryDirectoryProvider,
 			"Local state directory was never set for this test object!");
 	}
 
-	public void setSubtaskLocalStateBaseDirectory(File subtaskLocalStateBaseDirectory) {
-		this.subtaskLocalStateBaseDirectory = subtaskLocalStateBaseDirectory;
+	public void setLocalRecoveryDirectoryProvider(LocalRecoveryDirectoryProvider recoveryDirectoryProvider) {
+		this.localRecoveryDirectoryProvider = recoveryDirectoryProvider;
 	}
 
 	@Override
@@ -221,5 +228,13 @@ public class TestTaskStateManager implements TaskStateManager {
 
 		setReportedCheckpointId(latestId);
 		setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshotsByCheckpointId);
+	}
+
+	private static LocalRecoveryDirectoryProvider createTestLocalRecoveryDirectoryProvider() {
+		File rootDir = new File(System.getProperty("java.io.tmpdir"), "testLocalState_" + UUID.randomUUID());
+		if (!rootDir.exists()) {
+			Preconditions.checkState(rootDir.mkdirs());
+		}
+		return new LocalRecoveryDirectoryProvider(rootDir, UUID.randomUUID().toString());
 	}
 }

@@ -202,11 +202,16 @@ public class TaskManagerServices {
 
 		final JobLeaderService jobLeaderService = new JobLeaderService(taskManagerLocation);
 
-		final File taskExecutorLocalStateRootDir =
-			new File(taskManagerServicesConfiguration.getLocalStateRootDir(), LOCAL_STATE_SUB_DIRECTORY_ROOT);
+		final String[] stateRootDirectoryStrings = taskManagerServicesConfiguration.getLocalRecoveryStateRootDirectories();
+
+		final File[] stateRootDirectoryFiles = new File[stateRootDirectoryStrings.length];
+
+		for (int i = 0; i < stateRootDirectoryStrings.length; ++i) {
+			stateRootDirectoryFiles[i] = new File(stateRootDirectoryStrings[i], LOCAL_STATE_SUB_DIRECTORY_ROOT);
+		}
 
 		final TaskExecutorLocalStateStoresManager taskStateManager =
-			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDir);
+			new TaskExecutorLocalStateStoresManager(stateRootDirectoryFiles);
 
 		return new TaskManagerServices(
 			taskManagerLocation,

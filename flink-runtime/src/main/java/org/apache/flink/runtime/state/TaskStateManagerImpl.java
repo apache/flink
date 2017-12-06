@@ -31,8 +31,6 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.File;
-
 /**
  * This class is the default implementation of {@link TaskStateManager} and collaborates with the job manager
  * through {@link CheckpointResponder}) as well as a task-manager-local state store. Like this, client code does
@@ -112,8 +110,8 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	}
 
 	@Override
-	public File getSubtaskLocalStateBaseDirectory() {
-		return localStateStore.getSubtaskLocalStateBaseDirectory();
+	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
+		return localStateStore.createLocalRecoveryRootDirectoryProvider();
 	}
 
 	/**

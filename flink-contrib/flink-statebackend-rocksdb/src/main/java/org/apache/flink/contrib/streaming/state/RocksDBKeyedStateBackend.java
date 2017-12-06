@@ -52,6 +52,7 @@ import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
@@ -83,6 +85,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 import org.apache.flink.util.StateMigrationException;
+import org.apache.flink.util.ThrowingSupplier;
 
 import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -1411,7 +1414,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		public RunnableFuture<SnapshotResult<KeyedStateHandle>> performSnapshot(
 			long checkpointId,
 			long timestamp,
-			CheckpointStreamFactory streamFactory,
+			CheckpointStreamFactory primaryStreamFactory,
 			CheckpointOptions checkpointOptions) throws Exception {
 
 			long startTime = System.currentTimeMillis();
@@ -1428,12 +1431,24 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				return DoneFuture.nullValue();
 			}
 
+			LocalRecoveryDirectoryProvider directoryProvider =
+				isWithLocalRecovery(checkpointOptions.getCheckpointType(), localRecoveryConfig.getLocalRecoveryMode()) ?
+					localRecoveryConfig.getLocalStateDirectories() :
+					null;
+
+			final ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> supplier =
+				() -> new CheckpointStreamWithResultProvider.Factory().create(
+					checkpointId,
+					timestamp,
+					primaryStreamFactory,
+					directoryProvider);
+
 			snapshotOperation = new RocksDBFullSnapshotOperation<>(
 				RocksDBKeyedStateBackend.this,
-				streamFactory,
+				supplier,
 				snapshotCloseableRegistry);
 
-			snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
+			snapshotOperation.takeDBSnapShot();
 
 			// implementation of the async IO operation, based on FutureTask
 			AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
@@ -1482,16 +1497,23 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						snapshotOperation.writeDBSnapshot();
 
 						LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
-							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+							primaryStreamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 
-						KeyGroupsStateHandle stateHandle = snapshotOperation.getSnapshotResultStateHandle();
-						return new SnapshotResult<>(stateHandle, null);
+						return snapshotOperation.getSnapshotResultStateHandle();
 					}
 				};
 
 			LOG.info("Asynchronous RocksDB snapshot ({}, synchronous part) in thread {} took {} ms.",
-				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+				primaryStreamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 			return AsyncStoppableTaskWithCallback.from(ioCallable);
+		}
+
+		private boolean isWithLocalRecovery(
+			CheckpointOptions.CheckpointType checkpointType,
+			RocksDBStateBackend.LocalRecoveryMode recoveryMode) {
+			// we use local recovery when it is activated and we are not taking a savepoint.
+			return RocksDBStateBackend.LocalRecoveryMode.ENABLE_FILE_BASED.equals(recoveryMode)
+				&& !CheckpointOptions.CheckpointType.SAVEPOINT.equals(checkpointType);
 		}
 	}
 
@@ -1566,7 +1588,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend.
 	 */
 	@VisibleForTesting
-	static final class RocksDBFullSnapshotOperation<K>
+	static class RocksDBFullSnapshotOperation<K>
 		extends AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> {
 
 		static final int FIRST_BIT_IN_BYTE_MASK = 0x80;
@@ -1574,27 +1596,24 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		private final RocksDBKeyedStateBackend<K> stateBackend;
 		private final KeyGroupRangeOffsets keyGroupRangeOffsets;
-		private final CheckpointStreamFactory checkpointStreamFactory;
+		private final ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier;
 		private final CloseableRegistry snapshotCloseableRegistry;
 		private final ResourceGuard.Lease dbLease;
-
-		private long checkpointId;
-		private long checkpointTimeStamp;
 
 		private Snapshot snapshot;
 		private ReadOptions readOptions;
 		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
 
-		private CheckpointStreamFactory.CheckpointStateOutputStream outStream;
+		private CheckpointStreamWithResultProvider checkpointStreamWithResultProvider;
 		private DataOutputView outputView;
 
 		RocksDBFullSnapshotOperation(
 			RocksDBKeyedStateBackend<K> stateBackend,
-			CheckpointStreamFactory checkpointStreamFactory,
+			ThrowingSupplier<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier,
 			CloseableRegistry registry) throws IOException {
 
 			this.stateBackend = stateBackend;
-			this.checkpointStreamFactory = checkpointStreamFactory;
+			this.checkpointStreamSupplier = checkpointStreamSupplier;
 			this.keyGroupRangeOffsets = new KeyGroupRangeOffsets(stateBackend.keyGroupRange);
 			this.snapshotCloseableRegistry = registry;
 			this.dbLease = this.stateBackend.rocksDBResourceGuard.acquireResource();
@@ -1603,14 +1622,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		/**
 		 * 1) Create a snapshot object from RocksDB.
 		 *
-		 * @param checkpointId id of the checkpoint for which we take the snapshot
-		 * @param checkpointTimeStamp timestamp of the checkpoint for which we take the snapshot
 		 */
-		public void takeDBSnapShot(long checkpointId, long checkpointTimeStamp) {
+		public void takeDBSnapShot() {
 			Preconditions.checkArgument(snapshot == null, "Only one ongoing snapshot allowed!");
 			this.kvStateIterators = new ArrayList<>(stateBackend.kvStateInformation.size());
-			this.checkpointId = checkpointId;
-			this.checkpointTimeStamp = checkpointTimeStamp;
 			this.snapshot = stateBackend.db.getSnapshot();
 		}
 
@@ -1620,10 +1635,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 * @throws Exception
 		 */
 		public void openCheckpointStream() throws Exception {
-			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
-			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
-			snapshotCloseableRegistry.registerCloseable(outStream);
-			outputView = new DataOutputViewStreamWrapper(outStream);
+			Preconditions.checkArgument(checkpointStreamWithResultProvider == null,
+				"Output stream for snapshot is already set.");
+
+			checkpointStreamWithResultProvider = checkpointStreamSupplier.get();
+			snapshotCloseableRegistry.registerCloseable(checkpointStreamWithResultProvider);
+			outputView = new DataOutputViewStreamWrapper(
+				checkpointStreamWithResultProvider.getCheckpointOutputStream());
 		}
 
 		/**
@@ -1637,7 +1655,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				throw new IOException("No snapshot available. Might be released due to cancellation.");
 			}
 
-			Preconditions.checkNotNull(outStream, "No output stream to write snapshot.");
+			Preconditions.checkNotNull(checkpointStreamWithResultProvider, "No output stream to write snapshot.");
 			writeKVStateMetaData();
 			writeKVStateData();
 		}
@@ -1647,16 +1665,14 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 *
 		 * @return state handle to the completed snapshot
 		 */
-		public KeyGroupsStateHandle getSnapshotResultStateHandle() throws IOException {
+		public SnapshotResult<KeyedStateHandle> getSnapshotResultStateHandle() throws IOException {
 
-			if (snapshotCloseableRegistry.unregisterCloseable(outStream)) {
+			if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
 
-				StreamStateHandle stateHandle = outStream.closeAndGetHandle();
-				outStream = null;
-
-				if (stateHandle != null) {
-					return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
-				}
+				SnapshotResult<KeyedStateHandle> result =
+					checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(keyGroupRangeOffsets);
+				checkpointStreamWithResultProvider = null;
+				return result;
 			}
 			return null;
 		}
@@ -1666,7 +1682,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		 */
 		public void releaseSnapshotResources() {
 
-			outStream = null;
+			checkpointStreamWithResultProvider = null;
 
 			if (null != kvStateIterators) {
 				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
@@ -1716,7 +1732,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				new KeyedBackendSerializationProxy<>(
 					stateBackend.getKeySerializer(),
 					metaInfoSnapshots,
-					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, stateBackend.keyGroupCompressionDecorator));
+					!Objects.equals(
+						UncompressedStreamCompressionDecorator.INSTANCE,
+						stateBackend.keyGroupCompressionDecorator));
 
 			serializationProxy.write(outputView);
 		}
@@ -1725,8 +1743,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 			byte[] previousKey = null;
 			byte[] previousValue = null;
-			OutputStream kgOutStream = null;
 			DataOutputView kgOutView = null;
+			OutputStream kgOutStream = null;
+			CheckpointStreamFactory.CheckpointStateOutputStream checkpointOutputStream =
+				checkpointStreamWithResultProvider.getCheckpointOutputStream();
 
 			try {
 				// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
@@ -1739,9 +1759,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 					//preamble: setup with first key-group as our lookahead
 					if (mergeIterator.isValid()) {
 						//begin first key-group by recording the offset
-						keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+						keyGroupRangeOffsets.setKeyGroupOffset(
+							mergeIterator.keyGroup(),
+							checkpointOutputStream.getPos());
 						//write the k/v-state id as metadata
-						kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
+						kgOutStream = stateBackend.keyGroupCompressionDecorator.
+							decorateWithCompression(checkpointOutputStream);
 						kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
 						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
 						kgOutView.writeShort(mergeIterator.kvStateId());
@@ -1773,10 +1796,13 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 							// this will just close the outer stream
 							kgOutStream.close();
 							//begin new key-group
-							keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+							keyGroupRangeOffsets.setKeyGroupOffset(
+								mergeIterator.keyGroup(),
+								checkpointOutputStream.getPos());
 							//write the kev-state
 							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
+							kgOutStream = stateBackend.keyGroupCompressionDecorator.
+								decorateWithCompression(checkpointOutputStream);
 							kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
 							kgOutView.writeShort(mergeIterator.kvStateId());
 						} else if (mergeIterator.isNewKeyValueState()) {
@@ -1876,10 +1902,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			writeDBSnapshot();
 
 			LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
-				checkpointStreamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+				checkpointStreamSupplier, Thread.currentThread(), (System.currentTimeMillis() - startTime));
 
-			KeyGroupsStateHandle stateHandle = getSnapshotResultStateHandle();
-			return new SnapshotResult<>(stateHandle, null);
+			return getSnapshotResultStateHandle();
 		}
 	}
 

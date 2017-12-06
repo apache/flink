@@ -18,6 +18,8 @@
 
 package org.apache.flink.configuration;
 
+import javax.annotation.Nonnull;
+
 import java.io.File;
 
 /**
@@ -33,9 +35,28 @@ public class ConfigurationUtils {
 	 * @return array of configured directories (in order)
 	 */
 	public static String[] parseTempDirectories(Configuration configuration) {
-		return configuration.getString(CoreOptions.TMP_DIRS).split(",|" + File.pathSeparator);
+		return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+	}
+
+	/**
+	 * Extracts the local state directories  as defined by
+	 * {@link org.apache.flink.configuration.ConfigConstants#TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY}.
+	 *
+	 * @param configuration configuration object
+	 * @return array of configured directories (in order)
+	 */
+	public static String[] parseLocalStateDirectories(Configuration configuration) {
+		String configValue = configuration.getString(
+			ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY,
+			configuration.getString(CoreOptions.TMP_DIRS));
+		return splitPaths(configValue);
+	}
+
+	private static String[] splitPaths(@Nonnull String separatedPaths) {
+		return separatedPaths.split(",|" + File.pathSeparator);
 	}
 
 	// Make sure that we cannot instantiate this class
-	private ConfigurationUtils() {}
+	private ConfigurationUtils() {
+	}
 }

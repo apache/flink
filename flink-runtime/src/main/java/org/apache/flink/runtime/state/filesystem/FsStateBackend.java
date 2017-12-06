@@ -32,7 +32,10 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.LocalRecoveryConfigBase;
+import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TernaryBoolean;
@@ -42,9 +45,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.URI;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -475,10 +476,10 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 			KeyGroupRange keyGroupRange,
 			TaskKvStateRegistry kvStateRegistry) throws IOException {
 
-		File subtaskLocalStateBaseDirectory = env.getTaskStateManager().getSubtaskLocalStateBaseDirectory();
-
-		LocalRecoveryConfig localRecoveryConfig =
-			new LocalRecoveryConfig(localRecoveryMode, subtaskLocalStateBaseDirectory);
+		TaskStateManager taskStateManager = env.getTaskStateManager();
+		LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(
+			localRecoveryMode,
+			taskStateManager.createLocalRecoveryRootDirectoryProvider());
 
 		return new HeapKeyedStateBackend<>(
 				kvStateRegistry,
@@ -525,19 +526,17 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	/**
 	 * This class encapsulates the configuration for local recovery of this backend.
 	 */
-	public static final class LocalRecoveryConfig implements Serializable {
+	public static final class LocalRecoveryConfig extends LocalRecoveryConfigBase {
 
-		private static final long serialVersionUID = 1L;
 		private static final LocalRecoveryConfig DISABLED_SINGLETON =
 			new LocalRecoveryConfig(LocalRecoveryMode.DISABLED, null);
 
 		private final LocalRecoveryMode localRecoveryMode;
-		private final File localStateDirectory;
 
-		LocalRecoveryConfig(LocalRecoveryMode localRecoveryMode, File localStateDirectory) {
+		LocalRecoveryConfig(LocalRecoveryMode localRecoveryMode, LocalRecoveryDirectoryProvider rotatingDirectoryProvider) {
+			super(rotatingDirectoryProvider);
 			this.localRecoveryMode = Preconditions.checkNotNull(localRecoveryMode);
-			this.localStateDirectory = localStateDirectory;
-			if (LocalRecoveryMode.ENABLE_FILE_BASED.equals(localRecoveryMode) && localStateDirectory == null) {
+			if (LocalRecoveryMode.ENABLE_FILE_BASED.equals(localRecoveryMode) && rotatingDirectoryProvider == null) {
 				throw new IllegalStateException("Local state directory must be specified if local recovery mode is " +
 					LocalRecoveryMode.ENABLE_FILE_BASED);
 			}
@@ -545,10 +544,6 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 
 		public LocalRecoveryMode getLocalRecoveryMode() {
 			return localRecoveryMode;
-		}
-
-		public File getLocalStateDirectory() {
-			return localStateDirectory;
 		}
 
 		public static LocalRecoveryConfig disabled() {
@@ -559,8 +554,7 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 		public String toString() {
 			return "LocalRecoveryConfig{" +
 				"localRecoveryMode=" + localRecoveryMode +
-				", localStateDirectory=" + localStateDirectory +
-				'}';
+				"} " + super.toString();
 		}
 	}
 }

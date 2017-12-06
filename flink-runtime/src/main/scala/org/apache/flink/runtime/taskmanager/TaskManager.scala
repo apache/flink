@@ -1197,12 +1197,10 @@ class TaskManager(
 
       //TODO: make configurable, this is just the future fallback case,
       // integrate with ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY
-      val taskExecutorLocalStateRootDir =
-        new File(Preconditions.checkNotNull(ioManager.getSpillingDirectories()(0)), "localState")
-
       // TODO: wire this so that the manager survives the end of the task
+      //TODO create "localState" sub-directories!!!
       val taskExecutorLocalStateStoresManager =
-        new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDir)
+        new TaskExecutorLocalStateStoresManager(ioManager.getSpillingDirectories)
 
       val localStateStore = taskExecutorLocalStateStoresManager.localStateStoreForTask(
         jobInformation.getJobId,

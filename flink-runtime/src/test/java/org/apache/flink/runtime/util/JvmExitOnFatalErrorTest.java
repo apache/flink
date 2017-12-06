@@ -72,6 +72,7 @@ import org.apache.flink.util.SerializedValue;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -177,7 +178,7 @@ public class JvmExitOnFatalErrorTest {
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				final TaskLocalStateStore localStateStore =
-					new TaskLocalStateStore(jid, jobVertexId, 0, temporaryFolder.newFolder());
+					new TaskLocalStateStore(jid, jobVertexId, 0, new File[]{temporaryFolder.newFolder()});
 
 				final TaskStateManager slotStateManager =
 					new TaskStateManagerImpl(

@@ -44,7 +44,7 @@ public class TaskExecutorLocalStateStoresManagerTest {
 
 		final Configuration config = new Configuration();
 
-		final String rootDirString = "localStateRoot";
+		final String rootDirString = "localStateRoot1,localStateRoot2,localStateRoot3";
 		config.setString(ConfigConstants.TASK_MANAGER_LOCAL_STATE_ROOT_DIR_KEY, rootDirString);
 
 		final ResourceID tmResourceID = ResourceID.generate();
@@ -57,9 +57,13 @@ public class TaskExecutorLocalStateStoresManagerTest {
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskStateManager();
 
-		Assert.assertEquals(
-			new File(rootDirString, TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
-			taskStateManager.getLocalStateRootDirectory());
+		String[] split = rootDirString.split(",");
+		File[] rootDirectories = taskStateManager.getLocalStateRootDirectories();
+		for (int i = 0; i < split.length; ++i) {
+			Assert.assertEquals(
+				new File(split[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
+				rootDirectories[i]);
+		}
 
 		Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
 	}
@@ -83,9 +87,14 @@ public class TaskExecutorLocalStateStoresManagerTest {
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskStateManager();
 
-		Assert.assertEquals(
-			new File(taskManagerServicesConfiguration.getTmpDirPaths()[0], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
-			taskStateManager.getLocalStateRootDirectory());
+		String[] tmpDirPaths = taskManagerServicesConfiguration.getTmpDirPaths();
+		File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();
+
+		for (int i = 0; i < tmpDirPaths.length; ++i) {
+			Assert.assertEquals(
+				new File(tmpDirPaths[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
+				localStateRootDirectories[i]);
+		}
 	}
 
 	/**
@@ -100,21 +109,27 @@ public class TaskExecutorLocalStateStoresManagerTest {
 		int subtaskIdx = 42;
 		TemporaryFolder tmp = new TemporaryFolder();
 		try {
+
 			tmp.create();
-			File localStoreDir = tmp.newFolder();
+			File[] rootDirs = {tmp.newFolder(), tmp.newFolder(), tmp.newFolder()};
 			TaskExecutorLocalStateStoresManager storesManager =
-				new TaskExecutorLocalStateStoresManager(localStoreDir);
+				new TaskExecutorLocalStateStoresManager(rootDirs);
 
 			TaskLocalStateStore taskLocalStateStore =
 				storesManager.localStateStoreForTask(jobID, jobVertexID, subtaskIdx);
 
-			Assert.assertEquals(
-				new File(localStoreDir, TaskLocalStateStore.createSubtaskPath(jobID, jobVertexID, subtaskIdx)),
-				taskLocalStateStore.getSubtaskLocalStateBaseDirectory());
+			LocalRecoveryDirectoryProvider directoryProvider =
+				taskLocalStateStore.createLocalRecoveryRootDirectoryProvider();
 
-			Assert.assertEquals(
-				new File(localStoreDir, "jid-" + jobID + "_vtx-" + jobVertexID + "_sti-" + subtaskIdx),
-				taskLocalStateStore.getSubtaskLocalStateBaseDirectory());
+			for (int i = 0; i < 10; ++i) {
+				Assert.assertEquals(
+					rootDirs[(i & Integer.MAX_VALUE) % rootDirs.length],
+					directoryProvider.nextRootDirectory());
+			}
+
+			Assert.assertEquals(taskLocalStateStore.createSubtaskPath(), directoryProvider.getSubtaskSpecificPath());
+			Assert.assertEquals(jobID + File.separator + jobVertexID + File.separator + subtaskIdx, taskLocalStateStore.createSubtaskPath());
+
 		} finally {
 			tmp.delete();
 		}

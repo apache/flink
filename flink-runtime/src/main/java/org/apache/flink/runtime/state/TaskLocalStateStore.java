@@ -23,7 +23,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FileUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -55,25 +54,24 @@ public class TaskLocalStateStore {
 	/** */
 	private final Map<Long, TaskStateSnapshot> storedTaskStateByCheckpointID;
 
-	/** This is the base directory for all local state of the subtask that owns this {@link TaskLocalStateStore}. */
-	private final File subtaskLocalStateBaseDirectory;
+	/** The root directories for all local state of this {@link TaskLocalStateStore}. */
+	private final File[] localStateRootDirectories;
 
 	public TaskLocalStateStore(
 		JobID jobID,
 		JobVertexID jobVertexID,
 		int subtaskIndex,
-		File localStateRootDir) {
+		File[] localStateRootDirectories) {
 
 		this.jobID = jobID;
 		this.jobVertexID = jobVertexID;
 		this.subtaskIndex = subtaskIndex;
 		this.storedTaskStateByCheckpointID = new HashMap<>();
-		this.subtaskLocalStateBaseDirectory =
-			new File(localStateRootDir, createSubtaskPath(jobID, jobVertexID, subtaskIndex));
+		this.localStateRootDirectories = localStateRootDirectories;
 	}
 
-	static String createSubtaskPath(JobID jobID, JobVertexID jobVertexID, int subtaskIndex) {
-		return "jid-" + jobID + "_vtx-" + jobVertexID + "_sti-" + subtaskIndex;
+	protected String createSubtaskPath() {
+		return jobID + File.separator + jobVertexID + File.separator + subtaskIndex;
 	}
 
 	public void storeLocalState(
@@ -104,11 +102,9 @@ public class TaskLocalStateStore {
 		if (collectedException != null) {
 			throw collectedException;
 		}
-
-		FileUtils.deleteDirectoryQuietly(subtaskLocalStateBaseDirectory);
 	}
 
-	public File getSubtaskLocalStateBaseDirectory() {
-		return subtaskLocalStateBaseDirectory;
+	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
+		return new LocalRecoveryDirectoryProvider(localStateRootDirectories, createSubtaskPath());
 	}
 }

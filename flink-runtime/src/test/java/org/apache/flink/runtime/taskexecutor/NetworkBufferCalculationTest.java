@@ -122,6 +122,7 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		return new TaskManagerServicesConfiguration(
 			InetAddress.getLoopbackAddress(),
 			new String[] {},
+			new String[] {},
 			networkConfig,
 			QueryableStateConfiguration.disabled(),
 			1,

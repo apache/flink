@@ -145,11 +145,11 @@ public class TaskExecutorITCase extends TestLogger {
 			TestingUtils.infiniteTime(),
 			TestingUtils.infiniteTime());
 
-		final File taskExecutorLocalStateRootDir =
-			new File(Preconditions.checkNotNull(ioManager.getSpillingDirectories()[0]), "localState");
+		final File[] taskExecutorLocalStateRootDirs =
+			new File[]{new File(System.getProperty("java.io.tmpdir"), "localRecovery")};
 
 		final TaskExecutorLocalStateStoresManager taskStateManager =
-			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDir);
+			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDirs);
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
 			rpcService,
