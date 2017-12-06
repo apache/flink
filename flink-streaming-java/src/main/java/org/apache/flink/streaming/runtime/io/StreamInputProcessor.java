@@ -98,9 +98,6 @@ public class StreamInputProcessor<IN> {
 
 	private final OneInputStreamOperator<IN, ?> streamOperator;
 
-	// ---------------- Metrics ------------------
-
-	private long lastEmittedWatermark;
 	private Counter numRecordsIn;
 
 	private boolean isFinished;
@@ -153,8 +150,6 @@ public class StreamInputProcessor<IN> {
 		}
 
 		this.numInputChannels = inputGate.getNumberOfInputChannels();
-
-		this.lastEmittedWatermark = Long.MIN_VALUE;
 
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
@@ -242,13 +237,6 @@ public class StreamInputProcessor<IN> {
 	 * @param metrics metric group
 	 */
 	public void setMetricGroup(TaskIOMetricGroup metrics) {
-		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return lastEmittedWatermark;
-			}
-		});
-
 		metrics.gauge("checkpointAlignmentTime", new Gauge<Long>() {
 			@Override
 			public Long getValue() {
@@ -284,7 +272,6 @@ public class StreamInputProcessor<IN> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					lastEmittedWatermark = watermark.getTimestamp();
 					operator.processWatermark(watermark);
 				}
 			} catch (Exception e) {

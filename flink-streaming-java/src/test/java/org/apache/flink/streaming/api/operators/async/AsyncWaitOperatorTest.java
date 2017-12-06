@@ -272,10 +272,13 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.open();
 
 		synchronized (testHarness.getCheckpointLock()) {
+			Assert.assertEquals(Long.MIN_VALUE, operator.getInputWatermarkGauge().getValue().longValue());
 			testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
 			testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
 			testHarness.processWatermark(new Watermark(initialTime + 2));
 			testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
+			Assert.assertEquals(initialTime + 2, operator.getInputWatermarkGauge().getValue().longValue());
+			Assert.assertEquals(Long.MIN_VALUE, operator.getOutputWatermarkGauge().getValue().longValue());
 		}
 
 		// wait until all async collectors in the buffer have been emitted out.
@@ -287,6 +290,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
 		expectedOutput.add(new Watermark(initialTime + 2));
 		expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
+
+		Assert.assertEquals(initialTime + 2, operator.getOutputWatermarkGauge().getValue().longValue());
 
 		if (AsyncDataStream.OutputMode.ORDERED == mode) {
 			TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());

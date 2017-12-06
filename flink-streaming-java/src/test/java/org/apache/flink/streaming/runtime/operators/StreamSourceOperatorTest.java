@@ -28,11 +28,13 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -40,6 +42,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectorOutput;
 
 import org.junit.Assert;
@@ -251,7 +254,7 @@ public class StreamSourceOperatorTest {
 		// even though we start from 1 the watermark are still
 		// going to be aligned with the watermark interval.
 
-		for (long i = 1; i < 100; i += watermarkInterval)  {
+		for (long i = 1; i < 100; i += watermarkInterval) {
 			processingTimeService.setCurrentTime(i);
 		}
 
@@ -265,7 +268,51 @@ public class StreamSourceOperatorTest {
 		}
 	}
 
+	@Test
+	public void testWatermarkMetrics() throws Exception {
+		StreamSource<String, SourceFunction<String>> operator = new StreamSource<>(new SourceFunction<String>() {
+			@Override
+			public void run(SourceContext<String> ctx) throws Exception {
+			}
+
+			@Override
+			public void cancel() {
+			}
+		});
+
+		try (SourceOperatorTestHarness<String> testHarness = new SourceOperatorTestHarness<>(operator, TimeCharacteristic.EventTime)) {
+			testHarness.setup();
+			testHarness.open();
+
+			WatermarkGauge inputWatermarkGauge = operator.getInputWatermarkGauge();
+			WatermarkGauge outputWatermarkGauge = operator.getOutputWatermarkGauge();
+
+			assertEquals(Long.MIN_VALUE, inputWatermarkGauge.getValue().longValue());
+			assertEquals(Long.MIN_VALUE, outputWatermarkGauge.getValue().longValue());
+
+			testHarness.run();
+
+			// the source will immediately finish and emit a Long.MAX_VALUE watermark
+			assertEquals(Watermark.MAX_WATERMARK.getTimestamp(), inputWatermarkGauge.getValue().longValue());
+			assertEquals(Watermark.MAX_WATERMARK.getTimestamp(), outputWatermarkGauge.getValue().longValue());
+		}
+	}
+
 	// ------------------------------------------------------------------------
+
+	private static class SourceOperatorTestHarness<OUT> extends AbstractStreamOperatorTestHarness<OUT> {
+		private final StreamSource<OUT, ? extends SourceFunction<OUT>> source;
+
+		public SourceOperatorTestHarness(StreamSource<OUT, ? extends SourceFunction<OUT>> source, TimeCharacteristic timeCharacteristic) throws Exception {
+			super(source, 1, 1, 0);
+			this.source = source;
+			config.setTimeCharacteristic(timeCharacteristic);
+		}
+		
+		public void run() throws Exception {
+			source.run(getCheckpointLock(), mockTask.getStreamStatusMaintainer());
+		}
+	}
 
 	@SuppressWarnings("unchecked")
 	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
@@ -82,6 +83,34 @@ public class StreamSinkOperatorTest extends TestLogger {
 				new Tuple4<>(42L, 15L, null, "Ciao")));
 
 		testHarness.close();
+	}
+
+	@Test
+	public void testWatermarkMetrics() throws Exception {
+		StreamSink<String> operator = new StreamSink<>(new BufferingQueryingSink<>());
+
+		try (OneInputStreamOperatorTestHarness<String, Object> testHarness = new OneInputStreamOperatorTestHarness<>(operator)) {
+			testHarness.setup();
+			testHarness.open();
+
+			WatermarkGauge inputWatermarkGauge = operator.getInputWatermarkGauge();
+			WatermarkGauge outputWatermarkGauge = operator.getOutputWatermarkGauge();
+
+			assertThat(inputWatermarkGauge.getValue(), is(Long.MIN_VALUE));
+			assertThat(outputWatermarkGauge.getValue(), is(Long.MIN_VALUE));
+
+			testHarness.processWatermark(new Watermark(17));
+			assertThat(inputWatermarkGauge.getValue(), is(17L));
+			assertThat(outputWatermarkGauge.getValue(), is(17L));
+
+			testHarness.processWatermark(new Watermark(42L));
+			assertThat(inputWatermarkGauge.getValue(), is(42L));
+			assertThat(outputWatermarkGauge.getValue(), is(42L));
+
+			testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+			assertThat(inputWatermarkGauge.getValue(), is(Watermark.MAX_WATERMARK.getTimestamp()));
+			assertThat(outputWatermarkGauge.getValue(), is(Watermark.MAX_WATERMARK.getTimestamp()));
+		}
 	}
 
 	private static class BufferingQueryingSink<T> implements SinkFunction<T> {

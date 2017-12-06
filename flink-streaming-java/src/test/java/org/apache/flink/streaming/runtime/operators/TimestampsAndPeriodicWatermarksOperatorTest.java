@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
@@ -52,9 +53,13 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 
 		testHarness.open();
 
+		assertEquals(operator.getInputWatermarkGauge(), operator.getOutputWatermarkGauge());
+		WatermarkGauge watermarkGauge = operator.getOutputWatermarkGauge();
+
 		testHarness.processElement(new StreamRecord<>(1L, 1));
 		testHarness.processElement(new StreamRecord<>(2L, 1));
 		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+		assertEquals(Long.MIN_VALUE, watermarkGauge.getValue().longValue());
 		testHarness.processElement(new StreamRecord<>(3L, 3));
 		testHarness.processElement(new StreamRecord<>(4L, 3));
 
@@ -80,6 +85,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 					testHarness.setProcessingTime(currentTime);
 				}
 			}
+			assertEquals(3L, watermarkGauge.getValue().longValue());
 
 			output.clear();
 		}
@@ -118,6 +124,7 @@ public class TimestampsAndPeriodicWatermarksOperatorTest {
 
 		testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
 		assertEquals(Long.MAX_VALUE, ((Watermark) testHarness.getOutput().poll()).getTimestamp());
+		assertEquals(Long.MAX_VALUE, watermarkGauge.getValue().longValue());
 	}
 
 	@Test

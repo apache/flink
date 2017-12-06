@@ -131,6 +131,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 		return canceledOrStopped;
 	}
 
+	protected boolean useSeparateWatermarkGauges() {
+		return false;
+	}
+
 	private static class LatencyMarksEmitter<OUT> {
 		private final ScheduledFuture<?> latencyMarkTimer;
 
