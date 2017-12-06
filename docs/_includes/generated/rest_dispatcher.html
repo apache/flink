@@ -1,0 +1,1613 @@
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/blobserver/port</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#2130895547">Request</button>
+        <div id="2130895547" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-857861893">Response</button>
+        <div id="-857861893" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:BlobServerPortResponseBody",
+  "properties" : {
+    "port" : {
+      "type" : "integer"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/config</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1640242453">Request</button>
+        <div id="-1640242453" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-925504791">Response</button>
+        <div id="-925504791" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration",
+  "properties" : {
+    "refreshInterval" : {
+      "type" : "integer"
+    },
+    "timeZoneName" : {
+      "type" : "string"
+    },
+    "timeZoneOffset" : {
+      "type" : "integer"
+    },
+    "flinkVersion" : {
+      "type" : "string"
+    },
+    "flinkRevision" : {
+      "type" : "string"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobmanager/config</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1636067508">Request</button>
+        <div id="-1636067508" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1955506190">Response</button>
+        <div id="-1955506190" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "array",
+  "items" : {
+    "type" : "object",
+    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ClusterConfigurationInfoEntry",
+    "properties" : {
+      "key" : {
+        "type" : "string"
+      },
+      "value" : {
+        "type" : "string"
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>POST</code></td>
+      <td class="text-left">Response code: <code>202 Accepted</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-2026599104">Request</button>
+        <div id="-2026599104" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody",
+  "properties" : {
+    "serializedJobGraph" : {
+      "type" : "array",
+      "items" : {
+        "type" : "integer"
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#81703990">Response</button>
+        <div id="81703990" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitResponseBody",
+  "properties" : {
+    "jobUrl" : {
+      "type" : "string"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/overview</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-580225539">Request</button>
+        <div id="-580225539" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-657465645">Response</button>
+        <div id="-657465645" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:MultipleJobsDetails",
+  "properties" : {
+    "jobs" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobDetails",
+        "properties" : {
+          "jobId" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:api:common:JobID",
+            "properties" : {
+              "upperPart" : {
+                "type" : "integer"
+              },
+              "lowerPart" : {
+                "type" : "integer"
+              },
+              "bytes" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          },
+          "jobName" : {
+            "type" : "string"
+          },
+          "startTime" : {
+            "type" : "integer"
+          },
+          "endTime" : {
+            "type" : "integer"
+          },
+          "duration" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+          },
+          "lastUpdateTime" : {
+            "type" : "integer"
+          },
+          "tasksPerState" : {
+            "type" : "array",
+            "items" : {
+              "type" : "integer"
+            }
+          },
+          "numTasks" : {
+            "type" : "integer"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>PATCH</code></td>
+      <td class="text-left">Response code: <code>202 Accepted</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">Query parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>mode</code> (optional): description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1387624156">Request</button>
+        <div id="-1387624156" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1202641332">Response</button>
+        <div id="-1202641332" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1065339742">Request</button>
+        <div id="-1065339742" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#2004396866">Response</button>
+        <div id="2004396866" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/accumulators</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1058407378">Request</button>
+        <div id="-1058407378" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-738243778">Response</button>
+        <div id="-738243778" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-411676418">Request</button>
+        <div id="-411676418" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#155229264">Response</button>
+        <div id="155229264" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics",
+  "properties" : {
+    "counts" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Counts",
+      "properties" : {
+        "numberRestoredCheckpoints" : {
+          "type" : "integer"
+        },
+        "totalNumberCheckpoints" : {
+          "type" : "integer"
+        },
+        "numberInProgressCheckpoints" : {
+          "type" : "integer"
+        },
+        "numberCompletedCheckpoints" : {
+          "type" : "integer"
+        },
+        "numberFailedCheckpoints" : {
+          "type" : "integer"
+        }
+      }
+    },
+    "summary" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
+      "properties" : {
+        "stateSize" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+          "properties" : {
+            "minimum" : {
+              "type" : "integer"
+            },
+            "maximum" : {
+              "type" : "integer"
+            },
+            "average" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "duration" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        },
+        "alignmentBuffered" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        }
+      }
+    },
+    "latestCheckpoints" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:LatestCheckpoints",
+      "properties" : {
+        "completedCheckpointStatistics" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics",
+          "properties" : {
+            "id" : {
+              "type" : "integer"
+            },
+            "status" : {
+              "type" : "string",
+              "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+            },
+            "savepoint" : {
+              "type" : "boolean"
+            },
+            "triggerTimestamp" : {
+              "type" : "integer"
+            },
+            "latestAckTimestamp" : {
+              "type" : "integer"
+            },
+            "stateSize" : {
+              "type" : "integer"
+            },
+            "duration" : {
+              "type" : "integer"
+            },
+            "alignmentBuffered" : {
+              "type" : "integer"
+            },
+            "numSubtasks" : {
+              "type" : "integer"
+            },
+            "numAckSubtasks" : {
+              "type" : "integer"
+            },
+            "checkpointStatisticsPerTask" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
+                "properties" : {
+                  "checkpointId" : {
+                    "type" : "integer"
+                  },
+                  "checkpointStatus" : {
+                    "type" : "string",
+                    "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+                  },
+                  "latestAckTimestamp" : {
+                    "type" : "integer"
+                  },
+                  "stateSize" : {
+                    "type" : "integer"
+                  },
+                  "duration" : {
+                    "type" : "integer"
+                  },
+                  "alignmentBuffered" : {
+                    "type" : "integer"
+                  },
+                  "numSubtasks" : {
+                    "type" : "integer"
+                  },
+                  "numAckSubtasks" : {
+                    "type" : "integer"
+                  }
+                }
+              }
+            },
+            "externalPath" : {
+              "type" : "string"
+            },
+            "discarded" : {
+              "type" : "boolean"
+            }
+          }
+        },
+        "savepointStatistics" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics"
+        },
+        "failedCheckpointStatistics" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:FailedCheckpointStatistics",
+          "properties" : {
+            "id" : {
+              "type" : "integer"
+            },
+            "status" : {
+              "type" : "string",
+              "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+            },
+            "savepoint" : {
+              "type" : "boolean"
+            },
+            "triggerTimestamp" : {
+              "type" : "integer"
+            },
+            "latestAckTimestamp" : {
+              "type" : "integer"
+            },
+            "stateSize" : {
+              "type" : "integer"
+            },
+            "duration" : {
+              "type" : "integer"
+            },
+            "alignmentBuffered" : {
+              "type" : "integer"
+            },
+            "numSubtasks" : {
+              "type" : "integer"
+            },
+            "numAckSubtasks" : {
+              "type" : "integer"
+            },
+            "checkpointStatisticsPerTask" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "object",
+                "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
+              }
+            },
+            "failureTimestamp" : {
+              "type" : "integer"
+            },
+            "failureMessage" : {
+              "type" : "string"
+            }
+          }
+        },
+        "restoredCheckpointStatistics" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:RestoredCheckpointStatistics",
+          "properties" : {
+            "id" : {
+              "type" : "integer"
+            },
+            "restoreTimestamp" : {
+              "type" : "integer"
+            },
+            "savepoint" : {
+              "type" : "boolean"
+            },
+            "externalPath" : {
+              "type" : "string"
+            }
+          }
+        }
+      }
+    },
+    "history" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
+        "properties" : {
+          "id" : {
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+          },
+          "savepoint" : {
+            "type" : "boolean"
+          },
+          "triggerTimestamp" : {
+            "type" : "integer"
+          },
+          "latestAckTimestamp" : {
+            "type" : "integer"
+          },
+          "stateSize" : {
+            "type" : "integer"
+          },
+          "duration" : {
+            "type" : "integer"
+          },
+          "alignmentBuffered" : {
+            "type" : "integer"
+          },
+          "numSubtasks" : {
+            "type" : "integer"
+          },
+          "numAckSubtasks" : {
+            "type" : "integer"
+          },
+          "checkpointStatisticsPerTask" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
+            }
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints/config</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-866337753">Request</button>
+        <div id="-866337753" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1963480130">Response</button>
+        <div id="-1963480130" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>checkpointid</code> - description</li>
+<li><code>vertexid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1729939004">Request</button>
+        <div id="1729939004" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1670482062">Response</button>
+        <div id="1670482062" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails",
+  "properties" : {
+    "checkpointId" : {
+      "type" : "integer"
+    },
+    "checkpointStatus" : {
+      "type" : "string",
+      "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+    },
+    "latestAckTimestamp" : {
+      "type" : "integer"
+    },
+    "stateSize" : {
+      "type" : "integer"
+    },
+    "duration" : {
+      "type" : "integer"
+    },
+    "alignmentBuffered" : {
+      "type" : "integer"
+    },
+    "numSubtasks" : {
+      "type" : "integer"
+    },
+    "numAckSubtasks" : {
+      "type" : "integer"
+    },
+    "summary" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:Summary",
+      "properties" : {
+        "stateSize" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+          "properties" : {
+            "minimum" : {
+              "type" : "integer"
+            },
+            "maximum" : {
+              "type" : "integer"
+            },
+            "average" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "duration" : {
+          "type" : "object",
+          "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+        },
+        "checkpointDuration" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointDuration",
+          "properties" : {
+            "synchronousDuration" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "asynchronousDuration" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            }
+          }
+        },
+        "checkpointAlignment" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointAlignment",
+          "properties" : {
+            "bufferedData" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "duration" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            }
+          }
+        }
+      }
+    },
+    "subtaskCheckpointStatistics" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:SubtaskCheckpointStatistics",
+        "properties" : {
+          "index" : {
+            "type" : "integer"
+          },
+          "checkpointStatus" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/checkpoints/:checkpointid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>checkpointid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#555198476">Request</button>
+        <div id="555198476" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1467720266">Response</button>
+        <div id="-1467720266" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
+  "properties" : {
+    "id" : {
+      "type" : "integer"
+    },
+    "status" : {
+      "type" : "string",
+      "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+    },
+    "savepoint" : {
+      "type" : "boolean"
+    },
+    "triggerTimestamp" : {
+      "type" : "integer"
+    },
+    "latestAckTimestamp" : {
+      "type" : "integer"
+    },
+    "stateSize" : {
+      "type" : "integer"
+    },
+    "duration" : {
+      "type" : "integer"
+    },
+    "alignmentBuffered" : {
+      "type" : "integer"
+    },
+    "numSubtasks" : {
+      "type" : "integer"
+    },
+    "numAckSubtasks" : {
+      "type" : "integer"
+    },
+    "checkpointStatisticsPerTask" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
+        "properties" : {
+          "checkpointId" : {
+            "type" : "integer"
+          },
+          "checkpointStatus" : {
+            "type" : "string",
+            "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+          },
+          "latestAckTimestamp" : {
+            "type" : "integer"
+          },
+          "stateSize" : {
+            "type" : "integer"
+          },
+          "duration" : {
+            "type" : "integer"
+          },
+          "alignmentBuffered" : {
+            "type" : "integer"
+          },
+          "numSubtasks" : {
+            "type" : "integer"
+          },
+          "numAckSubtasks" : {
+            "type" : "integer"
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/config</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1640089597">Request</button>
+        <div id="-1640089597" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-209393816">Response</button>
+        <div id="-209393816" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobConfigInfo",
+  "properties" : {
+    "jobId" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:api:common:JobID",
+      "properties" : {
+        "upperPart" : {
+          "type" : "integer"
+        },
+        "lowerPart" : {
+          "type" : "integer"
+        },
+        "bytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "integer"
+          }
+        }
+      }
+    },
+    "jobName" : {
+      "type" : "string"
+    },
+    "executionConfigInfo" : {
+      "type" : "any"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/exceptions</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#511742789">Request</button>
+        <div id="511742789" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-459132180">Response</button>
+        <div id="-459132180" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/plan</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1178135126">Request</button>
+        <div id="-1178135126" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#314594358">Response</button>
+        <div id="314594358" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+  "properties" : {
+    "jsonPlan" : {
+      "type" : "string"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/accumulators</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>vertexid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#2008968300">Request</button>
+        <div id="2008968300" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#453034240">Response</button>
+        <div id="453034240" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/jobs/:jobid/vertices/:vertexid/subtasktimes</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>jobid</code> - description</li>
+<li><code>vertexid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1464202656">Request</button>
+        <div id="-1464202656" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1808727934">Response</button>
+        <div id="1808727934" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "any"
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/overview</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1864315550">Request</button>
+        <div id="-1864315550" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1614643076">Response</button>
+        <div id="-1614643076" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:legacy:messages:ClusterOverviewWithVersion",
+  "properties" : {
+    "numJobsRunningOrPending" : {
+      "type" : "integer"
+    },
+    "numJobsFinished" : {
+      "type" : "integer"
+    },
+    "numJobsCancelled" : {
+      "type" : "integer"
+    },
+    "numJobsFailed" : {
+      "type" : "integer"
+    },
+    "numTaskManagersConnected" : {
+      "type" : "integer"
+    },
+    "numSlotsTotal" : {
+      "type" : "integer"
+    },
+    "numSlotsAvailable" : {
+      "type" : "integer"
+    },
+    "version" : {
+      "type" : "string"
+    },
+    "commitId" : {
+      "type" : "string"
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/taskmanagers</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1495435436">Request</button>
+        <div id="-1495435436" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#1411286031">Response</button>
+        <div id="1411286031" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagersInfo",
+  "properties" : {
+    "taskManagerInfos" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerInfo",
+        "properties" : {
+          "instanceId" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:instance:InstanceID",
+            "properties" : {
+              "upperPart" : {
+                "type" : "integer"
+              },
+              "lowerPart" : {
+                "type" : "integer"
+              },
+              "bytes" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "dataPort" : {
+            "type" : "integer"
+          },
+          "lastHeartbeat" : {
+            "type" : "integer"
+          },
+          "numberSlots" : {
+            "type" : "integer"
+          },
+          "numberAvailableSlots" : {
+            "type" : "integer"
+          },
+          "hardwareDescription" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
+            "properties" : {
+              "numberOfCPUCores" : {
+                "type" : "integer"
+              },
+              "sizeOfPhysicalMemory" : {
+                "type" : "integer"
+              },
+              "sizeOfJvmHeap" : {
+                "type" : "integer"
+              },
+              "sizeOfManagedMemory" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><strong>/taskmanagers/:taskmanagerid</strong></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">description</td>
+    </tr>
+    <tr>
+      <td colspan="2">Path parameters</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <ul>
+<li><code>taskmanagerid</code> - description</li>
+        </ul>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-1492433800">Request</button>
+        <div id="-1492433800" class="collapse">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button data-toggle="collapse" data-target="#-2009840798">Response</button>
+        <div id="-2009840798" class="collapse">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerDetailsInfo",
+  "properties" : {
+    "instanceId" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:instance:InstanceID",
+      "properties" : {
+        "upperPart" : {
+          "type" : "integer"
+        },
+        "lowerPart" : {
+          "type" : "integer"
+        },
+        "bytes" : {
+          "type" : "array",
+          "items" : {
+            "type" : "integer"
+          }
+        }
+      }
+    },
+    "address" : {
+      "type" : "string"
+    },
+    "dataPort" : {
+      "type" : "integer"
+    },
+    "lastHeartbeat" : {
+      "type" : "integer"
+    },
+    "numberSlots" : {
+      "type" : "integer"
+    },
+    "numberAvailableSlots" : {
+      "type" : "integer"
+    },
+    "hardwareDescription" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
+      "properties" : {
+        "numberOfCPUCores" : {
+          "type" : "integer"
+        },
+        "sizeOfPhysicalMemory" : {
+          "type" : "integer"
+        },
+        "sizeOfJvmHeap" : {
+          "type" : "integer"
+        },
+        "sizeOfManagedMemory" : {
+          "type" : "integer"
+        }
+      }
+    }
+  }
+}            </code>
+          </pre>
+         </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
