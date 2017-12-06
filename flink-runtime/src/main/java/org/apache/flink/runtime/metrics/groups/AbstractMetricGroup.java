@@ -450,7 +450,10 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 	}
 
 	/**
-	 * TODO: add javadoc.
+	 * Enum for indicating which child group should be created.
+	 * `KEY` is used to create {@link GenericKeyMetricGroup}.
+	 * `VALUE` is used to create {@link GenericValueMetricGroup}.
+	 * `GENERIC` is used to create {@link GenericMetricGroup}.
 	 */
 	protected enum ChildType {
 		KEY,
