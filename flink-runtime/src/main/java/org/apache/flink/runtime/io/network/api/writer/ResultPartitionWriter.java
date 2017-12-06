@@ -82,17 +82,7 @@ public class ResultPartitionWriter implements EventListener<TaskEvent> {
 	 * @throws IOException
 	 */
 	public void writeBufferToAllChannels(final Buffer eventBuffer) throws IOException {
-		try {
-			for (int targetChannel = 0; targetChannel < partition.getNumberOfSubpartitions(); targetChannel++) {
-				// retain the buffer so that it can be recycled by each channel of targetPartition
-				eventBuffer.retain();
-				writeBuffer(eventBuffer, targetChannel);
-			}
-		} finally {
-			// we do not need to further retain the eventBuffer
-			// (it will be recycled after the last channel stops using it)
-			eventBuffer.recycle();
-		}
+		partition.addToAllChannels(eventBuffer);
 	}
 
 	// ------------------------------------------------------------------------
