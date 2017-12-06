@@ -67,12 +67,9 @@ public abstract class NonHAAbstractQueryableStateTestBase extends AbstractQuerya
 
 	@AfterClass
 	public static void tearDown() {
-		try {
-			cluster.stop();
-			client.shutdownAndWait();
-		} catch (Throwable e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		client.shutdownAndWait();
+
+		cluster.stop();
+		cluster.awaitTermination();
 	}
 }
