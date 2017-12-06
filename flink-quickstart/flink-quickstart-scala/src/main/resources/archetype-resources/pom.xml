@@ -181,6 +181,13 @@ under the License.
 									<goal>shade</goal>
 								</goals>
 								<configuration>
+									<artifactSet>
+										<excludes>
+											<exclude>org.apache.flink:force-shading</exclude>
+											<exclude>com.google.code.findbgs:jsr305</exclude>
+											<exclude>org.slf4j:slf4j-api</exclude>
+										</excludes>
+									</artifactSet>
 									<filters>
 										<filter>
 											<!-- Do not copy the signatures in the META-INF folder.
