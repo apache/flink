@@ -64,6 +64,7 @@ import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyedBackendStateMetaInfo;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
@@ -211,6 +212,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** The configuration of local recovery. */
 	private final RocksDBStateBackend.LocalRecoveryConfig localRecoveryConfig;
 
+	/** The snapshot strategy, e.g., if we use full or incremental checkpoints, local state, and so on. */
+	private final SnapshotStrategy<SnapshotResult<KeyedStateHandle>> snapshotStrategy;
+
 	public RocksDBKeyedStateBackend(
 		String operatorIdentifier,
 		ClassLoader userCodeClassLoader,
@@ -256,6 +260,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.restoredKvStateMetaInfos = new HashMap<>();
 		this.materializedSstFiles = new TreeMap<>();
 		this.backendUID = UUID.randomUUID();
+
+		this.snapshotStrategy = enableIncrementalCheckpointing ?
+			new IncrementalSnapshotStrategy() :
+			new FullSnapshotStrategy();
+
 		LOG.debug("Setting initial keyed backend uid for operator {} to {}.", this.operatorIdentifier, this.backendUID);
 	}
 
@@ -282,7 +291,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		RocksIterator iterator = db.newIterator(columnInfo.f0);
 		iterator.seekToFirst();
 
-		Iterable<K> iterable = () -> new RocksIteratorWrapper<>(iterator, state, keySerializer, keyGroupPrefixBytes);
+		Iterable<K> iterable = () -> new RocksIteratorToJavaIteratorAdapter<>(iterator, state, keySerializer, keyGroupPrefixBytes);
 		Stream<K> targetStream = StreamSupport.stream(iterable.spliterator(), false);
 		return targetStream.onClose(iterator::close);
 	}
@@ -357,7 +366,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	 * @param streamFactory The factory that we can use for writing our state to streams.
 	 * @param checkpointOptions Options for how to perform this checkpoint.
 	 * @return Future to the state handle of the snapshot data.
-	 * @throws Exception
+	 * @throws Exception indicating a problem in the synchronous part of the checkpoint.
 	 */
 	@Override
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
@@ -366,680 +375,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		final CheckpointStreamFactory streamFactory,
 		CheckpointOptions checkpointOptions) throws Exception {
 
-		if (checkpointOptions.getCheckpointType() != CheckpointType.SAVEPOINT &&
-			enableIncrementalCheckpointing) {
-			return snapshotIncrementally(checkpointId, timestamp, streamFactory);
-		} else {
-			return snapshotFully(checkpointId, timestamp, streamFactory);
-		}
-	}
-
-	private RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotIncrementally(
-		final long checkpointId,
-		final long checkpointTimestamp,
-		final CheckpointStreamFactory checkpointStreamFactory) throws Exception {
-
-		if (db == null) {
-			throw new IOException("RocksDB closed.");
-		}
-
-		if (kvStateInformation.isEmpty()) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
-						checkpointTimestamp);
-			}
-			return DoneFuture.nullValue();
-		}
-
-		final RocksDBIncrementalSnapshotOperation<K> snapshotOperation =
-			new RocksDBIncrementalSnapshotOperation<>(
-				this,
-				checkpointStreamFactory,
-				checkpointId,
-				checkpointTimestamp);
-
-		try {
-			snapshotOperation.takeSnapshot();
-		} catch (Exception e) {
-			snapshotOperation.stop();
-			snapshotOperation.releaseResources(true);
-			throw e;
-		}
-
-		return new FutureTask<SnapshotResult<KeyedStateHandle>>(
-			() -> snapshotOperation.materializeSnapshot()
-		) {
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				snapshotOperation.stop();
-				return super.cancel(mayInterruptIfRunning);
-			}
-
-			@Override
-			protected void done() {
-				snapshotOperation.releaseResources(isCancelled());
-			}
-		};
-	}
-
-	private RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotFully(
-		final long checkpointId,
-		final long timestamp,
-		final CheckpointStreamFactory streamFactory) throws Exception {
-
-		long startTime = System.currentTimeMillis();
-		final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
-
-		final RocksDBFullSnapshotOperation<K> snapshotOperation;
-
-		if (kvStateInformation.isEmpty()) {
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.", timestamp);
-			}
-
-			return DoneFuture.nullValue();
-		}
-
-		snapshotOperation = new RocksDBFullSnapshotOperation<>(this, streamFactory, snapshotCloseableRegistry);
-		snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
-
-		// implementation of the async IO operation, based on FutureTask
-		AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
-			new AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>>() {
-
-				@Override
-				protected void acquireResources() throws Exception {
-					cancelStreamRegistry.registerCloseable(snapshotCloseableRegistry);
-					snapshotOperation.openCheckpointStream();
-				}
-
-				@Override
-				protected void releaseResources() throws Exception {
-					closeLocalRegistry();
-					releaseSnapshotOperationResources();
-				}
-
-				private void releaseSnapshotOperationResources() {
-					// hold the db lock while operation on the db to guard us against async db disposal
-					snapshotOperation.releaseSnapshotResources();
-				}
-
-				@Override
-				protected void stopOperation() throws Exception {
-					closeLocalRegistry();
-				}
-
-				private void closeLocalRegistry() {
-					if (cancelStreamRegistry.unregisterCloseable(snapshotCloseableRegistry)) {
-						try {
-							snapshotCloseableRegistry.close();
-						} catch (Exception ex) {
-							LOG.warn("Error closing local registry", ex);
-						}
-					}
-				}
-
-				@Override
-				public SnapshotResult<KeyedStateHandle> performOperation() throws Exception {
-					long startTime = System.currentTimeMillis();
-
-					if (isStopped()) {
-						throw new IOException("RocksDB closed.");
-					}
-
-					snapshotOperation.writeDBSnapshot();
-
-					LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
-						streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
-
-					KeyGroupsStateHandle stateHandle = snapshotOperation.getSnapshotResultStateHandle();
-					return new SnapshotResult<>(stateHandle, null);
-				}
-			};
-
-		LOG.info("Asynchronous RocksDB snapshot ({}, synchronous part) in thread {} took {} ms.",
-				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
-
-		return AsyncStoppableTaskWithCallback.from(ioCallable);
-	}
-
-	/**
-	 * Encapsulates the process to perform a snapshot of a RocksDBKeyedStateBackend.
-	 */
-	static final class RocksDBFullSnapshotOperation<K> {
-
-		static final int FIRST_BIT_IN_BYTE_MASK = 0x80;
-		static final int END_OF_KEY_GROUP_MARK = 0xFFFF;
-
-		private final RocksDBKeyedStateBackend<K> stateBackend;
-		private final KeyGroupRangeOffsets keyGroupRangeOffsets;
-		private final CheckpointStreamFactory checkpointStreamFactory;
-		private final CloseableRegistry snapshotCloseableRegistry;
-		private final ResourceGuard.Lease dbLease;
-
-		private long checkpointId;
-		private long checkpointTimeStamp;
-
-		private Snapshot snapshot;
-		private ReadOptions readOptions;
-		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
-
-		private CheckpointStreamFactory.CheckpointStateOutputStream outStream;
-		private DataOutputView outputView;
-
-		RocksDBFullSnapshotOperation(
-			RocksDBKeyedStateBackend<K> stateBackend,
-			CheckpointStreamFactory checkpointStreamFactory,
-			CloseableRegistry registry) throws IOException {
-
-			this.stateBackend = stateBackend;
-			this.checkpointStreamFactory = checkpointStreamFactory;
-			this.keyGroupRangeOffsets = new KeyGroupRangeOffsets(stateBackend.keyGroupRange);
-			this.snapshotCloseableRegistry = registry;
-			this.dbLease = this.stateBackend.rocksDBResourceGuard.acquireResource();
-		}
-
-		/**
-		 * 1) Create a snapshot object from RocksDB.
-		 *
-		 * @param checkpointId id of the checkpoint for which we take the snapshot
-		 * @param checkpointTimeStamp timestamp of the checkpoint for which we take the snapshot
-		 */
-		public void takeDBSnapShot(long checkpointId, long checkpointTimeStamp) {
-			Preconditions.checkArgument(snapshot == null, "Only one ongoing snapshot allowed!");
-			this.kvStateIterators = new ArrayList<>(stateBackend.kvStateInformation.size());
-			this.checkpointId = checkpointId;
-			this.checkpointTimeStamp = checkpointTimeStamp;
-			this.snapshot = stateBackend.db.getSnapshot();
-		}
-
-		/**
-		 * 2) Open CheckpointStateOutputStream through the checkpointStreamFactory into which we will write.
-		 *
-		 * @throws Exception
-		 */
-		public void openCheckpointStream() throws Exception {
-			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
-			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
-			snapshotCloseableRegistry.registerCloseable(outStream);
-			outputView = new DataOutputViewStreamWrapper(outStream);
-		}
-
-		/**
-		 * 3) Write the actual data from RocksDB from the time we took the snapshot object in (1).
-		 *
-		 * @throws IOException
-		 */
-		public void writeDBSnapshot() throws IOException, InterruptedException {
-
-			if (null == snapshot) {
-				throw new IOException("No snapshot available. Might be released due to cancellation.");
-			}
-
-			Preconditions.checkNotNull(outStream, "No output stream to write snapshot.");
-			writeKVStateMetaData();
-			writeKVStateData();
-		}
-
-		/**
-		 * 4) Returns a state handle to the snapshot after the snapshot procedure is completed and null before.
-		 *
-		 * @return state handle to the completed snapshot
-		 */
-		public KeyGroupsStateHandle getSnapshotResultStateHandle() throws IOException {
-
-			if (snapshotCloseableRegistry.unregisterCloseable(outStream)) {
-
-				StreamStateHandle stateHandle = outStream.closeAndGetHandle();
-				outStream = null;
-
-				if (stateHandle != null) {
-					return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
-				}
-			}
-			return null;
-		}
-
-		/**
-		 * 5) Release the snapshot object for RocksDB and clean up.
-		 */
-		public void releaseSnapshotResources() {
-
-			outStream = null;
-
-			if (null != kvStateIterators) {
-				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
-					IOUtils.closeQuietly(kvStateIterator.f0);
-				}
-				kvStateIterators = null;
-			}
-
-			if (null != snapshot) {
-				if (null != stateBackend.db) {
-					stateBackend.db.releaseSnapshot(snapshot);
-				}
-				IOUtils.closeQuietly(snapshot);
-				snapshot = null;
-			}
-
-			if (null != readOptions) {
-				IOUtils.closeQuietly(readOptions);
-				readOptions = null;
-			}
-
-			this.dbLease.close();
-		}
-
-		private void writeKVStateMetaData() throws IOException {
-
-			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> metaInfoSnapshots =
-				new ArrayList<>(stateBackend.kvStateInformation.size());
-
-			int kvStateId = 0;
-			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> column :
-				stateBackend.kvStateInformation.entrySet()) {
-
-				metaInfoSnapshots.add(column.getValue().f1.snapshot());
-
-				//retrieve iterator for this k/v states
-				readOptions = new ReadOptions();
-				readOptions.setSnapshot(snapshot);
-
-				kvStateIterators.add(
-					new Tuple2<>(stateBackend.db.newIterator(column.getValue().f0, readOptions), kvStateId));
-
-				++kvStateId;
-			}
-
-			KeyedBackendSerializationProxy<K> serializationProxy =
-				new KeyedBackendSerializationProxy<>(
-					stateBackend.getKeySerializer(),
-					metaInfoSnapshots,
-					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, stateBackend.keyGroupCompressionDecorator));
-
-			serializationProxy.write(outputView);
-		}
-
-		private void writeKVStateData() throws IOException, InterruptedException {
-
-			byte[] previousKey = null;
-			byte[] previousValue = null;
-			OutputStream kgOutStream = null;
-			DataOutputView kgOutView = null;
-
-			try {
-				// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
-				try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
-					kvStateIterators, stateBackend.keyGroupPrefixBytes)) {
-
-					// handover complete, null out to prevent double close
-					kvStateIterators = null;
-
-					//preamble: setup with first key-group as our lookahead
-					if (mergeIterator.isValid()) {
-						//begin first key-group by recording the offset
-						keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
-						//write the k/v-state id as metadata
-						kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
-						kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
-						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-						kgOutView.writeShort(mergeIterator.kvStateId());
-						previousKey = mergeIterator.key();
-						previousValue = mergeIterator.value();
-						mergeIterator.next();
-					}
-
-					//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
-					while (mergeIterator.isValid()) {
-
-						assert (!hasMetaDataFollowsFlag(previousKey));
-
-						//set signal in first key byte that meta data will follow in the stream after this k/v pair
-						if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
-
-							//be cooperative and check for interruption from time to time in the hot loop
-							checkInterrupted();
-
-							setMetaDataFollowsFlagInKey(previousKey);
-						}
-
-						writeKeyValuePair(previousKey, previousValue, kgOutView);
-
-						//write meta data if we have to
-						if (mergeIterator.isNewKeyGroup()) {
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
-							// this will just close the outer stream
-							kgOutStream.close();
-							//begin new key-group
-							keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
-							//write the kev-state
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
-							kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
-							kgOutView.writeShort(mergeIterator.kvStateId());
-						} else if (mergeIterator.isNewKeyValueState()) {
-							//write the k/v-state
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutView.writeShort(mergeIterator.kvStateId());
-						}
-
-						//request next k/v pair
-						previousKey = mergeIterator.key();
-						previousValue = mergeIterator.value();
-						mergeIterator.next();
-					}
-				}
-
-				//epilogue: write last key-group
-				if (previousKey != null) {
-					assert (!hasMetaDataFollowsFlag(previousKey));
-					setMetaDataFollowsFlagInKey(previousKey);
-					writeKeyValuePair(previousKey, previousValue, kgOutView);
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
-					// this will just close the outer stream
-					kgOutStream.close();
-					kgOutStream = null;
-				}
-
-			} finally {
-				// this will just close the outer stream
-				IOUtils.closeQuietly(kgOutStream);
-			}
-		}
-
-		private void writeKeyValuePair(byte[] key, byte[] value, DataOutputView out) throws IOException {
-			BytePrimitiveArraySerializer.INSTANCE.serialize(key, out);
-			BytePrimitiveArraySerializer.INSTANCE.serialize(value, out);
-		}
-
-		static void setMetaDataFollowsFlagInKey(byte[] key) {
-			key[0] |= FIRST_BIT_IN_BYTE_MASK;
-		}
-
-		static void clearMetaDataFollowsFlag(byte[] key) {
-			key[0] &= (~RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
-		}
-
-		static boolean hasMetaDataFollowsFlag(byte[] key) {
-			return 0 != (key[0] & RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
-		}
-
-		private static void checkInterrupted() throws InterruptedException {
-			if (Thread.currentThread().isInterrupted()) {
-				throw new InterruptedException("RocksDB snapshot interrupted.");
-			}
-		}
-	}
-
-	private static final class RocksDBIncrementalSnapshotOperation<K> {
-
-		/** The backend which we snapshot. */
-		private final RocksDBKeyedStateBackend<K> stateBackend;
-
-		/** Stream factory that creates the outpus streams to DFS. */
-		private final CheckpointStreamFactory checkpointStreamFactory;
-
-		/** Id for the current checkpoint. */
-		private final long checkpointId;
-
-		/** Timestamp for the current checkpoint. */
-		private final long checkpointTimestamp;
-
-		/** All sst files that were part of the last previously completed checkpoint. */
-		private Set<StateHandleID> baseSstFiles;
-
-		/** The state meta data. */
-		private final List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots = new ArrayList<>();
-
-		/** Local filesystem for the RocksDB backup. */
-		private FileSystem backupFileSystem;
-
-		/** Local path for the RocksDB backup. */
-		private Path backupPath;
-
-		// Registry for all opened i/o streams
-		private final CloseableRegistry closeableRegistry = new CloseableRegistry();
-
-		// new sst files since the last completed checkpoint
-		private final Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>();
-
-		// handles to the misc files in the current snapshot
-		private final Map<StateHandleID, StreamStateHandle> miscFiles = new HashMap<>();
-
-		// This lease protects from concurrent disposal of the native rocksdb instance.
-		private final ResourceGuard.Lease dbLease;
-
-		private StreamStateHandle metaStateHandle = null;
-
-		private RocksDBIncrementalSnapshotOperation(
-			RocksDBKeyedStateBackend<K> stateBackend,
-			CheckpointStreamFactory checkpointStreamFactory,
-			long checkpointId,
-			long checkpointTimestamp) throws IOException {
-
-			this.stateBackend = stateBackend;
-			this.checkpointStreamFactory = checkpointStreamFactory;
-			this.checkpointId = checkpointId;
-			this.checkpointTimestamp = checkpointTimestamp;
-			this.dbLease = this.stateBackend.rocksDBResourceGuard.acquireResource();
-		}
-
-		private StreamStateHandle materializeStateData(Path filePath) throws Exception {
-			FSDataInputStream inputStream = null;
-			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
-
-			try {
-				final byte[] buffer = new byte[8 * 1024];
-
-				FileSystem backupFileSystem = backupPath.getFileSystem();
-				inputStream = backupFileSystem.open(filePath);
-				closeableRegistry.registerCloseable(inputStream);
-
-				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
-				closeableRegistry.registerCloseable(outputStream);
-
-				while (true) {
-					int numBytes = inputStream.read(buffer);
-
-					if (numBytes == -1) {
-						break;
-					}
-
-					outputStream.write(buffer, 0, numBytes);
-				}
-
-				StreamStateHandle result = null;
-				if (closeableRegistry.unregisterCloseable(outputStream)) {
-					result = outputStream.closeAndGetHandle();
-					outputStream = null;
-				}
-				return result;
-
-			} finally {
-
-				if (closeableRegistry.unregisterCloseable(inputStream)) {
-					inputStream.close();
-				}
-
-				if (closeableRegistry.unregisterCloseable(outputStream)) {
-					outputStream.close();
-				}
-			}
-		}
-
-		private StreamStateHandle materializeMetaData() throws Exception {
-			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
-
-			try {
-				outputStream = checkpointStreamFactory
-					.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
-				closeableRegistry.registerCloseable(outputStream);
-
-				//no need for compression scheme support because sst-files are already compressed
-				KeyedBackendSerializationProxy<K> serializationProxy =
-					new KeyedBackendSerializationProxy<>(
-						stateBackend.keySerializer,
-						stateMetaInfoSnapshots,
-						false);
-
-				DataOutputView out = new DataOutputViewStreamWrapper(outputStream);
-
-				serializationProxy.write(out);
-
-				StreamStateHandle result = null;
-				if (closeableRegistry.unregisterCloseable(outputStream)) {
-					result = outputStream.closeAndGetHandle();
-					outputStream = null;
-				}
-				return result;
-			} finally {
-				if (outputStream != null) {
-					if (closeableRegistry.unregisterCloseable(outputStream)) {
-						outputStream.close();
-					}
-				}
-			}
-		}
-
-		void takeSnapshot() throws Exception {
-
-			final long lastCompletedCheckpoint;
-
-			// use the last completed checkpoint as the comparison base.
-			synchronized (stateBackend.materializedSstFiles) {
-				lastCompletedCheckpoint = stateBackend.lastCompletedCheckpointId;
-				baseSstFiles = stateBackend.materializedSstFiles.get(lastCompletedCheckpoint);
-			}
-
-			LOG.trace("Taking incremental snapshot for checkpoint {}. Snapshot is based on last completed checkpoint {} " +
-				"assuming the following (shared) files as base: {}.", checkpointId, lastCompletedCheckpoint, baseSstFiles);
-
-			// save meta data
-			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> stateMetaInfoEntry
-				: stateBackend.kvStateInformation.entrySet()) {
-				stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().f1.snapshot());
-			}
-
-			// save state data
-			backupPath = new Path(stateBackend.instanceBasePath.getAbsolutePath(), "chk-" + checkpointId);
-
-			LOG.trace("Local RocksDB checkpoint goes to backup path {}.", backupPath);
-
-			backupFileSystem = backupPath.getFileSystem();
-			if (backupFileSystem.exists(backupPath)) {
-				throw new IllegalStateException("Unexpected existence of the backup directory.");
-			}
-
-			// create hard links of living files in the checkpoint path
-			Checkpoint checkpoint = Checkpoint.create(stateBackend.db);
-			checkpoint.createCheckpoint(backupPath.getPath());
-		}
-
-		SnapshotResult<KeyedStateHandle> materializeSnapshot() throws Exception {
-
-			stateBackend.cancelStreamRegistry.registerCloseable(closeableRegistry);
-
-			// write meta data
-			metaStateHandle = materializeMetaData();
-
-			// write state data
-			Preconditions.checkState(backupFileSystem.exists(backupPath));
-
-			FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
-			if (fileStatuses != null) {
-				for (FileStatus fileStatus : fileStatuses) {
-					final Path filePath = fileStatus.getPath();
-					final String fileName = filePath.getName();
-					final StateHandleID stateHandleID = new StateHandleID(fileName);
-
-					if (fileName.endsWith(SST_FILE_SUFFIX)) {
-						final boolean existsAlready =
-							baseSstFiles != null && baseSstFiles.contains(stateHandleID);
-
-						if (existsAlready) {
-							// we introduce a placeholder state handle, that is replaced with the
-							// original from the shared state registry (created from a previous checkpoint)
-							sstFiles.put(
-								stateHandleID,
-								new PlaceholderStreamStateHandle());
-						} else {
-							sstFiles.put(stateHandleID, materializeStateData(filePath));
-						}
-					} else {
-						StreamStateHandle fileHandle = materializeStateData(filePath);
-						miscFiles.put(stateHandleID, fileHandle);
-					}
-				}
-			}
-
-			synchronized (stateBackend.materializedSstFiles) {
-				stateBackend.materializedSstFiles.put(checkpointId, sstFiles.keySet());
-			}
-
-			IncrementalKeyedStateHandle incrementalKeyedStateHandle = new IncrementalKeyedStateHandle(
-				stateBackend.backendUID,
-				stateBackend.keyGroupRange,
-				checkpointId,
-				sstFiles,
-				miscFiles,
-				metaStateHandle);
-
-			return new SnapshotResult<>(incrementalKeyedStateHandle, null);
-		}
-
-		void stop() {
-
-			if (stateBackend.cancelStreamRegistry.unregisterCloseable(closeableRegistry)) {
-				try {
-					closeableRegistry.close();
-				} catch (IOException e) {
-					LOG.warn("Could not properly close io streams.", e);
-				}
-			}
-		}
-
-		void releaseResources(boolean canceled) {
-
-			dbLease.close();
-
-			if (stateBackend.cancelStreamRegistry.unregisterCloseable(closeableRegistry)) {
-				try {
-					closeableRegistry.close();
-				} catch (IOException e) {
-					LOG.warn("Exception on closing registry.", e);
-				}
-			}
-
-			if (backupPath != null) {
-				try {
-					if (backupFileSystem.exists(backupPath)) {
-
-						LOG.trace("Deleting local RocksDB backup path {}.", backupPath);
-						backupFileSystem.delete(backupPath, true);
-					}
-				} catch (Exception e) {
-					LOG.warn("Could not properly delete the checkpoint directory.", e);
-				}
-			}
-
-			if (canceled) {
-				Collection<StateObject> statesToDiscard =
-					new ArrayList<>(1 + miscFiles.size() + sstFiles.size());
-
-				statesToDiscard.add(metaStateHandle);
-				statesToDiscard.addAll(miscFiles.values());
-				statesToDiscard.addAll(sstFiles.values());
-
-				try {
-					StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
-				} catch (Exception e) {
-					LOG.warn("Could not properly discard states.", e);
-				}
-			}
-		}
+		return snapshotStrategy.performSnapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
 	}
 
 	@Override
@@ -1128,9 +464,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * Encapsulates the process of restoring a RocksDBKeyedStateBackend from a snapshot.
+	 * Encapsulates the process of restoring a RocksDBKeyedStateBackend from a full snapshot.
 	 */
-	static final class RocksDBFullRestoreOperation<K> {
+	private static final class RocksDBFullRestoreOperation<K> {
 
 		private final RocksDBKeyedStateBackend<K> rocksDBKeyedStateBackend;
 
@@ -1316,6 +652,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		}
 	}
 
+	/**
+	 * Encapsulates the process of restoring a RocksDBKeyedStateBackend from an incremental snapshot.
+	 */
 	private static class RocksDBIncrementalRestoreOperation<T> {
 
 		private final RocksDBKeyedStateBackend<T> stateBackend;
@@ -1759,51 +1098,44 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to the iterator.
-	 * Used by #MergeIterator.
+	 * Only visible for testing, DO NOT USE.
 	 */
-	static final class MergeIterator implements AutoCloseable {
-
-		/**
-		 * @param iterator  The #RocksIterator to wrap .
-		 * @param kvStateId Id of the K/V state to which this iterator belongs.
-		 */
-		MergeIterator(RocksIterator iterator, int kvStateId) {
-			this.iterator = Preconditions.checkNotNull(iterator);
-			this.currentKey = iterator.key();
-			this.kvStateId = kvStateId;
-		}
-
-		private final RocksIterator iterator;
-		private byte[] currentKey;
-		private final int kvStateId;
-
-		public byte[] getCurrentKey() {
-			return currentKey;
-		}
-
-		public void setCurrentKey(byte[] currentKey) {
-			this.currentKey = currentKey;
-		}
-
-		public RocksIterator getIterator() {
-			return iterator;
-		}
-
-		public int getKvStateId() {
-			return kvStateId;
-		}
-
-		@Override
-		public void close() {
-			IOUtils.closeQuietly(iterator);
-		}
+	public File getInstanceBasePath() {
+		return instanceBasePath;
 	}
+
+	@Override
+	public boolean supportsAsynchronousSnapshots() {
+		return true;
+	}
+
+	@VisibleForTesting
+	@SuppressWarnings("unchecked")
+	@Override
+	public int numStateEntries() {
+		int count = 0;
+
+		for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column : kvStateInformation.values()) {
+			try (RocksIterator rocksIterator = db.newIterator(column.f0)) {
+				rocksIterator.seekToFirst();
+
+				while (rocksIterator.isValid()) {
+					count++;
+					rocksIterator.next();
+				}
+			}
+		}
+
+		return count;
+	}
+
+
 
 	/**
 	 * Iterator that merges multiple RocksDB iterators to partition all states into contiguous key-groups.
 	 * The resulting iteration sequence is ordered by (key-group, kv-state).
 	 */
+	@VisibleForTesting
 	static final class RocksDBMergeIterator implements AutoCloseable {
 
 		private final PriorityQueue<MergeIterator> heap;
@@ -1987,45 +1319,59 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	}
 
 	/**
-	 * Only visible for testing, DO NOT USE.
+	 * Wraps a RocksDB iterator to cache it's current key and assigns an id for the key/value state to the iterator.
+	 * Used by #MergeIterator.
 	 */
-	@VisibleForTesting
-	public File getInstanceBasePath() {
-		return instanceBasePath;
-	}
+	private static final class MergeIterator implements AutoCloseable {
 
-	@Override
-	public boolean supportsAsynchronousSnapshots() {
-		return true;
-	}
-
-	@VisibleForTesting
-	@SuppressWarnings("unchecked")
-	@Override
-	public int numStateEntries() {
-		int count = 0;
-
-		for (Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> column : kvStateInformation.values()) {
-			try (RocksIterator rocksIterator = db.newIterator(column.f0)) {
-				rocksIterator.seekToFirst();
-
-				while (rocksIterator.isValid()) {
-					count++;
-					rocksIterator.next();
-				}
-			}
+		/**
+		 * @param iterator  The #RocksIterator to wrap .
+		 * @param kvStateId Id of the K/V state to which this iterator belongs.
+		 */
+		MergeIterator(RocksIterator iterator, int kvStateId) {
+			this.iterator = Preconditions.checkNotNull(iterator);
+			this.currentKey = iterator.key();
+			this.kvStateId = kvStateId;
 		}
 
-		return count;
+		private final RocksIterator iterator;
+		private byte[] currentKey;
+		private final int kvStateId;
+
+		public byte[] getCurrentKey() {
+			return currentKey;
+		}
+
+		public void setCurrentKey(byte[] currentKey) {
+			this.currentKey = currentKey;
+		}
+
+		public RocksIterator getIterator() {
+			return iterator;
+		}
+
+		public int getKvStateId() {
+			return kvStateId;
+		}
+
+		@Override
+		public void close() {
+			IOUtils.closeQuietly(iterator);
+		}
 	}
 
-	private static class RocksIteratorWrapper<K> implements Iterator<K> {
+	/**
+	 * Adapter class to bridge between {@link RocksIterator} and {@link Iterator} to iterate over the keys.
+	 *
+	 * @param <K> the type of the iterated objects, which are keys in RocksDB.
+	 */
+	private static class RocksIteratorToJavaIteratorAdapter<K> implements Iterator<K> {
 		private final RocksIterator iterator;
 		private final String state;
 		private final TypeSerializer<K> keySerializer;
 		private final int keyGroupPrefixBytes;
 
-		public RocksIteratorWrapper(
+		public RocksIteratorToJavaIteratorAdapter(
 			RocksIterator iterator,
 			String state,
 			TypeSerializer<K> keySerializer,
@@ -2055,6 +1401,756 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				return value;
 			} catch (IOException e) {
 				throw new FlinkRuntimeException("Failed to access state [" + state + "]", e);
+			}
+		}
+	}
+
+	private class FullSnapshotStrategy implements SnapshotStrategy<SnapshotResult<KeyedStateHandle>> {
+
+		@Override
+		public RunnableFuture<SnapshotResult<KeyedStateHandle>> performSnapshot(
+			long checkpointId,
+			long timestamp,
+			CheckpointStreamFactory streamFactory,
+			CheckpointOptions checkpointOptions) throws Exception {
+
+			long startTime = System.currentTimeMillis();
+			final CloseableRegistry snapshotCloseableRegistry = new CloseableRegistry();
+
+			final RocksDBFullSnapshotOperation<K> snapshotOperation;
+
+			if (kvStateInformation.isEmpty()) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.",
+						timestamp);
+				}
+
+				return DoneFuture.nullValue();
+			}
+
+			snapshotOperation = new RocksDBFullSnapshotOperation<>(
+				RocksDBKeyedStateBackend.this,
+				streamFactory,
+				snapshotCloseableRegistry);
+
+			snapshotOperation.takeDBSnapShot(checkpointId, timestamp);
+
+			// implementation of the async IO operation, based on FutureTask
+			AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> ioCallable =
+				new AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>>() {
+
+					@Override
+					protected void acquireResources() throws Exception {
+						cancelStreamRegistry.registerCloseable(snapshotCloseableRegistry);
+						snapshotOperation.openCheckpointStream();
+					}
+
+					@Override
+					protected void releaseResources() throws Exception {
+						closeLocalRegistry();
+						releaseSnapshotOperationResources();
+					}
+
+					private void releaseSnapshotOperationResources() {
+						// hold the db lock while operation on the db to guard us against async db disposal
+						snapshotOperation.releaseSnapshotResources();
+					}
+
+					@Override
+					protected void stopOperation() throws Exception {
+						closeLocalRegistry();
+					}
+
+					private void closeLocalRegistry() {
+						if (cancelStreamRegistry.unregisterCloseable(snapshotCloseableRegistry)) {
+							try {
+								snapshotCloseableRegistry.close();
+							} catch (Exception ex) {
+								LOG.warn("Error closing local registry", ex);
+							}
+						}
+					}
+
+					@Override
+					public SnapshotResult<KeyedStateHandle> performOperation() throws Exception {
+						long startTime = System.currentTimeMillis();
+
+						if (isStopped()) {
+							throw new IOException("RocksDB closed.");
+						}
+
+						snapshotOperation.writeDBSnapshot();
+
+						LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
+							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+
+						KeyGroupsStateHandle stateHandle = snapshotOperation.getSnapshotResultStateHandle();
+						return new SnapshotResult<>(stateHandle, null);
+					}
+				};
+
+			LOG.info("Asynchronous RocksDB snapshot ({}, synchronous part) in thread {} took {} ms.",
+				streamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+			return AsyncStoppableTaskWithCallback.from(ioCallable);
+		}
+	}
+
+	private class IncrementalSnapshotStrategy implements SnapshotStrategy<SnapshotResult<KeyedStateHandle>> {
+
+		private final SnapshotStrategy<SnapshotResult<KeyedStateHandle>> savepointDelegate;
+
+		public IncrementalSnapshotStrategy() {
+			this.savepointDelegate = new FullSnapshotStrategy();
+		}
+
+		@Override
+		public RunnableFuture<SnapshotResult<KeyedStateHandle>> performSnapshot(
+			long checkpointId,
+			long checkpointTimestamp,
+			CheckpointStreamFactory checkpointStreamFactory,
+			CheckpointOptions checkpointOptions) throws Exception {
+
+			// for savepoints, we delegate to the full snapshot strategy because savepoints are always self-contained.
+			if (CheckpointOptions.CheckpointType.SAVEPOINT.equals(checkpointOptions.getCheckpointType())) {
+				return savepointDelegate.performSnapshot(
+					checkpointId,
+					checkpointTimestamp,
+					checkpointStreamFactory,
+					checkpointOptions);
+			}
+
+			if (db == null) {
+				throw new IOException("RocksDB closed.");
+			}
+
+			if (kvStateInformation.isEmpty()) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Asynchronous RocksDB snapshot performed on empty keyed state at {}. Returning null.", checkpointTimestamp);
+				}
+				return DoneFuture.nullValue();
+			}
+
+			final RocksDBIncrementalSnapshotOperation<K> snapshotOperation =
+				new RocksDBIncrementalSnapshotOperation<>(
+					RocksDBKeyedStateBackend.this,
+					checkpointStreamFactory,
+					checkpointId,
+					checkpointTimestamp);
+
+			try {
+				snapshotOperation.takeSnapshot();
+			} catch (Exception e) {
+				snapshotOperation.stop();
+				snapshotOperation.releaseResources(true);
+				throw e;
+			}
+
+			return new FutureTask<SnapshotResult<KeyedStateHandle>>(
+				snapshotOperation::runSnapshot
+			) {
+				@Override
+				public boolean cancel(boolean mayInterruptIfRunning) {
+					snapshotOperation.stop();
+					return super.cancel(mayInterruptIfRunning);
+				}
+
+				@Override
+				protected void done() {
+					snapshotOperation.releaseResources(isCancelled());
+				}
+			};
+		}
+	}
+
+	/**
+	 * Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend.
+	 */
+	@VisibleForTesting
+	static final class RocksDBFullSnapshotOperation<K>
+		extends AbstractAsyncCallableWithResources<SnapshotResult<KeyedStateHandle>> {
+
+		static final int FIRST_BIT_IN_BYTE_MASK = 0x80;
+		static final int END_OF_KEY_GROUP_MARK = 0xFFFF;
+
+		private final RocksDBKeyedStateBackend<K> stateBackend;
+		private final KeyGroupRangeOffsets keyGroupRangeOffsets;
+		private final CheckpointStreamFactory checkpointStreamFactory;
+		private final CloseableRegistry snapshotCloseableRegistry;
+		private final ResourceGuard.Lease dbLease;
+
+		private long checkpointId;
+		private long checkpointTimeStamp;
+
+		private Snapshot snapshot;
+		private ReadOptions readOptions;
+		private List<Tuple2<RocksIterator, Integer>> kvStateIterators;
+
+		private CheckpointStreamFactory.CheckpointStateOutputStream outStream;
+		private DataOutputView outputView;
+
+		RocksDBFullSnapshotOperation(
+			RocksDBKeyedStateBackend<K> stateBackend,
+			CheckpointStreamFactory checkpointStreamFactory,
+			CloseableRegistry registry) throws IOException {
+
+			this.stateBackend = stateBackend;
+			this.checkpointStreamFactory = checkpointStreamFactory;
+			this.keyGroupRangeOffsets = new KeyGroupRangeOffsets(stateBackend.keyGroupRange);
+			this.snapshotCloseableRegistry = registry;
+			this.dbLease = this.stateBackend.rocksDBResourceGuard.acquireResource();
+		}
+
+		/**
+		 * 1) Create a snapshot object from RocksDB.
+		 *
+		 * @param checkpointId id of the checkpoint for which we take the snapshot
+		 * @param checkpointTimeStamp timestamp of the checkpoint for which we take the snapshot
+		 */
+		public void takeDBSnapShot(long checkpointId, long checkpointTimeStamp) {
+			Preconditions.checkArgument(snapshot == null, "Only one ongoing snapshot allowed!");
+			this.kvStateIterators = new ArrayList<>(stateBackend.kvStateInformation.size());
+			this.checkpointId = checkpointId;
+			this.checkpointTimeStamp = checkpointTimeStamp;
+			this.snapshot = stateBackend.db.getSnapshot();
+		}
+
+		/**
+		 * 2) Open CheckpointStateOutputStream through the checkpointStreamFactory into which we will write.
+		 *
+		 * @throws Exception
+		 */
+		public void openCheckpointStream() throws Exception {
+			Preconditions.checkArgument(outStream == null, "Output stream for snapshot is already set.");
+			outStream = checkpointStreamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+			snapshotCloseableRegistry.registerCloseable(outStream);
+			outputView = new DataOutputViewStreamWrapper(outStream);
+		}
+
+		/**
+		 * 3) Write the actual data from RocksDB from the time we took the snapshot object in (1).
+		 *
+		 * @throws IOException
+		 */
+		public void writeDBSnapshot() throws IOException, InterruptedException {
+
+			if (null == snapshot) {
+				throw new IOException("No snapshot available. Might be released due to cancellation.");
+			}
+
+			Preconditions.checkNotNull(outStream, "No output stream to write snapshot.");
+			writeKVStateMetaData();
+			writeKVStateData();
+		}
+
+		/**
+		 * 4) Returns a state handle to the snapshot after the snapshot procedure is completed and null before.
+		 *
+		 * @return state handle to the completed snapshot
+		 */
+		public KeyGroupsStateHandle getSnapshotResultStateHandle() throws IOException {
+
+			if (snapshotCloseableRegistry.unregisterCloseable(outStream)) {
+
+				StreamStateHandle stateHandle = outStream.closeAndGetHandle();
+				outStream = null;
+
+				if (stateHandle != null) {
+					return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+				}
+			}
+			return null;
+		}
+
+		/**
+		 * 5) Release the snapshot object for RocksDB and clean up.
+		 */
+		public void releaseSnapshotResources() {
+
+			outStream = null;
+
+			if (null != kvStateIterators) {
+				for (Tuple2<RocksIterator, Integer> kvStateIterator : kvStateIterators) {
+					IOUtils.closeQuietly(kvStateIterator.f0);
+				}
+				kvStateIterators = null;
+			}
+
+			if (null != snapshot) {
+				if (null != stateBackend.db) {
+					stateBackend.db.releaseSnapshot(snapshot);
+				}
+				IOUtils.closeQuietly(snapshot);
+				snapshot = null;
+			}
+
+			if (null != readOptions) {
+				IOUtils.closeQuietly(readOptions);
+				readOptions = null;
+			}
+
+			this.dbLease.close();
+		}
+
+		private void writeKVStateMetaData() throws IOException {
+
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> metaInfoSnapshots =
+				new ArrayList<>(stateBackend.kvStateInformation.size());
+
+			int kvStateId = 0;
+			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> column :
+				stateBackend.kvStateInformation.entrySet()) {
+
+				metaInfoSnapshots.add(column.getValue().f1.snapshot());
+
+				//retrieve iterator for this k/v states
+				readOptions = new ReadOptions();
+				readOptions.setSnapshot(snapshot);
+
+				kvStateIterators.add(
+					new Tuple2<>(stateBackend.db.newIterator(column.getValue().f0, readOptions), kvStateId));
+
+				++kvStateId;
+			}
+
+			KeyedBackendSerializationProxy<K> serializationProxy =
+				new KeyedBackendSerializationProxy<>(
+					stateBackend.getKeySerializer(),
+					metaInfoSnapshots,
+					!Objects.equals(UncompressedStreamCompressionDecorator.INSTANCE, stateBackend.keyGroupCompressionDecorator));
+
+			serializationProxy.write(outputView);
+		}
+
+		private void writeKVStateData() throws IOException, InterruptedException {
+
+			byte[] previousKey = null;
+			byte[] previousValue = null;
+			OutputStream kgOutStream = null;
+			DataOutputView kgOutView = null;
+
+			try {
+				// Here we transfer ownership of RocksIterators to the RocksDBMergeIterator
+				try (RocksDBMergeIterator mergeIterator = new RocksDBMergeIterator(
+					kvStateIterators, stateBackend.keyGroupPrefixBytes)) {
+
+					// handover complete, null out to prevent double close
+					kvStateIterators = null;
+
+					//preamble: setup with first key-group as our lookahead
+					if (mergeIterator.isValid()) {
+						//begin first key-group by recording the offset
+						keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+						//write the k/v-state id as metadata
+						kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
+						kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
+						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+						kgOutView.writeShort(mergeIterator.kvStateId());
+						previousKey = mergeIterator.key();
+						previousValue = mergeIterator.value();
+						mergeIterator.next();
+					}
+
+					//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
+					while (mergeIterator.isValid()) {
+
+						assert (!hasMetaDataFollowsFlag(previousKey));
+
+						//set signal in first key byte that meta data will follow in the stream after this k/v pair
+						if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
+
+							//be cooperative and check for interruption from time to time in the hot loop
+							checkInterrupted();
+
+							setMetaDataFollowsFlagInKey(previousKey);
+						}
+
+						writeKeyValuePair(previousKey, previousValue, kgOutView);
+
+						//write meta data if we have to
+						if (mergeIterator.isNewKeyGroup()) {
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
+							// this will just close the outer stream
+							kgOutStream.close();
+							//begin new key-group
+							keyGroupRangeOffsets.setKeyGroupOffset(mergeIterator.keyGroup(), outStream.getPos());
+							//write the kev-state
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							kgOutStream = stateBackend.keyGroupCompressionDecorator.decorateWithCompression(outStream);
+							kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
+							kgOutView.writeShort(mergeIterator.kvStateId());
+						} else if (mergeIterator.isNewKeyValueState()) {
+							//write the k/v-state
+							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+							kgOutView.writeShort(mergeIterator.kvStateId());
+						}
+
+						//request next k/v pair
+						previousKey = mergeIterator.key();
+						previousValue = mergeIterator.value();
+						mergeIterator.next();
+					}
+				}
+
+				//epilogue: write last key-group
+				if (previousKey != null) {
+					assert (!hasMetaDataFollowsFlag(previousKey));
+					setMetaDataFollowsFlagInKey(previousKey);
+					writeKeyValuePair(previousKey, previousValue, kgOutView);
+					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
+					kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
+					// this will just close the outer stream
+					kgOutStream.close();
+					kgOutStream = null;
+				}
+
+			} finally {
+				// this will just close the outer stream
+				IOUtils.closeQuietly(kgOutStream);
+			}
+		}
+
+		private void writeKeyValuePair(byte[] key, byte[] value, DataOutputView out) throws IOException {
+			BytePrimitiveArraySerializer.INSTANCE.serialize(key, out);
+			BytePrimitiveArraySerializer.INSTANCE.serialize(value, out);
+		}
+
+		static void setMetaDataFollowsFlagInKey(byte[] key) {
+			key[0] |= FIRST_BIT_IN_BYTE_MASK;
+		}
+
+		static void clearMetaDataFollowsFlag(byte[] key) {
+			key[0] &= (~RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
+		}
+
+		static boolean hasMetaDataFollowsFlag(byte[] key) {
+			return 0 != (key[0] & RocksDBFullSnapshotOperation.FIRST_BIT_IN_BYTE_MASK);
+		}
+
+		private static void checkInterrupted() throws InterruptedException {
+			if (Thread.currentThread().isInterrupted()) {
+				throw new InterruptedException("RocksDB snapshot interrupted.");
+			}
+		}
+
+		@Override
+		protected void acquireResources() throws Exception {
+			stateBackend.cancelStreamRegistry.registerCloseable(snapshotCloseableRegistry);
+			openCheckpointStream();
+		}
+
+		@Override
+		protected void releaseResources() throws Exception {
+			closeLocalRegistry();
+			releaseSnapshotOperationResources();
+		}
+
+		private void releaseSnapshotOperationResources() {
+			// hold the db lock while operation on the db to guard us against async db disposal
+			releaseSnapshotResources();
+		}
+
+		@Override
+		protected void stopOperation() throws Exception {
+			closeLocalRegistry();
+		}
+
+		private void closeLocalRegistry() {
+			if (stateBackend.cancelStreamRegistry.unregisterCloseable(snapshotCloseableRegistry)) {
+				try {
+					snapshotCloseableRegistry.close();
+				} catch (Exception ex) {
+					LOG.warn("Error closing local registry", ex);
+				}
+			}
+		}
+
+		@Override
+		public SnapshotResult<KeyedStateHandle> performOperation() throws Exception {
+			long startTime = System.currentTimeMillis();
+
+			if (isStopped()) {
+				throw new IOException("RocksDB closed.");
+			}
+
+			writeDBSnapshot();
+
+			LOG.info("Asynchronous RocksDB snapshot ({}, asynchronous part) in thread {} took {} ms.",
+				checkpointStreamFactory, Thread.currentThread(), (System.currentTimeMillis() - startTime));
+
+			KeyGroupsStateHandle stateHandle = getSnapshotResultStateHandle();
+			return new SnapshotResult<>(stateHandle, null);
+		}
+	}
+
+	/**
+	 * Encapsulates the process to perform an incremental snapshot of a RocksDBKeyedStateBackend.
+	 */
+	private static final class RocksDBIncrementalSnapshotOperation<K> {
+
+		/** The backend which we snapshot. */
+		private final RocksDBKeyedStateBackend<K> stateBackend;
+
+		/** Stream factory that creates the outpus streams to DFS. */
+		private final CheckpointStreamFactory checkpointStreamFactory;
+
+		/** Id for the current checkpoint. */
+		private final long checkpointId;
+
+		/** Timestamp for the current checkpoint. */
+		private final long checkpointTimestamp;
+
+		/** All sst files that were part of the last previously completed checkpoint. */
+		private Set<StateHandleID> baseSstFiles;
+
+		/** The state meta data. */
+		private final List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots = new ArrayList<>();
+
+		/** Local filesystem for the RocksDB backup. */
+		private FileSystem backupFileSystem;
+
+		/** Local path for the RocksDB backup. */
+		private Path backupPath;
+
+		// Registry for all opened i/o streams
+		private final CloseableRegistry closeableRegistry = new CloseableRegistry();
+
+		// new sst files since the last completed checkpoint
+		private final Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>();
+
+		// handles to the misc files in the current snapshot
+		private final Map<StateHandleID, StreamStateHandle> miscFiles = new HashMap<>();
+
+		// This lease protects from concurrent disposal of the native rocksdb instance.
+		private final ResourceGuard.Lease dbLease;
+
+		private StreamStateHandle metaStateHandle = null;
+
+		private RocksDBIncrementalSnapshotOperation(
+			RocksDBKeyedStateBackend<K> stateBackend,
+			CheckpointStreamFactory checkpointStreamFactory,
+			long checkpointId,
+			long checkpointTimestamp) throws IOException {
+
+			this.stateBackend = stateBackend;
+			this.checkpointStreamFactory = checkpointStreamFactory;
+			this.checkpointId = checkpointId;
+			this.checkpointTimestamp = checkpointTimestamp;
+			this.dbLease = this.stateBackend.rocksDBResourceGuard.acquireResource();
+		}
+
+		private StreamStateHandle materializeStateData(Path filePath) throws Exception {
+			FSDataInputStream inputStream = null;
+			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
+			try {
+				final byte[] buffer = new byte[8 * 1024];
+
+				FileSystem backupFileSystem = backupPath.getFileSystem();
+				inputStream = backupFileSystem.open(filePath);
+				closeableRegistry.registerCloseable(inputStream);
+
+				outputStream = checkpointStreamFactory
+					.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
+				closeableRegistry.registerCloseable(outputStream);
+
+				while (true) {
+					int numBytes = inputStream.read(buffer);
+
+					if (numBytes == -1) {
+						break;
+					}
+
+					outputStream.write(buffer, 0, numBytes);
+				}
+
+				StreamStateHandle result = null;
+				if (closeableRegistry.unregisterCloseable(outputStream)) {
+					result = outputStream.closeAndGetHandle();
+					outputStream = null;
+				}
+				return result;
+
+			} finally {
+
+				if (closeableRegistry.unregisterCloseable(inputStream)) {
+					inputStream.close();
+				}
+
+				if (closeableRegistry.unregisterCloseable(outputStream)) {
+					outputStream.close();
+				}
+			}
+		}
+
+		private StreamStateHandle materializeMetaData() throws Exception {
+			CheckpointStreamFactory.CheckpointStateOutputStream outputStream = null;
+
+			try {
+				outputStream = checkpointStreamFactory
+					.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+				closeableRegistry.registerCloseable(outputStream);
+
+				//no need for compression scheme support because sst-files are already compressed
+				KeyedBackendSerializationProxy<K> serializationProxy =
+					new KeyedBackendSerializationProxy<>(
+						stateBackend.keySerializer,
+						stateMetaInfoSnapshots,
+						false);
+
+				DataOutputView out = new DataOutputViewStreamWrapper(outputStream);
+
+				serializationProxy.write(out);
+
+				StreamStateHandle result = null;
+				if (closeableRegistry.unregisterCloseable(outputStream)) {
+					result = outputStream.closeAndGetHandle();
+					outputStream = null;
+				}
+				return result;
+			} finally {
+				if (outputStream != null) {
+					if (closeableRegistry.unregisterCloseable(outputStream)) {
+						outputStream.close();
+					}
+				}
+			}
+		}
+
+		void takeSnapshot() throws Exception {
+
+			final long lastCompletedCheckpoint;
+
+			// use the last completed checkpoint as the comparison base.
+			synchronized (stateBackend.materializedSstFiles) {
+				lastCompletedCheckpoint = stateBackend.lastCompletedCheckpointId;
+				baseSstFiles = stateBackend.materializedSstFiles.get(lastCompletedCheckpoint);
+			}
+
+			LOG.trace("Taking incremental snapshot for checkpoint {}. Snapshot is based on last completed checkpoint {} " +
+				"assuming the following (shared) files as base: {}.", checkpointId, lastCompletedCheckpoint, baseSstFiles);
+
+			// save meta data
+			for (Map.Entry<String, Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>>> stateMetaInfoEntry
+				: stateBackend.kvStateInformation.entrySet()) {
+				stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().f1.snapshot());
+			}
+
+			// save state data
+			backupPath = new Path(stateBackend.instanceBasePath.getAbsolutePath(), "chk-" + checkpointId);
+
+			LOG.trace("Local RocksDB checkpoint goes to backup path {}.", backupPath);
+
+			backupFileSystem = backupPath.getFileSystem();
+			if (backupFileSystem.exists(backupPath)) {
+				throw new IllegalStateException("Unexpected existence of the backup directory.");
+			}
+
+			// create hard links of living files in the checkpoint path
+			Checkpoint checkpoint = Checkpoint.create(stateBackend.db);
+			checkpoint.createCheckpoint(backupPath.getPath());
+		}
+
+		SnapshotResult<KeyedStateHandle> runSnapshot() throws Exception {
+
+			stateBackend.cancelStreamRegistry.registerCloseable(closeableRegistry);
+
+			// write meta data
+			metaStateHandle = materializeMetaData();
+
+			// write state data
+			Preconditions.checkState(backupFileSystem.exists(backupPath));
+
+			FileStatus[] fileStatuses = backupFileSystem.listStatus(backupPath);
+			if (fileStatuses != null) {
+				for (FileStatus fileStatus : fileStatuses) {
+					final Path filePath = fileStatus.getPath();
+					final String fileName = filePath.getName();
+					final StateHandleID stateHandleID = new StateHandleID(fileName);
+
+					if (fileName.endsWith(SST_FILE_SUFFIX)) {
+						final boolean existsAlready =
+							baseSstFiles != null && baseSstFiles.contains(stateHandleID);
+
+						if (existsAlready) {
+							// we introduce a placeholder state handle, that is replaced with the
+							// original from the shared state registry (created from a previous checkpoint)
+							sstFiles.put(
+								stateHandleID,
+								new PlaceholderStreamStateHandle());
+						} else {
+							sstFiles.put(stateHandleID, materializeStateData(filePath));
+						}
+					} else {
+						StreamStateHandle fileHandle = materializeStateData(filePath);
+						miscFiles.put(stateHandleID, fileHandle);
+					}
+				}
+			}
+
+			synchronized (stateBackend.materializedSstFiles) {
+				stateBackend.materializedSstFiles.put(checkpointId, sstFiles.keySet());
+			}
+
+			IncrementalKeyedStateHandle incrementalKeyedStateHandle = new IncrementalKeyedStateHandle(
+				stateBackend.backendUID,
+				stateBackend.keyGroupRange,
+				checkpointId,
+				sstFiles,
+				miscFiles,
+				metaStateHandle);
+
+			return new SnapshotResult<>(incrementalKeyedStateHandle, null);
+		}
+
+		void stop() {
+
+			if (stateBackend.cancelStreamRegistry.unregisterCloseable(closeableRegistry)) {
+				try {
+					closeableRegistry.close();
+				} catch (IOException e) {
+					LOG.warn("Could not properly close io streams.", e);
+				}
+			}
+		}
+
+		void releaseResources(boolean canceled) {
+
+			dbLease.close();
+
+			if (stateBackend.cancelStreamRegistry.unregisterCloseable(closeableRegistry)) {
+				try {
+					closeableRegistry.close();
+				} catch (IOException e) {
+					LOG.warn("Exception on closing registry.", e);
+				}
+			}
+
+			if (backupPath != null) {
+				try {
+					if (backupFileSystem.exists(backupPath)) {
+
+						LOG.trace("Deleting local RocksDB backup path {}.", backupPath);
+						backupFileSystem.delete(backupPath, true);
+					}
+				} catch (Exception e) {
+					LOG.warn("Could not properly delete the checkpoint directory.", e);
+				}
+			}
+
+			if (canceled) {
+				Collection<StateObject> statesToDiscard =
+					new ArrayList<>(1 + miscFiles.size() + sstFiles.size());
+
+				statesToDiscard.add(metaStateHandle);
+				statesToDiscard.addAll(miscFiles.values());
+				statesToDiscard.addAll(sstFiles.values());
+
+				try {
+					StateUtil.bestEffortDiscardAllStateObjects(statesToDiscard);
+				} catch (Exception e) {
+					LOG.warn("Could not properly discard states.", e);
+				}
 			}
 		}
 	}
