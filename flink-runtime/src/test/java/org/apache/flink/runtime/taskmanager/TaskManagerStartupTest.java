@@ -250,7 +250,7 @@ public class TaskManagerStartupTest extends TestLogger {
 				ResourceID.generate(),
 				null,
 				highAvailabilityServices,
-				new NoOpMetricRegistry(),
+				NoOpMetricRegistry.INSTANCE,
 				"localhost",
 				Option.<String>empty(),
 				false,
