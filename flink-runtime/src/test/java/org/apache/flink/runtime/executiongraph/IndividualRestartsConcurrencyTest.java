@@ -45,7 +45,7 @@ import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -344,7 +344,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 				1,
 				allVertices,
 				checkpointCoordinatorConfiguration,
-				new UnregisteredTaskMetricsGroup()));
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()));
 
 		final CheckpointCoordinator checkpointCoordinator = graph.getCheckpointCoordinator();
 

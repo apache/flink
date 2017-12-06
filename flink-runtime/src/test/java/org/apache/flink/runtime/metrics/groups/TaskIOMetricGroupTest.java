@@ -21,7 +21,6 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 
 import org.junit.Test;
 
@@ -34,7 +33,7 @@ import static org.junit.Assert.assertNotNull;
 public class TaskIOMetricGroupTest {
 	@Test
 	public void testTaskIOMetricGroup() {
-		TaskMetricGroup task = new UnregisteredTaskMetricsGroup();
+		TaskMetricGroup task = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 		TaskIOMetricGroup taskIO = task.getIOMetricGroup();
 
 		// test counter forwarding
