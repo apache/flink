@@ -396,26 +396,20 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
 	@Override
 	public MetricGroup addGroup(int name) {
-		return addGroup(String.valueOf(name), false);
+		return addGroup(String.valueOf(name), ChildType.GENERIC);
 	}
 
 	@Override
 	public MetricGroup addGroup(String name) {
-		return addGroup(name, false);
+		return addGroup(name, ChildType.GENERIC);
 	}
 
 	@Override
 	public MetricGroup addGroup(String key, String value) {
-		MetricGroup metricGroup = addGroup(key, true);
-		if (metricGroup instanceof GenericKeyMetricGroup) {
-			return ((AbstractMetricGroup) metricGroup).addGroup(value, true);
-		}
-		else {
-			return metricGroup.addGroup(value);
-		}
+		return addGroup(key, ChildType.KEY).addGroup(value, ChildType.VALUE);
 	}
 
-	private MetricGroup addGroup(String name, boolean keyed) {
+	private AbstractMetricGroup<?> addGroup(String name, ChildType childType) {
 		synchronized (this) {
 			if (!closed) {
 				// adding a group with the same name as a metric creates problems in many reporters/dashboards
@@ -426,9 +420,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 							name + "'. Metric might not get properly reported. " + Arrays.toString(scopeComponents));
 				}
 
-				AbstractMetricGroup newGroup = keyed
-					? createChildGroupInKeyedContext(name)
-					: new GenericMetricGroup(registry, this, name);
+				AbstractMetricGroup newGroup = createChildGroup(name, childType);
 				AbstractMetricGroup prior = groups.put(name, newGroup);
 				if (prior == null) {
 					// no prior group with that name
@@ -448,7 +440,21 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		}
 	}
 
-	protected GenericMetricGroup createChildGroupInKeyedContext(String name) {
-		return new GenericKeyMetricGroup(registry, this, name);
+	protected GenericMetricGroup createChildGroup(String name, ChildType childType) {
+		switch (childType) {
+			case KEY:
+				return new GenericKeyMetricGroup(registry, this, name);
+			default:
+				return new GenericMetricGroup(registry, this, name);
+		}
+	}
+
+	/**
+	 * TODO: add javadoc.
+	 */
+	protected enum ChildType {
+		KEY,
+		VALUE,
+		GENERIC
 	}
 }
