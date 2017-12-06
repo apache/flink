@@ -22,14 +22,12 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 /**
  * Several integration tests for queryable state using the {@link RocksDBStateBackend}.
  */
-@Ignore
 public class HAQueryableStateRocksDBBackendITCase extends HAAbstractQueryableStateTestBase {
 
 	@Rule
