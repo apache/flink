@@ -37,8 +37,6 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.io.IOException;
-
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -82,9 +80,6 @@ public class NetworkEnvironmentTest {
 		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
 		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 8);
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
-		final ResultPartitionWriter[] resultPartitionWriters = new ResultPartitionWriter[] {
-			new ResultPartitionWriter(rp1), new ResultPartitionWriter(rp2),
-			new ResultPartitionWriter(rp3), new ResultPartitionWriter(rp4)};
 
 		// input gates
 		SingleInputGate ig1 = createSingleInputGateMock(ResultPartitionType.PIPELINED, 2);
@@ -96,7 +91,6 @@ public class NetworkEnvironmentTest {
 		// overall task to register
 		Task task = mock(Task.class);
 		when(task.getProducedPartitions()).thenReturn(resultPartitions);
-		when(task.getAllWriters()).thenReturn(resultPartitionWriters);
 		when(task.getAllInputGates()).thenReturn(inputGates);
 
 		network.registerTask(task);
