@@ -694,7 +694,7 @@ object AkkaUtils {
     * @return The InetSocketAddress with teh extracted host and port.
     */
   @throws(classOf[Exception])
-  def getInetSockeAddressFromAkkaURL(akkaURL: String): InetSocketAddress = {
+  def getInetSocketAddressFromAkkaURL(akkaURL: String): InetSocketAddress = {
     // AkkaURLs have the form schema://systemName@host:port/.... if it's a remote Akka URL
     try {
       // we need to manually strip the protocol, because "akka.tcp" is not
