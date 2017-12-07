@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, TableSinkBase}
+import org.apache.flink.table.util.TableConnectorUtil
 import org.apache.flink.types.Row
 
 import scala.collection.mutable
@@ -50,11 +51,15 @@ object MemoryTableSinkUtil {
     }
 
     override def emitDataSet(dataSet: DataSet[Row]): Unit = {
-      dataSet.output(new MemoryCollectionOutputFormat).name(explainSink())
+      dataSet
+        .output(new MemoryCollectionOutputFormat)
+        .name(TableConnectorUtil.genRuntimeName(this.getClass.getSimpleName, getFieldNames))
     }
 
     override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-      dataStream.addSink(new MemoryAppendSink).name(explainSink())
+      dataStream
+        .addSink(new MemoryAppendSink)
+        .name(TableConnectorUtil.genRuntimeName(this.getClass.getSimpleName, getFieldNames))
     }
   }
 

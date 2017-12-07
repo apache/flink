@@ -25,6 +25,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.table.util.TableConnectorUtil
 
 /**
   * A simple [[TableSink]] to emit data as CSV files.
@@ -79,7 +80,7 @@ class CsvTableSink(
       sink.setParallelism(numFiles.get)
     }
 
-    sink.name(explainSink())
+    sink.name(TableConnectorUtil.genRuntimeName(this.getClass.getSimpleName, getFieldNames))
   }
 
   override def emitDataStream(dataStream: DataStream[Row]): Unit = {
@@ -98,7 +99,7 @@ class CsvTableSink(
       sink.setParallelism(numFiles.get)
     }
 
-    sink.name(explainSink())
+    sink.name(TableConnectorUtil.genRuntimeName(this.getClass.getSimpleName, getFieldNames))
   }
 
   override protected def copy: TableSinkBase[Row] = {

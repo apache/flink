@@ -154,7 +154,7 @@ object CommonTestData {
             new Person("Sally", "Miller", new Address("Potsdamer Platz", "Berlin")),
             new Person("Bob", "Taylor", new Address("Pearse Street", "Dublin"))),
           getReturnType
-        ).name(explainSource())
+        )
       }
 
       override def getReturnType: TypeInformation[Person] = {

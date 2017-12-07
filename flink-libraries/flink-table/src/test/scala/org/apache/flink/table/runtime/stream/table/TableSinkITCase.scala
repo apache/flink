@@ -583,7 +583,7 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
       new MapFunction[Row, JTuple2[JBool, Row]] {
         override def map(value: Row): JTuple2[JBool, Row] = new JTuple2(true, value)
       })
-      .addSink(new RowSink).name(explainSink())
+      .addSink(new RowSink)
   }
 
   override def getOutputType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
@@ -608,7 +608,7 @@ private[flink] class TestRetractSink extends RetractStreamTableSink[Row] {
   var fTypes: Array[TypeInformation[_]] = _
 
   override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
-    s.addSink(new RowSink).name(explainSink())
+    s.addSink(new RowSink)
   }
 
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
@@ -654,7 +654,7 @@ private[flink] class TestUpsertSink(
   override def getRecordType: TypeInformation[Row] = new RowTypeInfo(fTypes, fNames)
 
   override def emitDataStream(s: DataStream[JTuple2[JBool, Row]]): Unit = {
-    s.addSink(new RowSink).name(explainSink())
+    s.addSink(new RowSink)
   }
 
   override def getFieldNames: Array[String] = fNames
