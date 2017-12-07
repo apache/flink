@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Table, TableEnvironment}
+import org.apache.flink.table.api.{Table, TableEnvironment, TableSchema}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.junit.Assert.assertEquals
@@ -81,6 +81,12 @@ abstract class TableTestUtil {
   def verifySql(query: String, expected: String): Unit
 
   def verifyTable(resultTable: Table, expected: String): Unit
+
+  def verifySchema(resultTable: Table, fields: Seq[(String, TypeInformation[_])]): Unit = {
+    val actual = resultTable.getSchema
+    val expected = new TableSchema(fields.map(_._1).toArray, fields.map(_._2).toArray)
+    assertEquals(expected, actual)
+  }
 
   // the print methods are for debugging purposes only
   def printTable(resultTable: Table): Unit
