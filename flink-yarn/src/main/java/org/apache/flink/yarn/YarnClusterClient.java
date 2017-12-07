@@ -40,7 +40,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -68,12 +67,9 @@ public class YarnClusterClient extends ClusterClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClient.class);
 
-	private static final int POLLING_THREAD_INTERVAL_MS = 1000;
-
 	private YarnClient yarnClient;
 
 	private Thread clientShutdownHook = new ClientShutdownHook();
-	private PollingThread pollingRunner;
 
 	//---------- Class internal fields -------------------
 
@@ -130,10 +126,6 @@ public class YarnClusterClient extends ClusterClient {
 			actorSystemLoader,
 			highAvailabilityServices);
 
-		this.pollingRunner = new PollingThread(yarnClient, appId);
-		this.pollingRunner.setDaemon(true);
-		this.pollingRunner.start();
-
 		Runtime.getRuntime().addShutdownHook(clientShutdownHook);
 	}
 
@@ -156,14 +148,6 @@ public class YarnClusterClient extends ClusterClient {
 			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
 		} catch (IllegalStateException e) {
 			// we are already in the shutdown hook
-		}
-
-		try {
-			pollingRunner.stopRunner();
-			pollingRunner.join(1000);
-		} catch (InterruptedException e) {
-			LOG.warn("Shutdown of the polling runner was interrupted", e);
-			Thread.currentThread().interrupt();
 		}
 
 		isConnected = false;
@@ -251,34 +235,6 @@ public class YarnClusterClient extends ClusterClient {
 			return (GetClusterStatusResponse) Await.result(clusterStatusOption, akkaDuration);
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to get ClusterClient status from Application Client", e);
-		}
-	}
-
-	public ApplicationStatus getApplicationStatus() {
-		if (!isConnected) {
-			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
-		}
-		ApplicationReport lastReport = null;
-		if (pollingRunner == null) {
-			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on an uninitialized cluster." +
-					"The system might be in an erroneous state");
-		} else {
-			lastReport = pollingRunner.getLastReport();
-		}
-		if (lastReport == null) {
-			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on a cluster that didn't receive a status so far." +
-					"The system might be in an erroneous state");
-			return ApplicationStatus.UNKNOWN;
-		} else {
-			YarnApplicationState appState = lastReport.getYarnApplicationState();
-			ApplicationStatus status =
-				(appState == YarnApplicationState.FAILED || appState == YarnApplicationState.KILLED) ?
-					ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
-			if (status != ApplicationStatus.SUCCEEDED) {
-				LOG.warn("YARN reported application state {}", appState);
-				LOG.warn("Diagnostics: {}", lastReport.getDiagnostics());
-			}
-			return status;
 		}
 	}
 
@@ -371,7 +327,7 @@ public class YarnClusterClient extends ClusterClient {
 		try {
 			Future<Object> response =
 				Patterns.ask(applicationClient.get(),
-					new YarnMessages.LocalStopYarnSession(getApplicationStatus(),
+					new YarnMessages.LocalStopYarnSession(ApplicationStatus.CANCELED,
 							"Flink YARN Client requested shutdown"),
 					new Timeout(akkaDuration));
 			Await.ready(response, akkaDuration);
@@ -390,14 +346,6 @@ public class YarnClusterClient extends ClusterClient {
 			}
 		} catch (Exception e) {
 			LOG.warn("Exception while deleting the JobManager address file", e);
-		}
-
-		try {
-			pollingRunner.stopRunner();
-			pollingRunner.join(1000);
-		} catch (InterruptedException e) {
-			LOG.warn("Shutdown of the polling runner was interrupted", e);
-			Thread.currentThread().interrupt();
 		}
 
 		try {
@@ -439,62 +387,6 @@ public class YarnClusterClient extends ClusterClient {
 				shutdown();
 			} catch (Throwable t) {
 				LOG.warn("Could not properly shut down the yarn cluster client.", t);
-			}
-		}
-	}
-
-	// -------------------------- Polling ------------------------
-
-	private static class PollingThread extends Thread {
-
-		AtomicBoolean running = new AtomicBoolean(true);
-		private YarnClient yarnClient;
-		private ApplicationId appId;
-
-		// ------- status information stored in the polling thread
-		private final Object lock = new Object();
-		private ApplicationReport lastReport;
-
-		public PollingThread(YarnClient yarnClient, ApplicationId appId) {
-			this.yarnClient = yarnClient;
-			this.appId = appId;
-		}
-
-		public void stopRunner() {
-			if (!running.get()) {
-				LOG.warn("Polling thread was already stopped");
-			}
-			running.set(false);
-		}
-
-		public ApplicationReport getLastReport() {
-			synchronized (lock) {
-				return lastReport;
-			}
-		}
-
-		@Override
-		public void run() {
-			while (running.get() && yarnClient.isInState(Service.STATE.STARTED)) {
-				try {
-					ApplicationReport report = yarnClient.getApplicationReport(appId);
-					synchronized (lock) {
-						lastReport = report;
-					}
-				} catch (Exception e) {
-					LOG.warn("Error while getting application report", e);
-				}
-				try {
-					Thread.sleep(YarnClusterClient.POLLING_THREAD_INTERVAL_MS);
-				} catch (InterruptedException e) {
-					LOG.error("Polling thread got interrupted", e);
-					Thread.currentThread().interrupt(); // pass interrupt.
-					stopRunner();
-				}
-			}
-			if (running.get() && !yarnClient.isInState(Service.STATE.STARTED)) {
-				// == if the polling thread is still running but the yarn client is stopped.
-				LOG.warn("YARN client is unexpected in state " + yarnClient.getServiceState());
 			}
 		}
 	}

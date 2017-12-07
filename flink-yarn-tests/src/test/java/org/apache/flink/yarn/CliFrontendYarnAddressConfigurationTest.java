@@ -379,7 +379,7 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 				}
 
 				@Override
-				protected YarnClient getYarnClient() {
+				public YarnClient getYarnClient() {
 					return new TestYarnClient();
 				}
 
