@@ -49,7 +49,7 @@ under the License.
 		<slf4j.version>@slf4j.version@</slf4j.version>
 		<log4j.version>@log4j.version@</log4j.version>
 		<scala.binary.version>2.11</scala.binary.version>
-		<scala.version>2.11.11</scala.version>
+		<scala.version>2.11.12</scala.version>
 	</properties>
 
 	<!-- 
