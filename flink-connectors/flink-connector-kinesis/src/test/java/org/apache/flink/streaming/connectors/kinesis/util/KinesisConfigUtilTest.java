@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import org.junit.Rule;
@@ -171,7 +172,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid AWS Credential Provider Type");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "wrongProviderType");
 
 		KinesisConfigUtil.validateAwsConfiguration(testConfig);
@@ -186,7 +187,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid initial position in stream");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "wrongInitPosition");
 
@@ -199,7 +200,7 @@ public class KinesisConfigUtilTest {
 		exception.expectMessage("Please set value for initial timestamp ('"
 				+ ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP + "') when using AT_TIMESTAMP initial position.");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 
@@ -211,7 +212,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "unparsableDate");
@@ -224,7 +225,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "-1.0");
@@ -236,7 +237,7 @@ public class KinesisConfigUtilTest {
 	public void testDateStringForValidateOptionDateProperty() {
 		String timestamp = "2016-04-04T19:58:46.480-00:00";
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, timestamp);
@@ -253,7 +254,7 @@ public class KinesisConfigUtilTest {
 	public void testUnixTimestampForValidateOptionDateProperty() {
 		String unixTimestamp = "1459799926.480";
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
@@ -271,7 +272,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "2016-03-14");
@@ -285,7 +286,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for initial timestamp for AT_TIMESTAMP initial position in stream.");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, "stillUnparsable");
@@ -299,7 +300,7 @@ public class KinesisConfigUtilTest {
 		String unixTimestamp = "2016-04-04";
 		String pattern = "yyyy-MM-dd";
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "AT_TIMESTAMP");
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP, unixTimestamp);
@@ -318,7 +319,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for describe stream operation base backoff milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -329,7 +330,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for describe stream operation max backoff milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -340,7 +341,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for describe stream operation backoff exponential constant");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -351,7 +352,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum retry attempts for getRecords shard operation");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -362,7 +363,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum records per getRecords shard operation");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_MAX, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -373,7 +374,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation base backoff milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -384,7 +385,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation max backoff milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -395,7 +396,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get records operation backoff exponential constant");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -406,7 +407,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for getRecords sleep interval in milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -417,7 +418,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for maximum retry attempts for getShardIterator shard operation");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_RETRIES, "unparsableInt");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -428,7 +429,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation base backoff milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_BASE, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -439,7 +440,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation max backoff milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_MAX, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -450,7 +451,7 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for get shard iterator operation backoff exponential constant");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT, "unparsableDouble");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
@@ -461,18 +462,9 @@ public class KinesisConfigUtilTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Invalid value given for shard discovery sleep interval in milliseconds");
 
-		Properties testConfig = getPropertiesWithRequiredFields();
+		Properties testConfig = TestUtils.getStandardProperties();
 		testConfig.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "unparsableLong");
 
 		KinesisConfigUtil.validateConsumerConfiguration(testConfig);
-	}
-
-	private Properties getPropertiesWithRequiredFields() {
-		Properties config = new Properties();
-		config.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		config.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		config.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		return config;
 	}
 }

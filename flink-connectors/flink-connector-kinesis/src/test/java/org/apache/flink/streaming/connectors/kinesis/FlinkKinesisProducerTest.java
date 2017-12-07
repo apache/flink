@@ -24,8 +24,8 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisSerializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.ExceptionUtils;
@@ -45,7 +45,6 @@ import org.mockito.stubbing.Answer;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -71,12 +70,12 @@ public class FlinkKinesisProducerTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("The provided serialization schema is not serializable");
 
-		new FlinkKinesisProducer<>(new NonSerializableSerializationSchema(), getStandardProperties());
+		new FlinkKinesisProducer<>(new NonSerializableSerializationSchema(), TestUtils.getStandardProperties());
 	}
 
 	@Test
 	public void testCreateWithSerializableDeserializer() {
-		new FlinkKinesisProducer<>(new SerializableSerializationSchema(), getStandardProperties());
+		new FlinkKinesisProducer<>(new SerializableSerializationSchema(), TestUtils.getStandardProperties());
 	}
 
 	@Test
@@ -84,19 +83,19 @@ public class FlinkKinesisProducerTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("The provided custom partitioner is not serializable");
 
-		new FlinkKinesisProducer<>(new SimpleStringSchema(), getStandardProperties())
+		new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties())
 			.setCustomPartitioner(new NonSerializableCustomPartitioner());
 	}
 
 	@Test
 	public void testConfigureWithSerializableCustomPartitioner() {
-		new FlinkKinesisProducer<>(new SimpleStringSchema(), getStandardProperties())
+		new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties())
 			.setCustomPartitioner(new SerializableCustomPartitioner());
 	}
 
 	@Test
 	public void testProducerIsSerializable() {
-		FlinkKinesisProducer<String> consumer = new FlinkKinesisProducer<>(new SimpleStringSchema(), getStandardProperties());
+		FlinkKinesisProducer<String> consumer = new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties());
 		assertTrue(InstantiationUtil.isSerializable(consumer));
 	}
 
@@ -350,7 +349,7 @@ public class FlinkKinesisProducerTest {
 		private boolean isFlushed;
 
 		DummyFlinkKinesisProducer(SerializationSchema<T> schema) {
-			super(schema, getStandardProperties());
+			super(schema, TestUtils.getStandardProperties());
 
 			setDefaultStream(DUMMY_STREAM);
 			setDefaultPartition(DUMMY_PARTITION);
@@ -439,14 +438,5 @@ public class FlinkKinesisProducerTest {
 
 			return numPending;
 		}
-	}
-
-	private static Properties getStandardProperties() {
-		Properties standardProps = new Properties();
-		standardProps.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-		standardProps.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		standardProps.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-
-		return standardProps;
 	}
 }
