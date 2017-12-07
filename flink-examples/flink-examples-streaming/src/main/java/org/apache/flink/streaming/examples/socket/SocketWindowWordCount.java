@@ -96,6 +96,8 @@ public class SocketWindowWordCount {
 
 	/**
 	 * Data type for words with count.
+	 * Note: No need an immutable Value Object(POJO only actually) here,
+	 * and DataStream attends to the thread-safe issues.
 	 */
 	public static class WordWithCount {
 
