@@ -70,11 +70,11 @@ public class LocalFileSystem extends FileSystem {
 
 	/** Path pointing to the current working directory.
 	 * Because Paths are not immutable, we cannot cache the proper path here */
-	private final String workingDir;
+	private final URI workingDir;
 
 	/** Path pointing to the current working directory.
 	 * Because Paths are not immutable, we cannot cache the proper path here. */
-	private final String homeDir;
+	private final URI homeDir;
 
 	/** The host name of this machine. */
 	private final String hostName;
@@ -83,8 +83,8 @@ public class LocalFileSystem extends FileSystem {
 	 * Constructs a new <code>LocalFileSystem</code> object.
 	 */
 	public LocalFileSystem() {
-		this.workingDir = new Path(System.getProperty("user.dir")).makeQualified(this).toString();
-		this.homeDir = new Path(System.getProperty("user.home")).toString();
+		this.workingDir = new File(System.getProperty("user.dir")).toURI();
+		this.homeDir = new File(System.getProperty("user.home")).toURI();
 
 		String tmp = "unknownHost";
 		try {
@@ -229,14 +229,22 @@ public class LocalFileSystem extends FileSystem {
 	 */
 	@Override
 	public boolean mkdirs(final Path f) throws IOException {
-		final File p2f = pathToFile(f);
+		checkNotNull(f, "path is null");
+		return mkdirsInternal(pathToFile(f));
+	}
 
-		if (p2f.isDirectory()) {
+	private boolean mkdirsInternal(File file) throws IOException {
+		if (file.isDirectory()) {
 			return true;
 		}
-
-		final Path parent = f.getParent();
-		return (parent == null || mkdirs(parent)) && (p2f.mkdir() || p2f.isDirectory());
+		else if (file.exists()) {
+			// exists and is not a directory -> is a regular file
+			throw new FileAlreadyExistsException(file.getAbsolutePath());
+		}
+		else {
+			File parent = file.getParentFile();
+			return (parent == null || mkdirsInternal(parent)) && file.mkdir();
+		}
 	}
 
 	@Override

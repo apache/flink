@@ -287,23 +287,20 @@ public class PathTest {
 
 	@Test
 	public void testMakeQualified() throws IOException {
-		String path;
-		Path p;
-		URI u;
+		// make relative path qualified
+		String path = "test/test";
+		Path p  = new Path(path).makeQualified(FileSystem.getLocalFileSystem());
+		URI u = p.toUri();
 
-		path = "test/test";
-		p = new Path(path);
-		u = p.toUri();
-		p = p.makeQualified(FileSystem.get(u));
-		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());
-		assertEquals(FileSystem.getLocalFileSystem().getWorkingDirectory().toUri().getPath() + "/" + path, u.getPath());
 
+		String q = new Path(FileSystem.getLocalFileSystem().getWorkingDirectory().getPath(), path).getPath();
+		assertEquals(q, u.getPath());
+
+		// make absolute path qualified
 		path = "/test/test";
-		p = new Path(path);
-		u = p.toUri();
-		p = p.makeQualified(FileSystem.get(u));
+		p = new Path(path).makeQualified(FileSystem.getLocalFileSystem());
 		u = p.toUri();
 		assertEquals("file", u.getScheme());
 		assertEquals(null, u.getAuthority());
