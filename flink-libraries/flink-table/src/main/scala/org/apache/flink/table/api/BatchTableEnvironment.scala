@@ -290,8 +290,11 @@ abstract class BatchTableEnvironment(
   protected def registerDataSetInternal[T](
       name: String, dataSet: DataSet[T], fields: Array[Expression]): Unit = {
 
+    val inputType = dataSet.getType
+
     val (fieldNames, fieldIndexes) = getFieldInfo[T](
-      dataSet.getType,
+      isReferenceByPosition(inputType, fields),
+      inputType,
       fields)
 
     if (fields.exists(_.isInstanceOf[TimeAttribute])) {

@@ -36,7 +36,7 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
@@ -769,6 +769,39 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Reference input fields by name:
+    * All fields in the schema definition are referenced by name
+    * (and possibly renamed using an alias (as). In this mode, fields can be reordered and
+    * projected out. Moreover, we can define proctime and rowtime attributes at arbitrary
+    * positions using arbitrary names (except those that exist in the result schema). This mode
+    * can be used for any input type, including POJOs.
+    *
+    * Reference input fields by position:
+    * Field references must refer to existing fields in the input type (except for
+    * renaming with alias (as)). In this mode, fields are simply renamed. Event-time attributes can
+    * replace the field on their position in the input data (if it is of correct type) or be
+    * appended at the end. Proctime attributes must be appended at the end. This mode can only be
+    * used if the input type has a defined field order (tuple, case class, Row) and no of fields
+    * references a field of the input type.
+    */
+  protected def isReferenceByPosition(t: TypeInformation[_], fields: Array[Expression]): Boolean = {
+    if (t.isInstanceOf[PojoTypeInfo[_]]) {
+      return false
+    }
+
+    val inputNames = t match {
+      case ct: CompositeType[_] => ct.getFieldNames
+      case _ => return false // atomic types are references by name
+    }
+
+    // use the by position mode if no of the fields exists in the input
+    fields.forall {
+      case UnresolvedFieldReference(name) => !inputNames.contains(name)
+      case _ => true
+    }
+  }
+
+  /**
     * Returns field names and field positions for a given [[TypeInformation]].
     *
     * @param inputType The TypeInformation extract the field names and positions from.
@@ -791,43 +824,50 @@ abstract class TableEnvironment(val config: TableConfig) {
     * Returns field names and field positions for a given [[TypeInformation]] and [[Array]] of
     * [[Expression]]. It does not handle time attributes but considers them in indices.
     *
+    * @param isReferenceByPosition schema mode see [[isReferenceByPosition()]]
     * @param inputType The [[TypeInformation]] against which the [[Expression]]s are evaluated.
     * @param exprs     The expressions that define the field names.
     * @tparam A The type of the TypeInformation.
     * @return A tuple of two arrays holding the field names and corresponding field positions.
     */
-  protected[flink] def getFieldInfo[A](
+  protected def getFieldInfo[A](
+      isReferenceByPosition: Boolean,
       inputType: TypeInformation[A],
       exprs: Array[Expression])
     : (Array[String], Array[Int]) = {
 
     TableEnvironment.validateType(inputType)
 
+    def referenceByName(name: String, ct: CompositeType[_]): Option[(Int, String)] = {
+      val inputIdx = ct.getFieldIndex(name)
+      if (inputIdx < 0) {
+        throw new TableException(s"$name is not a field of type $ct. " +
+                s"Expected: ${ct.getFieldNames.mkString(", ")}")
+      } else {
+        Some((inputIdx, name))
+      }
+    }
+
     val indexedNames: Array[(Int, String)] = inputType match {
+
       case g: GenericTypeInfo[A] if g.getTypeClass == classOf[Row] =>
         throw new TableException(
           "An input of GenericTypeInfo<Row> cannot be converted to Table. " +
             "Please specify the type of the input with a RowTypeInfo.")
-      case a: AtomicType[_] =>
-        exprs.zipWithIndex flatMap {
-          case (_: TimeAttribute, _) =>
-            None
-          case (UnresolvedFieldReference(name), idx) if idx > 0 =>
-            // only accept the first field for an atomic type
-            throw new TableException("Only the first field can reference an atomic type.")
-          case (UnresolvedFieldReference(name), idx) =>
-            // first field reference is mapped to atomic type
-            Some((0, name))
-          case _ => throw new TableException("Field reference expression requested.")
-        }
+
       case t: TupleTypeInfo[A] =>
         exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
+          case (UnresolvedFieldReference(name: String), idx) =>
+            if (isReferenceByPosition) {
+              Some((idx, name))
+            } else {
+              referenceByName(name, t)
+            }
+          case (Alias(UnresolvedFieldReference(origName), name: String, _), _) =>
             val idx = t.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $t")
+              throw new TableException(s"$origName is not a field of type $t. " +
+                s"Expected: ${t.getFieldNames.mkString(", ")}")
             }
             Some((idx, name))
           case (_: TimeAttribute, _) =>
@@ -835,14 +875,20 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
+
       case c: CaseClassTypeInfo[A] =>
         exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
+          case (UnresolvedFieldReference(name: String), idx) =>
+            if (isReferenceByPosition) {
+              Some((idx, name))
+            } else {
+              referenceByName(name, c)
+            }
+          case (Alias(UnresolvedFieldReference(origName), name: String, _), _) =>
             val idx = c.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $c")
+              throw new TableException(s"$origName is not a field of type $c. " +
+                s"Expected: ${c.getFieldNames.mkString(", ")}")
             }
             Some((idx, name))
           case (_: TimeAttribute, _) =>
@@ -850,18 +896,16 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
+
       case p: PojoTypeInfo[A] =>
         exprs flatMap {
-          case (UnresolvedFieldReference(name)) =>
-            val idx = p.getFieldIndex(name)
-            if (idx < 0) {
-              throw new TableException(s"$name is not a field of type $p")
-            }
-            Some((idx, name))
-          case Alias(UnresolvedFieldReference(origName), name, _) =>
+          case (UnresolvedFieldReference(name: String)) =>
+            referenceByName(name, p)
+          case Alias(UnresolvedFieldReference(origName), name: String, _) =>
             val idx = p.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $p")
+              throw new TableException(s"$origName is not a field of type $p. " +
+                s"Expected: ${p.getFieldNames.mkString(", ")}")
             }
             Some((idx, name))
           case _: TimeAttribute =>
@@ -869,14 +913,20 @@ abstract class TableEnvironment(val config: TableConfig) {
           case _ => throw new TableException(
             "Field reference expression or alias on field expression expected.")
         }
+
       case r: RowTypeInfo =>
         exprs.zipWithIndex flatMap {
-          case (UnresolvedFieldReference(name), idx) =>
-            Some((idx, name))
-          case (Alias(UnresolvedFieldReference(origName), name, _), _) =>
+          case (UnresolvedFieldReference(name: String), idx) =>
+            if (isReferenceByPosition) {
+              Some((idx, name))
+            } else {
+              referenceByName(name, r)
+            }
+          case (Alias(UnresolvedFieldReference(origName), name: String, _), _) =>
             val idx = r.getFieldIndex(origName)
             if (idx < 0) {
-              throw new TableException(s"$origName is not a field of type $r")
+              throw new TableException(s"$origName is not a field of type $r. " +
+                s"Expected: ${r.getFieldNames.mkString(", ")}")
             }
             Some((idx, name))
           case (_: TimeAttribute, _) =>
@@ -885,8 +935,23 @@ abstract class TableEnvironment(val config: TableConfig) {
             "Field reference expression or alias on field expression expected.")
         }
 
-      case tpe => throw new TableException(
-        s"Source of type $tpe cannot be converted into Table.")
+      case _: TypeInformation[_] => // atomic or other custom type information
+        var referenced = false
+        exprs flatMap {
+          case _: TimeAttribute =>
+            None
+          case UnresolvedFieldReference(_) if referenced =>
+            // only accept the first field for an atomic type
+            throw new TableException("Only the first field can reference an atomic type.")
+          case UnresolvedFieldReference(name: String) =>
+            referenced = true
+            // first field reference is mapped to atomic type
+            Some((0, name))
+          case Alias(UnresolvedFieldReference(_), name: String, _) =>
+            Some((0, name))
+          case _ => throw new TableException(
+            "Field reference expression or alias on field expression expected.")
+        }
     }
 
     val (fieldIndexes, fieldNames) = indexedNames.unzip
@@ -967,17 +1032,17 @@ abstract class TableEnvironment(val config: TableConfig) {
             }
         }
 
-      // Atomic type requested
-      case at: AtomicType[_] =>
+      // atomic type requested
+      case t: TypeInformation[_] =>
         if (fieldTypes.size != 1) {
           throw new TableException(s"Requested result type is an atomic type but " +
             s"result[$fieldTypes] has more or less than a single field.")
         }
         val requestedTypeInfo = fieldTypes.head
         validateFieldType(requestedTypeInfo)
-        if (requestedTypeInfo != at) {
+        if (requestedTypeInfo != t) {
           throw new TableException(s"Result field does not match requested type. " +
-            s"Requested: $at; Actual: $requestedTypeInfo")
+            s"Requested: $t; Actual: $requestedTypeInfo")
         }
 
       case _ =>
@@ -1119,10 +1184,7 @@ object TableEnvironment {
 
     val fieldNames: Array[String] = inputType match {
       case t: CompositeType[_] => t.getFieldNames
-      case a: AtomicType[_] => Array("f0")
-      case tpe =>
-        throw new TableException(s"Currently only CompositeType and AtomicType are supported. " +
-          s"Type $tpe lacks explicit field naming")
+      case _: TypeInformation[_] => Array("f0")
     }
 
     if (fieldNames.contains("*")) {
@@ -1167,10 +1229,8 @@ object TableEnvironment {
     validateType(inputType)
 
     inputType match {
-      case t: CompositeType[_] => 0.until(t.getArity).map(i => t.getTypeAt(i)).toArray
-      case a: AtomicType[_] => Array(a.asInstanceOf[TypeInformation[_]])
-      case tpe =>
-        throw new TableException(s"Currently only CompositeType and AtomicType are supported.")
+      case ct: CompositeType[_] => 0.until(ct.getArity).map(i => ct.getTypeAt(i)).toArray
+      case t: TypeInformation[_] => Array(t.asInstanceOf[TypeInformation[_]])
     }
   }
 

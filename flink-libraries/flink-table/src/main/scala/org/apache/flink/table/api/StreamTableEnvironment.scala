@@ -28,7 +28,7 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataType
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
@@ -414,11 +414,14 @@ abstract class StreamTableEnvironment(
 
     val streamType = dataStream.getType
 
+    // determine schema definition mode (by position or by name)
+    val isRefByPosition = isReferenceByPosition(streamType, fields)
+
     // get field names and types for all non-replaced fields
-    val (fieldNames, fieldIndexes) = getFieldInfo[T](streamType, fields)
+    val (fieldNames, fieldIndexes) = getFieldInfo[T](isRefByPosition, streamType, fields)
 
     // validate and extract time attributes
-    val (rowtime, proctime) = validateAndExtractTimeAttributes(streamType, fields)
+    val (rowtime, proctime) = validateAndExtractTimeAttributes(isRefByPosition, streamType, fields)
 
     // check if event-time is enabled
     if (rowtime.isDefined && execEnv.getStreamTimeCharacteristic != TimeCharacteristic.EventTime) {
@@ -443,16 +446,19 @@ abstract class StreamTableEnvironment(
     * Checks for at most one rowtime and proctime attribute.
     * Returns the time attributes.
     *
+    * @param isReferenceByPosition schema mode see [[isReferenceByPosition()]]
+    *
     * @return rowtime attribute and proctime attribute
     */
   private def validateAndExtractTimeAttributes(
+    isReferenceByPosition: Boolean,
     streamType: TypeInformation[_],
     exprs: Array[Expression])
   : (Option[(Int, String)], Option[(Int, String)]) = {
 
     val fieldTypes: Array[TypeInformation[_]] = streamType match {
       case c: CompositeType[_] => (0 until c.getArity).map(i => c.getTypeAt(i)).toArray
-      case a: AtomicType[_] => Array(a)
+      case t: TypeInformation[_] => Array(t)
     }
 
     var fieldNames: List[String] = Nil
@@ -464,23 +470,29 @@ abstract class StreamTableEnvironment(
         throw new TableException(
           "The rowtime attribute can only be defined once in a table schema.")
       } else {
-        val mappedIdx = streamType match {
-          case pti: PojoTypeInfo[_] =>
-            pti.getFieldIndex(origName.getOrElse(name))
-          case _ => idx;
-        }
-        // check type of field that is replaced
-        if (mappedIdx < 0) {
-          throw new TableException(
-            s"The rowtime attribute can only replace a valid field. " +
-              s"${origName.getOrElse(name)} is not a field of type $streamType.")
-        }
-        else if (mappedIdx < fieldTypes.length &&
-          !(TypeCheckUtils.isLong(fieldTypes(mappedIdx)) ||
-            TypeCheckUtils.isTimePoint(fieldTypes(mappedIdx)))) {
-          throw new TableException(
-            s"The rowtime attribute can only replace a field with a valid time type, " +
-              s"such as Timestamp or Long. But was: ${fieldTypes(mappedIdx)}")
+        // if the fields are referenced by position,
+        // it is possible to replace an existing field or append the time attribute at the end
+        if (isReferenceByPosition) {
+
+          val mappedIdx = streamType match {
+            case pti: PojoTypeInfo[_] =>
+              pti.getFieldIndex(origName.getOrElse(name))
+            case _ => idx;
+          }
+
+          // check type of field that is replaced
+          if (mappedIdx < 0) {
+            throw new TableException(
+              s"The rowtime attribute can only replace a valid field. " +
+                s"${origName.getOrElse(name)} is not a field of type $streamType.")
+          }
+          else if (mappedIdx < fieldTypes.length &&
+            !(TypeCheckUtils.isLong(fieldTypes(mappedIdx)) ||
+              TypeCheckUtils.isTimePoint(fieldTypes(mappedIdx)))) {
+            throw new TableException(
+              s"The rowtime attribute can only replace a field with a valid time type, " +
+                s"such as Timestamp or Long. But was: ${fieldTypes(mappedIdx)}")
+          }
         }
 
         rowtime = Some(idx, name)
@@ -492,11 +504,16 @@ abstract class StreamTableEnvironment(
           throw new TableException(
             "The proctime attribute can only be defined once in a table schema.")
       } else {
-        // check that proctime is only appended
-        if (idx < fieldTypes.length) {
-          throw new TableException(
-            "The proctime attribute can only be appended to the table schema and not replace " +
-              "an existing field. Please move it to the end of the schema.")
+        // if the fields are referenced by position,
+        // it is only possible to append the time attribute at the end
+        if (isReferenceByPosition) {
+
+          // check that proctime is only appended
+          if (idx < fieldTypes.length) {
+            throw new TableException(
+              "The proctime attribute can only be appended to the table schema and not replace " +
+                "an existing field. Please move it to the end of the schema.")
+          }
         }
         proctime = Some(idx, name)
       }

@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.schema
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.schema.impl.AbstractTable
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -59,11 +59,12 @@ abstract class InlineTable[T](
 
   val fieldTypes: Array[TypeInformation[_]] =
     typeInfo match {
-      case cType: CompositeType[_] =>
+
+      case ct: CompositeType[_] =>
         // it is ok to leave out fields
-        if (fieldIndexes.count(_ >= 0) > cType.getArity) {
+        if (fieldIndexes.count(_ >= 0) > ct.getArity) {
           throw new TableException(
-          s"Arity of type (" + cType.getFieldNames.deep + ") " +
+          s"Arity of type (" + ct.getFieldNames.deep + ") " +
             "must not be greater than number of field names " + fieldNames.deep + ".")
         }
         fieldIndexes.map {
@@ -75,8 +76,9 @@ abstract class InlineTable[T](
             Types.SQL_TIMESTAMP
           case TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER =>
             Types.SQL_TIMESTAMP
-          case i => cType.getTypeAt(i).asInstanceOf[TypeInformation[_]]}
-      case aType: AtomicType[_] =>
+          case i => ct.getTypeAt(i).asInstanceOf[TypeInformation[_]]}
+
+      case t: TypeInformation[_] =>
         var cnt = 0
         val types = fieldIndexes.map {
           case TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER =>
@@ -89,7 +91,7 @@ abstract class InlineTable[T](
             Types.SQL_TIMESTAMP
           case _ =>
             cnt += 1
-            aType.asInstanceOf[TypeInformation[_]]
+            t.asInstanceOf[TypeInformation[_]]
         }
         // ensure that the atomic type is matched at most once.
         if (cnt > 1) {
