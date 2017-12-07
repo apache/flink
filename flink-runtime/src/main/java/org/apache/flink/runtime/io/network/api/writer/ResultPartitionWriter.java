@@ -25,10 +25,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import java.io.IOException;
 
 /**
- * A buffer-oriented runtime result writer.
- *
- * <p>The {@link ResultPartitionWriter} is the runtime API for producing results. It
- * supports two kinds of data to be sent: buffers and events.
+ * A buffer-oriented runtime result writer API for producing results.
  */
 public interface ResultPartitionWriter {
 
