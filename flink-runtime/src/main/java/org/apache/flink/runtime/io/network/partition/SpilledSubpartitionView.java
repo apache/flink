@@ -29,6 +29,7 @@ import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -115,6 +116,7 @@ class SpilledSubpartitionView extends ResultSubpartitionView implements Notifica
 		LOG.debug("Finished spilling. Notified about {} available buffers.", numberOfSpilledBuffers);
 	}
 
+	@Nullable
 	@Override
 	protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
 		if (fileReader.hasReachedEndOfFile() || isSpillInProgress) {

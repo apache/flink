@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -134,6 +135,7 @@ class SpillableSubpartitionView extends ResultSubpartitionView {
 		}
 	}
 
+	@Nullable
 	@Override
 	protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
 		synchronized (buffers) {

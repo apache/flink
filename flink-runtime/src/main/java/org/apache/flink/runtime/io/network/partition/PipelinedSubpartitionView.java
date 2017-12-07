@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -46,6 +47,7 @@ class PipelinedSubpartitionView extends ResultSubpartitionView {
 		this.isReleased = new AtomicBoolean();
 	}
 
+	@Nullable
 	@Override
 	protected Buffer getNextBufferInternal() {
 		return parent.pollBuffer();

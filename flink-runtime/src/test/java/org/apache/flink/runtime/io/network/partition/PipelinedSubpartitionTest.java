@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.runtime.io.network.util.TestBufferFactory.BUFFER_SIZE;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -103,16 +104,35 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		// Add data to the queue...
 		subpartition.add(createBuffer());
 
+		assertEquals(1, subpartition.getTotalNumberOfBuffers());
+		assertEquals(1, subpartition.getBuffersInBacklog());
+		assertEquals(BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+
 		// ...should have resulted in a notification
 		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
 
 		// ...and one available result
 		assertNotNull(view.getNextBuffer());
 		assertNull(view.getNextBuffer());
+		assertEquals(0, subpartition.getBuffersInBacklog());
 
 		// Add data to the queue...
 		subpartition.add(createBuffer());
+
+		assertEquals(2, subpartition.getTotalNumberOfBuffers());
+		assertEquals(1, subpartition.getBuffersInBacklog());
+		assertEquals(2 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
 		verify(listener, times(2)).notifyBuffersAvailable(eq(1L));
+
+		// Add event to the queue...
+		Buffer event = createBuffer();
+		event.tagAsEvent();
+		subpartition.add(event);
+
+		assertEquals(3, subpartition.getTotalNumberOfBuffers());
+		assertEquals(1, subpartition.getBuffersInBacklog());
+		assertEquals(3 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+		verify(listener, times(3)).notifyBuffersAvailable(eq(1L));
 	}
 
 	@Test

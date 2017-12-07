@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -40,7 +41,8 @@ public abstract class ResultSubpartitionView {
 	 * Returns the next {@link Buffer} instance of this queue iterator and also
 	 * decreases the related statistics.
 	 */
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	@Nullable
+	public final Buffer getNextBuffer() throws IOException, InterruptedException {
 		Buffer buffer = getNextBufferInternal();
 		if (buffer != null) {
 			parent.decreaseStatistics(buffer);
@@ -64,6 +66,7 @@ public abstract class ResultSubpartitionView {
 	 * buffer instance will eventually be recycled with {@link Buffer#recycle()}
 	 * after it has been consumed.
 	 */
+	@Nullable
 	protected abstract Buffer getNextBufferInternal() throws IOException, InterruptedException;
 
 	public abstract void notifyBuffersAvailable(long buffers) throws IOException;

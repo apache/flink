@@ -37,6 +37,7 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -188,6 +189,7 @@ public class CancelPartitionRequestTest {
 			this.sync = checkNotNull(sync);
 		}
 
+		@Nullable
 		@Override
 		protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
 			return bufferProvider.requestBufferBlocking();
