@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -72,6 +73,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * and 2) last processed sequence numbers of each subscribed shard. Since operations on the second state will be performed
  * by multiple threads, these operations should only be done using the handler methods provided in this class.
  */
+@Internal
 public class KinesisDataFetcher<T> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisDataFetcher.class);

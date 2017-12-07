@@ -17,11 +17,14 @@
 
 package org.apache.flink.streaming.connectors.kinesis.config;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import com.amazonaws.auth.AWSCredentialsProvider;
 
 /**
  * Configuration keys for AWS service usage.
  */
+@PublicEvolving
 public class AWSConfigConstants {
 
 	/**

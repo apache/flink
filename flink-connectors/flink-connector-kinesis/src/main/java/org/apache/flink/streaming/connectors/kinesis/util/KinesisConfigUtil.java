@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
@@ -38,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Utilities for Flink Kinesis connector configuration.
  */
+@Internal
 public class KinesisConfigUtil {
 
 	/** Maximum number of items to pack into an PutRecords request. **/

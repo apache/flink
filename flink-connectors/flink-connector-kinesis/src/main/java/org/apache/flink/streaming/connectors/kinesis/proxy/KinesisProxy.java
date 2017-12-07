@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
@@ -60,6 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This implementation differs mainly in that we can make operations to arbitrary Kinesis streams, which is a needed
  * functionality for the Flink Kinesis Connector since the consumer may simultaneously read from multiple Kinesis streams.
  */
+@Internal
 public class KinesisProxy implements KinesisProxyInterface {
 
 	private static final Logger LOG = LoggerFactory.getLogger(KinesisProxy.class);

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
@@ -50,6 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Thread that does the actual data pulling from AWS Kinesis shards. Each thread is in charge of one Kinesis shard only.
  */
+@Internal
 public class ShardConsumer<T> implements Runnable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ShardConsumer.class);

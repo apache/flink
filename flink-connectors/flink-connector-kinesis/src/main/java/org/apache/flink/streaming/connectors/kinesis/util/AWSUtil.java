@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
@@ -40,6 +41,7 @@ import java.util.Properties;
 /**
  * Some utilities specific to Amazon Web Service.
  */
+@Internal
 public class AWSUtil {
 	/** Used for formatting Flink-specific user agent string when creating Kinesis client. */
 	private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) Kinesis Connector";

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.config;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
@@ -26,6 +27,7 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
 /**
  * Optional consumer specific configuration keys and default values for {@link FlinkKinesisConsumer}.
  */
+@PublicEvolving
 public class ConsumerConfigConstants extends AWSConfigConstants {
 
 	/**
