@@ -49,6 +49,10 @@ class FunctionCatalog {
     sqlFunctions += sqlFunction
   }
 
+  def getUserDefinedFunctions: Seq[String] = {
+    sqlFunctions.map(_.getName)
+  }
+
   def getSqlOperatorTable: SqlOperatorTable =
     ChainedSqlOperatorTable.of(
       new BasicOperatorTable(),

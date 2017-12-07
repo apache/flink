@@ -127,7 +127,8 @@ object TableSourceFactoryService extends Logging {
       if (!supportedProperties.contains(k)) {
         throw new ValidationException(
           s"Table factory '${factory.getClass.getCanonicalName}' does not support the " +
-          s"property '$k'. Supported properties are: \n${supportedProperties.mkString("\n")}")
+          s"property '$k'. Supported properties are: \n" +
+          s"${supportedProperties.map(DescriptorProperties.toString).mkString("\n")}")
       }
     }
 

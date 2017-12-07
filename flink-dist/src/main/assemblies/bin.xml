@@ -76,12 +76,27 @@ under the License.
 			<fileMode>755</fileMode>
 		</fileSet>
 
+		<!-- copy SQL client -->
+		<fileSet>
+			<directory>../flink-libraries/flink-sql-client/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
+		<!-- copy SQL client configuration files -->
+		<fileSet>
+			<directory>../flink-libraries/flink-sql-client/conf/</directory>
+			<outputDirectory>conf</outputDirectory>
+			<fileMode>0644</fileMode>
+		</fileSet>
+
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
+
 		<!-- copy Mesos start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/mesos-bin</directory>
