@@ -48,8 +48,9 @@ class ExternalCatalogTable(
     schemaDesc: Option[Schema],
     statisticsDesc: Option[Statistics],
     metadataDesc: Option[Metadata])
-  extends TableSourceDescriptor(connectorDesc) {
+  extends TableSourceDescriptor {
 
+  this.connectorDescriptor = Some(connectorDesc)
   this.formatDescriptor = formatDesc
   this.schemaDescriptor = schemaDesc
   this.statisticsDescriptor = statisticsDesc

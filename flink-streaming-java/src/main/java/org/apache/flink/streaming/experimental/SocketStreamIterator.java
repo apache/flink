@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.experimental;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -63,11 +62,28 @@ public class SocketStreamIterator<T> implements Iterator<T> {
 	/** Async error, for example by the executor of the program that produces the stream. */
 	private volatile Throwable error;
 
-	@Internal
+	/**
+	 * Creates an iterator that returns the data from a socket stream with automatic port and bind address.
+	 *
+	 * @param serializer serializer used for deserializing incoming records
+	 * @throws IOException thrown if socket cannot be opened
+	 */
 	public SocketStreamIterator(TypeSerializer<T> serializer) throws IOException {
+		this(0, null, serializer);
+	}
+
+	/**
+	 * Creates an iterator that returns the data from a socket stream with custom port and bind address.
+	 *
+	 * @param port port for the socket connection (0 means automatic port selection)
+	 * @param address address for the socket connection
+	 * @param serializer serializer used for deserializing incoming records
+	 * @throws IOException thrown if socket cannot be opened
+	 */
+	public SocketStreamIterator(int port, InetAddress address, TypeSerializer<T> serializer) throws IOException {
 		this.serializer = serializer;
 		try {
-			socket = new ServerSocket(0, 1);
+			socket = new ServerSocket(port, 1, address);
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Could not open socket to receive back stream results");

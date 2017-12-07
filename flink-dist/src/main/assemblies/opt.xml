@@ -59,11 +59,19 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- TableAPI-->
+		<!-- Table API-->
 		<file>
 			<source>../flink-libraries/flink-table/target/flink-table_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-table_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<!-- SQL Client -->
+		<file>
+			<source>../flink-libraries/flink-sql-client/target/flink-sql-client-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-sql-client-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

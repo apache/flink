@@ -49,4 +49,6 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def registerTableSourceInternal(name: String, tableSource: TableSource[_])
     : Unit = ???
+
+  override def explain(table: Table): String = ???
 }

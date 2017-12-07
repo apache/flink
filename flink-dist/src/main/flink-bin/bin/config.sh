@@ -155,11 +155,14 @@ SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 # Define the main directory of the flink installation
 FLINK_ROOT_DIR=`dirname "$SYMLINK_RESOLVED_BIN"`
 FLINK_LIB_DIR=$FLINK_ROOT_DIR/lib
+FLINK_OPT_DIR=$FLINK_ROOT_DIR/opt
 
 ### Exported environment variables ###
 export FLINK_CONF_DIR
 # export /lib dir to access it during deployment of the Yarn staging files
 export FLINK_LIB_DIR
+# export /opt dir to access it for the SQL client
+export FLINK_OPT_DIR
 
 # These need to be mangled because they are directly passed to java.
 # The above lib path is used by the shell script to retrieve jars in a

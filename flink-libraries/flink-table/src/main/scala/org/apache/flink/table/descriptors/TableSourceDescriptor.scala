@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.descriptors
 
-import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.descriptors.StatisticsValidator.{STATISTICS_COLUMNS, STATISTICS_ROW_COUNT, readColumnStats}
 import org.apache.flink.table.plan.stats.TableStats
 
@@ -27,10 +26,9 @@ import scala.collection.JavaConverters._
 /**
   * Common class for all descriptors describing a table source.
   */
-abstract class TableSourceDescriptor(connector: ConnectorDescriptor) extends Descriptor {
+abstract class TableSourceDescriptor extends Descriptor {
 
-  protected val connectorDescriptor: ConnectorDescriptor = connector
-
+  protected var connectorDescriptor: Option[ConnectorDescriptor] = None
   protected var formatDescriptor: Option[FormatDescriptor] = None
   protected var schemaDescriptor: Option[Schema] = None
   protected var statisticsDescriptor: Option[Statistics] = None
@@ -40,18 +38,7 @@ abstract class TableSourceDescriptor(connector: ConnectorDescriptor) extends Des
     * Internal method for properties conversion.
     */
   override private[flink] def addProperties(properties: DescriptorProperties): Unit = {
-    connectorDescriptor.addProperties(properties)
-
-    // check for a format
-    if (connectorDescriptor.needsFormat() && formatDescriptor.isEmpty) {
-      throw new ValidationException(
-        s"The connector '$connectorDescriptor' requires a format description.")
-    } else if (!connectorDescriptor.needsFormat() && formatDescriptor.isDefined) {
-      throw new ValidationException(
-        s"The connector '$connectorDescriptor' does not require a format description " +
-          s"but '${formatDescriptor.get}' found.")
-    }
-
+    connectorDescriptor.foreach(_.addProperties(properties))
     formatDescriptor.foreach(_.addProperties(properties))
     schemaDescriptor.foreach(_.addProperties(properties))
     metaDescriptor.foreach(_.addProperties(properties))
