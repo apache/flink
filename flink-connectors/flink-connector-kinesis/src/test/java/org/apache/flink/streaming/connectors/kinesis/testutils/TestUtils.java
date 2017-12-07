@@ -26,9 +26,9 @@ import java.util.Properties;
  */
 public class TestUtils {
 	/**
-	 * Get properties with Kinesis-required fields.
+	 * Get standard Kinesis-related properties.
 	 */
-	public static Properties getPropertiesWithRequiredFields() {
+	public static Properties getStandardProperties() {
 		Properties config = new Properties();
 		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
 		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");

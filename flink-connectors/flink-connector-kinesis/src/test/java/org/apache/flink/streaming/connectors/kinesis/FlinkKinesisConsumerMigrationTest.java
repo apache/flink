@@ -213,7 +213,7 @@ public class FlinkKinesisConsumerMigrationTest {
 
 		private KinesisDataFetcher<T> mockFetcher;
 
-		private static Properties dummyConfig = TestUtils.getPropertiesWithRequiredFields();
+		private static Properties dummyConfig = TestUtils.getStandardProperties();
 
 		DummyFlinkKinesisConsumer(KinesisDataFetcher<T> mockFetcher) {
 			super("dummy-topic", mock(KinesisDeserializationSchema.class), dummyConfig);

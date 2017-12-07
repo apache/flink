@@ -70,12 +70,12 @@ public class FlinkKinesisProducerTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("The provided serialization schema is not serializable");
 
-		new FlinkKinesisProducer<>(new NonSerializableSerializationSchema(), TestUtils.getPropertiesWithRequiredFields());
+		new FlinkKinesisProducer<>(new NonSerializableSerializationSchema(), TestUtils.getStandardProperties());
 	}
 
 	@Test
 	public void testCreateWithSerializableDeserializer() {
-		new FlinkKinesisProducer<>(new SerializableSerializationSchema(), TestUtils.getPropertiesWithRequiredFields());
+		new FlinkKinesisProducer<>(new SerializableSerializationSchema(), TestUtils.getStandardProperties());
 	}
 
 	@Test
@@ -83,19 +83,19 @@ public class FlinkKinesisProducerTest {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("The provided custom partitioner is not serializable");
 
-		new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getPropertiesWithRequiredFields())
+		new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties())
 			.setCustomPartitioner(new NonSerializableCustomPartitioner());
 	}
 
 	@Test
 	public void testConfigureWithSerializableCustomPartitioner() {
-		new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getPropertiesWithRequiredFields())
+		new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties())
 			.setCustomPartitioner(new SerializableCustomPartitioner());
 	}
 
 	@Test
 	public void testProducerIsSerializable() {
-		FlinkKinesisProducer<String> consumer = new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getPropertiesWithRequiredFields());
+		FlinkKinesisProducer<String> consumer = new FlinkKinesisProducer<>(new SimpleStringSchema(), TestUtils.getStandardProperties());
 		assertTrue(InstantiationUtil.isSerializable(consumer));
 	}
 
@@ -349,7 +349,7 @@ public class FlinkKinesisProducerTest {
 		private boolean isFlushed;
 
 		DummyFlinkKinesisProducer(SerializationSchema<T> schema) {
-			super(schema, TestUtils.getPropertiesWithRequiredFields());
+			super(schema, TestUtils.getStandardProperties());
 
 			setDefaultStream(DUMMY_STREAM);
 			setDefaultPartition(DUMMY_PARTITION);

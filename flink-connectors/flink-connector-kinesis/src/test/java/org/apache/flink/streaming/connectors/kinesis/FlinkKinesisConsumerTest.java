@@ -92,7 +92,7 @@ public class FlinkKinesisConsumerTest {
 
 	@Test
 	public void testUseRestoredStateForSnapshotIfFetcherNotInitialized() throws Exception {
-		Properties config = TestUtils.getPropertiesWithRequiredFields();
+		Properties config = TestUtils.getStandardProperties();
 
 		List<Tuple2<StreamShardMetadata, SequenceNumber>> globalUnionState = new ArrayList<>(4);
 		globalUnionState.add(Tuple2.of(
@@ -152,7 +152,7 @@ public class FlinkKinesisConsumerTest {
 		// ----------------------------------------------------------------------
 		// setup config, initial state and expected state snapshot
 		// ----------------------------------------------------------------------
-		Properties config = TestUtils.getPropertiesWithRequiredFields();
+		Properties config = TestUtils.getStandardProperties();
 
 		ArrayList<Tuple2<StreamShardMetadata, SequenceNumber>> initialState = new ArrayList<>(1);
 		initialState.add(Tuple2.of(
