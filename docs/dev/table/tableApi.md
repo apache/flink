@@ -535,8 +535,6 @@ Table fullOuterResult = left.fullOuterJoin(right, "a = d").select("a, b, e");
           <li><code>ltime &gt;= rtime &amp;&amp; ltime &lt; rtime + 10.minutes</code></li>
         </ul>
         
-        <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
-
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c, ltime.rowtime");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f, rtime.rowtime");
@@ -652,8 +650,6 @@ val fullOuterResult = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
           <li><code>'ltime === 'rtime</code></li>
           <li><code>'ltime &gt;= 'rtime &amp;&amp; 'ltime &lt; 'rtime + 10.minutes</code></li>
         </ul>
-        
-        <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
 
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c, 'ltime.rowtime);

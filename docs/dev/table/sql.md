@@ -408,8 +408,6 @@ FROM Orders LEFT JOIN Product ON Orders.productId = Product.id
           <li><code>ltime &gt;= rtime AND ltime &lt; rtime + INTERVAL '10' MINUTE</code></li>
           <li><code>ltime BETWEEN rtime - INTERVAL '10' SECOND AND rtime + INTERVAL '5' SECOND</code></li>
         </ul>
-                
-        <p><b>Note:</b> Currently, only <code>INNER</code> time-windowed joins are supported.</p>
 
 {% highlight sql %}
 SELECT *

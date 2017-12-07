@@ -25,6 +25,7 @@ import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.NullByteKeySelector
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
@@ -33,7 +34,7 @@ import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowTimeBoundedStreamInnerJoin, WindowJoinUtil}
+import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
@@ -142,50 +143,47 @@ class DataStreamWindowJoin(
         s"${joinConditionToString(schema.relDataType, joinCondition, getExpressionString)}), " +
         s"join: (${joinSelectionToString(schema.relDataType)})"
 
-    joinType match {
-      case JoinRelType.INNER =>
-        if (relativeWindowSize < 0) {
-          LOG.warn(s"The relative window size $relativeWindowSize is negative," +
-            " please check the join conditions.")
-          createEmptyInnerJoin(leftDataStream, rightDataStream, returnTypeInfo)
-        } else {
-          if (isRowTime) {
-            createRowTimeInnerJoin(
-              leftDataStream,
-              rightDataStream,
-              returnTypeInfo,
-              joinOpName,
-              joinFunction.name,
-              joinFunction.code,
-              leftKeys,
-              rightKeys
-            )
-          } else {
-            createProcTimeInnerJoin(
-              leftDataStream,
-              rightDataStream,
-              returnTypeInfo,
-              joinOpName,
-              joinFunction.name,
-              joinFunction.code,
-              leftKeys,
-              rightKeys
-            )
-          }
-        }
-      case JoinRelType.FULL =>
-        throw new TableException(
-          "Full join between stream and stream is not supported yet.")
-      case JoinRelType.LEFT =>
-        throw new TableException(
-          "Left join between stream and stream is not supported yet.")
-      case JoinRelType.RIGHT =>
-        throw new TableException(
-          "Right join between stream and stream is not supported yet.")
+    val flinkJoinType = joinType match {
+      case JoinRelType.INNER => JoinType.INNER
+      case JoinRelType.FULL => JoinType.FULL_OUTER
+      case JoinRelType.LEFT => JoinType.LEFT_OUTER
+      case JoinRelType.RIGHT => JoinType.RIGHT_OUTER
+    }
+
+    if (relativeWindowSize < 0) {
+      LOG.warn(s"The relative window size $relativeWindowSize is negative," +
+        " please check the join conditions.")
+      createEmptyJoin(leftDataStream, rightDataStream, returnTypeInfo)
+    } else {
+      if (isRowTime) {
+        createRowTimeJoin(
+          flinkJoinType,
+          leftDataStream,
+          rightDataStream,
+          returnTypeInfo,
+          joinOpName,
+          joinFunction.name,
+          joinFunction.code,
+          leftKeys,
+          rightKeys
+        )
+      } else {
+        createProcTimeJoin(
+          flinkJoinType,
+          leftDataStream,
+          rightDataStream,
+          returnTypeInfo,
+          joinOpName,
+          joinFunction.name,
+          joinFunction.code,
+          leftKeys,
+          rightKeys
+        )
+      }
     }
   }
 
-  def createEmptyInnerJoin(
+  def createEmptyJoin(
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow]): DataStream[CRow] = {
@@ -206,7 +204,8 @@ class DataStreamWindowJoin(
       }).returns(returnTypeInfo)
   }
 
-  def createProcTimeInnerJoin(
+  def createProcTimeJoin(
+      joinType: JoinType,
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow],
@@ -216,7 +215,8 @@ class DataStreamWindowJoin(
       leftKeys: Array[Int],
       rightKeys: Array[Int]): DataStream[CRow] = {
 
-    val procInnerJoinFunc = new ProcTimeBoundedStreamInnerJoin(
+    val procJoinFunc = new ProcTimeBoundedStreamJoin(
+      joinType,
       leftLowerBound,
       leftUpperBound,
       leftSchema.typeInfo,
@@ -229,13 +229,13 @@ class DataStreamWindowJoin(
         .keyBy(
           new CRowKeySelector(leftKeys, leftSchema.projectedTypeInfo(leftKeys)),
           new CRowKeySelector(rightKeys, rightSchema.projectedTypeInfo(rightKeys)))
-        .process(procInnerJoinFunc)
+        .process(procJoinFunc)
         .name(operatorName)
         .returns(returnTypeInfo)
     } else {
       leftDataStream.connect(rightDataStream)
         .keyBy(new NullByteKeySelector[CRow](), new NullByteKeySelector[CRow]())
-        .process(procInnerJoinFunc)
+        .process(procJoinFunc)
         .setParallelism(1)
         .setMaxParallelism(1)
         .name(operatorName)
@@ -243,7 +243,8 @@ class DataStreamWindowJoin(
     }
   }
 
-  def createRowTimeInnerJoin(
+  def createRowTimeJoin(
+      joinType: JoinType,
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
       returnTypeInfo: TypeInformation[CRow],
@@ -253,7 +254,8 @@ class DataStreamWindowJoin(
       leftKeys: Array[Int],
       rightKeys: Array[Int]): DataStream[CRow] = {
 
-    val rowTimeInnerJoinFunc = new RowTimeBoundedStreamInnerJoin(
+    val rowTimeJoinFunc = new RowTimeBoundedStreamJoin(
+      joinType,
       leftLowerBound,
       leftUpperBound,
       allowedLateness = 0L,
@@ -274,8 +276,8 @@ class DataStreamWindowJoin(
           operatorName,
           returnTypeInfo,
           new KeyedCoProcessOperatorWithWatermarkDelay[Tuple, CRow, CRow, CRow](
-            rowTimeInnerJoinFunc,
-            rowTimeInnerJoinFunc.getMaxOutputDelay)
+            rowTimeJoinFunc,
+            rowTimeJoinFunc.getMaxOutputDelay)
         )
     } else {
       leftDataStream.connect(rightDataStream)
@@ -284,8 +286,8 @@ class DataStreamWindowJoin(
           operatorName,
           returnTypeInfo,
           new KeyedCoProcessOperatorWithWatermarkDelay[java.lang.Byte, CRow, CRow, CRow](
-            rowTimeInnerJoinFunc,
-            rowTimeInnerJoinFunc.getMaxOutputDelay)
+            rowTimeJoinFunc,
+            rowTimeJoinFunc.getMaxOutputDelay)
         )
         .setParallelism(1)
         .setMaxParallelism(1)

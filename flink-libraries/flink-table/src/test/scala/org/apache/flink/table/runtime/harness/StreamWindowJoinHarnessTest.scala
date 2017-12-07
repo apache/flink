@@ -20,20 +20,25 @@ package org.apache.flink.table.runtime.harness
 import java.lang.{Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, RowResultSortComparatorWithWatermarks, TupleRowKeySelector}
-import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowTimeBoundedStreamInnerJoin}
+import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class JoinHarnessTest extends HarnessTestBase {
+/**
+  * Since the runtime logic for different stream window joins are identical, we only test on
+  * inner join.
+  */
+class StreamWindowJoinHarnessTest extends HarnessTestBase {
 
   private val rowType = Types.ROW(
     Types.LONG,
@@ -75,8 +80,8 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testProcTimeJoinWithCommonBounds() {
 
-    val joinProcessFunc = new ProcTimeBoundedStreamInnerJoin(
-      -10, 20, rowType, rowType, "TestJoinFunction", funcCode)
+    val joinProcessFunc = new ProcTimeBoundedStreamJoin(
+      JoinType.INNER, -10, 20, rowType, rowType, "TestJoinFunction", funcCode)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -165,8 +170,8 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testProcTimeJoinWithNegativeBounds() {
 
-    val joinProcessFunc = new ProcTimeBoundedStreamInnerJoin(
-      -10, -5, rowType, rowType, "TestJoinFunction", funcCode)
+    val joinProcessFunc = new ProcTimeBoundedStreamJoin(
+      JoinType.INNER, -10, -5, rowType, rowType, "TestJoinFunction", funcCode)
 
     val operator: KeyedCoProcessOperator[Integer, CRow, CRow, CRow] =
       new KeyedCoProcessOperator[Integer, CRow, CRow, CRow](joinProcessFunc)
@@ -247,8 +252,8 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testRowTimeJoinWithCommonBounds() {
 
-    val joinProcessFunc = new RowTimeBoundedStreamInnerJoin(
-      -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
+    val joinProcessFunc = new RowTimeBoundedStreamJoin(
+      JoinType.INNER, -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
@@ -346,8 +351,8 @@ class JoinHarnessTest extends HarnessTestBase {
   @Test
   def testRowTimeJoinWithNegativeBounds() {
 
-    val joinProcessFunc = new RowTimeBoundedStreamInnerJoin(
-      -10, -7, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
+    val joinProcessFunc = new RowTimeBoundedStreamJoin(
+      JoinType.INNER, -10, -7, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
 
     val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
       new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
