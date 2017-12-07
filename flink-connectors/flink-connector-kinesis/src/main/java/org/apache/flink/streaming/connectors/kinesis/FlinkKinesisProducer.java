@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
@@ -51,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <OUT> Data type to produce into Kinesis Streams
  */
+@Public
 public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements CheckpointedFunction {
 
 	private static final long serialVersionUID = 6447077318449477846L;

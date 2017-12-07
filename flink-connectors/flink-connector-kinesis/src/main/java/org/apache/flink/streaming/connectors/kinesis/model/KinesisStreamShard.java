@@ -24,9 +24,13 @@ import java.io.Serializable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A legacy serializable representation of a AWS Kinesis Stream shard. It is basically a wrapper class around the information
- * provided along with {@link com.amazonaws.services.kinesis.model.Shard}.
+ * A legacy serializable representation of a AWS Kinesis Stream shard.
+ * It is basically a wrapper class around the information provided along
+ * with {@link com.amazonaws.services.kinesis.model.Shard}.
+ *
+ * Will be remove in the future in favor of {@link StreamShardHandle}
  */
+@Deprecated
 public class KinesisStreamShard implements Serializable {
 
 	private static final long serialVersionUID = -6004217801761077536L;

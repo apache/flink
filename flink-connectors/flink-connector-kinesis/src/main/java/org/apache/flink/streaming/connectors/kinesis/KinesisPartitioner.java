@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
+import org.apache.flink.annotation.Public;
+
 import java.io.Serializable;
 
 /**
@@ -24,6 +26,7 @@ import java.io.Serializable;
  *
  * @param <T> record type
  */
+@Public
 public abstract class KinesisPartitioner<T> implements Serializable {
 
 	/**
@@ -49,6 +52,5 @@ public abstract class KinesisPartitioner<T> implements Serializable {
 	 * @param numberOfParallelSubtasks Total number of parallel instances
 	 */
 	public void initialize(int indexOfThisSubtask, int numberOfParallelSubtasks) {
-		//
 	}
 }
