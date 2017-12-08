@@ -213,7 +213,7 @@ public class FlinkKinesisProducer<OUT> extends RichSinkFunction<OUT> implements 
 	}
 
 	@Override
-	public void invoke(OUT value) throws Exception {
+	public void invoke(OUT value, Context context) throws Exception {
 		if (this.producer == null) {
 			throw new RuntimeException("Kinesis producer has been closed");
 		}

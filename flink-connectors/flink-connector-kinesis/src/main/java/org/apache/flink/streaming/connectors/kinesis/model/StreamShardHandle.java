@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
-import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.flink.annotation.Internal;
+
+import com.amazonaws.services.kinesis.model.Shard;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

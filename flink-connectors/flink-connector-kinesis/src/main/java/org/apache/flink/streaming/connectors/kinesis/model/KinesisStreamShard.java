@@ -28,7 +28,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * It is basically a wrapper class around the information provided along
  * with {@link com.amazonaws.services.kinesis.model.Shard}.
  *
- * Will be remove in the future in favor of {@link StreamShardHandle}
+ * @deprecated Will be remove in a future version in favor of {@link StreamShardHandle}.
  */
 @Deprecated
 public class KinesisStreamShard implements Serializable {
