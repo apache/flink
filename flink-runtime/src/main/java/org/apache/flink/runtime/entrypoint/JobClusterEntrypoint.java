@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -53,6 +54,7 @@ import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedThrowable;
 
 import akka.actor.ActorSystem;
 
@@ -258,8 +260,15 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 	}
 
-	private void shutDownAndTerminate(boolean cleanupHaData) {
+	private void shutDownAndTerminate(
+			boolean cleanupHaData,
+			ApplicationStatus status,
+			@Nullable String optionalDiagnostics) {
 		try {
+			if (resourceManager != null) {
+				resourceManager.shutDownCluster(status, optionalDiagnostics);
+			}
+
 			shutDown(cleanupHaData);
 		} catch (Throwable t) {
 			LOG.error("Could not properly shut down cluster entrypoint.", t);
@@ -292,23 +301,27 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		public void jobFinished(JobResult result) {
 			LOG.info("Job({}) finished.", jobId);
 
-			shutDownAndTerminate(true);
+			shutDownAndTerminate(true, ApplicationStatus.SUCCEEDED, null);
 		}
 
 		@Override
 		public void jobFailed(JobResult result) {
 			checkArgument(result.getSerializedThrowable().isPresent());
 
-			LOG.info("Job({}) failed.", jobId, result.getSerializedThrowable().get().getMessage());
+			final SerializedThrowable serializedThrowable = result.getSerializedThrowable().get();
 
-			shutDownAndTerminate(false);
+			final String errorMessage = serializedThrowable.getMessage();
+
+			LOG.info("Job({}) failed: {}.", jobId, errorMessage);
+
+			shutDownAndTerminate(true, ApplicationStatus.FAILED, errorMessage);
 		}
 
 		@Override
 		public void jobFinishedByOther() {
 			LOG.info("Job({}) was finished by another JobManager.", jobId);
 
-			shutDownAndTerminate(false);
+			shutDownAndTerminate(false, ApplicationStatus.UNKNOWN, "Job was finished by another master");
 		}
 	}
 }

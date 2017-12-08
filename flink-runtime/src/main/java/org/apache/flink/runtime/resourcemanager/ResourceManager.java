@@ -63,6 +63,8 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorRegistrationSuccess;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -479,10 +481,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * Cleanup application and shut down cluster.
 	 *
 	 * @param finalStatus of the Flink application
-	 * @param optionalDiagnostics for the Flink application
+	 * @param optionalDiagnostics diagnostics message for the Flink application or {@code null}
 	 */
 	@Override
-	public void shutDownCluster(final ApplicationStatus finalStatus, final String optionalDiagnostics) {
+	public void shutDownCluster(
+			final ApplicationStatus finalStatus,
+			@Nullable final String optionalDiagnostics) {
 		log.info("Shut down cluster because application is in {}, diagnostics {}.", finalStatus, optionalDiagnostics);
 
 		try {
@@ -930,10 +934,12 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	 * yet are returned.
 	 *
 	 * @param finalStatus The application status to report.
-	 * @param optionalDiagnostics An optional diagnostics message.
+	 * @param optionalDiagnostics A diagnostics message or {@code null}.
 	 * @throws ResourceManagerException if the application could not be shut down.
 	 */
-	protected abstract void shutDownApplication(ApplicationStatus finalStatus, String optionalDiagnostics) throws ResourceManagerException;
+	protected abstract void shutDownApplication(
+		ApplicationStatus finalStatus,
+		@Nullable String optionalDiagnostics) throws ResourceManagerException;
 
 	/**
 	 * Allocates a resource using the resource profile.
