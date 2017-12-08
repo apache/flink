@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -28,7 +28,7 @@ import java.io.IOException;
  *
  * @param <T> The type created by the deserialization schema.
  */
-@Public
+@PublicEvolving
 public class KinesisDeserializationSchemaWrapper<T> implements KinesisDeserializationSchema<T> {
 	private static final long serialVersionUID = 9143148962928375886L;
 

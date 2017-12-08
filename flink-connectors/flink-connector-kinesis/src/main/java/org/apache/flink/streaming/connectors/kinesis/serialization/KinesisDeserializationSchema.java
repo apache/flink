@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.serialization;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
@@ -31,7 +31,7 @@ import java.io.Serializable;
  *
  * @param <T> The type created by the keyed deserialization schema.
  */
-@Public
+@PublicEvolving
 public interface KinesisDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
 	/**
