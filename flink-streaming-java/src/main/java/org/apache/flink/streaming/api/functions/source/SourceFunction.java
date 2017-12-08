@@ -44,7 +44,7 @@ import java.io.Serializable;
  * <p>This is the basic pattern one should follow when implementing a (checkpointed) source:
  *
  * <pre>{@code
- *  public class ExampleSource<T> implements SourceFunction<T>, CheckpointedFunction<Long> {
+ *  public class ExampleSource<T> implements SourceFunction<T>, CheckpointedFunction {
  *      private long count = 0L;
  *      private volatile boolean isRunning = true;
  *
@@ -61,9 +61,9 @@ import java.io.Serializable;
  *          isRunning = false;
  *      }
  *
- *      public Long snapshotState(long checkpointId, long checkpointTimestamp) { return count; }
+ *      public void snapshotState(FunctionSnapshotContext context) {  }
  *
- *      public void restoreState(Long state) { this.count = state; }
+ *      public void initializeState(FunctionInitializationContext context) {  }
  * }
  * }</pre>
  *
