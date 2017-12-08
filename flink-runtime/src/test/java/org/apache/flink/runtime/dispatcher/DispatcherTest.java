@@ -20,57 +20,95 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmanager.StandaloneSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
+import org.apache.flink.runtime.leaderelection.TestingLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Test for the {@link Dispatcher} component.
  */
 public class DispatcherTest extends TestLogger {
 
+	private static RpcService rpcService;
+
+	private static final Time TIMEOUT = Time.seconds(10L);
+
+	private static final JobID TEST_JOB_ID = new JobID();
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Rule
 	public TestName name = new TestName();
 
-	private static RpcService rpcService;
-	private static final Time timeout = Time.seconds(10L);
+	private JobGraph jobGraph;
+
+	private TestingFatalErrorHandler fatalErrorHandler;
+
+	private SubmittedJobGraphStore submittedJobGraphStore;
+
+	private TestingLeaderElectionService dispatcherLeaderElectionService;
+
+	private TestingLeaderElectionService jobMasterLeaderElectionService;
+
+	private RunningJobsRegistry runningJobsRegistry;
+
+	/** Instance under test. */
+	private TestingDispatcher dispatcher;
 
 	@BeforeClass
 	public static void setup() {
@@ -86,60 +124,77 @@ public class DispatcherTest extends TestLogger {
 		}
 	}
 
+	@Before
+	public void setUp() throws Exception {
+		final JobVertex testVertex = new JobVertex("testVertex");
+		testVertex.setInvokableClass(NoOpInvokable.class);
+		jobGraph = new JobGraph(TEST_JOB_ID, "testJob", testVertex);
+		jobGraph.setAllowQueuedScheduling(true);
+
+		fatalErrorHandler = new TestingFatalErrorHandler();
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
+		submittedJobGraphStore = spy(new InMemorySubmittedJobGraphStore());
+
+		dispatcherLeaderElectionService = new TestingLeaderElectionService();
+		jobMasterLeaderElectionService = new TestingLeaderElectionService();
+
+		final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+		haServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
+		haServices.setSubmittedJobGraphStore(submittedJobGraphStore);
+		haServices.setJobMasterLeaderElectionService(TEST_JOB_ID, jobMasterLeaderElectionService);
+		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+		haServices.setResourceManagerLeaderRetriever(new TestingLeaderRetrievalService());
+		runningJobsRegistry = haServices.getRunningJobsRegistry();
+
+		final Configuration blobServerConfig = new Configuration();
+		blobServerConfig.setString(
+			BlobServerOptions.STORAGE_DIRECTORY,
+			temporaryFolder.newFolder().getAbsolutePath());
+
+		dispatcher = new TestingDispatcher(
+			rpcService,
+			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
+			new Configuration(),
+			haServices,
+			mock(ResourceManagerGateway.class),
+			new BlobServer(blobServerConfig, new VoidBlobStore()),
+			heartbeatServices,
+			new NoOpMetricRegistry(),
+			fatalErrorHandler,
+			TEST_JOB_ID);
+
+		dispatcher.start();
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		try {
+			fatalErrorHandler.rethrowError();
+		} finally {
+			RpcUtils.terminateRpcEndpoint(dispatcher, TIMEOUT);
+		}
+	}
+
 	/**
 	 * Tests that we can submit a job to the Dispatcher which then spawns a
 	 * new JobManagerRunner.
 	 */
 	@Test
 	public void testJobSubmission() throws Exception {
-		TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
+		CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
 
-		TestingLeaderElectionService dispatcherLeaderElectionService = new TestingLeaderElectionService();
-		TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-		haServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
-		haServices.setSubmittedJobGraphStore(new StandaloneSubmittedJobGraphStore());
+		// wait for the leader to be elected
+		leaderFuture.get();
 
-		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 10000L);
-		JobManagerRunner jobManagerRunner = mock(JobManagerRunner.class);
+		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
 
-		final JobGraph jobGraph = mock(JobGraph.class);
-		final JobID jobId = new JobID();
-		when(jobGraph.getJobID()).thenReturn(jobId);
+		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, TIMEOUT);
 
-		final TestingDispatcher dispatcher = new TestingDispatcher(
-			rpcService,
-			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
-			new Configuration(),
-			haServices,
-			mock(ResourceManagerGateway.class),
-			mock(BlobServer.class),
-			heartbeatServices,
-			mock(MetricRegistryImpl.class),
-			fatalErrorHandler,
-			jobManagerRunner,
-			jobId);
+		acknowledgeFuture.get();
 
-		try {
-			dispatcher.start();
-
-			CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
-
-			// wait for the leader to be elected
-			leaderFuture.get();
-
-			DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-
-			CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraph, timeout);
-
-			acknowledgeFuture.get();
-
-			verify(jobManagerRunner, Mockito.timeout(timeout.toMilliseconds())).start();
-
-			// check that no error has occurred
-			fatalErrorHandler.rethrowError();
-		} finally {
-			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
-		}
+		assertTrue(
+			"jobManagerRunner was not started",
+			dispatcherLeaderElectionService.isStarted());
 	}
 
 	/**
@@ -147,61 +202,63 @@ public class DispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testLeaderElection() throws Exception {
-		TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
-		TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-
 		UUID expectedLeaderSessionId = UUID.randomUUID();
-		CompletableFuture<UUID> leaderSessionIdFuture = new CompletableFuture<>();
-		SubmittedJobGraphStore mockSubmittedJobGraphStore = mock(SubmittedJobGraphStore.class);
-		TestingLeaderElectionService testingLeaderElectionService = new TestingLeaderElectionService() {
-			@Override
-			public void confirmLeaderSessionID(UUID leaderSessionId) {
-				super.confirmLeaderSessionID(leaderSessionId);
-				leaderSessionIdFuture.complete(leaderSessionId);
-			}
-		};
 
-		haServices.setSubmittedJobGraphStore(mockSubmittedJobGraphStore);
-		haServices.setDispatcherLeaderElectionService(testingLeaderElectionService);
-		HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-		final JobID jobId = new JobID();
+		assertNull(dispatcherLeaderElectionService.getConfirmationFuture());
 
-		final TestingDispatcher dispatcher = new TestingDispatcher(
-			rpcService,
-			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
-			new Configuration(),
-			haServices,
-			mock(ResourceManagerGateway.class),
-			mock(BlobServer.class),
-			heartbeatServices,
-			mock(MetricRegistryImpl.class),
-			fatalErrorHandler,
-			mock(JobManagerRunner.class),
-			jobId);
+		dispatcherLeaderElectionService.isLeader(expectedLeaderSessionId);
 
-		try {
-			dispatcher.start();
+		UUID actualLeaderSessionId = dispatcherLeaderElectionService.getConfirmationFuture()
+			.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-			assertFalse(leaderSessionIdFuture.isDone());
+		assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
 
-			testingLeaderElectionService.isLeader(expectedLeaderSessionId);
+		verify(submittedJobGraphStore, Mockito.timeout(TIMEOUT.toMilliseconds()).atLeast(1)).getJobIds();
+	}
 
-			UUID actualLeaderSessionId = leaderSessionIdFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+	/**
+	 * Test callbacks from
+	 * {@link org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener}.
+	 */
+	@Test
+	public void testSubmittedJobGraphListener() throws Exception {
+		dispatcher.recoverJobsEnabled.set(false);
 
-			assertEquals(expectedLeaderSessionId, actualLeaderSessionId);
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-			verify(mockSubmittedJobGraphStore, Mockito.timeout(timeout.toMilliseconds()).atLeast(1)).getJobIds();
-		} finally {
-			RpcUtils.terminateRpcEndpoint(dispatcher, timeout);
-		}
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		final SubmittedJobGraph submittedJobGraph = submittedJobGraphStore.recoverJobGraph(TEST_JOB_ID);
+
+		// pretend that other Dispatcher has removed job from submittedJobGraphStore
+		submittedJobGraphStore.removeJobGraph(TEST_JOB_ID);
+		dispatcher.onRemovedJobGraph(TEST_JOB_ID);
+		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), empty());
+
+		// pretend that other Dispatcher has added a job to submittedJobGraphStore
+		runningJobsRegistry.clearJob(TEST_JOB_ID);
+		submittedJobGraphStore.putJobGraph(submittedJobGraph);
+		dispatcher.onAddedJobGraph(TEST_JOB_ID);
+		dispatcher.submitJobLatch.await();
+		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
 	}
 
 	private static class TestingDispatcher extends Dispatcher {
 
-		private final JobManagerRunner jobManagerRunner;
 		private final JobID expectedJobId;
 
-		protected TestingDispatcher(
+		private final CountDownLatch submitJobLatch = new CountDownLatch(2);
+
+		/**
+		 * Controls whether existing jobs in {@link SubmittedJobGraphStore} should be recovered
+		 * when {@link TestingDispatcher} is granted leadership.
+		 * */
+		private final AtomicBoolean recoverJobsEnabled = new AtomicBoolean(true);
+
+		private TestingDispatcher(
 				RpcService rpcService,
 				String endpointId,
 				Configuration configuration,
@@ -211,7 +268,6 @@ public class DispatcherTest extends TestLogger {
 				HeartbeatServices heartbeatServices,
 				MetricRegistry metricRegistry,
 				FatalErrorHandler fatalErrorHandler,
-				JobManagerRunner jobManagerRunner,
 				JobID expectedJobId) throws Exception {
 			super(
 				rpcService,
@@ -225,7 +281,6 @@ public class DispatcherTest extends TestLogger {
 				fatalErrorHandler,
 				null);
 
-			this.jobManagerRunner = jobManagerRunner;
 			this.expectedJobId = expectedJobId;
 		}
 
@@ -243,7 +298,32 @@ public class DispatcherTest extends TestLogger {
 				FatalErrorHandler fatalErrorHandler) throws Exception {
 			assertEquals(expectedJobId, jobGraph.getJobID());
 
-			return jobManagerRunner;
+			return new JobManagerRunner(resourceId, jobGraph, configuration, rpcService,
+				highAvailabilityServices, heartbeatServices, jobManagerServices, metricRegistry,
+				onCompleteActions, fatalErrorHandler, null);
+		}
+
+		@Override
+		public CompletableFuture<Acknowledge> submitJob(final JobGraph jobGraph, final Time timeout) {
+			final CompletableFuture<Acknowledge> submitJobFuture = super.submitJob(jobGraph, timeout);
+
+			try {
+				submitJobFuture.get();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+
+			submitJobLatch.countDown();
+			return submitJobFuture;
+		}
+
+		@Override
+		void recoverJobs() {
+			if (recoverJobsEnabled.get()) {
+				super.recoverJobs();
+			}
 		}
 	}
 }

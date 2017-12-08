@@ -86,4 +86,13 @@ public class TestingLeaderElectionService implements LeaderElectionService {
 	public synchronized String getAddress() {
 		return contender.getAddress();
 	}
+
+	/**
+	 * Returns <code>true</code> if {@link #start(LeaderContender)} was called,
+	 * <code>false</code> otherwise.
+	 */
+	public synchronized boolean isStarted() {
+		return contender != null;
+	}
+
 }
