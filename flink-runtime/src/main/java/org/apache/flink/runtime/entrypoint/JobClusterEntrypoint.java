@@ -203,7 +203,7 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		public void jobFinishedByOther() {
 			LOG.info("Job({}) was finished by another JobManager.", jobId);
 
-			shutDownAndTerminate(false, ApplicationStatus.UNKNOWN, "Job was finished by other another master");
+			shutDownAndTerminate(false, ApplicationStatus.UNKNOWN, "Job was finished by another master");
 		}
 	}
 }
