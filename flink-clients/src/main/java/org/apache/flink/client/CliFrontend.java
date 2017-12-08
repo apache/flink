@@ -128,17 +128,10 @@ public class CliFrontend {
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
-		final String flinkYarnCLI = "org.apache.flink.yarn.cli.FlinkYarnCLI";
 		try {
 			customCommandLines.add(loadCustomCommandLine(flinkYarnSessionCLI, "y", "yarn"));
 		} catch (Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
-		}
-
-		try {
-			customCommandLines.add(loadCustomCommandLine(flinkYarnCLI, "y", "yarn"));
-		} catch (Exception e) {
-			LOG.warn("Could not load CLI class {}.", flinkYarnCLI, e);
 		}
 
 		customCommandLines.add(new Flip6DefaultCLI());
