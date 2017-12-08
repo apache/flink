@@ -23,7 +23,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -50,21 +49,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class ResourceSpec implements Serializable {
 
-	public enum ResourceAggregateType {
-		/**
-		 * Denotes keeping the sum of the values with same name when merging two resource specs for operator chaining
-		 */
-		AGGREGATE_TYPE_SUM,
-
-		/**
-		 * Denotes keeping the max of the values with same name when merging two resource specs for operator chaining
-		 */
-		AGGREGATE_TYPE_MAX
-	}
-
 	private static final long serialVersionUID = 1L;
 
 	public static final ResourceSpec DEFAULT = new ResourceSpec(0, 0, 0, 0, 0);
+
+	private static String GPU_NAME = "GPU";
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
 	private final double cpuCores;
@@ -84,17 +73,6 @@ public class ResourceSpec implements Serializable {
 	private final Map<String, Resource> extendedResources = new HashMap<>(1);
 
 	/**
-	 * Creates a new ResourceSpec with basic common resources.
-	 *
-	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
-	 * @param heapMemoryInMB The size of the java heap memory, in megabytes.
-	 * @param extendedResources The extended resources, associated with the resource manager used
-	 */
-	public ResourceSpec(double cpuCores, int heapMemoryInMB, Resource... extendedResources) {
-		this(cpuCores, heapMemoryInMB, 0, 0, 0, extendedResources);
-	}
-
-	/**
 	 * Creates a new ResourceSpec with full resources.
 	 *
 	 * @param cpuCores The number of CPU cores (possibly fractional, i.e., 0.2 cores)
@@ -104,7 +82,7 @@ public class ResourceSpec implements Serializable {
 	 * @param stateSizeInMB The state size for storing in checkpoint.
 	 * @param extendedResources The extended resources, associated with the resource manager used
 	 */
-	public ResourceSpec(
+	protected ResourceSpec(
 			double cpuCores,
 			int heapMemoryInMB,
 			int directMemoryInMB,
@@ -117,7 +95,9 @@ public class ResourceSpec implements Serializable {
 		this.nativeMemoryInMB = nativeMemoryInMB;
 		this.stateSizeInMB = stateSizeInMB;
 		for (Resource resource : extendedResources) {
-			this.extendedResources.put(resource.name, resource);
+			if (resource != null) {
+				this.extendedResources.put(resource.name, resource);
+			}
 		}
 	}
 
@@ -162,12 +142,12 @@ public class ResourceSpec implements Serializable {
 		return this.stateSizeInMB;
 	}
 
-	public Map<String, Double> getExtendedResources() {
-		Map<String, Double> resources = new HashMap<>(extendedResources.size());
-		for (Resource resource : extendedResources.values()) {
-			resources.put(resource.name, resource.value);
+	public double getGPUResource() {
+		Resource gpuResource = extendedResources.get(GPU_NAME);
+		if (gpuResource != null) {
+			return gpuResource.value;
 		}
-		return Collections.unmodifiableMap(resources);
+		return 0.0;
 	}
 
 	/**
@@ -179,7 +159,7 @@ public class ResourceSpec implements Serializable {
 		if (this.cpuCores >= 0 && this.heapMemoryInMB >= 0 && this.directMemoryInMB >= 0 &&
 				this.nativeMemoryInMB >= 0 && this.stateSizeInMB >= 0) {
 			for (Resource resource : extendedResources.values()) {
-				if (resource.value.doubleValue() < 0) {
+				if (resource.value < 0) {
 					return false;
 				}
 			}
@@ -206,7 +186,7 @@ public class ResourceSpec implements Serializable {
 			for (Resource resource : extendedResources.values()) {
 				if (!other.extendedResources.containsKey(resource.name) ||
 						!other.extendedResources.get(resource.name).type.equals(resource.type) ||
-						other.extendedResources.get(resource.name).value.compareTo(resource.value) < 0) {
+						other.extendedResources.get(resource.name).value < resource.value) {
 					return false;
 				}
 			}
@@ -259,16 +239,77 @@ public class ResourceSpec implements Serializable {
 				'}';
 	}
 
-	public static abstract class Resource implements Serializable {
-		final private String name;
+	public static Builder newBuilder() { return new Builder(); }
 
-		final private Double value;
+	public static class Builder {
+
+		public double cpuCores;
+		public int heapMemoryInMB;
+		private int directMemoryInMB;
+		private int nativeMemoryInMB;
+		private int stateSizeInMB;
+		private GPUResource gpuResource;
+
+		public Builder setCpuCores(double cpuCores) {
+			this.cpuCores = cpuCores;
+			return this;
+		}
+
+		public Builder setHeapMemoryInMB(int heapMemory) {
+			this.heapMemoryInMB = heapMemory;
+			return this;
+		}
+
+		public Builder setDirectMemoryInMB(int directMemory) {
+			this.directMemoryInMB = directMemory;
+			return this;
+		}
+
+		public Builder setNativeMemoryInMB(int nativeMemory) {
+			this.nativeMemoryInMB = nativeMemory;
+			return this;
+		}
+
+		public Builder setStateSizeInMB(int stateSize) {
+			this.stateSizeInMB = stateSize;
+			return this;
+		}
+
+		public Builder setGPUResource(GPUResource gpuResource) {
+			this.gpuResource = gpuResource;
+			return this;
+		}
+
+		public ResourceSpec build() {
+			return new ResourceSpec(cpuCores, heapMemoryInMB, directMemoryInMB, nativeMemoryInMB, stateSizeInMB, gpuResource);
+		}
+	}
+
+	public static abstract class Resource implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		public enum ResourceAggregateType {
+			/**
+			 * Denotes keeping the sum of the values with same name when merging two resource specs for operator chaining
+			 */
+			AGGREGATE_TYPE_SUM,
+
+			/**
+			 * Denotes keeping the max of the values with same name when merging two resource specs for operator chaining
+			 */
+			AGGREGATE_TYPE_MAX
+		}
+
+		private final String name;
+
+		private final double value;
 
 		final private ResourceAggregateType type;
 
 		public Resource(String name, double value, ResourceAggregateType type) {
 			this.name = checkNotNull(name);
-			this.value = Double.valueOf(value);
+			this.value = value;
 			this.type = checkNotNull(type);
 		}
 
@@ -280,7 +321,7 @@ public class ResourceSpec implements Serializable {
 			Double value = null;
 			switch (type) {
 				case AGGREGATE_TYPE_MAX :
-					value = other.value.compareTo(this.value) > 0 ? other.value : this.value;
+					value = Math.max(other.value, this.value);
 					break;
 
 				case AGGREGATE_TYPE_SUM:
@@ -299,7 +340,7 @@ public class ResourceSpec implements Serializable {
 			} else if (o != null && getClass() == o.getClass()) {
 				Resource other = (Resource) o;
 
-				return name.equals(other.name) && type.equals(other.type) && value.equals(other.value);
+				return name.equals(other.name) && type.equals(other.type) && value == other.value;
 			} else {
 				return false;
 			}
@@ -309,16 +350,16 @@ public class ResourceSpec implements Serializable {
 		public int hashCode() {
 			int result = name != null ? name.hashCode() : 0;
 			result = 31 * result + type.ordinal();
-			result = 31 * result + value.hashCode();
+			result = 31 * result + (int)value;
 			return result;
 		}
 
 		/**
-		 * create a resource of the same resource type
+		 * Create a resource of the same resource type
 		 *
-		 * @param value the value of the resource
-		 * @param type the aggregate type of the resource
-		 * @return a new instance of the sub resource
+		 * @param value The value of the resource
+		 * @param type The aggregate type of the resource
+		 * @return A new instance of the sub resource
 		 */
 		protected abstract Resource create(double value, ResourceAggregateType type);
 	}
@@ -333,31 +374,12 @@ public class ResourceSpec implements Serializable {
 		}
 
 		public GPUResource(double value, ResourceAggregateType type) {
-			super("GPU", value, type);
+			super(GPU_NAME, value, type);
 		}
 
 		@Override
 		public Resource create(double value, ResourceAggregateType type) {
 			return new GPUResource(value, type);
-		}
-	}
-
-	/**
-	 * The FPGA resource.
-	 */
-	public static class FPGAResource extends Resource {
-
-		public FPGAResource(double value) {
-			this(value, ResourceAggregateType.AGGREGATE_TYPE_SUM);
-		}
-
-		public FPGAResource(double value, ResourceAggregateType type) {
-			super("FPGA", value, type);
-		}
-
-		@Override
-		public Resource create(double value, ResourceAggregateType type) {
-			return new FPGAResource(value, type);
 		}
 	}
 }

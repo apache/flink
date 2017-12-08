@@ -34,123 +34,153 @@ public class ResourceSpecTest extends TestLogger {
 
 	@Test
 	public void testIsValid() throws Exception {
-		ResourceSpec rs = new ResourceSpec(1.0, 100);
+		ResourceSpec rs = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 		assertTrue(rs.isValid());
 
-		rs = new ResourceSpec(1.0, 100, new ResourceSpec.GPUResource(1));
+		rs = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1)).
+				build();
 		assertTrue(rs.isValid());
 
-		rs = new ResourceSpec(1.0, 100, new ResourceSpec.GPUResource(-1));
+		rs = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(-1)).
+				build();
 		assertFalse(rs.isValid());
 	}
 
 	@Test
 	public void testLessThanOrEqual() throws Exception {
-		ResourceSpec rs1 = new ResourceSpec(1.0, 100);
-		ResourceSpec rs2 = new ResourceSpec(1.0, 100);
+		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 		assertTrue(rs1.lessThanOrEqual(rs2));
 		assertTrue(rs2.lessThanOrEqual(rs1));
 
-		rs2 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(1));
-		assertTrue(rs1.lessThanOrEqual(rs2));
-		assertFalse(rs2.lessThanOrEqual(rs1));
+		ResourceSpec rs3 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1.1)).
+				build();
+		assertTrue(rs1.lessThanOrEqual(rs3));
+		assertFalse(rs3.lessThanOrEqual(rs1));
 
-		ResourceSpec rs3 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(2));
-		assertFalse(rs3.lessThanOrEqual(rs2));
-		assertTrue(rs2.lessThanOrEqual(rs3));
-
-		ResourceSpec rs4 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource(1),
-				new ResourceSpec.GPUResource( 1));
-		assertFalse(rs3.lessThanOrEqual(rs4));
+		ResourceSpec rs4 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				build();
 		assertFalse(rs4.lessThanOrEqual(rs3));
+		assertTrue(rs3.lessThanOrEqual(rs4));
 	}
 
 	@Test
 	public void testEquals() throws Exception {
-		ResourceSpec rs1 = new ResourceSpec(1.0, 100);
-		ResourceSpec rs2 = new ResourceSpec(1.0, 100);
+		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 		assertTrue(rs1.equals(rs2));
 		assertTrue(rs2.equals(rs1));
 
-		ResourceSpec rs3 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(2.2));
-		ResourceSpec rs4 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource( 1));
+		ResourceSpec rs3 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				build();
+		ResourceSpec rs4 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1)).
+				build();
 		assertFalse(rs3.equals(rs4));
 
-		ResourceSpec rs5 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(2.2));
+		ResourceSpec rs5 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				build();
 		assertTrue(rs3.equals(rs5));
-
-		ResourceSpec rs6 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource(2),
-				new ResourceSpec.GPUResource( 0.5));
-		ResourceSpec rs7 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource( 2),
-				new ResourceSpec.GPUResource(0.5, ResourceSpec.ResourceAggregateType.AGGREGATE_TYPE_MAX));
-		assertFalse(rs6.equals(rs7));
 	}
 
 	@Test
 	public void testHashCode() throws Exception {
-		ResourceSpec rs1 = new ResourceSpec(1.0, 100);
-		ResourceSpec rs2 = new ResourceSpec(1.0, 100);
+		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 		assertEquals(rs1.hashCode(), rs2.hashCode());
 
-		ResourceSpec rs3 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(2.2));
-		ResourceSpec rs4 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(1));
+		ResourceSpec rs3 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				build();
+		ResourceSpec rs4 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1)).
+				build();
 		assertFalse(rs3.hashCode() == rs4.hashCode());
 
-		ResourceSpec rs5 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource( 2.2));
+		ResourceSpec rs5 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				build();
 		assertEquals(rs3.hashCode(), rs5.hashCode());
 
-		ResourceSpec rs6 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource( 2),
-				new ResourceSpec.GPUResource(0.5));
-		ResourceSpec rs7 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource(2),
-				new ResourceSpec.GPUResource(0.5, ResourceSpec.ResourceAggregateType.AGGREGATE_TYPE_MAX));
-		assertFalse(rs6.hashCode() == rs7.hashCode());
+		ResourceSpec rs6 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(2.2, ResourceSpec.Resource.ResourceAggregateType.AGGREGATE_TYPE_MAX)).
+				build();
+		assertFalse(rs6.hashCode() == rs5.hashCode());
 	}
 
 	@Test
 	public void testMerge() throws Exception {
-		ResourceSpec rs1 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(1.1));
-		ResourceSpec rs2 = new ResourceSpec(1.0, 100);
+		ResourceSpec rs1 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1.1)).
+				build();
+		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 
 		ResourceSpec rs3 = rs1.merge(rs2);
-		assertEquals(1.1, rs3.getExtendedResources().get("FPGA").doubleValue(), 0.000001);
+		assertEquals(1.1, rs3.getGPUResource(), 0.000001);
 
 		ResourceSpec rs4 = rs1.merge(rs3);
-		assertEquals(2.2, rs4.getExtendedResources().get("FPGA").doubleValue(), 0.000001);
+		assertEquals(2.2, rs4.getGPUResource(), 0.000001);
 
-		ResourceSpec rs6 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource(2),
-				new ResourceSpec.GPUResource(0.5));
-		ResourceSpec rs5 = rs6.merge(rs2);
-		assertEquals(2, rs5.getExtendedResources().get("FPGA").doubleValue(), 0.000001);
-		assertEquals(0.5, rs5.getExtendedResources().get("GPU").doubleValue(), 0.000001);
-
-		ResourceSpec rs7 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.GPUResource( 0.5, ResourceSpec.ResourceAggregateType.AGGREGATE_TYPE_MAX));
+		ResourceSpec rs5 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1.1, ResourceSpec.Resource.ResourceAggregateType.AGGREGATE_TYPE_MAX)).
+				build();
 		try {
-			rs6.merge(rs7);
+			rs4.merge(rs5);
 			fail("Merge with different aggregate type should fail");
 		} catch (IllegalArgumentException ignored) {
 		}
 
-		ResourceSpec rs8 = new ResourceSpec(1.0, 100,
-				new ResourceSpec.FPGAResource(2),
-				new ResourceSpec.GPUResource(1.5, ResourceSpec.ResourceAggregateType.AGGREGATE_TYPE_MAX));
-		ResourceSpec rs9 = rs8.merge(rs7);
-		assertEquals(2, rs9.getExtendedResources().get("FPGA").doubleValue(), 0.000001);
-		assertEquals(1.5, rs9.getExtendedResources().get("GPU").doubleValue(), 0.000001);
+		ResourceSpec rs6 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1.5, ResourceSpec.Resource.ResourceAggregateType.AGGREGATE_TYPE_MAX)).
+				build();
+		ResourceSpec rs7 = rs5.merge(rs6);
+		assertEquals(1.5, rs7.getGPUResource(), 0.000001);
 
 	}
 
 	@Test
 	public void testSerializable() throws Exception {
-		ResourceSpec rs1 = new ResourceSpec(1.0, 100, new ResourceSpec.FPGAResource(1.1));
+		ResourceSpec rs1 = ResourceSpec.newBuilder().
+				setCpuCores(1.0).
+				setHeapMemoryInMB(100).
+				setGPUResource(new ResourceSpec.GPUResource(1.1)).
+				build();
 		byte[] buffer = InstantiationUtil.serializeObject(rs1);
 		ResourceSpec rs2 = InstantiationUtil.deserializeObject(buffer, ClassLoader.getSystemClassLoader());
-		assertTrue(rs1.equals(rs2));
+		assertEquals(rs1, rs2);
 	}
 }
