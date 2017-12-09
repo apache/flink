@@ -1017,6 +1017,8 @@ under the License.
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-libraries/flink-table/src/test/scala/resources/*.out</exclude>
 						<exclude>test-infra/end-to-end-test/test-data/*</exclude>
+						<exclude>flink-connectors/flink-orc/src/test/resources/examples/*.orc</exclude>
+						<exclude>flink-connectors/flink-orc/src/test/resources/activities/*.orc</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/*-snapshot</exclude>
