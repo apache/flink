@@ -527,6 +527,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		private final Set<SharedBufferEdge<K, V>> edges;
 		private final SharedBufferPage<K, V> page;
 		private int referenceCounter;
+		private transient Integer entryId;
 
 		SharedBufferEntry(
 				final ValueTimeWrapper<V> valueTime,
@@ -886,7 +887,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		@Override
 		public void serialize(SharedBuffer<K, V> record, DataOutputView target) throws IOException {
 			Map<K, SharedBufferPage<K, V>> pages = record.pages;
-			Map<SharedBufferEntry<K, V>, Integer> entryIDs = new HashMap<>();
 
 			int totalEdges = 0;
 			int entryCounter = 0;
@@ -908,7 +908,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 					// assign id to the sharedBufferEntry for the future
 					// serialization of the previous relation
-					entryIDs.put(sharedBuffer, entryCounter++);
+					sharedBuffer.entryId = entryCounter++;
 
 					ValueTimeWrapper<V> valueTimeWrapper = sharedBuffer.getValueTime();
 
@@ -932,14 +932,14 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				for (Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>> sharedBufferEntry: page.entries.entrySet()) {
 					SharedBufferEntry<K, V> sharedBuffer = sharedBufferEntry.getValue();
 
-					Integer id = entryIDs.get(sharedBuffer);
+					Integer id = sharedBuffer.entryId;
 					Preconditions.checkState(id != null, "Could not find id for entry: " + sharedBuffer);
 
 					for (SharedBufferEdge<K, V> edge: sharedBuffer.edges) {
 						// in order to serialize the previous relation we simply serialize the ids
 						// of the source and target SharedBufferEntry
 						if (edge.target != null) {
-							Integer targetId = entryIDs.get(edge.getTarget());
+							Integer targetId = edge.getTarget().entryId;
 							Preconditions.checkState(targetId != null,
 									"Could not find id for entry: " + edge.getTarget());
 
