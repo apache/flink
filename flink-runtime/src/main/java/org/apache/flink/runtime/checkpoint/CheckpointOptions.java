@@ -101,7 +101,7 @@ public class CheckpointOptions implements Serializable {
 		CHECKPOINT,
 
 		/** A savepoint. */
-		SAVEPOINT;
+		SAVEPOINT
 
 	}
 

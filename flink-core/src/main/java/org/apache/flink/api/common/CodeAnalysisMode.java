@@ -50,6 +50,6 @@ public enum CodeAnalysisMode {
 	 * The program will be automatically optimized with knowledge from code
 	 * analysis.
 	 */
-	OPTIMIZE;
+	OPTIMIZE
 
 }

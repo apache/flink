@@ -32,5 +32,5 @@ public enum OffsetCommitMode {
 	ON_CHECKPOINTS,
 
 	/** Commit offsets periodically back to Kafka, using the auto commit functionality of internal Kafka clients. */
-	KAFKA_PERIODIC;
+	KAFKA_PERIODIC
 }

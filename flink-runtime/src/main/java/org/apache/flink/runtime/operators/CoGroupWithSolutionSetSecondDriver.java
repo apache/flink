@@ -140,8 +140,8 @@ public class CoGroupWithSolutionSetSecondDriver<IT1, IT2, OT> implements Resetta
 
 		if (objectReuseEnabled) {
 			solutionSideRecord = solutionSetSerializer.createInstance();
-		};
-		
+		}
+
 		TypePairComparatorFactory<IT1, IT2> factory = taskContext.getTaskConfig().getPairComparatorFactory(taskContext.getUserCodeClassLoader());
 		pairComparator = factory.createComparator12(this.probeSideComparator, solutionSetComparator);
 	}

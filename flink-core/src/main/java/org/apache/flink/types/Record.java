@@ -788,8 +788,8 @@ public final class Record implements Value, CopyableValue<Record> {
 		}
 		
 		target.write(source, val);
-	};
-	
+	}
+
 	/**
 	 * Creates an exact copy of this record.
 	 * 

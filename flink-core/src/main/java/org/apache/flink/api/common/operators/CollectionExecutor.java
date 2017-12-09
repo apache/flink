@@ -124,7 +124,7 @@ public class CollectionExecutor {
 			Future<Path> doNothing = new CompletedFuture(new Path(file.getValue().filePath));
 			cachedFiles.put(file.getKey(), doNothing);
 		}
-	};
+	}
 
 	private List<?> execute(Operator<?> operator) throws Exception {
 		return execute(operator, 0);

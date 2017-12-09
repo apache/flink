@@ -1724,9 +1724,9 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
       public void remove() {
         throw new UnsupportedOperationException();
       }
-    };
+    }
 
-    List<Range> ranges = new ArrayList<Range>();
+	  List<Range> ranges = new ArrayList<Range>();
 
     public IntegerRanges() {
     }

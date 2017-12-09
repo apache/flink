@@ -638,7 +638,7 @@ public class ValueCollectionDataSets {
 	 * Custom enum.
 	 */
 	public enum Category {
-		CAT_A, CAT_B;
+		CAT_A, CAT_B
 	}
 
 	/**

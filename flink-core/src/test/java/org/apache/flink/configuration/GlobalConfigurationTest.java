@@ -112,7 +112,7 @@ public class GlobalConfigurationTest extends TestLogger {
 	public void testInvalidYamlFile() throws IOException {
 		final File confFile = tempFolder.newFile(GlobalConfiguration.FLINK_CONF_FILENAME);
 
-		try (PrintWriter pw = new PrintWriter(confFile);) {
+		try (PrintWriter pw = new PrintWriter(confFile)) {
 			pw.append("invalid");
 		}
 

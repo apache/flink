@@ -84,6 +84,6 @@ public class IntArrayList {
 		@Override
 		public int removeLast() {
 			throw new UnsupportedOperationException();
-		};
+		}
 	};
 }

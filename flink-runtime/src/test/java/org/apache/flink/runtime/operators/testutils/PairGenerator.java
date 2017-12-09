@@ -82,11 +82,11 @@ public final class PairGenerator {
 	
 	public enum KeyMode {
 		SORTED, RANDOM
-	};
+	}
 
 	public enum ValueMode {
 		FIX_LENGTH, RANDOM_LENGTH, CONSTANT
-	};
+	}
 
 	private static char[] alpha = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'a', 'b', 'c',
 		'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm' };

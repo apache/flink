@@ -157,7 +157,7 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 			BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
 
 			//copy cassandra.yaml; inject absolute paths into cassandra.yaml
-			Scanner scanner = new Scanner(file);
+			Scanner scanner = new Scanner(file)
 		) {
 			while (scanner.hasNextLine()) {
 				String line = scanner.nextLine();

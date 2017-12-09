@@ -794,7 +794,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				File fp = File.createTempFile(appId.toString(), null);
 				fp.deleteOnExit();
 				try (FileOutputStream output = new FileOutputStream(fp);
-					ObjectOutputStream obOutput = new ObjectOutputStream(output);){
+					ObjectOutputStream obOutput = new ObjectOutputStream(output)){
 					obOutput.writeObject(jobGraph);
 				}
 

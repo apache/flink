@@ -132,7 +132,6 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 			synchronized (numBuffersAvailable) {
 				numBuffersAvailable.notifyAll();
 			}
-			;
 		}
 	}
 }

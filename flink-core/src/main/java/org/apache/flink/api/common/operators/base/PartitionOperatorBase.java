@@ -42,7 +42,7 @@ public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpF
 		REBALANCE,
 		HASH,
 		RANGE,
-		CUSTOM;
+		CUSTOM
 	}
 	
 	// --------------------------------------------------------------------------------------------
