@@ -349,7 +349,7 @@ public class AdaptiveSpanningRecordDeserializer<T extends IOReadableWritable> im
 						if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 							throw new UTFDataFormatException("malformed input around byte " + (count - 1));
 						}
-						chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
+						chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F)));
 						break;
 					default:
 						throw new UTFDataFormatException("malformed input around byte " + count);
