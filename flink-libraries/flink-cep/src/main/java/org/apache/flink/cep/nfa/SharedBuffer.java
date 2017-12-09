@@ -191,14 +191,12 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 */
 	public boolean prune(long pruningTimestamp) {
 		Iterator<Map.Entry<K, SharedBufferPage<K, V>>> iter = pages.entrySet().iterator();
-		boolean pruned = false;
+		List<SharedBufferEntry<K, V>> prunedEntries = new ArrayList<>();
 
 		while (iter.hasNext()) {
 			SharedBufferPage<K, V> page = iter.next().getValue();
 
-			if (page.prune(pruningTimestamp)) {
-				pruned = true;
-			}
+			page.prune(pruningTimestamp, prunedEntries);
 
 			if (page.isEmpty()) {
 				// delete page if it is empty
@@ -206,7 +204,14 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			}
 		}
 
-		return pruned;
+		if (!prunedEntries.isEmpty()) {
+			for (Map.Entry<K, SharedBufferPage<K, V>> entry : pages.entrySet()) {
+				entry.getValue().removeEdges(prunedEntries);
+			}
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	/**
@@ -451,25 +456,21 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		 * Removes all entries from the map whose timestamp is smaller than the pruning timestamp.
 		 *
 		 * @param pruningTimestamp Timestamp for the pruning
-		 * @return {@code true} if pruning happened
 		 */
-		public boolean prune(long pruningTimestamp) {
+		public void prune(long pruningTimestamp, List<SharedBufferEntry<K, V>> prunedEntries) {
 			Iterator<Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>>> iterator = entries.entrySet().iterator();
 			boolean continuePruning = true;
-			boolean pruned = false;
 
 			while (iterator.hasNext() && continuePruning) {
 				SharedBufferEntry<K, V> entry = iterator.next().getValue();
 
 				if (entry.getValueTime().getTimestamp() <= pruningTimestamp) {
+					prunedEntries.add(entry);
 					iterator.remove();
-					pruned = true;
 				} else {
 					continuePruning = false;
 				}
 			}
-
-			return pruned;
 		}
 
 		public boolean isEmpty() {
@@ -478,6 +479,15 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		public SharedBufferEntry<K, V> remove(final ValueTimeWrapper<V> valueTime) {
 			return entries.remove(valueTime);
+		}
+
+		/**
+		 * Remove edges with the specified targets for the entries.
+		 */
+		private void removeEdges(final List<SharedBufferEntry<K, V>> prunedEntries) {
+			for (Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>> entry : entries.entrySet()) {
+				entry.getValue().removeEdges(prunedEntries);
+			}
 		}
 
 		@Override
@@ -564,6 +574,22 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 		public void addEdge(SharedBufferEdge<K, V> edge) {
 			edges.add(edge);
+		}
+
+		/**
+		 * Remove edges with the specified targets.
+		 */
+		private void removeEdges(final List<SharedBufferEntry<K, V>> prunedEntries) {
+			Iterator<SharedBufferEdge<K, V>> itor = edges.iterator();
+			while (itor.hasNext()) {
+				SharedBufferEdge<K, V> edge = itor.next();
+				for (SharedBufferEntry<K, V> prunedEntry : prunedEntries) {
+					if (prunedEntry == edge.getTarget()) {
+						itor.remove();
+						break;
+					}
+				}
+			}
 		}
 
 		public boolean remove() {
