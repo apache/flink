@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Assert;
@@ -52,6 +53,12 @@ public class StreamTaskTestHarnessTest {
 		} catch (IllegalStateException expected) {
 			// expected
 		}
+		try {
+			harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator());
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// expected
+		}
 
 		harness = new StreamTaskTestHarness<>(new OneInputStreamTask<>(), BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOperatorChain(new OperatorID(), new TestOperator())
@@ -69,11 +76,50 @@ public class StreamTaskTestHarnessTest {
 		} catch (IllegalStateException expected) {
 			// expected
 		}
+		try {
+			harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator());
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// expected
+		}
+
+		harness = new StreamTaskTestHarness<>(new TwoInputStreamTask<>(), BasicTypeInfo.STRING_TYPE_INFO);
+		harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator())
+			.chain(new OperatorID(), new TestOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
+
+		try {
+			harness.setupOutputForSingletonOperatorChain();
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// expected
+		}
+		try {
+			harness.setupOperatorChain(new OperatorID(), new TestOperator());
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// expected
+		}
+		try {
+			harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator());
+			Assert.fail();
+		} catch (IllegalStateException expected) {
+			// expected
+		}
 	}
 
 	private static class TestOperator extends AbstractStreamOperator<String> implements OneInputStreamOperator<String, String> {
 		@Override
 		public void processElement(StreamRecord<String> element) throws Exception {
+		}
+	}
+
+	private static class TwoInputTestOperator extends AbstractStreamOperator<String> implements TwoInputStreamOperator<String, String, String> {
+		@Override
+		public void processElement1(StreamRecord<String> element) throws Exception {
+		}
+
+		@Override
+		public void processElement2(StreamRecord<String> element) throws Exception {
 		}
 	}
 }
