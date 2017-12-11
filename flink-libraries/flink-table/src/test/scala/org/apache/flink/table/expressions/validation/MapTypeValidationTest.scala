@@ -44,4 +44,14 @@ class MapTypeValidationTest extends MapTypeTestBase {
   def testEmptyMap(): Unit = {
     testAllApis("FAIL", "map()", "MAP[]", "FAIL")
   }
+
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedMapImplicitTypeCastTableApi(): Unit = {
+    testTableApi(map("k1", 1.0, "k2", 2.0f), "map('k1', 1.0, 'k2', 2.0f)", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedMapImplicitTypeCastSql(): Unit = {
+    testSqlApi("MAP['k1', 'string', 'k2', 12]", "FAIL")
+  }
 }
