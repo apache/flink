@@ -19,11 +19,13 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.util.FlinkException;
 
 /**
@@ -99,6 +101,11 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		if (headOperator != null) {
 			headOperator.cancel();
 		}
+	}
+
+	@Override
+	protected Gauge<Long> getInputWatermarkGauge() {
+		return new WatermarkGauge();
 	}
 
 	// ------------------------------------------------------------------------

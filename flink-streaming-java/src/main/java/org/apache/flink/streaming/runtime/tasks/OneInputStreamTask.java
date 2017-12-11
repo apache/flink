@@ -20,10 +20,12 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
 /**
  * A {@link StreamTask} for executing a {@link OneInputStreamOperator}.
@@ -34,6 +36,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	private StreamInputProcessor<IN> inputProcessor;
 
 	private volatile boolean running = true;
+
+	private final WatermarkGauge inputWatermarkGauge = new WatermarkGauge();
 
 	@Override
 	public void init() throws Exception {
@@ -54,10 +58,9 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 					getEnvironment().getIOManager(),
 					getEnvironment().getTaskManagerInfo().getConfiguration(),
 					getStreamStatusMaintainer(),
-					this.headOperator);
-
-			// make sure that stream tasks report their I/O statistics
-			inputProcessor.setMetricGroup(getEnvironment().getMetricGroup().getIOMetricGroup());
+					this.headOperator,
+					getEnvironment().getMetricGroup().getIOMetricGroup(),
+					inputWatermarkGauge);
 		}
 	}
 
@@ -81,5 +84,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@Override
 	protected void cancelTask() {
 		running = false;
+	}
+
+	@Override
+	protected Gauge<Long> getInputWatermarkGauge() {
+		return inputWatermarkGauge;
 	}
 }

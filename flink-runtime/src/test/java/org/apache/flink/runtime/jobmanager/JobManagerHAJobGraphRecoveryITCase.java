@@ -203,7 +203,7 @@ public class JobManagerHAJobGraphRecoveryITCase extends TestLogger {
 				ResourceID.generate(),
 				taskManagerSystem,
 				highAvailabilityServices,
-				new NoOpMetricRegistry(),
+				NoOpMetricRegistry.INSTANCE,
 				"localhost",
 				Option.<String>empty(),
 				false,

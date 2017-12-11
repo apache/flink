@@ -39,4 +39,9 @@ public class MetricNames {
 	public static final String IO_NUM_BYTES_IN_LOCAL_RATE = IO_NUM_BYTES_IN_LOCAL + SUFFIX_RATE;
 	public static final String IO_NUM_BYTES_IN_REMOTE_RATE = IO_NUM_BYTES_IN_REMOTE + SUFFIX_RATE;
 	public static final String IO_NUM_BYTES_OUT_RATE = IO_NUM_BYTES_OUT + SUFFIX_RATE;
+
+	public static final String IO_CURRENT_INPUT_WATERMARK = "currentInputWatermark";
+	public static final String IO_CURRENT_INPUT_1_WATERMARK = "currentInput1Watermark";
+	public static final String IO_CURRENT_INPUT_2_WATERMARK = "currentInput2Watermark";
+	public static final String IO_CURRENT_OUTPUT_WATERMARK = "currentOutputWatermark";
 }

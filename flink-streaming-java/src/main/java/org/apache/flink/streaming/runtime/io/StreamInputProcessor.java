@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
@@ -42,12 +42,16 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -69,6 +73,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class StreamInputProcessor<IN> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(StreamInputProcessor.class);
 
 	private final RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers;
 
@@ -100,7 +106,7 @@ public class StreamInputProcessor<IN> {
 
 	// ---------------- Metrics ------------------
 
-	private long lastEmittedWatermark;
+	private final WatermarkGauge watermarkGauge;
 	private Counter numRecordsIn;
 
 	private boolean isFinished;
@@ -115,7 +121,9 @@ public class StreamInputProcessor<IN> {
 			IOManager ioManager,
 			Configuration taskManagerConfig,
 			StreamStatusMaintainer streamStatusMaintainer,
-			OneInputStreamOperator<IN, ?> streamOperator) throws IOException {
+			OneInputStreamOperator<IN, ?> streamOperator,
+			TaskIOMetricGroup metrics,
+			WatermarkGauge watermarkGauge) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
@@ -154,14 +162,15 @@ public class StreamInputProcessor<IN> {
 
 		this.numInputChannels = inputGate.getNumberOfInputChannels();
 
-		this.lastEmittedWatermark = Long.MIN_VALUE;
-
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve = new StatusWatermarkValve(
 				numInputChannels,
 				new ForwardingValveOutputHandler(streamOperator, lock));
+
+		this.watermarkGauge = watermarkGauge;
+		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
 	}
 
 	public boolean processInput() throws Exception {
@@ -169,7 +178,12 @@ public class StreamInputProcessor<IN> {
 			return false;
 		}
 		if (numRecordsIn == null) {
-			numRecordsIn = ((OperatorMetricGroup) streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+			try {
+				numRecordsIn = ((OperatorMetricGroup) streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+			} catch (Exception e) {
+				LOG.warn("An exception occurred during the metrics setup.", e);
+				numRecordsIn = new SimpleCounter();
+			}
 		}
 
 		while (true) {
@@ -236,27 +250,6 @@ public class StreamInputProcessor<IN> {
 		}
 	}
 
-	/**
-	 * Sets the metric group for this StreamInputProcessor.
-	 *
-	 * @param metrics metric group
-	 */
-	public void setMetricGroup(TaskIOMetricGroup metrics) {
-		metrics.gauge("currentLowWatermark", new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return lastEmittedWatermark;
-			}
-		});
-
-		metrics.gauge("checkpointAlignmentTime", new Gauge<Long>() {
-			@Override
-			public Long getValue() {
-				return barrierHandler.getAlignmentDurationNanos();
-			}
-		});
-	}
-
 	public void cleanup() throws IOException {
 		// clear the buffers first. this part should not ever fail
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
@@ -284,7 +277,7 @@ public class StreamInputProcessor<IN> {
 		public void handleWatermark(Watermark watermark) {
 			try {
 				synchronized (lock) {
-					lastEmittedWatermark = watermark.getTimestamp();
+					watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
 					operator.processWatermark(watermark);
 				}
 			} catch (Exception e) {

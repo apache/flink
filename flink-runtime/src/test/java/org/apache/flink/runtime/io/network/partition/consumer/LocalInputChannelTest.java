@@ -38,7 +38,7 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -291,7 +291,7 @@ public class LocalInputChannelTest {
 			0,
 			1,
 			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()
 		);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
@@ -318,7 +318,7 @@ public class LocalInputChannelTest {
 			partitionManager,
 			new TaskEventDispatcher(),
 			1, 1,
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
@@ -370,7 +370,7 @@ public class LocalInputChannelTest {
 			new ResultPartitionID(),
 			partitionManager,
 			new TaskEventDispatcher(),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		channel.requestSubpartition(0);
 
@@ -411,7 +411,7 @@ public class LocalInputChannelTest {
 				mock(TaskEventDispatcher.class),
 				initialAndMaxRequestBackoff._1(),
 				initialAndMaxRequestBackoff._2(),
-				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 	}
 
 	/**
@@ -487,7 +487,7 @@ public class LocalInputChannelTest {
 					subpartitionIndex,
 					numberOfInputChannels,
 					mock(TaskActions.class),
-					new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -502,7 +502,7 @@ public class LocalInputChannelTest {
 								consumedPartitionIds[i],
 								partitionManager,
 								taskEventDispatcher,
-								new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()));
+								UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;
