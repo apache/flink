@@ -57,7 +57,7 @@ public class UnregisteredMetricGroups {
 		return new UnregisteredOperatorMetricGroup();
 	}
 
-	private static class UnregisteredJobManagerMetricGroup extends JobManagerMetricGroup {
+	public static class UnregisteredJobManagerMetricGroup extends JobManagerMetricGroup {
 		private static final String DEFAULT_HOST_NAME = "UnregisteredHost";
 
 		private UnregisteredJobManagerMetricGroup() {
@@ -70,20 +70,20 @@ public class UnregisteredMetricGroups {
 		}
 	}
 
-	private static class UnregisteredJobManagerJobMetricGroup extends JobManagerJobMetricGroup {
+	public static class UnregisteredJobManagerJobMetricGroup extends JobManagerJobMetricGroup {
 		private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
 		private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
 
-		private UnregisteredJobManagerJobMetricGroup() {
+		protected UnregisteredJobManagerJobMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, new UnregisteredJobManagerMetricGroup(), DEFAULT_JOB_ID, DEFAULT_JOB_NAME);
 		}
 	}
 
-	private static class UnregisteredTaskManagerMetricGroup extends TaskManagerMetricGroup {
+	public static class UnregisteredTaskManagerMetricGroup extends TaskManagerMetricGroup {
 		private static final String DEFAULT_HOST_NAME = "UnregisteredHost";
 		private static final String DEFAULT_TASKMANAGER_ID = "0";
 
-		private UnregisteredTaskManagerMetricGroup() {
+		protected UnregisteredTaskManagerMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, DEFAULT_HOST_NAME, DEFAULT_TASKMANAGER_ID);
 		}
 
@@ -100,11 +100,11 @@ public class UnregisteredMetricGroups {
 		}
 	}
 
-	private static class UnregisteredTaskManagerJobMetricGroup extends TaskManagerJobMetricGroup {
+	public static class UnregisteredTaskManagerJobMetricGroup extends TaskManagerJobMetricGroup {
 		private static final JobID DEFAULT_JOB_ID = new JobID(0, 0);
 		private static final String DEFAULT_JOB_NAME = "UnregisteredJob";
 
-		private UnregisteredTaskManagerJobMetricGroup() {
+		protected UnregisteredTaskManagerJobMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskManagerMetricGroup(), DEFAULT_JOB_ID, DEFAULT_JOB_NAME);
 		}
 
@@ -119,12 +119,12 @@ public class UnregisteredMetricGroups {
 		}
 	}
 
-	private static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
+	public static class UnregisteredTaskMetricGroup extends TaskMetricGroup {
 		private static final JobVertexID DEFAULT_VERTEX_ID = new JobVertexID(0, 0);
 		private static final ExecutionAttemptID DEFAULT_ATTEMPT_ID = new ExecutionAttemptID(0, 0);
 		private static final String DEFAULT_TASK_NAME = "UnregisteredTask";
 
-		private UnregisteredTaskMetricGroup() {
+		protected UnregisteredTaskMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskManagerJobMetricGroup(),
 				DEFAULT_VERTEX_ID, DEFAULT_ATTEMPT_ID, DEFAULT_TASK_NAME, 0, 0);
 		}
@@ -135,11 +135,11 @@ public class UnregisteredMetricGroups {
 		}
 	}
 
-	private static class UnregisteredOperatorMetricGroup extends OperatorMetricGroup {
+	public static class UnregisteredOperatorMetricGroup extends OperatorMetricGroup {
 		private static final OperatorID DEFAULT_OPERATOR_ID = new OperatorID(0, 0);
 		private static final String DEFAULT_OPERATOR_NAME = "UnregisteredOperator";
 
-		private UnregisteredOperatorMetricGroup() {
+		protected UnregisteredOperatorMetricGroup() {
 			super(NoOpMetricRegistry.INSTANCE, new UnregisteredTaskMetricGroup(), DEFAULT_OPERATOR_ID, DEFAULT_OPERATOR_NAME);
 		}
 	}
