@@ -53,6 +53,7 @@ public class MetricRegistryConfiguration {
 	// regex pattern to extract the name from reporter configuration keys, e.g. "rep" from "metrics.reporter.rep.class"
 	private static final Pattern reporterClassPattern = Pattern.compile(
 		Pattern.quote(ConfigConstants.METRICS_REPORTER_PREFIX) +
+		// [\S&&[^.]] = intersection of non-whitespace and non-period character classes
 		"([\\S&&[^.]]*)\\." +
 		Pattern.quote(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX));
 
