@@ -31,6 +31,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+
 import static org.junit.Assert.fail;
 
 /**
@@ -79,20 +81,13 @@ public abstract class HAAbstractQueryableStateTestBase extends AbstractQueryable
 	}
 
 	@AfterClass
-	public static void tearDown() {
-		if (cluster != null) {
-			cluster.stop();
-			cluster.awaitTermination();
-		}
+	public static void tearDown() throws IOException {
+		client.shutdownAndWait();
 
-		try {
-			zkServer.stop();
-			zkServer.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		cluster.stop();
+		cluster.awaitTermination();
 
-		client.shutdown();
+		zkServer.stop();
+		zkServer.close();
 	}
 }

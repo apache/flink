@@ -63,7 +63,10 @@ public class KinesisConfigUtil {
 	protected static final String THREAD_POOL_SIZE = "ThreadPoolSize";
 
 	/** Default values for RateLimit. **/
-	protected static final String DEFAULT_RATE_LIMIT = "100";
+	protected static final long DEFAULT_RATE_LIMIT = 100L;
+
+	/** Default value for ThreadingModel. **/
+	protected static final KinesisProducerConfiguration.ThreadingModel DEFAULT_THREADING_MODEL = KinesisProducerConfiguration.ThreadingModel.POOLED;
 
 	/** Default values for ThreadPoolSize. **/
 	protected static final int DEFAULT_THREAD_POOL_SIZE = 10;
@@ -185,33 +188,23 @@ public class KinesisConfigUtil {
 
 		validateAwsConfiguration(config);
 
-		// Override KPL default value if it's not specified by user
-		if (!config.containsKey(RATE_LIMIT)) {
-			config.setProperty(RATE_LIMIT, DEFAULT_RATE_LIMIT);
-		}
-
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
 
 		kpc.setCredentialsProvider(AWSUtil.getCredentialsProvider(config));
 
 		// we explicitly lower the credential refresh delay (default is 5 seconds)
-		// to avoid a ignorable interruption warning that occurs when shutting down the
+		// to avoid an ignorable interruption warning that occurs when shutting down the
 		// KPL client. See https://github.com/awslabs/amazon-kinesis-producer/issues/10.
 		kpc.setCredentialsRefreshDelay(100);
 
-		// Because of bug https://github.com/awslabs/amazon-kinesis-producer/issues/124
-		// KPL cannot set ThreadingModel and ThreadPoolSize using Java reflection
-		// Thus we have to set them explicitly
-		if (config.containsKey(THREADING_MODEL)) {
-			kpc.setThreadingModel(
-					KinesisProducerConfiguration.ThreadingModel.valueOf(config.getProperty(THREADING_MODEL)));
-		} else {
-			kpc.setThreadingModel(KinesisProducerConfiguration.ThreadingModel.POOLED);
+		// Override default values if they aren't specified by users
+		if (!config.containsKey(RATE_LIMIT)) {
+			kpc.setRateLimit(DEFAULT_RATE_LIMIT);
 		}
-
-		if (config.containsKey(THREAD_POOL_SIZE)) {
-			kpc.setThreadPoolSize(Integer.parseInt(config.getProperty(THREAD_POOL_SIZE)));
-		} else {
+		if (!config.containsKey(THREADING_MODEL)) {
+			kpc.setThreadingModel(DEFAULT_THREADING_MODEL);
+		}
+		if (!config.containsKey(THREAD_POOL_SIZE)) {
 			kpc.setThreadPoolSize(DEFAULT_THREAD_POOL_SIZE);
 		}
 

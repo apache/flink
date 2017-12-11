@@ -73,6 +73,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -92,7 +93,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
-import scala.concurrent.Await;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 import scala.reflect.ClassTag$;
@@ -159,52 +159,40 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testQueryableState() throws Exception {
-		// Config
+
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
 
-		JobID jobId = null;
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-		try {
-			//
-			// Test program
-			//
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestKeyRangeSource(numKeys));
+		ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState = new ReducingStateDescriptor<>(
+				"any-name", new SumReduce(), 	source.getType());
 
-			// Reducing state
-			ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState = new ReducingStateDescriptor<>(
-					"any-name",
-					new SumReduce(),
-					source.getType());
+		final String queryName = "hakuna-matata";
 
-			final String queryName = "hakuna-matata";
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 7143749578983540352L;
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 7143749578983540352L;
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).asQueryableState(queryName, reducingState);
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
-				}
-			}).asQueryableState(queryName, reducingState);
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
+
 			cluster.submitJobDetached(jobGraph);
-
-			//
-			// Start querying
-			//
-			jobId = jobGraph.getJobID();
 
 			final AtomicLongArray counts = new AtomicLongArray(numKeys);
 
@@ -261,16 +249,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				long count = counts.get(i);
 				assertTrue("Count at position " + i + " is " + count, count > 0);
 			}
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -282,91 +260,94 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numKeys = 256;
 
-		JobID jobId = null;
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
+
+		// Reducing state
+		ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState = new ReducingStateDescriptor<>(
+				"any-name",
+				new SumReduce(),
+				source.getType());
+
+		final String queryName = "duplicate-me";
+
+		final QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
+				source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+					private static final long serialVersionUID = -4126824763829132959L;
+
+					@Override
+					public Integer getKey(Tuple2<Integer, Long> value) {
+						return value.f0;
+					}
+				}).asQueryableState(queryName, reducingState);
+
+		final QueryableStateStream<Integer, Tuple2<Integer, Long>> duplicate =
+				source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+					private static final long serialVersionUID = -6265024000462809436L;
+
+					@Override
+					public Integer getKey(Tuple2<Integer, Long> value) {
+						return value.f0;
+					}
+				}).asQueryableState(queryName);
+
+		// Submit the job graph
+		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+		final JobID jobId = jobGraph.getJobID();
+
+		final CompletableFuture<TestingJobManagerMessages.JobStatusIs> failedFuture =
+				notifyWhenJobStatusIs(jobId, JobStatus.FAILED, deadline);
+
+		final CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture =
+				notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
+
+		cluster.submitJobDetached(jobGraph);
 
 		try {
-			//
-			// Test program
-			//
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
-
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestKeyRangeSource(numKeys));
-
-			// Reducing state
-			ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState = new ReducingStateDescriptor<>(
-					"any-name",
-					new SumReduce(),
-					source.getType());
-
-			final String queryName = "duplicate-me";
-
-			final QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = -4126824763829132959L;
-
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState(queryName, reducingState);
-
-			final QueryableStateStream<Integer, Tuple2<Integer, Long>> duplicate =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = -6265024000462809436L;
-
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState(queryName);
-
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
-
-			CompletableFuture<TestingJobManagerMessages.JobStatusIs> failedFuture = FutureUtils.toJava(
-					cluster.getLeaderGateway(deadline.timeLeft())
-							.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, JobStatus.FAILED), deadline.timeLeft())
-							.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
-
-			cluster.submitJobDetached(jobGraph);
-
-			TestingJobManagerMessages.JobStatusIs jobStatus =
+			final TestingJobManagerMessages.JobStatusIs jobStatus =
 					failedFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
 			assertEquals(JobStatus.FAILED, jobStatus.state());
+		} catch (Exception e) {
 
-			// Get the job and check the cause
-			JobManagerMessages.JobFound jobFound = FutureUtils.toJava(
-					cluster.getLeaderGateway(deadline.timeLeft())
-							.ask(new JobManagerMessages.RequestJob(jobId), deadline.timeLeft())
-							.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)))
-					.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			// if the assertion fails, it means that the job was (falsely) not cancelled.
+			// in this case, and given that the mini-cluster is shared with other tests,
+			// we cancel the job and wait for the cancellation so that the resources are freed.
 
-			String failureCause = jobFound.executionGraph().getFailureCause().getExceptionAsString();
-
-			assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));
-			int causedByIndex = failureCause.indexOf("Caused by: ");
-			String subFailureCause = failureCause.substring(causedByIndex + "Caused by: ".length());
-			assertTrue("Not caused by IllegalStateException", subFailureCause.startsWith("java.lang.IllegalStateException"));
-			assertTrue("Exception does not contain registration name", subFailureCause.contains(queryName));
-		} finally {
-			// Free cluster resources
 			if (jobId != null) {
-				scala.concurrent.Future<CancellationSuccess> cancellation = cluster
-						.getLeaderGateway(deadline.timeLeft())
+				cluster.getLeaderGateway(deadline.timeLeft())
 						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<JobManagerMessages.CancellationSuccess>apply(JobManagerMessages.CancellationSuccess.class));
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
 
-				Await.ready(cancellation, deadline.timeLeft());
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
+
+			// and we re-throw the exception.
+			throw e;
 		}
+
+		// Get the job and check the cause
+		JobManagerMessages.JobFound jobFound = FutureUtils.toJava(
+				cluster.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.RequestJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<JobManagerMessages.JobFound>apply(JobManagerMessages.JobFound.class)))
+				.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+
+		String failureCause = jobFound.executionGraph().getFailureCause().getExceptionAsString();
+
+		assertEquals(JobStatus.FAILED, jobFound.executionGraph().getState());
+		assertTrue("Not instance of SuppressRestartsException", failureCause.startsWith("org.apache.flink.runtime.execution.SuppressRestartsException"));
+		int causedByIndex = failureCause.indexOf("Caused by: ");
+		String subFailureCause = failureCause.substring(causedByIndex + "Caused by: ".length());
+		assertTrue("Not caused by IllegalStateException", subFailureCause.startsWith("java.lang.IllegalStateException"));
+		assertTrue("Exception does not contain registration name", subFailureCause.contains(queryName));
 	}
 
 	/**
@@ -377,55 +358,40 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testValueState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			// Value state
-			ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>(
-					"any",
-					source.getType());
+		// Value state
+		ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>("any", source.getType());
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 7662520075515707428L;
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 7662520075515707428L;
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
-				}
-			}).asQueryableState("hakuna", valueState);
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).asQueryableState("hakuna", valueState);
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
 
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, numElements);
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -434,48 +400,36 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 * contains a wrong jobId or wrong queryable state name.
 	 */
 	@Test
+	@Ignore
 	public void testWrongJobIdAndWrongQueryableStateName() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
+		ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>("any", source.getType());
 
-			// Value state
-			ValueStateDescriptor<Tuple2<Integer, Long>> valueState =
-					new ValueStateDescriptor<>("any", source.getType());
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 7662520075515707428L;
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 7662520075515707428L;
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).asQueryableState("hakuna", valueState);
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
-				}
-			}).asQueryableState("hakuna", valueState);
+		try (AutoCancellableJob closableJobGraph = new AutoCancellableJob(cluster, env, deadline)) {
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+			// register to be notified when the job is running.
+			CompletableFuture<TestingJobManagerMessages.JobStatusIs> runningFuture =
+					notifyWhenJobStatusIs(closableJobGraph.getJobId(), JobStatus.RUNNING, deadline);
 
-			CompletableFuture<TestingJobManagerMessages.JobStatusIs> runningFuture = FutureUtils.toJava(
-					cluster.getLeaderGateway(deadline.timeLeft())
-							.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, JobStatus.RUNNING), deadline.timeLeft())
-							.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
-
-			cluster.submitJobDetached(jobGraph);
+			cluster.submitJobDetached(closableJobGraph.getJobGraph());
 
 			// expect for the job to be running
 			TestingJobManagerMessages.JobStatusIs jobStatus =
@@ -486,49 +440,38 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 			CompletableFuture<ValueState<Tuple2<Integer, Long>>> unknownJobFuture = client.getKvState(
 					wrongJobId, 						// this is the wrong job id
-					"hankuna",
+					"hakuna",
 					0,
 					BasicTypeInfo.INT_TYPE_INFO,
 					valueState);
 
 			try {
-				unknownJobFuture.get();
-				fail(); // by now the job must have failed.
+				unknownJobFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				fail(); // by now the request must have failed.
 			} catch (ExecutionException e) {
-				Assert.assertTrue(e.getCause() instanceof RuntimeException);
-				Assert.assertTrue(e.getCause().getMessage().contains(
+				Assert.assertTrue("GOT: " + e.getCause().getMessage(), e.getCause() instanceof RuntimeException);
+				Assert.assertTrue("GOT: " + e.getCause().getMessage(), e.getCause().getMessage().contains(
 						"FlinkJobNotFoundException: Could not find Flink job (" + wrongJobId + ")"));
-			} catch (Exception ignored) {
-				fail("Unexpected type of exception.");
+			} catch (Exception f) {
+				fail("Unexpected type of exception: " + f.getMessage());
 			}
 
 			CompletableFuture<ValueState<Tuple2<Integer, Long>>> unknownQSName = client.getKvState(
-					jobId,
-					"wrong-hankuna", // this is the wrong name.
+					closableJobGraph.getJobId(),
+					"wrong-hakuna", // this is the wrong name.
 					0,
 					BasicTypeInfo.INT_TYPE_INFO,
 					valueState);
 
 			try {
-				unknownQSName.get();
-				fail(); // by now the job must have failed.
+				unknownQSName.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				fail(); // by now the request must have failed.
 			} catch (ExecutionException e) {
-				Assert.assertTrue(e.getCause() instanceof RuntimeException);
-				Assert.assertTrue(e.getCause().getMessage().contains(
-						"UnknownKvStateLocation: No KvStateLocation found for KvState instance with name 'wrong-hankuna'."));
-			} catch (Exception ignored) {
-				fail("Unexpected type of exception.");
-			}
-
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+				Assert.assertTrue("GOT: " + e.getCause().getMessage(), e.getCause() instanceof RuntimeException);
+				Assert.assertTrue("GOT: " + e.getCause().getMessage(), e.getCause().getMessage().contains(
+						"UnknownKvStateLocation: No KvStateLocation found for KvState instance with name 'wrong-hakuna'."));
+			} catch (Exception f) {
+				fail("Unexpected type of exception: " + f.getMessage());
 			}
 		}
 	}
@@ -539,50 +482,44 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testQueryNonStartedJobState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-				.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			// Value state
-			ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>(
-				"any",
-				source.getType(),
-				null);
+		ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>(
+			"any", source.getType(), 	null);
 
-			QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
+		QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
 				source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+
 					private static final long serialVersionUID = 7480503339992214681L;
 
 					@Override
-					public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
+					public Integer getKey(Tuple2<Integer, Long> value) {
 						return value.f0;
 					}
 				}).asQueryableState("hakuna", valueState);
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
 
-			// Now query
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
+
 			long expected = numElements;
 
 			// query once
 			client.getKvState(
-					jobId,
+					autoCancellableJob.getJobId(),
 					queryableState.getQueryableStateName(),
 					0,
 					BasicTypeInfo.INT_TYPE_INFO,
@@ -591,16 +528,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			cluster.submitJobDetached(jobGraph);
 
 			executeValueQuery(deadline, client, jobId, "hakuna", valueState, expected);
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -615,51 +542,37 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	@Test(expected = UnknownKeyOrNamespaceException.class)
 	public void testValueStateDefault() throws Throwable {
 
-		// Config
 		final Deadline deadline = TEST_TIMEOUT.fromNow();
-
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env =
-				StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies
-				.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-				.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			// Value state
-			ValueStateDescriptor<Tuple2<Integer, Long>> valueState =
-				new ValueStateDescriptor<>(
-					"any",
-					source.getType(),
-					Tuple2.of(0, 1337L));
+		ValueStateDescriptor<Tuple2<Integer, Long>> valueState = new ValueStateDescriptor<>(
+				"any", source.getType(), 	Tuple2.of(0, 1337L));
 
-			// only expose key "1"
-			QueryableStateStream<Integer, Tuple2<Integer, Long>>
-				queryableState =
-				source.keyBy(
-					new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = 4509274556892655887L;
+		// only expose key "1"
+		QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState = source.keyBy(
+				new KeySelector<Tuple2<Integer, Long>, Integer>() {
+					private static final long serialVersionUID = 4509274556892655887L;
 
-						@Override
-						public Integer getKey(
-							Tuple2<Integer, Long> value) throws
-							Exception {
-							return 1;
-						}
-					}).asQueryableState("hakuna", valueState);
+					@Override
+					public Integer getKey(Tuple2<Integer, Long> value) {
+						return 1;
+					}
+				}).asQueryableState("hakuna", valueState);
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
 
@@ -683,17 +596,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				// exception in an ExecutionException.
 				throw e.getCause();
 			}
-		} finally {
-
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -707,55 +609,41 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testValueStateShortcut() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			// Value state shortcut
-			QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = 9168901838808830068L;
+		// Value state shortcut
+		final QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
+				source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+					private static final long serialVersionUID = 9168901838808830068L;
 
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState("matata");
+					@Override
+					public Integer getKey(Tuple2<Integer, Long> value) {
+						return value.f0;
+					}
+				}).asQueryableState("matata");
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
+				(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
+
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
-
-			final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
-					(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
 			executeValueQuery(deadline, client, jobId, "matata", stateDesc, numElements);
-		} finally {
-
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(
-						cluster.getLeaderGateway(deadline.timeLeft())
-								.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-								.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -768,50 +656,40 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testFoldingState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final int numElements = 1024;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			// Folding state
-			FoldingStateDescriptor<Tuple2<Integer, Long>, String> foldingState =
-					new FoldingStateDescriptor<>(
-							"any",
-							"0",
-							new SumFold(),
-							StringSerializer.INSTANCE);
+		FoldingStateDescriptor<Tuple2<Integer, Long>, String> foldingState = new FoldingStateDescriptor<>(
+				"any", "0", new SumFold(), StringSerializer.INSTANCE);
 
-			QueryableStateStream<Integer, String> queryableState =
-					source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-						private static final long serialVersionUID = -842809958106747539L;
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = -842809958106747539L;
 
-						@Override
-						public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-							return value.f0;
-						}
-					}).asQueryableState("pumba", foldingState);
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).asQueryableState("pumba", foldingState);
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Now query
-			String expected = Integer.toString(numElements * (numElements + 1) / 2);
+			final String expected = Integer.toString(numElements * (numElements + 1) / 2);
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -840,16 +718,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 				assertTrue("Did not succeed query", success);
 			}
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -861,48 +729,40 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testReducingState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			// Reducing state
-			ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState =
-					new ReducingStateDescriptor<>(
-							"any",
-							new SumReduce(),
-							source.getType());
+		ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState = new ReducingStateDescriptor<>(
+				"any", new SumReduce(), source.getType());
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 8470749712274833552L;
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 8470749712274833552L;
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
-				}
-			}).asQueryableState("jungle", reducingState);
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).asQueryableState("jungle", reducingState);
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Now query
-			long expected = numElements * (numElements + 1L) / 2L;
+			final long expected = numElements * (numElements + 1L) / 2L;
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -931,16 +791,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 				assertTrue("Did not succeed query", success);
 			}
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -952,66 +802,60 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testMapState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			final MapStateDescriptor<Integer, Tuple2<Integer, Long>> mapStateDescriptor = new MapStateDescriptor<>(
-					"timon",
-					BasicTypeInfo.INT_TYPE_INFO,
-					source.getType());
-			mapStateDescriptor.setQueryable("timon-queryable");
+		final MapStateDescriptor<Integer, Tuple2<Integer, Long>> mapStateDescriptor = new MapStateDescriptor<>(
+				"timon", BasicTypeInfo.INT_TYPE_INFO, source.getType());
+		mapStateDescriptor.setQueryable("timon-queryable");
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 8470749712274833552L;
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 8470749712274833552L;
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).process(new ProcessFunction<Tuple2<Integer, Long>, Object>() {
+			private static final long serialVersionUID = -805125545438296619L;
+
+			private transient MapState<Integer, Tuple2<Integer, Long>> mapState;
+
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				mapState = getRuntimeContext().getMapState(mapStateDescriptor);
+			}
+
+			@Override
+			public void processElement(Tuple2<Integer, Long> value, Context ctx, Collector<Object> out) throws Exception {
+				Tuple2<Integer, Long> v = mapState.get(value.f0);
+				if (v == null) {
+					v = new Tuple2<>(value.f0, 0L);
 				}
-			}).process(new ProcessFunction<Tuple2<Integer, Long>, Object>() {
-				private static final long serialVersionUID = -805125545438296619L;
+				mapState.put(value.f0, new Tuple2<>(v.f0, v.f1 + value.f1));
+			}
+		});
 
-				private transient MapState<Integer, Tuple2<Integer, Long>> mapState;
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					super.open(parameters);
-					mapState = getRuntimeContext().getMapState(mapStateDescriptor);
-				}
-
-				@Override
-				public void processElement(Tuple2<Integer, Long> value, Context ctx, Collector<Object> out) throws Exception {
-					Tuple2<Integer, Long> v = mapState.get(value.f0);
-					if (v == null) {
-						v = new Tuple2<>(value.f0, 0L);
-					}
-					mapState.put(value.f0, new Tuple2<>(v.f0, v.f1 + value.f1));
-				}
-			});
-
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Now query
-			long expected = numElements * (numElements + 1L) / 2L;
+			final long expected = numElements * (numElements + 1L) / 2L;
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -1039,16 +883,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
 				assertTrue("Did not succeed query", success);
 			}
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
@@ -1061,62 +895,56 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 */
 	@Test
 	public void testListState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			final ListStateDescriptor<Long> listStateDescriptor = new ListStateDescriptor<Long>(
-					"list",
-					BasicTypeInfo.LONG_TYPE_INFO);
-			listStateDescriptor.setQueryable("list-queryable");
+		final ListStateDescriptor<Long> listStateDescriptor = new ListStateDescriptor<Long>(
+				"list", BasicTypeInfo.LONG_TYPE_INFO);
+		listStateDescriptor.setQueryable("list-queryable");
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 8470749712274833552L;
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 8470749712274833552L;
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
-				}
-			}).process(new ProcessFunction<Tuple2<Integer, Long>, Object>() {
-				private static final long serialVersionUID = -805125545438296619L;
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).process(new ProcessFunction<Tuple2<Integer, Long>, Object>() {
+			private static final long serialVersionUID = -805125545438296619L;
 
-				private transient ListState<Long> listState;
+			private transient ListState<Long> listState;
 
-				@Override
-				public void open(Configuration parameters) throws Exception {
-					super.open(parameters);
-					listState = getRuntimeContext().getListState(listStateDescriptor);
-				}
+			@Override
+			public void open(Configuration parameters) throws Exception {
+				super.open(parameters);
+				listState = getRuntimeContext().getListState(listStateDescriptor);
+			}
 
-				@Override
-				public void processElement(Tuple2<Integer, Long> value, Context ctx, Collector<Object> out) throws Exception {
-					listState.add(value.f1);
-				}
-			});
+			@Override
+			public void processElement(Tuple2<Integer, Long> value, Context ctx, Collector<Object> out) throws Exception {
+				listState.add(value.f1);
+			}
+		});
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
 
-			// Now query
-
-			Map<Integer, Set<Long>> results = new HashMap<>();
+			final Map<Integer, Set<Long>> results = new HashMap<>();
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -1159,66 +987,48 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				}
 			}
 
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-			}
 		}
 	}
 
 	@Test
 	public void testAggregatingState() throws Exception {
-		// Config
-		final Deadline deadline = TEST_TIMEOUT.fromNow();
 
+		final Deadline deadline = TEST_TIMEOUT.fromNow();
 		final long numElements = 1024L;
 
-		JobID jobId = null;
-		try {
-			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-			env.setStateBackend(stateBackend);
-			env.setParallelism(maxParallelism);
-			// Very important, because cluster is shared between tests and we
-			// don't explicitly check that all slots are available before
-			// submitting.
-			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setStateBackend(stateBackend);
+		env.setParallelism(maxParallelism);
+		// Very important, because cluster is shared between tests and we
+		// don't explicitly check that all slots are available before
+		// submitting.
+		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-			DataStream<Tuple2<Integer, Long>> source = env
-					.addSource(new TestAscendingValueSource(numElements));
+		DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestAscendingValueSource(numElements));
 
-			final AggregatingStateDescriptor<Tuple2<Integer, Long>, String, String> aggrStateDescriptor =
-					new AggregatingStateDescriptor<>(
-							"aggregates",
-							new SumAggr(),
-							String.class);
-			aggrStateDescriptor.setQueryable("aggr-queryable");
+		final AggregatingStateDescriptor<Tuple2<Integer, Long>, String, String> aggrStateDescriptor =
+				new AggregatingStateDescriptor<>("aggregates", new SumAggr(), String.class);
+		aggrStateDescriptor.setQueryable("aggr-queryable");
 
-			source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
-				private static final long serialVersionUID = 8470749712274833552L;
+		source.keyBy(new KeySelector<Tuple2<Integer, Long>, Integer>() {
+			private static final long serialVersionUID = 8470749712274833552L;
 
-				@Override
-				public Integer getKey(Tuple2<Integer, Long> value) throws Exception {
-					return value.f0;
-				}
-			}).transform(
-					"TestAggregatingOperator",
-					BasicTypeInfo.STRING_TYPE_INFO,
-					new AggregatingTestOperator(aggrStateDescriptor)
-			);
+			@Override
+			public Integer getKey(Tuple2<Integer, Long> value) {
+				return value.f0;
+			}
+		}).transform(
+				"TestAggregatingOperator",
+				BasicTypeInfo.STRING_TYPE_INFO,
+				new AggregatingTestOperator(aggrStateDescriptor)
+		);
 
-			// Submit the job graph
-			JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-			jobId = jobGraph.getJobID();
+		try (AutoCancellableJob autoCancellableJob = new AutoCancellableJob(cluster, env, deadline)) {
+
+			final JobID jobId = autoCancellableJob.getJobId();
+			final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
 			cluster.submitJobDetached(jobGraph);
-
-			// Now query
 
 			for (int key = 0; key < maxParallelism; key++) {
 				boolean success = false;
@@ -1245,16 +1055,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				}
 
 				assertTrue("Did not succeed query", success);
-			}
-		} finally {
-			// Free cluster resources
-			if (jobId != null) {
-				CompletableFuture<CancellationSuccess> cancellation = FutureUtils.toJava(cluster
-						.getLeaderGateway(deadline.timeLeft())
-						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
-						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class)));
-
-				cancellation.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -1316,7 +1116,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 				notifyAll();
 			}
 		}
-
 	}
 
 	/**
@@ -1464,6 +1263,60 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	}
 
 	/////				General Utility Methods				//////
+
+	/**
+	 * A wrapper of the job graph that makes sure to cancel the job and wait for
+	 * termination after the execution of every test.
+	 */
+	private static class AutoCancellableJob implements AutoCloseable {
+
+		private final FlinkMiniCluster cluster;
+		private final Deadline deadline;
+		private final JobGraph jobGraph;
+
+		private final JobID jobId;
+		private final CompletableFuture<TestingJobManagerMessages.JobStatusIs> cancellationFuture;
+
+		AutoCancellableJob(final FlinkMiniCluster cluster, final StreamExecutionEnvironment env, final Deadline deadline) {
+			Preconditions.checkNotNull(env);
+
+			this.cluster = Preconditions.checkNotNull(cluster);
+			this.jobGraph = env.getStreamGraph().getJobGraph();
+			this.deadline = Preconditions.checkNotNull(deadline);
+
+			this.jobId = jobGraph.getJobID();
+			this.cancellationFuture = notifyWhenJobStatusIs(jobId, JobStatus.CANCELED, deadline);
+		}
+
+		JobGraph getJobGraph() {
+			return jobGraph;
+		}
+
+		JobID getJobId() {
+			return jobId;
+		}
+
+		@Override
+		public void close() throws Exception {
+			// Free cluster resources
+			if (jobId != null) {
+				cluster.getLeaderGateway(deadline.timeLeft())
+						.ask(new JobManagerMessages.CancelJob(jobId), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<CancellationSuccess>apply(CancellationSuccess.class));
+
+				cancellationFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+			}
+		}
+	}
+
+	private static CompletableFuture<TestingJobManagerMessages.JobStatusIs> notifyWhenJobStatusIs(
+			final JobID jobId, final JobStatus status, final Deadline deadline) {
+
+		return FutureUtils.toJava(
+				cluster.getLeaderGateway(deadline.timeLeft())
+						.ask(new TestingJobManagerMessages.NotifyWhenJobStatus(jobId, status), deadline.timeLeft())
+						.mapTo(ClassTag$.MODULE$.<TestingJobManagerMessages.JobStatusIs>apply(TestingJobManagerMessages.JobStatusIs.class)));
+	}
 
 	private static <K, S extends State, V> CompletableFuture<S> getKvState(
 			final Deadline deadline,

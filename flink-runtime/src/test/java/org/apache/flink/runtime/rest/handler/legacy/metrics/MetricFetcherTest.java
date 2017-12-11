@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmaster.JobManagerGateway;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
@@ -81,7 +81,7 @@ public class MetricFetcherTest extends TestLogger {
 
 		JobManagerGateway jobManagerGateway = mock(JobManagerGateway.class);
 
-		when(jobManagerGateway.requestJobDetails(any(Time.class)))
+		when(jobManagerGateway.requestMultipleJobDetails(any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList())));
 		when(jobManagerGateway.requestMetricQueryServicePaths(any(Time.class))).thenReturn(
 			CompletableFuture.completedFuture(Collections.singleton(jmMetricQueryServicePath)));
@@ -176,7 +176,7 @@ public class MetricFetcherTest extends TestLogger {
 				return "x";
 			}
 		}, new Tuple2<>(new QueryScopeInfo.TaskManagerQueryScopeInfo(tmRID.toString(), "abc"), "gauge"));
-		histograms.put(new TestingHistogram(), new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
+		histograms.put(new TestHistogram(), new Tuple2<>(new QueryScopeInfo.JobManagerQueryScopeInfo("abc"), "hist"));
 
 		MetricDumpSerialization.MetricDumpSerializer serializer = new MetricDumpSerialization.MetricDumpSerializer();
 		MetricDumpSerialization.MetricSerializationResult dump = serializer.serialize(counters, gauges, histograms, meters);

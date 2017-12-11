@@ -250,6 +250,9 @@ object FunctionCatalog {
     // map
     "map" -> classOf[MapConstructor],
 
+    // row
+    "row" -> classOf[RowConstructor],
+
     // window properties
     "start" -> classOf[WindowStart],
     "end" -> classOf[WindowEnd],

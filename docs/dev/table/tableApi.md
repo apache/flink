@@ -2996,6 +2996,30 @@ MAP.at(ANY)
 <table class="table table-bordered">
   <thead>
     <tr>
+      <th class="text-left" style="width: 40%">Row functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight java %}
+row(ANY, [, ANY]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values. Row is composite type and can be access via <a href="tableApi.html#built-in-functions">value access functions</a>.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
       <th class="text-left" style="width: 40%">Auxiliary functions</th>
       <th class="text-center">Description</th>
     </tr>
@@ -4287,7 +4311,75 @@ ARRAY.element()
   </tbody>
 </table>
 
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Map functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
 
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+map(ANY, ANY [, ANY, ANY ]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a map from a list of key-value pairs.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+MAP.cardinality()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the number of entries of a map.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+MAP.at(ANY)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value specified by a particular key in a map.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 40%">Row functions</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+
+    <tr>
+      <td>
+        {% highlight scala %}
+row(ANY, [, ANY]*)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Creates a row from a list of values. Row is composite type and can be access via <a href="tableApi.html#built-in-functions">value access functions</a>.</p>
+      </td>
+    </tr>
+
+  </tbody>
+</table>
 
 <table class="table table-bordered">
   <thead>

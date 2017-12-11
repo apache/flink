@@ -117,7 +117,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				Buffer buffer = serializer.getCurrentBuffer();
 
 				if (buffer != null) {
-					numBytesOut.inc(buffer.getSize());
+					numBytesOut.inc(buffer.getSizeUnsafe());
 					writeAndClearBuffer(buffer, targetChannel, serializer);
 
 					// If this was a full record, we are done. Not breaking
@@ -145,7 +145,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				synchronized (serializer) {
 					Buffer buffer = serializer.getCurrentBuffer();
 					if (buffer != null) {
-						numBytesOut.inc(buffer.getSize());
+						numBytesOut.inc(buffer.getSizeUnsafe());
 						writeAndClearBuffer(buffer, targetChannel, serializer);
 					} else if (serializer.hasData()) {
 						// sanity check
@@ -173,7 +173,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						numBytesOut.inc(buffer.getSize());
+						numBytesOut.inc(buffer.getSizeUnsafe());
 						targetPartition.writeBuffer(buffer, targetChannel);
 					}
 				} finally {

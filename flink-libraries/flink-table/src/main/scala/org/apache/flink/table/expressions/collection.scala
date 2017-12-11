@@ -23,12 +23,41 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.{GenericTypeInfo, MapTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.api.java.typeutils.{GenericTypeInfo, MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.typeutils.TypeCheckUtils.{isArray, isMap}
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 import scala.collection.JavaConverters._
+
+case class RowConstructor(elements: Seq[Expression]) extends Expression {
+
+  override private[flink] def children: Seq[Expression] = elements
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    val relDataType = relBuilder
+      .asInstanceOf[FlinkRelBuilder]
+      .getTypeFactory
+      .createTypeFromTypeInfo(resultType, isNullable = false)
+    val values = elements.map(_.toRexNode).toList.asJava
+    relBuilder
+      .getRexBuilder
+      .makeCall(relDataType, SqlStdOperatorTable.ROW, values)
+  }
+
+  override def toString = s"row(${elements.mkString(", ")})"
+
+  override private[flink] def resultType: TypeInformation[_] = new RowTypeInfo(
+    elements.map(e => e.resultType):_*
+  )
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (elements.isEmpty) {
+      return ValidationFailure("Empty rows are not supported yet.")
+    }
+    ValidationSuccess
+  }
+}
 
 case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
 
@@ -64,10 +93,6 @@ case class ArrayConstructor(elements: Seq[Expression]) extends Expression {
 
 case class MapConstructor(elements: Seq[Expression]) extends Expression {
   override private[flink] def children: Seq[Expression] = elements
-
-  private[flink] var mapResultType: TypeInformation[_] = new MapTypeInfo(
-    new GenericTypeInfo[AnyRef](classOf[AnyRef]),
-    new GenericTypeInfo[AnyRef](classOf[AnyRef]))
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
     val typeFactory = relBuilder.asInstanceOf[FlinkRelBuilder].getTypeFactory

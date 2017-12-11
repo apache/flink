@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Assert;
@@ -54,9 +53,9 @@ public abstract class RestRequestMarshallingTestBase<R extends RequestBody> exte
 		final R expected = getTestRequestInstance();
 
 		ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
-		JsonNode json = objectMapper.valueToTree(expected);
+		final String marshalled = objectMapper.writeValueAsString(expected);
 
-		final R unmarshalled = objectMapper.treeToValue(json, getTestRequestClass());
+		final R unmarshalled = objectMapper.readValue(marshalled, getTestRequestClass());
 		Assert.assertEquals(expected, unmarshalled);
 	}
 

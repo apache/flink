@@ -33,7 +33,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
 
 /**
  * Dispatcher implementation which spawns a {@link JobMaster} for each
@@ -51,7 +51,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry,
 			FatalErrorHandler fatalErrorHandler,
-			Optional<String> restAddress) throws Exception {
+			@Nullable String restAddress) throws Exception {
 		super(
 			rpcService,
 			endpointId,
@@ -88,6 +88,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			jobManagerServices,
 			metricRegistry,
 			onCompleteActions,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			restAddress);
 	}
 }

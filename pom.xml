@@ -83,6 +83,7 @@ under the License.
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
+		<module>flink-docs</module>
 	</modules>
 
 	<properties>
@@ -1277,16 +1278,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<artifactId>maven-clean-plugin</artifactId>
-				<configuration>
-					<filesets>
-						<fileset>
-							<directory>${generated.docs.dir}</directory>
-						</fileset>
-					</filesets>
-				</configuration>
-			</plugin>
 		</plugins>
 
 		<!-- Plugin configurations for plugins activated in sub-projects -->
@@ -1308,7 +1299,7 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-enforcer-plugin</artifactId>
-					<version>1.4.1</version>
+					<version>3.0.0-M1</version>
 				</plugin>
 
 				<!-- Pin the version of the maven shade plugin -->

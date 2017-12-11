@@ -18,29 +18,27 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.rest.messages.ConversionException;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.util.StringUtils;
 
 /**
  * TaskManager id path parameter used by TaskManager related handlers.
  */
-public class TaskManagerIdPathParameter extends MessagePathParameter<InstanceID> {
+public class TaskManagerIdPathParameter extends MessagePathParameter<ResourceID> {
 
 	public static final String KEY = "taskmanagerid";
 
-	protected TaskManagerIdPathParameter() {
+	public TaskManagerIdPathParameter() {
 		super(KEY);
 	}
 
 	@Override
-	protected InstanceID convertFromString(String value) throws ConversionException {
-		return new InstanceID(StringUtils.hexStringToByte(value));
+	protected ResourceID convertFromString(String value) {
+		return new ResourceID(value);
 	}
 
 	@Override
-	protected String convertToString(InstanceID value) {
-		return StringUtils.byteToHexString(value.getBytes());
+	protected String convertToString(ResourceID value) {
+		return value.getResourceIdString();
 	}
 }

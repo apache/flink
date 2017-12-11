@@ -81,12 +81,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-avro</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -492,10 +486,6 @@ under the License.
 								</excludes>
 							</artifactSet>
 							<relocations>
-								<relocation>
-									<pattern>org.codehaus.jackson</pattern>
-									<shadedPattern>org.apache.flink.formats.avro.shaded.org.codehaus.jackson</shadedPattern>
-								</relocation>
 								<relocation>
 									<!-- relocate jackson services, which isn't done by flink-shaded-jackson -->
 									<pattern>com.fasterxml.jackson</pattern>

@@ -37,10 +37,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler which returns the cluster overview information with version.
- *
- * @param <T> type of the leader gateway
  */
-public class ClusterOverviewHandler<T extends RestfulGateway> extends AbstractRestHandler<T, EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> {
+public class ClusterOverviewHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> {
 
 	private static final String version = EnvironmentInformation.getVersion();
 
@@ -48,7 +46,7 @@ public class ClusterOverviewHandler<T extends RestfulGateway> extends AbstractRe
 
 	public ClusterOverviewHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, ClusterOverviewWithVersion, EmptyMessageParameters> messageHeaders) {
@@ -56,7 +54,7 @@ public class ClusterOverviewHandler<T extends RestfulGateway> extends AbstractRe
 	}
 
 	@Override
-	public CompletableFuture<ClusterOverviewWithVersion> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull T gateway) {
+	public CompletableFuture<ClusterOverviewWithVersion> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) {
 		CompletableFuture<ClusterOverview> overviewFuture = gateway.requestClusterOverview(timeout);
 
 		return overviewFuture.thenApply(

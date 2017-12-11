@@ -162,8 +162,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	/**
 	 * The offsets to restore to, if the consumer restores state from a checkpoint.
 	 *
-	 * <p>This map will be populated either by the legacy {@link #restoreState(HashMap)} method
-	 * or {@link #initializeState(FunctionInitializationContext)}.
+	 * <p>This map will be populated by the {@link #initializeState(FunctionInitializationContext)} method.
 	 *
 	 * <p>Using a sorted map as the ordering is important when using restored state
 	 * to seed the partition discoverer.

@@ -229,7 +229,9 @@ public abstract class FileSystem {
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
+	//CHECKSTYLE.OFF: StaticVariableName
 	private static URI DEFAULT_SCHEME;
+	//CHECKSTYLE.ON: StaticVariableName
 
 	// ------------------------------------------------------------------------
 	//  Initialization

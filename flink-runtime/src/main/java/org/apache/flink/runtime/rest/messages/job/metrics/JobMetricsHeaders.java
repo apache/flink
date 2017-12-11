@@ -16,29 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.json;
+package org.apache.flink.runtime.rest.messages.job.metrics;
 
-import org.apache.flink.runtime.instance.InstanceID;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
-
-import java.io.IOException;
+import org.apache.flink.runtime.rest.handler.job.metrics.JobMetricsHandler;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 /**
- * Json serializer for {@link InstanceID}.
+ * {@link MessageHeaders} for {@link JobMetricsHandler}.
  */
-public class InstanceIDSerializer extends StdSerializer<InstanceID> {
+public final class JobMetricsHeaders extends AbstractMetricsHeaders<JobMetricsMessageParameters> {
 
-	private static final long serialVersionUID = 5798852092159615938L;
+	private static final JobMetricsHeaders INSTANCE = new JobMetricsHeaders();
 
-	protected InstanceIDSerializer() {
-		super(InstanceID.class);
+	private JobMetricsHeaders() {
 	}
 
 	@Override
-	public void serialize(InstanceID value, JsonGenerator gen, SerializerProvider provider) throws IOException {
-		gen.writeString(value.toString());
+	public JobMetricsMessageParameters getUnresolvedMessageParameters() {
+		return new JobMetricsMessageParameters();
 	}
+
+	@Override
+	public String getTargetRestEndpointURL() {
+		return "/jobs/:" + JobIDPathParameter.KEY + "/metrics";
+	}
+
+	public static JobMetricsHeaders getInstance() {
+		return INSTANCE;
+	}
+
 }

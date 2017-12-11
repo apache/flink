@@ -27,13 +27,13 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.util.TestingHistogram;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -136,7 +136,7 @@ public class Slf4jReporterTest extends TestLogger {
 	public void testAddHistogram() throws Exception {
 		String histogramName = "histogram";
 
-		Histogram histogram = taskMetricGroup.histogram(histogramName, new TestingHistogram());
+		Histogram histogram = taskMetricGroup.histogram(histogramName, new TestHistogram());
 		assertTrue(reporter.getHistograms().containsKey(histogram));
 
 		String expectedHistogramName = reporter.filterCharacters(HOST_NAME) + delimiter

@@ -141,12 +141,17 @@ class MapTypeTest extends MapTypeTestBase {
 
     // comparison
     testAllApis(
-      'f5 === 'f2.at("a"),
-      "f5 === f2.at('a')",
-      "f5 = f2['a']",
+      'f1 === 'f2,
+      "f1 === f2",
+      "f1 = f2",
+      "false")
+
+    testAllApis(
+      'f3 === 'f7,
+      "f3 === f7",
+      "f3 = f7",
       "true")
 
-    // comparison
     testAllApis(
       'f5 === 'f2.at("a"),
       "f5 === f2.at('a')",

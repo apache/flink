@@ -49,7 +49,8 @@ import org.apache.flink.util.FlinkException;
 
 import akka.actor.ActorSystem;
 
-import java.util.Optional;
+import javax.annotation.Nullable;
+
 import java.util.concurrent.Executor;
 
 /**
@@ -130,7 +131,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			heartbeatServices,
 			metricRegistry,
 			this,
-			Optional.of(dispatcherRestEndpoint.getRestAddress()));
+			dispatcherRestEndpoint.getRestAddress());
 
 		LOG.debug("Starting ResourceManager.");
 		resourceManager.start();
@@ -214,7 +215,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
 		FatalErrorHandler fatalErrorHandler,
-		Optional<String> restAddress) throws Exception {
+		@Nullable String restAddress) throws Exception {
 
 		// create the default dispatcher
 		return new StandaloneDispatcher(

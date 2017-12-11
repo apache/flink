@@ -117,7 +117,9 @@ public class JobMasterTest extends TestLogger {
 				null,
 				mock(OnCompletionActions.class),
 				testingFatalErrorHandler,
-				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()));
+				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()),
+				null,
+				null);
 
 			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 
@@ -224,7 +226,9 @@ public class JobMasterTest extends TestLogger {
 				null,
 				mock(OnCompletionActions.class),
 				testingFatalErrorHandler,
-				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()));
+				FlinkUserCodeClassLoaders.parentFirst(new URL[0], JobMasterTest.class.getClassLoader()),
+				null,
+				null);
 
 			CompletableFuture<Acknowledge> startFuture = jobMaster.start(jobMasterId, testingTimeout);
 

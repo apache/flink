@@ -18,7 +18,8 @@
 
 package org.apache.flink.mesos.scheduler;
 
-import com.netflix.fenzo.TaskAssignmentResult;
+import org.apache.flink.mesos.util.MesosResourceAllocation;
+
 import com.netflix.fenzo.TaskRequest;
 import org.apache.mesos.Protos;
 
@@ -35,8 +36,8 @@ public interface LaunchableTask {
 	/**
 	 * Prepare to launch the task by producing a Mesos TaskInfo record.
 	 * @param slaveId the slave assigned to the task.
-	 * @param taskAssignmentResult the task assignment details.
+	 * @param allocation the resource allocation to take from.
      * @return a TaskInfo.
      */
-	Protos.TaskInfo launch(Protos.SlaveID slaveId, TaskAssignmentResult taskAssignmentResult);
+	Protos.TaskInfo launch(Protos.SlaveID slaveId, MesosResourceAllocation allocation);
 }

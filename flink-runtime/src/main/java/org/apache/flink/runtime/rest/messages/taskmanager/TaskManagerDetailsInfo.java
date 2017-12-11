@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.rest.messages.json.InstanceIDDeserializer;
+import org.apache.flink.runtime.rest.messages.json.ResourceIDDeserializer;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -43,7 +43,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
 	@JsonCreator
 	public TaskManagerDetailsInfo(
-			@JsonDeserialize(using = InstanceIDDeserializer.class) @JsonProperty(FIELD_NAME_INSTANCE_ID) InstanceID instanceId,
+			@JsonDeserialize(using = ResourceIDDeserializer.class) @JsonProperty(FIELD_NAME_RESOURCE_ID) ResourceID resourceId,
 			@JsonProperty(FIELD_NAME_ADDRESS) String address,
 			@JsonProperty(FIELD_NAME_DATA_PORT) int dataPort,
 			@JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
@@ -52,7 +52,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 			@JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
 			@JsonProperty(FIELD_NAME_METRICS) TaskManagerMetricsInfo taskManagerMetrics) {
 		super(
-			instanceId,
+			resourceId,
 			address,
 			dataPort,
 			lastHeartbeat,
@@ -65,7 +65,7 @@ public class TaskManagerDetailsInfo extends TaskManagerInfo {
 
 	public TaskManagerDetailsInfo(TaskManagerInfo taskManagerInfo, TaskManagerMetricsInfo taskManagerMetrics) {
 		this(
-			taskManagerInfo.getInstanceId(),
+			taskManagerInfo.getResourceId(),
 			taskManagerInfo.getAddress(),
 			taskManagerInfo.getDataPort(),
 			taskManagerInfo.getLastHeartbeat(),

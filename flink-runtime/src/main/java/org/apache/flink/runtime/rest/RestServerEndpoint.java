@@ -299,10 +299,10 @@ public abstract class RestServerEndpoint {
 	 * /jobs/:jobid/config
 	 * /:*
 	 *
-	 * <p>IMPORTANT: This comparator is highly specific to how Netty path parameter are encoded. Namely
-	 * via a preceding ':' character.
+	 * <p>IMPORTANT: This comparator is highly specific to how Netty path parameters are encoded. Namely
+	 * with a preceding ':' character.
 	 */
-	static final class RestHandlerUrlComparator implements Comparator<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>, Serializable {
+	public static final class RestHandlerUrlComparator implements Comparator<Tuple2<RestHandlerSpecification, ChannelInboundHandler>>, Serializable {
 
 		private static final long serialVersionUID = 2388466767835547926L;
 
@@ -317,7 +317,21 @@ public abstract class RestServerEndpoint {
 			return CASE_INSENSITIVE_ORDER.compare(o1.f0.getTargetRestEndpointURL(), o2.f0.getTargetRestEndpointURL());
 		}
 
-		static final class CaseInsensitiveOrderComparator implements Comparator<String>, Serializable {
+		/**
+		 * Comparator for Rest URLs.
+		 *
+		 * <p>The comparator orders the Rest URLs such that URLs with path parameters are ordered behind
+		 * those without parameters. E.g.:
+		 * /jobs
+		 * /jobs/overview
+		 * /jobs/:jobid
+		 * /jobs/:jobid/config
+		 * /:*
+		 *
+		 * <p>IMPORTANT: This comparator is highly specific to how Netty path parameters are encoded. Namely
+		 * with a preceding ':' character.
+		 */
+		public static final class CaseInsensitiveOrderComparator implements Comparator<String>, Serializable {
 			private static final long serialVersionUID = 8550835445193437027L;
 
 			@Override

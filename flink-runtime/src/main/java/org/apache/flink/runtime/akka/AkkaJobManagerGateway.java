@@ -32,7 +32,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
@@ -223,7 +223,7 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<MultipleJobsDetails> requestJobDetails(Time timeout) {
+	public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Time timeout) {
 		return FutureUtils.toJava(
 			jobManagerGateway
 				.ask(new RequestJobDetails(true, true), FutureUtils.toFiniteDuration(timeout))
@@ -283,11 +283,11 @@ public class AkkaJobManagerGateway implements JobManagerGateway {
 	}
 
 	@Override
-	public CompletableFuture<JobsWithIDsOverview> requestJobsOverview(Time timeout) {
+	public CompletableFuture<JobIdsWithStatusOverview> requestJobsOverview(Time timeout) {
 		return FutureUtils.toJava(
 			jobManagerGateway
 				.ask(RequestJobsWithIDsOverview.getInstance(), FutureUtils.toFiniteDuration(timeout))
-				.mapTo(ClassTag$.MODULE$.apply(JobsWithIDsOverview.class)));
+				.mapTo(ClassTag$.MODULE$.apply(JobIdsWithStatusOverview.class)));
 	}
 
 	@Override

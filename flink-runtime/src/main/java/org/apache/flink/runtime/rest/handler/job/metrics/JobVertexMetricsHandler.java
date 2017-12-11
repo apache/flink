@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.JobVertexMetricsMessageParameters;
+import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.util.Map;
@@ -39,12 +39,14 @@ import java.util.concurrent.CompletableFuture;
  * Handler that returns metrics given a {@link JobID} and {@link JobVertexID}.
  *
  * @see MetricStore#getTaskMetricStore(String, String)
+ * @deprecated This class is subsumed by {@link SubtaskMetricsHandler} and is only kept for
+ * backwards-compatibility.
  */
 public class JobVertexMetricsHandler extends AbstractMetricsHandler<JobVertexMetricsMessageParameters> {
 
 	public JobVertexMetricsHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<DispatcherGateway> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> headers,
 			MetricFetcher metricFetcher) {

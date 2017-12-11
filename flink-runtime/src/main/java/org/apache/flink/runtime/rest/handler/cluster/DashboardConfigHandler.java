@@ -36,16 +36,14 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Handler which returns the dashboard configuration.
- *
- * @param <T> type of the leader gateway
  */
-public class DashboardConfigHandler<T extends RestfulGateway> extends AbstractRestHandler<T, EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
+public class DashboardConfigHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> {
 
 	private final DashboardConfiguration dashboardConfiguration;
 
 	public DashboardConfigHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<? extends T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, DashboardConfiguration, EmptyMessageParameters> messageHeaders,
@@ -56,7 +54,7 @@ public class DashboardConfigHandler<T extends RestfulGateway> extends AbstractRe
 	}
 
 	@Override
-	public CompletableFuture<DashboardConfiguration> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull T gateway) {
+	public CompletableFuture<DashboardConfiguration> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) {
 		return CompletableFuture.completedFuture(dashboardConfiguration);
 	}
 }

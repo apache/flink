@@ -43,9 +43,6 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.hadoop.yarn.api.records.Priority;
-import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.api.records.Token;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
@@ -74,6 +71,7 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link Utils}.
@@ -119,7 +117,15 @@ public class UtilsTest extends TestLogger {
 			final List<Container> containerList = new ArrayList<>();
 
 			for (int i = 0; i < numInitialTaskManagers; i++) {
-				containerList.add(new TestingContainer("container", 1234, i));
+				Container mockContainer = mock(Container.class);
+				when(mockContainer.getId()).thenReturn(
+					ContainerId.newInstance(
+						ApplicationAttemptId.newInstance(
+							ApplicationId.newInstance(System.currentTimeMillis(), 1),
+							1),
+						i));
+				when(mockContainer.getNodeId()).thenReturn(NodeId.newInstance("container", 1234));
+				containerList.add(mockContainer);
 			}
 
 			doAnswer(new Answer() {
@@ -234,87 +240,5 @@ public class UtilsTest extends TestLogger {
 				}
 			}
 		}};
-	}
-
-	static class TestingContainer extends Container {
-
-		private final NodeId nodeId;
-		private final ContainerId containerId;
-
-		TestingContainer(String host, int port, int containerId) {
-			this.nodeId = NodeId.newInstance(host, port);
-			this.containerId = ContainerId.newInstance(
-				ApplicationAttemptId.newInstance(
-					ApplicationId.newInstance(
-						System.currentTimeMillis(),
-						1),
-					1),
-				containerId);
-		}
-
-		@Override
-		public ContainerId getId() {
-			return containerId;
-		}
-
-		@Override
-		public void setId(ContainerId containerId) {
-
-		}
-
-		@Override
-		public NodeId getNodeId() {
-			return nodeId;
-		}
-
-		@Override
-		public void setNodeId(NodeId nodeId) {
-
-		}
-
-		@Override
-		public String getNodeHttpAddress() {
-			return null;
-		}
-
-		@Override
-		public void setNodeHttpAddress(String s) {
-
-		}
-
-		@Override
-		public Resource getResource() {
-			return null;
-		}
-
-		@Override
-		public void setResource(Resource resource) {
-
-		}
-
-		@Override
-		public Priority getPriority() {
-			return null;
-		}
-
-		@Override
-		public void setPriority(Priority priority) {
-
-		}
-
-		@Override
-		public Token getContainerToken() {
-			return null;
-		}
-
-		@Override
-		public void setContainerToken(Token token) {
-
-		}
-
-		@Override
-		public int compareTo(Container o) {
-			return 0;
-		}
 	}
 }

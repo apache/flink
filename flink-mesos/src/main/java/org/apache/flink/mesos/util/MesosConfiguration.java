@@ -24,7 +24,9 @@ import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 import org.slf4j.Logger;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 import scala.Option;
 
@@ -87,6 +89,14 @@ public class MesosConfiguration {
 	 */
 	public MesosConfiguration withFrameworkInfo(Protos.FrameworkInfo.Builder frameworkInfo) {
 		return new MesosConfiguration(masterUrl, frameworkInfo, credential);
+	}
+
+	/**
+	 * Gets the roles associated with the framework.
+	 */
+	public Set<String> roles() {
+		return frameworkInfo.hasRole() && !"*".equals(frameworkInfo.getRole()) ?
+			Collections.singleton(frameworkInfo.getRole()) : Collections.emptySet();
 	}
 
 	/**

@@ -93,6 +93,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * General tests for the YARN resource manager component.
@@ -288,35 +289,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		}
 	}
 
-	static class TestContainer extends UtilsTest.TestingContainer {
-		Resource resource;
-		Priority priority;
-
-		TestContainer(String host, int port, int containerId) {
-			super(host, port, containerId);
-		}
-
-		@Override
-		public Resource getResource() {
-			return resource;
-		}
-
-		@Override
-		public void setResource(Resource resource) {
-			this.resource = resource;
-		}
-
-		@Override
-		public Priority getPriority() {
-			return priority;
-		}
-
-		@Override
-		public void setPriority(Priority priority) {
-			this.priority = priority;
-		}
-	}
-
 	@Test
 	public void testStopWorker() throws Exception {
 		new Context() {{
@@ -332,9 +304,16 @@ public class YarnResourceManagerTest extends TestLogger {
 			registerSlotRequestFuture.get();
 
 			// Callback from YARN when container is allocated.
-			Container testingContainer = new TestContainer(taskHost, 1234, 1);
-			testingContainer.setResource(Resource.newInstance(200, 1));
-			testingContainer.setPriority(Priority.UNDEFINED);
+			Container testingContainer = mock(Container.class);
+			when(testingContainer.getId()).thenReturn(
+				ContainerId.newInstance(
+					ApplicationAttemptId.newInstance(
+						ApplicationId.newInstance(System.currentTimeMillis(), 1),
+						1),
+					1));
+			when(testingContainer.getNodeId()).thenReturn(NodeId.newInstance("container", 1234));
+			when(testingContainer.getResource()).thenReturn(Resource.newInstance(200, 1));
+			when(testingContainer.getPriority()).thenReturn(Priority.UNDEFINED);
 			resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
 			verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 			verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));

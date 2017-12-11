@@ -1074,7 +1074,7 @@ public class LimitedConnectionsFileSystem extends FileSystem {
 			checkLimit(limitOut, limitOutOption);
 
 			// create the settings only, if at least one limit is configured
-			if (totalLimit <= 0 || limitIn <= 0 || limitOut <= 0) {
+			if (totalLimit <= 0 && limitIn <= 0 && limitOut <= 0) {
 				// no limit configured
 				return null;
 			}

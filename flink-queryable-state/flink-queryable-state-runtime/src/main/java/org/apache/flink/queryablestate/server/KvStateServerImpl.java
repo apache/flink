@@ -32,6 +32,7 @@ import org.apache.flink.util.Preconditions;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The default implementation of the {@link KvStateServer}.
@@ -101,6 +102,11 @@ public class KvStateServerImpl extends AbstractServerBase<KvStateInternalRequest
 
 	@Override
 	public void shutdown() {
-		super.shutdown();
+		try {
+			shutdownServer().get(10L, TimeUnit.SECONDS);
+			log.info("{} was shutdown successfully.", getServerName());
+		} catch (Exception e) {
+			log.warn("{} shutdown failed: {}", getServerName(), e);
+		}
 	}
 }

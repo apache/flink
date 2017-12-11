@@ -36,14 +36,12 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Overview handler for jobs.
- *
- * @param <T> type of the leader gateway
  */
-public class JobsOverviewHandler<T extends RestfulGateway> extends AbstractRestHandler<T, EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
+public class JobsOverviewHandler extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> {
 
 	public JobsOverviewHandler(
 			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<? extends T> leaderRetriever,
+			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters> messageHeaders) {
@@ -56,7 +54,7 @@ public class JobsOverviewHandler<T extends RestfulGateway> extends AbstractRestH
 	}
 
 	@Override
-	protected CompletableFuture<MultipleJobsDetails> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull T gateway) throws RestHandlerException {
-		return gateway.requestJobDetails(timeout);
+	protected CompletableFuture<MultipleJobsDetails> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request, @Nonnull RestfulGateway gateway) throws RestHandlerException {
+		return gateway.requestMultipleJobDetails(timeout);
 	}
 }
