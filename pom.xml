@@ -616,7 +616,7 @@ under the License.
 							<threshold>Low</threshold>
 							<effort>default</effort>
 							<findbugsXmlOutputDirectory>${project.build.directory}/spotbugs</findbugsXmlOutputDirectory>
-							<excludeFilterFile>tools/maven/spotbugs-exclude.xml</excludeFilterFile>
+							<excludeFilterFile>${rootDir}/tools/maven/spotbugs-exclude.xml</excludeFilterFile>
 							<failOnError>true</failOnError>
 						</configuration>
 					</plugin>
