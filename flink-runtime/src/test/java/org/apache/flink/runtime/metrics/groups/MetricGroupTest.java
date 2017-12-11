@@ -28,6 +28,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
@@ -35,6 +36,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -76,6 +79,166 @@ public class MetricGroupTest extends TestLogger {
 		assertNotNull(subgroup1);
 		assertNotNull(subgroup2);
 		assertTrue(subgroup1 == subgroup2);
+	}
+
+	@Test
+	public void createGroupWithUserDefinedVariables() {
+		char delimiter = '.';
+		String rootGroupName = "somegroup";
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), rootGroupName);
+
+		String keyName = "sometestkey";
+		String valueName1 = "sometestvalue1";
+		MetricGroup subgroup1 = group.addGroup(keyName, valueName1);
+		Map<String, String> variables1 = subgroup1.getAllVariables();
+
+		assertNotNull(subgroup1);
+		assertTrue(variables1.containsKey(ScopeFormat.asVariable(keyName)));
+		assertEquals(valueName1, variables1.get(ScopeFormat.asVariable(keyName)));
+		assertEquals(delimiter + rootGroupName + delimiter + keyName,
+			((AbstractMetricGroup) subgroup1).getLogicalScope(new DummyCharacterFilter(), delimiter));
+
+		String valueName2 = "sometestvalue2";
+		MetricGroup subgroup2 = group.addGroup(keyName, valueName2);
+		Map<String, String> variables2 = subgroup2.getAllVariables();
+
+		assertNotNull(subgroup2);
+		assertTrue(variables2.containsKey(ScopeFormat.asVariable(keyName)));
+		assertEquals(valueName2, variables2.get(ScopeFormat.asVariable(keyName)));
+		assertEquals(delimiter + rootGroupName + delimiter + keyName,
+			((AbstractMetricGroup) subgroup2).getLogicalScope(new DummyCharacterFilter(), delimiter));
+	}
+
+	@Test
+	public void forbidToCreateGenericKeyMetricGroupAfterGenericKeyMetricGroup() {
+		char delimiter = '.';
+		String rootGroupName = "somegroup";
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), rootGroupName);
+
+		String keyName = "somekeyname";
+		String valueName = "somevaluename";
+		group.addGroup(keyName, valueName);
+
+		String keyName2 = "somekeyname2";
+		String valueName2 = "somevaluename2";
+		MetricGroup subgroup = group.addGroup(keyName).addGroup(keyName2, valueName2);
+
+		// Is is illegal to call `MetricGroup#addGroup(String key, String value)` after `GenericKeyMetricGroup`.
+		// The behavior will fall back to `group.addGroup(key).addGroup(value)`.
+		assertEquals(delimiter + rootGroupName + delimiter + keyName + delimiter + keyName2 + delimiter + valueName2,
+			((AbstractMetricGroup) subgroup).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertTrue(subgroup.getAllVariables().isEmpty());
+	}
+
+	@Test
+	public void forbidToCreateGenericValueMetricGroupAfterGenericMetricGroup() {
+		char delimiter = '.';
+		String rootGroupName = "somegroup";
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), rootGroupName);
+
+		String groupName = "sometestname";
+		group.addGroup(groupName);
+
+		String valueName = "somevaluename";
+		MetricGroup subgroup = group.addGroup(groupName, valueName);
+
+		// Is is illegal to call `MetricGroup#addGroup(String key, String value)` when there is already a
+		// `GenericMetricGroup` named as `key`. The behavior will fall back to `group.addGroup(key).addGroup(value)`.
+		assertEquals(delimiter + rootGroupName + delimiter + groupName + delimiter + valueName,
+			((AbstractMetricGroup) subgroup).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertTrue(subgroup.getAllVariables().isEmpty());
+	}
+
+	@Test
+	public void alwaysCanCreateGenericMetricGroup() {
+		char delimiter = '.';
+		String rootGroupName = "somegroup";
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), rootGroupName);
+
+		String groupName = "sometestname";
+		MetricGroup group1 = group.addGroup(groupName);
+		assertEquals(delimiter + rootGroupName + delimiter + groupName,
+			((AbstractMetricGroup) group1).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertTrue(group1.getAllVariables().isEmpty());
+
+		String keyName = "somekeyname";
+		String valueName = "somevaluename";
+		MetricGroup valueGroup = group.addGroup(keyName, valueName);
+		MetricGroup group2 = group.addGroup(keyName).addGroup(groupName);
+		assertEquals(delimiter + rootGroupName + delimiter + keyName + delimiter + groupName,
+			((AbstractMetricGroup) group2).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertTrue(group2.getAllVariables().isEmpty());
+
+		MetricGroup group3 = valueGroup.addGroup(groupName);
+		assertEquals(delimiter + rootGroupName + delimiter + keyName + delimiter + groupName,
+			((AbstractMetricGroup) group3).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertEquals(1, group3.getAllVariables().size());
+	}
+
+	@Test
+	public void tolerateGroupNameCollisionsWhenGenericMetricGroupCreatedFirst() {
+		char delimiter = '.';
+		String rootGroupName = "somegroup";
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), rootGroupName);
+
+		String groupName = "sometestname";
+		String valueName = "somevaluename";
+		MetricGroup subgroup1 = group.addGroup(groupName);
+		MetricGroup subgroup2 = group.addGroup(groupName, valueName);
+
+		assertEquals(subgroup1, ((AbstractMetricGroup) subgroup2).parent);
+		assertEquals(delimiter + rootGroupName + delimiter + groupName + delimiter + valueName,
+			((AbstractMetricGroup) subgroup2).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertTrue(subgroup2.getAllVariables().isEmpty());
+
+		String groupName2 = "sometestname2";
+		String valueName2 = "somevaluename2";
+		group.addGroup(groupName2, valueName);
+		MetricGroup subgroup3 = group.addGroup(groupName2).addGroup(valueName2);
+		MetricGroup subgroup4 = group.addGroup(groupName2, valueName2);
+
+		assertEquals(subgroup3, subgroup4);
+		assertEquals(delimiter + rootGroupName + delimiter + groupName2 + delimiter + valueName2,
+			((AbstractMetricGroup) subgroup4).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertTrue(subgroup4.getAllVariables().isEmpty());
+	}
+
+	@Test
+	public void tolerateGroupNameCollisionsWhenGenericKeyMetricGroupCreatedFirst() {
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), "somegroup");
+
+		String keyName = "sometestname";
+		String valueName = "somevaluename";
+		MetricGroup subgroup1 = group.addGroup(keyName, valueName);
+		MetricGroup subgroup2 = group.addGroup(keyName);
+
+		assertEquals(((AbstractMetricGroup) subgroup1).parent, subgroup2);
+	}
+
+	@Test
+	public void tolerateGroupNameCollisionsWhenGenericValueMetricGroupCreatedFirst() {
+		char delimiter = '.';
+		String rootGroupName = "somegroup";
+		GenericMetricGroup group = new GenericMetricGroup(
+			registry, new DummyAbstractMetricGroup(registry), rootGroupName);
+
+		String keyName = "sometestname";
+		String valueName = "somevaluename";
+		MetricGroup subgroup1 = group.addGroup(keyName, valueName);
+		MetricGroup subgroup2 = group.addGroup(keyName).addGroup(valueName);
+
+		assertEquals(subgroup1, subgroup2);
+		assertEquals(delimiter + rootGroupName + delimiter + keyName,
+			((AbstractMetricGroup) subgroup2).getLogicalScope(new DummyCharacterFilter(), delimiter));
+		assertEquals(1, subgroup2.getAllVariables().size());
+		assertTrue(subgroup2.getAllVariables().containsKey(ScopeFormat.asVariable(keyName)));
+		assertEquals(valueName, subgroup2.getAllVariables().get(ScopeFormat.asVariable(keyName)));
 	}
 
 	@Test

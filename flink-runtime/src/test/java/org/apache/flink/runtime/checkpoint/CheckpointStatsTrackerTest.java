@@ -385,6 +385,11 @@ public class CheckpointStatsTrackerTest {
 			}
 
 			@Override
+			public MetricGroup addGroup(String key, String value) {
+				throw new UnsupportedOperationException("Not expected in this test");
+			}
+
+			@Override
 			public String[] getScopeComponents() {
 				throw new UnsupportedOperationException("Not expected in this test");
 			}

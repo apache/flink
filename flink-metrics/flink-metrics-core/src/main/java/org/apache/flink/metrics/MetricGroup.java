@@ -150,6 +150,17 @@ public interface MetricGroup {
 	 */
 	MetricGroup addGroup(String name);
 
+	/**
+	 * Creates two new MetricGroup and adds the first one to this groups sub-groups,
+	 * then add the second one to the first one's sub-groups. (i.e. {@code group.addGroup(key).addGroup(value)})
+	 * Moreover, the second group will be added a new user-defined variable, for example {@code {"<key>"="value"}}.
+	 *
+	 * @param key name of the first group
+	 * @param value name of the second group
+	 * @return the second created group
+	 */
+	MetricGroup addGroup(String key, String value);
+
 	// ------------------------------------------------------------------------
 	// Scope
 	// ------------------------------------------------------------------------
