@@ -118,7 +118,8 @@ public class MetricRegistryConfiguration {
 			delim = '.';
 		}
 
-		Set<String> includedReporters = reporterListPattern.splitAsStream(configuration.getString(MetricOptions.REPORTERS_LIST, ""))
+		String includedReportersString = configuration.getString(MetricOptions.REPORTERS_LIST, "");
+		Set<String> includedReporters = reporterListPattern.splitAsStream(includedReportersString)
 			.collect(Collectors.toSet());
 
 		// use a TreeSet to make the reporter order deterministic, which is useful for testing
@@ -136,7 +137,7 @@ public class MetricRegistryConfiguration {
 							namedReporters.add(reporterName);
 						}
 					} else {
-						LOG.info("Excluding reporter {}.", reporterName);
+						LOG.info("Excluding reporter {}, not configured in reporter list ({}).", reporterName, includedReportersString);
 					}
 				}
 			}
