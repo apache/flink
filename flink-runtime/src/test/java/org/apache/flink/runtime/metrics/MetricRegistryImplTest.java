@@ -70,24 +70,6 @@ public class MetricRegistryImplTest extends TestLogger {
 	}
 
 	/**
-	 * Verifies that the reporter class argument is correctly used to instantiate and open the reporter.
-	 */
-	@Test
-	public void testReporterInstantiation() {
-		Configuration config = new Configuration();
-
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-
-		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
-
-		assertTrue(metricRegistry.getReporters().size() == 1);
-
-		Assert.assertTrue(TestReporter1.wasOpened);
-
-		metricRegistry.shutdown();
-	}
-
-	/**
 	 * Verifies that the reporter name list is correctly used to determine which reporters should be instantiated.
 	 */
 	@Test
@@ -96,13 +78,14 @@ public class MetricRegistryImplTest extends TestLogger {
 
 		config.setString(MetricOptions.REPORTERS_LIST, "test");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
+		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter11.class.getName());
 
 		MetricRegistryImpl metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 
 		assertTrue(metricRegistry.getReporters().size() == 1);
 
 		Assert.assertTrue(TestReporter1.wasOpened);
+		Assert.assertFalse(TestReporter11.wasOpened);
 
 		metricRegistry.shutdown();
 	}
