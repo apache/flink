@@ -55,7 +55,7 @@ public class TaskExecutorLocalStateStoresManagerTest {
 		TaskManagerServices taskManagerServices =
 			TaskManagerServices.fromConfiguration(taskManagerServicesConfiguration, tmResourceID);
 
-		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskStateManager();
+		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
 		String[] split = rootDirString.split(",");
 		File[] rootDirectories = taskStateManager.getLocalStateRootDirectories();
@@ -85,7 +85,7 @@ public class TaskExecutorLocalStateStoresManagerTest {
 		TaskManagerServices taskManagerServices =
 			TaskManagerServices.fromConfiguration(taskManagerServicesConfiguration, tmResourceID);
 
-		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskStateManager();
+		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
 		String[] tmpDirPaths = taskManagerServicesConfiguration.getTmpDirPaths();
 		File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();

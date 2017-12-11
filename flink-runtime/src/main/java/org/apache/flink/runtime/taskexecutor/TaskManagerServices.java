@@ -145,7 +145,7 @@ public class TaskManagerServices {
 		return jobLeaderService;
 	}
 
-	public TaskExecutorLocalStateStoresManager getTaskStateManager() {
+	public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
 		return taskStateManager;
 	}
 

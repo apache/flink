@@ -112,6 +112,7 @@ public class TaskManagerMetricsTest extends TestLogger {
 				taskManagerServices.getMemoryManager(),
 				taskManagerServices.getIOManager(),
 				taskManagerServices.getNetworkEnvironment(),
+				taskManagerServices.getTaskManagerStateStore(),
 				highAvailabilityServices,
 				taskManagerMetricGroup);
 
