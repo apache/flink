@@ -39,6 +39,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
 
@@ -89,6 +90,8 @@ public class StreamTaskTestHarness<OUT> {
 	protected int numInputGates;
 	protected int numInputChannelsPerGate;
 
+	private boolean setupCalled = false;
+
 	@SuppressWarnings("rawtypes")
 	protected StreamTestSingleInputGate[] inputGates;
 
@@ -134,6 +137,8 @@ public class StreamTaskTestHarness<OUT> {
 	 * please manually configure the stream config.
 	 */
 	public void setupOutputForSingletonOperatorChain() {
+		Preconditions.checkState(!setupCalled, "This harness was already setup.");
+		setupCalled = true;
 		streamConfig.setChainStart();
 		streamConfig.setBufferTimeout(0);
 		streamConfig.setTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -369,6 +374,8 @@ public class StreamTaskTestHarness<OUT> {
 	}
 
 	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, OneInputStreamOperator<?, ?> headOperator) {
+		Preconditions.checkState(!setupCalled, "This harness was already setup.");
+		setupCalled = true;
 		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
 	}
 
