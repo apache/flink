@@ -36,6 +36,7 @@ import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -376,6 +377,11 @@ public class StreamTaskTestHarness<OUT> {
 	}
 
 	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, OneInputStreamOperator<?, ?> headOperator) {
+		Preconditions.checkState(!setupCalled, "This harness was already setup.");
+		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
+	}
+
+	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, TwoInputStreamOperator<?, ?, ?> headOperator) {
 		Preconditions.checkState(!setupCalled, "This harness was already setup.");
 		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
 	}
