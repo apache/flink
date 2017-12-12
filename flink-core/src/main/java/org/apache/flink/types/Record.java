@@ -1321,7 +1321,7 @@ public final class Record implements Value, CopyableValue<Record> {
 		@Override
 		public char readChar() throws IOException {
 			if (this.position < this.end - 1) {
-				return (char) (((this.memory[this.position++] & 0xff) << 8) | ((this.memory[this.position++] & 0xff) << 0));
+				return (char) (((this.memory[this.position++] & 0xff) << 8) | ((this.memory[this.position++] & 0xff)));
 			} else {
 				throw new EOFException();
 			}
@@ -1417,7 +1417,7 @@ public final class Record implements Value, CopyableValue<Record> {
 		@Override
 		public short readShort() throws IOException {
 			if (position >= 0 && position < this.end - 1) {
-				return (short) ((((this.memory[position++]) & 0xff) << 8) | (((this.memory[position++]) & 0xff) << 0));
+				return (short) ((((this.memory[position++]) & 0xff) << 8) | (((this.memory[position++]) & 0xff)));
 			} else {
 				throw new EOFException();
 			}
@@ -1483,7 +1483,7 @@ public final class Record implements Value, CopyableValue<Record> {
 					if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80)) {
 						throw new UTFDataFormatException("malformed input around byte " + (count - 1));
 					}
-					chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F) << 0));
+					chararr[chararr_count++] = (char) (((c & 0x0F) << 12) | ((char2 & 0x3F) << 6) | ((char3 & 0x3F)));
 					break;
 				default:
 					/* 10xx xxxx, 1111 xxxx */
@@ -1506,7 +1506,7 @@ public final class Record implements Value, CopyableValue<Record> {
 		@Override
 		public int readUnsignedShort() throws IOException {
 			if (this.position < this.end - 1) {
-				return ((this.memory[this.position++] & 0xff) << 8) | ((this.memory[this.position++] & 0xff) << 0);
+				return ((this.memory[this.position++] & 0xff) << 8) | ((this.memory[this.position++] & 0xff));
 			} else {
 				throw new EOFException();
 			}
@@ -1681,7 +1681,7 @@ public final class Record implements Value, CopyableValue<Record> {
 				resize(2);
 			}
 			this.memory[this.position++] = (byte) ((v >>> 8) & 0xff);
-			this.memory[this.position++] = (byte) ((v >>> 0) & 0xff);
+			this.memory[this.position++] = (byte) ((v) & 0xff);
 		}
 
 		@Override
@@ -1712,7 +1712,7 @@ public final class Record implements Value, CopyableValue<Record> {
 			int count = this.position;
 
 			bytearr[count++] = (byte) ((utflen >>> 8) & 0xFF);
-			bytearr[count++] = (byte) ((utflen >>> 0) & 0xFF);
+			bytearr[count++] = (byte) ((utflen) & 0xFF);
 
 			int i = 0;
 			for (i = 0; i < strlen; i++) {
@@ -1731,10 +1731,10 @@ public final class Record implements Value, CopyableValue<Record> {
 				} else if (c > 0x07FF) {
 					bytearr[count++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
 					bytearr[count++] = (byte) (0x80 | ((c >> 6) & 0x3F));
-					bytearr[count++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+					bytearr[count++] = (byte) (0x80 | ((c) & 0x3F));
 				} else {
 					bytearr[count++] = (byte) (0xC0 | ((c >> 6) & 0x1F));
-					bytearr[count++] = (byte) (0x80 | ((c >> 0) & 0x3F));
+					bytearr[count++] = (byte) (0x80 | ((c) & 0x3F));
 				}
 			}
 
