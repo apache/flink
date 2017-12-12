@@ -25,12 +25,12 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 public class MetricOptions {
 
 	/**
-	 * The list of named reporters. Names are defined here and per-reporter configs
-	 * are given with the reporter config prefix and the reporter name.
+	 * An optional list of reporter names. If configured, only reporters whose name matches any of the names in the list
+	 * will be started. Otherwise, all reporters that could be found in the configuration will be started.
 	 *
-	 * Example:
+	 * <p>Example:
 	 * <pre>{@code
-	 * metrics.reporters = foo, bar
+	 * metrics.reporters = foo,bar
 	 *
 	 * metrics.reporter.foo.class = org.apache.flink.metrics.reporter.JMXReporter
 	 * metrics.reporter.foo.interval = 10

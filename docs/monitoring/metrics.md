@@ -560,11 +560,11 @@ counter = getRuntimeContext()
 Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`. These
 reporters will be instantiated on each job and task manager when they are started.
 
-- `metrics.reporters`: The list of named reporters.
 - `metrics.reporter.<name>.<config>`: Generic setting `<config>` for the reporter named `<name>`.
 - `metrics.reporter.<name>.class`: The reporter class to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.interval`: The reporter interval to use for the reporter named `<name>`.
 - `metrics.reporter.<name>.scope.delimiter`: The delimiter to use for the identifier (default value use `metrics.scope.delimiter`) for the reporter named `<name>`.
+- `metrics.reporters`: (optional) A comma-separated include list of reporters names. By default all configured reporters will be used.
 
 All reporters must at least have the `class` property, some allow specifying a reporting `interval`. Below,
 we will list more settings specific to each reporter.
@@ -606,7 +606,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: jmx
 metrics.reporter.jmx.class: org.apache.flink.metrics.jmx.JMXReporter
 metrics.reporter.jmx.port: 8789
 
@@ -642,7 +641,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: gang
 metrics.reporter.gang.class: org.apache.flink.metrics.ganglia.GangliaReporter
 metrics.reporter.gang.host: localhost
 metrics.reporter.gang.port: 8649
@@ -668,7 +666,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: grph
 metrics.reporter.grph.class: org.apache.flink.metrics.graphite.GraphiteReporter
 metrics.reporter.grph.host: localhost
 metrics.reporter.grph.port: 2003
@@ -689,7 +686,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: prom
 metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
 
 {% endhighlight %}
@@ -719,7 +715,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: stsd
 metrics.reporter.stsd.class: org.apache.flink.metrics.statsd.StatsDReporter
 metrics.reporter.stsd.host: localhost
 metrics.reporter.stsd.port: 8125
@@ -743,7 +738,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: dghttp
 metrics.reporter.dghttp.class: org.apache.flink.metrics.datadog.DatadogHttpReporter
 metrics.reporter.dghttp.apikey: xxx
 metrics.reporter.dghttp.tags: myflinkapp,prod
@@ -760,7 +754,6 @@ Example configuration:
 
 {% highlight yaml %}
 
-metrics.reporters: slf4j
 metrics.reporter.slf4j.class: org.apache.flink.metrics.slf4j.Slf4jReporter
 metrics.reporter.slf4j.interval: 60 SECONDS
 

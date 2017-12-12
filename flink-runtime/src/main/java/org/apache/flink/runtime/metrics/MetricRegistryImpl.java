@@ -137,7 +137,7 @@ public class MetricRegistryImpl implements MetricRegistry {
 
 					MetricConfig metricConfig = new MetricConfig();
 					reporterConfig.addAllToProperties(metricConfig);
-					LOG.info("Configuring {} with {}.", reporterClass.getSimpleName(), metricConfig);
+					LOG.info("Configuring {} with {}.", namedReporter, metricConfig);
 					reporterInstance.open(metricConfig);
 
 					if (reporterInstance instanceof Scheduled) {
