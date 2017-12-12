@@ -193,7 +193,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 						BufferResponse msg = new BufferResponse(
 							next.buffer(),
 							reader.getSequenceNumber(),
-							reader.getReceiverId());
+							reader.getReceiverId(),
+							0);
 
 						if (isEndOfPartitionEvent(next.buffer())) {
 							reader.notifySubpartitionConsumed();

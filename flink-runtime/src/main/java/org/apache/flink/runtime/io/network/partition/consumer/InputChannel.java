@@ -100,6 +100,10 @@ public abstract class InputChannel {
 		return channelIndex;
 	}
 
+	public ResultPartitionID getPartitionId() {
+		return partitionId;
+	}
+
 	/**
 	 * Notifies the owning {@link SingleInputGate} that this channel became non-empty.
 	 * 
