@@ -36,11 +36,11 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordSerial
 
 /**
  * A record-oriented runtime result writer.
- * <p>
- * The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
+ *
+ * <p>The RecordWriter wraps the runtime's {@link ResultPartitionWriter} and takes care of
  * serializing records into buffers.
- * <p>
- * <strong>Important</strong>: it is necessary to call {@link #flush()} after
+ *
+ * <p><strong>Important</strong>: it is necessary to call {@link #flush()} after
  * all records have been written with {@link #emit(IOReadableWritable)}. This
  * ensures that all produced records are written to the output stream (incl.
  * partially filled ones).
@@ -71,7 +71,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 		this.targetPartition = writer;
 		this.channelSelector = channelSelector;
 
-		this.numChannels = writer.getNumberOfOutputChannels();
+		this.numChannels = writer.getNumberOfSubpartitions();
 
 		/**
 		 * The runtime exposes a channel abstraction for the produced results

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -99,6 +100,8 @@ public class MockEnvironment implements Environment {
 	private final int bufferSize;
 
 	private final ClassLoader userCodeClassLoader;
+
+	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
 	public MockEnvironment(String taskName, long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this(taskName, memorySize, inputSplitProvider, bufferSize, new Configuration(), new ExecutionConfig());
@@ -201,7 +204,7 @@ public class MockEnvironment implements Environment {
 			});
 
 			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			when(mockWriter.getNumberOfSubpartitions()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
 			final Record record = new Record();
@@ -321,6 +324,11 @@ public class MockEnvironment implements Environment {
 		InputGate[] gates = new InputGate[inputs.size()];
 		inputs.toArray(gates);
 		return gates;
+	}
+
+	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
 	}
 
 	@Override

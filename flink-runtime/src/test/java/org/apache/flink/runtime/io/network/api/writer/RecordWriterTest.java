@@ -74,7 +74,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@PrepareForTest({ResultPartitionWriter.class, EventSerializer.class})
+@PrepareForTest({EventSerializer.class})
 @RunWith(PowerMockRunner.class)
 public class RecordWriterTest {
 
@@ -181,7 +181,7 @@ public class RecordWriterTest {
 
 			ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
 			when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferPool));
-			when(partitionWriter.getNumberOfOutputChannels()).thenReturn(1);
+			when(partitionWriter.getNumberOfSubpartitions()).thenReturn(1);
 
 			// Recycle buffer and throw Exception
 			doAnswer(new Answer<Void>() {
@@ -454,7 +454,7 @@ public class RecordWriterTest {
 
 		ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
 		when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferProvider));
-		when(partitionWriter.getNumberOfOutputChannels()).thenReturn(numChannels);
+		when(partitionWriter.getNumberOfSubpartitions()).thenReturn(numChannels);
 
 		doAnswer(new Answer<Void>() {
 			@Override
@@ -512,7 +512,7 @@ public class RecordWriterTest {
 
 		ResultPartitionWriter partitionWriter = mock(ResultPartitionWriter.class);
 		when(partitionWriter.getBufferProvider()).thenReturn(checkNotNull(bufferProvider));
-		when(partitionWriter.getNumberOfOutputChannels()).thenReturn(1);
+		when(partitionWriter.getNumberOfSubpartitions()).thenReturn(1);
 
 		// Recycle each written buffer.
 		doAnswer(new Answer<Void>() {

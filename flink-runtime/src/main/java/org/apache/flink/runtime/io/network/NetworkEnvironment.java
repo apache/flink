@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager.IOMode;
-import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -174,11 +173,6 @@ public class NetworkEnvironment {
 
 	public void registerTask(Task task) throws IOException {
 		final ResultPartition[] producedPartitions = task.getProducedPartitions();
-		final ResultPartitionWriter[] writers = task.getAllWriters();
-
-		if (writers.length != producedPartitions.length) {
-			throw new IllegalStateException("Unequal number of writers and partitions.");
-		}
 
 		synchronized (lock) {
 			if (isShutdown) {
@@ -187,7 +181,6 @@ public class NetworkEnvironment {
 
 			for (int i = 0; i < producedPartitions.length; i++) {
 				final ResultPartition partition = producedPartitions[i];
-				final ResultPartitionWriter writer = writers[i];
 
 				// Buffer pool for the partition
 				BufferPool bufferPool = null;
@@ -214,7 +207,7 @@ public class NetworkEnvironment {
 				}
 
 				// Register writer with task event dispatcher
-				taskEventDispatcher.registerWriterForIncomingTaskEvents(writer.getPartitionId(), writer);
+				taskEventDispatcher.registerPartition(partition.getPartitionId());
 			}
 
 			// Setup the buffer pool for each buffer reader
@@ -263,18 +256,9 @@ public class NetworkEnvironment {
 				resultPartitionManager.releasePartitionsProducedBy(executionId, task.getFailureCause());
 			}
 
-			ResultPartitionWriter[] writers = task.getAllWriters();
-			if (writers != null) {
-				for (ResultPartitionWriter writer : writers) {
-					taskEventDispatcher.unregisterWriter(writer);
-				}
-			}
-
-			ResultPartition[] partitions = task.getProducedPartitions();
-			if (partitions != null) {
-				for (ResultPartition partition : partitions) {
-					partition.destroyBufferPool();
-				}
+			for (ResultPartition partition : task.getProducedPartitions()) {
+				taskEventDispatcher.unregisterPartition(partition.getPartitionId());
+				partition.destroyBufferPool();
 			}
 
 			final SingleInputGate[] inputGates = task.getAllInputGates();

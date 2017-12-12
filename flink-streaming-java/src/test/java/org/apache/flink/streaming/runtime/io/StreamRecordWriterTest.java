@@ -99,7 +99,7 @@ public class StreamRecordWriterTest {
 
 		ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
 		when(mockWriter.getBufferProvider()).thenReturn(mockProvider);
-		when(mockWriter.getNumberOfOutputChannels()).thenReturn(numPartitions);
+		when(mockWriter.getNumberOfSubpartitions()).thenReturn(numPartitions);
 
 		return mockWriter;
 	}

@@ -632,7 +632,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				for (ResultPartitionWriter output : getEnvironment().getAllWriters()) {
 					try {
-						output.writeBufferToAllChannels(EventSerializer.toBuffer(message));
+						output.writeBufferToAllSubpartitions(EventSerializer.toBuffer(message));
 					} catch (Exception e) {
 						exception = ExceptionUtils.firstOrSuppressed(
 							new Exception("Could not send cancel checkpoint marker to downstream tasks.", e),
