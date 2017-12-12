@@ -222,7 +222,7 @@ When running Flink with Marathon, the whole Flink cluster including the job mana
 
 `mesos.initial-tasks`: The initial workers to bring up when the master starts (**DEFAULT**: The number of workers specified at cluster startup).
 
-`mesos.constraints.hard.hostattribute`: Constraints for task placement on mesos based on agent attributes (**DEFAULT**: None).
+`mesos.constraints.hard.hostattribute`: Constraints for task placement on Mesos based on agent attributes (**DEFAULT**: None).
 Takes a comma-separated list of key:value pairs corresponding to the attributes exposed by the target
 mesos agents.  Example: `az:eu-west-1a,series:t2`
 
