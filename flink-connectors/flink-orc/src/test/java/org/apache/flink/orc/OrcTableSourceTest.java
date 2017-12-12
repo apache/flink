@@ -175,14 +175,15 @@ public class OrcTableSourceTest {
 			.forOrcSchema(TEST_SCHEMA_NESTED)
 			.build();
 
-		// expressions for predicates
+		// expressions for supported predicates
 		Expression pred1 = new GreaterThan(
 			new ResolvedFieldReference("int1", Types.INT),
 			new Literal(100, Types.INT));
 		Expression pred2 = new EqualTo(
 			new ResolvedFieldReference("string1", Types.STRING),
 			new Literal("hello", Types.STRING));
-		Expression pred3 = new EqualTo(
+		// unsupported predicate
+		Expression unsupportedPred = new EqualTo(
 			new GetCompositeField(
 				new ItemAt(
 					new ResolvedFieldReference(
@@ -193,10 +194,18 @@ public class OrcTableSourceTest {
 				"int1"),
 			new Literal(1, Types.INT)
 			);
+		// invalid predicate
+		Expression invalidPred = new EqualTo(
+			new ResolvedFieldReference("long1", Types.LONG),
+			// some invalid, non-serializable literal (here an object of this test class)
+			new Literal(new OrcTableSourceTest(), Types.LONG)
+		);
+
 		ArrayList<Expression> preds = new ArrayList<>();
 		preds.add(pred1);
 		preds.add(pred2);
-		preds.add(pred3);
+		preds.add(unsupportedPred);
+		preds.add(invalidPred);
 
 		// apply predicates on TableSource
 		OrcTableSource projected = (OrcTableSource) orc.applyPredicate(preds);
@@ -212,7 +221,7 @@ public class OrcTableSourceTest {
 			Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes()),
 			projected.getReturnType());
 
-		// ensure IF is configured with supported predicates
+		// ensure IF is configured with valid/supported predicates
 		OrcTableSource spyTS = spy(projected);
 		OrcRowInputFormat mockIF = mock(OrcRowInputFormat.class);
 		doReturn(mockIF).when(spyTS).buildOrcInputFormat();
