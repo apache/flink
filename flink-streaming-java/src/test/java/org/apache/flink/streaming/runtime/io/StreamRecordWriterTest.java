@@ -41,8 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * This test uses the PowerMockRunner runner to work around the fact that the
- * {@link ResultPartitionWriter} class is final.
+ * Tests for the {@link StreamRecordWriter}.
  */
 public class StreamRecordWriterTest {
 

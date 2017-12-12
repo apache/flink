@@ -30,16 +30,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.taskmanager.TaskActions;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-@PrepareForTest({ResultPartitionWriter.class})
-@RunWith(PowerMockRunner.class)
 public class ResultPartitionWriterTest {
 
 	// ---------------------------------------------------------------------------------------------

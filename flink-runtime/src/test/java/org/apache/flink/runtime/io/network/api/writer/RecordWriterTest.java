@@ -74,7 +74,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@PrepareForTest({ResultPartitionWriter.class, EventSerializer.class})
+@PrepareForTest({EventSerializer.class})
 @RunWith(PowerMockRunner.class)
 public class RecordWriterTest {
 
