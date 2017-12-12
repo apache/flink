@@ -16,25 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state;
-
-import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.util.Disposable;
-
-import java.io.Closeable;
+package org.apache.flink.util;
 
 /**
- * Interface that combines both, the user facing {@link OperatorStateStore} interface and the system interface
- * {@link Snapshotable}
- *
+ * Interface for classes that can be disposed, i.e. that have a dedicated lifecycle step to "destroy" the object. On
+ * reason for this is for example to release native resources. From this point, the interface fulfills a similar purpose
+ * as the {@link java.io.Closeable} interface, but sometimes both should be represented as isolated, independent
+ * lifecycle steps.
  */
-public interface OperatorStateBackend extends
-	OperatorStateStore,
-	Snapshotable<SnapshotResult<OperatorStateHandle>, StateObjectCollection<OperatorStateHandle>>,
-	Closeable,
-	Disposable {
+public interface Disposable {
 
-	@Override
-	void dispose();
+	/**
+	 * Disposes the object and releases all resources. After calling this method, calling any methods on the
+	 * object may result in undefined behavior.
+	 *
+	 * @throws Exception if something goes wrong during disposal.
+	 */
+	void dispose() throws Exception;
 }
