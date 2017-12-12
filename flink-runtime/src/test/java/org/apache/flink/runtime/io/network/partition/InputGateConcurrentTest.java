@@ -216,7 +216,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		void addBuffer(Buffer buffer) throws Exception {
-			channel.onBuffer(buffer, seq++);
+			channel.onBuffer(buffer, seq++, -1);
 		}
 	}
 
