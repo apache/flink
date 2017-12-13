@@ -20,12 +20,12 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for ResourceSpec class, including its all public api: isValid, lessThanOrEqual, equals, hashCode and merge.
@@ -40,14 +40,14 @@ public class ResourceSpecTest extends TestLogger {
 		rs = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1)).
+				setGPUResource(1).
 				build();
 		assertTrue(rs.isValid());
 
 		rs = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(-1)).
+				setGPUResource(-1).
 				build();
 		assertFalse(rs.isValid());
 	}
@@ -62,7 +62,7 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1.1)).
+				setGPUResource(1.1).
 				build();
 		assertTrue(rs1.lessThanOrEqual(rs3));
 		assertFalse(rs3.lessThanOrEqual(rs1));
@@ -70,7 +70,7 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs4 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				setGPUResource(2.2).
 				build();
 		assertFalse(rs4.lessThanOrEqual(rs3));
 		assertTrue(rs3.lessThanOrEqual(rs4));
@@ -86,19 +86,19 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				setGPUResource(2.2).
 				build();
 		ResourceSpec rs4 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1)).
+				setGPUResource(1).
 				build();
 		assertFalse(rs3.equals(rs4));
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				setGPUResource(2.2).
 				build();
 		assertTrue(rs3.equals(rs5));
 	}
@@ -112,28 +112,21 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				setGPUResource(2.2).
 				build();
 		ResourceSpec rs4 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1)).
+				setGPUResource(1).
 				build();
 		assertFalse(rs3.hashCode() == rs4.hashCode());
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(2.2)).
+				setGPUResource(2.2).
 				build();
 		assertEquals(rs3.hashCode(), rs5.hashCode());
-
-		ResourceSpec rs6 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(2.2, ResourceSpec.Resource.ResourceAggregateType.AGGREGATE_TYPE_MAX)).
-				build();
-		assertFalse(rs6.hashCode() == rs5.hashCode());
 	}
 
 	@Test
@@ -141,7 +134,7 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs1 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1.1)).
+				setGPUResource(1.1).
 				build();
 		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 
@@ -150,26 +143,6 @@ public class ResourceSpecTest extends TestLogger {
 
 		ResourceSpec rs4 = rs1.merge(rs3);
 		assertEquals(2.2, rs4.getGPUResource(), 0.000001);
-
-		ResourceSpec rs5 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1.1, ResourceSpec.Resource.ResourceAggregateType.AGGREGATE_TYPE_MAX)).
-				build();
-		try {
-			rs4.merge(rs5);
-			fail("Merge with different aggregate type should fail");
-		} catch (IllegalArgumentException ignored) {
-		}
-
-		ResourceSpec rs6 = ResourceSpec.newBuilder().
-				setCpuCores(1.0).
-				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1.5, ResourceSpec.Resource.ResourceAggregateType.AGGREGATE_TYPE_MAX)).
-				build();
-		ResourceSpec rs7 = rs5.merge(rs6);
-		assertEquals(1.5, rs7.getGPUResource(), 0.000001);
-
 	}
 
 	@Test
@@ -177,7 +150,7 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs1 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
-				setGPUResource(new ResourceSpec.GPUResource(1.1)).
+				setGPUResource(1.1).
 				build();
 		byte[] buffer = InstantiationUtil.serializeObject(rs1);
 		ResourceSpec rs2 = InstantiationUtil.deserializeObject(buffer, ClassLoader.getSystemClassLoader());

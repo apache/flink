@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
+
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,9 +33,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Describe the different resource factors of the operator with UDF.
  *
- * The state backend provides the method to estimate memory usages based on state size in the resource.
+ * <p>The state backend provides the method to estimate memory usages based on state size in the resource.
  *
- * Resource provides {@link #merge(ResourceSpec)} method for chained operators when generating job graph.
+ * <p>Resource provides {@link #merge(ResourceSpec)} method for chained operators when generating job graph.
  *
  * <p>Resource provides {@link #lessThanOrEqual(ResourceSpec)} method to compare these fields in sequence:
  * <ol>
@@ -53,21 +54,21 @@ public class ResourceSpec implements Serializable {
 
 	public static final ResourceSpec DEFAULT = new ResourceSpec(0, 0, 0, 0, 0);
 
-	private static String GPU_NAME = "GPU";
+	private static final String GPU_NAME = "GPU";
 
-	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
+	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
 	private final double cpuCores;
 
-	/** How many java heap memory in mb are needed */
+	/** How many java heap memory in mb are needed. */
 	private final int heapMemoryInMB;
 
-	/** How many nio direct memory in mb are needed */
+	/** How many nio direct memory in mb are needed. */
 	private final int directMemoryInMB;
 
-	/** How many native memory in mb are needed */
+	/** How many native memory in mb are needed. */
 	private final int nativeMemoryInMB;
 
-	/** How many state size in mb are used */
+	/** How many state size in mb are used. */
 	private final int stateSizeInMB;
 
 	private final Map<String, Resource> extendedResources = new HashMap<>(1);
@@ -239,8 +240,13 @@ public class ResourceSpec implements Serializable {
 				'}';
 	}
 
-	public static Builder newBuilder() { return new Builder(); }
+	public static Builder newBuilder() {
+		return new Builder();
+	}
 
+	/**
+	 * Builder for the {@link ResourceSpec}.
+	 */
 	public static class Builder {
 
 		public double cpuCores;
@@ -275,28 +281,40 @@ public class ResourceSpec implements Serializable {
 			return this;
 		}
 
-		public Builder setGPUResource(GPUResource gpuResource) {
-			this.gpuResource = gpuResource;
+		public Builder setGPUResource(double gpus) {
+			this.gpuResource = new GPUResource(gpus);
 			return this;
 		}
 
 		public ResourceSpec build() {
-			return new ResourceSpec(cpuCores, heapMemoryInMB, directMemoryInMB, nativeMemoryInMB, stateSizeInMB, gpuResource);
+			return new ResourceSpec(
+				cpuCores,
+				heapMemoryInMB,
+				directMemoryInMB,
+				nativeMemoryInMB,
+				stateSizeInMB,
+				gpuResource);
 		}
 	}
 
-	public static abstract class Resource implements Serializable {
+	/**
+	 * Base class for additional resources one can specify.
+	 */
+	protected abstract static class Resource implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
+		/**
+		 * Enum defining how resources are aggregated.
+		 */
 		public enum ResourceAggregateType {
 			/**
-			 * Denotes keeping the sum of the values with same name when merging two resource specs for operator chaining
+			 * Denotes keeping the sum of the values with same name when merging two resource specs for operator chaining.
 			 */
 			AGGREGATE_TYPE_SUM,
 
 			/**
-			 * Denotes keeping the max of the values with same name when merging two resource specs for operator chaining
+			 * Denotes keeping the max of the values with same name when merging two resource specs for operator chaining.
 			 */
 			AGGREGATE_TYPE_MAX
 		}
@@ -305,7 +323,7 @@ public class ResourceSpec implements Serializable {
 
 		private final double value;
 
-		final private ResourceAggregateType type;
+		private final ResourceAggregateType type;
 
 		public Resource(String name, double value, ResourceAggregateType type) {
 			this.name = checkNotNull(name);
@@ -348,14 +366,14 @@ public class ResourceSpec implements Serializable {
 
 		@Override
 		public int hashCode() {
-			int result = name != null ? name.hashCode() : 0;
+			int result = name.hashCode();
 			result = 31 * result + type.ordinal();
-			result = 31 * result + (int)value;
+			result = 31 * result + (int) value;
 			return result;
 		}
 
 		/**
-		 * Create a resource of the same resource type
+		 * Create a resource of the same resource type.
 		 *
 		 * @param value The value of the resource
 		 * @param type The aggregate type of the resource
@@ -368,6 +386,8 @@ public class ResourceSpec implements Serializable {
 	 * The GPU resource.
 	 */
 	public static class GPUResource extends Resource {
+
+		private static final long serialVersionUID = -2276080061777135142L;
 
 		public GPUResource(double value) {
 			this(value, ResourceAggregateType.AGGREGATE_TYPE_SUM);
