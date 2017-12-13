@@ -157,7 +157,7 @@ public class TimeWindow extends Window {
 
 		@Override
 		public int getLength() {
-			return 0;
+			return Long.BYTES * 2;
 		}
 
 		@Override
