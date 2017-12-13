@@ -119,7 +119,7 @@ views for mappings, keys and values can be retrieved using `entries()`, `keys()`
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
 
-<span class="label label-danger">Attention</span> `FoldingState` and `FoldingStateDescriptor` have been deprecated in Flink 1.4 and will be completely removed in the future. A more general alternative will be provided.
+<span class="label label-danger">Attention</span> `FoldingState` and `FoldingStateDescriptor` have been deprecated in Flink 1.4 and will be completely removed in the future. Please use `AggregatingState` and `AggregatingStateDescriptor` instead.
 
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
