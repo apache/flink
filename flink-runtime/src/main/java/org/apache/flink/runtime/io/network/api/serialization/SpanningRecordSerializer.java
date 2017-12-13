@@ -23,7 +23,6 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import javax.annotation.Nullable;
 
@@ -177,9 +176,5 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	public boolean hasData() {
 		// either data in current target buffer or intermediate buffers
 		return (targetBuffer != null && !targetBuffer.isEmpty()) || lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
-	}
-
-	@Override
-	public void instantiateMetrics(TaskIOMetricGroup metrics) {
 	}
 }

@@ -22,7 +22,6 @@ package org.apache.flink.runtime.io.network.api.serialization;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 
@@ -125,11 +124,4 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @return <tt>true</tt> if some data is present
 	 */
 	boolean hasData();
-
-	/**
-	 * Instantiates all metrics.
-	 *
-	 * @param metrics metric group
-	 */
-	void instantiateMetrics(TaskIOMetricGroup metrics);
 }
