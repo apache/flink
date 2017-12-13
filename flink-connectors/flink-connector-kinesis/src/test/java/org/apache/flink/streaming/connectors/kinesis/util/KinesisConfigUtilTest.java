@@ -131,6 +131,16 @@ public class KinesisConfigUtilTest {
 		assertEquals("2", replacedConfig.getProperty(KinesisConfigUtil.COLLECTION_MAX_COUNT));
 	}
 
+	@Test
+	public void testCorrectlySetRegionInProducerConfiguration() {
+		String region = "us-east-1";
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, region);
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals("region not expected", region, kpc.getRegion());
+	}
+
 	// ----------------------------------------------------------------------
 	// validateAwsConfiguration() tests
 	// ----------------------------------------------------------------------
@@ -160,7 +170,7 @@ public class KinesisConfigUtilTest {
 		KinesisConfigUtil.validateAwsConfiguration(testConfig);
 	}
 
-	@Test
+		@Test
 	public void testCredentialProviderTypeSetToBasicButNoCredentialSetInConfig() {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Please set values for AWS Access Key ID ('" + AWSConfigConstants.AWS_ACCESS_KEY_ID + "') " +
