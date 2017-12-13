@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.regex.Pattern;
 
 /**
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
@@ -58,6 +59,9 @@ public class Path implements IOReadableWritable, Serializable {
 	 * Character denoting the current directory.
 	 */
 	public static final String CUR_DIR = ".";
+
+	/** A pre-compiled regex/state-machine to match the windows drive pattern. */
+	private static final Pattern WINDOWS_ROOT_DIR_REGEX = Pattern.compile("/\\p{Alpha}+:/");
 
 	/**
 	 * The internal representation of the path, a hierarchical URI.
@@ -262,9 +266,9 @@ public class Path implements IOReadableWritable, Serializable {
 		path = path.replaceAll("/+", "/");
 
 		// remove tailing separator
-		if (!path.equals(SEPARATOR) &&              // UNIX root path
-				!path.matches("/\\p{Alpha}+:/") &&  // Windows root path
-				path.endsWith(SEPARATOR)) {
+		if (path.endsWith(SEPARATOR) &&
+				!path.equals(SEPARATOR) &&              // UNIX root path
+				!WINDOWS_ROOT_DIR_REGEX.matcher(path).matches()) {  // Windows root path)
 
 			// remove tailing slash
 			path = path.substring(0, path.length() - SEPARATOR.length());
