@@ -138,7 +138,7 @@ public class KinesisConfigUtilTest {
 		testConfig.setProperty(AWSConfigConstants.AWS_REGION, region);
 		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-		assertEquals("region not expected", region, kpc.getRegion());
+		assertEquals("incorrect region", region, kpc.getRegion());
 	}
 
 	// ----------------------------------------------------------------------
