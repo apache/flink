@@ -159,7 +159,7 @@ public class DispatcherTest extends TestLogger {
 			mock(ResourceManagerGateway.class),
 			new BlobServer(blobServerConfig, new VoidBlobStore()),
 			heartbeatServices,
-			new NoOpMetricRegistry(),
+			NoOpMetricRegistry.INSTANCE,
 			fatalErrorHandler,
 			TEST_JOB_ID);
 
