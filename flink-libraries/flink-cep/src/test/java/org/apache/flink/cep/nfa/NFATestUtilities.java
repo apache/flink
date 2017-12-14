@@ -21,7 +21,6 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.cep.Event;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.primitives.Doubles;
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -37,12 +36,18 @@ import java.util.Map;
 public class NFATestUtilities {
 
 	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa) {
+		return feedNFA(inputEvents, nfa, AfterMatchSkipStrategy.noSkip());
+	}
+
+	public static List<List<Event>> feedNFA(List<StreamRecord<Event>> inputEvents, NFA<Event> nfa,
+											AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		List<List<Event>> resultingPatterns = new ArrayList<>();
 
 		for (StreamRecord<Event> inputEvent : inputEvents) {
 			Collection<Map<String, List<Event>>> patterns = nfa.process(
 				inputEvent.getValue(),
-				inputEvent.getTimestamp()).f0;
+				inputEvent.getTimestamp(),
+				afterMatchSkipStrategy).f0;
 
 			for (Map<String, List<Event>> p: patterns) {
 				List<Event> res = new ArrayList<>();
@@ -96,7 +101,7 @@ public class NFATestUtilities {
 		@Override
 		public int compare(Event o1, Event o2) {
 			int nameComp = o1.getName().compareTo(o2.getName());
-			int priceComp = Doubles.compare(o1.getPrice(), o2.getPrice());
+			int priceComp = Double.compare(o1.getPrice(), o2.getPrice());
 			int idComp = Integer.compare(o1.getId(), o2.getId());
 			if (nameComp == 0) {
 				if (priceComp == 0) {

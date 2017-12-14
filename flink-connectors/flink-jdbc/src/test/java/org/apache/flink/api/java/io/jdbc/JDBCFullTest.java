@@ -24,6 +24,7 @@ import org.apache.flink.api.java.io.jdbc.JDBCInputFormat.JDBCInputFormatBuilder;
 import org.apache.flink.api.java.io.jdbc.split.NumericBetweenParametersProvider;
 import org.apache.flink.types.Row;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,6 +32,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.sql.Types;
 
 /**
@@ -89,6 +91,19 @@ public class JDBCFullTest extends JDBCTestBase {
 				count++;
 			}
 			Assert.assertEquals(JDBCTestBase.TEST_DATA.length, count);
+		}
+	}
+
+	@After
+	public void clearOutputTable() throws Exception {
+		Class.forName(DRIVER_CLASS);
+		try (
+			Connection conn = DriverManager.getConnection(DB_URL);
+			Statement stat = conn.createStatement()) {
+			stat.execute("DELETE FROM " + OUTPUT_TABLE);
+
+			stat.close();
+			conn.close();
 		}
 	}
 

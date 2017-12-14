@@ -36,11 +36,11 @@ limitations under the License.
     <tr>
       <td><span ng-if="v['start-time'] &gt; -1">{{ v['start-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
       <td><span ng-if="v['end-time'] &gt; -1">{{ v['end-time'] | amDateFormat:'YYYY-MM-DD, H:mm:ss' }}</span></td>
-      <td><span ng-if="v.duration &gt; -1" title="{{v.duration | humanizeDuration:false}}">{{v.duration | humanizeDuration:true}}</span></td>
-      <td><span ng-if="tm.metrics['read-bytes'] &gt; -1" title="{{tm.metrics['read-bytes']}} bytes">{{ tm.metrics['read-bytes'] | humanizeBytes}}</span></td>
-      <td><span ng-if="tm.metrics['read-records'] &gt; -1">{{ tm.metrics['read-records'] | number }}</span></td>
-      <td><span ng-if="tm.metrics['write-bytes'] &gt; -1" title="{{tm.metrics['write-bytes']}} bytes">{{ tm.metrics['write-bytes'] | humanizeBytes}}</span></td>
-      <td><span ng-if="tm.metrics['write-records'] &gt; -1">{{ tm.metrics['write-records'] | number }}</span></td>
+      <td><span ng-if="v.duration &gt; -1" title="{{v.duration | humanizeDuration:false}}">{{v.duration | humanizeDuration:true}}      </span></td>
+      <td><span ng-if="tm.metrics['read-bytes-complete']">{{ tm.metrics['read-bytes'] | humanizeBytes }}</span><i ng-if="!tm.metrics['read-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="tm.metrics['read-records-complete']">{{ tm.metrics['read-records'] | number }}</span><i ng-if="!tm.metrics['read-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="tm.metrics['write-bytes-complete']">{{ tm.metrics['write-bytes'] | humanizeBytes }}</span><i ng-if="!tm.metrics['write-bytes-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
+      <td><span ng-if="tm.metrics['write-records-complete']">{{ tm.metrics['write-records'] | number }}</span><i ng-if="!tm.metrics['write-records-complete']" aria-hidden="true" class="fa fa-spinner fa-spin fa-fw"></i></td>
       <td>{{ tm.host }}</td>
       <td>
         <div class="label-group">

@@ -67,23 +67,49 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
-  def testTimestampAddWithDate(): Unit ={
-    testSqlApi("TIMESTAMPADD(DAY, 1, date '2016-06-15')", "2016-06-16")
-  }
-
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithrongTimestampInterval(): Unit ={
+  def testTimestampAddWithWrongTimestampInterval(): Unit ={
     testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[SqlParserException])
-  def testTimestampAddWithrongTimestampFormat(): Unit ={
+  def testTimestampAddWithWrongTimestampFormat(): Unit ={
     testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
   }
 
   @Test(expected = classOf[ValidationException])
   def testTimestampAddWithWrongQuantity(): Unit ={
     testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Sub-query functions
+  // ----------------------------------------------------------------------------------------------
+
+  @Test(expected = classOf[ValidationException])
+  def testInValidationExceptionMoreThanOneTypes(): Unit = {
+    testTableApi(
+      'f2.in('f3, 'f4, 4),
+      "f2.in(f3, f4, 4)",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      'f1.in("Hi", "Hello world", "Comment#1"),
+      "true",
+      "true"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def javaInValidationExceptionDifferentOperandsTest(): Unit = {
+    testTableApi(
+      true,
+      "f1.in('Hi','Hello world','Comment#1')",
+      "true"
+    )
   }
 }

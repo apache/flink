@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import com.google.common.collect.Lists;
-import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.util.event.EventListener;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -44,6 +42,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
@@ -62,7 +61,7 @@ public class LocalBufferPoolTest {
 
 	@Before
 	public void setupLocalBufferPool() {
-		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize, MemoryType.HEAP);
+		networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
 		localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 		assertEquals(0, localBufferPool.getNumberOfAvailableMemorySegments());
@@ -76,6 +75,9 @@ public class LocalBufferPoolTest {
 
 		String msg = "Did not return all buffers to memory segment pool after test.";
 		assertEquals(msg, numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments());
+		// no other local buffer pools used than the one above, but call just in case
+		networkBufferPool.destroyAllBufferPools();
+		networkBufferPool.destroy();
 	}
 
 	@AfterClass
@@ -208,32 +210,39 @@ public class LocalBufferPoolTest {
 	// ------------------------------------------------------------------------
 
 	@Test
-	public void testPendingRequestWithListenerAfterRecycle() throws Exception {
-		EventListener<Buffer> listener = spy(new EventListener<Buffer>() {
-			@Override
-			public void onEvent(Buffer buffer) {
-				buffer.recycle();
-			}
-		});
+	public void testPendingRequestWithListenersAfterRecycle() throws Exception {
+		BufferListener twoTimesListener = createBufferListener(2);
+		BufferListener oneTimeListener = createBufferListener(1);
 
-		localBufferPool.setNumBuffers(1);
+		localBufferPool.setNumBuffers(2);
 
-		Buffer available = localBufferPool.requestBuffer();
-		Buffer unavailable = localBufferPool.requestBuffer();
+		Buffer available1 = localBufferPool.requestBuffer();
+		Buffer available2 = localBufferPool.requestBuffer();
 
-		assertNull(unavailable);
+		assertNull(localBufferPool.requestBuffer());
 
-		assertTrue(localBufferPool.addListener(listener));
+		assertTrue(localBufferPool.addBufferListener(twoTimesListener));
+		assertTrue(localBufferPool.addBufferListener(oneTimeListener));
 
-		available.recycle();
+		// Recycle the first buffer to notify both of the above listeners once
+		// and the twoTimesListener will be added into the registeredListeners
+		// queue of buffer pool again
+		available1.recycle();
 
-		verify(listener, times(1)).onEvent(Matchers.any(Buffer.class));
+		verify(oneTimeListener, times(1)).notifyBufferAvailable(any(Buffer.class));
+		verify(twoTimesListener, times(1)).notifyBufferAvailable(any(Buffer.class));
+
+		// Recycle the second buffer to only notify the twoTimesListener
+		available2.recycle();
+
+		verify(oneTimeListener, times(1)).notifyBufferAvailable(any(Buffer.class));
+		verify(twoTimesListener, times(2)).notifyBufferAvailable(any(Buffer.class));
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testCancelPendingRequestsAfterDestroy() throws IOException {
-		EventListener<Buffer> listener = Mockito.mock(EventListener.class);
+		BufferListener listener = Mockito.mock(BufferListener.class);
 
 		localBufferPool.setNumBuffers(1);
 
@@ -242,13 +251,13 @@ public class LocalBufferPoolTest {
 
 		assertNull(unavailable);
 
-		localBufferPool.addListener(listener);
+		localBufferPool.addBufferListener(listener);
 
 		localBufferPool.lazyDestroy();
 
 		available.recycle();
 
-		verify(listener, times(1)).onEvent(null);
+		verify(listener, times(1)).notifyBufferDestroyed();
 	}
 
 	// ------------------------------------------------------------------------
@@ -392,6 +401,23 @@ public class LocalBufferPoolTest {
 
 	private int getNumRequestedFromMemorySegmentPool() {
 		return networkBufferPool.getTotalNumberOfMemorySegments() - networkBufferPool.getNumberOfAvailableMemorySegments();
+	}
+
+	private BufferListener createBufferListener(int notificationTimes) {
+		return spy(new BufferListener() {
+			int times = 0;
+
+			@Override
+			public boolean notifyBufferAvailable(Buffer buffer) {
+				times++;
+				buffer.recycle();
+				return times < notificationTimes;
+			}
+
+			@Override
+			public void notifyBufferDestroyed() {
+			}
+		});
 	}
 
 	private static class BufferRequesterTask implements Callable<Boolean> {

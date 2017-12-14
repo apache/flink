@@ -20,13 +20,9 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.List;
@@ -40,8 +36,6 @@ public class OperatorStateHandles {
 
 	private final int operatorChainIndex;
 
-	private final StreamStateHandle legacyOperatorState;
-
 	private final Collection<KeyedStateHandle> managedKeyedState;
 	private final Collection<KeyedStateHandle> rawKeyedState;
 	private final Collection<OperatorStateHandle> managedOperatorState;
@@ -49,38 +43,16 @@ public class OperatorStateHandles {
 
 	public OperatorStateHandles(
 			int operatorChainIndex,
-			StreamStateHandle legacyOperatorState,
 			Collection<KeyedStateHandle> managedKeyedState,
 			Collection<KeyedStateHandle> rawKeyedState,
 			Collection<OperatorStateHandle> managedOperatorState,
 			Collection<OperatorStateHandle> rawOperatorState) {
 
 		this.operatorChainIndex = operatorChainIndex;
-		this.legacyOperatorState = legacyOperatorState;
 		this.managedKeyedState = managedKeyedState;
 		this.rawKeyedState = rawKeyedState;
 		this.managedOperatorState = managedOperatorState;
 		this.rawOperatorState = rawOperatorState;
-	}
-
-	public OperatorStateHandles(TaskStateHandles taskStateHandles, int operatorChainIndex) {
-		Preconditions.checkNotNull(taskStateHandles);
-
-		this.operatorChainIndex = operatorChainIndex;
-
-		ChainedStateHandle<StreamStateHandle> legacyState = taskStateHandles.getLegacyOperatorState();
-		this.legacyOperatorState = ChainedStateHandle.isNullOrEmpty(legacyState) ?
-				null : legacyState.get(operatorChainIndex);
-
-		this.rawKeyedState = taskStateHandles.getRawKeyedState();
-		this.managedKeyedState = taskStateHandles.getManagedKeyedState();
-
-		this.managedOperatorState = getSafeItemAtIndexOrNull(taskStateHandles.getManagedOperatorState(), operatorChainIndex);
-		this.rawOperatorState = getSafeItemAtIndexOrNull(taskStateHandles.getRawOperatorState(), operatorChainIndex);
-	}
-
-	public StreamStateHandle getLegacyOperatorState() {
-		return legacyOperatorState;
 	}
 
 	public Collection<KeyedStateHandle> getManagedKeyedState() {

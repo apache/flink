@@ -20,19 +20,20 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.registration.RetryingRegistration;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.concurrent.Future;
 
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 
-import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -41,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * The connection between a TaskExecutor and the ResourceManager.
  */
 public class TaskExecutorToResourceManagerConnection
-		extends RegisteredRpcConnection<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+		extends RegisteredRpcConnection<ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 	private final RpcService rpcService;
 
@@ -50,6 +51,10 @@ public class TaskExecutorToResourceManagerConnection
 	private final ResourceID taskManagerResourceId;
 
 	private final SlotReport slotReport;
+
+	private final int dataPort;
+
+	private final HardwareDescription hardwareDescription;
 
 	private final RegistrationConnectionListener<TaskExecutorRegistrationSuccess> registrationListener;
 
@@ -63,23 +68,27 @@ public class TaskExecutorToResourceManagerConnection
 			String taskManagerAddress,
 			ResourceID taskManagerResourceId,
 			SlotReport slotReport,
+			int dataPort,
+			HardwareDescription hardwareDescription,
 			String resourceManagerAddress,
-			UUID resourceManagerLeaderId,
+			ResourceManagerId resourceManagerId,
 			Executor executor,
 			RegistrationConnectionListener<TaskExecutorRegistrationSuccess> registrationListener) {
 
-		super(log, resourceManagerAddress, resourceManagerLeaderId, executor);
+		super(log, resourceManagerAddress, resourceManagerId, executor);
 
 		this.rpcService = Preconditions.checkNotNull(rpcService);
 		this.taskManagerAddress = Preconditions.checkNotNull(taskManagerAddress);
 		this.taskManagerResourceId = Preconditions.checkNotNull(taskManagerResourceId);
 		this.slotReport = Preconditions.checkNotNull(slotReport);
+		this.dataPort = dataPort;
+		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
 		this.registrationListener = Preconditions.checkNotNull(registrationListener);
 	}
 
 
 	@Override
-	protected RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> generateRegistration() {
+	protected RetryingRegistration<ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess> generateRegistration() {
 		return new TaskExecutorToResourceManagerConnection.ResourceManagerRegistration(
 			log,
 			rpcService,
@@ -87,7 +96,9 @@ public class TaskExecutorToResourceManagerConnection
 			getTargetLeaderId(),
 			taskManagerAddress,
 			taskManagerResourceId,
-			slotReport);
+			slotReport,
+			dataPort,
+			hardwareDescription);
 	}
 
 	@Override
@@ -127,7 +138,7 @@ public class TaskExecutorToResourceManagerConnection
 	// ------------------------------------------------------------------------
 
 	private static class ResourceManagerRegistration
-			extends RetryingRegistration<ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
+			extends RetryingRegistration<ResourceManagerId, ResourceManagerGateway, TaskExecutorRegistrationSuccess> {
 
 		private final String taskExecutorAddress;
 		
@@ -135,27 +146,41 @@ public class TaskExecutorToResourceManagerConnection
 
 		private final SlotReport slotReport;
 
+		private final int dataPort;
+
+		private final HardwareDescription hardwareDescription;
+
 		ResourceManagerRegistration(
 				Logger log,
 				RpcService rpcService,
 				String targetAddress,
-				UUID leaderId,
+				ResourceManagerId resourceManagerId,
 				String taskExecutorAddress,
 				ResourceID resourceID,
-				SlotReport slotReport) {
+				SlotReport slotReport,
+				int dataPort,
+				HardwareDescription hardwareDescription) {
 
-			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, leaderId);
+			super(log, rpcService, "ResourceManager", ResourceManagerGateway.class, targetAddress, resourceManagerId);
 			this.taskExecutorAddress = checkNotNull(taskExecutorAddress);
 			this.resourceID = checkNotNull(resourceID);
 			this.slotReport = checkNotNull(slotReport);
+			this.dataPort = dataPort;
+			this.hardwareDescription = checkNotNull(hardwareDescription);
 		}
 
 		@Override
-		protected Future<RegistrationResponse> invokeRegistration(
-				ResourceManagerGateway resourceManager, UUID leaderId, long timeoutMillis) throws Exception {
+		protected CompletableFuture<RegistrationResponse> invokeRegistration(
+				ResourceManagerGateway resourceManager, ResourceManagerId fencingToken, long timeoutMillis) throws Exception {
 
 			Time timeout = Time.milliseconds(timeoutMillis);
-			return resourceManager.registerTaskExecutor(leaderId, taskExecutorAddress, resourceID, slotReport, timeout);
+			return resourceManager.registerTaskExecutor(
+				taskExecutorAddress,
+				resourceID,
+				slotReport,
+				dataPort,
+				hardwareDescription,
+				timeout);
 		}
 	}
 }

@@ -47,7 +47,7 @@ public class AkkaOptions {
 	 */
 	public static final ConfigOption<String> WATCH_HEARTBEAT_PAUSE = ConfigOptions
 		.key("akka.watch.heartbeat.pause")
-		.defaultValue(ASK_TIMEOUT.defaultValue());
+		.defaultValue("60 s");
 
 	/**
 	 * The Akka tcp connection timeout.
@@ -139,4 +139,11 @@ public class AkkaOptions {
 	public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR = ConfigOptions
 		.key("akka.jvm-exit-on-fatal-error")
 		.defaultValue(true);
+
+	/**
+	 * Milliseconds a gate should be closed for after a remote connection was disconnected.
+	 */
+	public static final ConfigOption<Long> RETRY_GATE_CLOSED_FOR = ConfigOptions
+		.key("akka.retry-gate-closed-for")
+		.defaultValue(50L);
 }

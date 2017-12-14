@@ -33,23 +33,27 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.NothingTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
 
+/**
+ * An operation that allows storing data results.
+ * @param <T>
+ */
 @Public
 public class DataSink<T> {
-	
+
 	private final OutputFormat<T> format;
-	
+
 	private final TypeInformation<T> type;
-	
+
 	private final DataSet<T> data;
-	
+
 	private String name;
-	
+
 	private int parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
 
 	private ResourceSpec minResources = ResourceSpec.DEFAULT;
@@ -72,13 +76,11 @@ public class DataSink<T> {
 		if (data == null) {
 			throw new IllegalArgumentException("The data set must not be null.");
 		}
-		
-		
+
 		this.format = format;
 		this.data = data;
 		this.type = type;
 	}
-
 
 	@Internal
 	public OutputFormat<T> getFormat() {
@@ -96,7 +98,7 @@ public class DataSink<T> {
 	}
 
 	/**
-	 * Pass a configuration to the OutputFormat
+	 * Pass a configuration to the OutputFormat.
 	 * @param parameters Configuration parameters
 	 */
 	public DataSink<T> withParameters(Configuration parameters) {
@@ -106,9 +108,11 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a {@link org.apache.flink.api.java.tuple.Tuple} data set
-	 * on the specified field in the specified {@link Order} before it is emitted by the output format.<br>
-	 * <b>Note: Only tuple data sets can be sorted using integer field indices.</b><br>
-	 * The tuple data set can be sorted on multiple fields in different orders
+	 * on the specified field in the specified {@link Order} before it is emitted by the output format.
+	 *
+	 * <p><b>Note: Only tuple data sets can be sorted using integer field indices.</b>
+	 *
+	 * <p>The tuple data set can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(int, Order)} calls.
 	 *
 	 * @param field The Tuple field on which the data set is locally sorted.
@@ -132,7 +136,7 @@ public class DataSink<T> {
 			throw new InvalidProgramException("Selected sort key is not a sortable type");
 		}
 
-		if(this.sortKeyPositions == null) {
+		if (this.sortKeyPositions == null) {
 			// set sorting info
 			this.sortKeyPositions = flatKeys;
 			this.sortOrders = new Order[flatKeys.length];
@@ -144,9 +148,9 @@ public class DataSink<T> {
 			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
 			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
 
-			for(int i=0; i<flatKeys.length; i++) {
-				this.sortKeyPositions[oldLength+i] = flatKeys[i];
-				this.sortOrders[oldLength+i] = order;
+			for (int i = 0; i < flatKeys.length; i++) {
+				this.sortKeyPositions[oldLength + i] = flatKeys[i];
+				this.sortOrders[oldLength + i] = order;
 			}
 		}
 
@@ -155,10 +159,12 @@ public class DataSink<T> {
 
 	/**
 	 * Sorts each local partition of a data set on the field(s) specified by the field expression
-	 * in the specified {@link Order} before it is emitted by the output format.<br>
-	 * <b>Note: Non-composite types can only be sorted on the full element which is specified by
-	 * a wildcard expression ("*" or "_").</b><br>
-	 * Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
+	 * in the specified {@link Order} before it is emitted by the output format.
+	 *
+	 * <p><b>Note: Non-composite types can only be sorted on the full element which is specified by
+	 * a wildcard expression ("*" or "_").</b>
+	 *
+	 * <p>Data sets of composite types (Tuple or Pojo) can be sorted on multiple fields in different orders
 	 * by chaining {@link #sortLocalOutput(String, Order)} calls.
 	 *
 	 * @param fieldExpression The field expression for the field(s) on which the data set is locally sorted.
@@ -189,7 +195,7 @@ public class DataSink<T> {
 		orders = new Order[numFields];
 		Arrays.fill(orders, order);
 
-		if(this.sortKeyPositions == null) {
+		if (this.sortKeyPositions == null) {
 			// set sorting info
 			this.sortKeyPositions = fields;
 			this.sortOrders = orders;
@@ -199,9 +205,9 @@ public class DataSink<T> {
 			int newLength = oldLength + numFields;
 			this.sortKeyPositions = Arrays.copyOf(this.sortKeyPositions, newLength);
 			this.sortOrders = Arrays.copyOf(this.sortOrders, newLength);
-			for(int i=0; i<numFields; i++) {
-				this.sortKeyPositions[oldLength+i] = fields[i];
-				this.sortOrders[oldLength+i] = orders[i];
+			for (int i = 0; i < numFields; i++) {
+				this.sortKeyPositions[oldLength + i] = fields[i];
+				this.sortOrders[oldLength + i] = orders[i];
 			}
 		}
 
@@ -214,16 +220,16 @@ public class DataSink<T> {
 	public Configuration getParameters() {
 		return this.parameters;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	public DataSink<T> name(String name) {
 		this.name = name;
 		return this;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	protected GenericDataSinkBase<T> translateToDataFlow(Operator<T> input) {
 		// select the name (or create a default one)
 		String name = this.name != null ? this.name : this.format.toString();
@@ -231,11 +237,11 @@ public class DataSink<T> {
 		// set input
 		sink.setInput(input);
 		// set parameters
-		if(this.parameters != null) {
+		if (this.parameters != null) {
 			sink.getParameters().addAll(this.parameters);
 		}
 		// set parallelism
-		if(this.parallelism > 0) {
+		if (this.parallelism > 0) {
 			// use specified parallelism
 			sink.setParallelism(this.parallelism);
 		} else {
@@ -243,34 +249,34 @@ public class DataSink<T> {
 			sink.setParallelism(input.getParallelism());
 		}
 
-		if(this.sortKeyPositions != null) {
+		if (this.sortKeyPositions != null) {
 			// configure output sorting
 			Ordering ordering = new Ordering();
-			for(int i=0; i<this.sortKeyPositions.length; i++) {
+			for (int i = 0; i < this.sortKeyPositions.length; i++) {
 				ordering.appendOrdering(this.sortKeyPositions[i], null, this.sortOrders[i]);
 			}
 			sink.setLocalOrder(ordering);
 		}
-		
+
 		return sink;
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
-	
+
 	@Override
 	public String toString() {
 		return "DataSink '" + (this.name == null ? "<unnamed>" : this.name) + "' (" + this.format.toString() + ")";
 	}
-	
+
 	/**
 	 * Returns the parallelism of this data sink.
-	 * 
+	 *
 	 * @return The parallelism of this data sink.
 	 */
 	public int getParallelism() {
 		return this.parallelism;
 	}
-	
+
 	/**
 	 * Sets the parallelism for this data sink.
 	 * The degree must be 1 or more.

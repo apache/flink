@@ -25,10 +25,14 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * Simple {@link StandaloneResourceManager} runner. It instantiates the resource manager's services
@@ -91,27 +95,23 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 	}
 
 	public void shutDown() throws Exception {
-		shutDownInternally();
+		// wait for the completion
+		shutDownInternally().get();
 	}
 
-	private void shutDownInternally() throws Exception {
-		Exception exception = null;
+	private CompletableFuture<Void> shutDownInternally() {
 		synchronized (lock) {
-			try {
-				resourceManager.shutDown();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
+			resourceManager.shutDown();
 
-			try {
-				resourceManagerRuntimeServices.shutDown();
-			} catch (Exception e) {
-				exception = ExceptionUtils.firstOrSuppressed(e, exception);
-			}
-
-			if (exception != null) {
-				ExceptionUtils.rethrow(exception, "Error while shutting down the resource manager runner.");
-			}
+			return resourceManager.getTerminationFuture()
+				.thenAccept(
+					ignored -> {
+						try {
+							resourceManagerRuntimeServices.shutDown();
+						} catch (Exception e) {
+							throw new CompletionException(new FlinkException("Could not properly shut down the resource manager runtime services.", e));
+						}
+					});
 		}
 	}
 
@@ -123,10 +123,13 @@ public class ResourceManagerRunner implements FatalErrorHandler {
 	public void onFatalError(Throwable exception) {
 		LOG.error("Encountered fatal error.", exception);
 
-		try {
-			shutDownInternally();
-		} catch (Exception e) {
-			LOG.error("Could not properly shut down the resource manager.", e);
-		}
+		CompletableFuture<Void> shutdownFuture = shutDownInternally();
+
+		shutdownFuture.whenComplete(
+			(Void ignored, Throwable throwable) -> {
+				if (throwable != null) {
+					LOG.error("Could not properly shut down the resource manager runner.", throwable);
+				}
+			});
 	}
 }

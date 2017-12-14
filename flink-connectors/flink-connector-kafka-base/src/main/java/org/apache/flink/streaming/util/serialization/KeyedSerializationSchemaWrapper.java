@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
+
 /**
  * A simple wrapper for using the SerializationSchema with the KeyedDeserializationSchema
  * interface.

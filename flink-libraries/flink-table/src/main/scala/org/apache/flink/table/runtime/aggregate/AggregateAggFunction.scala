@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.aggregate
 import org.apache.flink.api.common.functions.AggregateFunction
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
-import org.slf4j.LoggerFactory
 
 /**
   * Aggregate Function used for the aggregate operator in
@@ -31,9 +31,8 @@ import org.slf4j.LoggerFactory
   * @param genAggregations Generated aggregate helper function
   */
 class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
-  extends AggregateFunction[CRow, Row, Row] with Compiler[GeneratedAggregations] {
+  extends AggregateFunction[CRow, Row, Row] with Compiler[GeneratedAggregations] with Logging {
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def createAccumulator(): Row = {
@@ -43,11 +42,12 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
     function.createAccumulators()
   }
 
-  override def add(value: CRow, accumulatorRow: Row): Unit = {
+  override def add(value: CRow, accumulatorRow: Row): Row = {
     if (function == null) {
       initFunction()
     }
     function.accumulate(accumulatorRow, value.row)
+    accumulatorRow
   }
 
   override def getResult(accumulatorRow: Row): Row = {
@@ -70,7 +70,7 @@ class AggregateAggFunction(genAggregations: GeneratedAggregationsFunction)
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      Thread.currentThread().getContextClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")

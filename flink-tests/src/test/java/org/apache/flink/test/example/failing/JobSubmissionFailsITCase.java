@@ -81,7 +81,7 @@ public class JobSubmissionFailsITCase extends TestLogger {
 	@AfterClass
 	public static void teardown() {
 		try {
-			cluster.shutdown();
+			cluster.stop();
 		}
 		catch (Exception e) {
 			e.printStackTrace();

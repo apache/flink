@@ -132,7 +132,7 @@ public class JobClientActorRecoveryITCase extends TestLogger {
 			// if the job fails then an exception is thrown here
 			Await.result(promise.future(), deadline.timeLeft());
 		} finally {
-			cluster.shutdown();
+			cluster.stop();
 		}
 	}
 

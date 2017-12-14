@@ -21,11 +21,13 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.collector.selector.CopyingDirectedOutput;
@@ -111,8 +113,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamEdge outEdge = outEdgesInOrder.get(i);
 
 				RecordWriterOutput<?> streamOutput = createStreamOutput(
-						outEdge, chainedConfigs.get(outEdge.getSourceId()), i,
-						containingTask.getEnvironment(), containingTask.getName());
+					outEdge,
+					chainedConfigs.get(outEdge.getSourceId()),
+					i,
+					containingTask.getEnvironment(),
+					containingTask.getName());
 
 				this.streamOutputs[i] = streamOutput;
 				streamOutputMap.put(outEdge, streamOutput);
@@ -120,8 +125,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 			// we create the chain of operators and grab the collector that leads into the chain
 			List<StreamOperator<?>> allOps = new ArrayList<>(chainedConfigs.size());
-			this.chainEntryPoint = createOutputCollector(containingTask, configuration,
-					chainedConfigs, userCodeClassloader, streamOutputMap, allOps);
+			this.chainEntryPoint = createOutputCollector(
+				containingTask,
+				configuration,
+				chainedConfigs,
+				userCodeClassloader,
+				streamOutputMap,
+				allOps);
 
 			if (headOperator != null) {
 				Output output = getChainEntryPoint();
@@ -272,7 +282,13 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			StreamConfig chainedOpConfig = chainedConfigs.get(outputId);
 
 			Output<StreamRecord<T>> output = createChainedOperator(
-					containingTask, chainedOpConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators, outputEdge.getOutputTag());
+				containingTask,
+				chainedOpConfig,
+				chainedConfigs,
+				userCodeClassloader,
+				streamOutputs,
+				allOperators,
+				outputEdge.getOutputTag());
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 
@@ -330,7 +346,12 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			OutputTag<IN> outputTag) {
 		// create the output that the operator writes to first. this may recursively create more operators
 		Output<StreamRecord<OUT>> output = createOutputCollector(
-				containingTask, operatorConfig, chainedConfigs, userCodeClassloader, streamOutputs, allOperators);
+			containingTask,
+			operatorConfig,
+			chainedConfigs,
+			userCodeClassloader,
+			streamOutputs,
+			allOperators);
 
 		// now create the operator and give it the output collector to write its output to
 		OneInputStreamOperator<IN, OUT> chainedOperator = operatorConfig.getStreamOperator(userCodeClassloader);
@@ -349,7 +370,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	private <T> RecordWriterOutput<T> createStreamOutput(
-			StreamEdge edge, StreamConfig upStreamConfig, int outputIndex,
+			StreamEdge edge,
+			StreamConfig upStreamConfig,
+			int outputIndex,
 			Environment taskEnvironment,
 			String taskName) {
 		OutputTag sideOutputTag = edge.getOutputTag(); // OutputTag, return null if not sideOutput
@@ -405,7 +428,21 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamStatusProvider streamStatusProvider,
 				OutputTag<T> outputTag) {
 			this.operator = operator;
-			this.numRecordsIn = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
+
+			{
+				Counter tmpNumRecordsIn;
+				try {
+					OperatorIOMetricGroup ioMetricGroup = ((OperatorMetricGroup) operator.getMetricGroup()).getIOMetricGroup();
+					ioMetricGroup.reuseInputMetricsForTask();
+					ioMetricGroup.reuseOutputMetricsForTask();
+					tmpNumRecordsIn = ioMetricGroup.getNumRecordsInCounter();
+				} catch (Exception e) {
+					LOG.warn("An exception occurred during the metrics setup.", e);
+					tmpNumRecordsIn = new SimpleCounter();
+				}
+				numRecordsIn = tmpNumRecordsIn;
+			}
+
 			this.streamStatusProvider = streamStatusProvider;
 			this.outputTag = outputTag;
 		}
@@ -526,6 +563,18 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				StreamRecord<T> copy = castRecord.copy(serializer.copy(castRecord.getValue()));
 				operator.setKeyContextElement1(copy);
 				operator.processElement(copy);
+			} catch (ClassCastException e) {
+				// Enrich error message
+				ClassCastException replace = new ClassCastException(
+					String.format(
+						"%s. Failed to push OutputTag with id '%s' to operator. " +
+						"This can occur when multiple OutputTags with different types " +
+						"but identical names are being used.",
+						e.getMessage(),
+						outputTag.getId()));
+
+				throw new ExceptionInChainedOperatorException(replace);
+
 			} catch (Exception e) {
 				throw new ExceptionInChainedOperatorException(e);
 			}
@@ -612,8 +661,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				output.collect(shallowCopy);
 			}
 
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(record);
+			if (outputs.length > 0) {
+				// don't copy for the last output
+				outputs[outputs.length - 1].collect(record);
+			}
 		}
 
 		@Override
@@ -625,8 +676,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				output.collect(outputTag, shallowCopy);
 			}
 
-			// don't copy for the last output
-			outputs[outputs.length - 1].collect(outputTag, record);
+			if (outputs.length > 0) {
+				// don't copy for the last output
+				outputs[outputs.length - 1].collect(outputTag, record);
+			}
 		}
 	}
 }

@@ -36,8 +36,6 @@ public class TestBufferFactory {
 
 	private static final BufferRecycler RECYCLER = new DiscardingRecycler();
 
-	private static final Buffer MOCK_BUFFER = createBuffer();
-
 	private final int bufferSize;
 
 	private final BufferRecycler bufferRecycler;
@@ -88,9 +86,5 @@ public class TestBufferFactory {
 		checkArgument(bufferSize > 0);
 
 		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), RECYCLER);
-	}
-
-	public static Buffer getMockBuffer() {
-		return MOCK_BUFFER;
 	}
 }

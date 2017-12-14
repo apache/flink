@@ -29,11 +29,14 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -237,9 +240,27 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * committing them, so that committed offsets to Kafka represent "the next record to process".
 	 *
 	 * @param offsets The offsets to commit to Kafka (implementations must increment offsets by 1 before committing).
+	 * @param commitCallback The callback that the user should trigger when a commit request completes or fails.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public abstract void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception;
+	public final void commitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
+		// Ignore sentinels. They might appear here if snapshot has started before actual offsets values
+		// replaced sentinels
+		doCommitInternalOffsetsToKafka(filterOutSentinels(offsets), commitCallback);
+	}
+
+	protected abstract void doCommitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception;
+
+	private Map<KafkaTopicPartition, Long> filterOutSentinels(Map<KafkaTopicPartition, Long> offsets) {
+		return offsets.entrySet()
+			.stream()
+			.filter(entry -> !KafkaTopicPartitionStateSentinel.isSentinel(entry.getValue()))
+			.collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+	}
 
 	/**
 	 * Creates the Kafka version specific representation of the given
@@ -627,6 +648,7 @@ public abstract class AbstractFetcher<T, KPH> {
 		public void onProcessingTime(long timestamp) throws Exception {
 
 			long minAcrossAll = Long.MAX_VALUE;
+			boolean isEffectiveMinAggregation = false;
 			for (KafkaTopicPartitionState<?> state : allPartitions) {
 
 				// we access the current watermark for the periodic assigners under the state
@@ -638,10 +660,11 @@ public abstract class AbstractFetcher<T, KPH> {
 				}
 
 				minAcrossAll = Math.min(minAcrossAll, curr);
+				isEffectiveMinAggregation = true;
 			}
 
 			// emit next watermark, if there is one
-			if (minAcrossAll > lastWatermarkTimestamp) {
+			if (isEffectiveMinAggregation && minAcrossAll > lastWatermarkTimestamp) {
 				lastWatermarkTimestamp = minAcrossAll;
 				emitter.emitWatermark(new Watermark(minAcrossAll));
 			}

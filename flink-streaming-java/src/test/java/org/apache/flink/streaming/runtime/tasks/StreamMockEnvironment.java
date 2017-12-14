@@ -28,12 +28,13 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
@@ -46,8 +47,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -107,6 +108,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private volatile boolean wasFailedExternally = false;
 
+	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
+
 	public StreamMockEnvironment(Configuration jobConfig, Configuration taskConfig, ExecutionConfig executionConfig,
 								long memorySize, MockInputSplitProvider inputSplitProvider, int bufferSize) {
 		this.taskInfo = new TaskInfo(
@@ -158,7 +161,7 @@ public class StreamMockEnvironment implements Environment {
 			});
 
 			ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
-			when(mockWriter.getNumberOfOutputChannels()).thenReturn(1);
+			when(mockWriter.getNumberOfSubpartitions()).thenReturn(1);
 			when(mockWriter.getBufferProvider()).thenReturn(mockBufferProvider);
 
 			final RecordDeserializer<DeserializationDelegate<T>> recordDeserializer = new AdaptiveSpanningRecordDeserializer<DeserializationDelegate<T>>();
@@ -183,7 +186,7 @@ public class StreamMockEnvironment implements Environment {
 					addBufferToOutputList(recordDeserializer, delegate, buffer, outputList);
 					return null;
 				}
-			}).when(mockWriter).writeBufferToAllChannels(any(Buffer.class));
+			}).when(mockWriter).writeBufferToAllSubpartitions(any(Buffer.class));
 
 			outputs.add(mockWriter);
 		}
@@ -304,6 +307,11 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		return taskEventDispatcher;
+	}
+
+	@Override
 	public JobVertexID getJobVertexId() {
 		return new JobVertexID(new byte[16]);
 	}
@@ -333,7 +341,7 @@ public class StreamMockEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, SubtaskState subtaskState) {
+	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
 	}
 
 	@Override
@@ -355,6 +363,6 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		return new UnregisteredTaskMetricsGroup();
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	}
 }

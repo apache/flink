@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -117,11 +118,68 @@ public class ProcessOperatorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * This also verifies that the timestamps ouf side-emitted records is correct.
+	 */
+	@Test
+	public void testSideOutput() throws Exception {
+		ProcessOperator<Integer, String> operator =
+			new ProcessOperator<>(new SideOutputProcessFunction());
+
+		OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator);
+
+		testHarness.setup();
+		testHarness.open();
+
+		testHarness.processElement(new StreamRecord<>(42, 17L /* timestamp */));
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+		expectedOutput.add(new StreamRecord<>("IN:42", 17L /* timestamp */));
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		ConcurrentLinkedQueue<StreamRecord<Integer>> expectedIntSideOutput = new ConcurrentLinkedQueue<>();
+		expectedIntSideOutput.add(new StreamRecord<>(42, 17L /* timestamp */));
+		ConcurrentLinkedQueue<StreamRecord<Integer>> intSideOutput =
+			testHarness.getSideOutput(SideOutputProcessFunction.INTEGER_OUTPUT_TAG);
+		TestHarnessUtil.assertOutputEquals(
+			"Side output was not correct.",
+			expectedIntSideOutput,
+			intSideOutput);
+
+		ConcurrentLinkedQueue<StreamRecord<Long>> expectedLongSideOutput = new ConcurrentLinkedQueue<>();
+		expectedLongSideOutput.add(new StreamRecord<>(42L, 17L /* timestamp */));
+		ConcurrentLinkedQueue<StreamRecord<Long>> longSideOutput =
+			testHarness.getSideOutput(SideOutputProcessFunction.LONG_OUTPUT_TAG);
+		TestHarnessUtil.assertOutputEquals(
+			"Side output was not correct.",
+			expectedLongSideOutput,
+			longSideOutput);
+
+		testHarness.close();
+	}
+
 	private static class NullOutputTagEmittingProcessFunction extends ProcessFunction<Integer, String> {
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.output(null, value);
+		}
+	}
+
+	private static class SideOutputProcessFunction extends ProcessFunction<Integer, String> {
+
+		static final OutputTag<Integer> INTEGER_OUTPUT_TAG = new OutputTag<Integer>("int-out") {};
+		static final OutputTag<Long> LONG_OUTPUT_TAG = new OutputTag<Long>("long-out") {};
+
+		@Override
+		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
+			out.collect("IN:" + value);
+
+			ctx.output(INTEGER_OUTPUT_TAG, value);
+			ctx.output(LONG_OUTPUT_TAG, value.longValue());
 		}
 	}
 

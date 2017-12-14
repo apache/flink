@@ -169,7 +169,7 @@ public abstract class BinaryInputFormat<T> extends FileInputFormat<T>
 	@Override
 	public SequentialStatistics getStatistics(BaseStatistics cachedStats) {
 
-		final FileBaseStatistics cachedFileStats = (cachedStats != null && cachedStats instanceof FileBaseStatistics) ?
+		final FileBaseStatistics cachedFileStats = cachedStats instanceof FileBaseStatistics ?
 			(FileBaseStatistics) cachedStats : null;
 
 		try {

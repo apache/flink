@@ -39,14 +39,23 @@ import scala.collection.JavaConverters._
   */
 object WindowJoinUtil {
 
-  case class WindowBounds(isEventTime: Boolean, leftLowerBound: Long, leftUpperBound: Long)
+  case class WindowBounds(
+    isEventTime: Boolean,
+    leftLowerBound: Long,
+    leftUpperBound: Long,
+    leftTimeIdx: Int,
+    rightTimeIdx: Int)
 
   protected case class WindowBound(bound: Long, isLeftLower: Boolean)
+
   protected case class TimePredicate(
     isEventTime: Boolean,
     leftInputOnLeftSide: Boolean,
+    leftTimeIdx: Int,
+    rightTimeIdx: Int,
     pred: RexCall)
-  protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean)
+
+  protected case class TimeAttributeAccess(isEventTime: Boolean, isLeftInput: Boolean, idx: Int)
 
   /**
     * Extracts the window bounds from a join predicate.
@@ -69,29 +78,45 @@ object WindowJoinUtil {
     // Converts the condition to conjunctive normal form (CNF)
     val cnfCondition = RexUtil.toCnf(rexBuilder, predicate)
 
-    // split the condition into time indicator condition and other condition
+    // split the condition into time predicates and other predicates
+    // We need two range predicates or an equality predicate for a properly bounded window join.
     val (timePreds, otherPreds) = cnfCondition match {
-        // We need at least two comparison predicates for a properly bounded window join.
-        // So we need an AND expression for a valid window join.
-        case c: RexCall if cnfCondition.getKind == SqlKind.AND =>
-          c.getOperands.asScala
-            .map(identifyTimePredicate(_, leftLogicalFieldCnt, inputSchema))
-            .foldLeft((Seq[TimePredicate](), Seq[RexNode]()))((preds, analyzed) => {
-              analyzed match {
-                case Left(timePred) => (preds._1 :+ timePred, preds._2)
-                case Right(otherPred) => (preds._1, preds._2 :+ otherPred)
-              }
-            })
-        case _ =>
-          // No valid window bounds. A windowed stream join requires two comparison predicates that
-          // bound the time in both directions.
-          return (None, Some(predicate))
+      case c: RexCall if cnfCondition.getKind == SqlKind.AND =>
+        // extract all time predicates from conjunctive predicate
+        c.getOperands.asScala
+          .map(identifyTimePredicate(_, leftLogicalFieldCnt, inputSchema))
+          .foldLeft((Seq[TimePredicate](), Seq[RexNode]()))((preds, analyzed) => {
+            analyzed match {
+              case Left(timePred) => (preds._1 :+ timePred, preds._2)
+              case Right(otherPred) => (preds._1, preds._2 :+ otherPred)
+            }
+          })
+      case c: RexCall =>
+        // extract time predicate if it exists
+        identifyTimePredicate(c, leftLogicalFieldCnt, inputSchema) match {
+          case Left(timePred) => (Seq[TimePredicate](timePred), Seq[RexNode]())
+          case Right(otherPred) => (Seq[TimePredicate](), Seq[RexNode](otherPred))
+        }
+      case _ =>
+        // No valid window bounds.
+        return (None, Some(predicate))
     }
 
-    if (timePreds.size != 2) {
-      // No valid window bounds. A windowed stream join requires two comparison predicates that
-      // bound the time in both directions.
-      return (None, Some(predicate))
+    timePreds match {
+      case Seq() =>
+        return (None, Some(predicate))
+      case Seq(t) if t.pred.getKind != SqlKind.EQUALS =>
+        // single predicate must be equality predicate
+        return (None, Some(predicate))
+      case s@Seq(_, _) if s.exists(_.pred.getKind == SqlKind.EQUALS) =>
+        // pair of range predicate must not include equals predicate
+        return (None, Some(predicate))
+      case Seq(_) =>
+        // Single equality predicate is OK
+      case Seq(_, _) =>
+        // Two range (i.e., non-equality predicates are OK
+      case _ =>
+        return (None, Some(predicate))
     }
 
     // assemble window bounds from predicates
@@ -99,9 +124,14 @@ object WindowJoinUtil {
     val (leftLowerBound, leftUpperBound) =
       streamTimeOffsets match {
         case Seq(Some(x: WindowBound), Some(y: WindowBound)) if x.isLeftLower && !y.isLeftLower =>
+          // two range predicates
           (x.bound, y.bound)
         case Seq(Some(x: WindowBound), Some(y: WindowBound)) if !x.isLeftLower && y.isLeftLower =>
+          // two range predicates
           (y.bound, x.bound)
+        case Seq(Some(x: WindowBound)) =>
+          // single equality predicate
+          (x.bound, x.bound)
         case _ =>
           // Window join requires two comparison predicate that bound the time in both directions.
           return (None, Some(predicate))
@@ -109,28 +139,43 @@ object WindowJoinUtil {
 
     // compose the remain condition list into one condition
     val remainCondition =
-    otherPreds match {
-      case Seq() =>
-        None
-      case _ =>
-        Some(otherPreds.reduceLeft((l, r) => RelOptUtil.andJoinFilters(rexBuilder, l, r)))
-    }
+      otherPreds match {
+        case Seq() =>
+          None
+        case _ =>
+          Some(otherPreds.reduceLeft((l, r) => RelOptUtil.andJoinFilters(rexBuilder, l, r)))
+      }
 
-    val bounds = Some(WindowBounds(timePreds.head.isEventTime, leftLowerBound, leftUpperBound))
+    val bounds = if (timePreds.head.leftInputOnLeftSide) {
+      Some(WindowBounds(
+        timePreds.head.isEventTime,
+        leftLowerBound,
+        leftUpperBound,
+        timePreds.head.leftTimeIdx,
+        timePreds.head.rightTimeIdx))
+    } else {
+      Some(WindowBounds(
+        timePreds.head.isEventTime,
+        leftLowerBound,
+        leftUpperBound,
+        timePreds.head.rightTimeIdx,
+        timePreds.head.leftTimeIdx))
+    }
 
     (bounds, remainCondition)
   }
 
   /**
     * Analyzes a predicate and identifies whether it is a valid predicate for a window join.
-    * A valid window join predicate is a comparison predicate (<, <=, =>, >) that accesses
-    * time attributes of both inputs, each input on a different side of the condition.
+    *
+    * A valid window join predicate is a range or equality predicate (<, <=, ==, =>, >) that
+    * accesses time attributes of both inputs, each input on a different side of the condition.
     * Both accessed time attributes must be of the same time type, i.e., row-time or proc-time.
     *
     * Examples:
     * - left.rowtime > right.rowtime + 2.minutes => valid
+    * - left.rowtime == right.rowtime => valid
     * - left.proctime < right.rowtime + 2.minutes => invalid: different time type
-    * - left.rowtime == right.rowtime + 2.minutes => invalid: not a comparison predicate
     * - left.rowtime - right.rowtime < 2.minutes => invalid: both time attributes on same side
     *
     * If the predicate is a regular join predicate, i.e., it accesses no time attribute it is
@@ -149,7 +194,8 @@ object WindowJoinUtil {
           case SqlKind.GREATER_THAN |
                SqlKind.GREATER_THAN_OR_EQUAL |
                SqlKind.LESS_THAN |
-               SqlKind.LESS_THAN_OR_EQUAL =>
+               SqlKind.LESS_THAN_OR_EQUAL |
+               SqlKind.EQUALS =>
 
             val leftTerm = c.getOperands.get(0)
             val rightTerm = c.getOperands.get(1)
@@ -196,8 +242,8 @@ object WindowJoinUtil {
               case (Some(left), Some(right)) if left.isLeftInput == right.isLeftInput =>
                 // Window join predicates must reference the time attribute of both inputs.
                 Right(pred)
-              case (Some(left), Some(_)) =>
-                Left(TimePredicate(left.isEventTime, left.isLeftInput, c))
+              case (Some(left), Some(right)) =>
+                Left(TimePredicate(left.isEventTime, left.isLeftInput, left.idx, right.idx, c))
             }
           // not a comparison predicate.
           case _ => Right(pred)
@@ -212,7 +258,7 @@ object WindowJoinUtil {
     *
     * @return A Seq of all time attribute accessed in the expression.
     */
-  def extractTimeAttributeAccesses(
+  private def extractTimeAttributeAccesses(
       expr: RexNode,
       leftFieldCount: Int,
       inputType: RelDataType): Seq[TimeAttributeAccess] = {
@@ -224,8 +270,11 @@ object WindowJoinUtil {
         inputType.getFieldList.get(idx).getType match {
           case t: TimeIndicatorRelDataType =>
             // time attribute access. Remember time type and side of input
-            val isLeftInput = idx < leftFieldCount
-            Seq(TimeAttributeAccess(t.isEventTime, isLeftInput))
+            if (idx < leftFieldCount) {
+              Seq(TimeAttributeAccess(t.isEventTime, isLeftInput = true, idx))
+            } else {
+              Seq(TimeAttributeAccess(t.isEventTime, isLeftInput = false, idx - leftFieldCount))
+            }
           case _ =>
             // not a time attribute access.
             Seq()
@@ -240,34 +289,13 @@ object WindowJoinUtil {
   }
 
   /**
-    * Checks if an expression accesses a time attribute.
-    *
-    * @param expr The expression to check.
-    * @param inputType The input type of the expression.
-    * @return True, if the expression accesses a time attribute. False otherwise.
-    */
-  def accessesTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
-    expr match {
-      case i: RexInputRef =>
-        val accessedType = inputType.getFieldList.get(i.getIndex).getType
-        accessedType match {
-          case _: TimeIndicatorRelDataType => true
-          case _ => false
-        }
-      case c: RexCall =>
-        c.operands.asScala.exists(accessesTimeAttribute(_, inputType))
-      case _ => false
-    }
-  }
-
-  /**
     * Checks if an expression accesses a non-time attribute.
     *
     * @param expr The expression to check.
     * @param inputType The input type of the expression.
     * @return True, if the expression accesses a non-time attribute. False otherwise.
     */
-  def accessesNonTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
+  private def accessesNonTimeAttribute(expr: RexNode, inputType: RelDataType): Boolean = {
     expr match {
       case i: RexInputRef =>
         val accessedType = inputType.getFieldList.get(i.getIndex).getType
@@ -287,7 +315,7 @@ object WindowJoinUtil {
     *
     * @return window boundary, is left lower bound
     */
-  def computeWindowBoundFromPredicate(
+  private def computeWindowBoundFromPredicate(
       timePred: TimePredicate,
       rexBuilder: RexBuilder,
       config: TableConfig): Option[WindowBound] = {
@@ -298,6 +326,10 @@ object WindowJoinUtil {
           timePred.leftInputOnLeftSide
         case (SqlKind.LESS_THAN | SqlKind.LESS_THAN_OR_EQUAL) =>
           !timePred.leftInputOnLeftSide
+        case (SqlKind.EQUALS) =>
+          true // We don't care about this since there's only one bound value.
+        case _ =>
+          return None
       }
 
     // reduce predicate to constants to compute bounds
@@ -314,10 +346,14 @@ object WindowJoinUtil {
       leftLiteral.get - rightLiteral.get
     }
     val boundary = timePred.pred.getKind match {
-      case SqlKind.LESS_THAN =>
+      case SqlKind.LESS_THAN if timePred.leftInputOnLeftSide =>
         tmpTimeOffset - 1
-      case SqlKind.GREATER_THAN =>
+      case SqlKind.LESS_THAN if !timePred.leftInputOnLeftSide =>
         tmpTimeOffset + 1
+      case SqlKind.GREATER_THAN if timePred.leftInputOnLeftSide =>
+        tmpTimeOffset + 1
+      case SqlKind.GREATER_THAN if !timePred.leftInputOnLeftSide =>
+        tmpTimeOffset - 1
       case _ =>
         tmpTimeOffset
     }
@@ -416,8 +452,8 @@ object WindowJoinUtil {
       Some(rightType))
 
     val conversion = generator.generateConverterResultExpression(
-      returnType.physicalTypeInfo,
-      returnType.physicalType.getFieldNames.asScala)
+      returnType.typeInfo,
+      returnType.fieldNames)
 
     // if other condition is none, then output the result directly
     val body = otherCondition match {
@@ -427,9 +463,8 @@ object WindowJoinUtil {
            |${generator.collectorTerm}.collect(${conversion.resultTerm});
            |""".stripMargin
       case Some(remainCondition) =>
-        // map logical field accesses to physical accesses
-        val physicalCondition = returnType.mapRexNode(remainCondition)
-        val genCond = generator.generateExpression(physicalCondition)
+        // generate code for remaining condition
+        val genCond = generator.generateExpression(remainCondition)
         s"""
            |${genCond.code}
            |if (${genCond.resultTerm}) {
@@ -443,7 +478,7 @@ object WindowJoinUtil {
       ruleDescription,
       classOf[FlatJoinFunction[Row, Row, Row]],
       body,
-      returnType.physicalTypeInfo)
+      returnType.typeInfo)
   }
 
 }

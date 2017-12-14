@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -130,9 +129,5 @@ public final class KafkaTopicPartition implements Serializable {
 				return Integer.compare(p1.getPartition(), p2.getPartition());
 			}
 		}
-	}
-
-	public static void sort(List<KafkaTopicPartition> partitions) {
-		Collections.sort(partitions, new Comparator());
 	}
 }

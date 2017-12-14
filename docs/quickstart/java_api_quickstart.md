@@ -31,7 +31,7 @@ Start working on your Flink Java program in a few simple steps.
 
 ## Requirements
 
-The only requirements are working __Maven 3.0.4__ (or higher) and __Java 7.x__ (or higher) installations.
+The only requirements are working __Maven 3.0.4__ (or higher) and __Java 8.x__ (or higher) installations.
 
 ## Create Project
 
@@ -60,7 +60,13 @@ Use one of the following commands to __create a project__:
     $ curl https://flink.apache.org/q/quickstart-SNAPSHOT.sh | bash
 {% endif %}
     {% endhighlight %}
+
     </div>
+    {% unless site.is_stable %}
+    <p style="border-radius: 5px; padding: 5px" class="bg-danger">
+        <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+    </p>
+    {% endunless %}
 </div>
 
 ## Inspect Project
@@ -191,4 +197,11 @@ public static final class LineSplitter implements FlatMapFunction<String, Tuple2
 
 {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/wordcount/WordCount.java "Check GitHub" %} for the full example code.
 
-For a complete overview over our API, have a look at the [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections. If you have any trouble, ask on our [Mailing List](http://mail-archives.apache.org/mod_mbox/flink-dev/). We are happy to provide help.
+For a complete overview over our API, have a look at the
+[DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
+[DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
+If you have any trouble, ask on our
+[Mailing List](http://mail-archives.apache.org/mod_mbox/flink-user/).
+We are happy to provide help.
+
+{% top %}

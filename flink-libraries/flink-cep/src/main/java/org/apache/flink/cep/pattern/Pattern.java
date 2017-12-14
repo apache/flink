@@ -19,6 +19,7 @@
 package org.apache.flink.cep.pattern;
 
 import org.apache.flink.api.java.ClosureCleaner;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
 import org.apache.flink.cep.pattern.Quantifier.Times;
@@ -70,18 +71,17 @@ public class Pattern<T, F extends T> {
 	 */
 	private Times times;
 
-	protected Pattern(final String name, final Pattern<T, ? extends T> previous) {
-		this.name = name;
-		this.previous = previous;
-	}
+	private final AfterMatchSkipStrategy afterMatchSkipStrategy;
 
 	protected Pattern(
-			final String name,
-			final Pattern<T, ? extends T> previous,
-			final ConsumingStrategy consumingStrategy) {
+		final String name,
+		final Pattern<T, ? extends T> previous,
+		final ConsumingStrategy consumingStrategy,
+		final AfterMatchSkipStrategy afterMatchSkipStrategy) {
 		this.name = name;
 		this.previous = previous;
 		this.quantifier = Quantifier.one(consumingStrategy);
+		this.afterMatchSkipStrategy = afterMatchSkipStrategy;
 	}
 
 	public Pattern<T, ? extends T> getPrevious() {
@@ -121,7 +121,20 @@ public class Pattern<T, F extends T> {
 	 * @return The first pattern of a pattern sequence
 	 */
 	public static <X> Pattern<X, X> begin(final String name) {
-		return new Pattern<X, X>(name, null);
+		return new Pattern<>(name, null, ConsumingStrategy.STRICT, AfterMatchSkipStrategy.noSkip());
+	}
+
+	/**
+	 * Starts a new pattern sequence. The provided name is the one of the initial pattern
+	 * of the new sequence. Furthermore, the base type of the event sequence is set.
+	 *
+	 * @param name The name of starting pattern of the new pattern sequence
+	 * @param afterMatchSkipStrategy the {@link AfterMatchSkipStrategy.SkipStrategy} to use after each match.
+	 * @param <X> Base type of the event pattern
+	 * @return The first pattern of a pattern sequence
+	 */
+	public static <X> Pattern<X, X> begin(final String name, final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		return new Pattern<X, X>(name, null, ConsumingStrategy.STRICT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -241,7 +254,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> next(final String name) {
-		return new Pattern<>(name, this, ConsumingStrategy.STRICT);
+		return new Pattern<>(name, this, ConsumingStrategy.STRICT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -258,7 +271,7 @@ public class Pattern<T, F extends T> {
 					"You can simulate such pattern with two independent patterns, one with and the other without " +
 					"the optional part.");
 		}
-		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT);
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_NEXT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -270,7 +283,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> followedBy(final String name) {
-		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_NEXT);
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_NEXT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -289,7 +302,7 @@ public class Pattern<T, F extends T> {
 					"You can simulate such pattern with two independent patterns, one with and the other without " +
 					"the optional part.");
 		}
-		return new Pattern<>(name, this, ConsumingStrategy.NOT_FOLLOW);
+		return new Pattern<>(name, this, ConsumingStrategy.NOT_FOLLOW, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -301,7 +314,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public Pattern<T, T> followedByAny(final String name) {
-		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_ANY);
+		return new Pattern<>(name, this, ConsumingStrategy.SKIP_TILL_ANY, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -312,6 +325,7 @@ public class Pattern<T, F extends T> {
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> optional() {
+		checkIfPreviousPatternGreedy();
 		quantifier.optional();
 		return this;
 	}
@@ -326,13 +340,28 @@ public class Pattern<T, F extends T> {
 	 * {@code A1 A2 B} appears, this will generate patterns:
 	 * {@code A1 B} and {@code A1 A2 B}. See also {@link #allowCombinations()}.
 	 *
-	 * @return The same pattern with a {@link Quantifier#oneOrMore(ConsumingStrategy)} quantifier applied.
+	 * @return The same pattern with a {@link Quantifier#looping(ConsumingStrategy)} quantifier applied.
 	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
 	 */
 	public Pattern<T, F> oneOrMore() {
 		checkIfNoNotPattern();
 		checkIfQuantifierApplied();
-		this.quantifier = Quantifier.oneOrMore(quantifier.getConsumingStrategy());
+		this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
+		this.times = Times.of(1);
+		return this;
+	}
+
+	/**
+	 * Specifies that this pattern is greedy.
+	 * This means as many events as possible will be matched to this pattern.
+	 *
+	 * @return The same pattern with {@link Quantifier#greedy} set to true.
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> greedy() {
+		checkIfNoNotPattern();
+		checkIfNoGroupPattern();
+		this.quantifier.greedy();
 		return this;
 	}
 
@@ -375,7 +404,23 @@ public class Pattern<T, F extends T> {
 	}
 
 	/**
-	 * Applicable only to {@link Quantifier#oneOrMore(ConsumingStrategy)} and
+	 * Specifies that this pattern can occur the specified times at least.
+	 * This means at least the specified times and at most infinite number of events can
+	 * be matched to this pattern.
+	 *
+	 * @return The same pattern with a {@link Quantifier#looping(ConsumingStrategy)} quantifier applied.
+	 * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
+	 */
+	public Pattern<T, F> timesOrMore(int times) {
+		checkIfNoNotPattern();
+		checkIfQuantifierApplied();
+		this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
+		this.times = Times.of(times);
+		return this;
+	}
+
+	/**
+	 * Applicable only to {@link Quantifier#looping(ConsumingStrategy)} and
 	 * {@link Quantifier#times(ConsumingStrategy)} patterns, this option allows more flexibility to the matching events.
 	 *
 	 * <p>If {@code allowCombinations()} is not applied for a
@@ -435,11 +480,24 @@ public class Pattern<T, F extends T> {
 	 * Starts a new pattern sequence. The provided pattern is the initial pattern
 	 * of the new sequence.
 	 *
+	 *
+	 * @param group the pattern to begin with
+	 * @param afterMatchSkipStrategy the {@link AfterMatchSkipStrategy.SkipStrategy} to use after each match.
+	 * @return The first pattern of a pattern sequence
+	 */
+	public static <T, F extends T> GroupPattern<T, F> begin(final Pattern<T, F> group, final AfterMatchSkipStrategy afterMatchSkipStrategy) {
+		return new GroupPattern<>(null, group, ConsumingStrategy.STRICT, afterMatchSkipStrategy);
+	}
+
+	/**
+	 * Starts a new pattern sequence. The provided pattern is the initial pattern
+	 * of the new sequence.
+	 *
 	 * @param group the pattern to begin with
 	 * @return the first pattern of a pattern sequence
 	 */
 	public static <T, F extends T> GroupPattern<T, F> begin(Pattern<T, F> group) {
-		return new GroupPattern<>(null, group);
+		return new GroupPattern<>(null, group, ConsumingStrategy.STRICT, AfterMatchSkipStrategy.noSkip());
 	}
 
 	/**
@@ -451,7 +509,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public GroupPattern<T, F> followedBy(Pattern<T, F> group) {
-		return new GroupPattern<>(this, group, ConsumingStrategy.SKIP_TILL_NEXT);
+		return new GroupPattern<>(this, group, ConsumingStrategy.SKIP_TILL_NEXT, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -463,7 +521,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public GroupPattern<T, F> followedByAny(Pattern<T, F> group) {
-		return new GroupPattern<>(this, group, ConsumingStrategy.SKIP_TILL_ANY);
+		return new GroupPattern<>(this, group, ConsumingStrategy.SKIP_TILL_ANY, afterMatchSkipStrategy);
 	}
 
 	/**
@@ -476,7 +534,7 @@ public class Pattern<T, F extends T> {
 	 * @return A new pattern which is appended to this one
 	 */
 	public GroupPattern<T, F> next(Pattern<T, F> group) {
-		return new GroupPattern<>(this, group, ConsumingStrategy.STRICT);
+		return new GroupPattern<>(this, group, ConsumingStrategy.STRICT, afterMatchSkipStrategy);
 	}
 
 	private void checkIfNoNotPattern() {
@@ -490,6 +548,25 @@ public class Pattern<T, F extends T> {
 		if (!quantifier.hasProperty(Quantifier.QuantifierProperty.SINGLE)) {
 			throw new MalformedPatternException("Already applied quantifier to this Pattern. " +
 					"Current quantifier is: " + quantifier);
+		}
+	}
+
+	/**
+	 * @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match.
+	 */
+	public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
+		return afterMatchSkipStrategy;
+	}
+
+	private void checkIfNoGroupPattern() {
+		if (this instanceof GroupPattern) {
+			throw new MalformedPatternException("Option not applicable to group pattern");
+		}
+	}
+
+	private void checkIfPreviousPatternGreedy() {
+		if (previous != null && previous.getQuantifier().hasProperty(Quantifier.QuantifierProperty.GREEDY)) {
+			throw new MalformedPatternException("Optional pattern cannot be preceded by greedy pattern");
 		}
 	}
 }

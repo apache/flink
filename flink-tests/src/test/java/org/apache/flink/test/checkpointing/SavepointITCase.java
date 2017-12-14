@@ -53,7 +53,7 @@ import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
 import org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
 import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackendFactory;
@@ -74,11 +74,12 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.HashMultimap;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Multimap;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.testkit.JavaTestKit;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -211,8 +212,8 @@ public class SavepointITCase extends TestLogger {
 
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
-			flink.shutdown();
-			flink.awaitTermination();
+			flink.stop();
+			flink = null;
 
 			// - Verification START -------------------------------------------
 
@@ -249,6 +250,7 @@ public class SavepointITCase extends TestLogger {
 
 			// Restart the cluster
 			LOG.info("Restarting Flink cluster.");
+			flink = new TestingCluster(config);
 			flink.start();
 
 			// Retrieve the job manager
@@ -349,10 +351,6 @@ public class SavepointITCase extends TestLogger {
 					OperatorSubtaskState subtaskState = operatorState.getState(tdd.getSubtaskIndex());
 
 					assertNotNull(subtaskState);
-
-					errMsg = "Initial operator state mismatch.";
-					assertEquals(errMsg, subtaskState.getLegacyOperatorState(),
-						tdd.getTaskStateHandles().getLegacyOperatorState().get(chainIndexAndJobVertex.f0));
 				}
 			}
 
@@ -375,17 +373,18 @@ public class SavepointITCase extends TestLogger {
 			assertTrue(errMsg, resp.getClass() == getDisposeSavepointSuccess().getClass());
 
 			// - Verification START -------------------------------------------
-
 			// The checkpoint files
 			List<File> checkpointFiles = new ArrayList<>();
 
 			for (OperatorState stateForTaskGroup : savepoint.getOperatorStates()) {
 				for (OperatorSubtaskState subtaskState : stateForTaskGroup.getStates()) {
-					StreamStateHandle streamTaskState = subtaskState.getLegacyOperatorState();
+					Collection<OperatorStateHandle> streamTaskState = subtaskState.getManagedOperatorState();
 
-					if (streamTaskState != null) {
-						FileStateHandle fileStateHandle = (FileStateHandle) streamTaskState;
-						checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
+					if (streamTaskState != null && !streamTaskState.isEmpty()) {
+						for (OperatorStateHandle osh : streamTaskState) {
+							FileStateHandle fileStateHandle = (FileStateHandle) osh.getDelegateStateHandle();
+							checkpointFiles.add(new File(fileStateHandle.getFilePath().toUri()));
+						}
 					}
 				}
 			}
@@ -410,7 +409,7 @@ public class SavepointITCase extends TestLogger {
 			// - Verification END ---------------------------------------------
 		} finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}
@@ -473,7 +472,7 @@ public class SavepointITCase extends TestLogger {
 			}
 		} finally {
 			if (flink != null) {
-				flink.shutdown();
+				flink.stop();
 			}
 		}
 	}
@@ -498,20 +497,20 @@ public class SavepointITCase extends TestLogger {
 		final File tmpDir = folder.getRoot();
 		final File savepointDir = new File(tmpDir, "savepoints");
 
-		TestingCluster flink = null;
+		// Flink configuration
+		final Configuration config = new Configuration();
+		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
+		config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
+		config.setString(CoreOptions.SAVEPOINT_DIRECTORY,
+				savepointDir.toURI().toString());
+
 		String savepointPath;
+
+		LOG.info("Flink configuration: " + config + ".");
+
+		// Start Flink
+		TestingCluster flink = new TestingCluster(config);
 		try {
-			// Flink configuration
-			final Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, numTaskManagers);
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlotsPerTaskManager);
-			config.setString(CoreOptions.SAVEPOINT_DIRECTORY,
-					savepointDir.toURI().toString());
-
-			LOG.info("Flink configuration: " + config + ".");
-
-			// Start Flink
-			flink = new TestingCluster(config);
 			LOG.info("Starting Flink cluster.");
 			flink.start(true);
 
@@ -562,19 +561,19 @@ public class SavepointITCase extends TestLogger {
 
 			((ResponseSavepoint) Await.result(savepointFuture, deadline.timeLeft())).savepoint();
 			LOG.info("Retrieved savepoint: " + savepointPath + ".");
-
+		} finally {
 			// Shut down the Flink cluster (thereby canceling the job)
 			LOG.info("Shutting down Flink cluster.");
-			flink.shutdown();
-			flink.awaitTermination();
-
-		} finally {
-			flink.shutdown();
-			flink.awaitTermination();
+			flink.stop();
 		}
 
+		// create a new TestingCluster to make sure we start with completely
+		// new resources
+		flink = new TestingCluster(config);
 		try {
 			LOG.info("Restarting Flink cluster.");
+			flink = new TestingCluster(config);
+
 			flink.start(true);
 
 			// Retrieve the job manager
@@ -619,8 +618,7 @@ public class SavepointITCase extends TestLogger {
 			// Await some progress after restore
 			StatefulCounter.getProgressLatch().await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 		} finally {
-			flink.shutdown();
-			flink.awaitTermination();
+			flink.stop();
 		}
 	}
 
@@ -842,7 +840,6 @@ public class SavepointITCase extends TestLogger {
 				cluster.disposeSavepoint(savepointPath);
 			}
 			cluster.stop();
-			cluster.awaitTermination();
 		}
 	}
 

@@ -19,15 +19,16 @@
 package org.apache.flink.table.plan.rules.dataSet
 
 import java.math.BigDecimal
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.flink.table.api.scala.{Session, Slide, Tumble}
 import org.apache.flink.table.api.{TableException, Window}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Expression, Literal, ResolvedFieldReference}
+import org.apache.flink.table.expressions.{Expression, Literal, ResolvedFieldReference, WindowReference}
 import org.apache.flink.table.plan.rules.common.LogicalWindowAggregateRule
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
+import org.apache.flink.table.validate.BasicOperatorTable
 
 class DataSetLogicalWindowAggregateRule
   extends LogicalWindowAggregateRule("DataSetLogicalWindowAggregateRule") {
@@ -66,23 +67,24 @@ class DataSetLogicalWindowAggregateRule
       }
     }
 
+    val timeField = getFieldReference(windowExpr.getOperands.get(0))
     windowExpr.getOperator match {
-      case SqlStdOperatorTable.TUMBLE =>
+      case BasicOperatorTable.TUMBLE =>
         val interval = getOperandAsLong(windowExpr, 1)
         val w = Tumble.over(Literal(interval, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-        w.on(getFieldReference(windowExpr.getOperands.get(0))).as("w$")
+        w.on(timeField).as(WindowReference("w$", Some(timeField.resultType)))
 
-      case SqlStdOperatorTable.HOP =>
+      case BasicOperatorTable.HOP =>
         val (slide, size) = (getOperandAsLong(windowExpr, 1), getOperandAsLong(windowExpr, 2))
         val w = Slide
           .over(Literal(size, TimeIntervalTypeInfo.INTERVAL_MILLIS))
           .every(Literal(slide, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-        w.on(getFieldReference(windowExpr.getOperands.get(0))).as("w$")
+        w.on(timeField).as(WindowReference("w$", Some(timeField.resultType)))
 
-      case SqlStdOperatorTable.SESSION =>
+      case BasicOperatorTable.SESSION =>
         val gap = getOperandAsLong(windowExpr, 1)
         val w = Session.withGap(Literal(gap, TimeIntervalTypeInfo.INTERVAL_MILLIS))
-        w.on(getFieldReference(windowExpr.getOperands.get(0))).as("w$")
+        w.on(timeField).as(WindowReference("w$", Some(timeField.resultType)))
     }
   }
 }

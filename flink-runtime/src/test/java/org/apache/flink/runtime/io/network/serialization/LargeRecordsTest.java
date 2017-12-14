@@ -24,8 +24,8 @@ import org.apache.flink.runtime.io.network.api.serialization.AdaptiveSpanningRec
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
-import org.apache.flink.runtime.io.network.api.serialization.types.IntType;
-import org.apache.flink.runtime.io.network.api.serialization.types.SerializationTestType;
+import org.apache.flink.testutils.serialization.types.IntType;
+import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;

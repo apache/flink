@@ -83,7 +83,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		// u, v where u < v
 		DataSet<Tuple2<K, K>> filteredByID = input
 			.getEdges()
-			.flatMap(new FilterByID<K, EV>())
+			.flatMap(new FilterByID<>())
 				.setParallelism(parallelism)
 				.name("Filter by ID");
 
@@ -94,7 +94,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 
 		// u, v where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple2<K, K>> filteredByDegree = pairDegree
-			.flatMap(new FilterByDegree<K, EV>())
+			.flatMap(new FilterByDegree<>())
 				.setParallelism(parallelism)
 				.name("Filter by degree");
 
@@ -102,7 +102,7 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, K, K>> triplets = filteredByDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateTriplets<K>())
+			.reduceGroup(new GenerateTriplets<>())
 				.name("Generate triplets");
 
 		// u, v, w where (u, v), (u, w), and (v, w) are edges in graph, v < w
@@ -110,12 +110,16 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			.join(filteredByID, JoinOperatorBase.JoinHint.REPARTITION_HASH_SECOND)
 			.where(1, 2)
 			.equalTo(0, 1)
-			.with(new ProjectTriangles<K>())
+			.with(new ProjectTriangles<>())
 				.name("Triangle listing");
 
-		if (sortTriangleVertices.get()) {
+		if (permuteResults) {
 			triangles = triangles
-				.map(new SortTriangleVertices<K>())
+				.flatMap(new PermuteResult<>())
+					.name("Permute triangle vertices");
+		} else if (sortTriangleVertices.get()) {
+			triangles = triangles
+				.map(new SortTriangleVertices<>())
 					.name("Sort triangle vertices");
 		}
 
@@ -246,6 +250,59 @@ extends TriangleListingBase<K, VV, EV, Result<K>> {
 			output.setVertexId1(triplet.f1);
 			output.setVertexId2(triplet.f2);
 			return output;
+		}
+	}
+
+	/**
+	 * Output each input and an additional result for each of the five
+	 * permutations of the three vertex IDs.
+	 *
+	 * @param <T> ID type
+	 */
+	private static class PermuteResult<T>
+	implements FlatMapFunction<Result<T>, Result<T>> {
+		@Override
+		public void flatMap(Result<T> value, Collector<Result<T>> out)
+				throws Exception {
+			T tmp;
+
+			// 0, 1, 2
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			// 1, 0, 2
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 1, 2, 0
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 0, 2, 1
+			out.collect(value);
+
+			tmp = value.getVertexId0();
+			value.setVertexId0(value.getVertexId1());
+			value.setVertexId1(tmp);
+
+			// 2, 0, 1
+			out.collect(value);
+
+			tmp = value.getVertexId1();
+			value.setVertexId1(value.getVertexId2());
+			value.setVertexId2(tmp);
+
+			// 2, 1, 0
+			out.collect(value);
 		}
 	}
 

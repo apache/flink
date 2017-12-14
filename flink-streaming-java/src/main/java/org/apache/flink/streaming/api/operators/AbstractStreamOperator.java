@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.metrics.Counter;
@@ -36,7 +35,10 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -53,14 +55,12 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
@@ -155,13 +155,13 @@ public abstract class AbstractStreamOperator<OUT>
 	// --------------- Metrics ---------------------------
 
 	/** Metric group for the operator. */
-	protected transient MetricGroup metrics;
+	protected transient OperatorMetricGroup metrics;
 
 	protected transient LatencyGauge latencyGauge;
 
 	// ---------------- time handler ------------------
 
-	private transient InternalTimeServiceManager<?, ?> timeServiceManager;
+	protected transient InternalTimeServiceManager<?, ?> timeServiceManager;
 
 	// ---------------- two-input operator watermarks ------------------
 
@@ -179,14 +179,20 @@ public abstract class AbstractStreamOperator<OUT>
 	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
 		this.container = containingTask;
 		this.config = config;
-
-		this.metrics = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorName());
-		this.output = new CountingOutput(output, ((OperatorMetricGroup) this.metrics).getIOMetricGroup().getNumRecordsOutCounter());
-		if (config.isChainStart()) {
-			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseInputMetricsForTask();
-		}
-		if (config.isChainEnd()) {
-			((OperatorMetricGroup) this.metrics).getIOMetricGroup().reuseOutputMetricsForTask();
+		try {
+			OperatorMetricGroup operatorMetricGroup = container.getEnvironment().getMetricGroup().addOperator(config.getOperatorID(), config.getOperatorName());
+			this.output = new CountingOutput(output, operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+			if (config.isChainStart()) {
+				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
+			}
+			if (config.isChainEnd()) {
+				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
+			}
+			this.metrics = operatorMetricGroup;
+		} catch (Exception e) {
+			LOG.warn("An error occurred while instantiating task metrics.", e);
+			this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+			this.output = output;
 		}
 		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
 		int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
@@ -208,13 +214,13 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	@Override
-	public final void initializeState(OperatorStateHandles stateHandles) throws Exception {
+	public final void initializeState(OperatorSubtaskState stateHandles) throws Exception {
 
 		Collection<KeyedStateHandle> keyedStateHandlesRaw = null;
 		Collection<OperatorStateHandle> operatorStateHandlesRaw = null;
 		Collection<OperatorStateHandle> operatorStateHandlesBackend = null;
 
-		boolean restoring = null != stateHandles;
+		boolean restoring = (null != stateHandles);
 
 		initKeyedState(); //TODO we should move the actual initialization of this from StreamTask to this class
 
@@ -251,42 +257,6 @@ public abstract class AbstractStreamOperator<OUT>
 				getContainingTask().getCancelables()); // access to register streams for canceling
 
 		initializeState(initializationContext);
-
-		if (restoring) {
-
-			// finally restore the legacy state in case we are
-			// migrating from a previous Flink version.
-
-			restoreStreamCheckpointed(stateHandles);
-		}
-	}
-
-	/**
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@Deprecated
-	private void restoreStreamCheckpointed(OperatorStateHandles stateHandles) throws Exception {
-		StreamStateHandle state = stateHandles.getLegacyOperatorState();
-		if (null != state) {
-			if (this instanceof CheckpointedRestoringOperator) {
-
-				LOG.debug("Restore state of task {} in chain ({}).",
-						stateHandles.getOperatorChainIndex(), getContainingTask().getName());
-
-				FSDataInputStream is = state.openInputStream();
-				try {
-					getContainingTask().getCancelables().registerClosable(is);
-					((CheckpointedRestoringOperator) this).restoreState(is);
-				} finally {
-					getContainingTask().getCancelables().unregisterClosable(is);
-					is.close();
-				}
-			} else {
-				throw new Exception(
-						"Found legacy operator state for operator that does not implement StreamCheckpointedOperator.");
-			}
-		}
 	}
 
 	/**
@@ -451,35 +421,6 @@ public abstract class AbstractStreamOperator<OUT>
 	}
 
 	/**
-	 * @deprecated Non-repartitionable operator state that has been deprecated.
-	 * Can be removed when we remove the APIs for non-repartitionable operator state.
-	 */
-	@SuppressWarnings("deprecation")
-	@Deprecated
-	@Override
-	public StreamStateHandle snapshotLegacyOperatorState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions) throws Exception {
-		if (this instanceof StreamCheckpointedOperator) {
-			CheckpointStreamFactory factory = getCheckpointStreamFactory(checkpointOptions);
-
-			final CheckpointStreamFactory.CheckpointStateOutputStream outStream =
-				factory.createCheckpointStateOutputStream(checkpointId, timestamp);
-
-			getContainingTask().getCancelables().registerClosable(outStream);
-
-			try {
-				((StreamCheckpointedOperator) this).snapshotState(outStream, checkpointId, timestamp);
-				return outStream.closeAndGetHandle();
-			}
-			finally {
-				getContainingTask().getCancelables().unregisterClosable(outStream);
-				outStream.close();
-			}
-		} else {
-			return null;
-		}
-	}
-
-	/**
 	 * Stream operators with state which can be restored need to override this hook method.
 	 *
 	 * @param context context that allows to register different states.
@@ -512,7 +453,7 @@ public abstract class AbstractStreamOperator<OUT>
 	/**
 	 * Returns a checkpoint stream factory for the provided options.
 	 *
-	 * <p>For {@link CheckpointType#FULL_CHECKPOINT} this returns the shared
+	 * <p>For {@link CheckpointType#CHECKPOINT} this returns the shared
 	 * factory of this operator.
 	 *
 	 * <p>For {@link CheckpointType#SAVEPOINT} it creates a custom factory per
@@ -525,7 +466,7 @@ public abstract class AbstractStreamOperator<OUT>
 	@VisibleForTesting
 	CheckpointStreamFactory getCheckpointStreamFactory(CheckpointOptions checkpointOptions) throws IOException {
 		CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-		if (checkpointType == CheckpointType.FULL_CHECKPOINT) {
+		if (checkpointType == CheckpointType.CHECKPOINT) {
 			return checkpointStreamFactory;
 		} else if (checkpointType == CheckpointType.SAVEPOINT) {
 			return container.createSavepointStreamFactory(this, checkpointOptions.getTargetLocation());
@@ -971,6 +912,11 @@ public abstract class AbstractStreamOperator<OUT>
 			combinedWatermark = newMin;
 			processWatermark(new Watermark(combinedWatermark));
 		}
+	}
+
+	@Override
+	public OperatorID getOperatorID() {
+		return config.getOperatorID();
 	}
 
 	@VisibleForTesting

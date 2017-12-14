@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
@@ -34,6 +35,8 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -92,9 +95,12 @@ public class KafkaConsumerThread extends Thread {
 	/** This lock is used to isolate the consumer for partition reassignment. */
 	private final Object consumerReassignmentLock;
 
+	/** Indication if this consumer has any assigned partition. */
+	private boolean hasAssignedPartitions;
+
 	/**
-	 * Flag to indicate whether an external operation ({@link #setOffsetsToCommit(Map)} or {@link #shutdown()})
-	 * had attempted to wakeup the consumer while it was isolated for partition reassignment.
+	 * Flag to indicate whether an external operation ({@link #setOffsetsToCommit(Map, KafkaCommitCallback)}
+	 * or {@link #shutdown()}) had attempted to wakeup the consumer while it was isolated for partition reassignment.
 	 */
 	private volatile boolean hasBufferedWakeup;
 
@@ -103,6 +109,9 @@ public class KafkaConsumerThread extends Thread {
 
 	/** Flag tracking whether the latest commit request has completed. */
 	private volatile boolean commitInProgress;
+
+	/** User callback to be invoked when commits completed. */
+	private volatile KafkaCommitCallback offsetCommitCallback;
 
 	public KafkaConsumerThread(
 			Logger log,
@@ -210,11 +219,25 @@ public class KafkaConsumerThread extends Thread {
 				}
 
 				try {
-					newPartitions = unassignedPartitionsQueue.pollBatch();
+					if (hasAssignedPartitions) {
+						newPartitions = unassignedPartitionsQueue.pollBatch();
+					}
+					else {
+						// if no assigned partitions block until we get at least one
+						// instead of hot spinning this loop. We rely on a fact that
+						// unassignedPartitionsQueue will be closed on a shutdown, so
+						// we don't block indefinitely
+						newPartitions = unassignedPartitionsQueue.getBatchBlocking();
+					}
 					if (newPartitions != null) {
 						reassignPartitions(newPartitions);
 					}
 				} catch (AbortedReassignmentException e) {
+					continue;
+				}
+
+				if (!hasAssignedPartitions) {
+					// Without assigned partitions KafkaConsumer.poll will throw an exception
 					continue;
 				}
 
@@ -264,6 +287,9 @@ public class KafkaConsumerThread extends Thread {
 	public void shutdown() {
 		running = false;
 
+		// wake up all blocking calls on the queue
+		unassignedPartitionsQueue.close();
+
 		// We cannot call close() on the KafkaConsumer, because it will actually throw
 		// an exception if a concurrent call is in progress
 
@@ -288,17 +314,22 @@ public class KafkaConsumerThread extends Thread {
 	 *
 	 * <p>Only one commit operation may be pending at any time. If the committing takes longer than
 	 * the frequency with which this method is called, then some commits may be skipped due to being
-	 * superseded  by newer ones.
+	 * superseded by newer ones.
 	 *
 	 * @param offsetsToCommit The offsets to commit
+	 * @param commitCallback callback when Kafka commit completes
 	 */
-	public void setOffsetsToCommit(Map<TopicPartition, OffsetAndMetadata> offsetsToCommit) {
+	void setOffsetsToCommit(
+			Map<TopicPartition, OffsetAndMetadata> offsetsToCommit,
+			@Nonnull KafkaCommitCallback commitCallback) {
+
 		// record the work to be committed by the main consumer thread and make sure the consumer notices that
 		if (nextOffsetsToCommit.getAndSet(offsetsToCommit) != null) {
 			log.warn("Committing offsets to Kafka takes longer than the checkpoint interval. " +
 					"Skipping commit of previous offsets because newer complete checkpoint offsets are available. " +
 					"This does not compromise Flink's checkpoint integrity.");
 		}
+		this.offsetCommitCallback = commitCallback;
 
 		// if the consumer is blocked in a poll() or handover operation, wake it up to commit soon
 		handover.wakeupProducer();
@@ -335,6 +366,10 @@ public class KafkaConsumerThread extends Thread {
 	 */
 	@VisibleForTesting
 	void reassignPartitions(List<KafkaTopicPartitionState<TopicPartition>> newPartitions) throws Exception {
+		if (newPartitions.size() == 0) {
+			return;
+		}
+		hasAssignedPartitions = true;
 		boolean reassignmentStarted = false;
 
 		// since the reassignment may introduce several Kafka blocking calls that cannot be interrupted,
@@ -458,6 +493,9 @@ public class KafkaConsumerThread extends Thread {
 
 			if (ex != null) {
 				log.warn("Committing offsets to Kafka failed. This does not compromise Flink's checkpoints.", ex);
+				offsetCommitCallback.onException(ex);
+			} else {
+				offsetCommitCallback.onSuccess();
 			}
 		}
 	}

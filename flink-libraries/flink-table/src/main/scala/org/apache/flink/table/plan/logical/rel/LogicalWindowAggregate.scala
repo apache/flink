@@ -35,11 +35,11 @@ class LogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
+    indicatorFlag: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls) {
+  extends Aggregate(cluster, traitSet, child, indicatorFlag, groupSet, groupSets, aggCalls) {
 
   def getWindow: LogicalWindow = window
 
@@ -66,6 +66,19 @@ class LogicalWindowAggregate(
       aggCalls)
   }
 
+  def copy(namedProperties: Seq[NamedWindowProperty]): LogicalWindowAggregate = {
+    new LogicalWindowAggregate(
+      window,
+      namedProperties,
+      cluster,
+      traitSet,
+      input,
+      indicator,
+      getGroupSet,
+      getGroupSets,
+      aggCalls)
+  }
+
   override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
 
   override def deriveRowType(): RelDataType = {
@@ -76,7 +89,7 @@ class LogicalWindowAggregate(
     namedProperties.foreach { namedProp =>
       builder.add(
         namedProp.name,
-        typeFactory.createTypeFromTypeInfo(namedProp.property.resultType)
+        typeFactory.createTypeFromTypeInfo(namedProp.property.resultType, isNullable = false)
       )
     }
     builder.build()

@@ -20,11 +20,14 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 
@@ -53,11 +56,13 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	private final Time maxRegistrationPause;
 	private final Time refusedRegistrationPause;
 
-	private final long cleanupInterval;
-
 	private final UnmodifiableConfiguration configuration;
 
 	private final boolean exitJvmOnOutOfMemory;
+
+	private final FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder;
+
+	private final String[] alwaysParentFirstLoaderPatterns;
 
 	public TaskManagerConfiguration(
 		int numberSlots,
@@ -69,7 +74,9 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		Time refusedRegistrationPause,
 		long cleanupInterval,
 		Configuration configuration,
-		boolean exitJvmOnOutOfMemory) {
+		boolean exitJvmOnOutOfMemory,
+		FlinkUserCodeClassLoaders.ResolveOrder classLoaderResolveOrder,
+		String[] alwaysParentFirstLoaderPatterns) {
 
 		this.numberSlots = numberSlots;
 		this.tmpDirectories = Preconditions.checkNotNull(tmpDirectories);
@@ -78,9 +85,10 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		this.initialRegistrationPause = Preconditions.checkNotNull(initialRegistrationPause);
 		this.maxRegistrationPause = Preconditions.checkNotNull(maxRegistrationPause);
 		this.refusedRegistrationPause = Preconditions.checkNotNull(refusedRegistrationPause);
-		this.cleanupInterval = Preconditions.checkNotNull(cleanupInterval);
 		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
 		this.exitJvmOnOutOfMemory = exitJvmOnOutOfMemory;
+		this.classLoaderResolveOrder = classLoaderResolveOrder;
+		this.alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderPatterns;
 	}
 
 	public int getNumberSlots() {
@@ -107,10 +115,6 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		return refusedRegistrationPause;
 	}
 
-	public long getCleanupInterval() {
-		return cleanupInterval;
-	}
-
 	@Override
 	public Configuration getConfiguration() {
 		return configuration;
@@ -124,6 +128,14 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 	@Override
 	public boolean shouldExitJvmOnOutOfMemoryError() {
 		return exitJvmOnOutOfMemory;
+	}
+
+	public FlinkUserCodeClassLoaders.ResolveOrder getClassLoaderResolveOrder() {
+		return classLoaderResolveOrder;
+	}
+
+	public String[] getAlwaysParentFirstLoaderPatterns() {
+		return alwaysParentFirstLoaderPatterns;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -153,9 +165,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		LOG.info("Messages have a max timeout of " + timeout);
 
-		final long cleanupInterval = configuration.getLong(
-			ConfigConstants.LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL,
-			ConfigConstants.DEFAULT_LIBRARY_CACHE_MANAGER_CLEANUP_INTERVAL) * 1000;
+		final long cleanupInterval = configuration.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
 
 		final Time finiteRegistrationDuration;
 
@@ -220,6 +230,13 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
 		final boolean exitOnOom = configuration.getBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY);
 
+		final String classLoaderResolveOrder =
+			configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+
+		final String alwaysParentFirstLoaderString =
+			configuration.getString(CoreOptions.ALWAYS_PARENT_FIRST_LOADER);
+		final String[] alwaysParentFirstLoaderPatterns = alwaysParentFirstLoaderString.split(";");
+
 		return new TaskManagerConfiguration(
 			numberSlots,
 			tmpDirPaths,
@@ -230,6 +247,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			refusedRegistrationPause,
 			cleanupInterval,
 			configuration,
-			exitOnOom);
+			exitOnOom,
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
+			alwaysParentFirstLoaderPatterns);
 	}
 }

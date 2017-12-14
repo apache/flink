@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
@@ -22,7 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
- * Configuration options for the BlobServer.
+ * Configuration options for the BlobServer and BlobCache.
  */
 @PublicEvolving
 public class BlobServerOptions {
@@ -73,4 +74,24 @@ public class BlobServerOptions {
 	public static final ConfigOption<Boolean> SSL_ENABLED =
 		key("blob.service.ssl.enabled")
 			.defaultValue(true);
+
+	/**
+	 * Cleanup interval of the blob caches at the task managers (in seconds).
+	 *
+	 * <p>Whenever a job is not referenced at the cache anymore, we set a TTL and let the periodic
+	 * cleanup task (executed every CLEANUP_INTERVAL seconds) remove its blob files after this TTL
+	 * has passed. This means that a blob will be retained at most <tt>2 * CLEANUP_INTERVAL</tt>
+	 * seconds after not being referenced anymore. Therefore, a recovery still has the chance to use
+	 * existing files rather than to download them again.
+	 */
+	public static final ConfigOption<Long> CLEANUP_INTERVAL =
+		key("blob.service.cleanup.interval")
+			.defaultValue(3_600L) // once per hour
+			.withDeprecatedKeys("library-cache-manager.cleanup.interval");
+
+	/**
+	 * The minimum size for messages to be offloaded to the BlobServer.
+	 */
+	public static final ConfigOption<Integer> OFFLOAD_MINSIZE = key("blob.offload.minsize")
+		.defaultValue(1_024 * 1_024); // 1MiB by default
 }

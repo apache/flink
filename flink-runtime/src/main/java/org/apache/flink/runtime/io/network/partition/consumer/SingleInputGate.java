@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
@@ -147,6 +149,9 @@ public class SingleInputGate implements InputGate {
 	 */
 	private BufferPool bufferPool;
 
+	/** Global network buffer pool to request and recycle exclusive buffers. */
+	private NetworkBufferPool networkBufferPool;
+
 	private boolean hasReceivedAllEndOfPartitionEvents;
 
 	/** Flag indicating whether partitions have been requested. */
@@ -161,6 +166,9 @@ public class SingleInputGate implements InputGate {
 	private final List<TaskEvent> pendingEvents = new ArrayList<>();
 
 	private int numberOfUninitializedChannels;
+
+	/** Number of network buffers to use for each remote input channel. */
+	private int networkBuffersPerChannel;
 
 	/** A timer to retrigger local partition requests. Only initialized if actually needed. */
 	private Timer retriggerLocalRequestTimer;
@@ -259,21 +267,55 @@ public class SingleInputGate implements InputGate {
 
 	public void setBufferPool(BufferPool bufferPool) {
 		// Sanity checks
-		checkArgument(numberOfInputChannels == bufferPool.getNumberOfRequiredMemorySegments(),
+		if (!getConsumedPartitionType().isCreditBased()) {
+			checkArgument(numberOfInputChannels == bufferPool.getNumberOfRequiredMemorySegments(),
 				"Bug in input gate setup logic: buffer pool has not enough guaranteed buffers " +
-						"for this input gate. Input gates require at least as many buffers as " +
+					"for this input gate. Input gates require at least as many buffers as " +
 						"there are input channels.");
+		}
 
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: buffer pool has" +
-				"already been set for this input gate.");
+			"already been set for this input gate.");
 
 		this.bufferPool = checkNotNull(bufferPool);
+	}
+
+	/**
+	 * Assign the exclusive buffers to all remote input channels directly for credit-based mode.
+	 *
+	 * @param networkBufferPool The global pool to request and recycle exclusive buffers
+	 * @param networkBuffersPerChannel The number of exclusive buffers for each channel
+	 */
+	public void assignExclusiveSegments(NetworkBufferPool networkBufferPool, int networkBuffersPerChannel) throws IOException {
+		checkState(this.networkBufferPool == null, "Bug in input gate setup logic: global buffer pool has" +
+			"already been set for this input gate.");
+
+		this.networkBufferPool = checkNotNull(networkBufferPool);
+		this.networkBuffersPerChannel = networkBuffersPerChannel;
+		
+		synchronized (requestLock) {
+			for (InputChannel inputChannel : inputChannels.values()) {
+				if (inputChannel instanceof RemoteInputChannel) {
+					((RemoteInputChannel) inputChannel).assignExclusiveSegments(
+						networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+				}
+			}
+		}
+	}
+
+	/**
+	 * The exclusive segments are recycled to network buffer pool directly when input channel is released.
+	 *
+	 * @param segments The exclusive segments need to be recycled
+	 */
+	public void returnExclusiveSegments(List<MemorySegment> segments) throws IOException {
+		networkBufferPool.recycleMemorySegments(segments);
 	}
 
 	public void setInputChannel(IntermediateResultPartitionID partitionId, InputChannel inputChannel) {
 		synchronized (requestLock) {
 			if (inputChannels.put(checkNotNull(partitionId), checkNotNull(inputChannel)) == null
-					&& inputChannel.getClass() == UnknownInputChannel.class) {
+					&& inputChannel instanceof UnknownInputChannel) {
 
 				numberOfUninitializedChannels++;
 			}
@@ -291,7 +333,7 @@ public class SingleInputGate implements InputGate {
 
 			InputChannel current = inputChannels.get(partitionId);
 
-			if (current.getClass() == UnknownInputChannel.class) {
+			if (current instanceof UnknownInputChannel) {
 
 				UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
 
@@ -304,6 +346,11 @@ public class SingleInputGate implements InputGate {
 				}
 				else if (partitionLocation.isRemote()) {
 					newChannel = unknownChannel.toRemoteInputChannel(partitionLocation.getConnectionId());
+
+					if (getConsumedPartitionType().isCreditBased()) {
+						((RemoteInputChannel)newChannel).assignExclusiveSegments(
+							networkBufferPool.requestMemorySegments(networkBuffersPerChannel));
+					}
 				}
 				else {
 					throw new IllegalStateException("Tried to update unknown channel with unknown channel.");

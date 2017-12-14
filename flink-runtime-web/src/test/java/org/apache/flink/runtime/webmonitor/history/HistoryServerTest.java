@@ -27,13 +27,16 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.ArchiveMessages;
-import org.apache.flink.runtime.webmonitor.utils.ArchivedJobGenerationUtils;
+import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedJobGenerationUtils;
+import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
+import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.testkit.TestActorRef;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -52,7 +55,7 @@ import scala.Option;
 /**
  * Tests for the HistoryServer.
  */
-public class HistoryServerTest {
+public class HistoryServerTest extends TestLogger {
 
 	@Rule
 	public TemporaryFolder tmpDir = new TemporaryFolder();
@@ -90,10 +93,10 @@ public class HistoryServerTest {
 			numFinishedPolls.await(10L, TimeUnit.SECONDS);
 
 			ObjectMapper mapper = new ObjectMapper();
-			String response = getFromHTTP(baseUrl + "/joboverview");
+			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
 			JsonNode overview = mapper.readTree(response);
 
-			String jobID = overview.get("finished").get(0).get("jid").asText();
+			String jobID = overview.get("jobs").get(0).get("jid").asText();
 			JsonNode jobDetails = mapper.readTree(getFromHTTP(baseUrl + "/jobs/" + jobID));
 			Assert.assertNotNull(jobDetails.get("jid"));
 		} finally {

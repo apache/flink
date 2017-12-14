@@ -26,7 +26,9 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ import java.util.List;
 
 import static org.apache.flink.cep.nfa.NFATestUtilities.compareMaps;
 import static org.apache.flink.cep.nfa.NFATestUtilities.feedNFA;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for handling Events that are equal in case of {@link Object#equals(Object)} and have same timestamps.
@@ -98,6 +101,95 @@ public class SameElementITCase extends TestLogger {
 			Lists.newArrayList(startEvent, end1)
 		));
 	}
+
+@Test
+public void testClearingBuffer() throws Exception {
+	List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+	Event a1 = new Event(40, "a", 1.0);
+	Event b1 = new Event(41, "b", 2.0);
+	Event c1 = new Event(41, "c", 2.0);
+	Event d = new Event(41, "d", 2.0);
+
+	inputEvents.add(new StreamRecord<>(a1, 1));
+	inputEvents.add(new StreamRecord<>(b1, 2));
+	inputEvents.add(new StreamRecord<>(c1, 2));
+	inputEvents.add(new StreamRecord<>(d, 2));
+
+	Pattern<Event, ?> pattern = Pattern.<Event>begin("a").where(new SimpleCondition<Event>() {
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("a");
+		}
+	}).followedBy("b").where(new SimpleCondition<Event>() {
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("b");
+		}
+	}).followedBy("c").where(new SimpleCondition<Event>() {
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("c");
+		}
+	}).followedBy("d").where(new SimpleCondition<Event>() {
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("d");
+		}
+	});
+
+	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		Lists.newArrayList(a1, b1, c1, d)
+	));
+	assertTrue(nfa.isEmpty());
+}
+
+@Test
+public void testClearingBufferWithUntilAtTheEnd() throws Exception {
+	List<StreamRecord<Event>> inputEvents = new ArrayList<>();
+
+	Event a1 = new Event(40, "a", 1.0);
+	Event d1 = new Event(41, "d", 2.0);
+	Event d2 = new Event(41, "d", 2.0);
+	Event d3 = new Event(41, "d", 2.0);
+	Event d4 = new Event(41, "d", 2.0);
+
+	inputEvents.add(new StreamRecord<>(a1, 1));
+	inputEvents.add(new StreamRecord<>(d1, 2));
+	inputEvents.add(new StreamRecord<>(d2, 2));
+	inputEvents.add(new StreamRecord<>(d3, 2));
+	inputEvents.add(new StreamRecord<>(d4, 4));
+
+	Pattern<Event, ?> pattern = Pattern.<Event>begin("a").where(new SimpleCondition<Event>() {
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("a");
+		}
+	}).followedBy("d").where(new SimpleCondition<Event>() {
+		@Override
+		public boolean filter(Event value) throws Exception {
+			return value.getName().equals("d");
+		}
+	}).oneOrMore().until(new IterativeCondition<Event>() {
+		@Override
+		public boolean filter(Event value, Context<Event> ctx) throws Exception {
+			return Iterators.size(ctx.getEventsForPattern("d").iterator()) == 3;
+		}
+	});
+
+	NFA<Event> nfa = NFACompiler.compile(pattern, Event.createTypeSerializer(), false);
+
+	List<List<Event>> resultingPatterns = feedNFA(inputEvents, nfa);
+	compareMaps(resultingPatterns, Lists.<List<Event>>newArrayList(
+		Lists.newArrayList(a1, d1, d2, d3),
+		Lists.newArrayList(a1, d1, d2),
+		Lists.newArrayList(a1, d1)
+	));
+	assertTrue(nfa.isEmpty());
+}
 
 	@Test
 	public void testZeroOrMoreSameElement() {

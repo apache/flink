@@ -72,7 +72,7 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 		List<Edge<Long, EdgeValue<String>>> summarizedEdges = new ArrayList<>();
 
 		Graph<Long, Summarization.VertexValue<String>, EdgeValue<String>> output =
-				input.run(new Summarization<Long, String, String>());
+				input.run(new Summarization<>());
 
 		output.getVertices().output(new LocalCollectionOutputFormat<>(summarizedVertices));
 		output.getEdges().output(new LocalCollectionOutputFormat<>(summarizedEdges));
@@ -90,13 +90,13 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 				SummarizationData.getVertices(env),
 				SummarizationData.getEdges(env),
 				env)
-			.run(new TranslateEdgeValues<Long, String, String, NullValue>(new ToNullValue<String>()));
+			.run(new TranslateEdgeValues<>(new ToNullValue<>()));
 
 		List<Vertex<Long, Summarization.VertexValue<String>>> summarizedVertices = new ArrayList<>();
 		List<Edge<Long, EdgeValue<NullValue>>> summarizedEdges = new ArrayList<>();
 
 		Graph<Long, Summarization.VertexValue<String>, EdgeValue<NullValue>> output =
-				input.run(new Summarization<Long, String, NullValue>());
+				input.run(new Summarization<>());
 
 		output.getVertices().output(new LocalCollectionOutputFormat<>(summarizedVertices));
 		output.getEdges().output(new LocalCollectionOutputFormat<>(summarizedEdges));
@@ -115,14 +115,14 @@ public class SummarizationITCase extends MultipleProgramsTestBase {
 				SummarizationData.getVertices(env),
 				SummarizationData.getEdges(env),
 				env)
-			.run(new TranslateVertexValues<Long, String, Long, String>(new StringToLong()))
-			.run(new TranslateEdgeValues<Long, Long, String, Long>(new StringToLong()));
+			.run(new TranslateVertexValues<>(new StringToLong()))
+			.run(new TranslateEdgeValues<>(new StringToLong()));
 
 		List<Vertex<Long, Summarization.VertexValue<Long>>> summarizedVertices = new ArrayList<>();
 		List<Edge<Long, EdgeValue<Long>>> summarizedEdges = new ArrayList<>();
 
 		Graph<Long, Summarization.VertexValue<Long>, EdgeValue<Long>> output =
-			input.run(new Summarization<Long, Long, Long>());
+			input.run(new Summarization<>());
 
 		output.getVertices().output(new LocalCollectionOutputFormat<>(summarizedVertices));
 		output.getEdges().output(new LocalCollectionOutputFormat<>(summarizedEdges));

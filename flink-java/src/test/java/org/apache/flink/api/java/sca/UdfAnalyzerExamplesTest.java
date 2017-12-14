@@ -33,6 +33,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.util.Collector;
+
 import org.junit.Test;
 
 import java.io.Serializable;
@@ -59,7 +60,7 @@ public class UdfAnalyzerExamplesTest {
 	// EnumTriangles
 	// --------------------------------------------------------------------------------------------
 
-	public static class Edge extends Tuple2<Integer, Integer> {
+	private static class Edge extends Tuple2<Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		public static final int V1 = 0;
@@ -72,13 +73,21 @@ public class UdfAnalyzerExamplesTest {
 			this.setSecondVertex(v2);
 		}
 
-		public Integer getFirstVertex() { return this.getField(V1); }
+		public Integer getFirstVertex() {
+			return this.getField(V1);
+		}
 
-		public Integer getSecondVertex() { return this.getField(V2); }
+		public Integer getSecondVertex() {
+			return this.getField(V2);
+		}
 
-		public void setFirstVertex(final Integer vertex1) { this.setField(vertex1, V1); }
+		public void setFirstVertex(final Integer vertex1) {
+			this.setField(vertex1, V1);
+		}
 
-		public void setSecondVertex(final Integer vertex2) { this.setField(vertex2, V2); }
+		public void setSecondVertex(final Integer vertex2) {
+			this.setField(vertex2, V2);
+		}
 
 		public void copyVerticesFromTuple2(Tuple2<Integer, Integer> t) {
 			this.setFirstVertex(t.f0);
@@ -92,20 +101,27 @@ public class UdfAnalyzerExamplesTest {
 		}
 	}
 
-	public static class Triad extends Tuple3<Integer, Integer, Integer> {
+	private static class Triad extends Tuple3<Integer, Integer, Integer> {
 		private static final long serialVersionUID = 1L;
 
 		public static final int V1 = 0;
 		public static final int V2 = 1;
 		public static final int V3 = 2;
 
-		public Triad() {}
+		public Triad() {
+		}
 
-		public void setFirstVertex(final Integer vertex1) { this.setField(vertex1, V1); }
+		public void setFirstVertex(final Integer vertex1) {
+			this.setField(vertex1, V1);
+		}
 
-		public void setSecondVertex(final Integer vertex2) { this.setField(vertex2, V2); }
+		public void setSecondVertex(final Integer vertex2) {
+			this.setField(vertex2, V2);
+		}
 
-		public void setThirdVertex(final Integer vertex3) { this.setField(vertex3, V3); }
+		public void setThirdVertex(final Integer vertex3) {
+			this.setField(vertex3, V3);
+		}
 	}
 
 	@ForwardedFields("0")
@@ -151,7 +167,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("0;1")
-	public static class TupleEdgeConverter implements MapFunction<Tuple2<Integer, Integer>, Edge> {
+	private static class TupleEdgeConverter implements MapFunction<Tuple2<Integer, Integer>, Edge> {
 		private final Edge outEdge = new Edge();
 
 		@Override
@@ -204,14 +220,14 @@ public class UdfAnalyzerExamplesTest {
 				edge = edges.next();
 				Integer otherVertex = edge.getSecondVertex();
 				// collect unique vertices
-				if(!otherVertices.contains(otherVertex) && !otherVertex.equals(groupVertex)) {
+				if (!otherVertices.contains(otherVertex) && !otherVertex.equals(groupVertex)) {
 					this.otherVertices.add(otherVertex);
 				}
 			}
 
 			// emit edges
-			for(Integer otherVertex : this.otherVertices) {
-				if(groupVertex < otherVertex) {
+			for (Integer otherVertex : this.otherVertices) {
+				if (groupVertex < otherVertex) {
 					outputEdge.setFirstVertex(groupVertex);
 					outputEdge.setSecondVertex(otherVertex);
 				} else {
@@ -235,6 +251,9 @@ public class UdfAnalyzerExamplesTest {
 	// KMeans
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Representation of point int 2d plane.
+	 */
 	public static class Point implements Serializable {
 		public double x, y;
 
@@ -267,13 +286,16 @@ public class UdfAnalyzerExamplesTest {
 		}
 	}
 
+	/**
+	 * Representation of centroid in 2d plane.
+	 */
 	public static class Centroid extends Point {
 		public int id;
 
 		public Centroid() {}
 
 		public Centroid(int id, double x, double y) {
-			super(x,y);
+			super(x, y);
 			this.id = id;
 		}
 
@@ -289,7 +311,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("0")
-	public static final class CentroidAccumulator implements ReduceFunction<Tuple3<Integer, Point, Long>> {
+	private static final class CentroidAccumulator implements ReduceFunction<Tuple3<Integer, Point, Long>> {
 		@Override
 		public Tuple3<Integer, Point, Long> reduce(Tuple3<Integer, Point, Long> val1, Tuple3<Integer, Point, Long> val2) {
 			return new Tuple3<Integer, Point, Long>(val1.f0, val1.f1.add(val2.f1), val1.f2 + val2.f2);
@@ -305,7 +327,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("0->id")
-	public static final class CentroidAverager implements MapFunction<Tuple3<Integer, Point, Long>, Centroid> {
+	private static final class CentroidAverager implements MapFunction<Tuple3<Integer, Point, Long>, Centroid> {
 		@Override
 		public Centroid map(Tuple3<Integer, Point, Long> value) {
 			return new Centroid(value.f0, value.f1.div(value.f2));
@@ -323,7 +345,7 @@ public class UdfAnalyzerExamplesTest {
 	// ConnectedComponents
 	// --------------------------------------------------------------------------------------------
 
-	public static final class UndirectEdge implements FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static final class UndirectEdge implements FlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		Tuple2<Long, Long> invertedEdge = new Tuple2<Long, Long>();
 
 		@Override
@@ -343,7 +365,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFieldsFirst("*")
-	public static final class ComponentIdFilter implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static final class ComponentIdFilter implements FlatJoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public void join(Tuple2<Long, Long> candidate, Tuple2<Long, Long> old, Collector<Tuple2<Long, Long>> out) {
 			if (candidate.f1 < old.f1) {
@@ -361,7 +383,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("*->f0;*->f1")
-	public static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
+	private static final class DuplicateValue<T> implements MapFunction<T, Tuple2<T, T>> {
 		@Override
 		public Tuple2<T, T> map(T vertex) {
 			return new Tuple2<T, T>(vertex, vertex);
@@ -377,7 +399,7 @@ public class UdfAnalyzerExamplesTest {
 
 	@ForwardedFieldsFirst("f1->f1")
 	@ForwardedFieldsSecond("f1->f0")
-	public static final class NeighborWithComponentIDJoin implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
+	private static final class NeighborWithComponentIDJoin implements JoinFunction<Tuple2<Long, Long>, Tuple2<Long, Long>, Tuple2<Long, Long>> {
 		@Override
 		public Tuple2<Long, Long> join(Tuple2<Long, Long> vertexWithComponent, Tuple2<Long, Long> edge) {
 			return new Tuple2<Long, Long>(edge.f1, vertexWithComponent.f1);
@@ -397,7 +419,7 @@ public class UdfAnalyzerExamplesTest {
 	// --------------------------------------------------------------------------------------------
 
 	@ForwardedFieldsFirst("f1")
-	public static class AntiJoinVisits implements CoGroupFunction<Tuple3<Integer, String, Integer>, Tuple1<String>, Tuple3<Integer, String, Integer>> {
+	private static class AntiJoinVisits implements CoGroupFunction<Tuple3<Integer, String, Integer>, Tuple1<String>, Tuple3<Integer, String, Integer>> {
 		@Override
 		public void coGroup(Iterable<Tuple3<Integer, String, Integer>> ranks, Iterable<Tuple1<String>> visits, Collector<Tuple3<Integer, String, Integer>> out) {
 			// Check if there is a entry in the visits relation
@@ -424,7 +446,7 @@ public class UdfAnalyzerExamplesTest {
 	// --------------------------------------------------------------------------------------------
 
 	@ForwardedFields("0")
-	public static class BuildOutgoingEdgeList implements GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
+	private static class BuildOutgoingEdgeList implements GroupReduceFunction<Tuple2<Long, Long>, Tuple2<Long, Long[]>> {
 		private final ArrayList<Long> neighbors = new ArrayList<Long>();
 
 		@Override
@@ -452,7 +474,7 @@ public class UdfAnalyzerExamplesTest {
 	// LogisticRegression
 	// --------------------------------------------------------------------------------------------
 
-	public static class Vector extends Tuple1<double[]> {
+	private static class Vector extends Tuple1<double[]> {
 		public Vector() {
 			// default constructor needed for instantiation during serialization
 		}
@@ -482,7 +504,7 @@ public class UdfAnalyzerExamplesTest {
 		}
 	}
 
-	public static class Gradient extends Vector {
+	private static class Gradient extends Vector {
 		public Gradient() {
 			// default constructor needed for instantiation during serialization
 		}
@@ -492,7 +514,7 @@ public class UdfAnalyzerExamplesTest {
 		}
 	}
 
-	public static class PointWithLabel extends Tuple2<Integer, double[]> {
+	private static class PointWithLabel extends Tuple2<Integer, double[]> {
 		public double[] getFeatures() {
 			return this.f1;
 		}
@@ -514,7 +536,7 @@ public class UdfAnalyzerExamplesTest {
 		}
 	}
 
-	public static class SumGradient implements ReduceFunction<Gradient> {
+	private static class SumGradient implements ReduceFunction<Gradient> {
 		@Override
 		public Gradient reduce(Gradient gradient1, Gradient gradient2) throws Exception {
 			// grad(i) +=
@@ -534,7 +556,7 @@ public class UdfAnalyzerExamplesTest {
 				new String[] { "0" });
 	}
 
-	public static class PointParser implements MapFunction<String, PointWithLabel> {
+	private static class PointParser implements MapFunction<String, PointWithLabel> {
 		@Override
 		public PointWithLabel map(String value) throws Exception {
 			PointWithLabel p = new PointWithLabel();
@@ -570,7 +592,7 @@ public class UdfAnalyzerExamplesTest {
 	// Canopy
 	// --------------------------------------------------------------------------------------------
 
-	public static class Document extends Tuple5<Integer, Boolean, Boolean, String, String> {
+	private static class Document extends Tuple5<Integer, Boolean, Boolean, String, String> {
 		public Document() {
 			// default constructor needed for instantiation during serialization
 		}
@@ -584,7 +606,7 @@ public class UdfAnalyzerExamplesTest {
 		}
 	}
 
-	public static class MessageBOW implements FlatMapFunction<String, Tuple2<Integer, String>> {
+	private static class MessageBOW implements FlatMapFunction<String, Tuple2<Integer, String>> {
 		@Override
 		public void flatMap(String value, Collector<Tuple2<Integer, String>> out) throws Exception {
 			String[] splits = value.split(" ");
@@ -603,7 +625,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("0")
-	public static class DocumentReducer implements GroupReduceFunction<Tuple2<Integer, String>, Document> {
+	private static class DocumentReducer implements GroupReduceFunction<Tuple2<Integer, String>, Document> {
 		@Override
 		public void reduce(Iterable<Tuple2<Integer, String>> values, Collector<Document> out) throws Exception {
 			Iterator<Tuple2<Integer, String>> it = values.iterator();
@@ -626,7 +648,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("0;4")
-	public static class MapToCenter implements MapFunction<Document, Document> {
+	private static class MapToCenter implements MapFunction<Document, Document> {
 		private Document center;
 
 		@Override
@@ -655,6 +677,9 @@ public class UdfAnalyzerExamplesTest {
 	// K-Meanspp
 	// --------------------------------------------------------------------------------------------
 
+	/**
+	 * Representation of document with word frequencies.
+	 */
 	public static class DocumentWithFreq implements Serializable {
 		private static final long serialVersionUID = -8646398807053061675L;
 
@@ -677,7 +702,7 @@ public class UdfAnalyzerExamplesTest {
 	}
 
 	@ForwardedFields("0->id")
-	public static final class RecordToDocConverter implements GroupReduceFunction<Tuple3<Integer, Integer, Double>, DocumentWithFreq> {
+	private static final class RecordToDocConverter implements GroupReduceFunction<Tuple3<Integer, Integer, Double>, DocumentWithFreq> {
 		private static final long serialVersionUID = -8476366121490468956L;
 
 		@Override

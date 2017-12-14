@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -36,10 +37,14 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A fetcher that fetches data from Kafka brokers via the Kafka 0.9 consumer API.
@@ -209,7 +214,10 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	}
 
 	@Override
-	public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
+	protected void doCommitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
+
 		@SuppressWarnings("unchecked")
 		List<KafkaTopicPartitionState<TopicPartition>> partitions = subscribedPartitionStates();
 
@@ -218,6 +226,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		for (KafkaTopicPartitionState<TopicPartition> partition : partitions) {
 			Long lastProcessedOffset = offsets.get(partition.getKafkaTopicPartition());
 			if (lastProcessedOffset != null) {
+				checkState(lastProcessedOffset >= 0, "Illegal offset value to commit");
+
 				// committed offsets through the KafkaConsumer need to be 1 more than the last processed offset.
 				// This does not affect Flink's checkpoints/saved state.
 				long offsetToCommit = lastProcessedOffset + 1;
@@ -228,6 +238,6 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		}
 
 		// record the work to be committed by the main consumer thread and make sure the consumer notices that
-		consumerThread.setOffsetsToCommit(offsetsToCommit);
+		consumerThread.setOffsetsToCommit(offsetsToCommit, commitCallback);
 	}
 }

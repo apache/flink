@@ -18,10 +18,19 @@
 
 package org.apache.flink.core.fs.local;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.FileSystemKind;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.FileUtils;
+
+import org.junit.Assume;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,18 +39,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
 
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
-import org.apache.flink.util.FileUtils;
-
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This class tests the functionality of the {@link LocalFileSystem} class in its components. In particular,
@@ -311,5 +312,11 @@ public class LocalFileSystemTest {
 		assertTrue(dstFile.delete());
 		assertTrue(fs.rename(new Path(srcFolder.toURI()), new Path(dstFolder.toURI())));
 		assertTrue(new File(dstFolder, srcFile.getName()).exists());
+	}
+
+	@Test
+	public void testKind() {
+		final FileSystem fs = FileSystem.getLocalFileSystem();
+		assertEquals(FileSystemKind.FILE_SYSTEM, fs.getKind());
 	}
 }

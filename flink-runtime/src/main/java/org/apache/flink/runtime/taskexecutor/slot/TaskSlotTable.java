@@ -282,16 +282,14 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
 		checkInit();
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Free slot {}.", allocationId, cause);
-		} else {
-			LOG.info("Free slot {}.", allocationId);
-		}
-
 		TaskSlot taskSlot = getTaskSlot(allocationId);
 
 		if (taskSlot != null) {
-			LOG.info("Free slot {}.", allocationId, cause);
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Free slot {}.", taskSlot, cause);
+			} else {
+				LOG.info("Free slot {}.", taskSlot);
+			}
 
 			final JobID jobId = taskSlot.getJobId();
 

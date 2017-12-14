@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobStore;
@@ -32,7 +33,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -52,6 +53,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -83,7 +85,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 		jobManager = mock(JobMaster.class);
 		jobManagerGateway = mock(JobMasterGateway.class);
-		when(jobManager.getSelf()).thenReturn(jobManagerGateway);
+		when(jobManager.getSelfGateway(eq(JobMasterGateway.class))).thenReturn(jobManagerGateway);
 		when(jobManager.getRpcService()).thenReturn(mockRpc);
 
 		PowerMockito.whenNew(JobMaster.class).withAnyArguments().thenReturn(jobManager);
@@ -113,9 +115,10 @@ public class JobManagerRunnerMockTest extends TestLogger {
 			haServices,
 			heartbeatServices,
 			JobManagerServices.fromConfiguration(new Configuration(), mock(BlobServer.class)),
-			new MetricRegistry(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
+			new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration()),
 			jobCompletion,
-			jobCompletion));
+			jobCompletion,
+			null));
 	}
 
 	@After
@@ -131,7 +134,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 		assertTrue(!jobCompletion.isJobFailed());
 
-		verify(jobManager).start(any(UUID.class));
+		verify(jobManager).start(any(JobMasterId.class), any(Time.class));
 		
 		runner.shutdown();
 		verify(leaderElectionService).stop();
@@ -163,9 +166,9 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testJobFinished() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is finished
@@ -183,9 +186,9 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testJobFailed() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is failed
@@ -202,13 +205,13 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testLeadershipRevoked() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
-		verify(jobManager).suspendExecution(any(Throwable.class));
+		verify(jobManager).suspend(any(Throwable.class), any(Time.class));
 		assertFalse(runner.isShutdown());
 	}
 
@@ -217,18 +220,18 @@ public class JobManagerRunnerMockTest extends TestLogger {
 	public void testRegainLeadership() throws Exception {
 		runner.start();
 
-		UUID leaderSessionID = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID);
-		verify(jobManager).start(leaderSessionID);
+		JobMasterId jobMasterId = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId.toUUID());
+		verify(jobManager).start(eq(jobMasterId), any(Time.class));
 		assertTrue(!jobCompletion.isJobFinished());
 
 		runner.revokeLeadership();
-		verify(jobManager).suspendExecution(any(Throwable.class));
+		verify(jobManager).suspend(any(Throwable.class), any(Time.class));
 		assertFalse(runner.isShutdown());
 
-		UUID leaderSessionID2 = UUID.randomUUID();
-		runner.grantLeadership(leaderSessionID2);
-		verify(jobManager).start(leaderSessionID2);
+		JobMasterId jobMasterId2 = JobMasterId.generate();
+		runner.grantLeadership(jobMasterId2.toUUID());
+		verify(jobManager).start(eq(jobMasterId2), any(Time.class));
 	}
 
 	private static class TestingOnCompletionActions implements OnCompletionActions, FatalErrorHandler {

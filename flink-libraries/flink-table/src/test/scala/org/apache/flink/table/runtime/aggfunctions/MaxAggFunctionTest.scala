@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.aggfunctions
 
 import java.math.BigDecimal
+import java.sql.{Date, Time, Timestamp}
 
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.aggfunctions._
@@ -229,4 +230,82 @@ class StringMaxAggFunctionTest extends AggFunctionTestBase[String, MaxAccumulato
 
   override def aggregator: AggregateFunction[String, MaxAccumulator[String]] =
     new StringMaxAggFunction()
+}
+
+class TimestampMaxAggFunctionTest
+  extends AggFunctionTestBase[Timestamp, MaxAccumulator[Timestamp]] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Timestamp(0),
+      new Timestamp(1000),
+      new Timestamp(100),
+      null.asInstanceOf[Timestamp],
+      new Timestamp(10)
+    ),
+    Seq(
+      null.asInstanceOf[Timestamp],
+      null.asInstanceOf[Timestamp],
+      null.asInstanceOf[Timestamp]
+    )
+  )
+
+  override def expectedResults: Seq[Timestamp] = Seq(
+    new Timestamp(1000),
+    null.asInstanceOf[Timestamp]
+  )
+
+  override def aggregator: AggregateFunction[Timestamp, MaxAccumulator[Timestamp]] =
+    new TimestampMaxAggFunction()
+}
+
+class DateMaxAggFunctionTest
+  extends AggFunctionTestBase[Date, MaxAccumulator[Date]] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Date(0),
+      new Date(1000),
+      new Date(100),
+      null.asInstanceOf[Date],
+      new Date(10)
+    ),
+    Seq(
+      null.asInstanceOf[Date],
+      null.asInstanceOf[Date],
+      null.asInstanceOf[Date]
+    )
+  )
+
+  override def expectedResults: Seq[Date] = Seq(
+    new Date(1000),
+    null.asInstanceOf[Date]
+  )
+
+  override def aggregator: AggregateFunction[Date, MaxAccumulator[Date]] =
+    new DateMaxAggFunction()
+}
+
+class TimeMaxAggFunctionTest
+  extends AggFunctionTestBase[Time, MaxAccumulator[Time]] {
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq(
+      new Time(0),
+      new Time(1000),
+      new Time(100),
+      null.asInstanceOf[Time],
+      new Time(10)
+    ),
+    Seq(
+      null.asInstanceOf[Time],
+      null.asInstanceOf[Time],
+      null.asInstanceOf[Time]
+    )
+  )
+
+  override def expectedResults: Seq[Time] = Seq(
+    new Time(1000),
+    null.asInstanceOf[Time]
+  )
+
+  override def aggregator: AggregateFunction[Time, MaxAccumulator[Time]] =
+    new TimeMaxAggFunction()
 }

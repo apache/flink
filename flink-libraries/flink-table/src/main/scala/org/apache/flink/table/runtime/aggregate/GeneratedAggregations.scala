@@ -18,13 +18,21 @@
 
 package org.apache.flink.table.runtime.aggregate
 
-import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.types.Row
 
 /**
   * Base class for code-generated aggregations.
   */
 abstract class GeneratedAggregations extends Function {
+
+  /**
+    * Setup method for [[org.apache.flink.table.functions.AggregateFunction]].
+    * It can be used for initialization work. By default, this method does nothing.
+    *
+    * @param ctx The runtime context.
+    */
+  def open(ctx: RuntimeContext)
 
   /**
     * Sets the results of the aggregations (partial or final) to the output row.
@@ -44,13 +52,6 @@ abstract class GeneratedAggregations extends Function {
     * @param output       output results collected in a row
     */
   def setForwardedFields(input: Row, output: Row)
-
-  /**
-    * Sets constant flags (boolean fields) to an output row.
-    *
-    * @param output The output row to which the constant flags are set.
-    */
-  def setConstantFlags(output: Row)
 
   /**
     * Accumulates the input values to the accumulators.
@@ -100,6 +101,17 @@ abstract class GeneratedAggregations extends Function {
     *                     aggregated results
     */
   def resetAccumulator(accumulators: Row)
+
+  /**
+    * Cleanup for the accumulators.
+    */
+  def cleanup()
+
+  /**
+    * Tear-down method for [[org.apache.flink.table.functions.AggregateFunction]].
+    * It can be used for clean up work. By default, this method does nothing.
+    */
+  def close()
 }
 
 class SingleElementIterable[T] extends java.lang.Iterable[T] {

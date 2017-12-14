@@ -160,6 +160,8 @@ object CommonTestData {
       override def getReturnType: TypeInformation[Person] = {
         TypeExtractor.getForClass(classOf[Person])
       }
+
+      override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(getReturnType)
     }
   }
 
@@ -173,5 +175,11 @@ object CommonTestData {
     def this() {
       this(null, null)
     }
+  }
+
+  class NonPojo {
+    val x = new java.util.HashMap[String, String]()
+
+    override def toString: String = x.toString
   }
 }

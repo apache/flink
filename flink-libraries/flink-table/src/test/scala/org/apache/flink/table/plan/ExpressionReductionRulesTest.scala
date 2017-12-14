@@ -430,7 +430,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val newTable = util.tableEnv.sql("SELECT 1 + 1 + a AS a FROM MyTable")
+    val newTable = util.tableEnv.sqlQuery("SELECT 1 + 1 + a AS a FROM MyTable")
 
     util.tableEnv.registerTable("NewTable", newTable)
 
@@ -448,7 +448,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
 
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-    val newTable = util.tableEnv.sql("SELECT 1 + 1 + a AS a FROM MyTable")
+    val newTable = util.tableEnv.sqlQuery("SELECT 1 + 1 + a AS a FROM MyTable")
 
     util.tableEnv.registerTable("NewTable", newTable)
 
@@ -491,7 +491,7 @@ class ExpressionReductionRulesTest extends TableTestBase {
       "DataStreamCalc",
       streamTableNode(0),
       term("select", "a", "b", "c"),
-      term("where", s"IS NULL(${NonDeterministicNullFunc.functionIdentifier}())")
+      term("where", s"IS NULL(NonDeterministicNullFunc$$())")
     )
 
     util.verifyTable(result, expected)

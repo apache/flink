@@ -23,13 +23,13 @@ import java.net.URL
 import org.apache.commons.configuration.{ConfigurationException, ConversionException, PropertiesConfiguration}
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.annotation.TableType
-import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException}
-import org.apache.flink.table.plan.schema.{StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException, TableException}
+import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.util.Logging
 import org.apache.flink.util.InstantiationUtil
 import org.reflections.Reflections
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -37,12 +37,10 @@ import scala.collection.mutable
 /**
   * The utility class is used to convert ExternalCatalogTable to TableSourceTable.
   */
-object ExternalTableSourceUtil {
+object ExternalTableSourceUtil extends Logging {
 
   // config file to specify scan package to search TableSourceConverter
   private val tableSourceConverterConfigFileName = "tableSourceConverter.properties"
-
-  private val LOG: Logger = LoggerFactory.getLogger(this.getClass)
 
   // registered table type with the TableSourceConverter.
   // Key is table type name, Value is set of converter class.
@@ -126,9 +124,15 @@ object ExternalTableSourceUtil {
           } else {
             FlinkStatistic.UNKNOWN
           }
+
           convertedTableSource match {
-            case s : StreamTableSource[_] => new StreamTableSourceTable(s, flinkStatistic)
-            case _ => new TableSourceTable(convertedTableSource, flinkStatistic)
+            case s: StreamTableSource[_] =>
+              new StreamTableSourceTable(s, flinkStatistic)
+            case b: BatchTableSource[_] =>
+              new BatchTableSourceTable(b, flinkStatistic)
+            case _ =>
+              throw new TableException("Unknown TableSource type.")
+
           }
         }
       case None =>

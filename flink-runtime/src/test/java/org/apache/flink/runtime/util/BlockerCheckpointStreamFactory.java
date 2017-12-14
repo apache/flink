@@ -33,10 +33,10 @@ import java.io.IOException;
 @Internal
 public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 
-	private final int maxSize;
-	private volatile int afterNumberInvocations;
-	private volatile OneShotLatch blocker;
-	private volatile OneShotLatch waiter;
+	protected final int maxSize;
+	protected volatile int afterNumberInvocations;
+	protected volatile OneShotLatch blocker;
+	protected volatile OneShotLatch waiter;
 
 	MemCheckpointStreamFactory.MemoryCheckpointOutputStream lastCreatedStream;
 
@@ -58,6 +58,14 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	public void setWaiterLatch(OneShotLatch latch) {
 		this.waiter = latch;
+	}
+
+	public OneShotLatch getBlockerLatch() {
+		return blocker;
+	}
+
+	public OneShotLatch getWaiterLatch() {
+		return waiter;
 	}
 
 	@Override

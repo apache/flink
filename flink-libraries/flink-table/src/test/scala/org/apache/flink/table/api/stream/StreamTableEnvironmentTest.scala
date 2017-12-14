@@ -41,7 +41,7 @@ class StreamTableEnvironmentTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]("tableName", 'a, 'b, 'c)
 
-    val sqlTable = util.tableEnv.sql(s"SELECT a, b, c FROM $table WHERE b > 12")
+    val sqlTable = util.tableEnv.sqlQuery(s"SELECT a, b, c FROM $table WHERE b > 12")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -53,7 +53,7 @@ class StreamTableEnvironmentTest extends TableTestBase {
 
     val table2 = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
-    val sqlTable2 = util.tableEnv.sql(s"SELECT d, e, f FROM $table2 " +
+    val sqlTable2 = util.tableEnv.sqlQuery(s"SELECT d, e, f FROM $table2 " +
         s"UNION ALL SELECT a, b, c FROM $table")
 
     val expected2 = binaryNode(
@@ -63,6 +63,43 @@ class StreamTableEnvironmentTest extends TableTestBase {
       term("union all", "d, e, f"))
 
     util.verifyTable(sqlTable2, expected2)
+  }
+
+  @Test
+  def testProctimeAttributeWithAtomicInput(): Unit = {
+    val util = streamTestUtil()
+    // cannot replace an attribute with proctime
+    util.addTable[String]('s, 'pt.proctime)
+  }
+
+  @Test
+  def testReplacingRowtimeAttributeWithAtomicInput(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[Long]('rt.rowtime)
+  }
+
+  @Test
+  def testAppendedRowtimeAttributeWithAtomicInput(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[String]('s, 'rt.rowtime)
+  }
+
+  @Test
+  def testRowtimeAndProctimeAttributeWithAtomicInput1(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[String]('s, 'rt.rowtime, 'pt.proctime)
+  }
+
+  @Test
+  def testRowtimeAndProctimeAttributeWithAtomicInput2(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[String]('s, 'pt.proctime, 'rt.rowtime)
+  }
+
+  @Test
+  def testRowtimeAndProctimeAttributeWithAtomicInput3(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[Long]('rt.rowtime, 'pt.proctime)
   }
 
   @Test

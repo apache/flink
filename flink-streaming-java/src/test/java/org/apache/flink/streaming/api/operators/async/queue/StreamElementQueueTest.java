@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.api.operators.async.queue;
 
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
 import org.apache.flink.streaming.api.operators.async.OperatorActions;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -37,7 +35,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -151,7 +150,7 @@ public class StreamElementQueueTest extends TestLogger {
 		Assert.assertEquals(watermarkQueueEntry, queue.poll());
 		Assert.assertEquals(1, queue.size());
 
-		streamRecordQueueEntry.collect(Collections.<Integer>emptyList());
+		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(streamRecordQueueEntry, queue.poll());
 
@@ -176,14 +175,15 @@ public class StreamElementQueueTest extends TestLogger {
 
 		Assert.assertEquals(1, queue.size());
 
-		Future<Void> putOperation = FlinkFuture.supplyAsync(new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				queue.put(streamRecordQueueEntry2);
-
-				return null;
-			}
-		}, executor);
+		CompletableFuture<Void> putOperation = CompletableFuture.runAsync(
+			() -> {
+				try {
+					queue.put(streamRecordQueueEntry2);
+				} catch (InterruptedException e) {
+					throw new CompletionException(e);
+				}
+			},
+			executor);
 
 		// give the future a chance to complete
 		Thread.sleep(10L);
@@ -191,7 +191,7 @@ public class StreamElementQueueTest extends TestLogger {
 		// but it shouldn't ;-)
 		Assert.assertFalse(putOperation.isDone());
 
-		streamRecordQueueEntry.collect(Collections.<Integer>emptyList());
+		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		// polling the completed head element frees the queue again
 		Assert.assertEquals(streamRecordQueueEntry, queue.poll());
@@ -215,12 +215,15 @@ public class StreamElementQueueTest extends TestLogger {
 
 		Assert.assertTrue(queue.isEmpty());
 
-		Future<AsyncResult> peekOperation = FlinkFuture.supplyAsync(new Callable<AsyncResult>() {
-			@Override
-			public AsyncResult call() throws Exception {
-				return queue.peekBlockingly();
-			}
-		}, executor);
+		CompletableFuture<AsyncResult> peekOperation = CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					return queue.peekBlockingly();
+				} catch (InterruptedException e) {
+					throw new CompletionException(e);
+				}
+			},
+			executor);
 
 		Thread.sleep(10L);
 
@@ -236,12 +239,15 @@ public class StreamElementQueueTest extends TestLogger {
 		Assert.assertEquals(watermarkQueueEntry, queue.poll());
 		Assert.assertTrue(queue.isEmpty());
 
-		Future<AsyncResult> pollOperation = FlinkFuture.supplyAsync(new Callable<AsyncResult>() {
-			@Override
-			public AsyncResult call() throws Exception {
-				return queue.poll();
-			}
-		}, executor);
+		CompletableFuture<AsyncResult> pollOperation = CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					return queue.poll();
+				} catch (InterruptedException e) {
+					throw new CompletionException(e);
+				}
+			},
+			executor);
 
 		Thread.sleep(10L);
 
@@ -253,7 +259,7 @@ public class StreamElementQueueTest extends TestLogger {
 
 		Assert.assertFalse(pollOperation.isDone());
 
-		streamRecordQueueEntry.collect(Collections.<Integer>emptyList());
+		streamRecordQueueEntry.complete(Collections.<Integer>emptyList());
 
 		Assert.assertEquals(streamRecordQueueEntry, pollOperation.get());
 

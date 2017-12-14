@@ -32,15 +32,59 @@ public class QueryableStateOptions {
 	// Server Options
 	// ------------------------------------------------------------------------
 
-	/** Flag to indicate whether to start the queryable state server. */
-	public static final ConfigOption<Boolean> SERVER_ENABLE =
-			key("query.server.enable")
-			.defaultValue(true);
+	/**
+	 * The config parameter defining the server port range of the queryable state proxy.
+	 *
+	 * <p>A proxy runs on each Task Manager, so many proxies may run on the same
+	 * machine.
+	 *
+	 * <p>Given this, and to avoid port clashes, the user can specify a port range and
+	 * the proxy will bind to the first free port in that range.
+	 *
+	 * <p>The specified range can be:
+	 * <ol>
+	 *     <li>a port: "9123",
+	 *     <li>a range of ports: "50100-50200", or
+	 *     <li>a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 * </ol>
+	 *
+	 * <p><b>The default port is 9069.</b>
+	 */
+	public static final ConfigOption<String> PROXY_PORT_RANGE =
+			key("query.proxy.ports")
+			.defaultValue("9069");
 
-	/** Port to bind KvState server to (0 => pick random available port). */
-	public static final ConfigOption<Integer> SERVER_PORT =
-			key("query.server.port")
-			.defaultValue(0);
+	/** Number of network (event loop) threads for the client proxy (0 => #slots). */
+	public static final ConfigOption<Integer> PROXY_NETWORK_THREADS =
+			key("query.proxy.network-threads")
+					.defaultValue(0);
+
+	/** Number of async query threads for the client proxy (0 => #slots). */
+	public static final ConfigOption<Integer> PROXY_ASYNC_QUERY_THREADS =
+			key("query.proxy.query-threads")
+					.defaultValue(0);
+
+	/**
+	 * The config parameter defining the server port range of the queryable state server.
+	 *
+	 * <p>A state server runs on each Task Manager, so many server may run on the same
+	 * machine.
+	 *
+	 * <p>Given this, and to avoid port clashes, the user can specify a port range and
+	 * the server will bind to the first free port in that range.
+	 *
+	 * <p>The specified range can be:
+	 * <ol>
+	 *     <li>a port: "9123",
+	 *     <li>a range of ports: "50100-50200", or
+	 *     <li>a list of ranges and or points: "50100-50200,50300-50400,51234"
+	 * </ol>
+	 *
+	 * <p><b>The default port is 9067.</b>
+	 */
+	public static final ConfigOption<String> SERVER_PORT_RANGE =
+			key("query.server.ports")
+			.defaultValue("9067");
 
 	/** Number of network (event loop) threads for the KvState server (0 => #slots). */
 	public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =
@@ -61,19 +105,9 @@ public class QueryableStateOptions {
 			key("query.client.network-threads")
 			.defaultValue(0);
 
-	/** Number of retries on location lookup failures. */
-	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRIES =
-			key("query.client.lookup.num-retries")
-			.defaultValue(3);
-
-	/** Retry delay on location lookup failures (millis). */
-	public static final ConfigOption<Integer> CLIENT_LOOKUP_RETRY_DELAY =
-			key("query.client.lookup.retry-delay")
-			.defaultValue(1000);
-
 	// ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated */
+	/** Not intended to be instantiated. */
 	private QueryableStateOptions() {
 	}
 }

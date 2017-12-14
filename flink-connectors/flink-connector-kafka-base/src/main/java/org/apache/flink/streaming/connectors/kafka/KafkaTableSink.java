@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
@@ -77,10 +77,10 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	/**
 	 * Create serialization schema for converting table rows into bytes.
 	 *
-	 * @param fieldNames Field names in table rows.
+	 * @param rowSchema the schema of the row to serialize.
 	 * @return Instance of serialization schema
 	 */
-	protected abstract SerializationSchema<Row> createSerializationSchema(String[] fieldNames);
+	protected abstract SerializationSchema<Row> createSerializationSchema(RowTypeInfo rowSchema);
 
 	/**
 	 * Create a deep copy of this sink.
@@ -92,6 +92,8 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
 		FlinkKafkaProducerBase<Row> kafkaProducer = createKafkaProducer(topic, properties, serializationSchema, partitioner);
+		// always enable flush on checkpoint to achieve at-least-once if query runs with checkpointing enabled.
+		kafkaProducer.setFlushOnCheckpoint(true);
 		dataStream.addSink(kafkaProducer);
 	}
 
@@ -116,7 +118,9 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 		copy.fieldTypes = Preconditions.checkNotNull(fieldTypes, "fieldTypes");
 		Preconditions.checkArgument(fieldNames.length == fieldTypes.length,
 			"Number of provided field names and types does not match.");
-		copy.serializationSchema = createSerializationSchema(fieldNames);
+
+		RowTypeInfo rowSchema = new RowTypeInfo(fieldTypes, fieldNames);
+		copy.serializationSchema = createSerializationSchema(rowSchema);
 
 		return copy;
 	}

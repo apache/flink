@@ -21,8 +21,11 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 
+/**
+ * {@link Aggregator} that calculates statistics for {@link String} values.
+ */
 @Internal
-public class StringSummaryAggregator implements Aggregator<String,StringColumnSummary> {
+public class StringSummaryAggregator implements Aggregator<String, StringColumnSummary> {
 
 	private long nonNullCount = 0L;
 	private long nullCount = 0L;
@@ -33,13 +36,13 @@ public class StringSummaryAggregator implements Aggregator<String,StringColumnSu
 
 	@Override
 	public void aggregate(String value) {
-		if(value == null) {
+		if (value == null) {
 			nullCount++;
 		}
 		else {
 			nonNullCount++;
 
-			if(value.isEmpty()) {
+			if (value.isEmpty()) {
 				emptyCount++;
 			}
 

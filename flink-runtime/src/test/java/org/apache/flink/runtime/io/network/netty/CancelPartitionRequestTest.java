@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.Channel;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
@@ -30,6 +29,9 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -95,7 +97,7 @@ public class CancelPartitionRequestTest {
 			Channel ch = connect(serverAndClient);
 
 			// Request for non-existing input channel => results in cancel request
-			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID())).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), 2)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
@@ -148,7 +150,7 @@ public class CancelPartitionRequestTest {
 			// Request for non-existing input channel => results in cancel request
 			InputChannelID inputChannelId = new InputChannelID();
 
-			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId)).await();
+			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, 2)).await();
 
 			// Wait for the notification
 			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {

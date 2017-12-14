@@ -46,8 +46,8 @@ env.fromElements(1, 2, 3)
 ~~~
 
 The next two examples show different implementations of a function that uses a `Collector` for output.
-Functions, such as `flatMap()`, require a output type (in this case `String`) to be defined for the `Collector` in order to be type-safe.
-If the `Collector` type can not be inferred from the surrounding context, it need to be declared in the Lambda Expression's parameter list manually.
+Functions, such as `flatMap()`, require an output type (in this case `String`) to be defined for the `Collector` in order to be type-safe.
+If the `Collector` type can not be inferred from the surrounding context, it needs to be declared in the Lambda Expression's parameter list manually.
 Otherwise the output will be treated as type `Object` which can lead to undesired behaviour.
 
 ~~~java
@@ -194,3 +194,5 @@ final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.fromElements(1, 2, 3).map((in) -> new Tuple1<String>(" " + in)).print();
 env.execute();
 ~~~
+
+{% top %}

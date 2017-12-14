@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.client;
 
+import org.apache.flink.util.FlinkException;
+
 /**
  * Exception which is thrown when the {@link JobClientActor} wants to submit a job to
  * the job manager but has not found one after a given timeout interval.
  */
-public class JobClientActorConnectionTimeoutException extends Exception {
+public class JobClientActorConnectionTimeoutException extends FlinkException {
 	private static final long serialVersionUID = 2287747430528388637L;
 
 	public JobClientActorConnectionTimeoutException(String msg) {

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 
 import org.apache.hadoop.conf.Configuration;
@@ -35,6 +34,7 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * A {@link Writer} that writes the bucket files as Hadoop {@link SequenceFile SequenceFiles}.
@@ -78,6 +78,15 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 		this.compressionType = compressionType;
 	}
 
+	protected SequenceFileWriter(SequenceFileWriter<K, V> other) {
+		super(other);
+
+		this.compressionCodecName = other.compressionCodecName;
+		this.compressionType = other.compressionType;
+		this.keyClass = other.keyClass;
+		this.valueClass = other.valueClass;
+	}
+
 	@Override
 	public void open(FileSystem fs, Path path) throws IOException {
 		super.open(fs, path);
@@ -90,7 +99,7 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 
 		CompressionCodec codec = null;
 
-		Configuration conf = HadoopFileSystem.getHadoopConfiguration();
+		Configuration conf = fs.getConf();
 
 		if (!compressionCodecName.equals("None")) {
 			CompressionCodecFactory codecFactory = new CompressionCodecFactory(conf);
@@ -144,9 +153,31 @@ public class SequenceFileWriter<K extends Writable, V extends Writable> extends 
 
 	@Override
 	public Writer<Tuple2<K, V>> duplicate() {
-		SequenceFileWriter<K, V> result = new SequenceFileWriter<>(compressionCodecName, compressionType);
-		result.keyClass = keyClass;
-		result.valueClass = valueClass;
-		return result;
+		return new SequenceFileWriter<>(this);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(super.hashCode(), compressionCodecName, compressionType, keyClass, valueClass);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (this == other) {
+			return true;
+		}
+		if (other == null) {
+			return false;
+		}
+		if (getClass() != other.getClass()) {
+			return false;
+		}
+		SequenceFileWriter<K, V> writer = (SequenceFileWriter<K, V>) other;
+		// field comparison
+		return Objects.equals(compressionCodecName, writer.compressionCodecName)
+			&& Objects.equals(compressionType, writer.compressionType)
+			&& Objects.equals(keyClass, writer.keyClass)
+			&& Objects.equals(valueClass, writer.valueClass)
+			&& super.equals(other);
 	}
 }

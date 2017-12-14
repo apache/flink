@@ -181,7 +181,7 @@ class GroupWindowTest extends TableTestBase {
           WindowReference("w"),
           'rowtime,
           5.milli)),
-      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+      term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -319,7 +319,7 @@ class GroupWindowTest extends TableTestBase {
       streamTableNode(0),
       term("groupBy", "string"),
       term("window", SlidingGroupWindow(WindowReference("w"), 'rowtime, 8.milli, 10.milli)),
-      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+      term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -363,7 +363,7 @@ class GroupWindowTest extends TableTestBase {
       streamTableNode(0),
       term("groupBy", "string"),
       term("window", SessionGroupWindow(WindowReference("w"), 'rowtime, 7.milli)),
-      term("select", "string", "WeightedAvgWithMerge(long, int) AS TMP_0")
+      term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -772,8 +772,8 @@ class GroupWindowTest extends TableTestBase {
       ),
       term("select",
         "string",
-        "+(CAST(TMP_0), 1) AS s1",
-        "+(CAST(TMP_0), 3) AS s2",
+        "+(TMP_0, 1) AS s1",
+        "+(TMP_0, 3) AS s2",
         "TMP_1 AS x",
         "TMP_1 AS x2",
         "TMP_2 AS x3",

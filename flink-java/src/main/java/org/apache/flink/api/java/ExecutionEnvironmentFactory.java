@@ -25,10 +25,10 @@ import org.apache.flink.annotation.Public;
  */
 @Public
 public interface ExecutionEnvironmentFactory {
-	
+
 	/**
 	 * Creates an ExecutionEnvironment from this factory.
-	 * 
+	 *
 	 * @return An ExecutionEnvironment.
 	 */
 	ExecutionEnvironment createExecutionEnvironment();

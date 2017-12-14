@@ -29,7 +29,7 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.operators.join.JoinType
-import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, UnresolvedException}
+import org.apache.flink.table.api.{StreamTableEnvironment, TableEnvironment, Types, UnresolvedException}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.expressions.ExpressionUtils.isRowCountLiteral
 import org.apache.flink.table.expressions._
@@ -42,7 +42,12 @@ import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
+case class Project(
+    projectList: Seq[NamedExpression],
+    child: LogicalNode,
+    explicitAlias: Boolean = false)
+  extends UnaryNode {
+
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
@@ -61,7 +66,7 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
             throw new RuntimeException("This should never be called and probably points to a bug.")
         }
     }
-    Project(newProjectList, child)
+    Project(newProjectList, child, explicitAlias)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
@@ -90,8 +95,19 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
 
   override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
+
+    val exprs = if (explicitAlias) {
+      projectList
+    } else {
+      // remove AS expressions, according to Calcite they should not be in a final RexNode
+      projectList.map {
+        case Alias(e: Expression, _, _) => e
+        case e: Expression => e
+      }
+    }
+
     relBuilder.project(
-      projectList.map(_.toRexNode(relBuilder)).asJava,
+      exprs.map(_.toRexNode(relBuilder)).asJava,
       projectList.map(_.name).asJava,
       true)
   }
@@ -116,7 +132,9 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       val input = child.output
       Project(
         names.zip(input).map { case (name, attr) =>
-          Alias(attr, name)} ++ input.drop(names.length), child)
+          Alias(attr, name)} ++ input.drop(names.length),
+        child,
+        explicitAlias = true)
     }
   }
 }
@@ -362,7 +380,7 @@ case class Join(
     left: LogicalNode,
     right: LogicalNode) extends Attribute {
 
-    val isFromLeftInput = left.output.map(_.name).contains(name)
+    val isFromLeftInput: Boolean = left.output.map(_.name).contains(name)
 
     val (indexInInput, indexInJoin) = if (isFromLeftInput) {
       val indexInLeft = left.output.map(_.name).indexOf(name)
@@ -429,11 +447,6 @@ case class Join(
     left.output.map(_.name).toSet.intersect(right.output.map(_.name).toSet)
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
-    if (tableEnv.isInstanceOf[StreamTableEnvironment]
-      && !right.isInstanceOf[LogicalTableFunctionCall]) {
-      failValidation(s"Join on stream tables is currently not supported.")
-    }
-
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
     if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
       failValidation(s"Filter operator requires a boolean expression as input, " +
@@ -462,8 +475,11 @@ case class Join(
     }
 
     var equiJoinPredicateFound = false
-    var nonEquiJoinPredicateFound = false
-    var localPredicateFound = false
+    // Whether the predicate is literal true.
+    val alwaysTrue = expression match {
+      case x: Literal if x.value.equals(true) => true
+      case _ => false
+    }
 
     def validateConditions(exp: Expression, isAndBranch: Boolean): Unit = exp match {
       case x: And => x.children.foreach(validateConditions(_, isAndBranch))
@@ -472,29 +488,26 @@ case class Join(
         if (isAndBranch && checkIfJoinCondition(x)) {
           equiJoinPredicateFound = true
         }
-        if (checkIfFilterCondition(x)) {
-          localPredicateFound = true
-        }
       case x: BinaryComparison =>
-        if (checkIfFilterCondition(x)) {
-          localPredicateFound = true
-        } else {
-          nonEquiJoinPredicateFound = true
-        }
+      // The boolean literal should be a valid condition type.
+      case x: Literal if x.resultType == Types.BOOLEAN =>
       case x => failValidation(
         s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
     }
 
     validateConditions(expression, isAndBranch = true)
-    if (!equiJoinPredicateFound) {
-      failValidation(
-        s"Invalid join condition: $expression. At least one equi-join predicate is " +
-          s"required.")
-    }
-    if (joinType != JoinType.INNER && (nonEquiJoinPredicateFound || localPredicateFound)) {
-      failValidation(
-        s"Invalid join condition: $expression. Non-equality join predicates or local" +
-          s" predicates are not supported in outer joins.")
+
+    // Due to a bug in Apache Calcite (see CALCITE-2004 and FLINK-7865) we cannot accept join
+    // predicates except literal true for TableFunction left outer join.
+    if (correlated && right.isInstanceOf[LogicalTableFunctionCall] && joinType != JoinType.INNER ) {
+      if (!alwaysTrue) failValidation("TableFunction left outer join predicate can only be " +
+        "empty or literal true.")
+    } else {
+      if (!equiJoinPredicateFound) {
+        failValidation(
+          s"Invalid join condition: $expression. At least one equi-join predicate is " +
+            s"required.")
+      }
     }
   }
 }
@@ -723,11 +736,12 @@ case class LogicalTableFunctionCall(
     val function = new FlinkTableFunctionImpl(
       resultType,
       fieldIndexes,
-      if (fieldNames.isEmpty) generatedNames else fieldNames, evalMethod
+      if (fieldNames.isEmpty) generatedNames else fieldNames
     )
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val sqlFunction = TableSqlFunction(
+    val sqlFunction = new TableSqlFunction(
       tableFunction.functionIdentifier,
+      tableFunction.toString,
       tableFunction,
       resultType,
       typeFactory,

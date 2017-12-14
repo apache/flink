@@ -103,6 +103,11 @@ public class ProxyMetricGroup<P extends MetricGroup> implements MetricGroup {
 	}
 
 	@Override
+	public final MetricGroup addGroup(String key, String value) {
+		return parentMetricGroup.addGroup(key, value);
+	}
+
+	@Override
 	public String[] getScopeComponents() {
 		return parentMetricGroup.getScopeComponents();
 	}

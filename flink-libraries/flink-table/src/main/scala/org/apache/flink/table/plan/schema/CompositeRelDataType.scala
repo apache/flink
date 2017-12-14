@@ -31,12 +31,16 @@ import scala.collection.JavaConverters._
   * Composite type for encapsulating Flink's [[CompositeType]].
   *
   * @param compositeType CompositeType to encapsulate
+  * @param nullable flag if type can be nullable
   * @param typeFactory Flink's type factory
   */
 class CompositeRelDataType(
     val compositeType: CompositeType[_],
+    val nullable: Boolean,
     typeFactory: FlinkTypeFactory)
-  extends RelRecordType(StructKind.PEEK_FIELDS, createFieldList(compositeType, typeFactory)) {
+  extends RelRecordType(
+    StructKind.PEEK_FIELDS_NO_EXPAND,
+    createFieldList(compositeType, typeFactory)) {
 
   override def toString = s"COMPOSITE($compositeType)"
 
@@ -46,13 +50,16 @@ class CompositeRelDataType(
     case that: CompositeRelDataType =>
       super.equals(that) &&
         (that canEqual this) &&
-        compositeType == that.compositeType
+        compositeType == that.compositeType &&
+        nullable == that.nullable
     case _ => false
   }
 
   override def hashCode(): Int = {
     compositeType.hashCode()
   }
+
+  override def isNullable: Boolean = nullable
 
 }
 
@@ -73,11 +80,11 @@ object CompositeRelDataType {
         new RelDataTypeFieldImpl(
           name,
           index,
-          typeFactory.createTypeFromTypeInfo(compositeType.getTypeAt(index)))
-            .asInstanceOf[RelDataTypeField]
+          // TODO the composite type should provide the information if subtypes are nullable
+          typeFactory.createTypeFromTypeInfo(compositeType.getTypeAt(index), isNullable = true)
+        ).asInstanceOf[RelDataTypeField]
       }
       .toList
       .asJava
   }
-
 }

@@ -35,7 +35,7 @@ public class ObjectColumnSummary extends ColumnSummary {
 	}
 
 	/**
-	 * The number of non-null values in this column
+	 * The number of non-null values in this column.
 	 */
 	@Override
 	public long getNonNullCount() {

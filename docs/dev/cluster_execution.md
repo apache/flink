@@ -33,7 +33,7 @@ are two ways to send a program to a cluster for execution:
 The command line interface lets you submit packaged programs (JARs) to a cluster
 (or single machine setup).
 
-Please refer to the [Command Line Interface]({{ site.baseurl }}/setup/cli.html) documentation for
+Please refer to the [Command Line Interface]({{ site.baseurl }}/ops/cli.html) documentation for
 details.
 
 ## Remote Environment
@@ -81,3 +81,5 @@ public static void main(String[] args) throws Exception {
 Note that the program contains custom user code and hence requires a JAR file with
 the classes of the code attached. The constructor of the remote environment
 takes the path(s) to the JAR file(s).
+
+{% top %}

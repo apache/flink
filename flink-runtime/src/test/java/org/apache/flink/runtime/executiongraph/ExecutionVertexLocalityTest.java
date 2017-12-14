@@ -22,7 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -38,10 +40,10 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -49,10 +51,13 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests that the execution vertex handles locality preferences well.
@@ -89,10 +94,10 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		// validate that the target vertices have no location preference
 		for (int i = 0; i < parallelism; i++) {
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			Iterator<TaskManagerLocation> preference = target.getPreferredLocations().iterator();
+			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
 
 			assertTrue(preference.hasNext());
-			assertEquals(locations[i], preference.next());
+			assertEquals(locations[i], preference.next().get());
 			assertFalse(preference.hasNext());
 		}
 	}
@@ -119,7 +124,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 		for (int i = 0; i < parallelism; i++) {
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
 
-			Iterator<TaskManagerLocation> preference = target.getPreferredLocations().iterator();
+			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
 			assertFalse(preference.hasNext());
 		}
 	}
@@ -169,16 +174,16 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
 			// target state
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			target.getCurrentExecutionAttempt().setInitialState(mock(TaskStateHandles.class));
+			target.getCurrentExecutionAttempt().setInitialState(mock(TaskStateSnapshot.class));
 		}
 
 		// validate that the target vertices have the state's location as the location preference
 		for (int i = 0; i < parallelism; i++) {
 			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			Iterator<TaskManagerLocation> preference = target.getPreferredLocations().iterator();
+			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
 
 			assertTrue(preference.hasNext());
-			assertEquals(locations[i], preference.next());
+			assertEquals(locations[i], preference.next().get());
 			assertFalse(preference.hasNext());
 		}
 	}
@@ -218,6 +223,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 			new FixedDelayRestartStrategy(10, 0L),
 			new UnregisteredMetricsGroup(),
 			1,
+			VoidBlobWriter.getInstance(),
 			log);
 	}
 
@@ -232,10 +238,9 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
 		SimpleSlot simpleSlot = new SimpleSlot(slot, mock(SlotOwner.class), 0);
 
-		final Field locationField = Execution.class.getDeclaredField("assignedResource");
-		locationField.setAccessible(true);
-
-		locationField.set(vertex.getCurrentExecutionAttempt(), simpleSlot);
+		if (!vertex.getCurrentExecutionAttempt().tryAssignResource(simpleSlot)) {
+			throw new FlinkException("Could not assign resource.");
+		}
 	}
 
 	private void setState(Execution execution, ExecutionState state) throws Exception {

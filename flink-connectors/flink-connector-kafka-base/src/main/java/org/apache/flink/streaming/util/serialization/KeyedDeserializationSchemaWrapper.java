@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import java.io.IOException;

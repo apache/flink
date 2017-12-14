@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.operators.async.queue;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link StreamElementQueueEntry} implementation for the {@link Watermark}.
@@ -29,12 +29,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 @Internal
 public class WatermarkQueueEntry extends StreamElementQueueEntry<Watermark> implements AsyncWatermarkResult {
 
-	private final Future<Watermark> future;
+	private final CompletableFuture<Watermark> future;
 
 	public WatermarkQueueEntry(Watermark watermark) {
 		super(watermark);
 
-		this.future = FlinkCompletableFuture.completed(watermark);
+		this.future = CompletableFuture.completedFuture(watermark);
 	}
 
 	@Override
@@ -43,7 +43,7 @@ public class WatermarkQueueEntry extends StreamElementQueueEntry<Watermark> impl
 	}
 
 	@Override
-	protected Future<Watermark> getFuture() {
+	protected CompletableFuture<Watermark> getFuture() {
 		return future;
 	}
 }

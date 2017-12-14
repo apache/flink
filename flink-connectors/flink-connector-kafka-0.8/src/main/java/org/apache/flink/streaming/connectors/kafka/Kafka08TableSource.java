@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
@@ -28,7 +29,10 @@ import java.util.Properties;
 /**
  * Kafka {@link StreamTableSource} for Kafka 0.8.
  */
-public class Kafka08TableSource extends KafkaTableSource {
+public abstract class Kafka08TableSource extends KafkaTableSource {
+
+	// The deserialization schema for the Kafka records
+	private final DeserializationSchema<Row> deserializationSchema;
 
 	/**
 	 * Creates a Kafka 0.8 {@link StreamTableSource}.
@@ -43,13 +47,21 @@ public class Kafka08TableSource extends KafkaTableSource {
 			String topic,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
+			TableSchema schema,
 			TypeInformation<Row> typeInfo) {
 
-		super(topic, properties, deserializationSchema, typeInfo);
+		super(topic, properties, schema, typeInfo);
+
+		this.deserializationSchema = deserializationSchema;
 	}
 
 	@Override
-	FlinkKafkaConsumerBase<Row> getKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
+	public DeserializationSchema<Row> getDeserializationSchema() {
+		return this.deserializationSchema;
+	}
+
+	@Override
+	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(String topic, Properties properties, DeserializationSchema<Row> deserializationSchema) {
 		return new FlinkKafkaConsumer08<>(topic, deserializationSchema, properties);
 	}
 }

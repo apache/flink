@@ -26,8 +26,10 @@ import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, TableProgramsTestBase}
+import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
+import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -162,6 +164,28 @@ class TableEnvironmentITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testInsertIntoMemoryTable(): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    MemoryTableSinkUtil.clear
+
+    val t = CollectionDataSets.getSmall3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("sourceTable", t)
+
+    val fieldNames = Array("d", "e", "f")
+    val fieldTypes = tEnv.scan("sourceTable").getSchema.getTypes
+    val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
+    tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
+
+    tEnv.scan("sourceTable")
+      .select('a, 'b, 'c)
+      .insertInto("targetTable")
+    env.execute()
+
+    val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
+    assertEquals(expected.sorted, MemoryTableSinkUtil.results.sorted)
+  }
 }
 
 object TableEnvironmentITCase {

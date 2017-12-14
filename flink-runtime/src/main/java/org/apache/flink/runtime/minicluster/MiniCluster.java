@@ -18,18 +18,14 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import akka.actor.ActorSystem;
-
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.FlinkResourceManager;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -38,7 +34,9 @@ import org.apache.flink.runtime.leaderelection.LeaderAddressAndId;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRunner;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -47,12 +45,14 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.util.ExceptionUtils;
 
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,10 +66,10 @@ public class MiniCluster {
 	private final Object lock = new Object();
 
 	/** The configuration for this mini cluster */
-	private final MiniClusterConfiguration config;
+	private final MiniClusterConfiguration miniClusterConfiguration;
 
 	@GuardedBy("lock") 
-	private MetricRegistry metricRegistry;
+	private MetricRegistryImpl metricRegistry;
 
 	@GuardedBy("lock")
 	private RpcService commonRpcService;
@@ -95,61 +95,25 @@ public class MiniCluster {
 	@GuardedBy("lock")
 	private ResourceManagerRunner[] resourceManagerRunners;
 
-	@GuardedBy("lock")
-	private TaskExecutor[] taskManagers;
+	private volatile TaskExecutor[] taskManagers;
 
 	@GuardedBy("lock")
 	private MiniClusterJobDispatcher jobDispatcher;
 
 	/** Flag marking the mini cluster as started/running */
-	@GuardedBy("lock")
-	private boolean running;
+	private volatile boolean running;
 
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new mini cluster with the default configuration:
-	 * <ul>
-	 *     <li>One JobManager</li>
-	 *     <li>One TaskManager</li>
-	 *     <li>One task slot in the TaskManager</li>
-	 *     <li>All components share the same RPC subsystem (minimizes communication overhead)</li>
-	 * </ul>
-	 */
-	public MiniCluster() {
-		this(new MiniClusterConfiguration());
-	}
-
-	/**
 	 * Creates a new Flink mini cluster based on the given configuration.
 	 * 
-	 * @param config The configuration for the mini cluster
+	 * @param miniClusterConfiguration The configuration for the mini cluster
 	 */
-	public MiniCluster(MiniClusterConfiguration config) {
-		this.config = checkNotNull(config, "config may not be null");
-	}
+	public MiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
+		this.miniClusterConfiguration = checkNotNull(miniClusterConfiguration, "config may not be null");
 
-	/**
-	 * Creates a mini cluster based on the given configuration.
-	 * 
-	 * @deprecated Use {@link #MiniCluster(MiniClusterConfiguration)} instead. 
-	 * @see #MiniCluster(MiniClusterConfiguration)
-	 */
-	@Deprecated
-	public MiniCluster(Configuration config) {
-		this(createConfig(config, true));
-	}
-
-	/**
-	 * Creates a mini cluster based on the given configuration, starting one or more
-	 * RPC services, depending on the given flag.
-	 *
-	 * @deprecated Use {@link #MiniCluster(MiniClusterConfiguration)} instead. 
-	 * @see #MiniCluster(MiniClusterConfiguration)
-	 */
-	@Deprecated
-	public MiniCluster(Configuration config, boolean singleRpcService) {
-		this(createConfig(config, singleRpcService));
+		running = false;
 	}
 
 	// ------------------------------------------------------------------------
@@ -174,14 +138,14 @@ public class MiniCluster {
 			checkState(!running, "FlinkMiniCluster is already running");
 
 			LOG.info("Starting Flink Mini Cluster");
-			LOG.debug("Using configuration {}", config);
+			LOG.debug("Using configuration {}", miniClusterConfiguration);
 
-			final Configuration configuration = new UnmodifiableConfiguration(config.generateConfiguration());
-			final Time rpcTimeout = config.getRpcTimeout();
-			final int numJobManagers = config.getNumJobManagers();
-			final int numTaskManagers = config.getNumTaskManagers();
-			final int numResourceManagers = config.getNumResourceManagers();
-			final boolean singleRpc = config.getUseSingleRpcSystem();
+			final Configuration configuration = miniClusterConfiguration.getConfiguration();
+			final Time rpcTimeout = miniClusterConfiguration.getRpcTimeout();
+			final int numJobManagers = miniClusterConfiguration.getNumJobManagers();
+			final int numTaskManagers = miniClusterConfiguration.getNumTaskManagers();
+			final int numResourceManagers = miniClusterConfiguration.getNumResourceManagers();
+			final boolean useSingleRpcService = miniClusterConfiguration.getRpcServiceSharing() == MiniClusterConfiguration.RpcServiceSharing.SHARED;
 
 			try {
 				LOG.info("Starting Metrics Registry");
@@ -197,7 +161,11 @@ public class MiniCluster {
 				// we always need the 'commonRpcService' for auxiliary calls
 				commonRpcService = createRpcService(configuration, rpcTimeout, false, null);
 
-				if (singleRpc) {
+				// TODO: Temporary hack until the metric query service is ported to the RpcEndpoint
+				final ActorSystem actorSystem = ((AkkaRpcService) commonRpcService).getActorSystem();
+				metricRegistry.startQueryService(actorSystem, null);
+
+				if (useSingleRpcService) {
 					// set that same RPC service for all JobManagers and TaskManagers
 					for (int i = 0; i < numJobManagers; i++) {
 						jobManagerRpcServices[i] = commonRpcService;
@@ -215,9 +183,9 @@ public class MiniCluster {
 				}
 				else {
 					// start a new service per component, possibly with custom bind addresses
-					final String jobManagerBindAddress = config.getJobManagerBindAddress();
-					final String taskManagerBindAddress = config.getTaskManagerBindAddress();
-					final String resourceManagerBindAddress = config.getResourceManagerBindAddress();
+					final String jobManagerBindAddress = miniClusterConfiguration.getJobManagerBindAddress();
+					final String taskManagerBindAddress = miniClusterConfiguration.getTaskManagerBindAddress();
+					final String resourceManagerBindAddress = miniClusterConfiguration.getResourceManagerBindAddress();
 
 					for (int i = 0; i < numJobManagers; i++) {
 						jobManagerRpcServices[i] = createRpcService(
@@ -246,6 +214,7 @@ public class MiniCluster {
 					commonRpcService.getExecutor());
 
 				blobServer = new BlobServer(configuration, haServices.createBlobStore());
+				blobServer.start();
 
 				heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
@@ -352,12 +321,20 @@ public class MiniCluster {
 				if (tm != null) {
 					try {
 						tm.shutDown();
+						// wait for the TaskManager to properly terminate
+						tm.getTerminationFuture().get();
 					} catch (Throwable t) {
 						exception = firstOrSuppressed(t, exception);
 					}
 				}
 			}
 			taskManagers = null;
+		}
+
+		// metrics shutdown
+		if (metricRegistry != null) {
+			metricRegistry.shutdown();
+			metricRegistry = null;
 		}
 
 		// shut down the RpcServices
@@ -390,12 +367,6 @@ public class MiniCluster {
 			haServices = null;
 		}
 
-		// metrics shutdown
-		if (metricRegistry != null) {
-			metricRegistry.shutdown();
-			metricRegistry = null;
-		}
-
 		// if anything went wrong, throw the first error with all the additional suppressed exceptions
 		if (exception != null) {
 			ExceptionUtils.rethrowException(exception, "Error while shutting down mini cluster");
@@ -404,7 +375,7 @@ public class MiniCluster {
 
 	public void waitUntilTaskManagerRegistrationsComplete() throws Exception {
 		LeaderRetrievalService rmMasterListener = null;
-		Future<LeaderAddressAndId> addressAndIdFuture;
+		CompletableFuture<LeaderAddressAndId> addressAndIdFuture;
 
 		try {
 			synchronized (lock) {
@@ -419,14 +390,14 @@ public class MiniCluster {
 			final LeaderAddressAndId addressAndId = addressAndIdFuture.get();
 
 			final ResourceManagerGateway resourceManager = 
-					commonRpcService.connect(addressAndId.leaderAddress(), ResourceManagerGateway.class).get();
+					commonRpcService.connect(addressAndId.leaderAddress(), new ResourceManagerId(addressAndId.leaderId()), ResourceManagerGateway.class).get();
 
 			final int numTaskManagersToWaitFor = taskManagers.length;
 
 			// poll and wait until enough TaskManagers are available
 			while (true) {
 				int numTaskManagersAvailable = 
-						resourceManager.getNumberOfRegisteredTaskManagers(addressAndId.leaderId()).get();
+						resourceManager.getNumberOfRegisteredTaskManagers().get();
 
 				if (numTaskManagersAvailable >= numTaskManagersToWaitFor) {
 					break;
@@ -498,8 +469,8 @@ public class MiniCluster {
 	 * 
 	 * @param config The configuration of the mini cluster
 	 */
-	protected MetricRegistry createMetricRegistry(Configuration config) {
-		return new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(config));
+	protected MetricRegistryImpl createMetricRegistry(Configuration config) {
+		return new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
 	}
 
 	/**
@@ -621,20 +592,6 @@ public class MiniCluster {
 		return priorException;
 	}
 
-	private static MiniClusterConfiguration createConfig(Configuration cfg, boolean singleRpcService) {
-		MiniClusterConfiguration config = cfg == null ?
-				new MiniClusterConfiguration() :
-				new MiniClusterConfiguration(cfg);
-
-		if (singleRpcService) {
-			config.setUseSingleRpcService();
-		} else {
-			config.setUseRpcServicePerComponent();
-		}
-
-		return config;
-	}
-
 	private class TerminatingFatalErrorHandler implements FatalErrorHandler {
 
 		private final int index;
@@ -645,16 +602,18 @@ public class MiniCluster {
 
 		@Override
 		public void onFatalError(Throwable exception) {
-			LOG.error("TaskManager #{} failed.", index, exception);
+			// first check if we are still running
+			if (running) {
+				LOG.error("TaskManager #{} failed.", index, exception);
 
-			try {
-				synchronized (lock) {
-					if (taskManagers[index] != null) {
-						taskManagers[index].shutDown();
-					}
+				// let's check if there are still TaskManagers because there could be a concurrent
+				// shut down operation taking place
+				TaskExecutor[] currentTaskManagers = taskManagers;
+
+				if (currentTaskManagers != null) {
+					// the shutDown is asynchronous
+					currentTaskManagers[index].shutDown();
 				}
-			} catch (Exception e) {
-				LOG.error("TaskManager #{} could not be properly terminated.", index, e);
 			}
 		}
 	}

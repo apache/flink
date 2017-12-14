@@ -21,12 +21,10 @@ package org.apache.flink.runtime.metrics.scope;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A container for component scope formats.
  */
-public class ScopeFormats {
+public final class ScopeFormats {
 
 	private final JobManagerScopeFormat jobManagerFormat;
 	private final JobManagerJobScopeFormat jobManagerJobFormat;
@@ -38,30 +36,9 @@ public class ScopeFormats {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates all default scope formats.
-	 */
-	public ScopeFormats() {
-		this.jobManagerFormat = new JobManagerScopeFormat(MetricOptions.SCOPE_NAMING_JM.defaultValue());
-
-		this.jobManagerJobFormat = new JobManagerJobScopeFormat(
-			MetricOptions.SCOPE_NAMING_JM_JOB.defaultValue(), this.jobManagerFormat);
-
-		this.taskManagerFormat = new TaskManagerScopeFormat(MetricOptions.SCOPE_NAMING_TM.defaultValue());
-
-		this.taskManagerJobFormat = new TaskManagerJobScopeFormat(
-			MetricOptions.SCOPE_NAMING_TM_JOB.defaultValue(), this.taskManagerFormat);
-
-		this.taskFormat = new TaskScopeFormat(
-				MetricOptions.SCOPE_NAMING_TASK.defaultValue(), this.taskManagerJobFormat);
-
-		this.operatorFormat = new OperatorScopeFormat(
-			MetricOptions.SCOPE_NAMING_OPERATOR.defaultValue(), this.taskFormat);
-	}
-
-	/**
 	 * Creates all scope formats, based on the given scope format strings.
 	 */
-	public ScopeFormats(
+	private ScopeFormats(
 			String jobManagerFormat,
 			String jobManagerJobFormat,
 			String taskManagerFormat,
@@ -74,24 +51,6 @@ public class ScopeFormats {
 		this.taskManagerJobFormat = new TaskManagerJobScopeFormat(taskManagerJobFormat, this.taskManagerFormat);
 		this.taskFormat = new TaskScopeFormat(taskFormat, this.taskManagerJobFormat);
 		this.operatorFormat = new OperatorScopeFormat(operatorFormat, this.taskFormat);
-	}
-
-	/**
-	 * Creates a {@code ScopeFormats} with the given scope formats.
-	 */
-	public ScopeFormats(
-			JobManagerScopeFormat jobManagerFormat,
-			JobManagerJobScopeFormat jobManagerJobFormat,
-			TaskManagerScopeFormat taskManagerFormat,
-			TaskManagerJobScopeFormat taskManagerJobFormat,
-			TaskScopeFormat taskFormat,
-			OperatorScopeFormat operatorFormat) {
-		this.jobManagerFormat = checkNotNull(jobManagerFormat);
-		this.jobManagerJobFormat = checkNotNull(jobManagerJobFormat);
-		this.taskManagerFormat = checkNotNull(taskManagerFormat);
-		this.taskManagerJobFormat = checkNotNull(taskManagerJobFormat);
-		this.taskFormat = checkNotNull(taskFormat);
-		this.operatorFormat = checkNotNull(operatorFormat);
 	}
 
 	// ------------------------------------------------------------------------

@@ -18,37 +18,40 @@
 
 package org.apache.flink.streaming.connectors.fs;
 
-import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
-
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.client.HdfsDataOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.EnumSet;
+import java.util.Objects;
 
 /**
  * Base class for {@link Writer Writers} that write to a {@link FSDataOutputStream}.
  */
 public abstract class StreamWriterBase<T> implements Writer<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(BucketingSink.class);
+	private static final long serialVersionUID = 2L;
 
 	/**
 	 * The {@code FSDataOutputStream} for the current part file.
 	 */
 	private transient FSDataOutputStream outStream;
 
+	private boolean syncOnFlush;
+
+	public StreamWriterBase() {
+	}
+
+	protected StreamWriterBase(StreamWriterBase<T> other) {
+		this.syncOnFlush = other.syncOnFlush;
+	}
+
 	/**
-	 * We use reflection to get the hflush method or use sync as a fallback.
-	 * The idea for this and the code comes from the Flume HDFS Sink.
+	 * Controls whether to sync {@link FSDataOutputStream} on flush.
 	 */
-	private transient Method refHflushOrSync;
+	public void setSyncOnFlush(boolean syncOnFlush) {
+		this.syncOnFlush = syncOnFlush;
+	}
 
 	/**
 	 * Returns the current output stream, if the stream is open.
@@ -60,74 +63,12 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 		return outStream;
 	}
 
-	/**
-	 * If hflush is available in this version of HDFS, then this method calls
-	 * hflush, else it calls sync.
-	 *
-	 * <p>Note: This code comes from Flume
-	 *
-	 * @param os - The stream to flush/sync
-	 * @throws java.io.IOException
-	 */
-	protected void hflushOrSync(FSDataOutputStream os) throws IOException {
-		try {
-			// At this point the refHflushOrSync cannot be null,
-			// since register method would have thrown if it was.
-			this.refHflushOrSync.invoke(os);
-
-			if (os instanceof HdfsDataOutputStream) {
-				((HdfsDataOutputStream) os).hsync(EnumSet.of(HdfsDataOutputStream.SyncFlag.UPDATE_LENGTH));
-			}
-		} catch (InvocationTargetException e) {
-			String msg = "Error while trying to hflushOrSync!";
-			LOG.error(msg + " " + e.getCause());
-			Throwable cause = e.getCause();
-			if (cause != null && cause instanceof IOException) {
-				throw (IOException) cause;
-			}
-			throw new RuntimeException(msg, e);
-		} catch (Exception e) {
-			String msg = "Error while trying to hflushOrSync!";
-			LOG.error(msg + " " + e);
-			throw new RuntimeException(msg, e);
-		}
-	}
-
-	/**
-	 * Gets the hflush call using reflection. Fallback to sync if hflush is not available.
-	 *
-	 * <p>Note: This code comes from Flume
-	 */
-	private Method reflectHflushOrSync(FSDataOutputStream os) {
-		Method m = null;
-		if (os != null) {
-			Class<?> fsDataOutputStreamClass = os.getClass();
-			try {
-				m = fsDataOutputStreamClass.getMethod("hflush");
-			} catch (NoSuchMethodException ex) {
-				LOG.debug("HFlush not found. Will use sync() instead");
-				try {
-					m = fsDataOutputStreamClass.getMethod("sync");
-				} catch (Exception ex1) {
-					String msg = "Neither hflush not sync were found. That seems to be " +
-							"a problem!";
-					LOG.error(msg);
-					throw new RuntimeException(msg, ex1);
-				}
-			}
-		}
-		return m;
-	}
-
 	@Override
 	public void open(FileSystem fs, Path path) throws IOException {
 		if (outStream != null) {
 			throw new IllegalStateException("Writer has already been opened");
 		}
 		outStream = fs.create(path, false);
-		if (refHflushOrSync == null) {
-			refHflushOrSync = reflectHflushOrSync(outStream);
-		}
 	}
 
 	@Override
@@ -135,7 +76,12 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 		if (outStream == null) {
 			throw new IllegalStateException("Writer is not open");
 		}
-		hflushOrSync(outStream);
+		if (syncOnFlush) {
+			outStream.hsync();
+		}
+		else {
+			outStream.hflush();
+		}
 		return outStream.getPos();
 	}
 
@@ -156,4 +102,24 @@ public abstract class StreamWriterBase<T> implements Writer<T> {
 		}
 	}
 
+	@Override
+	public int hashCode() {
+		return Boolean.hashCode(syncOnFlush);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (this == other) {
+			return true;
+		}
+		if (other == null) {
+			return false;
+		}
+		if (getClass() != other.getClass()) {
+			return false;
+		}
+		StreamWriterBase<T> writer = (StreamWriterBase<T>) other;
+		// field comparison
+		return Objects.equals(syncOnFlush, writer.syncOnFlush);
+	}
 }

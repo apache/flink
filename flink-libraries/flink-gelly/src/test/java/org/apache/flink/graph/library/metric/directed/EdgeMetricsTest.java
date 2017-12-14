@@ -18,10 +18,9 @@
 
 package org.apache.flink.graph.library.metric.directed;
 
+import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.asm.AsmTestBase;
 import org.apache.flink.graph.library.metric.directed.EdgeMetrics.Result;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
@@ -32,24 +31,32 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link EdgeMetrics}.
  */
-public class EdgeMetricsTest
-extends AsmTestBase {
+public class EdgeMetricsTest extends AsmTestBase {
 
-	@Test
-	public void testWithSimpleGraph()
-			throws Exception {
-		Result expectedResult = new Result(2, 6, 1, 3);
-
-		Result edgeMetrics = new EdgeMetrics<IntValue, NullValue, NullValue>()
-			.run(directedSimpleGraph)
+	/**
+	 * Validate a test result.
+	 *
+	 * @param graph input graph
+	 * @param result expected {@link Result}
+	 * @param <T> graph ID type
+	 * @throws Exception on error
+	 */
+	private static <T extends Comparable<T>> void validate(
+			Graph<T, NullValue, NullValue> graph, Result result) throws Exception {
+		Result edgeMetrics = new EdgeMetrics<T, NullValue, NullValue>()
+			.run(graph)
 			.execute();
 
-		assertEquals(expectedResult, edgeMetrics);
+		assertEquals(result, edgeMetrics);
 	}
 
 	@Test
-	public void testWithCompleteGraph()
-			throws Exception {
+	public void testWithSimpleGraph() throws Exception {
+		validate(directedSimpleGraph, new Result(2, 6, 1, 3));
+	}
+
+	@Test
+	public void testWithCompleteGraph() throws Exception {
 		long expectedDegree = completeGraphVertexCount - 1;
 		long expectedMaximumTriplets = CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 		long expectedTriplets = completeGraphVertexCount * expectedMaximumTriplets;
@@ -57,36 +64,21 @@ extends AsmTestBase {
 		Result expectedResult = new Result(expectedTriplets / 3, 2 * expectedTriplets / 3,
 			expectedMaximumTriplets, expectedMaximumTriplets);
 
-		Result edgeMetrics = new EdgeMetrics<LongValue, NullValue, NullValue>()
-			.run(completeGraph)
-			.execute();
-
-		assertEquals(expectedResult, edgeMetrics);
+		validate(completeGraph, expectedResult);
 	}
 
 	@Test
-	public void testWithEmptyGraph()
-			throws Exception {
-		Result expectedResult;
-
-		expectedResult = new Result(0, 0, 0, 0);
-
-		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
-			.run(emptyGraph)
-			.execute();
-
-		assertEquals(withoutZeroDegreeVertices, expectedResult);
+	public void testWithEmptyGraphWithVertices() throws Exception {
+		validate(emptyGraphWithVertices, new Result(0, 0, 0, 0));
 	}
 
 	@Test
-	public void testWithRMatGraph()
-			throws Exception {
-		Result expectedResult = new Result(107817, 315537, 820, 3822);
+	public void testWithEmptyGraphWithoutVertices() throws Exception {
+		validate(emptyGraphWithoutVertices, new Result(0, 0, 0, 0));
+	}
 
-		Result withoutZeroDegreeVertices = new EdgeMetrics<LongValue, NullValue, NullValue>()
-			.run(directedRMatGraph(10, 16))
-			.execute();
-
-		assertEquals(expectedResult, withoutZeroDegreeVertices);
+	@Test
+	public void testWithRMatGraph() throws Exception {
+		validate(directedRMatGraph(10, 16), new Result(107817, 315537, 820, 3822));
 	}
 }

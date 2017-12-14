@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.plan.rules
 
+import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.rules.common._
@@ -29,9 +30,17 @@ import org.apache.flink.table.plan.nodes.logical._
 object FlinkRuleSets {
 
   /**
-    * Convert a logical table scan to a relational expression.
+    * Convert sub-queries before query decorrelation.
     */
-  val TABLE_CONV_RULES: RuleSet = RuleSets.ofList(
+  val TABLE_SUBQUERY_RULES: RuleSet = RuleSets.ofList(
+    SubQueryRemoveRule.FILTER,
+    SubQueryRemoveRule.PROJECT,
+    SubQueryRemoveRule.JOIN)
+
+  /**
+    * Convert table references before query decorrelation.
+    */
+  val TABLE_REF_RULES: RuleSet = RuleSets.ofList(
     TableScanRule.INSTANCE,
     EnumerableToLogicalTableScan.INSTANCE)
 
@@ -43,6 +52,10 @@ object FlinkRuleSets {
     FilterJoinRule.JOIN,
     // push filter through an aggregation
     FilterAggregateTransposeRule.INSTANCE,
+    // push filter through set operation
+    FilterSetOpTransposeRule.INSTANCE,
+    // push project through set operation
+    ProjectSetOpTransposeRule.INSTANCE,
 
     // aggregation and projection rules
     AggregateProjectMergeRule.INSTANCE,
@@ -51,7 +64,8 @@ object FlinkRuleSets {
     ProjectFilterTransposeRule.INSTANCE,
     FilterProjectTransposeRule.INSTANCE,
     // push a projection to the children of a join
-    ProjectJoinTransposeRule.INSTANCE,
+    // push all expressions to handle the time indicator correctly
+    new ProjectJoinTransposeRule(PushProjector.ExprCondition.FALSE, RelFactories.LOGICAL_BUILDER),
     // merge projections
     ProjectMergeRule.INSTANCE,
     // remove identity project
@@ -103,7 +117,7 @@ object FlinkRuleSets {
     PushProjectIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
 
-    // Unnest rule
+    // unnest rule
     LogicalUnnestRule.INSTANCE,
 
     // translate to flink logical rel nodes
@@ -135,9 +149,12 @@ object FlinkRuleSets {
     ReduceExpressionsRule.JOIN_INSTANCE,
     ProjectToWindowRule.PROJECT,
 
+    // Transform grouping sets
+    DecomposeGroupingSetRule.INSTANCE,
     // Transform window to LogicalWindowAggregate
     DataSetLogicalWindowAggregateRule.INSTANCE,
-    WindowStartEndPropertiesRule.INSTANCE
+    WindowPropertiesRule.INSTANCE,
+    WindowPropertiesHavingRule.INSTANCE
   )
 
   /**
@@ -168,7 +185,8 @@ object FlinkRuleSets {
   val DATASTREAM_NORM_RULES: RuleSet = RuleSets.ofList(
     // Transform window to LogicalWindowAggregate
     DataStreamLogicalWindowAggregateRule.INSTANCE,
-    WindowStartEndPropertiesRule.INSTANCE,
+    WindowPropertiesRule.INSTANCE,
+    WindowPropertiesHavingRule.INSTANCE,
 
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,

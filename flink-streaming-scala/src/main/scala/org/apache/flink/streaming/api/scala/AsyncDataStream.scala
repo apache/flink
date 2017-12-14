@@ -21,9 +21,9 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AsyncDataStream => JavaAsyncDataStream}
-import org.apache.flink.streaming.api.functions.async.collector.{AsyncCollector => JavaAsyncCollector}
+import org.apache.flink.streaming.api.functions.async.{ResultFuture => JavaResultFuture}
 import org.apache.flink.streaming.api.functions.async.{AsyncFunction => JavaAsyncFunction}
-import org.apache.flink.streaming.api.scala.async.{AsyncCollector, AsyncFunction, JavaAsyncCollectorWrapper}
+import org.apache.flink.streaming.api.scala.async.{AsyncFunction, JavaResultFutureWrapper, ResultFuture}
 import org.apache.flink.util.Preconditions
 
 import scala.concurrent.duration.TimeUnit
@@ -34,7 +34,7 @@ import scala.concurrent.duration.TimeUnit
   * Example:
   * {{{
   *   val input: DataStream[String] = ...
-  *   val asyncFunction: (String, AsyncCollector[String]) => Unit = ...
+  *   val asyncFunction: (String, ResultFuture[String]) => Unit = ...
   *
   *   AsyncDataStream.orderedWait(input, asyncFunction, timeout, TimeUnit.MILLISECONDS, 100)
   * }}}
@@ -68,8 +68,8 @@ object AsyncDataStream {
     : DataStream[OUT] = {
 
     val javaAsyncFunction = new JavaAsyncFunction[IN, OUT] {
-      override def asyncInvoke(input: IN, collector: JavaAsyncCollector[OUT]): Unit = {
-        asyncFunction.asyncInvoke(input, new JavaAsyncCollectorWrapper(collector))
+      override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        asyncFunction.asyncInvoke(input, new JavaResultFutureWrapper(resultFuture))
       }
     }
 
@@ -126,7 +126,7 @@ object AsyncDataStream {
       timeout: Long,
       timeUnit: TimeUnit,
       capacity: Int) (
-      asyncFunction: (IN, AsyncCollector[OUT]) => Unit)
+      asyncFunction: (IN, ResultFuture[OUT]) => Unit)
     : DataStream[OUT] = {
 
     Preconditions.checkNotNull(asyncFunction)
@@ -134,9 +134,9 @@ object AsyncDataStream {
     val cleanAsyncFunction = input.executionEnvironment.scalaClean(asyncFunction)
 
     val func = new JavaAsyncFunction[IN, OUT] {
-      override def asyncInvoke(input: IN, collector: JavaAsyncCollector[OUT]): Unit = {
+      override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
 
-        cleanAsyncFunction(input, new JavaAsyncCollectorWrapper[OUT](collector))
+        cleanAsyncFunction(input, new JavaResultFutureWrapper[OUT](resultFuture))
       }
     }
 
@@ -167,7 +167,7 @@ object AsyncDataStream {
     input: DataStream[IN],
     timeout: Long,
     timeUnit: TimeUnit) (
-    asyncFunction: (IN, AsyncCollector[OUT]) => Unit)
+    asyncFunction: (IN, ResultFuture[OUT]) => Unit)
   : DataStream[OUT] = {
     unorderedWait(input, timeout, timeUnit, DEFAULT_QUEUE_CAPACITY)(asyncFunction)
   }
@@ -195,8 +195,8 @@ object AsyncDataStream {
     : DataStream[OUT] = {
 
     val javaAsyncFunction = new JavaAsyncFunction[IN, OUT] {
-      override def asyncInvoke(input: IN, collector: JavaAsyncCollector[OUT]): Unit = {
-        asyncFunction.asyncInvoke(input, new JavaAsyncCollectorWrapper[OUT](collector))
+      override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        asyncFunction.asyncInvoke(input, new JavaResultFutureWrapper[OUT](resultFuture))
       }
     }
 
@@ -251,7 +251,7 @@ object AsyncDataStream {
     timeout: Long,
     timeUnit: TimeUnit,
     capacity: Int) (
-    asyncFunction: (IN, AsyncCollector[OUT]) => Unit)
+    asyncFunction: (IN, ResultFuture[OUT]) => Unit)
   : DataStream[OUT] = {
 
     Preconditions.checkNotNull(asyncFunction)
@@ -259,8 +259,8 @@ object AsyncDataStream {
     val cleanAsyncFunction = input.executionEnvironment.scalaClean(asyncFunction)
 
     val func = new JavaAsyncFunction[IN, OUT] {
-      override def asyncInvoke(input: IN, collector: JavaAsyncCollector[OUT]): Unit = {
-        cleanAsyncFunction(input, new JavaAsyncCollectorWrapper[OUT](collector))
+      override def asyncInvoke(input: IN, resultFuture: JavaResultFuture[OUT]): Unit = {
+        cleanAsyncFunction(input, new JavaResultFutureWrapper[OUT](resultFuture))
       }
     }
 
@@ -290,7 +290,7 @@ object AsyncDataStream {
     input: DataStream[IN],
     timeout: Long,
     timeUnit: TimeUnit) (
-    asyncFunction: (IN, AsyncCollector[OUT]) => Unit)
+    asyncFunction: (IN, ResultFuture[OUT]) => Unit)
   : DataStream[OUT] = {
 
     orderedWait(input, timeout, timeUnit, DEFAULT_QUEUE_CAPACITY)(asyncFunction)

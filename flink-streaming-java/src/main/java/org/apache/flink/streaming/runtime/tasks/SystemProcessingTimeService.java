@@ -108,7 +108,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		// that way we save unnecessary volatile accesses for each timer
 		try {
 			return timerService.schedule(
-					new TriggerTask(task, checkpointLock, target, timestamp), delay, TimeUnit.MILLISECONDS);
+					new TriggerTask(status, task, checkpointLock, target, timestamp), delay, TimeUnit.MILLISECONDS);
 		}
 		catch (RejectedExecutionException e) {
 			final int status = this.status.get();
@@ -133,7 +133,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		// that way we save unnecessary volatile accesses for each timer
 		try {
 			return timerService.scheduleAtFixedRate(
-				new RepeatedTriggerTask(task, checkpointLock, callback, nextTimestamp, period),
+				new RepeatedTriggerTask(status, task, checkpointLock, callback, nextTimestamp, period),
 				initialDelay,
 				period,
 				TimeUnit.MILLISECONDS);
@@ -152,18 +152,34 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		}
 	}
 
+	/**
+	 * @return {@code true} is the status of the service
+	 * is {@link #STATUS_ALIVE}, {@code false} otherwise.
+	 */
+	@VisibleForTesting
+	boolean isAlive() {
+		return status.get() == STATUS_ALIVE;
+	}
+
 	@Override
 	public boolean isTerminated() {
 		return status.get() == STATUS_SHUTDOWN;
 	}
 
 	@Override
-	public void quiesceAndAwaitPending() throws InterruptedException {
+	public void quiesce() throws InterruptedException {
 		if (status.compareAndSet(STATUS_ALIVE, STATUS_QUIESCED)) {
 			timerService.shutdown();
+		}
+	}
+
+	@Override
+	public void awaitPendingAfterQuiesce() throws InterruptedException {
+		if (!timerService.isTerminated()) {
+			Preconditions.checkState(timerService.isTerminating() || timerService.isShutdown());
 
 			// await forever (almost)
-			timerService.awaitTermination(365, TimeUnit.DAYS);
+			timerService.awaitTermination(365L, TimeUnit.DAYS);
 		}
 	}
 
@@ -173,6 +189,12 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 				status.compareAndSet(STATUS_QUIESCED, STATUS_SHUTDOWN)) {
 			timerService.shutdownNow();
 		}
+	}
+
+	@Override
+	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
+		shutdownService();
+		return timerService.awaitTermination(time, timeUnit);
 	}
 
 	// safety net to destroy the thread pool
@@ -199,15 +221,23 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	 */
 	private static final class TriggerTask implements Runnable {
 
+		private final AtomicInteger serviceStatus;
 		private final Object lock;
 		private final ProcessingTimeCallback target;
 		private final long timestamp;
 		private final AsyncExceptionHandler exceptionHandler;
 
-		TriggerTask(AsyncExceptionHandler exceptionHandler, final Object lock, ProcessingTimeCallback target, long timestamp) {
-			this.exceptionHandler = exceptionHandler;
-			this.lock = lock;
-			this.target = target;
+		private TriggerTask(
+				final AtomicInteger serviceStatus,
+				final AsyncExceptionHandler exceptionHandler,
+				final Object lock,
+				final ProcessingTimeCallback target,
+				final long timestamp) {
+
+			this.serviceStatus = Preconditions.checkNotNull(serviceStatus);
+			this.exceptionHandler = Preconditions.checkNotNull(exceptionHandler);
+			this.lock = Preconditions.checkNotNull(lock);
+			this.target = Preconditions.checkNotNull(target);
 			this.timestamp = timestamp;
 		}
 
@@ -215,7 +245,9 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		public void run() {
 			synchronized (lock) {
 				try {
-					target.onProcessingTime(timestamp);
+					if (serviceStatus.get() == STATUS_ALIVE) {
+						target.onProcessingTime(timestamp);
+					}
 				} catch (Throwable t) {
 					TimerException asyncException = new TimerException(t);
 					exceptionHandler.handleAsyncException("Caught exception while processing timer.", asyncException);
@@ -228,6 +260,8 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	 * Internal task which is repeatedly called by the processing time service.
 	 */
 	private static final class RepeatedTriggerTask implements Runnable {
+
+		private final AtomicInteger serviceStatus;
 		private final Object lock;
 		private final ProcessingTimeCallback target;
 		private final long period;
@@ -236,11 +270,14 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		private long nextTimestamp;
 
 		private RepeatedTriggerTask(
-				AsyncExceptionHandler exceptionHandler,
-				Object lock,
-				ProcessingTimeCallback target,
-				long nextTimestamp,
-				long period) {
+				final AtomicInteger serviceStatus,
+				final AsyncExceptionHandler exceptionHandler,
+				final Object lock,
+				final ProcessingTimeCallback target,
+				final long nextTimestamp,
+				final long period) {
+
+			this.serviceStatus = Preconditions.checkNotNull(serviceStatus);
 			this.lock = Preconditions.checkNotNull(lock);
 			this.target = Preconditions.checkNotNull(target);
 			this.period = period;
@@ -251,15 +288,17 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 		@Override
 		public void run() {
-			try {
-				synchronized (lock) {
-					target.onProcessingTime(nextTimestamp);
-				}
+			synchronized (lock) {
+				try {
+					if (serviceStatus.get() == STATUS_ALIVE) {
+						target.onProcessingTime(nextTimestamp);
+					}
 
-				nextTimestamp += period;
-			} catch (Throwable t) {
-				TimerException asyncException = new TimerException(t);
-				exceptionHandler.handleAsyncException("Caught exception while processing repeated timer task.", asyncException);
+					nextTimestamp += period;
+				} catch (Throwable t) {
+					TimerException asyncException = new TimerException(t);
+					exceptionHandler.handleAsyncException("Caught exception while processing repeated timer task.", asyncException);
+				}
 			}
 		}
 	}

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.akka.ListeningBehaviour;
+import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.runtime.testingUtils.TestingJobManager;
@@ -87,6 +89,20 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	private static ActorGateway taskManager = null;
 
 	private static final FiniteDuration timeout = new FiniteDuration(30L, TimeUnit.SECONDS);
+	private final boolean allowNonRestoredState;
+
+	protected AbstractOperatorRestoreTestBase() {
+		this(true);
+	}
+
+	protected AbstractOperatorRestoreTestBase(boolean allowNonRestoredState) {
+		this.allowNonRestoredState = allowNonRestoredState;
+	}
+
+	@BeforeClass
+	public static void beforeClass() {
+		SavepointSerializers.setFailWhenLegacyStateDetected(false);
+	}
 
 	@BeforeClass
 	public static void setupCluster() throws Exception {
@@ -106,6 +122,8 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
 			highAvailabilityServices,
+			NoOpMetricRegistry.INSTANCE,
+			Option.empty(),
 			Option.apply("jm"),
 			Option.apply("arch"),
 			TestingJobManager.class,
@@ -126,6 +144,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 			ResourceID.generate(),
 			actorSystem,
 			highAvailabilityServices,
+			NoOpMetricRegistry.INSTANCE,
 			"localhost",
 			Option.apply("tm"),
 			true,
@@ -228,7 +247,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 
 	private void restoreJob(String savepointPath) throws Exception {
 		JobGraph jobToRestore = createJobGraph(ExecutionMode.RESTORE);
-		jobToRestore.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, true));
+		jobToRestore.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState));
 
 		Object msg;
 		Object result;

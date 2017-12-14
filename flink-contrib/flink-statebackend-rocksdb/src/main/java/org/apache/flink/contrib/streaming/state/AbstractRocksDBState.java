@@ -27,7 +27,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
@@ -125,8 +125,8 @@ public abstract class AbstractRocksDBState<K, N, S extends State, SD extends Sta
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
 		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
 
-		//TODO make KvStateRequestSerializer key-group aware to save this round trip and key-group computation
-		Tuple2<K, N> des = KvStateRequestSerializer.<K, N>deserializeKeyAndNamespace(
+		//TODO make KvStateSerializer key-group aware to save this round trip and key-group computation
+		Tuple2<K, N> des = KvStateSerializer.<K, N>deserializeKeyAndNamespace(
 				serializedKeyAndNamespace,
 				backend.getKeySerializer(),
 				namespaceSerializer);

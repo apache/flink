@@ -18,14 +18,20 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
+import org.apache.flink.util.FlinkException;
 
-import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 /**
  * Handles requests for deletion of jars.
@@ -36,7 +42,8 @@ public class JarDeleteHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
-	public JarDeleteHandler(File jarDirectory) {
+	public JarDeleteHandler(Executor executor, File jarDirectory) {
+		super(executor);
 		jarDir = jarDirectory;
 	}
 
@@ -46,33 +53,37 @@ public class JarDeleteHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
 		final String file = pathParams.get("jarid");
-		try {
-			File[] list = jarDir.listFiles(new FilenameFilter() {
-				@Override
-				public boolean accept(File dir, String name) {
-					return name.equals(file);
+		return CompletableFuture.supplyAsync(
+			() -> {
+				try {
+					File[] list = jarDir.listFiles(new FilenameFilter() {
+						@Override
+						public boolean accept(File dir, String name) {
+							return name.equals(file);
+						}
+					});
+					boolean success = false;
+					for (File f: list) {
+						// although next to impossible for multiple files, we still delete them.
+						success = success || f.delete();
+					}
+					StringWriter writer = new StringWriter();
+					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
+					gen.writeStartObject();
+					if (!success) {
+						// this seems to always fail on Windows.
+						gen.writeStringField("error", "The requested jar couldn't be deleted. Please try again.");
+					}
+					gen.writeEndObject();
+					gen.close();
+					return writer.toString();
 				}
-			});
-			boolean success = false;
-			for (File f: list) {
-				// although next to impossible for multiple files, we still delete them.
-				success = success || f.delete();
-			}
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-			gen.writeStartObject();
-			if (!success) {
-				// this seems to always fail on Windows.
-				gen.writeStringField("error", "The requested jar couldn't be deleted. Please try again.");
-			}
-			gen.writeEndObject();
-			gen.close();
-			return writer.toString();
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to delete jar id " + pathParams.get("jarid") + ": " + e.getMessage(), e);
-		}
+				catch (Exception e) {
+					throw new CompletionException(new FlinkException("Failed to delete jar id " + pathParams.get("jarid") + '.', e));
+				}
+			},
+			executor);
 	}
 }

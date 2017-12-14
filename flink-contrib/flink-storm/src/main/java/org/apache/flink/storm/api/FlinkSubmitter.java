@@ -22,6 +22,7 @@ import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
@@ -120,7 +121,7 @@ public class FlinkSubmitter {
 					// ignore
 				}
 			}
-
+			Preconditions.checkNotNull(localJar, "LocalJar must not be null.");
 			LOG.info("Submitting topology " + name + " in distributed mode with conf " + serConf);
 			client.submitTopologyWithOpts(name, localJar, topology);
 		} catch (final InvalidTopologyException e) {

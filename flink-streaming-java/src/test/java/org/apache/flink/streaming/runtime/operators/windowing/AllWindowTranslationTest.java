@@ -61,7 +61,6 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -308,31 +307,6 @@ public class AllWindowTranslationTest {
 		Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
 		processElementAndEnsureOutput(winOperator, winOperator.getKeySelector(), BasicTypeInfo.STRING_TYPE_INFO, new Tuple2<>("hello", 1));
-	}
-
-
-	/**
-	 * Ignored because we currently don't have the fast processing-time window operator.
-	 */
-	@Test
-	@SuppressWarnings("rawtypes")
-	@Ignore
-	public void testReduceFastProcessingTime() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-		DataStream<Tuple2<String, Integer>> source = env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
-
-		DataStream<Tuple2<String, Integer>> window = source
-				.windowAll(SlidingProcessingTimeWindows.of(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
-				.reduce(new DummyReducer());
-
-		OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform =
-				(OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>>) window.getTransformation();
-		OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator = transform.getOperator();
-		Assert.assertTrue(operator instanceof AggregatingProcessingTimeWindowOperator);
-
-		processElementAndEnsureOutput(operator, null, BasicTypeInfo.STRING_TYPE_INFO, new Tuple2<>("hello", 1));
 	}
 
 	@Test
@@ -1488,9 +1462,10 @@ public class AllWindowTranslationTest {
 		}
 
 		@Override
-		public void add(Tuple2<String, Integer> value, Tuple2<String, Integer> accumulator) {
+		public Tuple2<String, Integer> add(Tuple2<String, Integer> value, Tuple2<String, Integer> accumulator) {
 			accumulator.f0 = value.f0;
 			accumulator.f1 = value.f1;
+			return accumulator;
 		}
 
 		@Override
@@ -1512,7 +1487,9 @@ public class AllWindowTranslationTest {
 		}
 
 		@Override
-		public void add(T value, T accumulator) {}
+		public T add(T value, T accumulator) {
+			return accumulator;
+		}
 
 		@Override
 		public T getResult(T accumulator) {

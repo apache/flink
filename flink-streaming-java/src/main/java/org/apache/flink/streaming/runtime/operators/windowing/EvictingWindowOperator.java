@@ -38,9 +38,9 @@ import org.apache.flink.streaming.runtime.operators.windowing.functions.Internal
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.base.Function;
+import org.apache.flink.shaded.guava18.com.google.common.collect.FluentIterable;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Collection;
 
@@ -229,8 +229,12 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
 		// element not handled by any window
 		// late arriving tag has been set
 		// windowAssigner is event time and current timestamp + allowed lateness no less than element timestamp
-		if (isSkippedElement && lateDataOutputTag != null && isElementLate(element)) {
-			sideOutput(element);
+		if (isSkippedElement && isElementLate(element)) {
+			if (lateDataOutputTag != null){
+				sideOutput(element);
+			} else {
+				this.numLateRecordsDropped.inc();
+			}
 		}
 	}
 

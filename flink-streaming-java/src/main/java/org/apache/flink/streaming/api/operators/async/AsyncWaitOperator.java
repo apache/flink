@@ -22,13 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.runtime.concurrent.AcceptFunction;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -58,7 +57,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The {@link AsyncWaitOperator} allows to asynchronously process incoming stream records. For that
- * the operator creates an {@link AsyncCollector} which is passed to an {@link AsyncFunction}.
+ * the operator creates an {@link ResultFuture} which is passed to an {@link AsyncFunction}.
  * Within the async function, the user can complete the async collector arbitrarily. Once the async
  * collector has been completed, the result is emitted by the operator's emitter to downstream
  * operators.
@@ -210,19 +209,18 @@ public class AsyncWaitOperator<IN, OUT>
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {
-						streamRecordBufferEntry.collect(
+						streamRecordBufferEntry.completeExceptionally(
 							new TimeoutException("Async function call has timed out."));
 					}
 				});
 
 			// Cancel the timer once we've completed the stream record buffer entry. This will remove
 			// the register trigger task
-			streamRecordBufferEntry.onComplete(new AcceptFunction<StreamElementQueueEntry<Collection<OUT>>>() {
-				@Override
-				public void accept(StreamElementQueueEntry<Collection<OUT>> value) {
+			streamRecordBufferEntry.onComplete(
+				(StreamElementQueueEntry<Collection<OUT>> value) -> {
 					timerFuture.cancel(true);
-				}
-			}, executor);
+				},
+				executor);
 		}
 
 		addAsyncBufferEntry(streamRecordBufferEntry);
@@ -266,6 +264,7 @@ public class AsyncWaitOperator<IN, OUT>
 
 	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
+		super.initializeState(context);
 		recoveredStreamElements = context
 			.getOperatorStateStore()
 			.getListState(new ListStateDescriptor<>(STATE_NAME, inStreamElementSerializer));

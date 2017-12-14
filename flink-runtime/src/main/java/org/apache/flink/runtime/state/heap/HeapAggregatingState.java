@@ -114,8 +114,7 @@ public class HeapAggregatingState<K, N, IN, ACC, OUT>
 			if (accumulator == null) {
 				accumulator = aggFunction.createAccumulator();
 			}
-			aggFunction.add(value, accumulator);
-			return accumulator;
+			return aggFunction.add(value, accumulator);
 		}
 	}
 }

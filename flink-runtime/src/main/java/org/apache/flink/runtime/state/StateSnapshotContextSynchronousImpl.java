@@ -88,7 +88,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 		CheckpointStreamFactory.CheckpointStateOutputStream cout =
 				streamFactory.createCheckpointStateOutputStream(checkpointId, checkpointTimestamp);
 
-		closableRegistry.registerClosable(cout);
+		closableRegistry.registerCloseable(cout);
 		return cout;
 	}
 
@@ -120,22 +120,25 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 	}
 
 	private <T extends StreamStateHandle> T closeAndUnregisterStreamToObtainStateHandle(
-			NonClosingCheckpointOutputStream<T> stream) throws IOException {
-		if (null == stream) {
+		NonClosingCheckpointOutputStream<T> stream) throws IOException {
+
+		if (null != stream && closableRegistry.unregisterCloseable(stream.getDelegate())) {
+			return stream.closeAndGetHandle();
+		} else {
 			return null;
 		}
-
-		closableRegistry.unregisterClosable(stream.getDelegate());
-
-		// for now we only support synchronous writing
-		return stream.closeAndGetHandle();
 	}
 
-	private <T extends StreamStateHandle> void closeAndUnregisterStream(NonClosingCheckpointOutputStream<T> stream) throws IOException {
+	private <T extends StreamStateHandle> void closeAndUnregisterStream(
+		NonClosingCheckpointOutputStream<T> stream) throws IOException {
+
 		Preconditions.checkNotNull(stream);
 
-		closableRegistry.unregisterClosable(stream.getDelegate());
-		stream.getDelegate().close();
+		CheckpointStreamFactory.CheckpointStateOutputStream delegate = stream.getDelegate();
+
+		if (closableRegistry.unregisterCloseable(delegate)) {
+			delegate.close();
+		}
 	}
 
 	@Override

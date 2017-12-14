@@ -20,13 +20,14 @@ package org.apache.flink.table.typeutils
 
 import java.sql.Timestamp
 
+import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo
-import org.apache.flink.api.common.typeutils.TypeComparator
-import org.apache.flink.api.common.typeutils.base.{SqlTimestampComparator, SqlTimestampSerializer}
+import org.apache.flink.api.common.typeutils.{TypeComparator, TypeSerializer}
+import org.apache.flink.api.common.typeutils.base.{LongSerializer, SqlTimestampComparator, SqlTimestampSerializer}
 
 /**
   * Type information for indicating event or processing time. However, it behaves like a
-  * regular SQL timestamp.
+  * regular SQL timestamp but is serialized as Long.
   */
 class TimeIndicatorTypeInfo(val isEventTime: Boolean)
   extends SqlTimeTypeInfo[Timestamp](
@@ -34,11 +35,23 @@ class TimeIndicatorTypeInfo(val isEventTime: Boolean)
     SqlTimestampSerializer.INSTANCE,
     classOf[SqlTimestampComparator].asInstanceOf[Class[TypeComparator[Timestamp]]]) {
 
+  // this replaces the effective serializer by a LongSerializer
+  // it is a hacky but efficient solution to keep the object creation overhead low but still
+  // be compatible with the corresponding SqlTimestampTypeInfo
+  override def createSerializer(executionConfig: ExecutionConfig): TypeSerializer[Timestamp] =
+    LongSerializer.INSTANCE.asInstanceOf[TypeSerializer[Timestamp]]
+
   override def toString: String =
     s"TimeIndicatorTypeInfo(${if (isEventTime) "rowtime" else "proctime" })"
 }
 
 object TimeIndicatorTypeInfo {
+
+  val ROWTIME_STREAM_MARKER: Int = -1
+  val PROCTIME_STREAM_MARKER: Int = -2
+
+  val ROWTIME_BATCH_MARKER: Int = -3
+  val PROCTIME_BATCH_MARKER: Int = -4
 
   val ROWTIME_INDICATOR = new TimeIndicatorTypeInfo(true)
   val PROCTIME_INDICATOR = new TimeIndicatorTypeInfo(false)

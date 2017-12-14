@@ -41,6 +41,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -163,6 +164,9 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 			success = true;
 			return storeHandle;
 		}
+		catch (KeeperException.NodeExistsException e) {
+			throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", e);
+		}
 		finally {
 			if (!success) {
 				// Cleanup the state handle if it was not written to ZooKeeper.
@@ -202,8 +206,10 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 					.withVersion(expectedVersion)
 					.forPath(path, serializedStateHandle);
 			success = true;
+		} catch (KeeperException.NoNodeException e) {
+			throw new ConcurrentModificationException("ZooKeeper unexpectedly modified", e);
 		} finally {
-			if(success) {
+			if (success) {
 				oldStateHandle.discardState();
 			} else {
 				newStateHandle.discardState();
@@ -326,7 +332,8 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 
 	/**
 	 * Gets all available state handles from ZooKeeper sorted by name (ascending) and locks the
-	 * respective state nodes.
+	 * respective state nodes. The result tuples contain the retrieved state and the path to the
+	 * node in ZooKeeper.
 	 *
 	 * <p>If there is a concurrent modification, the operation is retried until it succeeds.
 	 *
@@ -672,7 +679,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 			}
 
 		}
-	};
+	}
 
 	/**
 	 * Callback interface for remove calls

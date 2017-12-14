@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
+
+import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
+
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

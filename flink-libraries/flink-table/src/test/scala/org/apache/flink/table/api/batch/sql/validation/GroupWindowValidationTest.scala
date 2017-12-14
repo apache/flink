@@ -21,7 +21,7 @@ package org.apache.flink.table.api.batch.sql.validation
 import java.sql.Timestamp
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{OverAgg0, WeightedAvgWithMerge}
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.utils.TableTestBase
@@ -78,5 +78,20 @@ class GroupWindowValidationTest extends TableTestBase {
       "FROM T " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
     util.verifySql(sql, "n/a")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testWindowProctime(): Unit = {
+    val util = batchTestUtil()
+    util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+
+    val sqlQuery =
+      "SELECT " +
+        "  TUMBLE_PROCTIME(ts, INTERVAL '4' MINUTE)" +
+        "FROM T " +
+        "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
+
+    // should fail because PROCTIME properties are not yet supported in batch
+    util.verifySql(sqlQuery, "FAIL")
   }
 }

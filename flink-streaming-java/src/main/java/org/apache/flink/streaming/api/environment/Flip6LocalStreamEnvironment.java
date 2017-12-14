@@ -99,15 +99,17 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 		// add (and override) the settings with what the user defined
 		configuration.addAll(this.conf);
 
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration(configuration);
-
 		// Currently we do not reuse slot anymore,
 		// so we need to sum up the parallelism of all vertices
 		int slotsCount = 0;
 		for (JobVertex jobVertex : jobGraph.getVertices()) {
 			slotsCount += jobVertex.getParallelism();
 		}
-		cfg.setNumTaskManagerSlots(slotsCount);
+
+		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+			.setConfiguration(configuration)
+			.setNumSlotsPerTaskManager(slotsCount)
+			.build();
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running job on local embedded Flink mini cluster");

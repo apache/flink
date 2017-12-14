@@ -79,10 +79,10 @@ public class CheckpointOptions implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-	private static final CheckpointOptions FULL_CHECKPOINT = new CheckpointOptions(CheckpointType.FULL_CHECKPOINT, null);
+	private static final CheckpointOptions CHECKPOINT = new CheckpointOptions(CheckpointType.CHECKPOINT, null);
 
-	public static CheckpointOptions forFullCheckpoint() {
-		return FULL_CHECKPOINT;
+	public static CheckpointOptions forCheckpoint() {
+		return CHECKPOINT;
 	}
 
 	public static CheckpointOptions forSavepoint(String targetDirectory) {
@@ -98,7 +98,7 @@ public class CheckpointOptions implements Serializable {
 	public enum CheckpointType {
 
 		/** A full checkpoint. */
-		FULL_CHECKPOINT,
+		CHECKPOINT,
 
 		/** A savepoint. */
 		SAVEPOINT;

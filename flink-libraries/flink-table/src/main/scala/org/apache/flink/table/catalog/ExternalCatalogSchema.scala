@@ -18,19 +18,19 @@
 
 package org.apache.flink.table.catalog
 
-import java.util.{Collections => JCollections, Collection => JCollection, LinkedHashSet => JLinkedHashSet, Set => JSet}
+import java.util.{Collection => JCollection, Collections => JCollections, LinkedHashSet => JLinkedHashSet, Set => JSet}
 
 import org.apache.calcite.linq4j.tree.Expression
 import org.apache.calcite.schema._
 import org.apache.flink.table.api.{CatalogNotExistException, TableNotExistException}
-import org.slf4j.{Logger, LoggerFactory}
+import org.apache.flink.table.util.Logging
 
 import scala.collection.JavaConverters._
 
 /**
   * This class is responsible to connect an external catalog to Calcite's catalog.
   * This enables to look-up and access tables in SQL queries without registering tables in advance.
-  * The the external catalog and all included sub-catalogs and tables is registered as
+  * The external catalog and all included sub-catalogs and tables is registered as
   * sub-schemas and tables in Calcite.
   *
   * @param catalogIdentifier external catalog name
@@ -38,9 +38,7 @@ import scala.collection.JavaConverters._
   */
 class ExternalCatalogSchema(
     catalogIdentifier: String,
-    catalog: ExternalCatalog) extends Schema {
-
-  private val LOG: Logger = LoggerFactory.getLogger(this.getClass)
+    catalog: ExternalCatalog) extends Schema with Logging {
 
   /**
     * Looks up a sub-schema by the given sub-schema name in the external catalog.
@@ -96,7 +94,7 @@ class ExternalCatalogSchema(
 
   override def getTableNames: JSet[String] = JCollections.emptySet[String]
 
-  override def contentsHaveChangedSince(lastCheck: Long, now: Long): Boolean = true
+  override def snapshot(v: SchemaVersion): Schema = this
 
   /**
     * Registers sub-Schemas to current schema plus

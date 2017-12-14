@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -41,6 +41,8 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -59,11 +61,12 @@ public class NetworkEnvironmentTest {
 	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
 
 		final NetworkEnvironment network = new NetworkEnvironment(
-			new NetworkBufferPool(numBuffers, memorySegmentSize, MemoryType.HEAP),
+			new NetworkBufferPool(numBuffers, memorySegmentSize),
 			new LocalConnectionManager(),
 			new ResultPartitionManager(),
 			new TaskEventDispatcher(),
 			new KvStateRegistry(),
+			null,
 			null,
 			IOManager.IOMode.SYNC,
 			0,
@@ -77,21 +80,17 @@ public class NetworkEnvironmentTest {
 		ResultPartition rp3 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 2);
 		ResultPartition rp4 = createResultPartition(ResultPartitionType.PIPELINED_BOUNDED, 8);
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
-		final ResultPartitionWriter[] resultPartitionWriters = new ResultPartitionWriter[] {
-			new ResultPartitionWriter(rp1), new ResultPartitionWriter(rp2),
-			new ResultPartitionWriter(rp3), new ResultPartitionWriter(rp4)};
 
 		// input gates
-		final SingleInputGate[] inputGates = new SingleInputGate[] {
-			createSingleInputGateMock(ResultPartitionType.PIPELINED, 2),
-			createSingleInputGateMock(ResultPartitionType.BLOCKING, 2),
-			createSingleInputGateMock(ResultPartitionType.PIPELINED_BOUNDED, 2),
-			createSingleInputGateMock(ResultPartitionType.PIPELINED_BOUNDED, 8)};
+		SingleInputGate ig1 = createSingleInputGateMock(ResultPartitionType.PIPELINED, 2);
+		SingleInputGate ig2 = createSingleInputGateMock(ResultPartitionType.BLOCKING, 2);
+		SingleInputGate ig3 = createSingleInputGateMock(ResultPartitionType.PIPELINED_BOUNDED, 2);
+		SingleInputGate ig4 = createSingleInputGateMock(ResultPartitionType.PIPELINED_CREDIT_BASED, 8);
+		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
 		// overall task to register
 		Task task = mock(Task.class);
 		when(task.getProducedPartitions()).thenReturn(resultPartitions);
-		when(task.getAllWriters()).thenReturn(resultPartitionWriters);
 		when(task.getAllInputGates()).thenReturn(inputGates);
 
 		network.registerTask(task);
@@ -100,6 +99,8 @@ public class NetworkEnvironmentTest {
 		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(8 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
+
+		verify(ig4, times(1)).assignExclusiveSegments(network.getNetworkBufferPool(), 2);
 
 		network.shutdown();
 	}
@@ -154,12 +155,15 @@ public class NetworkEnvironmentTest {
 				BufferPool bp = invocation.getArgumentAt(0, BufferPool.class);
 				if (partitionType == ResultPartitionType.PIPELINED_BOUNDED) {
 					assertEquals(channels * 2 + 8, bp.getMaxNumberOfMemorySegments());
+				} else if (partitionType == ResultPartitionType.PIPELINED_CREDIT_BASED) {
+					assertEquals(8, bp.getMaxNumberOfMemorySegments());
 				} else {
 					assertEquals(Integer.MAX_VALUE, bp.getMaxNumberOfMemorySegments());
 				}
 				return null;
 			}
 		}).when(ig).setBufferPool(any(BufferPool.class));
+
 		return ig;
 	}
 }

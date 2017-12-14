@@ -24,8 +24,10 @@ import java.io.Serializable;
 
 /**
  * A {@link GraphAlgorithm} result for three vertices.
+ *
+ * @param <K> graph ID type
  */
-public interface TertiaryResult<T>
+public interface TertiaryResult<K>
 extends Serializable {
 
 	/**
@@ -33,40 +35,40 @@ extends Serializable {
 	 *
 	 * @return first vertex ID
 	 */
-	T getVertexId0();
+	K getVertexId0();
 
 	/**
 	 * Set the first vertex ID.
 	 *
-	 * @param value new vertex ID
+	 * @param vertexId0 new vertex ID
 	 */
-	void setVertexId0(T value);
+	void setVertexId0(K vertexId0);
 
 	/**
 	 * Get the second vertex ID.
 	 *
 	 * @return second vertex ID
 	 */
-	T getVertexId1();
+	K getVertexId1();
 
 	/**
 	 * Set the second vertex ID.
 	 *
-	 * @param value new vertex ID
+	 * @param vertexId1 new vertex ID
 	 */
-	void setVertexId1(T value);
+	void setVertexId1(K vertexId1);
 
 	/**
 	 * Get the third vertex ID.
 	 *
 	 * @return third vertex ID
 	 */
-	T getVertexId2();
+	K getVertexId2();
 
 	/**
 	 * Set the third vertex ID.
 	 *
-	 * @param value new vertex ID
+	 * @param vertexId2 new vertex ID
 	 */
-	void setVertexId2(T value);
+	void setVertexId2(K vertexId2);
 }

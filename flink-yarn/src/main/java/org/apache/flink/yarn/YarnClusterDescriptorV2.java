@@ -18,6 +18,10 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
+import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
+
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the new application master for a job under flip-6.
  * This implementation is now however tricky, since YarnClusterDescriptorV2 is related YarnClusterClientV2, but AbstractYarnClusterDescriptor is related
@@ -26,9 +30,17 @@ package org.apache.flink.yarn;
  */
 public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
 
-	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return YarnFlinkApplicationMasterRunner.class;
+	public YarnClusterDescriptorV2(Configuration flinkConfiguration, String configurationDirectory) {
+		super(flinkConfiguration, configurationDirectory);
 	}
 
+	@Override
+	protected String getYarnSessionClusterEntrypoint() {
+		return YarnSessionClusterEntrypoint.class.getName();
+	}
+
+	@Override
+	protected String getYarnJobClusterEntrypoint() {
+		return YarnJobClusterEntrypoint.class.getName();
+	}
 }

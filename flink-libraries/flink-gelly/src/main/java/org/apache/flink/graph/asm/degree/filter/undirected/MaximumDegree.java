@@ -138,7 +138,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 
 		// u, d(u) if d(u) > maximumDegree
 		DataSet<Tuple1<K>> highDegreeVertices = vertexDegree
-			.flatMap(new DegreeFilter<K>(maximumDegree))
+			.flatMap(new DegreeFilter<>(maximumDegree))
 				.setParallelism(parallelism)
 				.name("Filter high-degree vertices");
 
@@ -150,7 +150,7 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 			.leftOuterJoin(highDegreeVertices, joinHint)
 			.where(0)
 			.equalTo(0)
-			.with(new ProjectVertex<K, VV>())
+			.with(new ProjectVertex<>())
 				.setParallelism(parallelism)
 				.name("Project low-degree vertices");
 
@@ -160,13 +160,13 @@ extends GraphAlgorithmWrappingGraph<K, VV, EV, K, VV, EV> {
 			.leftOuterJoin(highDegreeVertices, joinHint)
 			.where(reduceOnTargetId.get() ? 1 : 0)
 			.equalTo(0)
-				.with(new ProjectEdge<K, EV>())
+				.with(new ProjectEdge<>())
 				.setParallelism(parallelism)
 				.name("Project low-degree edges by " + (reduceOnTargetId.get() ? "target" : "source"))
 			.leftOuterJoin(highDegreeVertices, joinHint)
 			.where(reduceOnTargetId.get() ? 0 : 1)
 			.equalTo(0)
-			.with(new ProjectEdge<K, EV>())
+			.with(new ProjectEdge<>())
 				.setParallelism(parallelism)
 				.name("Project low-degree edges by " + (reduceOnTargetId.get() ? "source" : "target"));
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.benchmark;
 
+import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.core.memory.MemoryUtils;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
@@ -31,7 +32,6 @@ import org.rocksdb.NativeLibraryLoader;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksIterator;
-import org.rocksdb.StringAppendOperator;
 import org.rocksdb.WriteOptions;
 import sun.misc.Unsafe;
 
@@ -74,11 +74,10 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
-					.setDisableDataSync(true)
 					.setCreateIfMissing(true)
-					.setMergeOperator(new StringAppendOperator());
+					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
-			final WriteOptions write_options = new WriteOptions()
+			final WriteOptions writeOptions = new WriteOptions()
 					.setSync(false)
 					.setDisableWAL(true);
 
@@ -89,7 +88,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 
 			final long beginInsert = System.nanoTime();
 			for (int i = 0; i < num; i++) {
-				rocksDB.merge(write_options, keyBytes, valueBytes);
+				rocksDB.merge(writeOptions, keyBytes, valueBytes);
 			}
 			final long endInsert = System.nanoTime();
 			log.info("end insert - duration: {} ms", (endInsert - beginInsert) / 1_000_000);
@@ -152,11 +151,10 @@ public class RocksDBPerformanceTest extends TestLogger {
 					.setIncreaseParallelism(4)
 					.setUseFsync(false)
 					.setMaxOpenFiles(-1)
-					.setDisableDataSync(true)
 					.setCreateIfMissing(true)
-					.setMergeOperator(new StringAppendOperator());
+					.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);
 
-			final WriteOptions write_options = new WriteOptions()
+			final WriteOptions writeOptions = new WriteOptions()
 					.setSync(false)
 					.setDisableWAL(true);
 
@@ -172,7 +170,7 @@ public class RocksDBPerformanceTest extends TestLogger {
 			final long beginInsert = System.nanoTime();
 			for (int i = 0; i < num; i++) {
 				unsafe.putInt(keyTemplate, offset, i);
-				rocksDB.put(write_options, keyTemplate, valueBytes);
+				rocksDB.put(writeOptions, keyTemplate, valueBytes);
 			}
 			final long endInsert = System.nanoTime();
 			log.info("end insert - duration: {} ms", (endInsert - beginInsert) / 1_000_000);

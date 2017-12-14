@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -42,13 +43,17 @@ public abstract class HeapStateBackendTestBase {
 	public boolean async;
 
 	public HeapKeyedStateBackend<String> createKeyedBackend() throws Exception {
+		return createKeyedBackend(StringSerializer.INSTANCE);
+	}
+
+	public <K> HeapKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {
 		return new HeapKeyedStateBackend<>(
-				mock(TaskKvStateRegistry.class),
-				StringSerializer.INSTANCE,
-				HeapReducingStateTest.class.getClassLoader(),
-				16,
-				new KeyGroupRange(0, 15),
-				async,
-				new ExecutionConfig());
+			mock(TaskKvStateRegistry.class),
+			keySerializer,
+			HeapStateBackendTestBase.class.getClassLoader(),
+			16,
+			new KeyGroupRange(0, 15),
+			async,
+			new ExecutionConfig());
 	}
 }

@@ -24,15 +24,15 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.cli.Option;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.apache.hadoop.util.GenericOptionsParser;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -40,8 +40,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class provides simple utility methods for reading and parsing program arguments from different sources.
@@ -155,13 +157,37 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 */
 	public static ParameterTool fromPropertiesFile(String path) throws IOException {
 		File propertiesFile = new File(path);
-		if (!propertiesFile.exists()) {
-			throw new FileNotFoundException("Properties file " + propertiesFile.getAbsolutePath() + " does not exist");
+		return fromPropertiesFile(propertiesFile);
+	}
+
+	/**
+	 * Returns {@link ParameterTool} for the given {@link Properties} file.
+	 *
+	 * @param file File object to the properties file
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If the file does not exist
+	 * @see Properties
+	 */
+	public static ParameterTool fromPropertiesFile(File file) throws IOException {
+		if (!file.exists()) {
+			throw new FileNotFoundException("Properties file " + file.getAbsolutePath() + " does not exist");
 		}
+		try (FileInputStream fis = new FileInputStream(file)) {
+			return fromPropertiesFile(fis);
+		}
+	}
+
+	/**
+	 * Returns {@link ParameterTool} for the given InputStream from {@link Properties} file.
+	 *
+	 * @param inputStream InputStream from the properties file
+	 * @return A {@link ParameterTool}
+	 * @throws IOException If the file does not exist
+	 * @see Properties
+	 */
+	public static ParameterTool fromPropertiesFile(InputStream inputStream) throws IOException {
 		Properties props = new Properties();
-		try (FileInputStream fis = new FileInputStream(propertiesFile)) {
-			props.load(fis);
-		}
+		props.load(inputStream);
 		return fromMap((Map) props);
 	}
 
@@ -187,37 +213,40 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return fromMap((Map) System.getProperties());
 	}
 
-	/**
-	 * Returns {@link ParameterTool} for the arguments parsed by {@link GenericOptionsParser}.
-	 *
-	 * @param args Input array arguments. It should be parsable by {@link GenericOptionsParser}
-	 * @return A {@link ParameterTool}
-	 * @throws IOException If arguments cannot be parsed by {@link GenericOptionsParser}
-	 * @see GenericOptionsParser
-	 * @deprecated Please use {@link org.apache.flink.hadoopcompatibility.HadoopUtils#paramsFromGenericOptionsParser(String[])}
-	 * from project flink-hadoop-compatibility
-	 */
-	@Deprecated
-	@PublicEvolving
-	public static ParameterTool fromGenericOptionsParser(String[] args) throws IOException {
-		Option[] options = new GenericOptionsParser(args).getCommandLine().getOptions();
-		Map<String, String> map = new HashMap<String, String>();
-		for (Option option : options) {
-			String[] split = option.getValue().split("=");
-			map.put(split[0], split[1]);
-		}
-		return fromMap(map);
-	}
-
 	// ------------------ ParameterUtil  ------------------------
 	protected final Map<String, String> data;
-	protected final Map<String, String> defaultData;
-	protected final Set<String> unrequestedParameters;
+
+	// data which is only used on the client and does not need to be transmitted
+	protected transient Map<String, String> defaultData;
+	protected transient Set<String> unrequestedParameters;
 
 	private ParameterTool(Map<String, String> data) {
-		this.data = new HashMap<>(data);
-		this.defaultData = new HashMap<>();
-		this.unrequestedParameters = new HashSet<>(data.keySet());
+		this.data = Collections.unmodifiableMap(new HashMap<>(data));
+
+		this.defaultData = new ConcurrentHashMap<>(data.size());
+
+		this.unrequestedParameters = Collections.newSetFromMap(new ConcurrentHashMap<>(data.size()));
+
+		unrequestedParameters.addAll(data.keySet());
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ParameterTool that = (ParameterTool) o;
+		return Objects.equals(data, that.data) &&
+			Objects.equals(defaultData, that.defaultData) &&
+			Objects.equals(unrequestedParameters, that.unrequestedParameters);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(data, defaultData, unrequestedParameters);
 	}
 
 	/**
@@ -559,9 +588,21 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 	 * @return The Merged {@link ParameterTool}
 	 */
 	public ParameterTool mergeWith(ParameterTool other) {
-		ParameterTool ret = new ParameterTool(this.data);
-		ret.data.putAll(other.data);
-		ret.unrequestedParameters.addAll(other.unrequestedParameters);
+		Map<String, String> resultData = new HashMap<>(data.size() + other.data.size());
+		resultData.putAll(data);
+		resultData.putAll(other.data);
+
+		ParameterTool ret = new ParameterTool(resultData);
+
+		final HashSet<String> requestedParametersLeft = new HashSet<>(data.keySet());
+		requestedParametersLeft.removeAll(unrequestedParameters);
+
+		final HashSet<String> requestedParametersRight = new HashSet<>(other.data.keySet());
+		requestedParametersRight.removeAll(other.unrequestedParameters);
+
+		ret.unrequestedParameters.removeAll(requestedParametersLeft);
+		ret.unrequestedParameters.removeAll(requestedParametersRight);
+
 		return ret;
 	}
 
@@ -572,4 +613,12 @@ public class ParameterTool extends ExecutionConfig.GlobalJobParameters implement
 		return data;
 	}
 
+	// ------------------------- Serialization ---------------------------------------------
+
+	private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+		in.defaultReadObject();
+
+		defaultData = new ConcurrentHashMap<>(data.size());
+		unrequestedParameters = Collections.newSetFromMap(new ConcurrentHashMap<>(data.size()));
+	}
 }

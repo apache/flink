@@ -54,7 +54,7 @@ public class HashFullOuterJoinBuildFirstDescriptor extends AbstractJoinDescripto
 	@Override
 	public DualInputPlanNode instantiate(Channel in1, Channel in2, TwoInputNode node) {
 
-		String nodeName = "FullOuterJoin("+node.getOperator().getName()+")";
+		String nodeName = "FullOuterJoin ("+node.getOperator().getName()+")";
 		return new DualInputPlanNode(node, nodeName, in1, in2, getStrategy(), this.keys1, this.keys2);
 	}
 

@@ -70,6 +70,9 @@ public class CheckpointConfig implements java.io.Serializable {
 	/** Cleanup behaviour for persistent checkpoints. */
 	private ExternalizedCheckpointCleanup externalizedCheckpointCleanup;
 
+	/** Determines if a tasks are failed or not if there is an error in their checkpointing. Default: true */
+	private boolean failOnCheckpointingErrors = true;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -228,6 +231,23 @@ public class CheckpointConfig implements java.io.Serializable {
 	@PublicEvolving
 	public void setForceCheckpointing(boolean forceCheckpointing) {
 		this.forceCheckpointing = forceCheckpointing;
+	}
+
+	/**
+	 * This determines the behaviour of tasks if there is an error in their local checkpointing. If this returns true,
+	 * tasks will fail as a reaction. If this returns false, task will only decline the failed checkpoint.
+	 */
+	public boolean isFailOnCheckpointingErrors() {
+		return failOnCheckpointingErrors;
+	}
+
+	/**
+	 * Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure.
+	 * If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only
+	 * decline a the checkpoint and continue running. The default is true.
+	 */
+	public void setFailOnCheckpointingErrors(boolean failOnCheckpointingErrors) {
+		this.failOnCheckpointingErrors = failOnCheckpointingErrors;
 	}
 
 	/**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -25,9 +26,11 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -104,22 +107,33 @@ public class SchedulerTestUtils {
 	
 	
 	public static Execution getTestVertex(Iterable<TaskManagerLocation> preferredLocations) {
+		Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = new ArrayList<>(4);
+
+		for (TaskManagerLocation preferredLocation : preferredLocations) {
+			preferredLocationFutures.add(CompletableFuture.completedFuture(preferredLocation));
+		}
+
+		return getTestVertex(preferredLocationFutures);
+	}
+
+	public static Execution getTestVertex(Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
-		
-		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocations);
+
+		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
-		
+
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
-		
+		when(execution.calculatePreferredLocations(any(LocationPreferenceConstraint.class))).thenCallRealMethod();
+
 		return execution;
 	}
 	
 	public static Execution getTestVertex(JobVertexID jid, int taskIndex, int numTasks) {
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		
-		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(null);
+		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(Collections.emptyList());
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
 		when(vertex.getParallelSubtaskIndex()).thenReturn(taskIndex);
@@ -139,7 +153,13 @@ public class SchedulerTestUtils {
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
-		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(Arrays.asList(locations));
+		Collection<CompletableFuture<TaskManagerLocation>> preferrecLocationFutures = new ArrayList<>(locations.length);
+
+		for (TaskManagerLocation location : locations) {
+			preferrecLocationFutures.add(CompletableFuture.completedFuture(location));
+		}
+
+		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferrecLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
 		when(vertex.getParallelSubtaskIndex()).thenReturn(taskIndex);

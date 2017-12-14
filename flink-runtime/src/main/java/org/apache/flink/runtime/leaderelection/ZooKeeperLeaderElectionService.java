@@ -19,8 +19,10 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.api.UnhandledErrorListener;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.NodeCache;
 import org.apache.curator.framework.recipes.cache.NodeCacheListener;
@@ -45,7 +47,7 @@ import java.util.UUID;
  * ZooKeeper. The current leader's address as well as its leader session ID is published via
  * ZooKeeper as well.
  */
-public class ZooKeeperLeaderElectionService implements LeaderElectionService, LeaderLatchListener, NodeCacheListener {
+public class ZooKeeperLeaderElectionService implements LeaderElectionService, LeaderLatchListener, NodeCacheListener, UnhandledErrorListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperLeaderElectionService.class);
 
@@ -118,6 +120,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 
 		synchronized (lock) {
 
+			client.getUnhandledErrorListenable().addListener(this);
+
 			leaderContender = contender;
 
 			leaderLatch.addListener(this);
@@ -145,6 +149,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 		}
 
 		LOG.info("Stopping ZooKeeperLeaderElectionService {}.", this);
+
+		client.getUnhandledErrorListenable().removeListener(this);
 
 		client.getConnectionStateListenable().removeListener(listener);
 
@@ -400,5 +406,10 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 					+ " no longer participates in the leader election.");
 				break;
 		}
+	}
+
+	@Override
+	public void unhandledError(String message, Throwable e) {
+		leaderContender.handleError(new FlinkException("Unhandled error in ZooKeeperLeaderElectionService: " + message, e));
 	}
 }

@@ -21,7 +21,8 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+
 import org.junit.Assert;
 
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ public class TestHarnessUtil {
 	/**
 	 * Compare the two queues containing operator/task output by converting them to an array first.
 	 */
-	public static void assertOutputEquals(String message, Queue<Object> expected, Queue<Object> actual) {
+	public static <T> void assertOutputEquals(String message, Queue<T> expected, Queue<T> actual) {
 		Assert.assertArrayEquals(message,
 				expected.toArray(),
 				actual.toArray());

@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.SubEvent;
+import org.apache.flink.cep.nfa.AfterMatchSkipStrategy;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.State;
 import org.apache.flink.cep.nfa.StateTransition;
@@ -32,6 +33,8 @@ import org.apache.flink.cep.pattern.MalformedPatternException;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,7 +45,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static com.google.common.collect.Sets.newHashSet;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -142,14 +144,14 @@ public class NFACompilerTest extends TestLogger {
 		State<Event> startState = stateMap.get("start");
 		assertTrue(startState.isStart());
 		final Set<Tuple2<String, StateTransitionAction>> startTransitions = unfoldTransitions(startState);
-		assertEquals(newHashSet(
+		assertEquals(Sets.newHashSet(
 			Tuple2.of("middle", StateTransitionAction.TAKE)
 		), startTransitions);
 
 		assertTrue(stateMap.containsKey("middle"));
 		State<Event> middleState = stateMap.get("middle");
 		final Set<Tuple2<String, StateTransitionAction>> middleTransitions = unfoldTransitions(middleState);
-		assertEquals(newHashSet(
+		assertEquals(Sets.newHashSet(
 			Tuple2.of("middle", StateTransitionAction.IGNORE),
 			Tuple2.of("end", StateTransitionAction.TAKE)
 		), middleTransitions);
@@ -157,7 +159,7 @@ public class NFACompilerTest extends TestLogger {
 		assertTrue(stateMap.containsKey("end"));
 		State<Event> endState = stateMap.get("end");
 		final Set<Tuple2<String, StateTransitionAction>> endTransitions = unfoldTransitions(endState);
-		assertEquals(newHashSet(
+		assertEquals(Sets.newHashSet(
 			Tuple2.of(NFACompiler.ENDING_STATE_NAME, StateTransitionAction.TAKE)
 		), endTransitions);
 
@@ -185,6 +187,37 @@ public class NFACompilerTest extends TestLogger {
 		}
 
 		assertEquals(1, endStateCount);
+	}
+
+	@Test
+	public void testSkipToNotExistsMatchingPattern() {
+		expectedException.expect(MalformedPatternException.class);
+		expectedException.expectMessage("The pattern name specified in AfterMatchSkipStrategy can not be found in the given Pattern");
+
+		Pattern<Event, ?> invalidPattern = Pattern.<Event>begin("start",
+			AfterMatchSkipStrategy.skipToLast("midd")).where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("a");
+			}
+		}).next("middle").where(
+			new SimpleCondition<Event>() {
+
+				@Override
+				public boolean filter(Event value) throws Exception {
+					return value.getName().contains("d");
+				}
+			}
+		).oneOrMore().optional().next("end").where(new SimpleCondition<Event>() {
+
+			@Override
+			public boolean filter(Event value) throws Exception {
+				return value.getName().contains("c");
+			}
+		});
+
+		NFACompiler.compile(invalidPattern, Event.createTypeSerializer(), false);
 	}
 
 	private <T> Set<Tuple2<String, StateTransitionAction>> unfoldTransitions(final State<T> state) {

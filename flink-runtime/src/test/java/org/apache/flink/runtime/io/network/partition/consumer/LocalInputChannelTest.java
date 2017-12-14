@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import com.google.common.collect.Lists;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -40,12 +38,14 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import scala.Tuple2;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -56,6 +56,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import scala.Tuple2;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.fail;
@@ -93,7 +95,7 @@ public class LocalInputChannelTest {
 
 		final NetworkBufferPool networkBuffers = new NetworkBufferPool(
 			(parallelism * producerBufferPoolSize) + (parallelism * parallelism),
-			TestBufferFactory.BUFFER_SIZE, MemoryType.HEAP);
+			TestBufferFactory.BUFFER_SIZE);
 
 		final ResultPartitionConsumableNotifier partitionConsumableNotifier =
 			mock(ResultPartitionConsumableNotifier.class);
@@ -174,6 +176,7 @@ public class LocalInputChannelTest {
 			}
 		}
 		finally {
+			networkBuffers.destroyAllBufferPools();
 			networkBuffers.destroy();
 			executor.shutdown();
 		}
@@ -288,7 +291,7 @@ public class LocalInputChannelTest {
 			0,
 			1,
 			mock(TaskActions.class),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()
 		);
 
 		ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
@@ -315,7 +318,7 @@ public class LocalInputChannelTest {
 			partitionManager,
 			new TaskEventDispatcher(),
 			1, 1,
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 
@@ -367,7 +370,7 @@ public class LocalInputChannelTest {
 			new ResultPartitionID(),
 			partitionManager,
 			new TaskEventDispatcher(),
-			new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 		channel.requestSubpartition(0);
 
@@ -408,7 +411,7 @@ public class LocalInputChannelTest {
 				mock(TaskEventDispatcher.class),
 				initialAndMaxRequestBackoff._1(),
 				initialAndMaxRequestBackoff._2(),
-				new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+				UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 	}
 
 	/**
@@ -484,7 +487,7 @@ public class LocalInputChannelTest {
 					subpartitionIndex,
 					numberOfInputChannels,
 					mock(TaskActions.class),
-					new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup());
+					UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
 
 			// Set buffer pool
 			inputGate.setBufferPool(bufferPool);
@@ -499,7 +502,7 @@ public class LocalInputChannelTest {
 								consumedPartitionIds[i],
 								partitionManager,
 								taskEventDispatcher,
-								new UnregisteredTaskMetricsGroup.DummyTaskIOMetricGroup()));
+								UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup()));
 			}
 
 			this.numberOfInputChannels = numberOfInputChannels;

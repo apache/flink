@@ -21,23 +21,22 @@ package org.apache.flink.runtime.rpc.akka;
 import akka.actor.ActorSystem;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
-import org.apache.flink.runtime.concurrent.impl.FlinkFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.RpcMethod;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.Test;
 
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -73,7 +72,7 @@ public class AkkaRpcActorTest extends TestLogger {
 	public void testAddressResolution() throws Exception {
 		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 
-		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
+		CompletableFuture<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), DummyRpcGateway.class);
 
 		DummyRpcGateway rpcGateway = futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
 
@@ -85,7 +84,7 @@ public class AkkaRpcActorTest extends TestLogger {
 	 */
 	@Test
 	public void testFailingAddressResolution() throws Exception {
-		Future<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect("foobar", DummyRpcGateway.class);
+		CompletableFuture<DummyRpcGateway> futureRpcGateway = akkaRpcService.connect("foobar", DummyRpcGateway.class);
 
 		try {
 			futureRpcGateway.get(timeout.getSize(), timeout.getUnit());
@@ -107,10 +106,10 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 
-		DummyRpcGateway rpcGateway = rpcEndpoint.getSelf();
+		DummyRpcGateway rpcGateway = rpcEndpoint.getSelfGateway(DummyRpcGateway.class);
 
 		// this message should be discarded and completed with an AkkaRpcException
-		Future<Integer> result = rpcGateway.foobar();
+		CompletableFuture<Integer> result = rpcGateway.foobar();
 
 		try {
 			result.get(timeout.getSize(), timeout.getUnit());
@@ -149,14 +148,14 @@ public class AkkaRpcActorTest extends TestLogger {
 
 		rpcEndpoint.start();
 
-		Future<WrongRpcGateway> futureGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
+		CompletableFuture<WrongRpcGateway> futureGateway = akkaRpcService.connect(rpcEndpoint.getAddress(), WrongRpcGateway.class);
 
 		WrongRpcGateway gateway = futureGateway.get(timeout.getSize(), timeout.getUnit());
 
 		// since it is a tell operation we won't receive a RpcConnectionException, it's only logged
 		gateway.tell("foobar");
 
-		Future<Boolean> result = gateway.barfoo();
+		CompletableFuture<Boolean> result = gateway.barfoo();
 
 		try {
 			result.get(timeout.getSize(), timeout.getUnit());
@@ -177,18 +176,13 @@ public class AkkaRpcActorTest extends TestLogger {
 		final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		Future<Void> terminationFuture = rpcEndpoint.getTerminationFuture();
+		CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
 
 		assertFalse(terminationFuture.isDone());
 
-		FlinkFuture.supplyAsync(new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				rpcEndpoint.shutDown();
-
-				return null;
-			}
-		}, actorSystem.dispatcher());
+		CompletableFuture.runAsync(
+			() -> rpcEndpoint.shutDown(),
+			actorSystem.dispatcher());
 
 		// wait until the rpc endpoint has terminated
 		terminationFuture.get();
@@ -199,8 +193,8 @@ public class AkkaRpcActorTest extends TestLogger {
 		ExceptionalEndpoint rpcEndpoint = new ExceptionalEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		ExceptionalGateway rpcGateway = rpcEndpoint.getSelf();
-		Future<Integer> result = rpcGateway.doStuff();
+		ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
+		CompletableFuture<Integer> result = rpcGateway.doStuff();
 
 		try {
 			result.get(timeout.getSize(), timeout.getUnit());
@@ -218,8 +212,8 @@ public class AkkaRpcActorTest extends TestLogger {
 		ExceptionalFutureEndpoint rpcEndpoint = new ExceptionalFutureEndpoint(akkaRpcService);
 		rpcEndpoint.start();
 
-		ExceptionalGateway rpcGateway = rpcEndpoint.getSelf();
-		Future<Integer> result = rpcGateway.doStuff();
+		ExceptionalGateway rpcGateway = rpcEndpoint.getSelfGateway(ExceptionalGateway.class);
+		CompletableFuture<Integer> result = rpcGateway.doStuff();
 
 		try {
 			result.get(timeout.getSize(), timeout.getUnit());
@@ -232,20 +226,81 @@ public class AkkaRpcActorTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that exception thrown in the postStop method are returned by the termination
+	 * future.
+	 */
+	@Test
+	public void testPostStopExceptionPropagation() throws Exception {
+		FailingPostStopEndpoint rpcEndpoint = new FailingPostStopEndpoint(akkaRpcService, "FailingPostStopEndpoint");
+		rpcEndpoint.start();
+
+		rpcEndpoint.shutDown();
+
+		CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+
+		try {
+			terminationFuture.get();
+		} catch (ExecutionException e) {
+			assertTrue(e.getCause() instanceof FailingPostStopEndpoint.PostStopException);
+		}
+	}
+
+	/**
+	 * Checks that the postStop callback is executed within the main thread.
+	 */
+	@Test
+	public void testPostStopExecutedByMainThread() throws Exception {
+		SimpleRpcEndpoint simpleRpcEndpoint = new SimpleRpcEndpoint(akkaRpcService, "SimpleRpcEndpoint");
+		simpleRpcEndpoint.start();
+
+		simpleRpcEndpoint.shutDown();
+
+		CompletableFuture<Boolean> terminationFuture = simpleRpcEndpoint.getTerminationFuture();
+
+		// check that we executed the postStop method in the main thread, otherwise an exception
+		// would be thrown here.
+		terminationFuture.get();
+	}
+
+	/**
+	 * Tests that actors are properly terminated when the AkkaRpcService is shut down.
+	 */
+	@Test
+	public void testActorTerminationWhenServiceShutdown() throws Exception {
+		final ActorSystem rpcActorSystem = AkkaUtils.createDefaultActorSystem();
+		final RpcService rpcService = new AkkaRpcService(rpcActorSystem, timeout);
+
+		try {
+			SimpleRpcEndpoint rpcEndpoint = new SimpleRpcEndpoint(rpcService, SimpleRpcEndpoint.class.getSimpleName());
+
+			rpcEndpoint.start();
+
+			CompletableFuture<Boolean> terminationFuture = rpcEndpoint.getTerminationFuture();
+
+			rpcService.stopService();
+
+			terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+		} finally {
+			rpcActorSystem.shutdown();
+			rpcActorSystem.awaitTermination(FutureUtils.toFiniteDuration(timeout));
+		}
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test Actors and Interfaces
 	// ------------------------------------------------------------------------
 
 	private interface DummyRpcGateway extends RpcGateway {
-		Future<Integer> foobar();
+		CompletableFuture<Integer> foobar();
 	}
 
 	private interface WrongRpcGateway extends RpcGateway {
-		Future<Boolean> barfoo();
+		CompletableFuture<Boolean> barfoo();
 		void tell(String message);
 	}
 
-	private static class DummyRpcEndpoint extends RpcEndpoint<DummyRpcGateway> {
+	private static class DummyRpcEndpoint extends RpcEndpoint implements DummyRpcGateway {
 
 		private volatile int _foobar = 42;
 
@@ -253,9 +308,9 @@ public class AkkaRpcActorTest extends TestLogger {
 			super(rpcService);
 		}
 
-		@RpcMethod
-		public int foobar() {
-			return _foobar;
+		@Override
+		public CompletableFuture<Integer> foobar() {
+			return CompletableFuture.completedFuture(_foobar);
 		}
 
 		public void setFoobar(int value) {
@@ -266,30 +321,30 @@ public class AkkaRpcActorTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private interface ExceptionalGateway extends RpcGateway {
-		Future<Integer> doStuff();
+		CompletableFuture<Integer> doStuff();
 	}
 
-	private static class ExceptionalEndpoint extends RpcEndpoint<ExceptionalGateway> {
+	private static class ExceptionalEndpoint extends RpcEndpoint implements ExceptionalGateway {
 
 		protected ExceptionalEndpoint(RpcService rpcService) {
 			super(rpcService);
 		}
 
-		@RpcMethod
-		public int doStuff() {
+		@Override
+		public CompletableFuture<Integer> doStuff() {
 			throw new RuntimeException("my super specific test exception");
 		}
 	}
 
-	private static class ExceptionalFutureEndpoint extends RpcEndpoint<ExceptionalGateway> {
+	private static class ExceptionalFutureEndpoint extends RpcEndpoint implements ExceptionalGateway {
 
 		protected ExceptionalFutureEndpoint(RpcService rpcService) {
 			super(rpcService);
 		}
 
-		@RpcMethod
-		public Future<Integer> doStuff() {
-			final FlinkCompletableFuture<Integer> future = new FlinkCompletableFuture<>();
+		@Override
+		public CompletableFuture<Integer> doStuff() {
+			final CompletableFuture<Integer> future = new CompletableFuture<>();
 
 			// complete the future slightly in the, well, future...
 			new Thread() {
@@ -303,6 +358,43 @@ public class AkkaRpcActorTest extends TestLogger {
 			}.start();
 
 			return future;
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static class SimpleRpcEndpoint extends RpcEndpoint implements RpcGateway {
+
+		protected SimpleRpcEndpoint(RpcService rpcService, String endpointId) {
+			super(rpcService, endpointId);
+		}
+
+		@Override
+		public void postStop() {
+			validateRunsInMainThread();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+
+	private static class FailingPostStopEndpoint extends RpcEndpoint implements RpcGateway {
+
+		protected FailingPostStopEndpoint(RpcService rpcService, String endpointId) {
+			super(rpcService, endpointId);
+		}
+
+		@Override
+		public void postStop() throws Exception {
+			throw new PostStopException("Test exception.");
+		}
+
+		private static class PostStopException extends FlinkException {
+
+			private static final long serialVersionUID = 6701096588415871592L;
+
+			public PostStopException(String message) {
+				super(message);
+			}
 		}
 	}
 }

@@ -100,7 +100,7 @@ will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from your program, and invoke it through the
-[command line]({{ site.baseurl }}/setup/cli.html), the Flink cluster manager
+[command line]({{ site.baseurl }}/ops/cli.html), the Flink cluster manager
 will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -169,7 +169,7 @@ will do the right thing depending on the context: if you are executing
 your program inside an IDE or as a regular Java program it will create
 a local environment that will execute your program on your local machine. If
 you created a JAR file from your program, and invoke it through the
-[command line]({{ site.baseurl }}/apis/cli.html), the Flink cluster manager
+[command line]({{ site.baseurl }}/ops/cli.html), the Flink cluster manager
 will execute your main method and `getExecutionEnvironment()` will return
 an execution environment for executing your program on a cluster.
 
@@ -450,7 +450,7 @@ These are valid field expressions for the example code above:
 {:.no_toc}
 
 An additional way to define keys are "key selector" functions. A key selector function
-takes a single element as input and returns the key for the element. The key can be of any type and be derived from arbitrary computations.
+takes a single element as input and returns the key for the element. The key can be of any type and be derived from deterministic computations.
 
 The following example shows a key selector function that simply returns the field of an object:
 

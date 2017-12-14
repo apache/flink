@@ -43,7 +43,7 @@ public abstract class RichAggregateFunction<IN, ACC, OUT>
 	public abstract ACC createAccumulator();
 
 	@Override
-	public abstract void add(IN value, ACC accumulator);
+	public abstract ACC add(IN value, ACC accumulator);
 
 	@Override
 	public abstract OUT getResult(ACC accumulator);

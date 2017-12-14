@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
@@ -29,6 +30,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +76,9 @@ public class TypeSerializerSerializationUtil {
 
 	/**
 	 * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing objects of
-	 * anonymous classes or our Scala serializer classes.
+	 * anonymous classes or our Scala serializer classes and also replaces occurences of GenericData.Array
+	 * (from Avro) by a dummy class so that the KryoSerializer can still be deserialized without
+	 * Avro being on the classpath.
 	 *
 	 * <p>The {@link TypeSerializerSerializationProxy} uses this specific object input stream to read serializers,
 	 * so that mismatching serialVersionUIDs of anonymous classes / Scala serializers are ignored.
@@ -83,15 +87,25 @@ public class TypeSerializerSerializationUtil {
 	 *
 	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-6869">FLINK-6869</a>
 	 */
-	public static class SerialUIDMismatchTolerantInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
+	public static class FailureTolerantObjectInputStream extends InstantiationUtil.ClassLoaderObjectInputStream {
 
-		public SerialUIDMismatchTolerantInputStream(InputStream in, ClassLoader cl) throws IOException {
+		public FailureTolerantObjectInputStream(InputStream in, ClassLoader cl) throws IOException {
 			super(in, cl);
 		}
 
 		@Override
 		protected ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
 			ObjectStreamClass streamClassDescriptor = super.readClassDescriptor();
+
+			try {
+				Class.forName(streamClassDescriptor.getName(), false, classLoader);
+			} catch (ClassNotFoundException e) {
+				if (streamClassDescriptor.getName().equals("org.apache.avro.generic.GenericData$Array")) {
+					ObjectStreamClass result = ObjectStreamClass.lookup(
+						KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class);
+					return result;
+				}
+			}
 
 			Class localClass = resolveClass(streamClassDescriptor);
 			if (scalaSerializerClassnames.contains(localClass.getName()) || localClass.isAnonymousClass()
@@ -433,8 +447,8 @@ public class TypeSerializerSerializationUtil {
 
 			ClassLoader previousClassLoader = Thread.currentThread().getContextClassLoader();
 			try (
-				SerialUIDMismatchTolerantInputStream ois =
-					new SerialUIDMismatchTolerantInputStream(new ByteArrayInputStream(buffer), userClassLoader)) {
+				FailureTolerantObjectInputStream ois =
+					new FailureTolerantObjectInputStream(new ByteArrayInputStream(buffer), userClassLoader)) {
 
 				Thread.currentThread().setContextClassLoader(userClassLoader);
 				typeSerializer = (TypeSerializer<T>) ois.readObject();

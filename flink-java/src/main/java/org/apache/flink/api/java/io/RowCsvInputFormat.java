@@ -29,6 +29,9 @@ import org.apache.flink.types.parser.FieldParser;
 
 import java.util.Arrays;
 
+/**
+ * Input format that reads csv into {@link Row}.
+ */
 @PublicEvolving
 public class RowCsvInputFormat extends CsvInputFormat<Row> implements ResultTypeQueryable<Row> {
 

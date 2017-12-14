@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -139,6 +140,7 @@ public class StateInitializationContextImpl implements StateInitializationContex
 	}
 
 	private static Collection<KeyGroupsStateHandle> transform(Collection<KeyedStateHandle> keyedStateHandles) {
+
 		if (keyedStateHandles == null) {
 			return null;
 		}
@@ -146,13 +148,14 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		List<KeyGroupsStateHandle> keyGroupsStateHandles = new ArrayList<>();
 
 		for (KeyedStateHandle keyedStateHandle : keyedStateHandles) {
-			if (! (keyedStateHandle instanceof KeyGroupsStateHandle)) {
+
+			if (keyedStateHandle instanceof KeyGroupsStateHandle) {
+				keyGroupsStateHandles.add((KeyGroupsStateHandle) keyedStateHandle);
+			} else if (keyedStateHandle != null) {
 				throw new IllegalStateException("Unexpected state handle type, " +
 					"expected: " + KeyGroupsStateHandle.class +
 					", but found: " + keyedStateHandle.getClass() + ".");
 			}
-
-			keyGroupsStateHandles.add((KeyGroupsStateHandle) keyedStateHandle);
 		}
 
 		return keyGroupsStateHandles;
@@ -251,9 +254,10 @@ public class StateInitializationContextImpl implements StateInitializationContex
 						this.offsets = metaOffsets;
 						this.offPos = 0;
 
-						closableRegistry.unregisterClosable(currentStream);
-						IOUtils.closeQuietly(currentStream);
-						currentStream = null;
+						if (closableRegistry.unregisterCloseable(currentStream)) {
+							IOUtils.closeQuietly(currentStream);
+							currentStream = null;
+						}
 
 						return true;
 					}
@@ -305,14 +309,18 @@ public class StateInitializationContextImpl implements StateInitializationContex
 		}
 
 		protected void openCurrentStream() throws IOException {
+
+			Preconditions.checkState(currentStream == null);
+
 			FSDataInputStream stream = currentStateHandle.openInputStream();
-			closableRegistry.registerClosable(stream);
+			closableRegistry.registerCloseable(stream);
 			currentStream = stream;
 		}
 
 		protected void closeCurrentStream() {
-			closableRegistry.unregisterClosable(currentStream);
-			IOUtils.closeQuietly(currentStream);
+			if (closableRegistry.unregisterCloseable(currentStream)) {
+				IOUtils.closeQuietly(currentStream);
+			}
 			currentStream = null;
 		}
 

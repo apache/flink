@@ -31,8 +31,7 @@ import org.junit.runners.Parameterized;
  * Tests for {@link TriangleListing}.
  */
 @RunWith(Parameterized.class)
-public class TriangleListingITCase
-extends CopyableValueDriverBaseITCase {
+public class TriangleListingITCase extends CopyableValueDriverBaseITCase {
 
 	public TriangleListingITCase(String idType, TestExecutionMode mode) {
 		super(idType, mode);
@@ -40,7 +39,7 @@ extends CopyableValueDriverBaseITCase {
 
 	private String[] parameters(int scale, String order, String output) {
 		String[] parameters =  new String[] {
-			"--algorithm", "TriangleListing", "--order", order,
+			"--algorithm", "TriangleListing", "--order", order, "--permute_results",
 			"--input", "RMatGraph", "--scale", Integer.toString(scale), "--type", idType, "--simplify", order,
 			"--output", output};
 
@@ -62,222 +61,67 @@ extends CopyableValueDriverBaseITCase {
 	}
 
 	@Test
-	public void testHashWithSmallDirectedRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x00000784d2c336cdL;
-				break;
-
-			case "long":
-				checksum = 0x0000078e5ebf2927L;
-				break;
-
-			case "string":
-				checksum = 0x0000077eddf67481L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
+	public void testHashWithDirectedRMatGraph() throws Exception {
 		String expected = "\n" +
-			new Checksum(3822, checksum) + "\n" +
+			new Checksum(61410, 0x000077d3e5e69fa3L) + "\n\n" +
 			"Triadic census:\n" +
-			"  003: 178,989\n" +
-			"  012: 47,736\n" +
-			"  102: 11,763\n" +
-			"  021d: 2,258\n" +
-			"  021u: 2,064\n" +
-			"  021c: 4,426\n" +
-			"  111d: 3,359\n" +
-			"  111u: 3,747\n" +
-			"  030t: 624\n" +
-			"  030c: 220\n" +
-			"  201: 1,966\n" +
-			"  120d: 352\n" +
-			"  120u: 394\n" +
-			"  120c: 704\n" +
-			"  210: 1,120\n" +
-			"  300: 408\n";
+			"  003: 1,679,209\n" +
+			"  012: 267,130\n" +
+			"  102: 57,972\n" +
+			"  021d: 8,496\n" +
+			"  021u: 8,847\n" +
+			"  021c: 17,501\n" +
+			"  111d: 13,223\n" +
+			"  111u: 12,865\n" +
+			"  030t: 1,674\n" +
+			"  030c: 572\n" +
+			"  201: 5,678\n" +
+			"  120d: 1,066\n" +
+			"  120u: 896\n" +
+			"  120c: 2,011\n" +
+			"  210: 2,867\n" +
+			"  300: 1,149\n";
 
-		expectedOutput(parameters(7, "directed", "hash"), expected);
+		expectedOutput(parameters(8, "directed", "hash"), expected);
 	}
 
 	@Test
-	public void testHashWithSmallUndirectedRMatGraph() throws Exception {
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0000075b6b9a0ad0L;
-				break;
-
-			case "long":
-				checksum = 0x00000761619e7f3cL;
-				break;
-
-			case "string":
-				checksum = 0x0000079b15eb30acL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
+	public void testHashWithUndirectedRMatGraph() throws Exception {
 		String expected = "\n" +
-			new Checksum(3822, checksum) + "\n" +
+			new Checksum(61410, 0x000077ea1798a4e0L) + "\n\n" +
 			"Triadic census:\n" +
-			"  03: 178,989\n" +
-			"  12: 59,499\n" +
-			"  21: 17,820\n" +
-			"  30: 3,822\n";
+			"  03: 1,679,209\n" +
+			"  12: 325,102\n" +
+			"  21: 66,610\n" +
+			"  30: 10,235\n";
 
-		expectedOutput(parameters(7, "undirected", "hash"), expected);
+		expectedOutput(parameters(8, "undirected", "hash"), expected);
 	}
 
 	@Test
-	public void testHashWithLargeDirectedRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
-
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0003a986d6bedc53L;
-				break;
-
-			case "long":
-				checksum = 0x0003a8d91c92b884L;
-				break;
-
-			case "string":
-				checksum = 0x0003a88fffc33f27L;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		String expected = "\n" +
-			new Checksum(479818, checksum) + "\n" +
-			"Triadic census:\n" +
-			"  003: 6,101,196,568\n" +
-			"  012: 132,051,207\n" +
-			"  102: 13,115,128\n" +
-			"  021d: 1,330,423\n" +
-			"  021u: 1,336,897\n" +
-			"  021c: 2,669,285\n" +
-			"  111d: 1,112,144\n" +
-			"  111u: 1,097,452\n" +
-			"  030t: 132,048\n" +
-			"  030c: 44,127\n" +
-			"  201: 290,552\n" +
-			"  120d: 47,734\n" +
-			"  120u: 47,780\n" +
-			"  120c: 95,855\n" +
-			"  210: 90,618\n" +
-			"  300: 21,656\n";
-
-		expectedOutput(parameters(12, "directed", "hash"), expected);
-	}
-
-	@Test
-	public void testHashWithLargeUndirectedRMatGraph() throws Exception {
-		// computation is too large for collection mode
-		Assume.assumeFalse(mode == TestExecutionMode.COLLECTION);
-
-		long checksum;
-		switch (idType) {
-			case "byte":
-				return;
-
-			case "short":
-			case "char":
-			case "integer":
-				checksum = 0x0003a95630aae344L;
-				break;
-
-			case "long":
-				checksum = 0x0003a9b1e055d59dL;
-				break;
-
-			case "string":
-				checksum = 0x0003aa1e3d8f2c6bL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		String expected = "\n" +
-			new Checksum(479818, checksum) + "\n" +
-			"Triadic census:\n" +
-			"  03: 6,101,196,568\n" +
-			"  12: 145,166,335\n" +
-			"  21: 7,836,753\n" +
-			"  30: 479,818\n";
-
-		expectedOutput(parameters(12, "undirected", "hash"), expected);
-	}
-
-	@Test
-	public void testPrintWithSmallDirectedRMatGraph() throws Exception {
+	public void testPrintWithDirectedRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "integer":
-			case "long":
-				checksum = 0x00000764227995aaL;
-				break;
-
-			case "string":
-				checksum = 0x000007643d93c30aL;
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedOutputChecksum(parameters(7, "directed", "print"), new Checksum(3822, checksum));
+		expectedOutputChecksum(parameters(8, "directed", "print"), new Checksum(61410, 0x000077d967722c8aL));
 	}
 
 	@Test
-	public void testPrintWithSmallUndirectedRMatGraph() throws Exception {
+	public void testPrintWithUndirectedRMatGraph() throws Exception {
 		// skip 'char' since it is not printed as a number
 		Assume.assumeFalse(idType.equals("char") || idType.equals("nativeChar"));
 
-		long checksum;
-		switch (idType) {
-			case "byte":
-			case "short":
-			case "integer":
-			case "long":
-				checksum = 0x0000077d1582e206L;
-				break;
+		expectedOutputChecksum(parameters(8, "undirected", "print"), new Checksum(61410, 0x0000780ffcb6838eL));
+	}
 
-			case "string":
-				checksum = 0x0000077a49cb5268L;
-				break;
+	@Test
+	public void testParallelism() throws Exception {
+		String[] largeOperators = new String[]{
+			"FlatMap \\(Permute triangle vertices\\)",
+			"Join \\(Triangle listing\\)",
+			"GroupReduce \\(Generate triplets\\)"};
 
-			default:
-				throw new IllegalArgumentException("Unknown type: " + idType);
-		}
-
-		expectedOutputChecksum(parameters(7, "undirected", "print"), new Checksum(3822, checksum));
+		TestUtils.verifyParallelism(parameters(8, "directed", "print"), largeOperators);
+		TestUtils.verifyParallelism(parameters(8, "undirected", "print"), largeOperators);
 	}
 }

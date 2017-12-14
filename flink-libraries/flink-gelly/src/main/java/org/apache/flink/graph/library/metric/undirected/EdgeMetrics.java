@@ -103,11 +103,11 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 
 		// s, d(s), count of (u, v) where deg(u) < deg(v) or (deg(u) == deg(v) and u < v)
 		DataSet<Tuple3<K, LongValue, LongValue>> edgeStats = edgeDegreePair
-			.map(new EdgeStats<K, EV>())
+			.map(new EdgeStats<>())
 				.setParallelism(parallelism)
 				.name("Edge stats")
 			.groupBy(0)
-			.reduce(new SumEdgeStats<K>())
+			.reduce(new SumEdgeStats<>())
 			.setCombineHint(CombineHint.HASH)
 				.setParallelism(parallelism)
 				.name("Sum edge stats");
@@ -280,6 +280,11 @@ extends GraphAnalyticBase<K, VV, EV, Result> {
 		 */
 		public long getMaximumRectangleTriplets() {
 			return maximumRectangleTriplets;
+		}
+
+		@Override
+		public String toString() {
+			return toPrintableString();
 		}
 
 		@Override

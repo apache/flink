@@ -41,8 +41,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * This test uses the PowerMockRunner runner to work around the fact that the
- * {@link ResultPartitionWriter} class is final.
+ * Tests for the {@link StreamRecordWriter}.
  */
 public class StreamRecordWriterTest {
 
@@ -99,7 +98,7 @@ public class StreamRecordWriterTest {
 
 		ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
 		when(mockWriter.getBufferProvider()).thenReturn(mockProvider);
-		when(mockWriter.getNumberOfOutputChannels()).thenReturn(numPartitions);
+		when(mockWriter.getNumberOfSubpartitions()).thenReturn(numPartitions);
 
 		return mockWriter;
 	}

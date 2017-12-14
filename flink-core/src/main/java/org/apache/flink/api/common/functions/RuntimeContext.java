@@ -27,6 +27,8 @@ import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.state.AggregatingState;
+import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -230,7 +232,7 @@ public interface RuntimeContext {
 	/**
 	 * Gets a handle to the system's key/value state. The key/value state is only accessible
 	 * if the function is executed on a KeyedStream. On each access, the state exposes the value
-	 * for the the key of the element currently processed by the function.
+	 * for the key of the element currently processed by the function.
 	 * Each function may have multiple partitioned states, addressed with different names.
 	 *
 	 * <p>Because the scope of each value is the key of the currently processed element,
@@ -277,7 +279,7 @@ public interface RuntimeContext {
 	/**
 	 * Gets a handle to the system's key/value list state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
-	 * holds lists. One can adds elements to the list, or retrieve the list as a whole. 
+	 * holds lists. One can add elements to the list, or retrieve the list as a whole.
 	 * 
 	 * <p>This state is only accessible if the function is executed on a KeyedStream.
 	 *
@@ -359,6 +361,49 @@ public interface RuntimeContext {
 	<T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties);
 
 	/**
+	 * Gets a handle to the system's key/value aggregating state. This state is similar to the state
+	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
+	 * aggregates values with different types.
+	 *
+	 * <p>This state is only accessible if the function is executed on a KeyedStream.
+	 *
+	 * <pre>{@code
+	 * DataStream<MyType> stream = ...;
+	 * KeyedStream<MyType> keyedStream = stream.keyBy("id");
+	 * AggregateFunction<...> aggregateFunction = ...
+	 *
+	 * keyedStream.map(new RichMapFunction<MyType, List<MyType>>() {
+	 *
+	 *     private AggregatingState<MyType, Long> state;
+	 *
+	 *     public void open(Configuration cfg) {
+	 *         state = getRuntimeContext().getAggregatingState(
+	 *                 new AggregatingStateDescriptor<>("sum", aggregateFunction, Long.class));
+	 *     }
+	 *
+	 *     public Tuple2<MyType, Long> map(MyType value) {
+	 *         state.add(value);
+	 *         return new Tuple2<>(value, state.get());
+	 *     }
+	 * });
+	 *
+	 * }</pre>
+	 *
+	 * @param stateProperties The descriptor defining the properties of the stats.
+	 *
+	 * @param <IN> The type of the values that are added to the state.
+	 * @param <ACC> The type of the accumulator (intermediate aggregation state).
+	 * @param <OUT> The type of the values that are returned from the state.
+	 *
+	 * @return The partitioned state object.
+	 *
+	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
+	 *                                       function (function is not part of a KeyedStream).
+	 */
+	@PublicEvolving
+	<IN, ACC, OUT> AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT> stateProperties);
+
+	/**
 	 * Gets a handle to the system's key/value folding state. This state is similar to the state
 	 * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that
 	 * aggregates values with different types.
@@ -374,7 +419,7 @@ public interface RuntimeContext {
 	 *     private FoldingState<MyType, Long> state;
 	 *
 	 *     public void open(Configuration cfg) {
-	 *         state = getRuntimeContext().getReducingState(
+	 *         state = getRuntimeContext().getFoldingState(
 	 *                 new FoldingStateDescriptor<>("sum", 0L, (a, b) -> a.count() + b, Long.class));
 	 *     }
 	 *
@@ -388,14 +433,15 @@ public interface RuntimeContext {
 	 *
 	 * @param stateProperties The descriptor defining the properties of the stats.
 	 *
-	 * @param <T> The type of value stored in the state.
+	 * @param <T> Type of the values folded in the other state
+	 * @param <ACC> Type of the value in the state
 	 *
 	 * @return The partitioned state object.
 	 *
 	 * @throws UnsupportedOperationException Thrown, if no partitioned state is available for the
 	 *                                       function (function is not part of a KeyedStream).
 	 *
-	 * @deprecated will be removed in a future version
+	 * @deprecated will be removed in a future version in favor of {@link AggregatingState}
 	 */
 	@PublicEvolving
 	@Deprecated

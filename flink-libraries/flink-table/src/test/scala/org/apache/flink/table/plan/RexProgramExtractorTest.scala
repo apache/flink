@@ -19,13 +19,17 @@
 package org.apache.flink.table.plan
 
 import java.math.BigDecimal
+import java.sql.{Date, Time, Timestamp}
 
-import org.apache.calcite.rex.{RexBuilder, RexProgram, RexProgramBuilder}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlPostfixOperator
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, INTEGER, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.plan.util.RexProgramExtractor
+import org.apache.flink.table.plan.util.{RexNodeToExpressionConverter, RexProgramExtractor}
 import org.apache.flink.table.utils.InputTypeBuilder.inputOf
 import org.apache.flink.table.validate.FunctionCatalog
 import org.hamcrest.CoreMatchers.is
@@ -33,6 +37,7 @@ import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat}
 import org.junit.Test
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class RexProgramExtractorTest extends RexProgramTestBase {
 
@@ -104,6 +109,8 @@ class RexProgramExtractorTest extends RexProgramTestBase {
     val t2 = rexBuilder.makeInputRef(allFieldTypes.get(3), 3)
     // 100
     val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
+    // 200
+    val t4 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(200L))
 
     // a = amount < 100
     val a = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t0, t3))
@@ -113,15 +120,17 @@ class RexProgramExtractorTest extends RexProgramTestBase {
     val c = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3))
     // d = amount <= id
     val d = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, t0, t1))
+    // e = price == 200
+    val e = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t4))
 
     // a AND b
     val and = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(a, b).asJava))
-    // (a AND b) or c
-    val or = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.OR, List(and, c).asJava))
-    // not d
+    // (a AND b) OR c OR e
+    val or = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.OR, List(and, c, e).asJava))
+    // NOT d
     val not = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.NOT, List(d).asJava))
 
-    // (a AND b) OR c) AND (NOT d)
+    // (a AND b) OR c OR e) AND (NOT d)
     builder.addCondition(builder.addExpr(
       rexBuilder.makeCall(SqlStdOperatorTable.AND, List(or, not).asJava)))
 
@@ -134,14 +143,113 @@ class RexProgramExtractorTest extends RexProgramTestBase {
         functionCatalog)
 
     val expected: Array[Expression] = Array(
-      ExpressionParser.parseExpression("amount < 100 || price == 100"),
-      ExpressionParser.parseExpression("id > 100 || price == 100"),
+      ExpressionParser.parseExpression("amount < 100 || price == 100 || price === 200"),
+      ExpressionParser.parseExpression("id > 100 || price == 100 || price === 200"),
       ExpressionParser.parseExpression("!(amount <= id)"))
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }
 
   @Test
+  def testExtractANDExpressions(): Unit = {
+    val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
+    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
+
+    // amount
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(2), 2)
+    // id
+    val t1 = rexBuilder.makeInputRef(allFieldTypes.get(1), 1)
+    // price
+    val t2 = rexBuilder.makeInputRef(allFieldTypes.get(3), 3)
+    // 100
+    val t3 = rexBuilder.makeExactLiteral(BigDecimal.valueOf(100L))
+
+    // a = amount < 100
+    val a = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN, t0, t3))
+    // b = id > 100
+    val b = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.GREATER_THAN, t1, t3))
+    // c = price == 100
+    val c = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t2, t3))
+    // d = amount <= id
+    val d = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.LESS_THAN_OR_EQUAL, t0, t1))
+
+    // a AND b AND c AND d
+    val and = builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, List(a, b, c, d).asJava))
+
+    builder.addCondition(builder.addExpr(and))
+
+    val program = builder.getProgram
+    val relBuilder: RexBuilder = new RexBuilder(typeFactory)
+
+    val expanded = program.expandLocalRef(program.getCondition)
+
+    var convertedExpressions = new mutable.ArrayBuffer[Expression]
+    val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
+    val inputNames = program.getInputRowType.getFieldNames.asScala.toArray
+    val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog)
+
+    expanded.accept(converter) match {
+      case Some(expression) =>
+        convertedExpressions += expression
+      case None => unconvertedRexNodes += expanded
+    }
+
+    val expected: Array[Expression] = Array(
+      ExpressionParser.parseExpression("amount < 100 && id > 100 && price === 100 && amount <= id"))
+
+    assertExpressionArrayEquals(expected, convertedExpressions.toArray)
+    assertEquals(0, unconvertedRexNodes.length)
+  }
+
+  @Test
+  def testLiteralConversions(): Unit = {
+    val fieldNames = List("timestamp_col", "date_col", "time_col").asJava
+    val fieldTypes = makeTypes(SqlTypeName.TIMESTAMP, SqlTypeName.DATE, SqlTypeName.TIME)
+
+    val inputRowType = typeFactory.createStructType(fieldTypes, fieldNames)
+    val builder = new RexProgramBuilder(inputRowType, rexBuilder)
+
+    val timestampString = new TimestampString("2017-09-10 14:23:01.245")
+    val rexTimestamp = rexBuilder.makeTimestampLiteral(timestampString, 3)
+    val rexDate = rexBuilder.makeDateLiteral(new DateString("2017-09-12"))
+    val rexTime = rexBuilder.makeTimeLiteral(new TimeString("14:23:01"), 0)
+
+    val allRexNodes = List(rexTimestamp, rexDate, rexTime)
+
+    val condition = fieldTypes.asScala.zipWithIndex
+      .map((t: (RelDataType, Int)) => rexBuilder.makeInputRef(t._1, t._2))
+      .zip(allRexNodes)
+      .map(t => rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t._1, t._2))
+      .map(builder.addExpr)
+      .asJava
+
+    builder.addCondition(builder.addExpr(rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)))
+
+    val (converted, _) = RexProgramExtractor.extractConjunctiveConditions(
+      builder.getProgram,
+      new RexBuilder(typeFactory),
+      functionCatalog)
+
+
+    val expected = Array[Expression](
+      EqualTo(
+        UnresolvedFieldReference("timestamp_col"),
+        Literal(Timestamp.valueOf("2017-09-10 14:23:01.245"))
+      ),
+      EqualTo(
+        UnresolvedFieldReference("date_col"),
+        Literal(Date.valueOf("2017-09-12"))
+      ),
+      EqualTo(
+        UnresolvedFieldReference("time_col"),
+        Literal(Time.valueOf("14:23:01"))
+      )
+    )
+
+    assertExpressionArrayEquals(expected, converted)
+  }
+
+    @Test
   def testExtractArithmeticConditions(): Unit = {
     val inputRowType = typeFactory.createStructType(allFieldTypes, allFieldNames)
     val builder = new RexProgramBuilder(inputRowType, rexBuilder)

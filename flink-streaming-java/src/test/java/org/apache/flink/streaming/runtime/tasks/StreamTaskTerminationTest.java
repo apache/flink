@@ -23,30 +23,33 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobCacheService;
+import org.apache.flink.runtime.blob.PermanentBlobCache;
+import org.apache.flink.runtime.blob.TransientBlobCache;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.execution.librarycache.FallbackLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -72,9 +75,9 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.net.URL;
 import java.util.Collections;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.FutureTask;
 
 import static org.junit.Assert.assertEquals;
@@ -108,6 +111,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 		final AbstractStateBackend blockingStateBackend = new BlockingStateBackend();
 
 		streamConfig.setStreamOperator(noOpStreamOperator);
+		streamConfig.setOperatorID(new OperatorID());
 		streamConfig.setStateBackend(blockingStateBackend);
 
 		final long checkpointId = 0L;
@@ -118,8 +122,8 @@ public class StreamTaskTerminationTest extends TestLogger {
 			"Test Job",
 			new SerializedValue<>(new ExecutionConfig()),
 			new Configuration(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 
 		final TaskInformation taskInformation = new TaskInformation(
 			new JobVertexID(),
@@ -131,8 +135,13 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 
+		TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 		final NetworkEnvironment networkEnv = mock(NetworkEnvironment.class);
 		when(networkEnv.createKvStateTaskRegistry(any(JobID.class), any(JobVertexID.class))).thenReturn(mock(TaskKvStateRegistry.class));
+		when(networkEnv.getTaskEventDispatcher()).thenReturn(taskEventDispatcher);
+
+		BlobCacheService blobService =
+			new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 		final Task task = new Task(
 			jobInformation,
@@ -152,28 +161,27 @@ public class StreamTaskTerminationTest extends TestLogger {
 			mock(TaskManagerActions.class),
 			mock(InputSplitProvider.class),
 			mock(CheckpointResponder.class),
-			new FallbackLibraryCacheManager(),
+			blobService,
+			new BlobLibraryCacheManager(
+				blobService.getPermanentBlobService(),
+				FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+				new String[0]),
 			mock(FileCache.class),
 			taskManagerRuntimeInfo,
-			new UnregisteredTaskMetricsGroup(),
+			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
 			mock(ResultPartitionConsumableNotifier.class),
 			mock(PartitionProducerStateChecker.class),
 			Executors.directExecutor());
 
-		Future<Void> taskRun = FlinkCompletableFuture.supplyAsync(new Callable<Void>() {
-			@Override
-			public Void call() throws Exception {
-				task.run();
-
-				return null;
-			}
-		}, TestingUtils.defaultExecutor());
+		CompletableFuture<Void> taskRun = CompletableFuture.runAsync(
+			() -> task.run(),
+			TestingUtils.defaultExecutor());
 
 		// wait until the stream task started running
 		RUN_LATCH.await();
 
 		// trigger a checkpoint
-		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forFullCheckpoint());
+		task.triggerCheckpointBarrier(checkpointId, checkpointTimestamp, CheckpointOptions.forCheckpoint());
 
 		// wait until the task has completed execution
 		taskRun.get();

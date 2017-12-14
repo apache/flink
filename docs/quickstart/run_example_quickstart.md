@@ -53,6 +53,12 @@ $ mvn archetype:generate \
     -DinteractiveMode=false
 {% endhighlight %}
 
+{% unless site.is_stable %}
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+    <b>Note</b>: For Maven 3.0 or higher, it is no longer possible to specify the repository (-DarchetypeCatalog) via the commandline. If you wish to use the snapshot repository, you need to add a repository entry to your settings.xml. For details about this change, please refer to <a href="http://maven.apache.org/archetype/maven-archetype-plugin/archetype-repository.html">Maven official document</a>
+</p>
+{% endunless %}
+
 You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters,
 Maven will create a project structure that looks like this:
 
@@ -320,7 +326,7 @@ result
 The related classes also need to be imported:
 {% highlight java %}
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer08;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.functions.MapFunction;
 {% endhighlight %}
 
@@ -392,3 +398,5 @@ and, for example, see the number of processed elements:
 <a href="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-job.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-example/jobmanager-job.png" alt="Example Job View"/></a>
 
 This concludes our little tour of Flink. If you have any questions, please don't hesitate to ask on our [Mailing Lists](http://flink.apache.org/community.html#mailing-lists).
+
+{% top %}

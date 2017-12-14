@@ -21,7 +21,6 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -30,6 +29,11 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 /**
  * Tests for the {@link JDBCOutputFormat}.
@@ -84,7 +88,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 				.finish();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = RuntimeException.class)
 	public void testIncompatibleTypes() throws IOException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
 				.setDrivername(DRIVER_CLASS)
@@ -104,6 +108,60 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat.close();
 	}
 
+	@Test(expected = RuntimeException.class)
+	public void testExceptionOnInvalidType() throws IOException {
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
+			.setSqlTypes(new int[] {
+				Types.INTEGER,
+				Types.VARCHAR,
+				Types.VARCHAR,
+				Types.DOUBLE,
+				Types.INTEGER})
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		JDBCTestBase.TestEntry entry = TEST_DATA[0];
+		Row row = new Row(5);
+		row.setField(0, entry.id);
+		row.setField(1, entry.title);
+		row.setField(2, entry.author);
+		row.setField(3, 0L); // use incompatible type (Long instead of Double)
+		row.setField(4, entry.qty);
+		jdbcOutputFormat.writeRecord(row);
+	}
+
+	@Test(expected = RuntimeException.class)
+	public void testExceptionOnClose() throws IOException {
+
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
+			.setSqlTypes(new int[] {
+				Types.INTEGER,
+				Types.VARCHAR,
+				Types.VARCHAR,
+				Types.DOUBLE,
+				Types.INTEGER})
+			.finish();
+		jdbcOutputFormat.open(0, 1);
+
+		JDBCTestBase.TestEntry entry = TEST_DATA[0];
+		Row row = new Row(5);
+		row.setField(0, entry.id);
+		row.setField(1, entry.title);
+		row.setField(2, entry.author);
+		row.setField(3, entry.price);
+		row.setField(4, entry.qty);
+		jdbcOutputFormat.writeRecord(row);
+		jdbcOutputFormat.writeRecord(row); // writing the same record twice must yield a unique key violation.
+
+		jdbcOutputFormat.close();
+	}
+
 	@Test
 	public void testJDBCOutputFormat() throws IOException, SQLException {
 		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
@@ -114,13 +172,7 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		jdbcOutputFormat.open(0, 1);
 
 		for (JDBCTestBase.TestEntry entry : TEST_DATA) {
-			Row row = new Row(5);
-			row.setField(0, entry.id);
-			row.setField(1, entry.title);
-			row.setField(2, entry.author);
-			row.setField(3, entry.price);
-			row.setField(4, entry.qty);
-			jdbcOutputFormat.writeRecord(row);
+			jdbcOutputFormat.writeRecord(toRow(entry));
 		}
 
 		jdbcOutputFormat.close();
@@ -132,15 +184,75 @@ public class JDBCOutputFormatTest extends JDBCTestBase {
 		) {
 			int recordCount = 0;
 			while (resultSet.next()) {
-				Assert.assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
-				Assert.assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
-				Assert.assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
-				Assert.assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
-				Assert.assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+				assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+				assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+				assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+				assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+				assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
 
 				recordCount++;
 			}
-			Assert.assertEquals(TEST_DATA.length, recordCount);
+			assertEquals(TEST_DATA.length, recordCount);
 		}
+	}
+
+	@Test
+	public void testFlush() throws SQLException, IOException {
+		jdbcOutputFormat = JDBCOutputFormat.buildJDBCOutputFormat()
+			.setDrivername(DRIVER_CLASS)
+			.setDBUrl(DB_URL)
+			.setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_2))
+			.setBatchInterval(3)
+			.finish();
+		try (
+			Connection dbConn = DriverManager.getConnection(DB_URL);
+			PreparedStatement statement = dbConn.prepareStatement(JDBCTestBase.SELECT_ALL_NEWBOOKS_2)
+		) {
+			jdbcOutputFormat.open(0, 1);
+			for (int i = 0; i < 2; ++i) {
+				jdbcOutputFormat.writeRecord(toRow(TEST_DATA[i]));
+			}
+			try (ResultSet resultSet = statement.executeQuery()) {
+				assertFalse(resultSet.next());
+			}
+			jdbcOutputFormat.writeRecord(toRow(TEST_DATA[2]));
+			try (ResultSet resultSet = statement.executeQuery()) {
+				int recordCount = 0;
+				while (resultSet.next()) {
+					assertEquals(TEST_DATA[recordCount].id, resultSet.getObject("id"));
+					assertEquals(TEST_DATA[recordCount].title, resultSet.getObject("title"));
+					assertEquals(TEST_DATA[recordCount].author, resultSet.getObject("author"));
+					assertEquals(TEST_DATA[recordCount].price, resultSet.getObject("price"));
+					assertEquals(TEST_DATA[recordCount].qty, resultSet.getObject("qty"));
+					recordCount++;
+				}
+				assertEquals(3, recordCount);
+			}
+		} finally {
+			jdbcOutputFormat.close();
+		}
+	}
+
+	@After
+	public void clearOutputTable() throws Exception {
+		Class.forName(DRIVER_CLASS);
+		try (
+			Connection conn = DriverManager.getConnection(DB_URL);
+			Statement stat = conn.createStatement()) {
+			stat.execute("DELETE FROM " + OUTPUT_TABLE);
+
+			stat.close();
+			conn.close();
+		}
+	}
+
+	private static Row toRow(TestEntry entry) {
+		Row row = new Row(5);
+		row.setField(0, entry.id);
+		row.setField(1, entry.title);
+		row.setField(2, entry.author);
+		row.setField(3, entry.price);
+		row.setField(4, entry.qty);
+		return row;
 	}
 }

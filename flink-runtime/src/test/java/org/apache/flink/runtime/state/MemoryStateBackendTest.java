@@ -91,44 +91,6 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	public void testMapStateRestoreWithWrongSerializers() {}
 
 	@Test
-	@SuppressWarnings("unchecked")
-	public void testNumStateEntries() throws Exception {
-		KeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
-
-		ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class, null);
-		kvId.initializeSerializerUnlessSet(new ExecutionConfig());
-
-		HeapKeyedStateBackend<Integer> heapBackend = (HeapKeyedStateBackend<Integer>) backend;
-
-		assertEquals(0, heapBackend.numStateEntries());
-
-		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-
-		backend.setCurrentKey(0);
-		state.update("hello");
-		state.update("ciao");
-
-		assertEquals(1, heapBackend.numStateEntries());
-
-		backend.setCurrentKey(42);
-		state.update("foo");
-
-		assertEquals(2, heapBackend.numStateEntries());
-
-		backend.setCurrentKey(0);
-		state.clear();
-
-		assertEquals(1, heapBackend.numStateEntries());
-
-		backend.setCurrentKey(42);
-		state.clear();
-
-		assertEquals(0, heapBackend.numStateEntries());
-
-		backend.dispose();
-	}
-
-	@Test
 	public void testOversizedState() {
 		try {
 			MemoryStateBackend backend = new MemoryStateBackend(10);
@@ -255,7 +217,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
 		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forFullCheckpoint());
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		try {
@@ -310,7 +272,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 			682375462378L,
 			2,
 			streamFactory,
-			CheckpointOptions.forFullCheckpoint()));
+			CheckpointOptions.forCheckpoint()));
 
 		backend.dispose();
 

@@ -19,18 +19,19 @@
 package org.apache.flink.api.scala.runtime.jobmanager
 
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
+import org.apache.flink.core.testutils.OneShotLatch
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.runtime.jobgraph.{JobGraph, JobVertex}
 import org.apache.flink.runtime.messages.JobManagerMessages._
-import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.{AllVerticesRunning, WaitForAllVerticesToBeRunning}
 import org.apache.flink.runtime.testingUtils.{ScalaTestingUtils, TestingUtils}
 import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 import org.scalatest.junit.JUnitRunner
+import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Matchers}
 
 @RunWith(classOf[JUnitRunner])
 class JobManagerLeaderSessionIDITCase(_system: ActorSystem)
@@ -41,9 +42,7 @@ class JobManagerLeaderSessionIDITCase(_system: ActorSystem)
   with BeforeAndAfterAll
   with ScalaTestingUtils {
 
-  val numTaskManagers = 2
-  val taskManagerNumSlots = 2
-  val numSlots = numTaskManagers * taskManagerNumSlots
+  import BlockingUntilSignalNoOpInvokable._
 
   val cluster = TestingUtils.startTestingCluster(
     taskManagerNumSlots,
@@ -73,13 +72,11 @@ class JobManagerLeaderSessionIDITCase(_system: ActorSystem)
 
       expectMsg(JobSubmitSuccess(jobGraph.getJobID))
 
-      jmGateway.tell(WaitForAllVerticesToBeRunning(jobGraph.getJobID), self)
-
-      expectMsg(AllVerticesRunning(jobGraph.getJobID))
+      BlockingUntilSignalNoOpInvokable.countDownLatch.await()
 
       jm ! LeaderSessionMessage(oldSessionID, CancelJob(jobGraph.getJobID))
 
-      BlockingUntilSignalNoOpInvokable.triggerExecution()
+      BlockingUntilSignalNoOpInvokable.oneShotLatch.trigger()
 
       expectMsgType[JobResultSuccess]
     }
@@ -89,18 +86,17 @@ class JobManagerLeaderSessionIDITCase(_system: ActorSystem)
 class BlockingUntilSignalNoOpInvokable extends AbstractInvokable {
 
   override def invoke(): Unit = {
-    BlockingUntilSignalNoOpInvokable.lock.synchronized{
-      BlockingUntilSignalNoOpInvokable.lock.wait()
-    }
+    BlockingUntilSignalNoOpInvokable.countDownLatch.countDown()
+    BlockingUntilSignalNoOpInvokable.oneShotLatch.await()
   }
 }
 
 object BlockingUntilSignalNoOpInvokable {
-  val lock = new Object
+  val numTaskManagers = 2
+  val taskManagerNumSlots = 2
+  val numSlots = numTaskManagers * taskManagerNumSlots
 
-  def triggerExecution(): Unit = {
-    lock.synchronized{
-      lock.notifyAll()
-    }
-  }
+  val countDownLatch = new CountDownLatch(numSlots)
+
+  val oneShotLatch = new OneShotLatch()
 }

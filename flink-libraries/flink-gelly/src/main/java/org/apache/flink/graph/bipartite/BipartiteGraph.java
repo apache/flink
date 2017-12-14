@@ -128,7 +128,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KT, Tuple2<EV, EV>>> newEdges = edges.join(edges)
 			.where(1)
 			.equalTo(1)
-			.with(new ProjectionTopSimple<KT, KB, EV>())
+			.with(new ProjectionTopSimple<>())
 				.name("Simple top projection");
 
 		return Graph.fromDataSet(topVertices, newEdges, context);
@@ -172,7 +172,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KB, Tuple2<EV, EV>>> newEdges =  edges.join(edges)
 			.where(0)
 			.equalTo(0)
-			.with(new ProjectionBottomSimple<KT, KB, EV>())
+			.with(new ProjectionBottomSimple<>())
 			.name("Simple bottom projection");
 
 		return Graph.fromDataSet(bottomVertices, newEdges, context);
@@ -205,7 +205,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 * Convert a bipartite graph into a graph that contains only top vertices. An edge between two vertices in the new
 	 * graph will exist only if the original bipartite graph contains at least one bottom vertex they both connect to.
 	 *
-	 * <p>The full projection performs three joins and returns edges containing the the connecting vertex ID and value,
+	 * <p>The full projection performs three joins and returns edges containing the connecting vertex ID and value,
 	 * both top vertex values, and both bipartite edge values.
 	 *
 	 * <p>Note: KT must override .equals(). This requirement may be removed in a future release.
@@ -218,7 +218,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KT, Projection<KB, VVB, VVT, EV>>> newEdges = edgesWithVertices.join(edgesWithVertices)
 			.where(1)
 			.equalTo(1)
-			.with(new ProjectionTopFull<KT, KB, EV, VVT, VVB>())
+			.with(new ProjectionTopFull<>())
 				.name("Full top projection");
 
 		return Graph.fromDataSet(topVertices, newEdges, context);
@@ -271,7 +271,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 	 * Convert a bipartite graph into a graph that contains only bottom vertices. An edge between two vertices in the
 	 * new graph will exist only if the original bipartite graph contains at least one top vertex they both connect to.
 	 *
-	 * <p>The full projection performs three joins and returns edges containing the the connecting vertex ID and value,
+	 * <p>The full projection performs three joins and returns edges containing the connecting vertex ID and value,
 	 * both bottom vertex values, and both bipartite edge values.
 	 *
 	 * <p>Note: KB must override .equals(). This requirement may be removed in a future release.
@@ -284,7 +284,7 @@ public class BipartiteGraph<KT, KB, VVT, VVB, EV> {
 		DataSet<Edge<KB, Projection<KT, VVT, VVB, EV>>> newEdges = edgesWithVertices.join(edgesWithVertices)
 			.where(0)
 			.equalTo(0)
-			.with(new ProjectionBottomFull<KT, KB, EV, VVT, VVB>())
+			.with(new ProjectionBottomFull<>())
 				.name("Full bottom projection");
 
 		return Graph.fromDataSet(bottomVertices, newEdges, context);

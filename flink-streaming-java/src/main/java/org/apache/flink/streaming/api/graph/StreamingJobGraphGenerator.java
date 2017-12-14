@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -26,7 +27,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.migration.streaming.api.graph.StreamGraphHasherV1;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
@@ -116,7 +117,7 @@ public class StreamingJobGraphGenerator {
 	private StreamingJobGraphGenerator(StreamGraph streamGraph) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
-		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphHasherV1(), new StreamGraphUserHashHasher());
+		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
 
 		this.jobVertices = new HashMap<>();
 		this.builtVertices = new HashSet<>();
@@ -241,12 +242,14 @@ public class StreamingJobGraphGenerator {
 				createChain(nonChainable.getTargetId(), nonChainable.getTargetId(), hashes, legacyHashes, 0, chainedOperatorHashes);
 			}
 
-			List<Tuple2<byte[], byte[]>> operatorHashes = chainedOperatorHashes.get(startNodeId);
-			if (operatorHashes == null) {
-				operatorHashes = new ArrayList<>();
-				chainedOperatorHashes.put(startNodeId, operatorHashes);
+			List<Tuple2<byte[], byte[]>> operatorHashes =
+				chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
+
+			byte[] primaryHashBytes = hashes.get(currentNodeId);
+
+			for (Map<Integer, byte[]> legacyHash : legacyHashes) {
+				operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
 			}
-			operatorHashes.add(new Tuple2<>(hashes.get(currentNodeId), legacyHashes.get(1).get(currentNodeId)));
 
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
@@ -280,13 +283,16 @@ public class StreamingJobGraphGenerator {
 					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
 				}
 				config.setChainIndex(chainIndex);
-				config.setOperatorName(streamGraph.getStreamNode(currentNodeId).getOperatorName());
+				StreamNode node = streamGraph.getStreamNode(currentNodeId);
+				config.setOperatorName(node.getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
 			}
+
+			config.setOperatorID(new OperatorID(primaryHashBytes));
+
 			if (chainableOutputs.isEmpty()) {
 				config.setChainEnd();
 			}
-
 			return transitiveOutEdges;
 
 		} else {
@@ -569,10 +575,15 @@ public class StreamingJobGraphGenerator {
 
 		long interval = cfg.getCheckpointInterval();
 		if (interval > 0) {
+
+			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
+			// propagate the expected behaviour for checkpoint errors to task.
+			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
+
 			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
-			if (streamGraph.getExecutionConfig().getRestartStrategy() == null) {
+			if (executionConfig.getRestartStrategy() == null) {
 				// if the user enabled checkpointing, the default number of exec retries is infinite.
-				streamGraph.getExecutionConfig().setRestartStrategy(
+				executionConfig.setRestartStrategy(
 					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
 			}
 		} else {
@@ -678,13 +689,18 @@ public class StreamingJobGraphGenerator {
 		//  --- done, put it all together ---
 
 		JobCheckpointingSettings settings = new JobCheckpointingSettings(
-				triggerVertices, ackVertices, commitVertices, interval,
-				cfg.getCheckpointTimeout(), cfg.getMinPauseBetweenCheckpoints(),
+			triggerVertices,
+			ackVertices,
+			commitVertices,
+			new CheckpointCoordinatorConfiguration(
+				interval,
+				cfg.getCheckpointTimeout(),
+				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				externalizedCheckpointSettings,
-				serializedStateBackend,
-				serializedHooks,
-				isExactlyOnce);
+				isExactlyOnce),
+			serializedStateBackend,
+			serializedHooks);
 
 		jobGraph.setSnapshotSettings(settings);
 	}

@@ -18,93 +18,52 @@
 
 package org.apache.flink.runtime.io.network.api.writer;
 
-import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.network.api.TaskEventHandler;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 
 /**
- * A buffer-oriented runtime result writer.
- * <p>
- * The {@link ResultPartitionWriter} is the runtime API for producing results. It
- * supports two kinds of data to be sent: buffers and events.
+ * A buffer-oriented runtime result writer API for producing results.
  */
-public class ResultPartitionWriter implements EventListener<TaskEvent> {
+public interface ResultPartitionWriter {
 
-	private final ResultPartition partition;
+	BufferProvider getBufferProvider();
 
-	private final TaskEventHandler taskEventHandler = new TaskEventHandler();
+	ResultPartitionID getPartitionId();
 
-	public ResultPartitionWriter(ResultPartition partition) {
-		this.partition = partition;
-	}
+	int getNumberOfSubpartitions();
 
-	// ------------------------------------------------------------------------
-	// Attributes
-	// ------------------------------------------------------------------------
-
-	public ResultPartitionID getPartitionId() {
-		return partition.getPartitionId();
-	}
-
-	public BufferProvider getBufferProvider() {
-		return partition.getBufferProvider();
-	}
-
-	public int getNumberOfOutputChannels() {
-		return partition.getNumberOfSubpartitions();
-	}
-
-	public int getNumTargetKeyGroups() {
-		return partition.getNumTargetKeyGroups();
-	}
-
-	// ------------------------------------------------------------------------
-	// Data processing
-	// ------------------------------------------------------------------------
-
-	public void writeBuffer(Buffer buffer, int targetChannel) throws IOException {
-		partition.add(buffer, targetChannel);
-	}
+	int getNumTargetKeyGroups();
 
 	/**
-	 * Writes the given buffer to all available target channels.
+	 * Adds a buffer to the subpartition with the given index.
 	 *
-	 * The buffer is taken over and used for each of the channels.
+	 * <p>For PIPELINED {@link org.apache.flink.runtime.io.network.partition.ResultPartitionType}s,
+	 * this will trigger the deployment of consuming tasks after the first buffer has been added.
+	 */
+	void writeBuffer(Buffer buffer, int subpartitionIndex) throws IOException;
+
+	/**
+	 * Writes the given buffer to all available target subpartitions.
+	 *
+	 * <p>The buffer is taken over and used for each of the channels.
 	 * It will be recycled afterwards.
 	 *
-	 * @param eventBuffer the buffer to write
-	 * @throws IOException
+	 * @param buffer the buffer to write
 	 */
-	public void writeBufferToAllChannels(final Buffer eventBuffer) throws IOException {
+	default void writeBufferToAllSubpartitions(final Buffer buffer) throws IOException {
 		try {
-			for (int targetChannel = 0; targetChannel < partition.getNumberOfSubpartitions(); targetChannel++) {
+			for (int subpartition = 0; subpartition < getNumberOfSubpartitions(); subpartition++) {
 				// retain the buffer so that it can be recycled by each channel of targetPartition
-				eventBuffer.retain();
-				writeBuffer(eventBuffer, targetChannel);
+				buffer.retain();
+				writeBuffer(buffer, subpartition);
 			}
 		} finally {
 			// we do not need to further retain the eventBuffer
 			// (it will be recycled after the last channel stops using it)
-			eventBuffer.recycle();
+			buffer.recycle();
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	// Event handling
-	// ------------------------------------------------------------------------
-
-	public void subscribeToEvent(EventListener<TaskEvent> eventListener, Class<? extends TaskEvent> eventType) {
-		taskEventHandler.subscribe(eventListener, eventType);
-	}
-
-	@Override
-	public void onEvent(TaskEvent event) {
-		taskEventHandler.publish(event);
 	}
 }

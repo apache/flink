@@ -20,9 +20,9 @@ package org.apache.flink.runtime.io.network.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.util.event.EventListener;
 
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -51,7 +51,7 @@ public class TestInfiniteBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public boolean addListener(EventListener<Buffer> listener) {
+	public boolean addBufferListener(BufferListener listener) {
 		return false;
 	}
 

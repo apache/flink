@@ -146,6 +146,7 @@ public class RocksDBListState<K, N, V>
 
 					byte[] sourceKey = keySerializationStream.toByteArray();
 					byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+					backend.db.delete(columnFamily, sourceKey);
 
 					if (valueBytes != null) {
 						backend.db.merge(columnFamily, writeOptions, targetKey, valueBytes);

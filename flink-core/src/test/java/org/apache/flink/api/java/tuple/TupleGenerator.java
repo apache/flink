@@ -28,6 +28,8 @@ import java.util.Scanner;
 
 /**
  * Source code generator for tuple classes and classes which depend on the arity of tuples.
+ *
+ * <p>This class is responsible for generating the various {@link Tuple} and TupleBuilder classes.
  */
 class TupleGenerator {
 

@@ -22,11 +22,14 @@ import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.expressions.Cast
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 /**
   * Flink RelNode which matches along with DataStreamSource.
@@ -43,7 +46,7 @@ class DataStreamScan(
 
   val dataStreamTable: DataStreamTable[Any] = getTable.unwrap(classOf[DataStreamTable[Any]])
 
-  override def deriveRowType(): RelDataType = schema.logicalType
+  override def deriveRowType(): RelDataType = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamScan(
@@ -60,7 +63,23 @@ class DataStreamScan(
 
     val config = tableEnv.getConfig
     val inputDataStream: DataStream[Any] = dataStreamTable.dataStream
-    convertToInternalRow(schema, inputDataStream, dataStreamTable, config)
+    val fieldIdxs = dataStreamTable.fieldIndexes
+
+    // get expression to extract timestamp
+    val rowtimeExpr: Option[RexNode] =
+      if (fieldIdxs.contains(TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER)) {
+        // extract timestamp from StreamRecord
+        Some(
+          Cast(
+            org.apache.flink.table.expressions.StreamRecordTimestamp(),
+            TimeIndicatorTypeInfo.ROWTIME_INDICATOR)
+            .toRexNode(tableEnv.getRelBuilder))
+      } else {
+        None
+      }
+
+    // convert DataStream
+    convertToInternalRow(schema, inputDataStream, fieldIdxs, config, rowtimeExpr)
   }
 
 }

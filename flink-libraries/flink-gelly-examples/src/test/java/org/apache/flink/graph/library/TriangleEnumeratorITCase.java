@@ -50,7 +50,7 @@ public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
 		Graph<Long, NullValue, NullValue> graph = Graph.fromDataSet(TriangleCountData.getDefaultEdgeDataSet(env),
 				env);
 
-		List<Tuple3<Long, Long, Long>> actualOutput = graph.run(new TriangleEnumerator<Long, NullValue, NullValue>()).collect();
+		List<Tuple3<Long, Long, Long>> actualOutput = graph.run(new TriangleEnumerator<>()).collect();
 		List<Tuple3<Long, Long, Long>> expectedResult = TriangleCountData.getListOfTriangles();
 
 		Assert.assertEquals(expectedResult.size(), actualOutput.size());

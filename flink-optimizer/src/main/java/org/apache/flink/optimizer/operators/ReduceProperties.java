@@ -65,20 +65,18 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 
 	@Override
 	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
+		Channel toReducer = in;
+
 		if (in.getShipStrategy() == ShipStrategyType.FORWARD ||
-				(node.getBroadcastConnections() != null && !node.getBroadcastConnections().isEmpty()))
-		{
-			if(in.getSource().getOptimizerNode() instanceof PartitionNode) {
+				(node.getBroadcastConnections() != null && !node.getBroadcastConnections().isEmpty())) {
+			if (in.getSource().getOptimizerNode() instanceof PartitionNode) {
 				LOG.warn("Cannot automatically inject combiner for ReduceFunction. Please add an explicit combiner with combineGroup() in front of the partition operator.");
 			}
-			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")", in,
-											DriverStrategy.SORTED_REDUCE, this.keyList);
-		}
-		else {
+		} else if (combinerStrategy != DriverStrategy.NONE) {
 			// non forward case. all local properties are killed anyways, so we can safely plug in a combiner
 			Channel toCombiner = new Channel(in.getSource());
 			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
-			
+
 			// create an input node for combine with same parallelism as input node
 			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
 			combinerNode.setParallelism(in.getSource().getParallelism());
@@ -89,15 +87,16 @@ public final class ReduceProperties extends OperatorDescriptorSingle {
 
 			combiner.setCosts(new Costs(0, 0));
 			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
-			
-			Channel toReducer = new Channel(combiner);
+
+			toReducer = new Channel(combiner);
 			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
 										in.getShipStrategySortOrder(), in.getDataExchangeMode());
 			toReducer.setLocalStrategy(LocalStrategy.SORT, in.getLocalStrategyKeys(), in.getLocalStrategySortOrder());
-
-			return new SingleInputPlanNode(node, "Reduce("+node.getOperator().getName()+")", toReducer,
-											DriverStrategy.SORTED_REDUCE, this.keyList);
 		}
+
+		return new SingleInputPlanNode(node, "Reduce (" + node.getOperator().getName() + ")", toReducer,
+			DriverStrategy.SORTED_REDUCE, this.keyList);
+
 	}
 
 	@Override

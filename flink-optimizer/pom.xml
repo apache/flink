@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.5-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -57,9 +57,13 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${guava.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -83,7 +87,7 @@ under the License.
 					<dependency>
 						<groupId>com.puppycrawl.tools</groupId>
 						<artifactId>checkstyle</artifactId>
-						<version>6.19</version>
+						<version>8.4</version>
 					</dependency>
 				</dependencies>
 				<executions>
@@ -99,7 +103,7 @@ under the License.
 				<configuration>
 					<configLocation>/tools/maven/checkstyle.xml</configLocation>
 					<suppressionsLocation>/tools/maven/suppressions-optimizer.xml</suppressionsLocation>
-					<includeTestSourceDirectory>false</includeTestSourceDirectory>
+					<includeTestSourceDirectory>true</includeTestSourceDirectory>
 					<logViolationsToConsole>true</logViolationsToConsole>
 					<failOnViolation>true</failOnViolation>
 				</configuration>

@@ -118,15 +118,16 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 		// u, 1
 		DataSet<Tuple2<K, LongValue>> triangleVertices = triangles
-			.flatMap(new SplitTriangles<K>())
+			.flatMap(new SplitTriangles<>())
 				.name("Split triangle vertices");
 
 		// u, triangle count
 		DataSet<Tuple2<K, LongValue>> vertexTriangleCount = triangleVertices
 			.groupBy(0)
-			.reduce(new CountTriangles<K>())
+			.reduce(new CountTriangles<>())
 			.setCombineHint(CombineHint.HASH)
-				.name("Count triangles");
+				.name("Count triangles")
+				.setParallelism(parallelism);
 
 		// u, deg(u)
 		DataSet<Vertex<K, LongValue>> vertexDegree = input
@@ -139,7 +140,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.leftOuterJoin(vertexTriangleCount)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinVertexDegreeWithTriangleCount<K>())
+			.with(new JoinVertexDegreeWithTriangleCount<>())
 				.setParallelism(parallelism)
 				.name("Clustering coefficient");
 	}

@@ -67,7 +67,7 @@ case class Sum(child: Expression) extends Aggregation {
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val returnType = relBuilder
       .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(resultType)
+      .createTypeFromTypeInfo(resultType, isNullable = true)
     new SqlSumAggFunction(returnType)
   }
 }
@@ -245,8 +245,10 @@ case class AggFunctionCall(
       ValidationFailure(s"Given parameters do not match any signature. \n" +
                           s"Actual: ${signatureToString(signature)} \n" +
                           s"Expected: ${
-                            getMethodSignatures(aggregateFunction, "accumulate").drop(1)
-                              .map(signatureToString).mkString(", ")}")
+                            getMethodSignatures(aggregateFunction, "accumulate")
+                              .map(_.drop(1))
+                              .map(signatureToString)
+                              .mkString(", ")}")
     } else {
       ValidationSuccess
     }
@@ -261,7 +263,8 @@ case class AggFunctionCall(
   override private[flink] def getSqlAggFunction()(implicit relBuilder: RelBuilder) = {
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     AggSqlFunction(
-      aggregateFunction.getClass.getSimpleName,
+      aggregateFunction.functionIdentifier,
+      aggregateFunction.toString,
       aggregateFunction,
       resultType,
       accTypeInfo,

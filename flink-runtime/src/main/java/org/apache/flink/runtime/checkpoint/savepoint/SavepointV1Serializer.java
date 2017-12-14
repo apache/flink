@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -58,7 +59,6 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 	private static final byte FILE_STREAM_STATE_HANDLE = 2;
 	private static final byte KEY_GROUPS_HANDLE = 3;
 	private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
-
 
 	public static final SavepointV1Serializer INSTANCE = new SavepointV1Serializer();
 
@@ -130,20 +130,15 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 	private static void serializeSubtaskState(SubtaskState subtaskState, DataOutputStream dos) throws IOException {
 
-		dos.writeLong(-1);
+		//backwards compatibility, do not remove
+		dos.writeLong(-1L);
 
-		ChainedStateHandle<StreamStateHandle> nonPartitionableState = subtaskState.getLegacyOperatorState();
-
-		int len = nonPartitionableState != null ? nonPartitionableState.getLength() : 0;
-		dos.writeInt(len);
-		for (int i = 0; i < len; ++i) {
-			StreamStateHandle stateHandle = nonPartitionableState.get(i);
-			serializeStreamStateHandle(stateHandle, dos);
-		}
+		//backwards compatibility (number of legacy state handles), do not remove
+		dos.writeInt(0);
 
 		ChainedStateHandle<OperatorStateHandle> operatorStateBackend = subtaskState.getManagedOperatorState();
 
-		len = operatorStateBackend != null ? operatorStateBackend.getLength() : 0;
+		int len = operatorStateBackend != null ? operatorStateBackend.getLength() : 0;
 		dos.writeInt(len);
 		for (int i = 0; i < len; ++i) {
 			OperatorStateHandle stateHandle = operatorStateBackend.get(i);
@@ -171,12 +166,19 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 		long ignoredDuration = dis.readLong();
 
 		int len = dis.readInt();
-		List<StreamStateHandle> nonPartitionableState = new ArrayList<>(len);
-		for (int i = 0; i < len; ++i) {
-			StreamStateHandle streamStateHandle = deserializeStreamStateHandle(dis);
-			nonPartitionableState.add(streamStateHandle);
-		}
 
+		if (SavepointSerializers.FAIL_WHEN_LEGACY_STATE_DETECTED) {
+			Preconditions.checkState(len == 0,
+				"Legacy state (from Flink <= 1.1, created through the 'Checkpointed' interface) is " +
+					"no longer supported starting from Flink 1.4. Please rewrite your job to use " +
+					"'CheckpointedFunction' instead!");
+
+		} else {
+			for (int i = 0; i < len; ++i) {
+				// absorb bytes from stream and ignore result
+				deserializeStreamStateHandle(dis);
+			}
+		}
 
 		len = dis.readInt();
 		List<OperatorStateHandle> operatorStateBackend = new ArrayList<>(len);
@@ -196,9 +198,6 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 
 		KeyedStateHandle keyedStateStream = deserializeKeyedStateHandle(dis);
 
-		ChainedStateHandle<StreamStateHandle> nonPartitionableStateChain =
-				new ChainedStateHandle<>(nonPartitionableState);
-
 		ChainedStateHandle<OperatorStateHandle> operatorStateBackendChain =
 				new ChainedStateHandle<>(operatorStateBackend);
 
@@ -206,7 +205,6 @@ public class SavepointV1Serializer implements SavepointSerializer<SavepointV2> {
 				new ChainedStateHandle<>(operatorStateStream);
 
 		return new SubtaskState(
-				nonPartitionableStateChain,
 				operatorStateBackendChain,
 				operatorStateStreamChain,
 				keyedStateBackend,

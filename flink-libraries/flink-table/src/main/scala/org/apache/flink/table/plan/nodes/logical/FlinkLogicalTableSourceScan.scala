@@ -25,11 +25,11 @@ import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
-import org.apache.flink.table.plan.schema.TableSourceTable
-import org.apache.flink.table.sources.{DefinedProctimeAttribute, DefinedRowtimeAttribute, TableSource}
+import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
+import org.apache.flink.table.sources.{FilterableTableSource, TableSource, TableSourceUtil}
 
 import scala.collection.JavaConverters._
 
@@ -37,53 +37,49 @@ class FlinkLogicalTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
-    val tableSource: TableSource[_])
+    val tableSource: TableSource[_],
+    val selectedFields: Option[Array[Int]])
   extends TableScan(cluster, traitSet, table)
   with FlinkLogicalRel {
 
-  def copy(traitSet: RelTraitSet, tableSource: TableSource[_]): FlinkLogicalTableSourceScan = {
-    new FlinkLogicalTableSourceScan(cluster, traitSet, getTable, tableSource)
+  def copy(
+      traitSet: RelTraitSet,
+      tableSource: TableSource[_],
+      selectedFields: Option[Array[Int]]): FlinkLogicalTableSourceScan = {
+    new FlinkLogicalTableSourceScan(cluster, traitSet, getTable, tableSource, selectedFields)
   }
 
   override def deriveRowType(): RelDataType = {
     val flinkTypeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-
-    val fieldNames = TableEnvironment.getFieldNames(tableSource).toList
-    val fieldTypes = TableEnvironment.getFieldTypes(tableSource.getReturnType).toList
-
-    val fieldCnt = fieldNames.length
-
-    val rowtime = tableSource match {
-      case timeSource: DefinedRowtimeAttribute if timeSource.getRowtimeAttribute != null =>
-        val rowtimeAttribute = timeSource.getRowtimeAttribute
-        Some((fieldCnt, rowtimeAttribute))
-      case _ =>
-        None
+    val streamingTable = table.unwrap(classOf[TableSourceTable[_]]) match {
+      case _: StreamTableSourceTable[_] => true
+      case _: BatchTableSourceTable[_] => false
+      case t => throw TableException(s"Unknown Table type ${t.getClass}.")
     }
 
-    val proctime = tableSource match {
-      case timeSource: DefinedProctimeAttribute if timeSource.getProctimeAttribute != null =>
-        val proctimeAttribute = timeSource.getProctimeAttribute
-        Some((fieldCnt + (if (rowtime.isDefined) 1 else 0), proctimeAttribute))
-      case _ =>
-        None
-    }
-
-    flinkTypeFactory.buildLogicalRowType(
-      fieldNames,
-      fieldTypes,
-      rowtime,
-      proctime)
+    TableSourceUtil.getRelDataType(tableSource, selectedFields, streamingTable, flinkTypeFactory)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
     val rowCnt = metadata.getRowCount(this)
-    planner.getCostFactory.makeCost(rowCnt, rowCnt, rowCnt * estimateRowSize(getRowType))
+
+    val adjustedCnt: Double = tableSource match {
+      case f: FilterableTableSource[_] if f.isFilterPushedDown =>
+        // ensure we prefer FilterableTableSources with pushed-down filters.
+        rowCnt - 1.0
+      case _ =>
+        rowCnt
+    }
+
+    planner.getCostFactory.makeCost(
+      adjustedCnt,
+      adjustedCnt,
+      adjustedCnt * estimateRowSize(getRowType))
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val terms = super.explainTerms(pw)
-        .item("fields", TableEnvironment.getFieldNames(tableSource).mkString(", "))
+        .item("fields", tableSource.getTableSchema.getColumnNames.mkString(", "))
 
     val sourceDesc = tableSource.explainSource()
     if (sourceDesc.nonEmpty) {
@@ -131,7 +127,8 @@ class FlinkLogicalTableSourceScanConverter
       rel.getCluster,
       traitSet,
       scan.getTable,
-      tableSource
+      tableSource,
+      None
     )
   }
 }

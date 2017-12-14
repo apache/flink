@@ -25,12 +25,13 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.analysis.BasicValue;
-import org.objectweb.asm.tree.analysis.Value;
+
+import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.Type;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.ClassNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.MethodNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.BasicValue;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.Value;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,7 +46,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Utility class to work with {@link UdfAnalyzer}
+ * Utility class to work with {@link UdfAnalyzer}.
  */
 @Internal
 public final class UdfAnalyzerUtils {
@@ -64,7 +65,7 @@ public final class UdfAnalyzerUtils {
 				}
 				// scala
 				else {
-					fieldName = "_" + (i+1);
+					fieldName = "_" + (i + 1);
 				}
 				containerMapping.put(fieldName,
 						convertTypeInfoToTaggedValue(input,
@@ -145,7 +146,7 @@ public final class UdfAnalyzerUtils {
 			if (stream != null) {
 				try {
 					stream.close();
-				} catch (IOException e) { 
+				} catch (IOException e) {
 					// best effort cleanup
 				}
 			}
@@ -154,7 +155,7 @@ public final class UdfAnalyzerUtils {
 	}
 
 	public static boolean isTagged(Value value) {
-		return value != null && value instanceof TaggedValue;
+		return value instanceof TaggedValue;
 	}
 
 	public static TaggedValue tagged(Value value) {

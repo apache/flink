@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.runtime.concurrent.Future;
 
 import javax.annotation.Nullable;
+
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
@@ -90,13 +91,13 @@ public interface MasterTriggerRestoreHook<T> {
 	 * @throws Exception Exceptions encountered when calling the hook will cause the checkpoint to abort.
 	 */
 	@Nullable
-	Future<T> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception;
+	CompletableFuture<T> triggerCheckpoint(long checkpointId, long timestamp, Executor executor) throws Exception;
 
 	/**
 	 * This method is called by the checkpoint coordinator prior to restoring the state of a checkpoint.
 	 * If the checkpoint did store data from this hook, that data will be passed to this method. 
 	 * 
-	 * @param checkpointId The The ID (logical timestamp) of the restored checkpoint
+	 * @param checkpointId The ID (logical timestamp) of the restored checkpoint
 	 * @param checkpointData The data originally stored in the checkpoint by this hook, possibly null. 
 	 * 
 	 * @throws Exception Exceptions thrown while restoring the checkpoint will cause the restore

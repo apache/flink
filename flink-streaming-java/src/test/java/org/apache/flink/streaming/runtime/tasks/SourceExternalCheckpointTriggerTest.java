@@ -25,6 +25,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -64,13 +65,14 @@ public class SourceExternalCheckpointTriggerTest {
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		StreamSource<Long, ?> sourceOperator = new StreamSource<>(source);
 		streamConfig.setStreamOperator(sourceOperator);
+		streamConfig.setOperatorID(new OperatorID());
 
 		// this starts the source thread
 		testHarness.invoke();
 		ready.await();
 
 		// now send an external trigger that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forFullCheckpoint()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(32, 829), CheckpointOptions.forCheckpoint()));
 
 		// step by step let the source thread emit elements
 		sync.trigger();
@@ -86,7 +88,7 @@ public class SourceExternalCheckpointTriggerTest {
 		verifyNextElement(testHarness.getOutput(), 4L);
 
 		// now send an regular trigger command that should be ignored
-		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forFullCheckpoint()));
+		assertTrue(sourceTask.triggerCheckpoint(new CheckpointMetaData(34, 900), CheckpointOptions.forCheckpoint()));
 
 		sync.trigger();
 		verifyNextElement(testHarness.getOutput(), 5L);

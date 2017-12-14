@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.{FilterFunction, FlatMapFunction, MapFunction, Partitioner}
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.operators.ResourceSpec
+import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
@@ -38,8 +39,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
-import org.apache.flink.streaming.util.serialization.SerializationSchema
-import org.apache.flink.util.{Collector, OutputTag}
+import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 
@@ -499,23 +499,22 @@ class DataStream[T](stream: JavaStream[T]) {
    * stepfunction: initialStream => (feedback, output)
    *
    * A common pattern is to use output splitting to create feedback and output DataStream.
-   * Please refer to the .split(...) method of the DataStream
+   * Please refer to the [[split]] method of the DataStream
    *
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
    * If no data received in the set time the stream terminates.
    *
-   * By default the feedback partitioning is set to match the input, to override this set
-   * the keepPartitioning flag to true
-   *
+   * Parallelism of the feedback stream must match the parallelism of the original stream.
+   * Please refer to the [[setParallelism]] method for parallelism modification
    */
   @PublicEvolving
   def iterate[R](stepFunction: DataStream[T] => (DataStream[T], DataStream[R]),
-                    maxWaitTimeMillis:Long = 0,
-                    keepPartitioning: Boolean = false) : DataStream[R] = {
+                    maxWaitTimeMillis:Long = 0) : DataStream[R] = {
     val iterativeStream = stream.iterate(maxWaitTimeMillis)
 
     val (feedback, output) = stepFunction(new DataStream[T](iterativeStream))
+
     iterativeStream.closeWith(feedback.javaStream)
     output
   }
@@ -528,7 +527,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * stream of the iterative part.
    *
    * The input stream of the iterate operator and the feedback stream will be treated
-   * as a ConnectedStreams where the the input is connected with the feedback stream.
+   * as a ConnectedStreams where the input is connected with the feedback stream.
    *
    * This allows the user to distinguish standard input from feedback inputs.
    *

@@ -19,19 +19,20 @@
 package org.apache.flink.runtime.registration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -68,7 +69,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, testEndpointAddress, leaderId);
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			assertNotNull(future);
 
 			// multiple accesses return the same future
@@ -98,7 +99,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		TestRetryingRegistration registration = new TestRetryingRegistration(rpc, "testaddress", UUID.randomUUID());
 		registration.startRegistration();
 
-		Future<?> future = registration.getFuture();
+		CompletableFuture<?> future = registration.getFuture();
 		assertTrue(future.isDone());
 
 		try {
@@ -115,23 +116,40 @@ public class RetryingRegistrationTest extends TestLogger {
 		final String testId = "laissez les bon temps roulez";
 		final UUID leaderId = UUID.randomUUID();
 
-		ExecutorService executor = Executors.newCachedThreadPool();
+		ExecutorService executor = TestingUtils.defaultExecutor();
 		TestRegistrationGateway testGateway = new TestRegistrationGateway(new TestRegistrationSuccess(testId));
 
 		try {
 			// RPC service that fails upon the first connection, but succeeds on the second
 			RpcService rpc = mock(RpcService.class);
 			when(rpc.connect(anyString(), any(Class.class))).thenReturn(
-					FlinkCompletableFuture.completedExceptionally(new Exception("test connect failure")),  // first connection attempt fails
-					FlinkCompletableFuture.completed(testGateway)                         // second connection attempt succeeds
+					FutureUtils.completedExceptionally(new Exception("test connect failure")),  // first connection attempt fails
+					CompletableFuture.completedFuture(testGateway)                         // second connection attempt succeeds
 			);
 			when(rpc.getExecutor()).thenReturn(executor);
+			when(rpc.scheduleRunnable(any(Runnable.class), anyLong(), any(TimeUnit.class))).thenAnswer(
+				(InvocationOnMock invocation) -> {
+					final Runnable runnable = invocation.getArgumentAt(0, Runnable.class);
+					final long delay = invocation.getArgumentAt(1, Long.class);
+					final TimeUnit timeUnit = invocation.getArgumentAt(2, TimeUnit.class);
+					return TestingUtils.defaultScheduledExecutor().schedule(runnable, delay, timeUnit);
+				});
 
 			TestRetryingRegistration registration = new TestRetryingRegistration(rpc, "foobar address", leaderId);
+
+			long start = System.currentTimeMillis();
+
 			registration.startRegistration();
 
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 				registration.getFuture().get(10L, TimeUnit.SECONDS);
+
+			// measure the duration of the registration --> should be longer than the error delay
+			long duration = System.currentTimeMillis() - start;
+
+			assertTrue(
+				"The registration should have failed the first time. Thus the duration should be longer than at least a single error delay.",
+				duration > TestRetryingRegistration.DELAY_ON_ERROR);
 
 			// validate correct invocation and result
 			assertEquals(testId, success.f1.getCorrelationId());
@@ -139,7 +157,6 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 		finally {
 			testGateway.stop();
-			executor.shutdown();
 		}
 	}
 
@@ -166,7 +183,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			long started = System.nanoTime();
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 					future.get(10L, TimeUnit.SECONDS);
 
@@ -209,7 +226,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			long started = System.nanoTime();
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 					future.get(10L, TimeUnit.SECONDS);
 
@@ -244,8 +261,8 @@ public class RetryingRegistrationTest extends TestLogger {
 			TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
 
 			when(testGateway.registrationCall(any(UUID.class), anyLong())).thenReturn(
-					FlinkCompletableFuture.<RegistrationResponse>completedExceptionally(new Exception("test exception")),
-					FlinkCompletableFuture.<RegistrationResponse>completed(new TestRegistrationSuccess(testId)));
+					FutureUtils.completedExceptionally(new Exception("test exception")),
+					CompletableFuture.completedFuture(new TestRegistrationSuccess(testId)));
 
 			rpc.registerGateway(testEndpointAddress, testGateway);
 
@@ -254,7 +271,7 @@ public class RetryingRegistrationTest extends TestLogger {
 			long started = System.nanoTime();
 			registration.startRegistration();
 
-			Future<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
+			CompletableFuture<Tuple2<TestRegistrationGateway, TestRegistrationSuccess>> future = registration.getFuture();
 			Tuple2<TestRegistrationGateway, TestRegistrationSuccess> success =
 					future.get(10, TimeUnit.SECONDS);
 
@@ -280,7 +297,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		TestingRpcService rpc = new TestingRpcService();
 
 		try {
-			FlinkCompletableFuture<RegistrationResponse> result = new FlinkCompletableFuture<>();
+			CompletableFuture<RegistrationResponse> result = new CompletableFuture<>();
 
 			TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
 			when(testGateway.registrationCall(any(UUID.class), anyLong())).thenReturn(result);
@@ -320,7 +337,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 	}
 
-	static class TestRetryingRegistration extends RetryingRegistration<TestRegistrationGateway, TestRegistrationSuccess> {
+	static class TestRetryingRegistration extends RetryingRegistration<UUID, TestRegistrationGateway, TestRegistrationSuccess> {
 
 		// we use shorter timeouts here to speed up the tests
 		static final long INITIAL_TIMEOUT = 20;
@@ -337,7 +354,7 @@ public class RetryingRegistrationTest extends TestLogger {
 		}
 
 		@Override
-		protected Future<RegistrationResponse> invokeRegistration(
+		protected CompletableFuture<RegistrationResponse> invokeRegistration(
 				TestRegistrationGateway gateway, UUID leaderId, long timeoutMillis) {
 			return gateway.registrationCall(leaderId, timeoutMillis);
 		}

@@ -22,8 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.core.fs.Path;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Files;
+import org.apache.flink.shaded.guava18.com.google.common.base.Charsets;
+import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

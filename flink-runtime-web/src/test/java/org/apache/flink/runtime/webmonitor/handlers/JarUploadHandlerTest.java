@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.runtime.concurrent.Executors;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,7 +29,7 @@ import org.junit.Test;
 public class JarUploadHandlerTest {
 	@Test
 	public void testGetPaths() {
-		JarUploadHandler handler = new JarUploadHandler(null);
+		JarUploadHandler handler = new JarUploadHandler(Executors.directExecutor(), null);
 		String[] paths = handler.getPaths();
 		Assert.assertEquals(1, paths.length);
 		Assert.assertEquals("/jars/upload", paths[0]);

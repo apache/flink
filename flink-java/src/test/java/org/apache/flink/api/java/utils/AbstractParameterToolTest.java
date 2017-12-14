@@ -20,10 +20,13 @@ package org.apache.flink.api.java.utils;
 
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+
+import static org.junit.Assert.fail;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -39,6 +42,20 @@ public abstract class AbstractParameterToolTest {
 
 	protected void validate(ParameterTool parameter) {
 		ClosureCleaner.ensureSerializable(parameter);
+		validatePrivate(parameter);
+
+		// -------- test behaviour after serialization ------------
+		ParameterTool copy = null;
+		try {
+			byte[] b = InstantiationUtil.serializeObject(parameter);
+			copy = InstantiationUtil.deserializeObject(b, getClass().getClassLoader());
+		} catch (Exception e) {
+			fail();
+		}
+		validatePrivate(copy);
+	}
+
+	private void validatePrivate(ParameterTool parameter) {
 		Assert.assertEquals("myInput", parameter.getRequired("input"));
 		Assert.assertEquals("myDefaultValue", parameter.get("output", "myDefaultValue"));
 		Assert.assertEquals(null, parameter.get("whatever"));

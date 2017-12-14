@@ -39,6 +39,7 @@ import static org.mockito.Mockito.verify;
 public class StandaloneHaServicesTest extends TestLogger {
 
 	private final String jobManagerAddress = "jobManager";
+	private final String dispatcherAddress = "dispatcher";
 	private final String resourceManagerAddress = "resourceManager";
 
 	private StandaloneHaServices standaloneHaServices;
@@ -46,7 +47,10 @@ public class StandaloneHaServicesTest extends TestLogger {
 	@Before
 	public void setupTest() {
 
-		standaloneHaServices = new StandaloneHaServices(resourceManagerAddress, jobManagerAddress);
+		standaloneHaServices = new StandaloneHaServices(
+			resourceManagerAddress,
+			dispatcherAddress,
+			jobManagerAddress);
 	}
 
 	@After

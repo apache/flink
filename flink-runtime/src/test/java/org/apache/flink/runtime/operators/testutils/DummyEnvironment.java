@@ -26,16 +26,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -53,6 +55,7 @@ public class DummyEnvironment implements Environment {
 	private final ExecutionConfig executionConfig = new ExecutionConfig();
 	private final TaskInfo taskInfo;
 	private KvStateRegistry kvStateRegistry = new KvStateRegistry();
+	private final AccumulatorRegistry accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
 
 	public DummyEnvironment(String taskName, int numSubTasks, int subTaskIndex) {
 		this.taskInfo = new TaskInfo(taskName, numSubTasks, subTaskIndex, numSubTasks, 0);
@@ -98,7 +101,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public TaskMetricGroup getMetricGroup() {
-		return new UnregisteredTaskMetricsGroup();
+		return UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 	}
 
 	@Override
@@ -143,7 +146,7 @@ public class DummyEnvironment implements Environment {
 
 	@Override
 	public AccumulatorRegistry getAccumulatorRegistry() {
-		return null;
+		return accumulatorRegistry;
 	}
 
 	@Override
@@ -156,7 +159,7 @@ public class DummyEnvironment implements Environment {
 	}
 
 	@Override
-	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, SubtaskState subtaskState) {
+	public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
 	}
 
 	@Override
@@ -189,4 +192,8 @@ public class DummyEnvironment implements Environment {
 		return null;
 	}
 
+	@Override
+	public TaskEventDispatcher getTaskEventDispatcher() {
+		throw new UnsupportedOperationException();
+	}
 }

@@ -46,12 +46,10 @@ class HarnessTestBase {
     UserDefinedFunctionUtils.serialize(new IntSumWithRetractAggFunction)
 
   protected val MinMaxRowType = new RowTypeInfo(Array[TypeInformation[_]](
-    INT_TYPE_INFO,
     LONG_TYPE_INFO,
-    INT_TYPE_INFO,
     STRING_TYPE_INFO,
     LONG_TYPE_INFO),
-    Array("a", "b", "c", "d", "e"))
+    Array("rowtime", "a", "b"))
 
   protected val SumRowType = new RowTypeInfo(Array[TypeInformation[_]](
     LONG_TYPE_INFO,
@@ -103,13 +101,13 @@ class HarnessTestBase {
       |
       |    org.apache.flink.table.functions.AggregateFunction baseClass0 =
       |      (org.apache.flink.table.functions.AggregateFunction) fmin;
-      |    output.setField(5, baseClass0.getValue(
+      |    output.setField(3, baseClass0.getValue(
       |      (org.apache.flink.table.functions.aggfunctions.MinWithRetractAccumulator)
       |      accs.getField(0)));
       |
       |    org.apache.flink.table.functions.AggregateFunction baseClass1 =
       |      (org.apache.flink.table.functions.AggregateFunction) fmax;
-      |    output.setField(6, baseClass1.getValue(
+      |    output.setField(4, baseClass1.getValue(
       |      (org.apache.flink.table.functions.aggfunctions.MaxWithRetractAccumulator)
       |      accs.getField(1)));
       |  }
@@ -121,12 +119,12 @@ class HarnessTestBase {
       |    fmin.accumulate(
       |      ((org.apache.flink.table.functions.aggfunctions.MinWithRetractAccumulator)
       |      accs.getField(0)),
-      |      (java.lang.Long) input.getField(4));
+      |      (java.lang.Long) input.getField(2));
       |
       |    fmax.accumulate(
       |      ((org.apache.flink.table.functions.aggfunctions.MaxWithRetractAccumulator)
       |      accs.getField(1)),
-      |      (java.lang.Long) input.getField(4));
+      |      (java.lang.Long) input.getField(2));
       |  }
       |
       |  public void retract(
@@ -136,12 +134,12 @@ class HarnessTestBase {
       |    fmin.retract(
       |      ((org.apache.flink.table.functions.aggfunctions.MinWithRetractAccumulator)
       |      accs.getField(0)),
-      |      (java.lang.Long) input.getField(4));
+      |      (java.lang.Long) input.getField(2));
       |
       |    fmax.retract(
       |      ((org.apache.flink.table.functions.aggfunctions.MaxWithRetractAccumulator)
       |      accs.getField(1)),
-      |      (java.lang.Long) input.getField(4));
+      |      (java.lang.Long) input.getField(2));
       |  }
       |
       |  public org.apache.flink.types.Row createAccumulators() {
@@ -166,14 +164,20 @@ class HarnessTestBase {
       |    output.setField(0, input.getField(0));
       |    output.setField(1, input.getField(1));
       |    output.setField(2, input.getField(2));
-      |    output.setField(3, input.getField(3));
-      |    output.setField(4, input.getField(4));
       |  }
       |
       |  public org.apache.flink.types.Row createOutputRow() {
-      |    return new org.apache.flink.types.Row(7);
+      |    return new org.apache.flink.types.Row(5);
       |  }
       |
+      |  public void open(org.apache.flink.api.common.functions.RuntimeContext ctx) {
+      |  }
+      |
+      |  public void cleanup() {
+      |  }
+      |
+      |  public void close() {
+      |  }
       |/*******  This test does not use the following methods  *******/
       |  public org.apache.flink.types.Row mergeAccumulatorsPair(
       |    org.apache.flink.types.Row a,
@@ -286,6 +290,15 @@ class HarnessTestBase {
       |  public final void resetAccumulator(
       |    org.apache.flink.types.Row accs) {
       |  }
+      |
+      |  public void open(org.apache.flink.api.common.functions.RuntimeContext ctx) {
+      |  }
+      |
+      |  public void cleanup() {
+      |  }
+      |
+      |  public void close() {
+      |  }
       |}
       |""".stripMargin
 
@@ -326,7 +339,7 @@ object HarnessTestBase {
   /**
     * Return 0 for equal Rows and non zero for different rows
     */
-  class RowResultSortComparator(indexCounter: Int) extends Comparator[Object] with Serializable {
+  class RowResultSortComparator() extends Comparator[Object] with Serializable {
 
     override def compare(o1: Object, o2: Object): Int = {
 
@@ -337,6 +350,26 @@ object HarnessTestBase {
         val row1 = o1.asInstanceOf[StreamRecord[CRow]].getValue
         val row2 = o2.asInstanceOf[StreamRecord[CRow]].getValue
         row1.toString.compareTo(row2.toString)
+      }
+    }
+  }
+
+  /**
+    * Return 0 for equal Rows and non zero for different rows
+    */
+  class RowResultSortComparatorWithWatermarks()
+    extends Comparator[Object] with Serializable {
+
+    override def compare(o1: Object, o2: Object): Int = {
+
+      (o1, o2) match {
+        case (w1: Watermark, w2: Watermark) =>
+          w1.getTimestamp.compareTo(w2.getTimestamp)
+        case (r1: StreamRecord[CRow], r2: StreamRecord[CRow]) =>
+          r1.getValue.toString.compareTo(r2.getValue.toString)
+        case (_: Watermark, _: StreamRecord[CRow]) => -1
+        case (_: StreamRecord[CRow], _: Watermark) => 1
+        case _ => -1
       }
     }
   }

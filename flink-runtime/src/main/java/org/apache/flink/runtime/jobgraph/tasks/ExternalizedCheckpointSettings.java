@@ -20,6 +20,8 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.Objects;
+
 /**
  * Grouped settings for externalized checkpoints.
  */
@@ -67,4 +69,21 @@ public class ExternalizedCheckpointSettings implements java.io.Serializable {
 		return NONE;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ExternalizedCheckpointSettings that = (ExternalizedCheckpointSettings) o;
+		return externalizeCheckpoints == that.externalizeCheckpoints &&
+			deleteOnCancellation == that.deleteOnCancellation;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(externalizeCheckpoints, deleteOnCancellation);
+	}
 }

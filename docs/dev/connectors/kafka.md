@@ -72,6 +72,14 @@ For most users, the `FlinkKafkaConsumer08` (part of `flink-connector-kafka`) is 
         <td>0.10.x</td>
         <td>This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-32+-+Add+timestamps+to+Kafka+message">Kafka messages with timestamps</a> both for producing and consuming.</td>
     </tr>
+    <tr>
+        <td>flink-connector-kafka-0.11_2.11</td>
+        <td>1.4.0</td>
+        <td>FlinkKafkaConsumer011<br>
+        FlinkKafkaProducer011</td>
+        <td>0.11.x</td>
+        <td>Since 0.11.x Kafka does not support scala 2.10. This connector supports <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka transactional messaging</a> to provide exactly once semantic for the producer.</td>
+    </tr>
   </tbody>
 </table>
 
@@ -133,12 +141,6 @@ stream = env
 {% endhighlight %}
 </div>
 </div>
-
-The current FlinkKafkaConsumer implementation will establish a connection from the client (when calling the constructor)
-for querying the list of topics and partitions.
-
-For this to work, the consumer needs to be able to access the consumers from the machine submitting the job to the Flink cluster.
-If you experience any issues with the Kafka consumer on the client side, the client log might contain information about failed requests, etc.
 
 ### The `DeserializationSchema`
 
@@ -292,7 +294,9 @@ Flink on YARN supports automatic restart of lost YARN containers.
 
 If checkpointing is not enabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
-### Kafka Consumers Partition Discovery
+### Kafka Consumers Topic and Partition Discovery
+
+#### Partition discovery
 
 The Flink Kafka Consumer supports discovering dynamically created Kafka partitions, and consumes them with
 exactly-once guarantees. All partitions discovered after the initial retrieval of partition metadata (i.e., when the
@@ -306,6 +310,57 @@ representing the discovery interval in milliseconds.
 prior to Flink 1.3.x, partition discovery cannot be enabled on the restore run. If enabled, the restore would fail
 with an exception. In this case, in order to use partition discovery, please first take a savepoint in Flink 1.3.x and
 then restore again from that.
+
+#### Topic discovery
+
+At a higher-level, the Flink Kafka Consumer is also capable of discovering topics, based on pattern matching on the
+topic names using regular expressions. See the below for an example:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+Properties properties = new Properties();
+properties.setProperty("bootstrap.servers", "localhost:9092");
+properties.setProperty("group.id", "test");
+
+FlinkKafkaConsumer011<String> myConsumer = new FlinkKafkaConsumer011<>(
+    java.util.regex.Pattern.compile("test-topic-[0-9]"),
+    new SimpleStringSchema(),
+    properties);
+
+DataStream<String> stream = env.addSource(myConsumer);
+...
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val properties = new Properties()
+properties.setProperty("bootstrap.servers", "localhost:9092")
+properties.setProperty("group.id", "test")
+
+val myConsumer = new FlinkKafkaConsumer08[String](
+  java.util.regex.Pattern.compile("test-topic-[0-9]"),
+  new SimpleStringSchema,
+  properties)
+
+val stream = env.addSource(myConsumer)
+...
+{% endhighlight %}
+</div>
+</div>
+
+In the above example, all topics with names that match the specified regular expression
+(starting with `test-topic-` and ending with a single digit) will be subscribed by the consumer
+when the job starts running.
+
+To allow the consumer to discover dynamically created topics after the job started running,
+set a non-negative value for `flink.partition-discovery.interval-millis`. This allows
+the consumer to discover partitions of new topics with names that also match the specified
+pattern.
 
 ### Kafka Consumers Offset Committing Behaviour Configuration
 
@@ -481,8 +536,14 @@ are other constructor variants that allow providing the following:
  
 ### Kafka Producers and Fault Tolerance
 
-With Flink's checkpointing enabled, the Flink Kafka Producer can provide
-at-least-once delivery guarantees.
+#### Kafka 0.8
+
+Before 0.9 Kafka did not provide any mechanisms to guarantee at-least-once or exactly-once semantics.
+
+#### Kafka 0.9 and 0.10
+
+With Flink's checkpointing enabled, the `FlinkKafkaProducer09` and `FlinkKafkaProducer010`
+can provide at-least-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you should also configure the setter
 methods `setLogFailuresOnly(boolean)` and `setFlushOnCheckpoint(boolean)` appropriately,
@@ -504,6 +565,96 @@ we recommend setting the number of retries to a higher value.
 
 **Note**: There is currently no transactional producer for Kafka, so Flink can not guarantee exactly-once delivery
 into a Kafka topic.
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> Depending on your Kafka configuration, even after Kafka acknowledges
+  writes you can still experience data loss. In particular keep in mind the following Kafka settings:
+  <ul>
+    <li><tt>acks</tt></li>
+    <li><tt>log.flush.interval.messages</tt></li>
+    <li><tt>log.flush.interval.ms</tt></li>
+    <li><tt>log.flush.*</tt></li>
+  </ul>
+  Default values for the above options can easily lead to data loss. Please refer to Kafka documentation
+  for more explanation.
+</div>
+
+#### Kafka 0.11
+
+With Flink's checkpointing enabled, the `FlinkKafkaProducer011` can provide
+exactly-once delivery guarantees.
+
+Besides enabling Flink's checkpointing, you can also choose three different modes of operating
+chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011`:
+
+ * `Semantic.NONE`: Flink will not guarantee anything. Produced records can be lost or they can
+ be duplicated.
+ * `Semantic.AT_LEAST_ONCE` (default setting): similar to `setFlushOnCheckpoint(true)` in
+ `FlinkKafkaProducer010`. This guarantees that no records will be lost (although they can be duplicated).
+ * `Semantic.EXACTLY_ONCE`: uses Kafka transactions to provide exactly-once semantic. Whenever you write
+ to Kafka using transactions, do not forget about setting desired `isolation.level` (`read_committed`
+ or `read_uncommitted` - the latter one is the default value) for any application consuming records
+ from Kafka.
+
+<div class="alert alert-warning">
+  <strong>Attention:</strong> Depending on your Kafka configuration, even after Kafka acknowledges
+  writes you can still experience data losses. In particular keep in mind about following properties
+  in Kafka config:
+  <ul>
+    <li><tt>acks</tt></li>
+    <li><tt>log.flush.interval.messages</tt></li>
+    <li><tt>log.flush.interval.ms</tt></li>
+    <li><tt>log.flush.*</tt></li>
+  </ul>
+  Default values for the above options can easily lead to data loss. Please refer to the Kafka documentation
+  for more explanation.
+</div>
+
+
+##### Caveats
+
+`Semantic.EXACTLY_ONCE` mode relies on the ability to commit transactions
+that were started before taking a checkpoint, after recovering from the said checkpoint. If the time
+between Flink application crash and completed restart is larger then Kafka's transaction timeout
+there will be data loss (Kafka will automatically abort transactions that exceeded timeout time).
+Having this in mind, please configure your transaction timeout appropriately to your expected down
+times.
+
+Kafka brokers by default have `transaction.max.timeout.ms` set to 15 minutes. This property will
+not allow to set transaction timeouts for the producers larger then it's value.
+`FlinkKafkaProducer011` by default sets the `transaction.timeout.ms` property in producer config to
+1 hour, thus `transaction.max.timeout.ms` should be increased before using the
+`Semantic.EXACTLY_ONCE` mode.
+
+In `read_committed` mode of `KafkaConsumer`, any transactions that were not finished
+(neither aborted nor completed) will block all reads from the given Kafka topic past any
+un-finished transaction. In other words after following sequence of events:
+
+1. User started `transaction1` and written some records using it
+2. User started `transaction2` and written some further records using it
+3. User committed `transaction2`
+
+Even if records from `transaction2` are already committed, they will not be visible to
+the consumers until `transaction1` is committed or aborted. This has two implications:
+
+ * First of all, during normal working of Flink applications, user can expect a delay in visibility
+ of the records produced into Kafka topics, equal to average time between completed checkpoints.
+ * Secondly in case of Flink application failure, topics into which this application was writting, 
+ will be blocked for the readers until the application restarts or the configured transaction 
+ timeout time will pass. This remark only applies for the cases when there are multiple
+ agents/applications writing to the same Kafka topic.
+
+**Note**:  `Semantic.EXACTLY_ONCE` mode uses a fixed size pool of KafkaProducers
+per each `FlinkKafkaProducer011` instance. One of each of those producers is used per one
+checkpoint. If the number of concurrent checkpoints exceeds the pool size, `FlinkKafkaProducer011`
+will throw an exception and will fail the whole application. Please configure max pool size and max
+number of concurrent checkpoints accordingly.
+
+**Note**: `Semantic.EXACTLY_ONCE` takes all possible measures to not leave any lingering transactions
+that would block the consumers from reading from Kafka topic more then it is necessary. However in the
+event of failure of Flink application before first checkpoint, after restarting such application there
+is no information in the system about previous pool sizes. Thus it is unsafe to scale down Flink
+application before first checkpoint completes, by factor larger then `FlinkKafkaProducer011.SAFE_SCALE_DOWN_FACTOR`.
 
 ## Using Kafka timestamps and Flink event time in Kafka 0.10
 
@@ -553,7 +704,7 @@ we retrieved and emitted successfully. The `committed-offsets` is the last commi
 The Kafka Consumers in Flink commit the offsets back to Zookeeper (Kafka 0.8) or the Kafka brokers (Kafka 0.9+). If checkpointing
 is disabled, offsets are committed periodically.
 With checkpointing, the commit happens once all operators in the streaming topology have confirmed that they've created a checkpoint of their state. 
-This provides users with at-least-once semantics for the offsets committed to Zookeer or the broker. For offsets checkpointed to Flink, the system 
+This provides users with at-least-once semantics for the offsets committed to Zookeeper or the broker. For offsets checkpointed to Flink, the system 
 provides exactly once guarantees.
 
 The offsets committed to ZK or the broker can also be used to track the read progress of the Kafka consumer. The difference between
@@ -579,5 +730,7 @@ Once Kerberos-based Flink security is enabled, you can authenticate to Kafka wit
 When using standalone Flink deployment, you can also use `SASL_SSL`; please see how to configure the Kafka client for SSL [here](https://kafka.apache.org/documentation/#security_configclients). 
 - Set `sasl.kerberos.service.name` to `kafka` (default `kafka`): The value for this should match the `sasl.kerberos.service.name` used for Kafka broker configurations. A mismatch in service name between client and server configuration will cause the authentication to fail.
 
-For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/setup/config.html).
+For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
 You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
+
+{% top %}

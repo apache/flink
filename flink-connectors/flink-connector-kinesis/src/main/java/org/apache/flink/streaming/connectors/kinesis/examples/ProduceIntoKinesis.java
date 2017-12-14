@@ -17,13 +17,13 @@
 
 package org.apache.flink.streaming.connectors.kinesis.examples;
 
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
-import org.apache.flink.streaming.connectors.kinesis.config.ProducerConfigConstants;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -43,9 +43,9 @@ public class ProduceIntoKinesis {
 		DataStream<String> simpleStringStream = see.addSource(new EventsGenerator());
 
 		Properties kinesisProducerConfig = new Properties();
-		kinesisProducerConfig.setProperty(ProducerConfigConstants.AWS_REGION, pt.getRequired("region"));
-		kinesisProducerConfig.setProperty(ProducerConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accessKey"));
-		kinesisProducerConfig.setProperty(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretKey"));
+		kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_REGION, pt.getRequired("region"));
+		kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, pt.getRequired("accessKey"));
+		kinesisProducerConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, pt.getRequired("secretKey"));
 
 		FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(
 				new SimpleStringSchema(), kinesisProducerConfig);

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -76,14 +78,15 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
 				Collections.<JobVertexID>emptyList(),
-				1000L,
-				10000L,
-				0L,
-				1,
-				ExternalizedCheckpointSettings.none(),
+				new CheckpointCoordinatorConfiguration(
+					1000L,
+					10000L,
+					0L,
+					1,
+					ExternalizedCheckpointSettings.none(),
+					true),
 				new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
-				serHooks,
-				true);
+				serHooks);
 
 		final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
 		jobGraph.setSnapshotSettings(checkpointingSettings);
@@ -93,19 +96,20 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 		final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
 		final ExecutionGraph eg = ExecutionGraphBuilder.buildGraph(
-				null,
-				copy,
-				new Configuration(),
-				TestingUtils.defaultExecutor(),
-				TestingUtils.defaultExecutor(),
-				mock(SlotProvider.class),
-				classLoader,
-				new StandaloneCheckpointRecoveryFactory(),
-				Time.seconds(10),
-				new NoRestartStrategy(),
-				new UnregisteredMetricsGroup(),
-				10,
-				log);
+			null,
+			copy,
+			new Configuration(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			mock(SlotProvider.class),
+			classLoader,
+			new StandaloneCheckpointRecoveryFactory(),
+			Time.seconds(10),
+			new NoRestartStrategy(),
+			new UnregisteredMetricsGroup(),
+			10,
+			VoidBlobWriter.getInstance(),
+			log);
 
 		assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
 		assertTrue(jobGraph.getCheckpointingSettings().getDefaultStateBackend().deserializeValue(classLoader) instanceof CustomStateBackend);
@@ -134,6 +138,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
 	private static final class CustomStateBackend implements StateBackend {
 
+		private static final long serialVersionUID = -6107964383429395816L;
 		/**
 		 * Simulate a custom option that is not in the normal classpath.
 		 */

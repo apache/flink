@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.ConfigConstants;
@@ -32,7 +33,6 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.AfterClass;
@@ -98,7 +98,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		specificProperties.setProperty("log.retention.minutes", "0");
 		specificProperties.setProperty("log.retention.ms", "250");
 		specificProperties.setProperty("log.retention.check.interval.ms", "100");
-		kafkaServer.prepare(1, specificProperties, false);
+		kafkaServer.prepare(kafkaServer.createConfig().setKafkaServerProperties(specificProperties));
 
 		standardProps = kafkaServer.getStandardProperties();
 
@@ -115,11 +115,11 @@ public class KafkaShortRetentionTestBase implements Serializable {
 	}
 
 	@AfterClass
-	public static void shutDownServices() {
+	public static void shutDownServices() throws Exception {
 		TestStreamEnvironment.unsetAsContext();
 
 		if (flink != null) {
-			flink.shutdown();
+			flink.stop();
 		}
 		kafkaServer.shutdown();
 

@@ -99,6 +99,6 @@ extends InputBase<K, NullValue, NullValue> {
 				throw new ProgramParametrizationException("Unknown type '" + type.getValue() + "'");
 		}
 
-		return simplify.simplify(graph);
+		return simplify.simplify(graph, parallelism.getValue().intValue());
 	}
 }

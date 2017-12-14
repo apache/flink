@@ -17,10 +17,10 @@
 
 package org.apache.flink.streaming.connectors.rabbitmq;
 
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A Sink for publishing data into RabbitMQ.
@@ -117,15 +118,19 @@ public class RMQSink<IN> extends RichSinkFunction<IN> {
 
 	@Override
 	public void close() {
-		IOException t = null;
+		Exception t = null;
 		try {
-			channel.close();
-		} catch (IOException e) {
+			if (channel != null) {
+				channel.close();
+			}
+		} catch (IOException | TimeoutException e) {
 			t = e;
 		}
 
 		try {
-			connection.close();
+			if (connection != null) {
+				connection.close();
+			}
 		} catch (IOException e) {
 			if (t != null) {
 				LOG.warn("Both channel and connection closing failed. Logging channel exception and failing with connection exception", t);

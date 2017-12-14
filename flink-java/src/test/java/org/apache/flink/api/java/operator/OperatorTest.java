@@ -23,12 +23,16 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.Operator;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
+
 import org.junit.Test;
 
 import java.lang.reflect.Method;
 
 import static org.junit.Assert.assertEquals;
 
+/**
+ * Tests for {@link Operator}.
+ */
 public class OperatorTest {
 
 	@Test

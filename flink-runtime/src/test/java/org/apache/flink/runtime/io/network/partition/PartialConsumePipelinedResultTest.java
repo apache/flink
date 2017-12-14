@@ -32,11 +32,13 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class PartialConsumePipelinedResultTest {
+public class PartialConsumePipelinedResultTest extends TestLogger {
 
 	// Test configuration
 	private final static int NUMBER_OF_TMS = 1;

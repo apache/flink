@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -72,7 +73,7 @@ public class AkkaRpcServiceUtils {
 	 * @throws Exception      Thrown is some other error occurs while creating akka actor system
 	 */
 	public static RpcService createRpcService(String hostname, int port, Configuration configuration) throws Exception {
-		LOG.info("Starting AkkaRpcService at {}.", NetUtils.hostAndPortToUrlString(hostname, port));
+		LOG.info("Starting AkkaRpcService at {}.", NetUtils.unresolvedHostAndPortToNormalizedString(hostname, port));
 
 		final ActorSystem actorSystem;
 
@@ -198,6 +199,20 @@ public class AkkaRpcServiceUtils {
 		} while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
 
 		return prefix + '_' + nameOffset;
+	}
+
+	/**
+	 * Extracts the hostname and the port of the remote actor system from the given Akka URL. The
+	 * result is an {@link InetSocketAddress} instance containing the extracted hostname and port. If
+	 * the Akka URL does not contain the hostname and port information, e.g. a local Akka URL is
+	 * provided, then an {@link Exception} is thrown.
+	 *
+	 * @param akkaURL The URL to extract the host and port from.
+	 * @return The InetSocketAddress with teh extracted host and port.
+	 * @throws Exception Thrown, if the given string does not represent a proper url
+	 */
+	public static InetSocketAddress createInetSocketAddressFromAkkaURL(String akkaURL) throws Exception {
+		return AkkaUtils.getInetSockeAddressFromAkkaURL(akkaURL);
 	}
 
 	// ------------------------------------------------------------------------

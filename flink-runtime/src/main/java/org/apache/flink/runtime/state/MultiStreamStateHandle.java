@@ -38,7 +38,7 @@ public class MultiStreamStateHandle implements StreamStateHandle {
 	private final List<StreamStateHandle> stateHandles;
 	private final long stateSize;
 
-	public MultiStreamStateHandle(List<StreamStateHandle> stateHandles) throws IOException {
+	public MultiStreamStateHandle(List<StreamStateHandle> stateHandles) {
 		this.stateHandles = Preconditions.checkNotNull(stateHandles);
 		long calculateSize = 0L;
 		for(StreamStateHandle stateHandle : stateHandles) {
@@ -60,6 +60,14 @@ public class MultiStreamStateHandle implements StreamStateHandle {
 	@Override
 	public long getStateSize() {
 		return stateSize;
+	}
+
+	@Override
+	public String toString() {
+		return "MultiStreamStateHandle{" +
+			"stateHandles=" + stateHandles +
+			", stateSize=" + stateSize +
+			'}';
 	}
 
 	static final class MultiFSDataInputStream extends AbstractMultiFSDataInputStream {

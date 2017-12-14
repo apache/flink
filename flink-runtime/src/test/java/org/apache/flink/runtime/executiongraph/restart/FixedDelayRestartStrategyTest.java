@@ -18,34 +18,75 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 
-import com.google.common.util.concurrent.MoreExecutors;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.junit.After;
 import org.junit.Test;
-import org.mockito.Mockito;
-import scala.concurrent.ExecutionContext$;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+/**
+ * Unit test for the {@link FixedDelayRestartStrategy}.
+ */
 public class FixedDelayRestartStrategyTest {
 
+	public final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
+
+	public final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
+
+	@After
+	public void shutdownExecutor() {
+		executorService.shutdownNow();
+	}
+
+	// ------------------------------------------------------------------------
+
 	@Test
-	public void testFixedDelayRestartStrategy() {
-		int numberRestarts = 10;
-		long restartDelay = 10;
+	public void testNumberOfRestarts() throws Exception {
+		final int numberRestarts = 10;
 
-		FixedDelayRestartStrategy fixedDelayRestartStrategy = new FixedDelayRestartStrategy(
-			numberRestarts,
-			restartDelay);
+		final FixedDelayRestartStrategy strategy =
+				new FixedDelayRestartStrategy(numberRestarts, 0L);
 
-		ExecutionGraph executionGraph = mock(ExecutionGraph.class);
-		when(executionGraph.getFutureExecutor())
-			.thenReturn(ExecutionContext$.MODULE$.fromExecutor(MoreExecutors.directExecutor()));
+		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
+			// two calls to 'canRestart()' to make sure this is not used to maintain the counter
+			assertTrue(strategy.canRestart());
+			assertTrue(strategy.canRestart());
 
-		while(fixedDelayRestartStrategy.canRestart()) {
-			fixedDelayRestartStrategy.restart(executionGraph);
+			strategy.restart(new NoOpRestarter(), executor);
 		}
 
-		Mockito.verify(executionGraph, Mockito.times(numberRestarts)).restart();
+		assertFalse(strategy.canRestart());
+	}
+
+	@Test
+	public void testDelay() throws Exception {
+		final long restartDelay = 10;
+		final int numberRestarts = 10;
+
+		final FixedDelayRestartStrategy strategy =
+				new FixedDelayRestartStrategy(numberRestarts, restartDelay);
+
+		for (int restartsLeft = numberRestarts; restartsLeft > 0; --restartsLeft) {
+			assertTrue(strategy.canRestart());
+
+			final OneShotLatch sync = new OneShotLatch();
+			final RestartCallback restarter = new LatchedRestarter(sync);
+
+			final long time = System.nanoTime();
+			strategy.restart(restarter, executor);
+			sync.await();
+
+			final long elapsed = System.nanoTime() - time;
+			assertTrue("Not enough delay", elapsed >= restartDelay * 1_000_000);
+		}
+
+		assertFalse(strategy.canRestart());
 	}
 }

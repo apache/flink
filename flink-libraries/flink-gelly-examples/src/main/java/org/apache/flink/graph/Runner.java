@@ -53,17 +53,21 @@ import org.apache.flink.graph.drivers.parameter.BooleanParameter;
 import org.apache.flink.graph.drivers.parameter.Parameterized;
 import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 import org.apache.flink.graph.drivers.parameter.StringParameter;
+import org.apache.flink.graph.drivers.transform.Transform;
+import org.apache.flink.graph.drivers.transform.Transformable;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.InstantiationUtil;
 
-import com.fasterxml.jackson.core.JsonEncoding;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonEncoding;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+
 import org.apache.commons.lang3.text.StrBuilder;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -120,12 +124,29 @@ extends ParameterizedBase {
 		.addClass(Hash.class)
 		.addClass(Print.class);
 
+	// parameters
+
 	private final ParameterTool parameters;
 
 	private final BooleanParameter disableObjectReuse = new BooleanParameter(this, "__disable_object_reuse");
 
 	private final StringParameter jobDetailsPath = new StringParameter(this, "__job_details_path")
 		.setDefaultValue(null);
+
+	private StringParameter jobName = new StringParameter(this, "__job_name")
+		.setDefaultValue(null);
+
+	// state
+
+	private ExecutionEnvironment env;
+
+	private DataSet result;
+
+	private String executionName;
+
+	private Driver algorithm;
+
+	private Output output;
 
 	/**
 	 * Create an algorithm runner from the given arguments.
@@ -139,6 +160,26 @@ extends ParameterizedBase {
 	@Override
 	public String getName() {
 		return this.getClass().getSimpleName();
+	}
+
+	/**
+	 * Get the ExecutionEnvironment. The ExecutionEnvironment is only available
+	 * after calling {@link Runner#run()}.
+	 *
+	 * @return the ExecutionEnvironment
+	 */
+	public ExecutionEnvironment getExecutionEnvironment() {
+		return env;
+	}
+
+	/**
+	 * Get the result DataSet. The result is only available after calling
+	 * {@link Runner#run()}.
+	 *
+	 * @return the result DataSet
+	 */
+	public DataSet getResult() {
+		return result;
 	}
 
 	/**
@@ -225,9 +266,32 @@ extends ParameterizedBase {
 			.toString();
 	}
 
-	public void run() throws Exception {
+	/**
+	 * Configure a runtime component. Catch {@link RuntimeException} and
+	 * re-throw with a Flink internal exception which is processed by
+	 * CliFrontend for display to the user.
+	 *
+	 * @param parameterized the component to be configured
+	 */
+	private void parameterize(Parameterized parameterized) {
+		try {
+			parameterized.configure(parameters);
+		} catch (RuntimeException ex) {
+			throw new ProgramParametrizationException(ex.getMessage());
+		}
+	}
+
+	/**
+	 * Setup the Flink job with the graph input, algorithm, and output.
+	 *
+	 * <p>To then execute the job call {@link #execute}.
+	 *
+	 * @return this
+	 * @throws Exception on error
+	 */
+	public Runner run() throws Exception {
 		// Set up the execution environment
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env = ExecutionEnvironment.getExecutionEnvironment();
 		ExecutionConfig config = env.getConfig();
 
 		// should not have any non-Flink data types
@@ -235,6 +299,7 @@ extends ParameterizedBase {
 		config.disableForceKryo();
 
 		config.setGlobalJobParameters(parameters);
+		parameterize(this);
 
 		// configure local parameters and throw proper exception on error
 		try {
@@ -260,7 +325,7 @@ extends ParameterizedBase {
 		}
 
 		String algorithmName = parameters.get(ALGORITHM);
-		Driver algorithm = driverFactory.get(algorithmName);
+		algorithm = driverFactory.get(algorithmName);
 
 		if (algorithm == null) {
 			throw new ProgramParametrizationException("Unknown algorithm name: " + algorithmName);
@@ -275,11 +340,7 @@ extends ParameterizedBase {
 			throw new ProgramParametrizationException("No input given");
 		}
 
-		try {
-			algorithm.configure(parameters);
-		} catch (RuntimeException ex) {
-			throw new ProgramParametrizationException(ex.getMessage());
-		}
+		parameterize(algorithm);
 
 		String inputName = parameters.get(INPUT);
 		Input input = inputFactory.get(inputName);
@@ -288,11 +349,7 @@ extends ParameterizedBase {
 			throw new ProgramParametrizationException("Unknown input type: " + inputName);
 		}
 
-		try {
-			input.configure(parameters);
-		} catch (RuntimeException ex) {
-			throw new ProgramParametrizationException(ex.getMessage());
-		}
+		parameterize(input);
 
 		// output and usage
 		if (!parameters.has(OUTPUT)) {
@@ -300,7 +357,67 @@ extends ParameterizedBase {
 		}
 
 		String outputName = parameters.get(OUTPUT);
-		Output output = outputFactory.get(outputName);
+		output = outputFactory.get(outputName);
+
+		if (output == null) {
+			throw new ProgramParametrizationException("Unknown output type: " + outputName);
+		}
+
+		parameterize(output);
+
+		// ----------------------------------------------------------------------------------------
+		// Create list of input and algorithm transforms
+		// ----------------------------------------------------------------------------------------
+
+		List<Transform> transforms = new ArrayList<>();
+
+		if (input instanceof Transformable) {
+			transforms.addAll(((Transformable) input).getTransformers());
+		}
+
+		if (algorithm instanceof Transformable) {
+			transforms.addAll(((Transformable) algorithm).getTransformers());
+		}
+
+		for (Transform transform : transforms) {
+			parameterize(transform);
+		}
+
+		// unused parameters
+		if (parameters.getUnrequestedParameters().size() > 0) {
+			throw new ProgramParametrizationException("Unrequested parameters: " + parameters.getUnrequestedParameters());
+		}
+
+		// ----------------------------------------------------------------------------------------
+		// Execute
+		// ----------------------------------------------------------------------------------------
+
+		// Create input
+		Graph graph = input.create(env);
+
+		// Transform input
+		for (Transform transform : transforms) {
+			graph = (Graph) transform.transformInput(graph);
+		}
+
+		// Run algorithm
+		result = algorithm.plan(graph);
+
+		// Output
+		executionName = jobName.getValue() != null ? jobName.getValue() + ": " : "";
+
+		executionName += input.getIdentity() + " ⇨ " + algorithmName + " ⇨ " + output.getName();
+
+		if (transforms.size() > 0) {
+			// append identifiers to job name
+			StringBuffer buffer = new StringBuffer(executionName).append(" [");
+
+			for (Transform transform : transforms) {
+				buffer.append(transform.getIdentity());
+			}
+
+			executionName = buffer.append("]").toString();
+		}
 
 		if (output == null) {
 			throw new ProgramParametrizationException("Unknown output type: " + outputName);
@@ -312,27 +429,32 @@ extends ParameterizedBase {
 			throw new ProgramParametrizationException(ex.getMessage());
 		}
 
-		// ----------------------------------------------------------------------------------------
-		// Execute
-		// ----------------------------------------------------------------------------------------
-
-		// Create input
-		Graph graph = input.create(env);
-
-		// Run algorithm
-		DataSet results = algorithm.plan(graph);
-
-		// Output
-		String executionName = input.getIdentity() + " ⇨ " + algorithmName + " ⇨ " + output.getName();
-
-		System.out.println();
-
-		if (results == null) {
-			env.execute(executionName);
-		} else {
-			output.write(executionName, System.out, results);
+		if (result != null) {
+			// Transform output if algorithm returned result DataSet
+			if (transforms.size() > 0) {
+				Collections.reverse(transforms);
+				for (Transform transform : transforms) {
+					result = (DataSet) transform.transformResult(result);
+				}
+			}
 		}
 
+		return this;
+	}
+
+	/**
+	 * Execute the Flink job.
+	 *
+	 * @throws Exception on error
+	 */
+	private void execute() throws Exception {
+		if (result == null) {
+			env.execute(executionName);
+		} else {
+			output.write(executionName.toString(), System.out, result);
+		}
+
+		System.out.println();
 		algorithm.printAnalytics(System.out);
 
 		if (jobDetailsPath.getValue() != null) {
@@ -382,7 +504,7 @@ extends ParameterizedBase {
 	}
 
 	public static void main(String[] args) throws Exception {
-		new Runner(args).run();
+		new Runner(args).run().execute();
 	}
 
 	/**

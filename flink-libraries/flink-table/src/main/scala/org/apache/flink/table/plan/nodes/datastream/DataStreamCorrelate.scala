@@ -50,7 +50,7 @@ class DataStreamCorrelate(
   with CommonCorrelate
   with DataStreamRel {
 
-  override def deriveRowType() = schema.logicalType
+  override def deriveRowType() = schema.relDataType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamCorrelate(
@@ -69,7 +69,7 @@ class DataStreamCorrelate(
   override def toString: String = {
     val rexCall = scan.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    correlateToString(rexCall, sqlFunction)
+    correlateToString(inputSchema.relDataType, rexCall, sqlFunction, getExpressionString)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -77,8 +77,12 @@ class DataStreamCorrelate(
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     super.explainTerms(pw)
       .item("invocation", scan.getCall)
-      .item("function", sqlFunction.getTableFunction.getClass.getCanonicalName)
-      .item("rowType", schema.logicalType)
+      .item("correlate", correlateToString(
+        inputSchema.relDataType,
+        rexCall, sqlFunction,
+        getExpressionString))
+      .item("select", selectToString(schema.relDataType))
+      .item("rowType", schema.relDataType)
       .item("joinType", joinType)
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
@@ -130,7 +134,13 @@ class DataStreamCorrelate(
       .process(processFunc)
       // preserve input parallelism to ensure that acc and retract messages remain in order
       .setParallelism(inputParallelism)
-      .name(correlateOpName(rexCall, sqlFunction, schema.logicalType))
+      .name(correlateOpName(
+        inputSchema.relDataType,
+        rexCall,
+        sqlFunction,
+        schema.relDataType,
+        getExpressionString)
+      )
   }
 
 }

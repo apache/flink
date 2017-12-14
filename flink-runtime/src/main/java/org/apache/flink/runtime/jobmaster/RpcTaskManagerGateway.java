@@ -19,10 +19,9 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -34,7 +33,7 @@ import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
 
-import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Implementation of the {@link TaskManagerGateway} for Flink's RPC system
@@ -43,11 +42,11 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 
 	private final TaskExecutorGateway taskExecutorGateway;
 
-	private final UUID leaderId;
+	private final JobMasterId jobMasterId;
 
-	public RpcTaskManagerGateway(TaskExecutorGateway taskExecutorGateway, UUID leaderId) {
+	public RpcTaskManagerGateway(TaskExecutorGateway taskExecutorGateway, JobMasterId jobMasterId) {
 		this.taskExecutorGateway = Preconditions.checkNotNull(taskExecutorGateway);
-		this.leaderId = Preconditions.checkNotNull(leaderId);
+		this.jobMasterId = Preconditions.checkNotNull(jobMasterId);
 	}
 
 	@Override
@@ -68,47 +67,40 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public Future<StackTrace> requestStackTrace(Time timeout) {
+	public CompletableFuture<StackTrace> requestStackTrace(Time timeout) {
 //		return taskExecutorGateway.requestStackTrace(timeout);
 		throw new UnsupportedOperationException("Operation is not yet supported.");
 	}
 
 	@Override
-	public Future<StackTraceSampleResponse> requestStackTraceSample(
+	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
 			ExecutionAttemptID executionAttemptID,
 			int sampleId,
 			int numSamples,
 			Time delayBetweenSamples,
 			int maxStackTraceDepth,
 			Time timeout) {
-//		return taskExecutorGateway.requestStackTraceSample(
-//			executionAttemptID,
-//			sampleId,
-//			numSamples,
-//			delayBetweenSamples,
-//			maxStackTraceDepth,
-//			timeout);
 
 		throw new UnsupportedOperationException("Operation is not yet supported.");
 	}
 
 	@Override
-	public Future<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-		return taskExecutorGateway.submitTask(tdd, leaderId, timeout);
+	public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+		return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);
 	}
 
 	@Override
-	public Future<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+	public CompletableFuture<Acknowledge> stopTask(ExecutionAttemptID executionAttemptID, Time timeout) {
 		return taskExecutorGateway.stopTask(executionAttemptID, timeout);
 	}
 
 	@Override
-	public Future<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
+	public CompletableFuture<Acknowledge> cancelTask(ExecutionAttemptID executionAttemptID, Time timeout) {
 		return taskExecutorGateway.cancelTask(executionAttemptID, timeout);
 	}
 
 	@Override
-	public Future<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
+	public CompletableFuture<Acknowledge> updatePartitions(ExecutionAttemptID executionAttemptID, Iterable<PartitionInfo> partitionInfos, Time timeout) {
 		return taskExecutorGateway.updatePartitions(executionAttemptID, partitionInfos, timeout);
 	}
 
@@ -130,13 +122,13 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
 	}
 
 	@Override
-	public Future<BlobKey> requestTaskManagerLog(Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerLog(Time timeout) {
 //		return taskExecutorGateway.requestTaskManagerLog(timeout);
 		throw new UnsupportedOperationException("Operation is not yet supported.");
 	}
 
 	@Override
-	public Future<BlobKey> requestTaskManagerStdout(Time timeout) {
+	public CompletableFuture<TransientBlobKey> requestTaskManagerStdout(Time timeout) {
 //		return taskExecutorGateway.requestTaskManagerStdout(timeout);
 		throw new UnsupportedOperationException("Operation is not yet supported.");
 	}

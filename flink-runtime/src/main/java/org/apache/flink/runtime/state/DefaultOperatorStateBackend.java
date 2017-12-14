@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
@@ -34,11 +33,13 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.checkpoint.AbstractAsyncSnapshotIOCallable;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.io.async.AbstractAsyncCallableWithResources;
 import org.apache.flink.runtime.io.async.AsyncStoppableTaskWithCallback;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
+
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,16 +226,42 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		}
 
 		// implementation of the async IO operation, based on FutureTask
-		final AbstractAsyncSnapshotIOCallable<OperatorStateHandle> ioCallable =
-			new AbstractAsyncSnapshotIOCallable<OperatorStateHandle>(
-				checkpointId,
-				timestamp,
-				streamFactory,
-				closeStreamOnCancelRegistry) {
+		final AbstractAsyncCallableWithResources<OperatorStateHandle> ioCallable =
+			new AbstractAsyncCallableWithResources<OperatorStateHandle>() {
+
+				CheckpointStreamFactory.CheckpointStateOutputStream out = null;
+
+				@Override
+				protected void acquireResources() throws Exception {
+					openOutStream();
+				}
+
+				@Override
+				protected void releaseResources() throws Exception {
+					closeOutStream();
+				}
+
+				@Override
+				protected void stopOperation() throws Exception {
+					closeOutStream();
+				}
+
+				private void openOutStream() throws Exception {
+					out = streamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+					closeStreamOnCancelRegistry.registerCloseable(out);
+				}
+
+				private void closeOutStream() {
+					if (closeStreamOnCancelRegistry.unregisterCloseable(out)) {
+						IOUtils.closeQuietly(out);
+					}
+				}
 
 				@Override
 				public OperatorStateHandle performOperation() throws Exception {
 					long asyncStartTime = System.currentTimeMillis();
+
+					CheckpointStreamFactory.CheckpointStateOutputStream localOut = this.out;
 
 					final Map<String, OperatorStateHandle.StateMetaInfo> writtenStatesMetaData =
 						new HashMap<>(registeredStatesDeepCopies.size());
@@ -246,8 +273,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 						metaInfoSnapshots.add(entry.getValue().getStateMetaInfo().snapshot());
 					}
 
-					CheckpointStreamFactory.CheckpointStateOutputStream out = getIoHandle();
-					DataOutputView dov = new DataOutputViewStreamWrapper(out);
+					DataOutputView dov = new DataOutputViewStreamWrapper(localOut);
 
 					OperatorBackendSerializationProxy backendSerializationProxy =
 						new OperatorBackendSerializationProxy(metaInfoSnapshots);
@@ -260,25 +286,30 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 						registeredStatesDeepCopies.entrySet()) {
 
 						PartitionableListState<?> value = entry.getValue();
-						long[] partitionOffsets = value.write(out);
+						long[] partitionOffsets = value.write(localOut);
 						OperatorStateHandle.Mode mode = value.getStateMetaInfo().getAssignmentMode();
 						writtenStatesMetaData.put(
 							entry.getKey(),
 							new OperatorStateHandle.StateMetaInfo(partitionOffsets, mode));
 					}
 
-					StreamStateHandle stateHandle = closeStreamAndGetStateHandle();
+					OperatorStateHandle retValue = null;
+
+					if (closeStreamOnCancelRegistry.unregisterCloseable(out)) {
+
+						StreamStateHandle stateHandle = out.closeAndGetHandle();
+
+						if (stateHandle != null) {
+							retValue = new OperatorStateHandle(writtenStatesMetaData, stateHandle);
+						}
+					}
 
 					if (asynchronousSnapshots) {
 						LOG.info("DefaultOperatorStateBackend snapshot ({}, asynchronous part) in thread {} took {} ms.",
 							streamFactory, Thread.currentThread(), (System.currentTimeMillis() - asyncStartTime));
 					}
 
-					if (stateHandle == null) {
-						return null;
-					}
-
-					return new OperatorStateHandle(writtenStatesMetaData, stateHandle);
+					return retValue;
 				}
 			};
 
@@ -308,7 +339,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			}
 
 			FSDataInputStream in = stateHandle.openInputStream();
-			closeStreamOnCancelRegistry.registerClosable(in);
+			closeStreamOnCancelRegistry.registerCloseable(in);
 
 			ClassLoader restoreClassLoader = Thread.currentThread().getContextClassLoader();
 
@@ -370,8 +401,9 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 
 			} finally {
 				Thread.currentThread().setContextClassLoader(restoreClassLoader);
-				closeStreamOnCancelRegistry.unregisterClosable(in);
-				IOUtils.closeQuietly(in);
+				if (closeStreamOnCancelRegistry.unregisterCloseable(in)) {
+					IOUtils.closeQuietly(in);
+				}
 			}
 		}
 	}

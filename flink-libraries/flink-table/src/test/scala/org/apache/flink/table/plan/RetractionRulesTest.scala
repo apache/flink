@@ -86,22 +86,18 @@ class RetractionRulesTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamGroupAggregate",
         unaryNode(
-          "DataStreamGroupAggregate",
+          "DataStreamCalc",
           unaryNode(
-            "DataStreamCalc",
-            unaryNode(
-              "DataStreamGroupAggregate",
-              "DataStreamScan(true, Acc)",
-              "true, AccRetract"
-            ),
+            "DataStreamGroupAggregate",
+            "DataStreamScan(true, Acc)",
             "true, AccRetract"
           ),
-          s"$defaultStatus"
+          "true, AccRetract"
         ),
         s"$defaultStatus"
-      )
+     )
 
     util.verifyTableTrait(resultTable, expected)
   }
@@ -253,28 +249,20 @@ class RetractionRulesTest extends TableTestBase {
 
     val expected =
       unaryNode(
-        "DataStreamCalc",
+        "DataStreamGroupAggregate",
         unaryNode(
-          "DataStreamGroupAggregate",
-          unaryNode(
-            "DataStreamCalc",
-            binaryNode(
-              "DataStreamUnion",
-              unaryNode(
-                "DataStreamCalc",
-                unaryNode(
-                  "DataStreamGroupAggregate",
-                  "DataStreamScan(true, Acc)",
-                  "true, AccRetract"
-                ),
-                "true, AccRetract"
-              ),
+          "DataStreamCalc",
+          binaryNode(
+            "DataStreamUnion",
+            unaryNode(
+              "DataStreamGroupAggregate",
               "DataStreamScan(true, Acc)",
               "true, AccRetract"
             ),
+            "DataStreamScan(true, Acc)",
             "true, AccRetract"
           ),
-          s"$defaultStatus"
+          "true, AccRetract"
         ),
         s"$defaultStatus"
       )
@@ -286,7 +274,7 @@ class RetractionRulesTest extends TableTestBase {
 class StreamTableTestForRetractionUtil extends StreamTableTestUtil {
 
   def verifySqlTrait(query: String, expected: String): Unit = {
-    verifyTableTrait(tableEnv.sql(query), expected)
+    verifyTableTrait(tableEnv.sqlQuery(query), expected)
   }
 
   def verifyTableTrait(resultTable: Table, expected: String): Unit = {

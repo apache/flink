@@ -19,6 +19,7 @@
 package org.apache.flink.client.deployment;
 
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
  * A descriptor to deploy a cluster (e.g. Yarn or Mesos) and return a Client for Cluster communication.
@@ -41,8 +42,21 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> {
 
 	/**
 	 * Triggers deployment of a cluster.
+	 * @param clusterSpecification Cluster specification defining the cluster to deploy
 	 * @return Client for the cluster
 	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */
-	ClientType deploy() throws UnsupportedOperationException;
+	ClientType deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException;
+
+	/**
+	 * Deploys a per-job cluster with the given job on the cluster.
+	 *
+	 * @param clusterSpecification Initial cluster specification with which the Flink cluster is launched
+	 * @param jobGraph JobGraph with which the job cluster is started
+	 * @return Cluster client to talk to the Flink cluster
+	 * @throws ClusterDeploymentException if the cluster could not be deployed
+	 */
+	ClientType deployJobCluster(
+		final ClusterSpecification clusterSpecification,
+		final JobGraph jobGraph);
 }

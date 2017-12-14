@@ -71,7 +71,7 @@ historyserver.archive.fs.refresh-interval: 10000
 
 The contained archives are downloaded and cached in the local filesystem. The local directory for this is configured via `historyserver.web.tmpdir`.
 
-Check out the configuration page for a [complete list of configuration options]({{ site.baseurl }}/setup/config.html#history-server).
+Check out the configuration page for a [complete list of configuration options]({{ site.baseurl }}/ops/config.html#history-server).
 
 ## Available Requests
 
@@ -80,7 +80,7 @@ Below is a list of available requests, with a sample JSON response. All requests
 Values in angle brackets are variables, for example `http://hostname:port/jobs/<jobid>/exceptions` will have to requested for example as `http://hostname:port/jobs/7684be6004e4e955c2a558a9bc463f65/exceptions`.
 
   - `/config`
-  - `/joboverview`
+  - `/jobs/overview`
   - `/jobs/<jobid>`
   - `/jobs/<jobid>/vertices`
   - `/jobs/<jobid>/config`
@@ -95,3 +95,5 @@ Values in angle brackets are variables, for example `http://hostname:port/jobs/<
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/<subtasknum>/attempts/<attempt>/accumulators`
   - `/jobs/<jobid>/plan`
+
+{% top %}

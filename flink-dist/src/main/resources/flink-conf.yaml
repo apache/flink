@@ -74,7 +74,7 @@ parallelism.default: 1
 # The port under which the web-based runtime monitor listens.
 # A value of -1 deactivates the web server.
 
-jobmanager.web.port: 8081
+web.port: 8081
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
@@ -118,7 +118,7 @@ jobmanager.web.port: 8081
 # Directory for storing checkpoints in a Flink-supported filesystem
 # Note: State backend must be accessible from the JobManager and all TaskManagers.
 # Use "hdfs://" for HDFS setups, "file://" for UNIX/POSIX-compliant file systems,
-# (or any local file system under Windows), or "S3://" for S3 file system.
+# (or any local file system under Windows), or "s3://" with lower case 's' for S3 file system.
 #
 # state.backend.fs.checkpointdir: hdfs://namenode-host:port/flink-checkpoints
 
@@ -150,6 +150,9 @@ jobmanager.web.port: 8081
 
 
 # Path to the Hadoop configuration directory.
+#
+# Note: these keys are deprecated and it is recommended to configure the Hadoop
+# path with the environment variable 'HADOOP_CONF_DIR' instead.
 #
 # This configuration is used when writing into HDFS. Unless specified otherwise,
 # HDFS file creation will use HDFS default settings with respect to block-size,

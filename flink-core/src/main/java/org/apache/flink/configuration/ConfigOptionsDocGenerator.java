@@ -156,7 +156,7 @@ public class ConfigOptionsDocGenerator {
 		// This is a temporary hack that should be removed once FLINK-6490 is resolved.
 		// These options use System.getProperty("java.io.tmpdir") as the default.
 		// As a result the generated table contains an actual path as the default, which is simply wrong.
-		if (option == JobManagerOptions.WEB_TMP_DIR || option.key().equals("python.dc.tmp.dir")) {
+		if (option == WebOptions.TMP_DIR || option.key().equals("python.dc.tmp.dir")) {
 			defaultValue = null;
 		}
 		return "<tr>" +

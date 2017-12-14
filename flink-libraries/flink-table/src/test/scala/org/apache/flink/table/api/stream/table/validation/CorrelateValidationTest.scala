@@ -21,7 +21,6 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils._
-import org.apache.flink.table.runtime.utils._
 import org.apache.flink.table.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
@@ -87,13 +86,13 @@ class CorrelateValidationTest extends TableTestBase {
 
     // table function call limit
     expectExceptionThrown(
-      func1('c).orderBy('f0).limit(3),
+      func1('c).orderBy('f0).offset(3),
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
     // table function call limit
     expectExceptionThrown(
-      func1('c).orderBy('f0).limit(0, 3),
+      func1('c).orderBy('f0).fetch(3),
       "TableFunction can only be used in join and leftOuterJoin."
     )
 
@@ -145,7 +144,7 @@ class CorrelateValidationTest extends TableTestBase {
       ), "Undefined function: NONEXIST")
     // SQL API call
     expectExceptionThrown(
-      util.tableEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
+      util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
       "No match found for function signature nonexist(<NUMERIC>)")
 
 
@@ -160,7 +159,7 @@ class CorrelateValidationTest extends TableTestBase {
     // SQL API call
     // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(
-      util.tableEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(func0(a))"),
+      util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func0(a))"),
       null,
       classOf[AssertionError])
 
@@ -172,8 +171,24 @@ class CorrelateValidationTest extends TableTestBase {
       "Given parameters of function 'FUNC2' do not match any signature")
     // SQL API call
     expectExceptionThrown(
-      util.tableEnv.sql("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
-      "No match found for function signature func2(<CHARACTER>, <CHARACTER>)")
+      util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
+      "Given parameters of function 'func2' do not match any signature.")
+  }
+
+  /**
+    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+    * join predicate can only be empty or literal true (the restriction should be removed in
+    * FLINK-7865).
+    */
+  @Test (expected = classOf[ValidationException])
+  def testLeftOuterJoinWithPredicates(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = util.addFunction("func1", new TableFunc1)
+
+    val result = table.leftOuterJoin(function('c) as 's, 'c === 's).select('c, 's).where('a > 10)
+
+    util.verifyTable(result, "")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -196,5 +211,4 @@ class CorrelateValidationTest extends TableTestBase {
       case e: Throwable => fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
     }
   }
-
 }

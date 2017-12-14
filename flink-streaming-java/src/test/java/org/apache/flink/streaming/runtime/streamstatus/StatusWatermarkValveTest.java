@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.streamstatus;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 
 import org.junit.Test;
 
@@ -26,6 +27,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -43,355 +45,379 @@ import static org.junit.Assert.assertTrue;
 public class StatusWatermarkValveTest {
 
 	/**
-	 * Tests that all input channels of a valve start as ACTIVE stream status.
+	 * Tests that watermarks correctly advance with increasing watermarks for a single input valve.
 	 */
 	@Test
-	public void testAllInputChannelsStartAsActive() {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
-		StatusWatermarkValve valve = new StatusWatermarkValve(4, valveOutput);
-
-		// ------------------------------------------------------------------------
-		//  Ensure that the valve will output an IDLE stream status as soon as
-		//  all input channels become IDLE; this also implicitly ensures that
-		//  all input channels start as ACTIVE.
-		// ------------------------------------------------------------------------
-
-		valve.inputStreamStatus(StreamStatus.IDLE, 3);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputStreamStatus(StreamStatus.IDLE, 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputStreamStatus(StreamStatus.IDLE, 1);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputStreamStatus(StreamStatus.IDLE, 2);
-		assertEquals(StreamStatus.IDLE, valveOutput.popLastOutputStreamStatus());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-	}
-
-	/**
-	 * Tests that valves work as expected when they handle only 1 input channel.
-	 * Tested behaviours are explained as inline comments.
-	 */
-	@Test
-	public void testOneInputValve() {
+	public void testSingleInputIncreasingWatermarks() {
 		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
-		// start off with an ACTIVE status; since the valve should initially start as ACTIVE,
-		// no state change is toggled, therefore no stream status should be emitted
-		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// input some monotonously increasing watermarks while ACTIVE;
-		// the exact same watermarks should be emitted right after the inputs
 		valve.inputWatermark(new Watermark(0), 0);
-		assertEquals(new Watermark(0), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		assertEquals(new Watermark(0), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
 		valve.inputWatermark(new Watermark(25), 0);
-		assertEquals(new Watermark(25), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// decreasing watermarks should not result in any output
-		valve.inputWatermark(new Watermark(18), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(42), 0);
-		assertEquals(new Watermark(42), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// toggling ACTIVE to IDLE should result in an IDLE stream status output
-		valve.inputStreamStatus(StreamStatus.IDLE, 0);
-		assertEquals(StreamStatus.IDLE, valveOutput.popLastOutputStreamStatus());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// watermark inputs should be ignored while all input channels (only 1 in this case) are IDLE
-		valve.inputWatermark(new Watermark(52), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(60), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// no status change toggle while IDLE should result in stream status outputs
-		valve.inputStreamStatus(StreamStatus.IDLE, 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// toggling IDLE to ACTIVE should result in an ACTIVE stream status output
-		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
-		assertEquals(StreamStatus.ACTIVE, valveOutput.popLastOutputStreamStatus());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// the valve should remember the last watermark input channels received while they were ACTIVE (which was 42);
-		// decreasing watermarks should therefore still be ignored, even after a status toggle
-		valve.inputWatermark(new Watermark(40), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// monotonously increasing watermarks after resuming to be ACTIVE should be output normally
-		valve.inputWatermark(new Watermark(68), 0);
-		assertEquals(new Watermark(68), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(72), 0);
-		assertEquals(new Watermark(72), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		assertEquals(new Watermark(25), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
 	}
 
 	/**
-	 * Tests that valves work as expected when they handle multiple input channels (tested with 3).
-	 * Tested behaviours are explained as inline comments.
+	 * Tests that watermarks do not advance with decreasing watermark inputs for a single input valve.
 	 */
 	@Test
-	public void testMultipleInputValve() {
+	public void testSingleInputDecreasingWatermarksYieldsNoOutput() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
+
+		valve.inputWatermark(new Watermark(25), 0);
+		assertEquals(new Watermark(25), valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(18), 0);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(42), 0);
+		assertEquals(new Watermark(42), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that stream status toggling works correctly, as well as that non-toggling status
+	 * inputs do not yield output for a single input valve.
+	 */
+	@Test
+	public void testSingleInputStreamStatusToggling() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
+
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
+		// this also implicitly verifies that input channels start as ACTIVE
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		assertEquals(StreamStatus.IDLE, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
+		assertEquals(StreamStatus.ACTIVE, valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that the watermark of an input channel remains intact while in the IDLE status.
+	 */
+	@Test
+	public void testSingleInputWatermarksIntactDuringIdleness() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
+
+		valve.inputWatermark(new Watermark(25), 0);
+		assertEquals(new Watermark(25), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		assertEquals(StreamStatus.IDLE, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(50), 0);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+		assertEquals(25, valve.getInputChannelStatus(0).watermark);
+
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
+		assertEquals(StreamStatus.ACTIVE, valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(50), 0);
+		assertEquals(new Watermark(50), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that the valve yields a watermark only when all inputs have received a watermark.
+	 */
+	@Test
+	public void testMultipleInputYieldsWatermarkOnlyWhenAllChannelsReceivesWatermarks() {
 		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
-		// ------------------------------------------------------------------------
-		//  Ensure that watermarks are output only when all
-		//  channels have been input some watermark.
-		// ------------------------------------------------------------------------
+		valve.inputWatermark(new Watermark(0), 0);
+		valve.inputWatermark(new Watermark(0), 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// now, all channels have watermarks
+		valve.inputWatermark(new Watermark(0), 2);
+		assertEquals(new Watermark(0), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that new min watermark is emitted from the valve as soon as the overall
+	 * new min watermark across inputs advances.
+	 */
+	@Test
+	public void testMultipleInputIncreasingWatermarks() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
 		valve.inputWatermark(new Watermark(0), 1);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
 		valve.inputWatermark(new Watermark(0), 2);
-		assertEquals(new Watermark(0), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// ------------------------------------------------------------------------
-		//  Ensure that watermarks are output as soon as the overall min
-		//  watermark across all channels have advanced.
-		// ------------------------------------------------------------------------
+		assertEquals(new Watermark(0), valveOutput.popLastSeenOutput());
 
 		valve.inputWatermark(new Watermark(12), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
 		valve.inputWatermark(new Watermark(8), 2);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
 		valve.inputWatermark(new Watermark(10), 2);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
 		valve.inputWatermark(new Watermark(15), 1);
 		// lowest watermark across all channels is now channel 2, with watermark @ 10
-		assertEquals(new Watermark(10), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		assertEquals(new Watermark(10), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
-		// ------------------------------------------------------------------------
-		//  Ensure that decreasing watermarks are ignored
-		// ------------------------------------------------------------------------
+		valve.inputWatermark(new Watermark(17), 2);
+		// lowest watermark across all channels is now channel 0, with watermark @ 12
+		assertEquals(new Watermark(12), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
-		valve.inputWatermark(new Watermark(6), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputWatermark(new Watermark(20), 0);
+		// lowest watermark across all channels is now channel 1, with watermark @ 15
+		assertEquals(new Watermark(15), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
 
-		// ------------------------------------------------------------------------
-		//  Ensure that when some input channel becomes idle, that channel will
-		//  no longer be accounted for when advancing the watermark.
-		// ------------------------------------------------------------------------
-
-		// marking channel 2 as IDLE shouldn't result in overall status toggle for the valve,
-		// because there are still other active channels (0 and 1), so there should not be any
-		// stream status outputs;
-		// also, now that channel 2 is IDLE, the overall min watermark is 12 (from channel 0),
-		// so the valve should output that
-		valve.inputStreamStatus(StreamStatus.IDLE, 2);
-		assertEquals(new Watermark(12), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// from now on, since channel 2 is IDLE, the valve should use watermarks only from
-		// channel 0 and 1 to find the min watermark, even if channel 2 has the lowest watermark (10)
-		valve.inputWatermark(new Watermark(17), 0);
-		assertEquals(new Watermark(15), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+	/**
+	 * Tests that for a multiple input valve, decreasing watermarks will yield no output.
+	 */
+	@Test
+	public void testMultipleInputDecreasingWatermarksYieldsNoOutput() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputWatermark(new Watermark(10), 1);
+		valve.inputWatermark(new Watermark(17), 2);
+		assertEquals(new Watermark(10), valveOutput.popLastSeenOutput());
 
-		valve.inputWatermark(new Watermark(20), 1);
-		assertEquals(new Watermark(20), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputWatermark(new Watermark(12), 0);
+		valve.inputWatermark(new Watermark(8), 1);
+		valve.inputWatermark(new Watermark(15), 2);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
 
-		// ------------------------------------------------------------------------
-		//  Ensure that after some channel resumes to be ACTIVE, it needs to
-		//  catch up" with the current overall min watermark before it can be
-		//  accounted for again when finding the min watermark across channels.
-		//  Also tests that before the resumed channel catches up, the overall
-		//  min watermark can still advance with watermarks of other channels.
-		// ------------------------------------------------------------------------
+	/**
+	 * Tests that stream status toggling works correctly, as well as that non-toggling status
+	 * inputs do not yield output for a multiple input valve.
+	 */
+	@Test
+	public void testMultipleInputStreamStatusToggling() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(2, valveOutput);
 
-		// resuming channel 2 to be ACTIVE shouldn't result in overall status toggle for the valve,
-		// because the valve wasn't overall IDLE, so there should not be any stream status outputs;
-		valve.inputStreamStatus(StreamStatus.ACTIVE, 2);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// although watermarks for channel 2 will now be accepted, it still
-		// hasn't caught up with the overall min watermark (20)
-		valve.inputWatermark(new Watermark(18), 2);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// since channel 2 hasn't caught up yet, it is still ignored when advancing new min watermarks
-		valve.inputWatermark(new Watermark(22), 1);
-		assertEquals(new Watermark(22), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(28), 0);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(33), 1);
-		assertEquals(new Watermark(28), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// now, channel 2 has caught up with the overall min watermark
-		valve.inputWatermark(new Watermark(30), 2);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(31), 0);
-		// this acknowledges that channel 2's watermark is being accounted for again
-		assertEquals(new Watermark(30), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputWatermark(new Watermark(34), 2);
-		assertEquals(new Watermark(31), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// ------------------------------------------------------------------------
-		//  Ensure that once all channels are IDLE, the valve should also
-		//  determine itself to be IDLE output a IDLE stream status
-		// ------------------------------------------------------------------------
-
-		valve.inputStreamStatus(StreamStatus.IDLE, 0);
-		// this is because once channel 0 becomes IDLE,
-		// the new min watermark will be 33 (channel 1)
-		assertEquals(new Watermark(33), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		valve.inputStreamStatus(StreamStatus.IDLE, 2);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		// this also implicitly verifies that all input channels start as active
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
 		valve.inputStreamStatus(StreamStatus.IDLE, 1);
-		assertEquals(StreamStatus.IDLE, valveOutput.popLastOutputStreamStatus());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
-		// ------------------------------------------------------------------------
-		//  Ensure that channels gradually become ACTIVE again, the above behaviours
-		//  still hold. Also ensure that as soon as one of the input channels
-		//  become ACTIVE, the valve is ACTIVE again and outputs an ACTIVE stream status.
-		// ------------------------------------------------------------------------
+		// now, all channels are IDLE
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		assertEquals(StreamStatus.IDLE, valveOutput.popLastSeenOutput());
 
-		// let channel 0 resume to be ACTIVE
-		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
-		assertEquals(StreamStatus.ACTIVE, valveOutput.popLastOutputStreamStatus());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		valve.inputStreamStatus(StreamStatus.IDLE, 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
-		// channel 0 is the only ACTIVE channel now, and is the only channel
-		// accounted for when advancing min watermark
-		valve.inputWatermark(new Watermark(36), 0);
-		assertEquals(new Watermark(36), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
-
-		// new also let channel 1 become ACTIVE
+		// as soon as at least one input becomes active again, the ACTIVE marker should be forwarded
 		valve.inputStreamStatus(StreamStatus.ACTIVE, 1);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		assertEquals(StreamStatus.ACTIVE, valveOutput.popLastSeenOutput());
 
-		// channel 1 is still behind overall min watermark
-		valve.inputWatermark(new Watermark(35), 1);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
+		// already back to ACTIVE, should yield no output
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
 
-		// since channel 1 is still behind, channel 0 remains to be the only
-		// channel used to advance min watermark
-		valve.inputWatermark(new Watermark(37), 0);
-		assertEquals(new Watermark(37), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+	/**
+	 * Tests that for multiple inputs, when some inputs are idle, the min watermark
+	 * is correctly computed and advanced from the remaining active inputs.
+	 */
+	@Test
+	public void testMultipleInputWatermarkAdvancingWithPartiallyIdleChannels() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
-		// now, channel 1 has caught up with the overall min watermark
-		valve.inputWatermark(new Watermark(38), 1);
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputWatermark(new Watermark(15), 0);
+		valve.inputWatermark(new Watermark(10), 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
 
-		valve.inputWatermark(new Watermark(40), 0);
-		// this acknowledges that channel 1's watermark is being accounted for again
-		assertEquals(new Watermark(38), valveOutput.popLastOutputWatermark());
-		assertTrue(valveOutput.hasNoOutputWatermarks());
-		assertTrue(valveOutput.hasNoOutputStreamStatuses());
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		// min watermark should be computed from remaining ACTIVE channels
+		assertEquals(new Watermark(10), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(18), 1);
+		// now, min watermark should be 15 from channel #0
+		assertEquals(new Watermark(15), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputWatermark(new Watermark(20), 0);
+		// now, min watermark should be 18 from channel #1
+		assertEquals(new Watermark(18), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that as input channels individually and gradually become idle, watermarks
+	 * are output as soon remaining active channels can yield a new min watermark.
+	 */
+	@Test
+	public void testMultipleInputWatermarkAdvancingAsChannelsIndividuallyBecomeIdle() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
+
+		valve.inputWatermark(new Watermark(25), 0);
+		valve.inputWatermark(new Watermark(10), 1);
+		valve.inputWatermark(new Watermark(17), 2);
+		assertEquals(new Watermark(10), valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 1);
+		// only channel 0 & 2 is ACTIVE; 17 is the overall min watermark now
+		assertEquals(new Watermark(17), valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		// only channel 0 is ACTIVE; 25 is the overall min watermark now
+		assertEquals(new Watermark(25), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that when all inputs become idle, the max watermark across all channels
+	 * is correctly "flushed" from the valve, as well as the stream status IDLE marker.
+	 *
+	 * <p>This test along with {@link #testMultipleInputWatermarkAdvancingAsChannelsIndividuallyBecomeIdle}
+	 * should completely verify that the eventual watermark advancement result when all inputs become idle
+	 * is independent of the order that the inputs become idle.
+	 */
+	@Test
+	public void testMultipleInputFlushMaxWatermarkAndStreamStatusOnceAllInputsBecomeIdle() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
+
+		// -------------------------------------------------------------------------------------------
+		// Setup valve for test case:
+		//  channel #1: Watermark 10, ACTIVE
+		//  channel #2: Watermark 5, ACTIVE
+		//  channel #3: Watermark 3, ACTIVE
+		//  Min Watermark across channels = 3 (from channel #3)
+		// -------------------------------------------------------------------------------------------
+
+		valve.inputWatermark(new Watermark(10), 0);
+		valve.inputWatermark(new Watermark(5), 1);
+		valve.inputWatermark(new Watermark(3), 2);
+		assertEquals(new Watermark(3), valveOutput.popLastSeenOutput());
+
+		// -------------------------------------------------------------------------------------------
+		// Order of becoming IDLE:
+		//  channel #1 ----------------> channel #2 ----------------> channel #3
+		//   |-> (nothing emitted)        |-> (nothing emitted)        |-> Emit Watermark(10) & IDLE
+		// -------------------------------------------------------------------------------------------
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		valve.inputStreamStatus(StreamStatus.IDLE, 1);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		assertEquals(new Watermark(10), valveOutput.popLastSeenOutput());
+		assertEquals(StreamStatus.IDLE, valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Tests that when idle channels become active again, they need to "catch up" with
+	 * the latest watermark before they are considered for min watermark computation again.
+	 */
+	@Test
+	public void testMultipleInputWatermarkRealignmentAfterResumeActive() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
+
+		valve.inputWatermark(new Watermark(10), 0);
+		valve.inputWatermark(new Watermark(7), 1);
+		valve.inputWatermark(new Watermark(3), 2);
+		assertEquals(new Watermark(3), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		assertEquals(new Watermark(7), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// let channel 2 become active again; since the min watermark has now advanced to 7,
+		// channel 2 should have been marked as non-aligned.
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 2);
+		assertFalse(valve.getInputChannelStatus(2).isWatermarkAligned);
+
+		// during the realignment process, watermarks should still be accepted by channel 2 (but shouldn't yield new watermarks)
+		valve.inputWatermark(new Watermark(5), 2);
+		assertEquals(5, valve.getInputChannelStatus(2).watermark);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// let channel 2 catch up with the min watermark; now should be realigned
+		valve.inputWatermark(new Watermark(9), 2);
+		assertTrue(valve.getInputChannelStatus(2).isWatermarkAligned);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// check that realigned inputs is now taken into account for watermark advancement
+		valve.inputWatermark(new Watermark(12), 1);
+		assertEquals(new Watermark(9), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+	}
+
+	/**
+	 * Verify that we don't see any state changes/watermarks when all ACTIVE channels are unaligned.
+	 * Earlier versions of the valve had a bug that would cause it to emit a {@code Long.MAX_VALUE}
+	 * watermark in that case.
+	 */
+	@Test
+	public void testNoOutputWhenAllActiveChannelsAreUnaligned() {
+		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
+
+		valve.inputWatermark(new Watermark(10), 0);
+		valve.inputWatermark(new Watermark(7), 1);
+
+		// make channel 2 ACTIVE, it is now in "catch up" mode (unaligned watermark)
+		valve.inputStreamStatus(StreamStatus.IDLE, 2);
+		assertEquals(new Watermark(7), valveOutput.popLastSeenOutput());
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// make channel 2 ACTIVE again, it is still unaligned
+		valve.inputStreamStatus(StreamStatus.ACTIVE, 2);
+		assertEquals(null, valveOutput.popLastSeenOutput());
+
+		// make channel 0 and 1 IDLE, now channel 2 is the only ACTIVE channel but it's unaligned
+		valve.inputStreamStatus(StreamStatus.IDLE, 0);
+		valve.inputStreamStatus(StreamStatus.IDLE, 1);
+
+		// we should not see any output
+		assertEquals(null, valveOutput.popLastSeenOutput());
 	}
 
 	private class BufferedValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
-		private BlockingQueue<Watermark> outputWatermarks = new LinkedBlockingQueue<>();
-		private BlockingQueue<StreamStatus> outputStreamStatuses = new LinkedBlockingQueue<>();
+		private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
 
 		@Override
 		public void handleWatermark(Watermark watermark) {
-			outputWatermarks.add(watermark);
+			allOutputs.add(watermark);
 		}
 
 		@Override
 		public void handleStreamStatus(StreamStatus streamStatus) {
-			outputStreamStatuses.add(streamStatus);
+			allOutputs.add(streamStatus);
 		}
 
-		public Watermark popLastOutputWatermark() {
-			return outputWatermarks.poll();
-		}
-
-		public StreamStatus popLastOutputStreamStatus() {
-			return outputStreamStatuses.poll();
-		}
-
-		public boolean hasNoOutputWatermarks() {
-			return outputWatermarks.size() == 0;
-		}
-
-		public boolean hasNoOutputStreamStatuses() {
-			return outputStreamStatuses.size() == 0;
+		public StreamElement popLastSeenOutput() {
+			return allOutputs.poll();
 		}
 	}
 

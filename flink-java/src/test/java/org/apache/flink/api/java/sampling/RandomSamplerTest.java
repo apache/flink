@@ -22,8 +22,6 @@ import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.Preconditions;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -31,7 +29,9 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -274,14 +274,12 @@ public class RandomSamplerTest {
 	 * Test sampler without replacement, and verify that there should not exist any duplicate element in sampled result.
 	 */
 	private void verifyRandomSamplerDuplicateElements(final RandomSampler<Double> sampler) {
-		List<Double> list = Lists.newLinkedList(new Iterable<Double>() {
-			@Override
-			public Iterator<Double> iterator() {
-				return sampler.sample(source.iterator());
-			}
-		});
-		Set<Double> set = Sets.newHashSet(list);
-		assertTrue("There should not have duplicate element for sampler without replacement.", list.size() == set.size());
+		Iterator<Double> values = sampler.sample(source.iterator());
+		Set<Double> set = new HashSet<>();
+		while (values.hasNext()) {
+			double next = values.next();
+			assertTrue("Sampler returned duplicate element (" + next + "). Set=" + set, set.add(next));
+		}
 	}
 
 	private int getSize(Iterator<?> iterator) {
@@ -370,7 +368,7 @@ public class RandomSamplerTest {
 		Iterator<Double> sampled;
 		if (sampleOnPartitions) {
 			DistributedRandomSampler<Double> reservoirRandomSampler = (DistributedRandomSampler<Double>) sampler;
-			List<IntermediateSampleData<Double>> intermediateResult = Lists.newLinkedList();
+			List<IntermediateSampleData<Double>> intermediateResult = new LinkedList<>();
 			for (int i = 0; i < DEFAULT_PARTITION_NUMBER; i++) {
 				Iterator<IntermediateSampleData<Double>> partialIntermediateResult = reservoirRandomSampler.sampleInPartition(sourcePartitions[i].iterator());
 				while (partialIntermediateResult.hasNext()) {
@@ -381,7 +379,7 @@ public class RandomSamplerTest {
 		} else {
 			sampled = sampler.sample(source.iterator());
 		}
-		List<Double> list = Lists.newArrayList();
+		List<Double> list = new ArrayList<>();
 		while (sampled.hasNext()) {
 			list.add(sampled.next());
 		}

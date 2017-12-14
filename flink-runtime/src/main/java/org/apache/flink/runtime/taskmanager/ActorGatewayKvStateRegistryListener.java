@@ -19,14 +19,15 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.query.KvStateID;
 import org.apache.flink.runtime.query.KvStateMessage;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
-import org.apache.flink.runtime.query.KvStateServerAddress;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.Preconditions;
+
+import java.net.InetSocketAddress;
 
 /**
  * This implementation uses {@link ActorGateway} to forward key-value state notifications to the job
@@ -36,14 +37,14 @@ public class ActorGatewayKvStateRegistryListener implements KvStateRegistryListe
 
 	private ActorGateway jobManager;
 
-	private KvStateServerAddress kvStateServerAddress;
+	private InetSocketAddress kvStateServerAddress;
 
 	public ActorGatewayKvStateRegistryListener(
 		ActorGateway jobManager,
-		KvStateServerAddress kvStateServerAddress) {
+		InetSocketAddress kvStateServerAddress) {
 
 		this.jobManager = Preconditions.checkNotNull(jobManager, "JobManager");
-		this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress, "KvStateServerAddress");
+		this.kvStateServerAddress = Preconditions.checkNotNull(kvStateServerAddress, "ServerAddress");
 	}
 
 	@Override

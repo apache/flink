@@ -51,7 +51,12 @@ public abstract class AbstractNonKeyedOperatorRestoreTestBase extends AbstractOp
 			"nonKeyed-flink1.3");
 	}
 
-	public AbstractNonKeyedOperatorRestoreTestBase(String savepointPath) {
+	protected AbstractNonKeyedOperatorRestoreTestBase(String savepointPath) {
+		this.savepointPath = savepointPath;
+	}
+
+	protected AbstractNonKeyedOperatorRestoreTestBase(String savepointPath, boolean allowNonRestoredState) {
+		super(allowNonRestoredState);
 		this.savepointPath = savepointPath;
 	}
 

@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * the {@link SimpleSlot}s.</p>
  * 
  * <p>An exception are the co-location-constraints, that define that the i-th subtask of one
- * vertex needs to be scheduled strictly together with the i-th subtasks of of the vertices
+ * vertex needs to be scheduled strictly together with the i-th subtasks of the vertices
  * that share the co-location-constraint. To manage that, a co-location-constraint gets its
  * own shared slot inside the shared slots of a sharing group.</p>
  * 
@@ -96,7 +96,7 @@ public class SlotSharingGroupAssignment {
 	private final Set<SharedSlot> allSlots = new LinkedHashSet<SharedSlot>();
 
 	/** The slots available per vertex type (JobVertexId), keyed by TaskManager, to make them locatable */
-	private final Map<AbstractID, Map<ResourceID, List<SharedSlot>>> availableSlotsPerJid = new LinkedHashMap<>();
+	private final Map<AbstractID, LinkedHashMap<ResourceID, List<SharedSlot>>> availableSlotsPerJid = new LinkedHashMap<>();
 
 
 	// --------------------------------------------------------------------------------------------
@@ -215,7 +215,7 @@ public class SlotSharingGroupAssignment {
 						// note that this does implicitly release the slot we have just added
 						// as well, because we release its last child slot. That is expected
 						// and desired.
-						constraintGroupSlot.releaseSlot();
+						constraintGroupSlot.releaseInstanceSlot();
 					}
 				}
 				else {
@@ -233,7 +233,7 @@ public class SlotSharingGroupAssignment {
 				// can place a task into this slot.
 				boolean entryForNewJidExists = false;
 				
-				for (Map.Entry<AbstractID, Map<ResourceID, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
+				for (Map.Entry<AbstractID, LinkedHashMap<ResourceID, List<SharedSlot>>> entry : availableSlotsPerJid.entrySet()) {
 					// there is already an entry for this groupID
 					if (entry.getKey().equals(groupIdForMap)) {
 						entryForNewJidExists = true;
@@ -246,7 +246,7 @@ public class SlotSharingGroupAssignment {
 
 				// make sure an empty entry exists for this group, if no other entry exists
 				if (!entryForNewJidExists) {
-					availableSlotsPerJid.put(groupIdForMap, new LinkedHashMap<ResourceID, List<SharedSlot>>());
+					availableSlotsPerJid.put(groupIdForMap, new LinkedHashMap<>());
 				}
 
 				return subSlot;
@@ -266,18 +266,12 @@ public class SlotSharingGroupAssignment {
 	 * slots if no local slot is available. The method returns null, when this sharing group has
 	 * no slot is available for the given JobVertexID. 
 	 *
-	 * @param vertex The vertex to allocate a slot for.
+	 * @param vertexID the vertex id
+	 * @param locationPreferences location preferences
 	 *
 	 * @return A slot to execute the given ExecutionVertex in, or null, if none is available.
 	 */
-	public SimpleSlot getSlotForTask(ExecutionVertex vertex) {
-		return getSlotForTask(vertex.getJobvertexId(), vertex.getPreferredLocationsBasedOnInputs());
-	}
-
-	/**
-	 * 
-	 */
-	SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<TaskManagerLocation> locationPreferences) {
+	public SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
 			Tuple2<SharedSlot, Locality> p = getSlotForTaskInternal(vertexID, locationPreferences, false);
 
@@ -306,17 +300,13 @@ public class SlotSharingGroupAssignment {
 	 * shared slot and returns it. If no suitable shared slot could be found, this method
 	 * returns null.</p>
 	 * 
-	 * @param vertex The execution vertex to find a slot for.
 	 * @param constraint The co-location constraint for the placement of the execution vertex.
+	 * @param locationPreferences location preferences
 	 * 
 	 * @return A simple slot allocate within a suitable shared slot, or {@code null}, if no suitable
 	 *         shared slot is available.
 	 */
-	public SimpleSlot getSlotForTask(ExecutionVertex vertex, CoLocationConstraint constraint) {
-		return getSlotForTask(constraint, vertex.getPreferredLocationsBasedOnInputs());
-	}
-	
-	SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<TaskManagerLocation> locationPreferences) {
+	public SimpleSlot getSlotForTask(CoLocationConstraint constraint, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
 			if (constraint.isAssignedAndAlive()) {
 				// the shared slot of the co-location group is initialized and set we allocate a sub-slot
@@ -401,7 +391,7 @@ public class SlotSharingGroupAssignment {
 		}
 
 		// get the available slots for the group
-		Map<ResourceID, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupId);
+		LinkedHashMap<ResourceID, List<SharedSlot>> slotsForGroup = availableSlotsPerJid.get(groupId);
 		
 		if (slotsForGroup == null) {
 			// we have a new group, so all slots are available
@@ -517,7 +507,7 @@ public class SlotSharingGroupAssignment {
 	}
 
 	/**
-	 * Called from {@link org.apache.flink.runtime.instance.SharedSlot#releaseSlot()}.
+	 * Called from {@link org.apache.flink.runtime.instance.SharedSlot#releaseInstanceSlot()}.
 	 * 
 	 * @param sharedSlot The slot to be released.
 	 */
@@ -530,7 +520,7 @@ public class SlotSharingGroupAssignment {
 					// by simply releasing all children, we should eventually release this slot.
 					Set<Slot> children = sharedSlot.getSubSlots();
 					while (children.size() > 0) {
-						children.iterator().next().releaseSlot();
+						children.iterator().next().releaseInstanceSlot();
 					}
 				}
 				else {
@@ -561,7 +551,7 @@ public class SlotSharingGroupAssignment {
 		if (parent == null) {
 			// root slot, return to the instance.
 			sharedSlot.getOwner().returnAllocatedSlot(sharedSlot);
-			
+
 			// also, make sure we remove this slot from everywhere
 			allSlots.remove(sharedSlot);
 			removeSlotFromAllEntries(availableSlotsPerJid, sharedSlot);
@@ -631,20 +621,26 @@ public class SlotSharingGroupAssignment {
 	
 	private static SharedSlot pollFromMultiMap(Map<ResourceID, List<SharedSlot>> map) {
 		Iterator<Map.Entry<ResourceID, List<SharedSlot>>> iter = map.entrySet().iterator();
-		
+
 		while (iter.hasNext()) {
-			List<SharedSlot> slots = iter.next().getValue();
-			
-			if (slots.isEmpty()) {
-				iter.remove();
-			}
-			else if (slots.size() == 1) {
-				SharedSlot slot = slots.remove(0);
-				iter.remove();
-				return slot;
-			}
-			else {
-				return slots.remove(slots.size() - 1);
+			Map.Entry<ResourceID, List<SharedSlot>> slotEntry = iter.next();
+
+			// remove first entry to add it at the back if there are still slots left
+			iter.remove();
+
+			List<SharedSlot> slots = slotEntry.getValue();
+
+			if (!slots.isEmpty()) {
+
+				SharedSlot result = slots.remove(slots.size() - 1);
+
+				if (!slots.isEmpty()) {
+					// reinserts the entry; since it is a LinkedHashMap, we will iterate over this entry
+					// only after having polled from all other entries
+					map.put(slotEntry.getKey(), slots);
+				}
+
+				return result;
 			}
 		}
 		
@@ -652,11 +648,11 @@ public class SlotSharingGroupAssignment {
 	}
 	
 	private static void removeSlotFromAllEntries(
-			Map<AbstractID, Map<ResourceID, List<SharedSlot>>> availableSlots, SharedSlot slot)
-	{
+			Map<AbstractID, LinkedHashMap<ResourceID, List<SharedSlot>>> availableSlots,
+			SharedSlot slot) {
 		final ResourceID taskManagerId = slot.getTaskManagerID();
 		
-		for (Map.Entry<AbstractID, Map<ResourceID, List<SharedSlot>>> entry : availableSlots.entrySet()) {
+		for (Map.Entry<AbstractID, LinkedHashMap<ResourceID, List<SharedSlot>>> entry : availableSlots.entrySet()) {
 			Map<ResourceID, List<SharedSlot>> map = entry.getValue();
 
 			List<SharedSlot> list = map.get(taskManagerId);

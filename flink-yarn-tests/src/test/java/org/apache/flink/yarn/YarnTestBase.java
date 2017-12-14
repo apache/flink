@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
@@ -68,6 +69,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -107,10 +109,14 @@ public abstract class YarnTestBase extends TestLogger {
 
 	/** These strings are white-listed, overriding teh prohibited strings. */
 	protected static final String[] WHITELISTED_STRINGS = {
-			"akka.remote.RemoteTransportExceptionNoStackTrace",
-			// workaround for annoying InterruptedException logging:
-		    // https://issues.apache.org/jira/browse/YARN-1022
-			"java.lang.InterruptedException"
+		"akka.remote.RemoteTransportExceptionNoStackTrace",
+		// workaround for annoying InterruptedException logging:
+		// https://issues.apache.org/jira/browse/YARN-1022
+		"java.lang.InterruptedException",
+		// very specific on purpose
+		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
+		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
+		"java.io.IOException: Connection reset by peer"
 	};
 
 	// Temp directory which is deleted after the unit test.
@@ -183,6 +189,8 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	private YarnClient yarnClient = null;
+	protected org.apache.flink.configuration.Configuration flinkConfiguration;
+
 	@Before
 	public void checkClusterEmpty() throws IOException, YarnException {
 		if (yarnClient == null) {
@@ -200,6 +208,8 @@ public abstract class YarnTestBase extends TestLogger {
 						"App " + app.getApplicationId() + " is in state " + app.getYarnApplicationState());
 			}
 		}
+
+		flinkConfiguration = new org.apache.flink.configuration.Configuration();
 	}
 
 	/**
@@ -299,6 +309,7 @@ public abstract class YarnTestBase extends TestLogger {
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
 		Assert.assertTrue("Expecting directory " + cwd.getAbsolutePath() + " to be a directory", cwd.isDirectory());
 
+		List<String> prohibitedExcerpts = new ArrayList<>();
 		File foundFile = findFile(cwd.getAbsolutePath(), new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
@@ -323,6 +334,24 @@ public abstract class YarnTestBase extends TestLogger {
 								// logging in FATAL to see the actual message in TRAVIS tests.
 								Marker fatal = MarkerFactory.getMarker("FATAL");
 								LOG.error(fatal, "Prohibited String '{}' in line '{}'", aProhibited, lineFromFile);
+
+								StringBuilder logExcerpt = new StringBuilder();
+
+								logExcerpt.append(System.lineSeparator());
+								logExcerpt.append(lineFromFile);
+								logExcerpt.append(System.lineSeparator());
+								// extract potential stack trace from log
+								while (scanner.hasNextLine()) {
+									String line = scanner.nextLine();
+									if (!line.isEmpty() && (Character.isWhitespace(line.charAt(0)) || line.startsWith("Caused by"))) {
+										logExcerpt.append(line);
+										logExcerpt.append(System.lineSeparator());
+									} else {
+										break;
+									}
+								}
+								prohibitedExcerpts.add(logExcerpt.toString());
+
 								return true;
 							}
 						}
@@ -347,7 +376,9 @@ public abstract class YarnTestBase extends TestLogger {
 			while (scanner.hasNextLine()) {
 				LOG.warn("LINE: " + scanner.nextLine());
 			}
-			Assert.fail("Found a file " + foundFile + " with a prohibited string: " + Arrays.toString(prohibited));
+			Assert.fail(
+				"Found a file " + foundFile + " with a prohibited string (one of " + Arrays.toString(prohibited) + "). " +
+				"Excerpts:" + System.lineSeparator() + prohibitedExcerpts);
 		}
 	}
 
@@ -496,7 +527,12 @@ public abstract class YarnTestBase extends TestLogger {
 
 		final int startTimeoutSeconds = 60;
 
-		Runner runner = new Runner(args, type, 0);
+		Runner runner = new Runner(
+			args,
+			flinkConfiguration,
+			CliFrontend.getConfigurationDirectoryFromEnv(),
+			type,
+			0);
 		runner.setName("Frontend (CLI/YARN Client) runner thread (startWithArgs()).");
 		runner.start();
 
@@ -549,7 +585,12 @@ public abstract class YarnTestBase extends TestLogger {
 		final int startTimeoutSeconds = 180;
 		final long deadline = System.currentTimeMillis() + (startTimeoutSeconds * 1000);
 
-		Runner runner = new Runner(args, type, expectedReturnValue);
+		Runner runner = new Runner(
+			args,
+			flinkConfiguration,
+			CliFrontend.getConfigurationDirectoryFromEnv(),
+			type,
+			expectedReturnValue);
 		runner.start();
 
 		boolean expectedStringSeen = false;
@@ -630,13 +671,24 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	protected static class Runner extends Thread {
 		private final String[] args;
+		private final org.apache.flink.configuration.Configuration configuration;
+		private final String configurationDirectory;
 		private final int expectedReturnValue;
+
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
 		private Throwable runnerError;
 
-		public Runner(String[] args, RunTypes type, int expectedReturnValue) {
+		public Runner(
+				String[] args,
+				org.apache.flink.configuration.Configuration configuration,
+				String configurationDirectory,
+				RunTypes type,
+				int expectedReturnValue) {
+
 			this.args = args;
+			this.configuration = Preconditions.checkNotNull(configuration);
+			this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 			this.type = type;
 			this.expectedReturnValue = expectedReturnValue;
 		}
@@ -647,8 +699,11 @@ public abstract class YarnTestBase extends TestLogger {
 				int returnValue;
 				switch (type) {
 					case YARN_SESSION:
-						yCli = new FlinkYarnSessionCli("", "", false);
-						returnValue = yCli.run(args);
+						yCli = new FlinkYarnSessionCli(
+							"",
+							"",
+							false);
+						returnValue = yCli.run(args, configuration, configurationDirectory);
 						break;
 					case CLI_FRONTEND:
 						TestingCLI cli;

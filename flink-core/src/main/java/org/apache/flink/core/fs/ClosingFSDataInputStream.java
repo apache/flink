@@ -26,8 +26,8 @@ import java.io.IOException;
 /**
  * This class is a {@link org.apache.flink.util.WrappingProxy} for {@link FSDataInputStream} that is used to
  * implement a safety net against unclosed streams.
- * <p>
- * See {@link SafetyNetCloseableRegistry} for more details on how this is utilized.
+ *
+ * <p>See {@link SafetyNetCloseableRegistry} for more details on how this is utilized.
  */
 @Internal
 public class ClosingFSDataInputStream
@@ -55,7 +55,7 @@ public class ClosingFSDataInputStream
 	public void close() throws IOException {
 		if (!closed) {
 			closed = true;
-			registry.unregisterClosable(this);
+			registry.unregisterCloseable(this);
 			inputStream.close();
 		}
 	}
@@ -93,7 +93,7 @@ public class ClosingFSDataInputStream
 			FSDataInputStream delegate, SafetyNetCloseableRegistry registry, String debugInfo) throws IOException{
 
 		ClosingFSDataInputStream inputStream = new ClosingFSDataInputStream(delegate, registry, debugInfo);
-		registry.registerClosable(inputStream);
+		registry.registerCloseable(inputStream);
 		return inputStream;
 	}
 }

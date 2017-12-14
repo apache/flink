@@ -18,27 +18,28 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.LogicalSlot;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.Test;
+
+import java.util.Collections;
+import java.util.concurrent.ExecutionException;
+
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getRandomInstance;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertex;
 import static org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils.getTestVertexWithLocation;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-
-import org.junit.Test;
-
-import java.util.concurrent.ExecutionException;
-
-public class ScheduleWithCoLocationHintTest {
+public class ScheduleWithCoLocationHintTest extends TestLogger {
 
 	@Test
 	public void scheduleAllSharedAndCoLocated() {
@@ -65,18 +66,18 @@ public class ScheduleWithCoLocationHintTest {
 			CoLocationConstraint c6 = new CoLocationConstraint(ccg);
 
 			// schedule 4 tasks from the first vertex group
-			SimpleSlot s1 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 0, 6), sharingGroup, c1), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 1, 6), sharingGroup, c2), false).get();
-			SimpleSlot s3 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 6), sharingGroup, c3), false).get();
-			SimpleSlot s4 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 3, 6), sharingGroup, c4), false).get();
-			SimpleSlot s5 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 0, 6), sharingGroup, c1), false).get();
-			SimpleSlot s6 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 1, 6), sharingGroup, c2), false).get();
-			SimpleSlot s7 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 2, 6), sharingGroup, c3), false).get();
-			SimpleSlot s8 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 4, 6), sharingGroup, c5), false).get();
-			SimpleSlot s9 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 5, 6), sharingGroup, c6), false).get();
-			SimpleSlot s10 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 3, 6), sharingGroup, c4), false).get();
-			SimpleSlot s11 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 4, 6), sharingGroup, c5), false).get();
-			SimpleSlot s12 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 5, 6), sharingGroup, c6), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 0, 6), sharingGroup, c1), false, Collections.emptyList()).get();
+			LogicalSlot s2 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 1, 6), sharingGroup, c2), false, Collections.emptyList()).get();
+			LogicalSlot s3 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 6), sharingGroup, c3), false, Collections.emptyList()).get();
+			LogicalSlot s4 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 3, 6), sharingGroup, c4), false, Collections.emptyList()).get();
+			LogicalSlot s5 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 0, 6), sharingGroup, c1), false, Collections.emptyList()).get();
+			LogicalSlot s6 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 1, 6), sharingGroup, c2), false, Collections.emptyList()).get();
+			LogicalSlot s7 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 2, 6), sharingGroup, c3), false, Collections.emptyList()).get();
+			LogicalSlot s8 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 4, 6), sharingGroup, c5), false, Collections.emptyList()).get();
+			LogicalSlot s9 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 5, 6), sharingGroup, c6), false, Collections.emptyList()).get();
+			LogicalSlot s10 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 3, 6), sharingGroup, c4), false, Collections.emptyList()).get();
+			LogicalSlot s11 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 4, 6), sharingGroup, c5), false, Collections.emptyList()).get();
+			LogicalSlot s12 = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 5, 6), sharingGroup, c6), false, Collections.emptyList()).get();
 
 			assertNotNull(s1);
 			assertNotNull(s2);
@@ -92,25 +93,12 @@ public class ScheduleWithCoLocationHintTest {
 			assertNotNull(s12);
 
 			// check that each slot got exactly two tasks
-			assertEquals(2, s1.getRoot().getNumberLeaves());
-			assertEquals(2, s2.getRoot().getNumberLeaves());
-			assertEquals(2, s3.getRoot().getNumberLeaves());
-			assertEquals(2, s4.getRoot().getNumberLeaves());
-			assertEquals(2, s5.getRoot().getNumberLeaves());
-			assertEquals(2, s6.getRoot().getNumberLeaves());
-			assertEquals(2, s7.getRoot().getNumberLeaves());
-			assertEquals(2, s8.getRoot().getNumberLeaves());
-			assertEquals(2, s9.getRoot().getNumberLeaves());
-			assertEquals(2, s10.getRoot().getNumberLeaves());
-			assertEquals(2, s11.getRoot().getNumberLeaves());
-			assertEquals(2, s12.getRoot().getNumberLeaves());
-
-			assertEquals(s1.getTaskManagerID(), s5.getTaskManagerID());
-			assertEquals(s2.getTaskManagerID(), s6.getTaskManagerID());
-			assertEquals(s3.getTaskManagerID(), s7.getTaskManagerID());
-			assertEquals(s4.getTaskManagerID(), s10.getTaskManagerID());
-			assertEquals(s8.getTaskManagerID(), s11.getTaskManagerID());
-			assertEquals(s9.getTaskManagerID(), s12.getTaskManagerID());
+			assertEquals(s1.getTaskManagerLocation(), s5.getTaskManagerLocation());
+			assertEquals(s2.getTaskManagerLocation(), s6.getTaskManagerLocation());
+			assertEquals(s3.getTaskManagerLocation(), s7.getTaskManagerLocation());
+			assertEquals(s4.getTaskManagerLocation(), s10.getTaskManagerLocation());
+			assertEquals(s8.getTaskManagerLocation(), s11.getTaskManagerLocation());
+			assertEquals(s9.getTaskManagerLocation(), s12.getTaskManagerLocation());
 
 			assertEquals(c1.getLocation(), s1.getTaskManagerLocation());
 			assertEquals(c2.getLocation(), s2.getTaskManagerLocation());
@@ -138,8 +126,8 @@ public class ScheduleWithCoLocationHintTest {
 			s12.releaseSlot();
 			assertTrue(scheduler.getNumberOfAvailableSlots() >= 1);
 
-			SimpleSlot single = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(new JobVertexID(), 0, 1)), false).get();
+			LogicalSlot single = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(new JobVertexID(), 0, 1)), false, Collections.emptyList()).get();
 			assertNotNull(single);
 
 			s1.releaseSlot();
@@ -186,22 +174,22 @@ public class ScheduleWithCoLocationHintTest {
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			CoLocationConstraint c1 = new CoLocationConstraint(new CoLocationGroup());
 
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup, c1), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid2, 0, 1), sharingGroup, c1), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup, c1), false, Collections.emptyList()).get();
+			LogicalSlot s2 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid2, 0, 1), sharingGroup, c1), false, Collections.emptyList()).get();
 
-			SimpleSlot sSolo = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 0, 1)), false).get();
+			LogicalSlot sSolo = scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 0, 1)), false, Collections.emptyList()).get();
 
-			ResourceID taskManager = s1.getTaskManagerID();
+			ResourceID taskManager = s1.getTaskManagerLocation().getResourceID();
 
 			s1.releaseSlot();
 			s2.releaseSlot();
 			sSolo.releaseSlot();
 
-			SimpleSlot sNew = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup, c1), false).get();
-			assertEquals(taskManager, sNew.getTaskManagerID());
+			LogicalSlot sNew = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup, c1), false, Collections.emptyList()).get();
+			assertEquals(taskManager, sNew.getTaskManagerLocation().getResourceID());
 
 			assertEquals(2, scheduler.getNumberOfLocalizedAssignments());
 			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
@@ -233,15 +221,15 @@ public class ScheduleWithCoLocationHintTest {
 			SlotSharingGroup sharingGroup = new SlotSharingGroup();
 			CoLocationConstraint c1 = new CoLocationConstraint(new CoLocationGroup());
 
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup, c1), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid1, 0, 1), sharingGroup, c1), false, Collections.emptyList()).get();
 			s1.releaseSlot();
 
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 0, 1)), false).get();
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 1, 2)), false).get();
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 0, 1)), false, Collections.emptyList()).get();
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid2, 1, 2)), false, Collections.emptyList()).get();
 
 			try {
-				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup, c1), false).get();
+				scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid3, 0, 1), sharingGroup, c1), false, Collections.emptyList()).get();
 				fail("Scheduled even though no resource was available.");
 			} catch (ExecutionException e) {
 				assertTrue(e.getCause() instanceof NoResourceAvailableException);
@@ -282,40 +270,40 @@ public class ScheduleWithCoLocationHintTest {
 			SlotSharingGroup shareGroup = new SlotSharingGroup();
 
 			// first wave
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 0, 4), shareGroup), false);
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 4), shareGroup), false);
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 1, 4), shareGroup), false);
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 3, 4), shareGroup), false);
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 0, 4), shareGroup), false, Collections.emptyList());
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 2, 4), shareGroup), false, Collections.emptyList());
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 1, 4), shareGroup), false, Collections.emptyList());
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid1, 3, 4), shareGroup), false, Collections.emptyList());
 			
 			// second wave
-			SimpleSlot s21 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid2, 0, 4), shareGroup, clc1), false).get();
-			SimpleSlot s22 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid2, 2, 4), shareGroup, clc2), false).get();
-			SimpleSlot s23 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid2, 1, 4), shareGroup, clc3), false).get();
-			SimpleSlot s24 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid2, 3, 4), shareGroup, clc4), false).get();
+			LogicalSlot s21 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid2, 0, 4), shareGroup, clc1), false, Collections.emptyList()).get();
+			LogicalSlot s22 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid2, 2, 4), shareGroup, clc2), false, Collections.emptyList()).get();
+			LogicalSlot s23 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid2, 1, 4), shareGroup, clc3), false, Collections.emptyList()).get();
+			LogicalSlot s24 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid2, 3, 4), shareGroup, clc4), false, Collections.emptyList()).get();
 			
 			// third wave
-			SimpleSlot s31 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid3, 1, 4), shareGroup, clc2), false).get();
-			SimpleSlot s32 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid3, 2, 4), shareGroup, clc3), false).get();
-			SimpleSlot s33 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid3, 3, 4), shareGroup, clc4), false).get();
-			SimpleSlot s34 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertex(jid3, 0, 4), shareGroup, clc1), false).get();
+			LogicalSlot s31 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid3, 1, 4), shareGroup, clc2), false, Collections.emptyList()).get();
+			LogicalSlot s32 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid3, 2, 4), shareGroup, clc3), false, Collections.emptyList()).get();
+			LogicalSlot s33 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid3, 3, 4), shareGroup, clc4), false, Collections.emptyList()).get();
+			LogicalSlot s34 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertex(jid3, 0, 4), shareGroup, clc1), false, Collections.emptyList()).get();
 			
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 0, 4), shareGroup), false);
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 1, 4), shareGroup), false);
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 2, 4), shareGroup), false);
-			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 3, 4), shareGroup), false);
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 0, 4), shareGroup), false, Collections.emptyList());
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 1, 4), shareGroup), false, Collections.emptyList());
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 2, 4), shareGroup), false, Collections.emptyList());
+			scheduler.allocateSlot(new ScheduledUnit(getTestVertex(jid4, 3, 4), shareGroup), false, Collections.emptyList());
 			
-			assertEquals(s21.getTaskManagerID(), s34.getTaskManagerID());
-			assertEquals(s22.getTaskManagerID(), s31.getTaskManagerID());
-			assertEquals(s23.getTaskManagerID(), s32.getTaskManagerID());
-			assertEquals(s24.getTaskManagerID(), s33.getTaskManagerID());
+			assertEquals(s21.getTaskManagerLocation(), s34.getTaskManagerLocation());
+			assertEquals(s22.getTaskManagerLocation(), s31.getTaskManagerLocation());
+			assertEquals(s23.getTaskManagerLocation(), s32.getTaskManagerLocation());
+			assertEquals(s24.getTaskManagerLocation(), s33.getTaskManagerLocation());
 			
 			assertEquals(4, scheduler.getNumberOfLocalizedAssignments());
 			assertEquals(0, scheduler.getNumberOfNonLocalizedAssignments());
@@ -355,35 +343,32 @@ public class ScheduleWithCoLocationHintTest {
 			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
 			// schedule something into the shared group so that both instances are in the sharing group
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup), false, Collections.singleton(loc1)).get();
+			LogicalSlot s2 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup), false, Collections.singleton(loc2)).get();
 			
 			// schedule one locally to instance 1
-			SimpleSlot s3 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup, cc1), false).get();
+			LogicalSlot s3 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup, cc1), false, Collections.singleton(loc1)).get();
 
 			// schedule with co location constraint (yet unassigned) and a preference for
 			// instance 1, but it can only get instance 2
-			SimpleSlot s4 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc2), false).get();
+			LogicalSlot s4 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc2), false, Collections.singleton(loc1)).get();
 			
 			// schedule something into the assigned co-location constraints and check that they override the
 			// other preferences
-			SimpleSlot s5 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid3, 0, 2, loc2), sharingGroup, cc1), false).get();
-			SimpleSlot s6 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid3, 1, 2, loc1), sharingGroup, cc2), false).get();
+			LogicalSlot s5 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid3, 0, 2, loc2), sharingGroup, cc1), false, Collections.singleton(loc2)).get();
+			LogicalSlot s6 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid3, 1, 2, loc1), sharingGroup, cc2), false, Collections.singleton(loc1)).get();
 			
 			// check that each slot got three
-			assertEquals(3, s1.getRoot().getNumberLeaves());
-			assertEquals(3, s2.getRoot().getNumberLeaves());
-			
-			assertEquals(s1.getTaskManagerID(), s3.getTaskManagerID());
-			assertEquals(s2.getTaskManagerID(), s4.getTaskManagerID());
-			assertEquals(s1.getTaskManagerID(), s5.getTaskManagerID());
-			assertEquals(s2.getTaskManagerID(), s6.getTaskManagerID());
+			assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
+			assertEquals(s2.getTaskManagerLocation(), s4.getTaskManagerLocation());
+			assertEquals(s1.getTaskManagerLocation(), s5.getTaskManagerLocation());
+			assertEquals(s2.getTaskManagerLocation(), s6.getTaskManagerLocation());
 			
 			// check the scheduler's bookkeeping
 			assertEquals(0, scheduler.getNumberOfAvailableSlots());
@@ -432,10 +417,10 @@ public class ScheduleWithCoLocationHintTest {
 			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
 			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup, cc2), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false, Collections.singleton(loc1)).get();
+			LogicalSlot s2 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup, cc2), false, Collections.singleton(loc2)).get();
 
 			s1.releaseSlot();
 			s2.releaseSlot();
@@ -443,14 +428,14 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 
-			SimpleSlot s3 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup, cc1), false).get();
-			SimpleSlot s4 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc2), false).get();
+			LogicalSlot s3 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup, cc1), false, Collections.singleton(loc2)).get();
+			LogicalSlot s4 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc2), false, Collections.singleton(loc1)).get();
 
 			// still preserves the previous instance mapping)
-			assertEquals(i1.getTaskManagerID(), s3.getTaskManagerID());
-			assertEquals(i2.getTaskManagerID(), s4.getTaskManagerID());
+			assertEquals(i1.getTaskManagerLocation(), s3.getTaskManagerLocation());
+			assertEquals(i2.getTaskManagerLocation(), s4.getTaskManagerLocation());
 
 			s3.releaseSlot();
 			s4.releaseSlot();
@@ -493,10 +478,10 @@ public class ScheduleWithCoLocationHintTest {
 			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
 			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup, cc2), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false, Collections.singleton(loc1)).get();
+			LogicalSlot s2 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup, cc2), false, Collections.singleton(loc2)).get();
 
 			s1.releaseSlot();
 			s2.releaseSlot();
@@ -504,14 +489,14 @@ public class ScheduleWithCoLocationHintTest {
 			assertEquals(2, scheduler.getNumberOfAvailableSlots());
 			assertEquals(0, sharingGroup.getTaskAssignment().getNumberOfSlots());
 
-			SimpleSlot sa = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jidx, 0, 2)), false).get();
-			SimpleSlot sb = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jidx, 1, 2)), false).get();
+			LogicalSlot sa = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jidx, 0, 2)), false, Collections.emptyList()).get();
+			LogicalSlot sb = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jidx, 1, 2)), false, Collections.emptyList()).get();
 
 			try {
 				scheduler.allocateSlot(
-						new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup, cc1), false).get();
+						new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc2), sharingGroup, cc1), false, Collections.singleton(loc2)).get();
 				fail("should not be able to find a resource");
 			}
 			catch (ExecutionException e) {
@@ -563,22 +548,19 @@ public class ScheduleWithCoLocationHintTest {
 			// schedule something from the second job vertex id before the first is filled,
 			// and give locality preferences that hint at using the same shared slot for both
 			// co location constraints (which we seek to prevent)
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup, cc2), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false, Collections.singleton(loc1)).get();
+			LogicalSlot s2 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup, cc2), false, Collections.singleton(loc1)).get();
 
-			SimpleSlot s3 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc1), false).get();
-			SimpleSlot s4 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc1), sharingGroup, cc2), false).get();
+			LogicalSlot s3 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup, cc1), false, Collections.singleton(loc1)).get();
+			LogicalSlot s4 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc1), sharingGroup, cc2), false, Collections.singleton(loc1)).get();
 
 			// check that each slot got three
-			assertEquals(2, s1.getRoot().getNumberLeaves());
-			assertEquals(2, s2.getRoot().getNumberLeaves());
-
-			assertEquals(s1.getTaskManagerID(), s3.getTaskManagerID());
-			assertEquals(s2.getTaskManagerID(), s4.getTaskManagerID());
+			assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
+			assertEquals(s2.getTaskManagerLocation(), s4.getTaskManagerLocation());
 
 			// check the scheduler's bookkeeping
 			assertEquals(0, scheduler.getNumberOfAvailableSlots());
@@ -629,19 +611,19 @@ public class ScheduleWithCoLocationHintTest {
 			CoLocationConstraint cc1 = new CoLocationConstraint(ccg);
 			CoLocationConstraint cc2 = new CoLocationConstraint(ccg);
 
-			SimpleSlot s1 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false).get();
-			SimpleSlot s2 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup, cc2), false).get();
+			LogicalSlot s1 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 0, 2, loc1), sharingGroup, cc1), false, Collections.emptyList()).get();
+			LogicalSlot s2 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid1, 1, 2, loc2), sharingGroup, cc2), false, Collections.emptyList()).get();
 
-			SimpleSlot s3 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup), false).get();
-			SimpleSlot s4 = scheduler.allocateSlot(
-					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup), false).get();
+			LogicalSlot s3 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 0, 2, loc1), sharingGroup), false, Collections.emptyList()).get();
+			LogicalSlot s4 = scheduler.allocateSlot(
+					new ScheduledUnit(getTestVertexWithLocation(jid2, 1, 2, loc1), sharingGroup), false, Collections.emptyList()).get();
 
 			// check that each slot got two
-			assertEquals(2, s1.getRoot().getNumberLeaves());
-			assertEquals(2, s2.getRoot().getNumberLeaves());
+			assertEquals(s1.getTaskManagerLocation(), s3.getTaskManagerLocation());
+			assertEquals(s2.getTaskManagerLocation(), s4.getTaskManagerLocation());
 
 			s1.releaseSlot();
 			s2.releaseSlot();

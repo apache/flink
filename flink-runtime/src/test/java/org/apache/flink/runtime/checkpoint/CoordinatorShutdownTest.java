@@ -28,11 +28,13 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
+import org.apache.flink.runtime.testtasks.FailingBlockingInvokable;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
@@ -66,8 +68,19 @@ public class CoordinatorShutdownTest extends TestLogger {
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 			
 			JobGraph testGraph = new JobGraph("test job", vertex);
-			testGraph.setSnapshotSettings(new JobCheckpointingSettings(vertexIdList, vertexIdList, vertexIdList, 
-					5000, 60000, 0L, Integer.MAX_VALUE, ExternalizedCheckpointSettings.none(), null, true));
+			testGraph.setSnapshotSettings(
+				new JobCheckpointingSettings(
+					vertexIdList,
+					vertexIdList,
+					vertexIdList,
+					new CheckpointCoordinatorConfiguration(
+						5000,
+						60000,
+						0L,
+						Integer.MAX_VALUE,
+						ExternalizedCheckpointSettings.none(),
+						true),
+					null));
 			
 			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
@@ -103,8 +116,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
-				cluster.awaitTermination();
+				cluster.stop();
 			}
 		}
 	}
@@ -125,8 +137,19 @@ public class CoordinatorShutdownTest extends TestLogger {
 			List<JobVertexID> vertexIdList = Collections.singletonList(vertex.getID());
 
 			JobGraph testGraph = new JobGraph("test job", vertex);
-			testGraph.setSnapshotSettings(new JobCheckpointingSettings(vertexIdList, vertexIdList, vertexIdList,
-					5000, 60000, 0L, Integer.MAX_VALUE, ExternalizedCheckpointSettings.none(), null, true));
+			testGraph.setSnapshotSettings(
+				new JobCheckpointingSettings(
+					vertexIdList,
+					vertexIdList,
+					vertexIdList,
+					new CheckpointCoordinatorConfiguration(
+						5000,
+						60000,
+						0L,
+						Integer.MAX_VALUE,
+						ExternalizedCheckpointSettings.none(),
+						true),
+					null));
 			
 			ActorGateway jmGateway = cluster.getLeaderGateway(TestingUtils.TESTING_DURATION());
 
@@ -162,8 +185,7 @@ public class CoordinatorShutdownTest extends TestLogger {
 		}
 		finally {
 			if (cluster != null) {
-				cluster.shutdown();
-				cluster.awaitTermination();
+				cluster.stop();
 			}
 		}
 	}
@@ -190,26 +212,4 @@ public class CoordinatorShutdownTest extends TestLogger {
 		}
 	}
 
-	public static class FailingBlockingInvokable extends AbstractInvokable {
-		private static boolean blocking = true;
-		private static final Object lock = new Object();
-
-		@Override
-		public void invoke() throws Exception {
-			while (blocking) {
-				synchronized (lock) {
-					lock.wait();
-				}
-			}
-			throw new RuntimeException("This exception is expected.");
-		}
-
-		public static void unblock() {
-			blocking = false;
-
-			synchronized (lock) {
-				lock.notifyAll();
-			}
-		}
-	}
 }

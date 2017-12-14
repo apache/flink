@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.testingUtils
 
+import java.util.function.BiFunction
+
 import akka.actor.{ActorRef, Cancellable, Terminated}
 import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
@@ -25,7 +27,6 @@ import org.apache.flink.runtime.FlinkActor
 import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
-import org.apache.flink.runtime.concurrent.BiFunction
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager

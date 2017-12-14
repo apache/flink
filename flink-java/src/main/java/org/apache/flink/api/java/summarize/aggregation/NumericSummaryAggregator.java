@@ -26,18 +26,18 @@ import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZER
 /**
  * Generic aggregator for all numeric types creates a summary of a column of numbers.
  *
- * Uses the Kahan summation algorithm to avoid numeric instability when computing variance.
+ * <p>Uses the Kahan summation algorithm to avoid numeric instability when computing variance.
  * The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
  * Tian et al, International Conference on Data Engineering 2012
  *
- * Implementation that couldn't be generic for all numbers was pushed to subclasses.
+ * <p>Implementation that couldn't be generic for all numbers was pushed to subclasses.
  * For example, there isn't a generic way to calculate min, max, sum, isNan, isInfinite
  * for all numeric types so subclasses must implement these.
  *
  * @param <T> numeric type to aggregrate and create a summary, e.g. Integer, DoubleValue
  */
 @Internal
-public abstract class NumericSummaryAggregator<T extends Number> implements Aggregator<T,NumericColumnSummary<T>> {
+public abstract class NumericSummaryAggregator<T extends Number> implements Aggregator<T, NumericColumnSummary<T>> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -47,21 +47,21 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 	private long infinityCount = 0L;
 
 	// these fields are initialized by type specific subclasses
-	private Aggregator<T,T> min = initMin();
-	private Aggregator<T,T> max = initMax();
-	private Aggregator<T,T> sum = initSum();
+	private Aggregator<T, T> min = initMin();
+	private Aggregator<T, T> max = initMax();
+	private Aggregator<T, T> sum = initSum();
 
 	private CompensatedSum mean = ZERO;
 	/**
 	 * Sum of squares of differences from the current mean (used to calculate variance).
 	 *
-	 * The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
+	 * <p>The algorithm is described in: "Scalable and Numerically Stable Descriptive Statistics in SystemML",
 	 * Tian et al, International Conference on Data Engineering 2012
 	 */
 	private CompensatedSum m2 = ZERO;
 
 	/**
-	 * Add a value to the current aggregation
+	 * Add a value to the current aggregation.
 	 */
 	@Override
 	public void aggregate(T value) {
@@ -72,7 +72,7 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 		else if (isNan(value)) {
 			nanCount++;
 		}
-		else if(isInfinite(value)) {
+		else if (isInfinite(value)) {
 			infinityCount++;
 		}
 		else {
@@ -90,7 +90,7 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 	}
 
 	/**
-	 * combine two aggregations
+	 * combine two aggregations.
 	 */
 	@Override
 	public void combine(Aggregator<T, NumericColumnSummary<T>> otherSameType) {
@@ -130,7 +130,7 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 	public NumericColumnSummary<T> result() {
 
 		Double variance = null;
-		if(nonMissingCount > 1) {
+		if (nonMissingCount > 1) {
 			variance = m2.value() / (nonMissingCount - 1);
 		}
 
@@ -152,11 +152,11 @@ public abstract class NumericSummaryAggregator<T extends Number> implements Aggr
 	// there isn't a generic way to calculate min, max, sum, isNan, isInfinite for all numeric types
 	// so subclasses must implement these
 
-	protected abstract Aggregator<T,T> initMin();
+	protected abstract Aggregator<T, T> initMin();
 
-	protected abstract Aggregator<T,T> initMax();
+	protected abstract Aggregator<T, T> initMax();
 
-	protected abstract Aggregator<T,T> initSum();
+	protected abstract Aggregator<T, T> initSum();
 
 	protected abstract boolean isNan(T number);
 

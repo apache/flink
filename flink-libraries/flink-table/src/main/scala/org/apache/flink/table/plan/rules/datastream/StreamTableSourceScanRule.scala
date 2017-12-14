@@ -61,7 +61,8 @@ class StreamTableSourceScanRule
       rel.getCluster,
       traitSet,
       scan.getTable,
-      scan.tableSource.asInstanceOf[StreamTableSource[_]]
+      scan.tableSource.asInstanceOf[StreamTableSource[_]],
+      scan.selectedFields
     )
   }
 }

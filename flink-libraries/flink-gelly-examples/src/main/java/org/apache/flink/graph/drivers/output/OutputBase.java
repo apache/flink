@@ -29,9 +29,4 @@ import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
 public abstract class OutputBase<T>
 extends ParameterizedBase
 implements Output<T> {
-
-	@Override
-	public String getName() {
-		return this.getClass().getSimpleName();
-	}
 }

@@ -188,7 +188,7 @@ public class SharedSlot extends Slot {
 	}
 	
 	@Override
-	public void releaseSlot() {
+	public void releaseInstanceSlot() {
 		assignmentGroup.releaseSharedSlot(this);
 		
 		if (!(isReleased() && subSlots.isEmpty())) {

@@ -23,27 +23,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import org.apache.flink.metrics.CharacterFilter;
-import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.junit.Test;
 
@@ -62,21 +58,23 @@ public class CheckpointStatsTrackerTest {
 			Collections.singletonList(new JobVertexID()),
 			Collections.singletonList(new JobVertexID()),
 			Collections.singletonList(new JobVertexID()),
-			181238123L,
-			19191992L,
-			191929L,
-			123,
-			ExternalizedCheckpointSettings.none(),
-			null,
-			false);
+			new CheckpointCoordinatorConfiguration(
+				181238123L,
+				19191992L,
+				191929L,
+				123,
+				ExternalizedCheckpointSettings.none(),
+				false
+			),
+			null);
 
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			snapshottingSettings,
+			snapshottingSettings.getCheckpointCoordinatorConfiguration(),
 			new UnregisteredMetricsGroup());
 
-		assertEquals(snapshottingSettings, tracker.getSnapshottingSettings());
+		assertEquals(snapshottingSettings.getCheckpointCoordinatorConfiguration(), tracker.getJobCheckpointingConfiguration());
 	}
 
 	/**
@@ -94,7 +92,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 
 		PendingCheckpointStats pending = tracker.reportPendingCheckpoint(
@@ -142,7 +140,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			10,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 
 		// Completed checkpoint
@@ -247,7 +245,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker tracker = new CheckpointStatsTracker(
 			10,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 
 		CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
@@ -284,7 +282,17 @@ public class CheckpointStatsTrackerTest {
 	 */
 	@Test
 	public void testMetricsRegistration() throws Exception {
-		MetricGroup metricGroup = mock(MetricGroup.class);
+		final Collection<String> registeredGaugeNames = new ArrayList<>();
+
+		MetricGroup metricGroup = new UnregisteredMetricsGroup() {
+			@Override
+			public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
+				if (gauge != null) {
+					registeredGaugeNames.add(name);
+				}
+				return gauge;
+			}
+		};
 
 		ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
 		when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
@@ -293,21 +301,22 @@ public class CheckpointStatsTrackerTest {
 		new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			metricGroup);
 
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ALIGNMENT_BUFFERED_METRIC), any(Gauge.class));
-		verify(metricGroup, times(1)).gauge(eq(CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC), any(Gauge.class));
-
 		// Make sure this test is adjusted when further metrics are added
-		verify(metricGroup, times(9)).gauge(any(String.class), any(Gauge.class));
+		assertTrue(registeredGaugeNames.containsAll(Arrays.asList(
+			CheckpointStatsTracker.NUMBER_OF_CHECKPOINTS_METRIC,
+			CheckpointStatsTracker.NUMBER_OF_IN_PROGRESS_CHECKPOINTS_METRIC,
+			CheckpointStatsTracker.NUMBER_OF_COMPLETED_CHECKPOINTS_METRIC,
+			CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC,
+			CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC,
+			CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC,
+			CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
+			CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_ALIGNMENT_BUFFERED_METRIC,
+			CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC
+		)));
+		assertEquals(9, registeredGaugeNames.size());
 	}
 
 	/**
@@ -319,86 +328,11 @@ public class CheckpointStatsTrackerTest {
 	public void testMetricsAreUpdated() throws Exception {
 		final Map<String, Gauge<?>> registeredGauges = new HashMap<>();
 
-		MetricGroup metricGroup = new MetricGroup() {
-			@Override
-			public Counter counter(int name) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public Counter counter(String name) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public <C extends Counter> C counter(int name, C counter) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public <C extends Counter> C counter(String name, C counter) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
+		MetricGroup metricGroup = new UnregisteredMetricsGroup() {
 			@Override
 			public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
 				registeredGauges.put(name, gauge);
 				return gauge;
-			}
-
-			@Override
-			public <H extends Histogram> H histogram(String name, H histogram) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public <H extends Histogram> H histogram(int name, H histogram) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public <M extends Meter> M meter(String name, M meter) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public <M extends Meter> M meter(int name, M meter) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public MetricGroup addGroup(int name) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public MetricGroup addGroup(String name) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public String[] getScopeComponents() {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public Map<String, String> getAllVariables() {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public String getMetricIdentifier(String metricName) {
-				throw new UnsupportedOperationException("Not expected in this test");
-			}
-
-			@Override
-			public String getMetricIdentifier(String metricName, CharacterFilter filter) {
-				throw new UnsupportedOperationException("Not expected in this test");
 			}
 		};
 
@@ -409,7 +343,7 @@ public class CheckpointStatsTrackerTest {
 		CheckpointStatsTracker stats = new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			metricGroup);
 
 		// Make sure to adjust this test if metrics are added/removed
@@ -507,6 +441,18 @@ public class CheckpointStatsTrackerTest {
 		assertEquals(Long.valueOf(1), numFailedCheckpoints.getValue());
 
 		assertEquals(Long.valueOf(restoreTimestamp), latestRestoreTimestamp.getValue());
+
+		// Check Internal Checkpoint Configuration
+		PendingCheckpointStats thirdPending = stats.reportPendingCheckpoint(
+			2,
+			5000,
+			CheckpointProperties.forStandardCheckpoint());
+
+		thirdPending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats);
+		thirdPending.reportCompletedCheckpoint(null);
+
+		// Verify external path is "n/a", because internal checkpoint won't generate external path.
+		assertEquals("n/a", latestCompletedExternalPath.getValue());
 	}
 
 	// ------------------------------------------------------------------------
@@ -522,7 +468,7 @@ public class CheckpointStatsTrackerTest {
 		return new CheckpointStatsTracker(
 			0,
 			Collections.singletonList(jobVertex),
-			mock(JobCheckpointingSettings.class),
+			mock(CheckpointCoordinatorConfiguration.class),
 			new UnregisteredMetricsGroup());
 	}
 

@@ -21,26 +21,31 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.testutils.StoppableInvokable;
-import org.apache.flink.runtime.webmonitor.files.MimeTypes;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -82,7 +87,7 @@ public class WebFrontendITCase extends TestLogger {
 		Files.createFile(logFile.toPath());
 		Files.createFile(outFile.toPath());
 
-		config.setString(JobManagerOptions.WEB_LOG_PATH, logFile.getAbsolutePath());
+		config.setString(WebOptions.LOG_PATH, logFile.getAbsolutePath());
 		config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, logFile.getAbsolutePath());
 
 		cluster = new LocalFlinkMiniCluster(config, false);
@@ -104,6 +109,38 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
+	public void testResponseHeaders() throws Exception {
+		// check headers for successful json response
+		URL taskManagersUrl = new URL("http://localhost:" + port + "/taskmanagers");
+		HttpURLConnection taskManagerConnection = (HttpURLConnection) taskManagersUrl.openConnection();
+		taskManagerConnection.setConnectTimeout(100000);
+		taskManagerConnection.connect();
+		if (taskManagerConnection.getResponseCode() >= 400) {
+			// error!
+			InputStream is = taskManagerConnection.getErrorStream();
+			String errorMessage = IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+			throw new RuntimeException(errorMessage);
+		}
+
+		// we don't set the content-encoding header
+		Assert.assertNull(taskManagerConnection.getContentEncoding());
+		Assert.assertEquals("application/json; charset=UTF-8", taskManagerConnection.getContentType());
+
+		// check headers in case of an error
+		URL notFoundJobUrl = new URL("http://localhost:" + port + "/jobs/dontexist");
+		HttpURLConnection notFoundJobConnection = (HttpURLConnection) notFoundJobUrl.openConnection();
+		notFoundJobConnection.setConnectTimeout(100000);
+		notFoundJobConnection.connect();
+		if (notFoundJobConnection.getResponseCode() >= 400) {
+			// we don't set the content-encoding header
+			Assert.assertNull(notFoundJobConnection.getContentEncoding());
+			Assert.assertEquals("text/plain; charset=UTF-8", notFoundJobConnection.getContentType());
+		} else {
+			throw new RuntimeException("Request for non-existing job did not return an error.");
+		}
+	}
+
+	@Test
 	public void getNumberOfTaskManagers() {
 		try {
 			String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
@@ -121,25 +158,20 @@ public class WebFrontendITCase extends TestLogger {
 	}
 
 	@Test
-	public void getTaskmanagers() {
-		try {
-			String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
+	public void getTaskmanagers() throws Exception {
+		String json = TestBaseUtils.getFromHTTP("http://localhost:" + port + "/taskmanagers/");
 
-			ObjectMapper mapper = new ObjectMapper();
-			JsonNode parsed = mapper.readTree(json);
-			ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode parsed = mapper.readTree(json);
+		ArrayNode taskManagers = (ArrayNode) parsed.get("taskmanagers");
 
-			assertNotNull(taskManagers);
-			assertEquals(cluster.numTaskManagers(), taskManagers.size());
+		assertNotNull(taskManagers);
+		assertEquals(cluster.numTaskManagers(), taskManagers.size());
 
-			JsonNode taskManager = taskManagers.get(0);
-			assertNotNull(taskManager);
-			assertEquals(NUM_SLOTS, taskManager.get("slotsNumber").asInt());
-			assertTrue(taskManager.get("freeSlots").asInt() <= NUM_SLOTS);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		JsonNode taskManager = taskManagers.get(0);
+		assertNotNull(taskManager);
+		assertEquals(NUM_SLOTS, taskManager.get("slotsNumber").asInt());
+		assertTrue(taskManager.get("freeSlots").asInt() <= NUM_SLOTS);
 	}
 
 	@Test
@@ -227,7 +259,7 @@ public class WebFrontendITCase extends TestLogger {
 				HttpTestClient.SimpleHttpResponse response = client.getNextResponse(deadline.timeLeft());
 
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertEquals("{}", response.getContent());
 			}
 
@@ -241,7 +273,7 @@ public class WebFrontendITCase extends TestLogger {
 			HttpTestClient.SimpleHttpResponse response = client.getNextResponse(timeout);
 
 			assertEquals(HttpResponseStatus.OK, response.getStatus());
-			assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+			assertEquals("application/json; charset=UTF-8", response.getType());
 			assertEquals("{\"jid\":\"" + jid + "\",\"name\":\"Stoppable streaming test job\"," +
 				"\"execution-config\":{\"execution-mode\":\"PIPELINED\",\"restart-strategy\":\"default\"," +
 				"\"job-parallelism\":-1,\"object-reuse-mode\":false,\"user-config\":{}}}", response.getContent());
@@ -280,7 +312,7 @@ public class WebFrontendITCase extends TestLogger {
 					.getNextResponse(deadline.timeLeft());
 
 				assertEquals(HttpResponseStatus.OK, response.getStatus());
-				assertEquals(response.getType(), MimeTypes.getMimeTypeForExtension("json"));
+				assertEquals("application/json; charset=UTF-8", response.getType());
 				assertEquals("{}", response.getContent());
 			}
 

@@ -20,11 +20,11 @@ package org.apache.flink.table.runtime.aggregate
 import java.lang.Iterable
 
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
-import org.apache.flink.types.Row
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.slf4j.LoggerFactory
 
 /**
   * It wraps the aggregate logic inside of
@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory
   * @param keysAndAggregatesArity    The total arity of keys and aggregates
   * @param finalRowWindowStartPos The relative window-start field position.
   * @param finalRowWindowEndPos   The relative window-end field position.
+  * @param finalRowWindowRowtimePos The relative window-rowtime field position.
   * @param gap                    Session time window gap.
   */
 class DataSetSessionWindowAggReduceGroupFunction(
@@ -51,26 +52,27 @@ class DataSetSessionWindowAggReduceGroupFunction(
     keysAndAggregatesArity: Int,
     finalRowWindowStartPos: Option[Int],
     finalRowWindowEndPos: Option[Int],
+    finalRowWindowRowtimePos: Option[Int],
     gap: Long,
     isInputCombined: Boolean)
   extends RichGroupReduceFunction[Row, Row]
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
-  private var collector: RowTimeWindowPropertyCollector = _
+  private var collector: DataSetTimeWindowPropertyCollector = _
   private val intermediateRowWindowStartPos = keysAndAggregatesArity
   private val intermediateRowWindowEndPos = keysAndAggregatesArity + 1
 
   private var output: Row = _
   private var accumulators: Row = _
 
-  val LOG = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   override def open(config: Configuration) {
     LOG.debug(s"Compiling AggregateHelper: $genAggregations.name \n\n " +
                 s"Code:\n$genAggregations.code")
     val clazz = compile(
-      getClass.getClassLoader,
+      getRuntimeContext.getUserCodeClassLoader,
       genAggregations.name,
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
@@ -78,7 +80,10 @@ class DataSetSessionWindowAggReduceGroupFunction(
 
     output = function.createOutputRow()
     accumulators = function.createAccumulators()
-    collector = new RowTimeWindowPropertyCollector(finalRowWindowStartPos, finalRowWindowEndPos)
+    collector = new DataSetTimeWindowPropertyCollector(
+      finalRowWindowStartPos,
+      finalRowWindowEndPos,
+      finalRowWindowRowtimePos)
   }
 
   /**

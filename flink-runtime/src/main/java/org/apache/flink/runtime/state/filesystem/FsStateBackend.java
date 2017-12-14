@@ -31,12 +31,9 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -52,8 +49,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class FsStateBackend extends AbstractStateBackend {
 
 	private static final long serialVersionUID = -8191916350224044011L;
-
-	private static final Logger LOG = LoggerFactory.getLogger(FsStateBackend.class);
 
 	/** By default, state smaller than 1024 bytes will not be written to files, but
 	 * will be stored directly with the metadata */
@@ -168,7 +163,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsStateBackend(URI checkpointDataUri) throws IOException {
-		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, false);
+		this(checkpointDataUri, DEFAULT_FILE_STATE_THRESHOLD, true);
 	}
 
 	/**
@@ -213,7 +208,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 */
 	public FsStateBackend(URI checkpointDataUri, int fileStateSizeThreshold) throws IOException {
 
-		this(checkpointDataUri, fileStateSizeThreshold, false);
+		this(checkpointDataUri, fileStateSizeThreshold, true);
 	}
 
 	/**
@@ -341,7 +336,7 @@ public class FsStateBackend extends AbstractStateBackend {
 	 * @throws IllegalArgumentException Thrown, if the URI misses scheme or path. 
 	 * @throws IOException Thrown, if no file system can be found for the URI's scheme.
 	 */
-	public static Path validateAndNormalizeUri(URI checkpointDataUri) throws IOException {
+	private static Path validateAndNormalizeUri(URI checkpointDataUri) throws IOException {
 		final String scheme = checkpointDataUri.getScheme();
 		final String path = checkpointDataUri.getPath();
 
@@ -358,41 +353,6 @@ public class FsStateBackend extends AbstractStateBackend {
 			throw new IllegalArgumentException("Cannot use the root directory for checkpoints.");
 		}
 
-		if (!FileSystem.isFlinkSupportedScheme(checkpointDataUri.getScheme())) {
-			// skip verification checks for non-flink supported filesystem
-			// this is because the required filesystem classes may not be available to the flink client
-			return new Path(checkpointDataUri);
-		} else {
-			// we do a bit of work to make sure that the URI for the filesystem refers to exactly the same
-			// (distributed) filesystem on all hosts and includes full host/port information, even if the
-			// original URI did not include that. We count on the filesystem loading from the configuration
-			// to fill in the missing data.
-
-			// try to grab the file system for this path/URI
-			FileSystem filesystem = FileSystem.get(checkpointDataUri);
-			if (filesystem == null) {
-				String reason = "Could not find a file system for the given scheme in" +
-				"the available configurations.";
-				LOG.warn("Could not verify checkpoint path. This might be caused by a genuine " +
-						"problem or by the fact that the file system is not accessible from the " +
-						"client. Reason:{}", reason);
-				return new Path(checkpointDataUri);
-			}
-
-			URI fsURI = filesystem.getUri();
-			try {
-				URI baseURI = new URI(fsURI.getScheme(), fsURI.getAuthority(), path, null, null);
-				return new Path(baseURI);
-			} catch (URISyntaxException e) {
-				String reason = String.format(
-						"Cannot create file system URI for checkpointDataUri %s and filesystem URI %s: " + e.toString(),
-						checkpointDataUri,
-						fsURI);
-				LOG.warn("Could not verify checkpoint path. This might be caused by a genuine " +
-						"problem or by the fact that the file system is not accessible from the " +
-						"client. Reason: {}", reason);
-				return new Path(checkpointDataUri);
-			}
-		}
+		return new Path(checkpointDataUri);
 	}
 }

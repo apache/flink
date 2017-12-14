@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -40,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
@@ -80,7 +80,7 @@ public class PendingCheckpointTest {
 	@Test
 	public void testCanBeSubsumed() throws Exception {
 		// Forced checkpoints cannot be subsumed
-		CheckpointProperties forced = new CheckpointProperties(true, true, false, false, false, false, false);
+		CheckpointProperties forced = new CheckpointProperties(true, true, false, false, false, false, false, false);
 		PendingCheckpoint pending = createPendingCheckpoint(forced, "ignored");
 		assertFalse(pending.canBeSubsumed());
 
@@ -92,7 +92,7 @@ public class PendingCheckpointTest {
 		}
 
 		// Non-forced checkpoints can be subsumed
-		CheckpointProperties subsumed = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties subsumed = new CheckpointProperties(false, true, false, false, false, false, false, false);
 		pending = createPendingCheckpoint(subsumed, "ignored");
 		assertTrue(pending.canBeSubsumed());
 	}
@@ -106,7 +106,7 @@ public class PendingCheckpointTest {
 		File tmp = tmpFolder.newFolder();
 
 		// Persisted checkpoint
-		CheckpointProperties persisted = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties persisted = new CheckpointProperties(false, true, false, false, false, false, false, false);
 
 		PendingCheckpoint pending = createPendingCheckpoint(persisted, tmp.getAbsolutePath());
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
@@ -115,7 +115,7 @@ public class PendingCheckpointTest {
 		assertEquals(1, tmp.listFiles().length);
 
 		// Ephemeral checkpoint
-		CheckpointProperties ephemeral = new CheckpointProperties(false, false, true, true, true, true, true);
+		CheckpointProperties ephemeral = new CheckpointProperties(false, false, false, true, true, true, true, true);
 		pending = createPendingCheckpoint(ephemeral, null);
 		pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
 
@@ -130,11 +130,11 @@ public class PendingCheckpointTest {
 	 */
 	@Test
 	public void testCompletionFuture() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false, false);
 
 		// Abort declined
 		PendingCheckpoint pending = createPendingCheckpoint(props, "ignored");
-		Future<CompletedCheckpoint> future = pending.getCompletionFuture();
+		CompletableFuture<CompletedCheckpoint> future = pending.getCompletionFuture();
 
 		assertFalse(future.isDone());
 		pending.abortDeclined();
@@ -192,7 +192,7 @@ public class PendingCheckpointTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testAbortDiscardsState() throws Exception {
-		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
+		CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false, false);
 		QueueExecutor executor = new QueueExecutor();
 
 		OperatorState state = mock(OperatorState.class);
@@ -324,13 +324,13 @@ public class PendingCheckpointTest {
 	@Test
 	public void testNonNullSubtaskStateLeadsToStatefulTask() throws Exception {
 		PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
-		pending.acknowledgeTask(ATTEMPT_ID, mock(SubtaskState.class), mock(CheckpointMetrics.class));
+		pending.acknowledgeTask(ATTEMPT_ID, mock(TaskStateSnapshot.class), mock(CheckpointMetrics.class));
 		Assert.assertFalse(pending.getOperatorStates().isEmpty());
 	}
 
 	@Test
 	public void testSetCanceller() {
-		final CheckpointProperties props = new CheckpointProperties(false, false, true, true, true, true, true);
+		final CheckpointProperties props = new CheckpointProperties(false, false, false, true, true, true, true, true);
 
 		PendingCheckpoint aborted = createPendingCheckpoint(props, null);
 		aborted.abortDeclined();

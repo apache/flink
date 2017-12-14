@@ -58,7 +58,7 @@ In order to use a Hadoop file system with Flink, make sure that
 
 #### Amazon S3
 
-See [Deployment & Operations - Deployment - AWS - S3: Simple Storage Service]({{ site.baseurl }}/setup/aws.html) for available S3 file system implementations, their configuration and required libraries.
+See [Deployment & Operations - Deployment - AWS - S3: Simple Storage Service]({{ site.baseurl }}/ops/deployment/aws.html) for available S3 file system implementations, their configuration and required libraries.
 
 #### Alluxio
 
@@ -92,7 +92,7 @@ Also, the serialization framework of Flink is able to handle classes generated f
 ~~~xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-avro{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-avro</artifactId>
   <version>{{site.version }}</version>
 </dependency>
 ~~~
@@ -224,3 +224,5 @@ The example shows how to access an Azure table and turn data into Flink's `DataS
 ## Access MongoDB
 
 This [GitHub repository documents how to use MongoDB with Apache Flink (starting from 0.7-incubating)](https://github.com/okkam-it/flink-mongodb-test).
+
+{% top %}

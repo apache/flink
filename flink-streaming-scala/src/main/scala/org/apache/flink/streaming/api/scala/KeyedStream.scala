@@ -497,7 +497,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     new QueryableStateStream(
       queryableStateName,
-      stateDescriptor.getSerializer,
+      stateDescriptor,
       getKeyType.createSerializer(executionConfig))
   }
 
@@ -522,7 +522,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     new QueryableStateStream(
       queryableStateName,
-      stateDescriptor.getSerializer,
+      stateDescriptor,
       getKeyType.createSerializer(executionConfig))
   }
 
@@ -546,7 +546,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
 
     new QueryableStateStream(
       queryableStateName,
-      stateDescriptor.getSerializer,
+      stateDescriptor,
       getKeyType.createSerializer(executionConfig))
   }
   

@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.CompletableFuture;
-import org.apache.flink.runtime.concurrent.Future;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.util.DirectExecutorService;
 import org.apache.flink.util.TestLogger;
 
@@ -31,6 +29,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -67,12 +66,13 @@ public class HeartbeatManagerTest extends TestLogger {
 		long heartbeatTimeout = 1000L;
 		ResourceID ownResourceID = new ResourceID("foobar");
 		ResourceID targetResourceID = new ResourceID("barfoo");
+		@SuppressWarnings("unchecked")
 		HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
 		ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 
 		Object expectedObject = new Object();
 
-		when(heartbeatListener.retrievePayload()).thenReturn(FlinkCompletableFuture.completed(expectedObject));
+		when(heartbeatListener.retrievePayload()).thenReturn(CompletableFuture.completedFuture(expectedObject));
 
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
@@ -82,6 +82,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			scheduledExecutor,
 			LOG);
 
+		@SuppressWarnings("unchecked")
 		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
 
 		heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
@@ -105,6 +106,7 @@ public class HeartbeatManagerTest extends TestLogger {
 		long heartbeatTimeout = 1000L;
 		ResourceID ownResourceID = new ResourceID("foobar");
 		ResourceID targetResourceID = new ResourceID("barfoo");
+		@SuppressWarnings("unchecked")
 		HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
 		ScheduledExecutor scheduledExecutor = mock(ScheduledExecutor.class);
 		ScheduledFuture<?> scheduledFuture = mock(ScheduledFuture.class);
@@ -113,7 +115,7 @@ public class HeartbeatManagerTest extends TestLogger {
 
 		Object expectedObject = new Object();
 
-		when(heartbeatListener.retrievePayload()).thenReturn(FlinkCompletableFuture.completed(expectedObject));
+		when(heartbeatListener.retrievePayload()).thenReturn(CompletableFuture.completedFuture(expectedObject));
 
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
@@ -123,6 +125,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			scheduledExecutor,
 			LOG);
 
+		@SuppressWarnings("unchecked")
 		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
 
 		heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
@@ -163,9 +166,10 @@ public class HeartbeatManagerTest extends TestLogger {
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 
+		@SuppressWarnings("unchecked")
 		HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
 
-		Future<ResourceID> timeoutFuture = heartbeatListener.getTimeoutFuture();
+		CompletableFuture<ResourceID> timeoutFuture = heartbeatListener.getTimeoutFuture();
 
 		heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
 
@@ -197,13 +201,14 @@ public class HeartbeatManagerTest extends TestLogger {
 		Object object2 = new Object();
 		ResourceID resourceID = new ResourceID("foobar");
 		ResourceID resourceID2 = new ResourceID("barfoo");
+		@SuppressWarnings("unchecked")
 		HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
 
-		when(heartbeatListener.retrievePayload()).thenReturn(FlinkCompletableFuture.completed(object));
+		when(heartbeatListener.retrievePayload()).thenReturn(CompletableFuture.completedFuture(object));
 
 		TestingHeartbeatListener heartbeatListener2 = new TestingHeartbeatListener(object2);
 
-		Future<ResourceID> futureTimeout = heartbeatListener2.getTimeoutFuture();
+		CompletableFuture<ResourceID> futureTimeout = heartbeatListener2.getTimeoutFuture();
 
 		HeartbeatManagerImpl<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
 			heartbeatTimeout,
@@ -262,11 +267,13 @@ public class HeartbeatManagerTest extends TestLogger {
 			new ScheduledExecutorServiceAdapter(new ScheduledThreadPoolExecutor(1)),
 			LOG);
 
-		heartbeatManager.monitorTarget(targetID, mock(HeartbeatTarget.class));
+		@SuppressWarnings("unchecked")
+		final HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
+		heartbeatManager.monitorTarget(targetID, heartbeatTarget);
 
 		heartbeatManager.unmonitorTarget(targetID);
 
-		Future<ResourceID> timeout = heartbeatListener.getTimeoutFuture();
+		CompletableFuture<ResourceID> timeout = heartbeatListener.getTimeoutFuture();
 
 		try {
 			timeout.get(2 * heartbeatTimeout, TimeUnit.MILLISECONDS);
@@ -276,9 +283,70 @@ public class HeartbeatManagerTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the last heartbeat from an unregistered target equals -1.
+	 */
+	@Test
+	public void testLastHeartbeatFromUnregisteredTarget() {
+		final long heartbeatTimeout = 100L;
+		final ResourceID resourceId = ResourceID.generate();
+		@SuppressWarnings("unchecked")
+		final HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
+
+		HeartbeatManager<?, ?> heartbeatManager = new HeartbeatManagerImpl<>(
+			heartbeatTimeout,
+			resourceId,
+			heartbeatListener,
+			Executors.directExecutor(),
+			mock(ScheduledExecutor.class),
+			LOG);
+
+		try {
+			assertEquals(-1L, heartbeatManager.getLastHeartbeatFrom(ResourceID.generate()));
+		} finally {
+			heartbeatManager.stop();
+		}
+	}
+
+	/**
+	 * Tests that we can correctly retrieve the last heartbeat for registered targets.
+	 */
+	@Test
+	public void testLastHeartbeatFrom() {
+		final long heartbeatTimeout = 100L;
+		final ResourceID resourceId = ResourceID.generate();
+		@SuppressWarnings("unchecked")
+		final HeartbeatListener<Object, Object> heartbeatListener = mock(HeartbeatListener.class);
+		@SuppressWarnings("unchecked")
+		final HeartbeatTarget<Object> heartbeatTarget = mock(HeartbeatTarget.class);
+		final ResourceID target = ResourceID.generate();
+
+		HeartbeatManager<Object, Object> heartbeatManager = new HeartbeatManagerImpl<>(
+			heartbeatTimeout,
+			resourceId,
+			heartbeatListener,
+			Executors.directExecutor(),
+			mock(ScheduledExecutor.class),
+			LOG);
+
+		try {
+			heartbeatManager.monitorTarget(target, heartbeatTarget);
+
+			assertEquals(0L, heartbeatManager.getLastHeartbeatFrom(target));
+
+			final long currentTime = System.currentTimeMillis();
+
+			heartbeatManager.receiveHeartbeat(target, null);
+
+			assertTrue(heartbeatManager.getLastHeartbeatFrom(target) >= currentTime);
+		} finally {
+			heartbeatManager.stop();
+		}
+	}
+
 	static class TestingHeartbeatListener implements HeartbeatListener<Object, Object> {
 
-		private final CompletableFuture<ResourceID> future = new FlinkCompletableFuture<>();
+		private final CompletableFuture<ResourceID> future = new CompletableFuture<>();
 
 		private final Object payload;
 
@@ -288,7 +356,7 @@ public class HeartbeatManagerTest extends TestLogger {
 			this.payload = payload;
 		}
 
-		public Future<ResourceID> getTimeoutFuture() {
+		CompletableFuture<ResourceID> getTimeoutFuture() {
 			return future;
 		}
 
@@ -307,8 +375,8 @@ public class HeartbeatManagerTest extends TestLogger {
 		}
 
 		@Override
-		public Future<Object> retrievePayload() {
-			return FlinkCompletableFuture.completed(payload);
+		public CompletableFuture<Object> retrievePayload() {
+			return CompletableFuture.completedFuture(payload);
 		}
 	}
 }

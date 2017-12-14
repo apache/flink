@@ -34,6 +34,7 @@ import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -41,13 +42,14 @@ import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
 import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import scala.concurrent.ExecutionContext;
 
 @SuppressWarnings("serial")
-public class ExecutionVertexCancelTest {
+public class ExecutionVertexCancelTest extends TestLogger {
 
 	// --------------------------------------------------------------------------------------------
 	//  Canceling in different states
@@ -262,8 +264,8 @@ public class ExecutionVertexCancelTest {
 			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -302,8 +304,8 @@ public class ExecutionVertexCancelTest {
 			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -350,8 +352,8 @@ public class ExecutionVertexCancelTest {
 			Instance instance = getInstance(new ActorTaskManagerGateway(actorGateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -383,8 +385,8 @@ public class ExecutionVertexCancelTest {
 			Instance instance = getInstance(new ActorTaskManagerGateway(gateway));
 			SimpleSlot slot = instance.allocateSimpleSlot(new JobID());
 
-			setVertexState(vertex, ExecutionState.RUNNING);
 			setVertexResource(vertex, slot);
+			setVertexState(vertex, ExecutionState.RUNNING);
 
 			assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
 
@@ -421,7 +423,7 @@ public class ExecutionVertexCancelTest {
 		exec.markFailed(new Exception("test"));
 		assertTrue(exec.getState() == ExecutionState.FAILED || exec.getState() == ExecutionState.CANCELED);
 
-		assertTrue(exec.getAssignedResource().isCanceled());
+		assertFalse(exec.getAssignedResource().isAlive());
 		assertEquals(vertices.length - 1, exec.getVertex().getExecutionGraph().getRegisteredExecutions().size());
 	}
 
@@ -446,7 +448,7 @@ public class ExecutionVertexCancelTest {
 			// it can occur as the result of races
 			{
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -485,7 +487,7 @@ public class ExecutionVertexCancelTest {
 				setVertexState(vertex, ExecutionState.CANCELING);
 
 				Scheduler scheduler = mock(Scheduler.class);
-				vertex.scheduleForExecution(scheduler, false);
+				vertex.scheduleForExecution(scheduler, false, LocationPreferenceConstraint.ALL);
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");

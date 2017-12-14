@@ -61,7 +61,7 @@ There are two ways to assign timestamps and generate watermarks:
   2. Via a timestamp assigner / watermark generator: in Flink timestamp assigners also define the watermarks to be emitted
 
 <span class="label label-danger">Attention</span> Both timestamps and watermarks are specified as
-millliseconds since the Java epoch of 1970-01-01T00:00:00Z.
+milliseconds since the Java epoch of 1970-01-01T00:00:00Z.
 
 ### Source Functions with Timestamps and Watermarks
 
@@ -338,7 +338,7 @@ Kafka consumer, per Kafka partition, and the per-partition watermarks are merged
 For example, if event timestamps are strictly ascending per Kafka partition, generating per-partition watermarks with the
 [ascending timestamps watermark generator](event_timestamp_extractors.html#assigners-with-ascending-timestamps) will result in perfect overall watermarks.
 
-The illustrations below show how to use ther per-Kafka-partition watermark generation, and how watermarks propagate through the
+The illustrations below show how to use the per-Kafka-partition watermark generation, and how watermarks propagate through the
 streaming dataflow in that case.
 
 
@@ -371,4 +371,4 @@ val stream: DataStream[MyType] = env.addSource(kafkaSource)
 
 <img src="{{ site.baseurl }}/fig/parallel_kafka_watermarks.svg" alt="Generating Watermarks with awareness for Kafka-partitions" class="center" width="80%" />
 
-
+{% top %}

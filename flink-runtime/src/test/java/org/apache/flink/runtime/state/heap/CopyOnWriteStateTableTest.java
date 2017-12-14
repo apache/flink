@@ -396,8 +396,8 @@ public class CopyOnWriteStateTableTest extends TestLogger {
 	public void testSerializerDuplicationInSnapshot() throws IOException {
 
 		final TestDuplicateSerializer namespaceSerializer = new TestDuplicateSerializer();
-		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();;
-		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();;
+		final TestDuplicateSerializer stateSerializer = new TestDuplicateSerializer();
+		final TestDuplicateSerializer keySerializer = new TestDuplicateSerializer();
 
 		RegisteredKeyedBackendStateMetaInfo<Integer, Integer> metaInfo =
 			new RegisteredKeyedBackendStateMetaInfo<>(

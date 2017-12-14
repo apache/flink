@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.cli;
 
+import org.apache.flink.client.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.Configuration;
@@ -96,9 +97,12 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		allOptions.addOption(zookeeperNamespace);
 	}
 
-	public YarnClusterDescriptorV2 createDescriptor(String defaultApplicationName, CommandLine cmd) {
+	public YarnClusterDescriptorV2 createDescriptor(
+			Configuration configuration,
+			String defaultApplicationName,
+			CommandLine cmd) {
 
-		YarnClusterDescriptorV2 yarnClusterDescriptor = new YarnClusterDescriptorV2();
+		YarnClusterDescriptorV2 yarnClusterDescriptor = new YarnClusterDescriptorV2(configuration, CliFrontend.getConfigurationDirectoryFromEnv());
 
 		// Jar Path
 		Path localJarPath;
@@ -142,12 +146,6 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 		// queue
 		if (cmd.hasOption(queue.getOpt())) {
 			yarnClusterDescriptor.setQueue(cmd.getOptionValue(queue.getOpt()));
-		}
-
-		// JobManager Memory
-		if (cmd.hasOption(jmMemory.getOpt())) {
-			int jmMemory = Integer.valueOf(cmd.getOptionValue(this.jmMemory.getOpt()));
-			yarnClusterDescriptor.setJobManagerMemory(jmMemory);
 		}
 
 		String[] dynamicProperties = null;
@@ -215,7 +213,8 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 	@Override
 	public YarnClusterClientV2 retrieveCluster(
 			CommandLine cmdLine,
-			Configuration config) throws UnsupportedOperationException {
+			Configuration config,
+			String configurationDirectory) throws UnsupportedOperationException {
 
 		throw new UnsupportedOperationException("Not support retrieveCluster since Flip-6.");
 	}
@@ -225,14 +224,16 @@ public class FlinkYarnCLI implements CustomCommandLine<YarnClusterClientV2> {
 			String applicationName,
 			CommandLine cmdLine,
 			Configuration config,
+			String configurationDirectory,
 			List<URL> userJarFiles) throws Exception {
 		Preconditions.checkNotNull(userJarFiles, "User jar files should not be null.");
 
-		YarnClusterDescriptorV2 yarnClusterDescriptor = createDescriptor(applicationName, cmdLine);
-		yarnClusterDescriptor.setFlinkConfiguration(config);
+		YarnClusterDescriptorV2 yarnClusterDescriptor = createDescriptor(config, applicationName, cmdLine);
 		yarnClusterDescriptor.setProvidedUserJarFiles(userJarFiles);
 
-		return new YarnClusterClientV2(yarnClusterDescriptor, config);
+		return new YarnClusterClientV2(
+			yarnClusterDescriptor,
+			config);
 	}
 
 	private void logAndSysout(String message) {

@@ -18,12 +18,13 @@
 
 package org.apache.flink.runtime.io.network.util;
 
-import com.google.common.collect.Queues;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
-import org.apache.flink.runtime.util.event.EventListener;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -90,7 +91,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 	}
 
 	@Override
-	public boolean addListener(EventListener<Buffer> listener) {
+	public boolean addBufferListener(BufferListener listener) {
 		return bufferRecycler.registerListener(listener);
 	}
 
@@ -114,7 +115,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 
 		private final Queue<Buffer> buffers;
 
-		private final ConcurrentLinkedQueue<EventListener<Buffer>> registeredListeners =
+		private final ConcurrentLinkedQueue<BufferListener> registeredListeners =
 				Queues.newConcurrentLinkedQueue();
 
 		public PooledBufferProviderRecycler(Queue<Buffer> buffers) {
@@ -126,18 +127,18 @@ public class TestPooledBufferProvider implements BufferProvider {
 			synchronized (listenerRegistrationLock) {
 				final Buffer buffer = new Buffer(segment, this);
 
-				EventListener<Buffer> listener = registeredListeners.poll();
+				BufferListener listener = registeredListeners.poll();
 
 				if (listener == null) {
 					buffers.add(buffer);
 				}
 				else {
-					listener.onEvent(buffer);
+					listener.notifyBufferAvailable(buffer);
 				}
 			}
 		}
 
-		boolean registerListener(EventListener<Buffer> listener) {
+		boolean registerListener(BufferListener listener) {
 			synchronized (listenerRegistrationLock) {
 				if (buffers.isEmpty()) {
 					registeredListeners.add(listener);

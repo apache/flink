@@ -19,8 +19,10 @@
 package org.apache.flink.table.calcite
 
 import java.util
+import java.util.Properties
 
 import com.google.common.collect.ImmutableList
+import org.apache.calcite.config.{CalciteConnectionConfig, CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
@@ -57,7 +59,6 @@ class FlinkPlannerImpl(
   val defaultSchema: SchemaPlus = config.getDefaultSchema
 
   var validator: FlinkCalciteSqlValidator = _
-  var validatedSqlNode: SqlNode = _
   var root: RelRoot = _
 
   private def ready() {
@@ -85,16 +86,15 @@ class FlinkPlannerImpl(
     validator = new FlinkCalciteSqlValidator(operatorTable, createCatalogReader, typeFactory)
     validator.setIdentifierExpansion(true)
     try {
-      validatedSqlNode = validator.validate(sqlNode)
+      validator.validate(sqlNode)
     }
     catch {
       case e: RuntimeException =>
         throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
     }
-    validatedSqlNode
   }
 
-  def rel(sql: SqlNode): RelRoot = {
+  def rel(validatedSqlNode: SqlNode): RelRoot = {
     try {
       assert(validatedSqlNode != null)
       val rexBuilder: RexBuilder = createRexBuilder
@@ -159,9 +159,10 @@ class FlinkPlannerImpl(
     val rootSchema: SchemaPlus = FlinkPlannerImpl.rootSchema(defaultSchema)
     new CalciteCatalogReader(
       CalciteSchema.from(rootSchema),
-      parserConfig.caseSensitive,
       CalciteSchema.from(defaultSchema).path(null),
-      typeFactory)
+      typeFactory,
+      CalciteConfig.connectionConfig(parserConfig)
+    )
   }
 
   private def createRexBuilder: RexBuilder = {

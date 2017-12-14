@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableException, TableSchema}
 
 import scala.collection.mutable
 
@@ -38,6 +38,8 @@ import scala.collection.mutable
   * @param path The path to the CSV file.
   * @param fieldNames The names of the table fields.
   * @param fieldTypes The types of the table fields.
+  * @param selectedFields The fields which will be read and returned by the table source.
+  *                       If None, all fields are returned.
   * @param fieldDelim The field delimiter, "," by default.
   * @param rowDelim The row delimiter, "\n" by default.
   * @param quoteCharacter An optional quote character for String values, null by default.
@@ -45,16 +47,17 @@ import scala.collection.mutable
   * @param ignoreComments An optional prefix to indicate comments, null by default.
   * @param lenient Flag to skip records with parse error instead to fail, false by default.
   */
-class CsvTableSource(
+class CsvTableSource private (
     private val path: String,
     private val fieldNames: Array[String],
     private val fieldTypes: Array[TypeInformation[_]],
-    private val fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
-    private val rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
-    private val quoteCharacter: Character = null,
-    private val ignoreFirstLine: Boolean = false,
-    private val ignoreComments: String = null,
-    private val lenient: Boolean = false)
+    private val selectedFields: Array[Int],
+    private val fieldDelim: String,
+    private val rowDelim: String,
+    private val quoteCharacter: Character,
+    private val ignoreFirstLine: Boolean,
+    private val ignoreComments: String,
+    private val lenient: Boolean)
   extends BatchTableSource[Row]
   with StreamTableSource[Row]
   with ProjectableTableSource[Row] {
@@ -66,18 +69,59 @@ class CsvTableSource(
     * @param path The path to the CSV file.
     * @param fieldNames The names of the table fields.
     * @param fieldTypes The types of the table fields.
+    * @param fieldDelim The field delimiter, "," by default.
+    * @param rowDelim The row delimiter, "\n" by default.
+    * @param quoteCharacter An optional quote character for String values, null by default.
+    * @param ignoreFirstLine Flag to ignore the first line, false by default.
+    * @param ignoreComments An optional prefix to indicate comments, null by default.
+    * @param lenient Flag to skip records with parse error instead to fail, false by default.
     */
-  def this(path: String, fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]) =
+  def this(
+    path: String,
+    fieldNames: Array[String],
+    fieldTypes: Array[TypeInformation[_]],
+    fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+    rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER,
+    quoteCharacter: Character = null,
+    ignoreFirstLine: Boolean = false,
+    ignoreComments: String = null,
+    lenient: Boolean = false) = {
+
+    this(
+      path,
+      fieldNames,
+      fieldTypes,
+      fieldTypes.indices.toArray, // initially, all fields are returned
+      fieldDelim,
+      rowDelim,
+      quoteCharacter,
+      ignoreFirstLine,
+      ignoreComments,
+      lenient)
+
+  }
+
+  /**
+    * A [[BatchTableSource]] and [[StreamTableSource]] for simple CSV files with a
+    * (logically) unlimited number of fields.
+    *
+    * @param path The path to the CSV file.
+    * @param fieldNames The names of the table fields.
+    * @param fieldTypes The types of the table fields.
+    */
+  def this(path: String, fieldNames: Array[String], fieldTypes: Array[TypeInformation[_]]) = {
     this(path, fieldNames, fieldTypes, CsvInputFormat.DEFAULT_FIELD_DELIMITER,
       CsvInputFormat.DEFAULT_LINE_DELIMITER, null, false, null, false)
+  }
 
   if (fieldNames.length != fieldTypes.length) {
     throw TableException("Number of field names and field types must be equal.")
   }
 
-  private val returnType = new RowTypeInfo(fieldTypes, fieldNames)
+  private val selectedFieldTypes = selectedFields.map(fieldTypes(_))
+  private val selectedFieldNames = selectedFields.map(fieldNames(_))
 
-  private var selectedFields: Array[Int] = fieldTypes.indices.toArray
+  private val returnType: RowTypeInfo = new RowTypeInfo(selectedFieldTypes, selectedFieldNames)
 
   /**
     * Returns the data of the table as a [[DataSet]] of [[Row]].
@@ -102,29 +146,32 @@ class CsvTableSource(
     streamExecEnv.createInput(createCsvInput(), returnType)
   }
 
+  /** Returns the schema of the produced table. */
+  override def getTableSchema = new TableSchema(fieldNames, fieldTypes)
+
   /** Returns a copy of [[TableSource]] with ability to project fields */
   override def projectFields(fields: Array[Int]): CsvTableSource = {
 
-    val newFieldNames: Array[String] = fields.map(fieldNames(_))
-    val newFieldTypes: Array[TypeInformation[_]] = fields.map(fieldTypes(_))
+    val selectedFields = if (fields.isEmpty) Array(0) else fields
+//    val selectedFiels = fields
 
-    val source = new CsvTableSource(path,
-      newFieldNames,
-      newFieldTypes,
+    new CsvTableSource(
+      path,
+      fieldNames,
+      fieldTypes,
+      selectedFields,
       fieldDelim,
       rowDelim,
       quoteCharacter,
       ignoreFirstLine,
       ignoreComments,
       lenient)
-    source.selectedFields = fields
-    source
   }
 
   private def createCsvInput(): RowCsvInputFormat = {
     val inputFormat = new RowCsvInputFormat(
       new Path(path),
-      fieldTypes,
+      selectedFieldTypes,
       rowDelim,
       fieldDelim,
       selectedFields)
@@ -155,6 +202,11 @@ class CsvTableSource(
 
   override def hashCode(): Int = {
     returnType.hashCode()
+  }
+
+  override def explainSource(): String = {
+    s"CsvTableSource(" +
+      s"read fields: ${getReturnType.getFieldNames.mkString(", ")})"
   }
 }
 

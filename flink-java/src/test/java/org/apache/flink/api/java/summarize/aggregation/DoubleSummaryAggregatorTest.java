@@ -19,17 +19,21 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
+
 import org.junit.Assert;
 import org.junit.Test;
 
+/**
+ * Tests for {@link DoubleSummaryAggregator}.
+ */
 public class DoubleSummaryAggregatorTest {
 
 	/**
 	 * Use some values from Anscombe's Quartet for testing.
 	 *
-	 * There was no particular reason to use these except they have known means and variance.
+	 * <p>There was no particular reason to use these except they have known means and variance.
 	 *
-	 * https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
 	 */
 	@Test
 	public void testAnscomesQuartetXValues() throws Exception {
@@ -54,9 +58,9 @@ public class DoubleSummaryAggregatorTest {
 	/**
 	 * Use some values from Anscombe's Quartet for testing.
 	 *
-	 * There was no particular reason to use these except they have known means and variance.
+	 * <p>There was no particular reason to use these except they have known means and variance.
 	 *
-	 * https://en.wikipedia.org/wiki/Anscombe%27s_quartet
+	 * <p>https://en.wikipedia.org/wiki/Anscombe%27s_quartet
 	 */
 	@Test
 	public void testAnscomesQuartetYValues() throws Exception {
@@ -156,11 +160,11 @@ public class DoubleSummaryAggregatorTest {
 	/**
 	 * Helper method for summarizing a list of values.
 	 *
-	 * This method breaks the rule of "testing only one thing" by aggregating and combining
+	 * <p>This method breaks the rule of "testing only one thing" by aggregating and combining
 	 * a bunch of different ways.
 	 */
 	protected NumericColumnSummary<Double> summarize(Double... values) {
-		return new AggregateCombineHarness<Double,NumericColumnSummary<Double>,DoubleSummaryAggregator>() {
+		return new AggregateCombineHarness<Double, NumericColumnSummary<Double>, DoubleSummaryAggregator>() {
 
 			@Override
 			protected void compareResults(NumericColumnSummary<Double> result1, NumericColumnSummary<Double> result2) {

@@ -30,6 +30,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{ExpressionTestBase, _}
 import org.apache.flink.table.functions.ScalarFunction
 import org.junit.Test
+import java.lang.{Boolean => JBoolean}
 
 class UserDefinedScalarFunctionTest extends ExpressionTestBase {
 
@@ -46,6 +47,24 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func1(f0)",
       "Func1(f0)",
       "43")
+
+    testAllApis(
+      Func1('f11),
+      "Func1(f11)",
+      "Func1(f11)",
+      "4")
+
+    testAllApis(
+      Func1('f12),
+      "Func1(f12)",
+      "Func1(f12)",
+      "4")
+
+    testAllApis(
+      Func1('f13),
+      "Func1(f13)",
+      "Func1(f13)",
+      "4.0")
 
     testAllApis(
       Func2('f0, 'f1, 'f3),
@@ -89,6 +108,14 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Nullable(f0)",
       "Nullable(f0)",
       "42")
+
+    // test row type input
+    testAllApis(
+      Func19('f14),
+      "Func19(f14)",
+      "Func19(f14)",
+      "12,true,1,2,3"
+    )
   }
 
   @Test
@@ -350,7 +377,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Any = {
-    val testData = new Row(11)
+    val testData = new Row(15)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -362,6 +389,14 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     testData.setField(8, 1000L)
     testData.setField(9, Seq("Hello", "World"))
     testData.setField(10, Array[Integer](1, 2, null))
+    testData.setField(11, 3.toByte)
+    testData.setField(12, 3.toShort)
+    testData.setField(13, 3.toFloat)
+    testData.setField(14, Row.of(
+      12.asInstanceOf[Integer],
+      true.asInstanceOf[JBoolean],
+      Row.of(1.asInstanceOf[Integer], 2.asInstanceOf[Integer], 3.asInstanceOf[Integer]))
+    )
     testData
   }
 
@@ -377,7 +412,11 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.INTERVAL_MONTHS,
       Types.INTERVAL_MILLIS,
       TypeInformation.of(classOf[Seq[String]]),
-      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO
+      BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO,
+      Types.BYTE,
+      Types.SHORT,
+      Types.FLOAT,
+      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
     ).asInstanceOf[TypeInformation[Any]]
   }
 
@@ -403,6 +442,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
     "Func15" -> Func15,
     "Func16" -> Func16,
     "Func17" -> Func17,
+    "Func19" -> Func19,
     "JavaFunc0" -> new JavaFunc0,
     "JavaFunc1" -> new JavaFunc1,
     "JavaFunc2" -> new JavaFunc2,

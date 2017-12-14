@@ -21,22 +21,25 @@ package org.apache.flink.runtime.messages;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
-import org.apache.flink.runtime.messages.webmonitor.JobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
-import org.apache.flink.runtime.messages.webmonitor.StatusOverview;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 
 public class WebMonitorMessagesTest {
 	
@@ -51,11 +54,15 @@ public class WebMonitorMessagesTest {
 			GenericMessageTester.testMessageInstance(RequestJobsOverview.getInstance());
 
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(RequestJobDetails.class, rnd));
-			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(StatusOverview.class, rnd));
+			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(ClusterOverview.class, rnd));
 			GenericMessageTester.testMessageInstance(GenericMessageTester.instantiateGeneric(JobsOverview.class, rnd));
 			
-			GenericMessageTester.testMessageInstance(new JobsWithIDsOverview(
-					randomIds(rnd), randomIds(rnd), randomIds(rnd), randomIds(rnd)));
+			GenericMessageTester.testMessageInstance(new JobIdsWithStatusOverview(Arrays.asList(
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.RUNNING),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.CANCELED),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.CREATED),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.FAILED),
+				new JobIdsWithStatusOverview.JobIdWithStatus(JobID.generate(), JobStatus.RESTARTING))));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -85,8 +92,8 @@ public class WebMonitorMessagesTest {
 			JobID jid = GenericMessageTester.randomJobId(rnd);
 			JobStatus status = GenericMessageTester.randomJobStatus(rnd);
 			
-			JobDetails msg1 = new JobDetails(jid, name, time, endTime, status, lastModified, numVerticesPerState, numTotal);
-			JobDetails msg2 = new JobDetails(jid, name, time, endTime, status, lastModified, numVerticesPerState, numTotal);
+			JobDetails msg1 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
+			JobDetails msg2 = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
 			
 			GenericMessageTester.testMessageInstances(msg1, msg2);
 		}
@@ -101,7 +108,7 @@ public class WebMonitorMessagesTest {
 		try {
 			final Random rnd = new Random();
 			GenericMessageTester.testMessageInstance(
-					new MultipleJobsDetails(randomJobDetails(rnd), randomJobDetails(rnd)));
+					new MultipleJobsDetails(randomJobDetails(rnd)));
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -120,7 +127,7 @@ public class WebMonitorMessagesTest {
 		return ids;
 	}
 	
-	private JobDetails[] randomJobDetails(Random rnd) {
+	private Collection<JobDetails> randomJobDetails(Random rnd) {
 		final JobDetails[] details = new JobDetails[rnd.nextInt(10)];
 		for (int k = 0; k < details.length; k++) {
 			int[] numVerticesPerState = new int[ExecutionState.values().length];
@@ -140,8 +147,8 @@ public class WebMonitorMessagesTest {
 			JobID jid = new JobID();
 			JobStatus status = JobStatus.values()[rnd.nextInt(JobStatus.values().length)];
 
-			details[k] = new JobDetails(jid, name, time, endTime, status, lastModified, numVerticesPerState, numTotal);
+			details[k] = new JobDetails(jid, name, time, endTime, endTime - time, status, lastModified, numVerticesPerState, numTotal);
 		}
-		return details;
+		return Arrays.asList(details);
 	}
 }

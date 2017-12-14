@@ -29,10 +29,13 @@ import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,6 +47,42 @@ import static org.mockito.Mockito.mock;
  */
 @SuppressWarnings("serial")
 public class AbstractFetcherTest {
+
+	@Test
+	public void testIgnorePartitionStateSentinelInSnapshot() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 1), KafkaTopicPartitionStateSentinel.LATEST_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 2), KafkaTopicPartitionStateSentinel.GROUP_OFFSET);
+		originalPartitions.put(new KafkaTopicPartition(testTopic, 3), KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			null,
+			null,
+			mock(TestProcessingTimeService.class),
+			0);
+
+		synchronized (sourceContext.getCheckpointLock()) {
+			HashMap<KafkaTopicPartition, Long> currentState = fetcher.snapshotCurrentState();
+			fetcher.commitInternalOffsetsToKafka(currentState, new KafkaCommitCallback() {
+				@Override
+				public void onSuccess() {
+				}
+
+				@Override
+				public void onException(Throwable cause) {
+					throw new RuntimeException("Callback failed", cause);
+				}
+			});
+
+			assertTrue(fetcher.getLastCommittedOffsets().isPresent());
+			assertEquals(Collections.emptyMap(), fetcher.getLastCommittedOffsets().get());
+		}
+	}
 
 	// ------------------------------------------------------------------------
 	//   Record emitting tests
@@ -321,11 +360,41 @@ public class AbstractFetcherTest {
 		assertTrue(watermarkTs >= 13L && watermarkTs <= 15L);
 	}
 
+	@Test
+	public void testPeriodicWatermarksWithNoSubscribedPartitionsShouldYieldNoWatermarks() throws Exception {
+		final String testTopic = "test topic name";
+		Map<KafkaTopicPartition, Long> originalPartitions = new HashMap<>();
+
+		TestSourceContext<Long> sourceContext = new TestSourceContext<>();
+
+		TestProcessingTimeService processingTimeProvider = new TestProcessingTimeService();
+
+		TestFetcher<Long> fetcher = new TestFetcher<>(
+			sourceContext,
+			originalPartitions,
+			new SerializedValue<AssignerWithPeriodicWatermarks<Long>>(new PeriodicTestExtractor()),
+			null, /* punctuated watermarks assigner*/
+			processingTimeProvider,
+			10);
+
+		processingTimeProvider.setCurrentTime(10);
+		// no partitions; when the periodic watermark emitter fires, no watermark should be emitted
+		assertFalse(sourceContext.hasWatermark());
+
+		// counter-test that when the fetcher does actually have partitions,
+		// when the periodic watermark emitter fires again, a watermark really is emitted
+		fetcher.addDiscoveredPartitions(Collections.singletonList(new KafkaTopicPartition(testTopic, 0)));
+		fetcher.emitRecord(100L, fetcher.subscribedPartitionStates().get(0), 3L);
+		processingTimeProvider.setCurrentTime(20);
+		assertEquals(100, sourceContext.getLatestWatermark().getTimestamp());
+	}
+
 	// ------------------------------------------------------------------------
 	//  Test mocks
 	// ------------------------------------------------------------------------
 
 	private static final class TestFetcher<T> extends AbstractFetcher<T, Object> {
+		protected Optional<Map<KafkaTopicPartition, Long>> lastCommittedOffsets = Optional.empty();
 
 		protected TestFetcher(
 				SourceContext<T> sourceContext,
@@ -361,8 +430,15 @@ public class AbstractFetcherTest {
 		}
 
 		@Override
-		public void commitInternalOffsetsToKafka(Map<KafkaTopicPartition, Long> offsets) throws Exception {
-			throw new UnsupportedOperationException();
+		protected void doCommitInternalOffsetsToKafka(
+				Map<KafkaTopicPartition, Long> offsets,
+				@Nonnull KafkaCommitCallback callback) throws Exception {
+			lastCommittedOffsets = Optional.of(offsets);
+			callback.onSuccess();
+		}
+
+		public Optional<Map<KafkaTopicPartition, Long>> getLastCommittedOffsets() {
+			return lastCommittedOffsets;
 		}
 	}
 

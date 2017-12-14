@@ -104,7 +104,7 @@ case class OverCall(
     val operator: SqlAggFunction = agg.asInstanceOf[Aggregation].getSqlAggFunction()
     val aggResultType = relBuilder
       .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .createTypeFromTypeInfo(agg.resultType)
+      .createTypeFromTypeInfo(agg.resultType, isNullable = true)
 
     // assemble exprs by agg children
     val aggExprs = agg.asInstanceOf[Aggregation].children.map(_.toRexNode(relBuilder)).asJava
@@ -133,6 +133,7 @@ case class OverCall(
       upperBound,
       isPhysical,
       true,
+      false,
       false)
   }
 
@@ -151,7 +152,7 @@ case class OverCall(
       case b: Literal =>
         val returnType = relBuilder
           .getTypeFactory.asInstanceOf[FlinkTypeFactory]
-          .createTypeFromTypeInfo(Types.DECIMAL)
+          .createTypeFromTypeInfo(Types.DECIMAL, isNullable = true)
 
         val sqlOperator = new SqlPostfixOperator(
           sqlKind.name,
@@ -271,6 +272,7 @@ case class ScalarFunctionCall(
     relBuilder.call(
       createScalarSqlFunction(
         scalarFunction.functionIdentifier,
+        scalarFunction.toString,
         scalarFunction,
         typeFactory),
       parameters.map(_.toRexNode): _*)

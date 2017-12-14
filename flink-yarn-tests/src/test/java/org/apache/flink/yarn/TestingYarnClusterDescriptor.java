@@ -18,6 +18,9 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
 import java.io.File;
@@ -32,7 +35,8 @@ import java.util.List;
  */
 public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
-	public TestingYarnClusterDescriptor() {
+	public TestingYarnClusterDescriptor(Configuration configuration, String configurationDirectory) {
+		super(configuration, configurationDirectory);
 		List<File> filesToShip = new ArrayList<>();
 
 		File testingJar = YarnTestBase.findFile("..", new TestJarFinder("flink-yarn-tests"));
@@ -55,15 +59,25 @@ public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor 
 	}
 
 	@Override
-	protected Class<?> getApplicationMasterClass() {
-		return TestingApplicationMaster.class;
+	protected String getYarnSessionClusterEntrypoint() {
+		return TestingApplicationMaster.class.getName();
 	}
 
-	private static class TestJarFinder implements FilenameFilter {
+	@Override
+	protected String getYarnJobClusterEntrypoint() {
+		throw new UnsupportedOperationException("Does not support Yarn per-job clusters.");
+	}
+
+	@Override
+	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+		throw new UnsupportedOperationException("Cannot deploy a per-job cluster yet.");
+	}
+
+	static class TestJarFinder implements FilenameFilter {
 
 		private final String jarName;
 
-		public TestJarFinder(final String jarName) {
+		TestJarFinder(final String jarName) {
 			this.jarName = jarName;
 		}
 

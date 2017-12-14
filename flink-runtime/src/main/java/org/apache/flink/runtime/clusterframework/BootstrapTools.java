@@ -18,28 +18,31 @@
 
 package org.apache.flink.runtime.clusterframework;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Address;
-import com.typesafe.config.Config;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitor;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.NetUtils;
 
-import org.slf4j.Logger;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 
+import akka.actor.ActorSystem;
+import com.typesafe.config.Config;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -51,6 +54,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import scala.Some;
+import scala.Tuple2;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Tools for starting JobManager and TaskManager processes, including the
@@ -69,10 +76,10 @@ public class BootstrapTools {
 	 * @throws Exception
 	 */
 	public static ActorSystem startActorSystem(
-				Configuration configuration,
-				String listeningAddress,
-				String portRangeDefinition,
-				Logger logger) throws Exception {
+			Configuration configuration,
+			String listeningAddress,
+			String portRangeDefinition,
+			Logger logger) throws Exception {
 
 		// parse port range definition and create port iterator
 		Iterator<Integer> portsIterator;
@@ -137,13 +144,13 @@ public class BootstrapTools {
 				int listeningPort,
 				Logger logger) throws Exception {
 
-		String hostPortUrl = listeningAddress + ':' + listeningPort;
+		String hostPortUrl = NetUtils.unresolvedHostAndPortToNormalizedString(listeningAddress, listeningPort);
 		logger.info("Trying to start actor system at {}", hostPortUrl);
 
 		try {
 			Config akkaConfig = AkkaUtils.getAkkaConfig(
 				configuration,
-				new scala.Some<>(new scala.Tuple2<String, Object>(listeningAddress, listeningPort))
+				new Some<>(new Tuple2<>(listeningAddress, listeningPort))
 			);
 
 			logger.debug("Using akka configuration\n {}", akkaConfig);
@@ -154,9 +161,9 @@ public class BootstrapTools {
 			return actorSystem;
 		}
 		catch (Throwable t) {
-			if (t instanceof org.jboss.netty.channel.ChannelException) {
+			if (t instanceof ChannelException) {
 				Throwable cause = t.getCause();
-				if (cause != null && t.getCause() instanceof java.net.BindException) {
+				if (cause != null && t.getCause() instanceof BindException) {
 					throw new IOException("Unable to create ActorSystem at address " + hostPortUrl +
 							" : " + cause.getMessage(), t);
 				}
@@ -170,7 +177,10 @@ public class BootstrapTools {
 	 *
 	 * @param config The Flink config.
 	 * @param highAvailabilityServices Service factory for high availability services
-	 * @param actorSystem The ActorSystem to start the web frontend in.
+	 * @param jobManagerRetriever to retrieve the leading JobManagerGateway
+	 * @param queryServiceRetriever to resolve a query service
+	 * @param timeout for asynchronous operations
+	 * @param scheduledExecutor to run asynchronous operations
 	 * @param logger Logger for log output
 	 * @return WebMonitor instance.
 	 * @throws Exception
@@ -178,17 +188,13 @@ public class BootstrapTools {
 	public static WebMonitor startWebMonitorIfConfigured(
 			Configuration config,
 			HighAvailabilityServices highAvailabilityServices,
-			ActorSystem actorSystem,
-			ActorRef jobManager,
+			LeaderGatewayRetriever<JobManagerGateway> jobManagerRetriever,
+			MetricQueryServiceRetriever queryServiceRetriever,
+			Time timeout,
+			ScheduledExecutor scheduledExecutor,
 			Logger logger) throws Exception {
 
-
-		// this ensures correct values are present in the web frontend
-		final Address address = AkkaUtils.getAddress(actorSystem);
-		config.setString(JobManagerOptions.ADDRESS, address.host().get());
-		config.setInteger(JobManagerOptions.PORT, Integer.parseInt(address.port().get().toString()));
-
-		if (config.getInteger(JobManagerOptions.WEB_PORT.key(), 0) >= 0) {
+		if (config.getInteger(WebOptions.PORT, 0) >= 0) {
 			logger.info("Starting JobManager Web Frontend");
 
 			// start the web frontend. we need to load this dynamically
@@ -196,12 +202,14 @@ public class BootstrapTools {
 			WebMonitor monitor = WebMonitorUtils.startWebRuntimeMonitor(
 				config,
 				highAvailabilityServices,
-				actorSystem);
+				jobManagerRetriever,
+				queryServiceRetriever,
+				timeout,
+				scheduledExecutor);
 
 			// start the web monitor
 			if (monitor != null) {
-				String jobManagerAkkaURL = AkkaUtils.getAkkaURL(actorSystem, jobManager);
-				monitor.start(jobManagerAkkaURL);
+				monitor.start();
 			}
 			return monitor;
 		}
@@ -228,8 +236,14 @@ public class BootstrapTools {
 
 		Configuration cfg = baseConfig.clone();
 
-		cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
-		cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		if (jobManagerHostname != null && !jobManagerHostname.isEmpty()) {
+			cfg.setString(JobManagerOptions.ADDRESS, jobManagerHostname);
+		}
+
+		if (jobManagerPort > 0) {
+			cfg.setInteger(JobManagerOptions.PORT, jobManagerPort);
+		}
+
 		cfg.setString(ConfigConstants.TASK_MANAGER_MAX_REGISTRATION_DURATION, registrationTimeout.toString());
 		if (numSlots != -1){
 			cfg.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, numSlots);
@@ -274,7 +288,7 @@ public class BootstrapTools {
 	}
 
 	/**
-	* Sets the value of of a new config key to the value of a deprecated config key. Taking into
+	* Sets the value of a new config key to the value of a deprecated config key. Taking into
 	* account the changed prefix.
 	* @param config Config to write
 	* @param deprecatedPrefix Old prefix of key

@@ -299,4 +299,10 @@ public class TaskSlot {
 
 		return new SlotOffer(allocationId, index, resourceProfile);
 	}
+
+	@Override
+	public String toString() {
+		return "TaskSlot(index:" + index + ", state:" + state + ", resource profile: " + resourceProfile +
+			", allocationId: " + (allocationId != null ? allocationId.toString() : "none") + ", jobId: " + (jobId != null ? jobId.toString() : "none") + ')';
+	}
 }

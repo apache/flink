@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.pattern.Patterns;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -31,17 +28,24 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.TaskManagerMessages;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
-import scala.Option;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
+
+import akka.actor.ActorRef;
+import akka.actor.ActorSystem;
+import akka.pattern.Patterns;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import scala.Option;
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Mini cluster to run the old JobManager code without embedded high availability services. This
@@ -62,6 +66,8 @@ public class StandaloneMiniCluster {
 	private final ScheduledExecutorService scheduledExecutorService;
 
 	private final HighAvailabilityServices highAvailabilityServices;
+
+	private final MetricRegistryImpl metricRegistry;
 
 	private final FiniteDuration timeout;
 
@@ -86,20 +92,30 @@ public class StandaloneMiniCluster {
 			Executors.directExecutor(),
 			HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
 
+		metricRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(configuration));
+
+		metricRegistry.startQueryService(actorSystem, null);
+
 		JobManager.startJobManagerActors(
 			configuration,
 			actorSystem,
 			scheduledExecutorService,
 			scheduledExecutorService,
 			highAvailabilityServices,
+			metricRegistry,
+			Option.empty(),
 			JobManager.class,
 			MemoryArchivist.class);
 
+		final ResourceID taskManagerResourceId = ResourceID.generate();
+
 		ActorRef taskManager = TaskManager.startTaskManagerComponentsAndActor(
 			configuration,
-			ResourceID.generate(),
+			taskManagerResourceId,
 			actorSystem,
 			highAvailabilityServices,
+			metricRegistry,
 			LOCAL_HOSTNAME,
 			Option.<String>empty(),
 			true,
@@ -127,6 +143,12 @@ public class StandaloneMiniCluster {
 
 	public void close() throws Exception {
 		Exception exception = null;
+
+		try {
+			metricRegistry.shutdown();
+		} catch (Exception e) {
+			exception = ExceptionUtils.firstOrSuppressed(e, exception);
+		}
 
 		actorSystem.shutdown();
 		actorSystem.awaitTermination();

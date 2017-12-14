@@ -19,9 +19,9 @@
 package org.apache.flink.table.api.batch.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.utils.TableTestUtil._
-import org.apache.flink.table.runtime.utils._
 import org.apache.flink.table.utils.{TableFunc1, TableTestBase}
 import org.junit.Test
 
@@ -41,9 +41,10 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("function", function),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "s")
@@ -61,9 +62,10 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2, '$$')"),
-        term("function", function),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c, '$$'))"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
-             "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+             "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "INNER")
       ),
       term("select", "c", "s")
@@ -73,12 +75,12 @@ class CorrelateTest extends TableTestBase {
   }
 
   @Test
-  def testLeftOuterJoin(): Unit = {
+  def testLeftOuterJoinWithoutJoinPredicates(): Unit = {
     val util = batchTestUtil()
     val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = util.addFunction("func1", new TableFunc1)
 
-    val result = table.leftOuterJoin(function('c) as 's).select('c, 's)
+    val result = table.leftOuterJoin(function('c) as 's).select('c, 's).where('s > "")
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -86,13 +88,40 @@ class CorrelateTest extends TableTestBase {
         "DataSetCorrelate",
         batchTableNode(0),
         term("invocation", s"${function.functionIdentifier}($$2)"),
-        term("function", function),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
+        term("select", "a", "b", "c", "s"),
         term("rowType",
-          "RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)"),
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
         term("joinType", "LEFT")
       ),
-      term("select", "c", "s")
+      term("select", "c", "s"),
+      term("where", ">(s, '')")
     )
+
+    util.verifyTable(result, expected)
+  }
+
+  @Test
+  def testLeftOuterJoinWithLiteralTrue(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val function = util.addFunction("func1", new TableFunc1)
+
+    val result = table.leftOuterJoin(function('c) as 's, true).select('c, 's)
+
+    val expected = unaryNode(
+      "DataSetCalc",
+      unaryNode(
+        "DataSetCorrelate",
+        batchTableNode(0),
+        term("invocation", s"${function.functionIdentifier}($$2)"),
+        term("correlate", s"table(${function.getClass.getSimpleName}(c))"),
+        term("select", "a", "b", "c", "s"),
+        term("rowType",
+          "RecordType(INTEGER a, BIGINT b, VARCHAR(65536) c, VARCHAR(65536) s)"),
+        term("joinType", "LEFT")
+      ),
+      term("select", "c", "s"))
 
     util.verifyTable(result, expected)
   }

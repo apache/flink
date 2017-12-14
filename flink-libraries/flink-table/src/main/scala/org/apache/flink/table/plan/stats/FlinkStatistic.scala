@@ -19,14 +19,17 @@
 package org.apache.flink.table.plan.stats
 
 import java.lang.Double
+import java.util
 import java.util.{Collections, List}
 
-import org.apache.calcite.rel.{RelCollation, RelDistribution}
+import org.apache.calcite.rel.{RelCollation, RelDistribution, RelReferentialConstraint}
 import org.apache.calcite.schema.Statistic
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.plan.schema.TableSourceTable
+import org.apache.flink.table.plan.schema.InlineTable
 
 /**
-  * The class provides statistics for a [[org.apache.flink.table.plan.schema.FlinkTable]].
+  * The class provides statistics for a [[InlineTable]] or [[TableSourceTable]].
   *
   * @param tableStats The table statistics.
   */
@@ -66,6 +69,8 @@ class FlinkStatistic(tableStats: Option[TableStats]) extends Statistic {
 
   override def getDistribution: RelDistribution = null
 
+  override def getReferentialConstraints: util.List[RelReferentialConstraint] =
+    Collections.emptyList()
 }
 
 /**

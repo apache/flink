@@ -79,7 +79,7 @@ time for testing. For these cases, Flink provides the `BoundedOutOfOrdernessTime
 the `maxOutOfOrderness`, i.e. the maximum amount of time an element is allowed to be late before being ignored when computing the
 final result for the given window. Lateness corresponds to the result of `t - t_w`, where `t` is the (event-time) timestamp of an
 element, and `t_w` that of the previous watermark. If `lateness > 0` then the element is considered late and is, by default, ignored when computing
-the result of the job for its corresponding window. See the documentation about [allowed lateness]({{ site.baseurl }}/dev/windows.html#allowed-lateness)
+the result of the job for its corresponding window. See the documentation about [allowed lateness]({{ site.baseurl }}/dev/stream/operators/windows.html#allowed-lateness)
 for more information about working with late elements.
 
 <div class="codetabs" markdown="1">
@@ -105,3 +105,5 @@ val withTimestampsAndWatermarks = stream.assignTimestampsAndWatermarks(new Bound
 {% endhighlight %}
 </div>
 </div>
+
+{% top %}

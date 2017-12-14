@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -31,8 +33,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 
-import static org.objectweb.asm.Type.getConstructorDescriptor;
-import static org.objectweb.asm.Type.getMethodDescriptor;
+import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm5.org.objectweb.asm.Type.getMethodDescriptor;
 
 @Internal
 public class TypeExtractionUtils {
@@ -286,5 +288,54 @@ public class TypeExtractionUtils {
 			t2 instanceof TypeVariable &&
 			((TypeVariable<?>) t1).getName().equals(((TypeVariable<?>) t2).getName()) &&
 			((TypeVariable<?>) t1).getGenericDeclaration().equals(((TypeVariable<?>) t2).getGenericDeclaration());
+	}
+
+	/**
+	 * Traverses the type hierarchy of a type up until a certain stop class is found.
+	 *
+	 * @param t type for which a hierarchy need to be created
+	 * @return type of the immediate child of the stop class
+	 */
+	public static Type getTypeHierarchy(List<Type> typeHierarchy, Type t, Class<?> stopAtClass) {
+		while (!(isClassType(t) && typeToClass(t).equals(stopAtClass))) {
+			typeHierarchy.add(t);
+			t = typeToClass(t).getGenericSuperclass();
+
+			if (t == null) {
+				break;
+			}
+		}
+		return t;
+	}
+
+	/**
+	 * Returns true if the given class has a superclass of given name.
+	 *
+	 * @param clazz class to be analyzed
+	 * @param superClassName class name of the super class
+	 */
+	public static boolean hasSuperclass(Class<?> clazz, String superClassName) {
+		List<Type> hierarchy = new ArrayList<>();
+		getTypeHierarchy(hierarchy, clazz, Object.class);
+		for (Type t : hierarchy) {
+			if (isClassType(t) && typeToClass(t).getName().equals(superClassName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns the raw class of both parameterized types and generic arrays.
+	 * Returns java.lang.Object for all other types.
+	 */
+	public static Class<?> getRawClass(Type t) {
+		if (isClassType(t)) {
+			return typeToClass(t);
+		} else if (t instanceof GenericArrayType) {
+			Type component = ((GenericArrayType)t).getGenericComponentType();
+			return Array.newInstance(getRawClass(component), 0).getClass();
+		}
+		return Object.class;
 	}
 }

@@ -40,13 +40,13 @@ public class MiniClusterITCase extends TestLogger {
 	//  Simple Job Running Tests
 	// ------------------------------------------------------------------------
 
+	private static final MiniClusterConfiguration defaultConfiguration = null;
+
 	@Test
 	public void runJobWithSingleRpcService() throws Exception {
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
-
-		// should be the default, but set anyways to make sure the test
-		// stays valid when the default changes
-		cfg.setUseSingleRpcService();
+		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
+			.build();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
 		try {
@@ -60,8 +60,9 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithMultipleRpcServices() throws Exception {
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
-		cfg.setUseRpcServicePerComponent();
+		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+			.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.DEDICATED)
+			.build();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
 		try {
@@ -75,8 +76,9 @@ public class MiniClusterITCase extends TestLogger {
 
 	@Test
 	public void runJobWithMultipleJobManagers() throws Exception {
-		MiniClusterConfiguration cfg = new MiniClusterConfiguration();
-		cfg.setNumJobManagers(3);
+		MiniClusterConfiguration cfg = new MiniClusterConfiguration.Builder()
+		.setNumJobManagers(3)
+		.build();
 
 		MiniCluster miniCluster = new MiniCluster(cfg);
 		try {

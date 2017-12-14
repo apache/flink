@@ -20,10 +20,18 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.runtime.instance.Slot;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Interface for components that hold slots and to which slots get released / recycled.
  */
 public interface SlotOwner {
 
-	boolean returnAllocatedSlot(Slot slot);
+	/**
+	 * Return the given slot to the slot owner.
+	 *
+	 * @param slot to return
+	 * @return Future which is completed with true if the slot could be returned, otherwise with false
+	 */
+	CompletableFuture<Boolean> returnAllocatedSlot(Slot slot);
 }

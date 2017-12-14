@@ -25,33 +25,37 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.Future;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.taskexecutor.utils.TaskExecutorMetricsInitializer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.Preconditions;
+
+import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -74,7 +78,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	private final Configuration configuration;
 
-	private final ResourceID resourceID;
+	private final ResourceID resourceId;
 
 	private final Time timeout;
 
@@ -82,16 +86,16 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 	private final HighAvailabilityServices highAvailabilityServices;
 
-	private final MetricRegistry metricRegistry;
+	private final MetricRegistryImpl metricRegistry;
 
-	/** Executor used to run future callbacks */
+	/** Executor used to run future callbacks. */
 	private final ExecutorService executor;
 
 	private final TaskExecutor taskManager;
 
 	public TaskManagerRunner(Configuration configuration, ResourceID resourceId) throws Exception {
 		this.configuration = Preconditions.checkNotNull(configuration);
-		this.resourceID = Preconditions.checkNotNull(resourceId);
+		this.resourceId = Preconditions.checkNotNull(resourceId);
 
 		timeout = AkkaUtils.getTimeoutAsTime(configuration);
 
@@ -108,11 +112,15 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		HeartbeatServices heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
-		metricRegistry = new MetricRegistry(MetricRegistryConfiguration.fromConfiguration(configuration));
+		metricRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(configuration));
+
+		// TODO: Temporary hack until the MetricQueryService has been ported to RpcEndpoint
+		final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
+		metricRegistry.startQueryService(actorSystem, resourceId);
 
 		taskManager = startTaskManager(
-			configuration,
-			resourceId,
+			this.configuration,
+			this.resourceId,
 			rpcService,
 			highAvailabilityServices,
 			heartbeatServices,
@@ -143,7 +151,11 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				exception = e;
 			}
 
-			metricRegistry.shutdown();
+			try {
+				metricRegistry.shutdown();
+			} catch (Exception e) {
+				exception = ExceptionUtils.firstOrSuppressed(e, exception);
+			}
 
 			rpcService.stopService();
 
@@ -153,7 +165,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
-			Executors.gracefulShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor);
+			ExecutorUtils.gracefulShutdown(timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor);
 
 			if (exception != null) {
 				throw exception;
@@ -162,7 +174,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	}
 
 	// export the termination future for caller to know it is terminated
-	public Future<Void> getTerminationFuture() {
+	public CompletableFuture<Boolean> getTerminationFuture() {
 		return taskManager.getTerminationFuture();
 	}
 
@@ -207,7 +219,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configDir);
 
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(configuration));
+		SecurityUtils.install(new SecurityConfiguration(configuration));
 
 		try {
 			SecurityUtils.getInstalledContext().runSecured(new Callable<Void>() {
@@ -234,14 +246,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
 	// --------------------------------------------------------------------------------------------
 
 	public static TaskExecutor startTaskManager(
-		Configuration configuration,
-		ResourceID resourceID,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		MetricRegistry metricRegistry,
-		boolean localCommunicationOnly,
-		FatalErrorHandler fatalErrorHandler) throws Exception {
+			Configuration configuration,
+			ResourceID resourceID,
+			RpcService rpcService,
+			HighAvailabilityServices highAvailabilityServices,
+			HeartbeatServices heartbeatServices,
+			MetricRegistry metricRegistry,
+			boolean localCommunicationOnly,
+			FatalErrorHandler fatalErrorHandler) throws Exception {
 
 		Preconditions.checkNotNull(configuration);
 		Preconditions.checkNotNull(resourceID);
@@ -260,15 +272,12 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServicesConfiguration,
 			resourceID);
 
-		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
-
-		TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
+		TaskManagerMetricGroup taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
 			metricRegistry,
-			taskManagerServices.getTaskManagerLocation().getHostname(),
-			resourceID.toString());
+			taskManagerServices.getTaskManagerLocation(),
+			taskManagerServices.getNetworkEnvironment());
 
-		// Initialize the TM metrics
-		TaskExecutorMetricsInitializer.instantiateStatusMetrics(taskManagerMetricGroup, taskManagerServices.getNetworkEnvironment());
+		TaskManagerConfiguration taskManagerConfiguration = TaskManagerConfiguration.fromConfiguration(configuration);
 
 		return new TaskExecutor(
 			rpcService,
@@ -279,7 +288,6 @@ public class TaskManagerRunner implements FatalErrorHandler {
 			taskManagerServices.getNetworkEnvironment(),
 			highAvailabilityServices,
 			heartbeatServices,
-			metricRegistry,
 			taskManagerMetricGroup,
 			taskManagerServices.getBroadcastVariableManager(),
 			taskManagerServices.getFileCache(),

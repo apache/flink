@@ -347,6 +347,9 @@ public class JobClientActorTest extends TestLogger {
 
 		@Override
 		protected void handleMessage(Object message) throws Exception {
+			if (message instanceof RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			}
 		}
 
 		@Override
@@ -388,7 +391,9 @@ public class JobClientActorTest extends TestLogger {
 					testFuture.tell(Acknowledge.get(), getSelf());
 				}
 			}
-			else if (message instanceof RegisterTest) {
+			else if (message instanceof RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			} else if (message instanceof RegisterTest) {
 				testFuture = getSender();
 
 				if (jobAccepted) {

@@ -89,7 +89,7 @@ and skips any intermediate phases between the phase the operator was in when the
 **Checkpoints:** The `snapshotState()` method of the operator is called asynchronously to the rest of the methods described 
 above whenever a checkpoint barrier is received. Checkpoints are performed during the processing phase, *i.e.* after the 
 operator is opened and before it is closed. The responsibility of this method is to store the current state of the operator 
-to the specified [state backend]({{ site.baseurl }}/ops/state_backends.html) from where it will be retrieved when 
+to the specified [state backend]({{ site.baseurl }}/ops/state/state_backends.html) from where it will be retrieved when 
 the job resumes execution after a failure. Below we include a brief description of Flink's checkpointing mechanism, 
 and for a more detailed discussion on the principles around checkpointing in Flink please read the corresponding documentation: 
 [Data Streaming Fault Tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html).
@@ -125,7 +125,7 @@ first step for the task is to retrieve its initial, task-wide state. This is don
 particularly important in two cases:
 
 1. when the task is recovering from a failure and restarts from the last successful checkpoint
-2. when resuming from a [savepoint]({{ site.baseurl }}/setup/savepoints.html). 
+2. when resuming from a [savepoint]({{ site.baseurl }}/ops/state/savepoints.html). 
 
 If it is the first time the task is executed, the initial task state is empty. 
 
@@ -190,3 +190,5 @@ In the previous sections we described the lifecycle of a task that runs till com
 at any point, then the normal execution is interrupted and the only operations performed from that point on are the timer 
 service shutdown, the task-specific cleanup, the disposal of the operators, and the general task cleanup, as described 
 above.
+
+{% top %}

@@ -36,31 +36,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Used for translating data sets into corresponding operators.
+ */
 @Internal
 public class OperatorTranslation {
-	
-	/** The already translated operations */
+
+	/** The already translated operations. */
 	private Map<DataSet<?>, Operator<?>> translated = new HashMap<>();
-	
-	
+
 	public Plan translateToPlan(List<DataSink<?>> sinks, String jobName) {
 		List<GenericDataSinkBase<?>> planSinks = new ArrayList<>();
-		
+
 		for (DataSink<?> sink : sinks) {
 			planSinks.add(translate(sink));
 		}
-		
+
 		Plan p = new Plan(planSinks);
 		p.setJobName(jobName);
 		return p;
 	}
-	
-	
+
 	private <T> GenericDataSinkBase<T> translate(DataSink<T> sink) {
-		
+
 		// translate the input recursively
 		Operator<T> input = translate(sink.getDataSet());
-		
+
 		// translate the sink itself and connect it to the input
 		GenericDataSinkBase<T> translatedSink = sink.translateToDataFlow(input);
 
@@ -68,8 +69,7 @@ public class OperatorTranslation {
 
 		return translatedSink;
 	}
-	
-	
+
 	private <T> Operator<T> translate(DataSet<T> dataSet) {
 		while (dataSet instanceof NoOpOperator) {
 			dataSet = ((NoOpOperator<T>) dataSet).getInput();
@@ -89,9 +89,9 @@ public class OperatorTranslation {
 				return typedPrevious;
 			}
 		}
-		
+
 		Operator<T> dataFlowOp;
-		
+
 		if (dataSet instanceof DataSource) {
 			DataSource<T> dataSource = (DataSource<T>) dataSet;
 			dataFlowOp = dataSource.translateToDataFlow();
@@ -126,28 +126,27 @@ public class OperatorTranslation {
 		else {
 			throw new RuntimeException("Error while creating the data flow plan for the program: Unknown operator or data set type: " + dataSet);
 		}
-		
+
 		this.translated.put(dataSet, dataFlowOp);
-		
+
 		// take care of broadcast variables
 		translateBcVariables(dataSet, dataFlowOp);
-		
+
 		return dataFlowOp;
 	}
-	
-	
+
 	private <I, O> org.apache.flink.api.common.operators.Operator<O> translateSingleInputOperator(SingleInputOperator<?, ?, ?> op) {
-		
+
 		@SuppressWarnings("unchecked")
 		SingleInputOperator<I, O, ?> typedOp = (SingleInputOperator<I, O, ?>) op;
-		
+
 		@SuppressWarnings("unchecked")
 		DataSet<I> typedInput = (DataSet<I>) op.getInput();
-		
+
 		Operator<I> input = translate(typedInput);
-		
+
 		org.apache.flink.api.common.operators.Operator<O> dataFlowOp = typedOp.translateToDataFlow(input);
-		
+
 		if (op instanceof UdfOperator<?>) {
 			@SuppressWarnings("unchecked")
 			SingleInputUdfOperator<I, O, ?> udfOp = (SingleInputUdfOperator<I, O, ?>) op;
@@ -165,29 +164,29 @@ public class OperatorTranslation {
 				unaryOp.setSemanticProperties(udfOp.getSemanticProperties());
 			}
 		}
-		
+
 		return dataFlowOp;
 	}
-	
+
 	private <I1, I2, O> org.apache.flink.api.common.operators.Operator<O> translateTwoInputOperator(TwoInputOperator<?, ?, ?, ?> op) {
-		
+
 		@SuppressWarnings("unchecked")
 		TwoInputOperator<I1, I2, O, ?> typedOp = (TwoInputOperator<I1, I2, O, ?>) op;
-		
+
 		@SuppressWarnings("unchecked")
 		DataSet<I1> typedInput1 = (DataSet<I1>) op.getInput1();
 		@SuppressWarnings("unchecked")
 		DataSet<I2> typedInput2 = (DataSet<I2>) op.getInput2();
-		
+
 		Operator<I1> input1 = translate(typedInput1);
 		Operator<I2> input2 = translate(typedInput2);
-		
+
 		org.apache.flink.api.common.operators.Operator<O> dataFlowOp = typedOp.translateToDataFlow(input1, input2);
-		
-		if (op instanceof UdfOperator<?> ) {
+
+		if (op instanceof UdfOperator<?>) {
 			@SuppressWarnings("unchecked")
 			TwoInputUdfOperator<I1, I2, O, ?> udfOp = (TwoInputUdfOperator<I1, I2, O, ?>) op;
-			
+
 			// set configuration parameters
 			Configuration opParams = udfOp.getParameters();
 			if (opParams != null) {
@@ -201,16 +200,14 @@ public class OperatorTranslation {
 				binaryOp.setSemanticProperties(udfOp.getSemanticProperties());
 			}
 		}
-		
+
 		return dataFlowOp;
 	}
-	
-	
+
 	private <T> BulkIterationBase<T> translateBulkIteration(BulkIterationResultSet<?> untypedIterationEnd) {
 		@SuppressWarnings("unchecked")
 		BulkIterationResultSet<T> iterationEnd = (BulkIterationResultSet<T>) untypedIterationEnd;
 		IterativeDataSet<T> iterationHead = iterationEnd.getIterationHead();
-
 		BulkIterationBase<T> iterationOperator =
 				new BulkIterationBase<>(new UnaryOperatorInformation<>(iterationEnd.getType(), iterationEnd.getType()), "Bulk Iteration");
 
@@ -224,28 +221,28 @@ public class OperatorTranslation {
 		iterationOperator.setNextPartialSolution(translatedBody);
 		iterationOperator.setMaximumNumberOfIterations(iterationHead.getMaxIterations());
 		iterationOperator.setInput(translate(iterationHead.getInput()));
-		
+
 		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
-		
-		if(iterationEnd.getTerminationCriterion() != null) {
+
+		if (iterationEnd.getTerminationCriterion() != null) {
 			iterationOperator.setTerminationCriterion(translate(iterationEnd.getTerminationCriterion()));
 		}
 
 		return iterationOperator;
 	}
-	
+
 	private <D, W> DeltaIterationBase<D, W> translateDeltaIteration(DeltaIterationResultSet<?, ?> untypedIterationEnd) {
 		@SuppressWarnings("unchecked")
 		DeltaIterationResultSet<D, W> iterationEnd = (DeltaIterationResultSet<D, W>) untypedIterationEnd;
 		DeltaIteration<D, W> iterationHead = iterationEnd.getIterationHead();
-		
+
 		String name = iterationHead.getName() == null ? "Unnamed Delta Iteration" : iterationHead.getName();
-		
+
 		DeltaIterationBase<D, W> iterationOperator = new DeltaIterationBase<>(new BinaryOperatorInformation<>(iterationEnd.getType(), iterationEnd.getWorksetType(), iterationEnd.getType()),
 				iterationEnd.getKeyPositions(), name);
-		
+
 		iterationOperator.setMaximumNumberOfIterations(iterationEnd.getMaxIterations());
-		
+
 		if (iterationHead.getParallelism() > 0) {
 			iterationOperator.setParallelism(iterationHead.getParallelism());
 		}
@@ -258,31 +255,31 @@ public class OperatorTranslation {
 
 		Operator<D> translatedSolutionSet = translate(iterationEnd.getNextSolutionSet());
 		Operator<W> translatedWorkset = translate(iterationEnd.getNextWorkset());
-		
+
 		iterationOperator.setNextWorkset(translatedWorkset);
 		iterationOperator.setSolutionSetDelta(translatedSolutionSet);
 
 		iterationOperator.setInitialSolutionSet(translate(iterationHead.getInitialSolutionSet()));
 		iterationOperator.setInitialWorkset(translate(iterationHead.getInitialWorkset()));
-		
+
 		// register all aggregators
 		iterationOperator.getAggregators().addAll(iterationHead.getAggregators());
-		
+
 		iterationOperator.setSolutionSetUnManaged(iterationHead.isSolutionSetUnManaged());
-		
+
 		return iterationOperator;
 	}
-	
+
 	private void translateBcVariables(DataSet<?> setOrOp, Operator<?> dataFlowOp) {
 		// check if this is actually an operator that could have broadcast variables
 		if (setOrOp instanceof UdfOperator) {
 			if (!(dataFlowOp instanceof AbstractUdfOperator<?, ?>)) {
 				throw new RuntimeException("Error while creating the data flow plan for the program: A UDF operation was not translated to a UDF operator.");
 			}
-			
+
 			UdfOperator<?> udfOp = (UdfOperator<?>) setOrOp;
 			AbstractUdfOperator<?, ?> udfDataFlowOp = (AbstractUdfOperator<?, ?>) dataFlowOp;
-		
+
 			for (Map.Entry<String, DataSet<?>> bcVariable : udfOp.getBroadcastSets().entrySet()) {
 				Operator<?> bcInput = translate(bcVariable.getValue());
 				udfDataFlowOp.setBroadcastVariable(bcVariable.getKey(), bcInput);

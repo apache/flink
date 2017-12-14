@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.util.DataInputDeserializer;
+import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.util.StringUtils;
 
 import java.io.BufferedInputStream;

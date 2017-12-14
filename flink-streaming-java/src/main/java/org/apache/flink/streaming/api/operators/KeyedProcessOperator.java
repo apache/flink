@@ -79,7 +79,7 @@ public class KeyedProcessOperator<K, IN, OUT>
 
 	@Override
 	public void onProcessingTime(InternalTimer<K, VoidNamespace> timer) throws Exception {
-		collector.setAbsoluteTimestamp(timer.getTimestamp());
+		collector.eraseTimestamp();
 		onTimerContext.timeDomain = TimeDomain.PROCESSING_TIME;
 		onTimerContext.timer = timer;
 		userFunction.onTimer(timer.getTimestamp(), onTimerContext, collector);
@@ -118,16 +118,17 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 
 		@Override
+		public TimerService timerService() {
+			return timerService;
+		}
+
+		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
 			if (outputTag == null) {
 				throw new IllegalArgumentException("OutputTag must not be null.");
 			}
-			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
-		}
 
-		@Override
-		public TimerService timerService() {
-			return timerService;
+			output.collect(outputTag, new StreamRecord<>(value, element.getTimestamp()));
 		}
 	}
 
@@ -145,25 +146,29 @@ public class KeyedProcessOperator<K, IN, OUT>
 		}
 
 		@Override
-		public TimeDomain timeDomain() {
-			checkState(timeDomain != null);
-			return timeDomain;
-		}
-
-		@Override
 		public Long timestamp() {
 			checkState(timer != null);
 			return timer.getTimestamp();
 		}
 
 		@Override
+		public TimerService timerService() {
+			return timerService;
+		}
+
+		@Override
 		public <X> void output(OutputTag<X> outputTag, X value) {
+			if (outputTag == null) {
+				throw new IllegalArgumentException("OutputTag must not be null.");
+			}
+
 			output.collect(outputTag, new StreamRecord<>(value, timer.getTimestamp()));
 		}
 
 		@Override
-		public TimerService timerService() {
-			return timerService;
+		public TimeDomain timeDomain() {
+			checkState(timeDomain != null);
+			return timeDomain;
 		}
 	}
 }

@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.List;
 
 /**
  * Type serializer which keeps track of the serialized objects so that each object is only
@@ -53,7 +54,7 @@ public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 	private transient IdentityHashMap<T, Integer> identityMap;
 
 	// here we store the already deserialized objects
-	private transient ArrayList<T> elementList;
+	private transient List<T> elementList;
 
 	public NonDuplicatingTypeSerializer(final TypeSerializer<T> typeSerializer) {
 		this.typeSerializer = typeSerializer;
@@ -82,7 +83,7 @@ public final class NonDuplicatingTypeSerializer<T> extends TypeSerializer<T> {
 
 	@Override
 	public TypeSerializer<T> duplicate() {
-		return new NonDuplicatingTypeSerializer<>(typeSerializer);
+		return new NonDuplicatingTypeSerializer<>(typeSerializer.duplicate());
 	}
 
 	@Override

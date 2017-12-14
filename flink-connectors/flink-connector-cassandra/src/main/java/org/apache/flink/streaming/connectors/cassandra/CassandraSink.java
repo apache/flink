@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -32,6 +33,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
+import org.apache.flink.types.Row;
 
 import com.datastax.driver.core.Cluster;
 
@@ -205,11 +207,15 @@ public class CassandraSink<IN> {
 	 * @param <IN>  input type
 	 * @return CassandraSinkBuilder, to further configure the sink
 	 */
-	public static <IN, T extends Tuple> CassandraSinkBuilder<IN> addSink(DataStream<IN> input) {
+	public static <IN> CassandraSinkBuilder<IN> addSink(DataStream<IN> input) {
 		TypeInformation<IN> typeInfo = input.getType();
 		if (typeInfo instanceof TupleTypeInfo) {
-			DataStream<T> tupleInput = (DataStream<T>) input;
+			DataStream<Tuple> tupleInput = (DataStream<Tuple>) input;
 			return (CassandraSinkBuilder<IN>) new CassandraTupleSinkBuilder<>(tupleInput, tupleInput.getType(), tupleInput.getType().createSerializer(tupleInput.getExecutionEnvironment().getConfig()));
+		}
+		if (typeInfo instanceof RowTypeInfo) {
+			DataStream<Row> rowInput = (DataStream<Row>) input;
+			return (CassandraSinkBuilder<IN>) new CassandraRowSinkBuilder(rowInput, rowInput.getType(), rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()));
 		}
 		if (typeInfo instanceof PojoTypeInfo) {
 			return new CassandraPojoSinkBuilder<>(input, input.getType(), input.getType().createSerializer(input.getExecutionEnvironment().getConfig()));
@@ -230,6 +236,7 @@ public class CassandraSink<IN> {
 		protected final TypeSerializer<IN> serializer;
 		protected final TypeInformation<IN> typeInfo;
 		protected ClusterBuilder builder;
+		protected MapperOptions mapperOptions;
 		protected String query;
 		protected CheckpointCommitter committer;
 		protected boolean isWriteAheadLogEnabled;
@@ -310,13 +317,28 @@ public class CassandraSink<IN> {
 		 * Enables the write-ahead log, which allows exactly-once processing for non-deterministic algorithms that use
 		 * idempotent updates.
 		 *
-		 * @param committer CheckpointCommitter, that stores informationa bout completed checkpoints in an external
+		 * @param committer CheckpointCommitter, that stores information about completed checkpoints in an external
 		 *                  resource. By default this information is stored within a separate table within Cassandra.
 		 * @return this builder
 		 */
 		public CassandraSinkBuilder<IN> enableWriteAheadLog(CheckpointCommitter committer) {
 			this.isWriteAheadLogEnabled = true;
 			this.committer = committer;
+			return this;
+		}
+
+		/**
+		 * Sets the mapper options for this sink. The mapper options are used to configure the DataStax
+		 * {@link com.datastax.driver.mapping.Mapper} when writing POJOs.
+		 *
+		 * <p>This call has no effect if the input {@link DataStream} for this sink does not contain POJOs.
+		 *
+		 * @param options MapperOptions, that return an array of options that are used to configure the DataStax mapper.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> setMapperOptions(MapperOptions options) {
+			this.mapperOptions = options;
 			return this;
 		}
 
@@ -375,6 +397,36 @@ public class CassandraSink<IN> {
 	}
 
 	/**
+	 * Builder for a {@link CassandraRowSink}.
+	 */
+	public static class CassandraRowSinkBuilder extends CassandraSinkBuilder<Row> {
+		public CassandraRowSinkBuilder(DataStream<Row> input, TypeInformation<Row> typeInfo, TypeSerializer<Row> serializer) {
+			super(input, typeInfo, serializer);
+		}
+
+		@Override
+		protected void sanityCheck() {
+			super.sanityCheck();
+			if (query == null || query.length() == 0) {
+				throw new IllegalArgumentException("Query must not be null or empty.");
+			}
+		}
+
+		@Override
+		protected CassandraSink<Row> createSink() throws Exception {
+			return new CassandraSink<>(input.addSink(new CassandraRowSink(typeInfo.getArity(), query, builder)).name("Cassandra Sink"));
+
+		}
+
+		@Override
+		protected CassandraSink<Row> createWriteAheadSink() throws Exception {
+			return committer == null
+				? new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraRowWriteAheadSink(query, serializer, builder, new CassandraCommitter(builder))))
+				: new CassandraSink<>(input.transform("Cassandra Sink", null, new CassandraRowWriteAheadSink(query, serializer, builder, committer)));
+		}
+	}
+
+	/**
 	 * Builder for a {@link CassandraPojoSink}.
 	 * @param <IN>
 	 */
@@ -393,7 +445,7 @@ public class CassandraSink<IN> {
 
 		@Override
 		public CassandraSink<IN> createSink() throws Exception {
-			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder)).name("Cassandra Sink"));
+			return new CassandraSink<>(input.addSink(new CassandraPojoSink<>(typeInfo.getTypeClass(), builder, mapperOptions)).name("Cassandra Sink"));
 		}
 
 		@Override

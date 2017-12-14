@@ -35,17 +35,19 @@ import scala.collection.JavaConverters._
   * Calcite wrapper for user-defined scalar functions.
   *
   * @param name function name (used by SQL parser)
+  * @param displayName name to be displayed in operator name
   * @param scalarFunction scalar function to be called
   * @param typeFactory type factory for converting Flink's between Calcite's types
   */
 class ScalarSqlFunction(
     name: String,
+    displayName: String,
     scalarFunction: ScalarFunction,
     typeFactory: FlinkTypeFactory)
   extends SqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
     createReturnTypeInference(name, scalarFunction, typeFactory),
-    createOperandTypeInference(scalarFunction, typeFactory),
+    createOperandTypeInference(name, scalarFunction, typeFactory),
     createOperandTypeChecker(name, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
@@ -53,6 +55,8 @@ class ScalarSqlFunction(
   def getScalarFunction = scalarFunction
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
+
+  override def toString: String = displayName
 }
 
 object ScalarSqlFunction {
@@ -85,13 +89,13 @@ object ScalarSqlFunction {
               s"Expected: ${signaturesToString(scalarFunction, "eval")}")
         }
         val resultType = getResultTypeOfScalarFunction(scalarFunction, foundSignature.get)
-        val t = typeFactory.createTypeFromTypeInfo(resultType)
-        typeFactory.createTypeWithNullability(t, nullable = true)
+        typeFactory.createTypeFromTypeInfo(resultType, isNullable = true)
       }
     }
   }
 
   private[flink] def createOperandTypeInference(
+      name: String,
       scalarFunction: ScalarFunction,
       typeFactory: FlinkTypeFactory)
     : SqlOperandTypeInference = {
@@ -107,11 +111,15 @@ object ScalarSqlFunction {
         val operandTypeInfo = getOperandTypeInfo(callBinding)
 
         val foundSignature = getEvalMethodSignature(scalarFunction, operandTypeInfo)
-          .getOrElse(throw new ValidationException(s"Operand types of could not be inferred."))
+          .getOrElse(
+            throw new ValidationException(
+              s"Given parameters of function '$name' do not match any signature. \n" +
+                s"Actual: ${signatureToString(operandTypeInfo)} \n" +
+                s"Expected: ${signaturesToString(scalarFunction, "eval")}"))
 
         val inferredTypes = scalarFunction
           .getParameterTypes(foundSignature)
-          .map(typeFactory.createTypeFromTypeInfo)
+          .map(typeFactory.createTypeFromTypeInfo(_, isNullable = true))
 
         for (i <- operandTypes.indices) {
           if (i < inferredTypes.length - 1) {

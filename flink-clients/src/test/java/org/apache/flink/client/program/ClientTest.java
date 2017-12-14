@@ -43,8 +43,8 @@ import org.apache.flink.runtime.akka.FlinkUntypedActor;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.util.SerializedThrowable;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
@@ -322,8 +322,9 @@ public class ClientTest extends TestLogger {
 				getSender().tell(
 						decorateMessage(new JobManagerMessages.ResponseLeaderSessionID(leaderSessionID)),
 						getSelf());
-			}
-			else {
+			} else if (message instanceof JobManagerMessages.RequestBlobManagerPort$) {
+				getSender().tell(1337, getSelf());
+			} else {
 				getSender().tell(
 						decorateMessage(new Status.Failure(new Exception("Unknown message " + message))),
 						getSelf());

@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Objects;
+
 /**
  * Compound meta information for a registered state in an operator state backend.
  * This contains the state name, assignment mode, and state partition serializer.
@@ -175,14 +177,17 @@ public class RegisteredOperatorBackendStateMetaInfo<S> {
 				return false;
 			}
 
+			if (!(obj instanceof Snapshot)) {
+				return false;
+			}
+
+			Snapshot snapshot = (Snapshot)obj;
+
 			// need to check for nulls because serializer and config snapshots may be null on restore
-			return (obj instanceof Snapshot)
-				&& name.equals(((Snapshot) obj).getName())
-				&& assignmentMode.equals(((Snapshot) obj).getAssignmentMode())
-				&& ((partitionStateSerializer == null && ((Snapshot) obj).getPartitionStateSerializer() == null)
-					|| partitionStateSerializer.equals(((Snapshot) obj).getPartitionStateSerializer()))
-				&& ((partitionStateSerializerConfigSnapshot == null && ((Snapshot) obj).getPartitionStateSerializerConfigSnapshot() == null)
-					|| partitionStateSerializerConfigSnapshot.equals(((Snapshot) obj).getPartitionStateSerializerConfigSnapshot()));
+			return name.equals(snapshot.getName())
+				&& assignmentMode.equals(snapshot.getAssignmentMode())
+				&& Objects.equals(partitionStateSerializer, snapshot.getPartitionStateSerializer())
+				&& Objects.equals(partitionStateSerializerConfigSnapshot, snapshot.getPartitionStateSerializerConfigSnapshot());
 		}
 
 		@Override

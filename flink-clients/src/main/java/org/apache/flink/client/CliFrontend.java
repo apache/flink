@@ -30,6 +30,7 @@ import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.DefaultCLI;
+import org.apache.flink.client.cli.Flip6DefaultCLI;
 import org.apache.flink.client.cli.InfoOptions;
 import org.apache.flink.client.cli.ListOptions;
 import org.apache.flink.client.cli.ProgramOptions;
@@ -59,17 +60,11 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.JobManagerMessages;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancelJobWithSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.CancellationSuccess;
-import org.apache.flink.runtime.messages.JobManagerMessages.RunningJobsStatus;
-import org.apache.flink.runtime.messages.JobManagerMessages.StopJob;
-import org.apache.flink.runtime.messages.JobManagerMessages.StoppingFailure;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint;
-import org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointSuccess;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -87,23 +82,22 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-import scala.Option;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
 import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepointFailure;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -126,21 +120,36 @@ public class CliFrontend {
 
 	// --------------------------------------------------------------------------------------------
 
-	private static final List<CustomCommandLine> customCommandLine = new LinkedList<>();
+	private static final List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(3);
 
 	static {
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
 		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
-		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnSessionCli", "y", "yarn");
-		loadCustomCommandLine("org.apache.flink.yarn.cli.FlinkYarnCLI", "y", "yarn");
-		customCommandLine.add(new DefaultCLI());
+		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
+		final String flinkYarnCLI = "org.apache.flink.yarn.cli.FlinkYarnCLI";
+		try {
+			customCommandLines.add(loadCustomCommandLine(flinkYarnSessionCLI, "y", "yarn"));
+		} catch (Exception e) {
+			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
+		}
+
+		try {
+			customCommandLines.add(loadCustomCommandLine(flinkYarnCLI, "y", "yarn"));
+		} catch (Exception e) {
+			LOG.warn("Could not load CLI class {}.", flinkYarnCLI, e);
+		}
+
+		customCommandLines.add(new Flip6DefaultCLI());
+		customCommandLines.add(new DefaultCLI());
 	}
 
 	// --------------------------------------------------------------------------------------------
 
 	private final Configuration config;
+
+	private final String configurationDirectory;
 
 	private final FiniteDuration clientTimeout;
 
@@ -155,6 +164,7 @@ public class CliFrontend {
 	}
 
 	public CliFrontend(String configDir) throws Exception {
+		configurationDirectory = Preconditions.checkNotNull(configDir);
 
 		// configure the config directory
 		File configDirectory = new File(configDir);
@@ -165,7 +175,7 @@ public class CliFrontend {
 		this.config = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 		try {
-			FileSystem.setDefaultScheme(config);
+			FileSystem.initialize(config);
 		} catch (IOException e) {
 			throw new Exception("Error while setting the default " +
 				"filesystem scheme from configuration.", e);
@@ -192,6 +202,15 @@ public class CliFrontend {
 		copiedConfiguration.addAll(config);
 
 		return copiedConfiguration;
+	}
+
+	/**
+	 * Returns the configuration directory for the CLI frontend.
+	 *
+	 * @return Configuration directory
+	 */
+	public String getConfigurationDirectory() {
+		return configurationDirectory;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -401,89 +420,72 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorGateway jobManagerGateway = getJobManagerGateway(options);
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 
-			LOG.info("Connecting to JobManager to retrieve list of jobs");
-			Future<Object> response = jobManagerGateway.ask(
-				JobManagerMessages.getRequestRunningJobsStatus(),
-				clientTimeout);
-
-			Object result;
+			Collection<JobStatusMessage> jobDetails;
 			try {
-				result = Await.result(response, clientTimeout);
+				CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = client.listJobs();
+
+				try {
+					logAndSysout("Waiting for response...");
+					jobDetails = jobDetailsFuture.get();
+				}
+				catch (ExecutionException ee) {
+					Throwable cause = ExceptionUtils.stripExecutionException(ee);
+					throw new Exception("Failed to retrieve job list.", cause);
+				}
+			} finally {
+				client.shutdown();
 			}
-			catch (Exception e) {
-				throw new Exception("Could not retrieve running jobs from the JobManager.", e);
+
+			LOG.info("Successfully retrieved list of jobs");
+
+			SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+			Comparator<JobStatusMessage> startTimeComparator = (o1, o2) -> (int) (o1.getStartTime() - o2.getStartTime());
+
+			final List<JobStatusMessage> runningJobs = new ArrayList<>();
+			final List<JobStatusMessage> scheduledJobs = new ArrayList<>();
+			jobDetails.forEach(details -> {
+				if (details.getJobState() == JobStatus.CREATED) {
+					scheduledJobs.add(details);
+				} else {
+					runningJobs.add(details);
+				}
+			});
+
+			if (running) {
+				if (runningJobs.size() == 0) {
+					System.out.println("No running jobs.");
+				}
+				else {
+					runningJobs.sort(startTimeComparator);
+
+					System.out.println("------------------ Running/Restarting Jobs -------------------");
+					for (JobStatusMessage runningJob : runningJobs) {
+						System.out.println(dateFormat.format(new Date(runningJob.getStartTime()))
+							+ " : " + runningJob.getJobId() + " : " + runningJob.getJobName() + " (" + runningJob.getJobState() + ")");
+					}
+					System.out.println("--------------------------------------------------------------");
+				}
+			}
+			if (scheduled) {
+				if (scheduledJobs.size() == 0) {
+					System.out.println("No scheduled jobs.");
+				}
+				else {
+					scheduledJobs.sort(startTimeComparator);
+
+					System.out.println("----------------------- Scheduled Jobs -----------------------");
+					for (JobStatusMessage scheduledJob : scheduledJobs) {
+						System.out.println(dateFormat.format(new Date(scheduledJob.getStartTime()))
+							+ " : " + scheduledJob.getJobId() + " : " + scheduledJob.getJobName());
+					}
+					System.out.println("--------------------------------------------------------------");
+				}
 			}
 
-			if (result instanceof RunningJobsStatus) {
-				LOG.info("Successfully retrieved list of jobs");
-
-				List<JobStatusMessage> jobs = ((RunningJobsStatus) result).getStatusMessages();
-
-				ArrayList<JobStatusMessage> runningJobs = null;
-				ArrayList<JobStatusMessage> scheduledJobs = null;
-				if (running) {
-					runningJobs = new ArrayList<JobStatusMessage>();
-				}
-				if (scheduled) {
-					scheduledJobs = new ArrayList<JobStatusMessage>();
-				}
-
-				for (JobStatusMessage rj : jobs) {
-					if (running && (rj.getJobState().equals(JobStatus.RUNNING)
-							|| rj.getJobState().equals(JobStatus.RESTARTING))) {
-						runningJobs.add(rj);
-					}
-					if (scheduled && rj.getJobState().equals(JobStatus.CREATED)) {
-						scheduledJobs.add(rj);
-					}
-				}
-
-				SimpleDateFormat df = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-				Comparator<JobStatusMessage> njec = new Comparator<JobStatusMessage>(){
-					@Override
-					public int compare(JobStatusMessage o1, JobStatusMessage o2) {
-						return (int) (o1.getStartTime() - o2.getStartTime());
-					}
-				};
-
-				if (running) {
-					if (runningJobs.size() == 0) {
-						System.out.println("No running jobs.");
-					}
-					else {
-						Collections.sort(runningJobs, njec);
-
-						System.out.println("------------------ Running/Restarting Jobs -------------------");
-						for (JobStatusMessage rj : runningJobs) {
-							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName() + " (" + rj.getJobState() + ")");
-						}
-						System.out.println("--------------------------------------------------------------");
-					}
-				}
-				if (scheduled) {
-					if (scheduledJobs.size() == 0) {
-						System.out.println("No scheduled jobs.");
-					}
-					else {
-						Collections.sort(scheduledJobs, njec);
-
-						System.out.println("----------------------- Scheduled Jobs -----------------------");
-						for (JobStatusMessage rj : scheduledJobs) {
-							System.out.println(df.format(new Date(rj.getStartTime()))
-									+ " : " + rj.getJobId() + " : " + rj.getJobName());
-						}
-						System.out.println("--------------------------------------------------------------");
-					}
-				}
-				return 0;
-			}
-			else {
-				throw new Exception("ReqeustRunningJobs requires a response of type " +
-						"RunningJobs. Instead the response is of type " + result.getClass() + ".");
-			}
+			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -532,17 +534,18 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-			Future<Object> response = jobManager.ask(new StopJob(jobId), clientTimeout);
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+			try {
+				logAndSysout("Stopping job " + jobId + '.');
+				client.stop(jobId);
+				logAndSysout("Stopped job " + jobId + '.');
 
-			final Object rc = Await.result(response, clientTimeout);
-
-			if (rc instanceof StoppingFailure) {
-				throw new Exception("Stopping the job with ID " + jobId + " failed.",
-						((StoppingFailure) rc).cause());
+				return 0;
+			} finally {
+				client.shutdown();
 			}
 
-			return 0;
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -613,40 +616,27 @@ public class CliFrontend {
 		}
 
 		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-
-			Object cancelMsg;
-			if (withSavepoint) {
-				if (targetDirectory == null) {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
-				} else {
-					logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + ".");
-				}
-				cancelMsg = new CancelJobWithSavepoint(jobId, targetDirectory);
-			} else {
-				logAndSysout("Cancelling job " + jobId + ".");
-				cancelMsg = new CancelJob(jobId);
-			}
-
-			Future<Object> response = jobManager.ask(cancelMsg, clientTimeout);
-			final Object rc = Await.result(response, clientTimeout);
-
-			if (rc instanceof CancellationSuccess) {
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+			try {
 				if (withSavepoint) {
-					CancellationSuccess success = (CancellationSuccess) rc;
-					String savepointPath = success.savepointPath();
-					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + ".");
+					if (targetDirectory == null) {
+						logAndSysout("Cancelling job " + jobId + " with savepoint to default savepoint directory.");
+					} else {
+						logAndSysout("Cancelling job " + jobId + " with savepoint to " + targetDirectory + '.');
+					}
+					String savepointPath = client.cancelWithSavepoint(jobId, targetDirectory);
+					logAndSysout("Cancelled job " + jobId + ". Savepoint stored in " + savepointPath + '.');
 				} else {
-					logAndSysout("Cancelled job " + jobId + ".");
+					logAndSysout("Cancelling job " + jobId + '.');
+					client.cancel(jobId);
+					logAndSysout("Cancelled job " + jobId + '.');
 				}
-			} else if (rc instanceof CancellationFailure) {
-				throw new Exception("Canceling the job with ID " + jobId + " failed.",
-						((CancellationFailure) rc).cause());
-			} else {
-				throw new IllegalStateException("Unexpected response: " + rc);
-			}
 
-			return 0;
+				return 0;
+			} finally {
+				client.shutdown();
+			}
 		}
 		catch (Throwable t) {
 			return handleError(t);
@@ -718,35 +708,29 @@ public class CliFrontend {
 	 */
 	private int triggerSavepoint(SavepointOptions options, JobID jobId, String savepointDirectory) {
 		try {
-			ActorGateway jobManager = getJobManagerGateway(options);
-
-			logAndSysout("Triggering savepoint for job " + jobId + ".");
-			Future<Object> response = jobManager.ask(new TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
-					new FiniteDuration(1, TimeUnit.HOURS));
-
-			Object result;
+			CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+			ClusterClient client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			try {
-				logAndSysout("Waiting for response...");
-				result = Await.result(response, FiniteDuration.Inf());
-			}
-			catch (Exception e) {
-				throw new Exception("Triggering a savepoint for the job " + jobId + " failed.", e);
-			}
+				logAndSysout("Triggering savepoint for job " + jobId + ".");
+				CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobId, savepointDirectory);
 
-			if (result instanceof TriggerSavepointSuccess) {
-				TriggerSavepointSuccess success = (TriggerSavepointSuccess) result;
-				logAndSysout("Savepoint completed. Path: " + success.savepointPath());
+				String savepointPath;
+				try {
+					logAndSysout("Waiting for response...");
+					savepointPath = savepointPathFuture.get();
+				}
+				catch (ExecutionException ee) {
+					Throwable cause = ExceptionUtils.stripExecutionException(ee);
+					throw new FlinkException("Triggering a savepoint for the job " + jobId + " failed.", cause);
+				}
+
+				logAndSysout("Savepoint completed. Path: " + savepointPath);
 				logAndSysout("You can resume your program from this savepoint with the run command.");
 
 				return 0;
 			}
-			else if (result instanceof TriggerSavepointFailure) {
-				TriggerSavepointFailure failure = (TriggerSavepointFailure) result;
-				throw failure.cause();
-			}
-			else {
-				throw new IllegalStateException("Unknown JobManager response of type " +
-						result.getClass());
+			finally {
+				client.shutdown();
 			}
 		}
 		catch (Throwable t) {
@@ -896,7 +880,7 @@ public class CliFrontend {
 	protected ClusterClient retrieveClient(CommandLineOptions options) {
 		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
 		try {
-			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config);
+			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
 			return client;
 		} catch (Exception e) {
@@ -933,7 +917,7 @@ public class CliFrontend {
 
 		ClusterClient client;
 		try {
-			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config);
+			client = activeCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
 			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
@@ -942,6 +926,7 @@ public class CliFrontend {
 					applicationName,
 					options.getCommandLine(),
 					config,
+					configurationDirectory,
 					program.getAllLibraries());
 				logAndSysout("Cluster started: " + client.getClusterIdentifier());
 			} catch (UnsupportedOperationException e2) {
@@ -954,7 +939,11 @@ public class CliFrontend {
 		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
 		final InetSocketAddress jobManagerAddress = client.getJobManagerAddress();
 		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
-		logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		try {
+			logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
+		} catch (UnsupportedOperationException uoe) {
+			logAndSysout("JobManager web interface not active.");
+		}
 		return client;
 	}
 
@@ -1104,7 +1093,7 @@ public class CliFrontend {
 
 		try {
 			final CliFrontend cli = new CliFrontend();
-			SecurityUtils.install(new SecurityUtils.SecurityConfiguration(cli.config));
+			SecurityUtils.install(new SecurityConfiguration(cli.config));
 			int retCode = SecurityUtils.getInstalledContext()
 					.runSecured(new Callable<Integer>() {
 						@Override
@@ -1172,7 +1161,7 @@ public class CliFrontend {
 	 * @return custom command-line which is active (may only be one at a time)
 	 */
 	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
-		for (CustomCommandLine cli : customCommandLine) {
+		for (CustomCommandLine cli : customCommandLines) {
 			if (cli.isActive(commandLine, config)) {
 				return cli;
 			}
@@ -1184,8 +1173,8 @@ public class CliFrontend {
 	 * Retrieves the loaded custom command-lines.
 	 * @return An unmodifiyable list of loaded custom command-lines.
 	 */
-	public static List<CustomCommandLine> getCustomCommandLineList() {
-		return Collections.unmodifiableList(customCommandLine);
+	public static List<CustomCommandLine<?>> getCustomCommandLineList() {
+		return Collections.unmodifiableList(customCommandLines);
 	}
 
 	/**
@@ -1193,29 +1182,21 @@ public class CliFrontend {
 	 * @param className The fully-qualified class name to load.
 	 * @param params The constructor parameters
 	 */
-	private static void loadCustomCommandLine(String className, Object... params) {
+	private static CustomCommandLine<?> loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
 
-		try {
-			Class<? extends CustomCommandLine> customCliClass =
-				Class.forName(className).asSubclass(CustomCommandLine.class);
+		Class<? extends CustomCommandLine> customCliClass =
+			Class.forName(className).asSubclass(CustomCommandLine.class);
 
-			// construct class types from the parameters
-			Class<?>[] types = new Class<?>[params.length];
-			for (int i = 0; i < params.length; i++) {
-				Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
-				types[i] = params[i].getClass();
-			}
-
-			Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
-			final CustomCommandLine cli = constructor.newInstance(params);
-
-			customCommandLine.add(cli);
-
-		} catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException
-			| InvocationTargetException e) {
-			LOG.warn("Unable to locate custom CLI class {}. " +
-				"Flink is not compiled with support for this class.", className, e);
+		// construct class types from the parameters
+		Class<?>[] types = new Class<?>[params.length];
+		for (int i = 0; i < params.length; i++) {
+			Preconditions.checkNotNull(params[i], "Parameters for custom command-lines may not be null.");
+			types[i] = params[i].getClass();
 		}
+
+		Constructor<? extends CustomCommandLine> constructor = customCliClass.getConstructor(types);
+
+		return constructor.newInstance(params);
 	}
 
 }

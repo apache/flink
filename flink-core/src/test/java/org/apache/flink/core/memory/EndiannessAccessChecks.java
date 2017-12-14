@@ -18,59 +18,46 @@
 
 package org.apache.flink.core.memory;
 
-import java.nio.ByteBuffer;
-import java.util.Random;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.nio.ByteBuffer;
+import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
+
+/**
+ * Verifies correct accesses with regards to endianness in {@link HeapMemorySegment} and {@link
+ * HybridMemorySegment} (in both heap and off-heap modes).
+ */
 public class EndiannessAccessChecks {
-	
+
 	@Test
 	public void testHeapSegment() {
-		try {
-			testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testBigAndLittleEndianAccessUnaligned(new HeapMemorySegment(new byte[11111]));
 	}
 
 	@Test
 	public void testHybridOnHeapSegment() {
-		try {
-			testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(new byte[11111]));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(new byte[11111]));
 	}
 
 	@Test
 	public void testHybridOffHeapSegment() {
-		try {
-			testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(ByteBuffer.allocateDirect(11111)));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		testBigAndLittleEndianAccessUnaligned(new HybridMemorySegment(ByteBuffer.allocateDirect(11111)));
 	}
-	
+
 	private void testBigAndLittleEndianAccessUnaligned(MemorySegment segment) {
 		final Random rnd = new Random();
-		
+
 		// longs
 		{
 			final long seed = rnd.nextLong();
-			
+
 			rnd.setSeed(seed);
 			for (int i = 0; i < 10000; i++) {
 				long val = rnd.nextLong();
 				int pos = rnd.nextInt(segment.size - 7);
-				
+
 				segment.putLongLittleEndian(pos, val);
 				long r = segment.getLongBigEndian(pos);
 				assertEquals(val, Long.reverseBytes(r));

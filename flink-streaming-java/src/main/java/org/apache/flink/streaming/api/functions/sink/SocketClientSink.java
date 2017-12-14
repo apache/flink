@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.util.SerializableObject;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
+import org.apache.flink.util.SerializableObject;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

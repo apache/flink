@@ -19,11 +19,12 @@
 package org.apache.flink.api.java.sca;
 
 import org.apache.flink.annotation.Internal;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
-import org.objectweb.asm.tree.analysis.Frame;
-import org.objectweb.asm.tree.analysis.Interpreter;
-import org.objectweb.asm.tree.analysis.Value;
+
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.AbstractInsnNode;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.Frame;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.Interpreter;
+import org.apache.flink.shaded.asm5.org.objectweb.asm.tree.analysis.Value;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -40,13 +41,14 @@ public class ModifiedASMFrame extends Frame {
 	public ModifiedASMFrame(int nLocals, int nStack) {
 		super(nLocals, nStack);
 	}
+
 	public ModifiedASMFrame(Frame src) {
 		super(src);
 	}
 
 	@Override
 	public Frame init(Frame src) {
-		mergePriority = ((ModifiedASMFrame)src).mergePriority;
+		mergePriority = ((ModifiedASMFrame) src).mergePriority;
 		return super.init(src);
 	}
 
@@ -60,12 +62,12 @@ public class ModifiedASMFrame extends Frame {
 
 	@Override
 	public boolean merge(Frame frame, Interpreter interpreter) throws AnalyzerException {
-		if (((ModifiedASMFrame)frame).mergePriority) {
-			((NestedMethodAnalyzer)interpreter).rightMergePriority = true;
+		if (((ModifiedASMFrame) frame).mergePriority) {
+			((NestedMethodAnalyzer) interpreter).rightMergePriority = true;
 		}
 		final boolean result = super.merge(frame, interpreter);
-		((NestedMethodAnalyzer)interpreter).rightMergePriority = false;
-		((ModifiedASMFrame)frame).mergePriority = false;
+		((NestedMethodAnalyzer) interpreter).rightMergePriority = false;
+		((ModifiedASMFrame) frame).mergePriority = false;
 		return result;
 	}
 

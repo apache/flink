@@ -20,30 +20,20 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.MemoryType;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
-import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.apache.flink.util.TestLogger;
 
-import java.net.InetAddress;
+import org.junit.Test;
+
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.junit.Assert.fail;
 
 /**
  * Unit test for {@link TaskManagerServices}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(EnvironmentInformation.class)
-public class TaskManagerServicesTest {
+public class TaskManagerServicesTest extends TestLogger{
 
 	/**
 	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(long, Configuration)} using old
@@ -120,14 +110,20 @@ public class TaskManagerServicesTest {
 			long javaMem = Math.max(max + 1, ran.nextLong());
 
 			final long networkBufMem = TaskManagerServices.calculateNetworkBufferMemory(javaMem, config);
-			assertTrue("Lower bound not met with configuration: " + config.toString(),
-				networkBufMem >= min);
-			assertTrue("Upper bound not met with configuration: " + config.toString(),
-				networkBufMem <= max);
+
+			if (networkBufMem < min) {
+				fail("Lower bound not met with configuration: " + config.toString());
+			}
+
+			if (networkBufMem > max) {
+				fail("Upper bound not met with configuration: " + config.toString());
+			}
+
 			if (networkBufMem > min && networkBufMem < max) {
-				assertEquals(
-					"Wrong network buffer memory size with configuration: " + config.toString(),
-					(long) (javaMem * frac), networkBufMem);
+				if ((javaMem  * frac) != networkBufMem) {
+					fail("Wrong network buffer memory size with configuration: " + config.toString() +
+					". Expected value: " + (javaMem * frac) + " actual value: " + networkBufMem + '.');
+				}
 			}
 		}
 	}
@@ -189,81 +185,6 @@ public class TaskManagerServicesTest {
 	}
 
 	/**
-	 * Test for {@link TaskManagerServices#calculateNetworkBufferMemory(TaskManagerServicesConfiguration)}
-	 * using the same (manual) test cases as in {@link #calculateHeapSizeMB()}.
-	 */
-	@Test
-	public void calculateNetworkBufFromHeapSize() throws Exception {
-		PowerMockito.mockStatic(EnvironmentInformation.class);
-		// some defaults:
-		when(EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag()).thenReturn(1000L << 20); // 1000MB
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(1000L << 20); // 1000MB
-
-		TaskManagerServicesConfiguration tmConfig;
-
-		tmConfig = getTmConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue(),
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
-			0.1f, 60L << 20, 1L << 30, MemoryType.HEAP);
-		when(EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag()).thenReturn(1000L << 20); // 1000MB
-		assertEquals(100L << 20, TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
-
-		tmConfig = getTmConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
-			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(890L << 20); // 890MB
-		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
-
-		tmConfig = getTmConfig(-1, 0.1f,
-			0.1f, 60L << 20, 1L << 30, MemoryType.OFF_HEAP);
-		when(EnvironmentInformation.getMaxJvmHeapMemory()).thenReturn(810L << 20); // 810MB
-		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
-			TaskManagerServices.calculateNetworkBufferMemory(tmConfig));
-	}
-
-	/**
-	 * Returns a task manager services configuration for the tests
-	 *
-	 * @param managedMemory         see {@link TaskManagerOptions#MANAGED_MEMORY_SIZE}
-	 * @param managedMemoryFraction see {@link TaskManagerOptions#MANAGED_MEMORY_FRACTION}
-	 * @param networkBufFraction	see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_FRACTION}
-	 * @param networkBufMin			see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}
-	 * @param networkBufMax			see {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}
-	 * @param memType				on-heap or off-heap
-	 *
-	 * @return configuration object
-	 */
-	private static TaskManagerServicesConfiguration getTmConfig(
-		final long managedMemory, final float managedMemoryFraction, float networkBufFraction,
-		long networkBufMin, long networkBufMax,
-		final MemoryType memType) {
-
-		final NetworkEnvironmentConfiguration networkConfig = new NetworkEnvironmentConfiguration(
-			networkBufFraction,
-			networkBufMin,
-			networkBufMax,
-			TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue(),
-			memType,
-			null,
-			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_INITIAL.defaultValue(),
-			TaskManagerOptions.NETWORK_REQUEST_BACKOFF_MAX.defaultValue(),
-			TaskManagerOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue(),
-			TaskManagerOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.defaultValue(),
-			null);
-
-		return new TaskManagerServicesConfiguration(
-			mock(InetAddress.class),
-			new String[] {},
-			networkConfig,
-			QueryableStateConfiguration.disabled(),
-			1,
-			managedMemory,
-			false,
-			managedMemoryFraction,
-			mock(MetricRegistryConfiguration.class),
-			0);
-	}
-
-	/**
 	 * Test for {@link TaskManagerServices#calculateHeapSizeMB(long, Configuration)} with some
 	 * manually calculated scenarios.
 	 */
@@ -275,9 +196,14 @@ public class TaskManagerServicesTest {
 		config.setLong(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, 1L << 30); // 1GB
 
 		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, false);
-		assertEquals(1000, TaskManagerServices.calculateHeapSizeMB(1000, config));
+		assertEquals(900, TaskManagerServices.calculateHeapSizeMB(1000, config));
+
+		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, false);
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.2f);
+		assertEquals(800, TaskManagerServices.calculateHeapSizeMB(1000, config));
 
 		config.setBoolean(TaskManagerOptions.MEMORY_OFF_HEAP, true);
+		config.setFloat(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_FRACTION, 0.1f);
 		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 10); // 10MB
 		assertEquals(890, TaskManagerServices.calculateHeapSizeMB(1000, config));
 

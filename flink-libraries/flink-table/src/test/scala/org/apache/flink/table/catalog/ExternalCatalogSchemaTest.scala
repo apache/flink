@@ -18,14 +18,16 @@
 
 package org.apache.flink.table.catalog
 
-import java.util.Collections
+import java.util.{Collections, Properties}
 
 import com.google.common.collect.Lists
+import org.apache.calcite.config.{CalciteConnectionConfigImpl, CalciteConnectionProperty}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.schema.SchemaPlus
+import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.validate.SqlMonikerType
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.utils.CommonTestData
 import org.apache.flink.table.sources.CsvTableSource
@@ -49,11 +51,15 @@ class ExternalCatalogSchemaTest {
     ExternalCatalogSchema.registerCatalog(rootSchemaPlus, schemaName, catalog)
     externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+    val prop = new Properties()
+    prop.setProperty(CalciteConnectionProperty.CASE_SENSITIVE.camelName, "false")
+    val calciteConnConfig = new CalciteConnectionConfigImpl(prop)
     calciteCatalogReader = new CalciteCatalogReader(
       CalciteSchema.from(rootSchemaPlus),
-      false,
       Collections.emptyList(),
-      typeFactory)
+      typeFactory,
+      calciteConnConfig
+    )
   }
 
   @Test

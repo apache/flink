@@ -33,6 +33,7 @@ import org.apache.flink.runtime.instance._
 import org.apache.flink.runtime.jobmanager.JobManagerRegistrationTest.PlainForwardingActor
 import org.apache.flink.runtime.messages.JobManagerMessages.LeaderSessionMessage
 import org.apache.flink.runtime.messages.RegistrationMessages.{AcknowledgeRegistration, AlreadyRegistered, RegisterTaskManager}
+import org.apache.flink.runtime.metrics.{MetricRegistryImpl, MetricRegistryConfiguration}
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation
 import org.apache.flink.runtime.testingUtils.TestingJobManagerMessages.NotifyWhenLeader
 import org.apache.flink.runtime.testingUtils.{TestingJobManager, TestingUtils}
@@ -59,6 +60,10 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
   val executor: ScheduledExecutorService = Executors.newScheduledThreadPool(2)
 
   var highAvailabilityServices: HighAvailabilityServices = _
+
+  val metricRegistry: MetricRegistryImpl = new MetricRegistryImpl(
+    MetricRegistryConfiguration.fromConfiguration(new Configuration())
+  )
 
   val timeout = FiniteDuration(30, TimeUnit.SECONDS)
   
@@ -87,7 +92,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       var tm2Option: Option[ActorRef] = None
 
       try {
-        val jm = startTestingJobManager(_system, highAvailabilityServices)
+        val jm = startTestingJobManager(_system, highAvailabilityServices, metricRegistry)
         jmOption = Some(jm)
 
         val rm = startTestingResourceManager(_system, highAvailabilityServices)
@@ -169,7 +174,7 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       try {
         val probe = TestProbe()
 
-        val jm = startTestingJobManager(_system, highAvailabilityServices)
+        val jm = startTestingJobManager(_system, highAvailabilityServices, metricRegistry)
         jmOption = Some(jm)
         val rm = startTestingResourceManager(_system, highAvailabilityServices)
         rmOption = Some(rm)
@@ -242,7 +247,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
 
   private def startTestingJobManager(
       system: ActorSystem,
-      highAvailabilityServices: HighAvailabilityServices): ActorGateway = {
+      highAvailabilityServices: HighAvailabilityServices,
+      metricRegistry: MetricRegistryImpl): ActorGateway = {
 
     val config = new Configuration()
     
@@ -250,7 +256,8 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       config,
       executor,
       executor,
-      highAvailabilityServices.createBlobStore())
+      highAvailabilityServices.createBlobStore(),
+      metricRegistry)
 
     // Start the JobManager without a MetricRegistry so that we don't start the MetricQueryService.
     // The problem of the MetricQueryService is that it starts an actor with a fixed name. Thus,
@@ -264,14 +271,16 @@ ImplicitSender with WordSpecLike with Matchers with BeforeAndAfterAll with Befor
       components._1,
       components._2,
       components._3,
-      ActorRef.noSender,
       components._4,
+      ActorRef.noSender,
       components._5,
+      components._6,
       highAvailabilityServices.getJobManagerLeaderElectionService(
         HighAvailabilityServices.DEFAULT_JOB_ID),
       highAvailabilityServices.getSubmittedJobGraphStore(),
       highAvailabilityServices.getCheckpointRecoveryFactory(),
-      components._8,
+      components._9,
+      components._10,
       None)
 
     _system.actorOf(props)

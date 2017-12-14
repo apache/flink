@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.query.netty.message.KvStateRequestSerializer;
+import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 
@@ -41,7 +41,7 @@ import org.apache.flink.util.Preconditions;
 public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends StateDescriptor<S, ?>>
 		implements InternalKvState<N> {
 
-	/** Map containing the actual key/value pairs */
+	/** Map containing the actual key/value pairs. */
 	protected final StateTable<K, N, SV> stateTable;
 
 	/** This holds the name of the state and can create an initial default value for the state. */
@@ -90,7 +90,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 	public byte[] getSerializedValue(byte[] serializedKeyAndNamespace) throws Exception {
 		Preconditions.checkNotNull(serializedKeyAndNamespace, "Serialized key and namespace");
 
-		Tuple2<K, N> keyAndNamespace = KvStateRequestSerializer.deserializeKeyAndNamespace(
+		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
 				serializedKeyAndNamespace, keySerializer, namespaceSerializer);
 
 		return getSerializedValue(keyAndNamespace.f0, keyAndNamespace.f1);
@@ -108,7 +108,7 @@ public abstract class AbstractHeapState<K, N, SV, S extends State, SD extends St
 
 		@SuppressWarnings("unchecked,rawtypes")
 		TypeSerializer serializer = stateDesc.getSerializer();
-		return KvStateRequestSerializer.serializeValue(result, serializer);
+		return KvStateSerializer.serializeValue(result, serializer);
 	}
 
 	/**

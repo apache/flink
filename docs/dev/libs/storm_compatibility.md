@@ -134,7 +134,7 @@ DataStream<String> rawInput = env.addSource(
 
 If a Spout emits a finite number of tuples, `SpoutWrapper` can be configures to terminate automatically by setting `numberOfInvocations` parameter in its constructor.
 This allows the Flink program to shut down automatically after all data is processed.
-Per default the program will run until it is [canceled]({{site.baseurl}}/setup/cli.html) manually.
+Per default the program will run until it is [canceled]({{site.baseurl}}/ops/cli.html) manually.
 
 
 ## Embed Bolts
@@ -285,3 +285,5 @@ Compare `pom.xml` to see how both jars are built.
 Furthermore, there is one example for whole Storm topologies (`WordCount-StormTopology.jar`).
 
 You can run each of those examples via `bin/flink run <jarname>.jar`. The correct entry point class is contained in each jar's manifest file.
+
+{% top %}

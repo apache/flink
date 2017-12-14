@@ -39,6 +39,7 @@ public class CheckpointProperties implements Serializable {
 	private final boolean forced;
 
 	private final boolean externalize;
+	private final boolean savepoint;
 
 	private final boolean discardSubsumed;
 	private final boolean discardFinished;
@@ -49,6 +50,7 @@ public class CheckpointProperties implements Serializable {
 	CheckpointProperties(
 			boolean forced,
 			boolean externalize,
+			boolean savepoint,
 			boolean discardSubsumed,
 			boolean discardFinished,
 			boolean discardCancelled,
@@ -57,6 +59,7 @@ public class CheckpointProperties implements Serializable {
 
 		this.forced = forced;
 		this.externalize = externalize;
+		this.savepoint = savepoint;
 		this.discardSubsumed = discardSubsumed;
 		this.discardFinished = discardFinished;
 		this.discardCancelled = discardCancelled;
@@ -183,7 +186,7 @@ public class CheckpointProperties implements Serializable {
 	 * @return <code>true</code> if the properties describe a savepoint, <code>false</code> otherwise.
 	 */
 	public boolean isSavepoint() {
-		return this == STANDARD_SAVEPOINT;
+		return savepoint;
 	}
 
 	// ------------------------------------------------------------------------
@@ -201,6 +204,7 @@ public class CheckpointProperties implements Serializable {
 		CheckpointProperties that = (CheckpointProperties) o;
 		return forced == that.forced &&
 				externalize == that.externalize &&
+				savepoint == that.savepoint &&
 				discardSubsumed == that.discardSubsumed &&
 				discardFinished == that.discardFinished &&
 				discardCancelled == that.discardCancelled &&
@@ -212,6 +216,7 @@ public class CheckpointProperties implements Serializable {
 	public int hashCode() {
 		int result = (forced ? 1 : 0);
 		result = 31 * result + (externalize ? 1 : 0);
+		result = 31 * result + (savepoint ? 1 : 0);
 		result = 31 * result + (discardSubsumed ? 1 : 0);
 		result = 31 * result + (discardFinished ? 1 : 0);
 		result = 31 * result + (discardCancelled ? 1 : 0);
@@ -224,7 +229,8 @@ public class CheckpointProperties implements Serializable {
 	public String toString() {
 		return "CheckpointProperties{" +
 				"forced=" + forced +
-				", externalize=" + externalizeCheckpoint() +
+				", externalized=" + externalizeCheckpoint() +
+				", savepoint=" + savepoint +
 				", discardSubsumed=" + discardSubsumed +
 				", discardFinished=" + discardFinished +
 				", discardCancelled=" + discardCancelled +
@@ -238,6 +244,7 @@ public class CheckpointProperties implements Serializable {
 	private static final CheckpointProperties STANDARD_SAVEPOINT = new CheckpointProperties(
 			true,
 			true,
+			true,
 			false,
 			false,
 			false,
@@ -245,6 +252,7 @@ public class CheckpointProperties implements Serializable {
 			false);
 
 	private static final CheckpointProperties STANDARD_CHECKPOINT = new CheckpointProperties(
+			false,
 			false,
 			false,
 			true,
@@ -256,6 +264,7 @@ public class CheckpointProperties implements Serializable {
 	private static final CheckpointProperties EXTERNALIZED_CHECKPOINT_RETAINED = new CheckpointProperties(
 			false,
 			true,
+			false,
 			true,
 			true,
 			false, // Retain on cancellation
@@ -265,6 +274,7 @@ public class CheckpointProperties implements Serializable {
 	private static final CheckpointProperties EXTERNALIZED_CHECKPOINT_DELETED = new CheckpointProperties(
 			false,
 			true,
+			false,
 			true,
 			true,
 			true, // Delete on cancellation

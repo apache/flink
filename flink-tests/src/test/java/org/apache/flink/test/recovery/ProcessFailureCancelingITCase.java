@@ -34,6 +34,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobmanager.JobManager;
 import org.apache.flink.runtime.jobmanager.MemoryArchivist;
 import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.NetUtils;
@@ -51,6 +52,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import scala.Option;
 import scala.Some;
 import scala.Tuple2;
 import scala.concurrent.Await;
@@ -119,6 +121,8 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				TestingUtils.defaultExecutor(),
 				TestingUtils.defaultExecutor(),
 				highAvailabilityServices,
+				NoOpMetricRegistry.INSTANCE,
+				Option.empty(),
 				JobManager.class,
 				MemoryArchivist.class)._1();
 

@@ -33,6 +33,45 @@ public class ResourceManagerOptions {
 		.key("resourcemanager.job.timeout")
 		.defaultValue("5 minutes");
 
+	public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER = ConfigOptions
+		.key("local.number-resourcemanager")
+		.defaultValue(1);
+
+	public static final ConfigOption<Integer> IPC_PORT = ConfigOptions
+		.key("resourcemanager.rpc.port")
+		.defaultValue(0);
+
+	/**
+	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
+	 * for other JVM memory usage.
+	 */
+	public static final ConfigOption<Float> CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
+		.key("containerized.heap-cutoff-ratio")
+		.defaultValue(0.25f)
+		.withDeprecatedKeys("yarn.heap-cutoff-ratio");
+
+	/**
+	 * Minimum amount of heap memory to remove in containers, as a safety margin.
+	 */
+	public static final ConfigOption<Integer> CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
+		.key("containerized.heap-cutoff-min")
+		.defaultValue(600)
+		.withDeprecatedKeys("yarn.heap-cutoff-min");
+
+	/**
+	 * Prefix for passing custom environment variables to Flink's master process.
+	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
+	 * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
+	 * in the flink-conf.yaml.
+	 */
+	public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
+
+	/**
+	 * Similar to the {@see CONTAINERIZED_MASTER_ENV_PREFIX}, this configuration prefix allows
+	 * setting custom environment variables for the workers (TaskManagers)
+	 */
+	public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX = "containerized.taskmanager.env.";
+	
 	// ---------------------------------------------------------------------------------------------
 
 	/** Not intended to be instantiated */

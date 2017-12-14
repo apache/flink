@@ -19,9 +19,7 @@
 package org.apache.flink.graph.generator;
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
@@ -32,12 +30,10 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link CycleGraph}.
  */
-public class CycleGraphTest
-extends GraphGeneratorTestBase {
+public class CycleGraphTest extends GraphGeneratorTestBase {
 
 	@Test
-	public void testGraph()
-			throws Exception {
+	public void testGraph() throws Exception {
 		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 10)
 			.generate();
 
@@ -49,8 +45,7 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testGraphMetrics()
-			throws Exception {
+	public void testGraphMetrics() throws Exception {
 		int vertexCount = 100;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, vertexCount)
@@ -71,16 +66,15 @@ extends GraphGeneratorTestBase {
 	}
 
 	@Test
-	public void testParallelism()
-			throws Exception {
+	public void testParallelism() throws Exception {
 		int parallelism = 2;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CycleGraph(env, 100)
 			.setParallelism(parallelism)
 			.generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<Vertex<LongValue, NullValue>>());
-		graph.getEdges().output(new DiscardingOutputFormat<Edge<LongValue, NullValue>>());
+		graph.getVertices().output(new DiscardingOutputFormat<>());
+		graph.getEdges().output(new DiscardingOutputFormat<>());
 
 		TestUtils.verifyParallelism(env, parallelism);
 	}

@@ -22,24 +22,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
-import org.apache.flink.runtime.concurrent.Future;
-import org.apache.flink.runtime.concurrent.impl.FlinkCompletableFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,6 +44,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
@@ -104,7 +102,7 @@ public class PendingCheckpoint {
 	private final String targetDirectory;
 
 	/** The promise to fulfill once the checkpoint has been completed. */
-	private final FlinkCompletableFuture<CompletedCheckpoint> onCompletionPromise;
+	private final CompletableFuture<CompletedCheckpoint> onCompletionPromise;
 
 	/** The executor for potentially blocking I/O operations, like state disposal */
 	private final Executor executor;
@@ -149,7 +147,7 @@ public class PendingCheckpoint {
 		this.operatorStates = new HashMap<>();
 		this.masterState = new ArrayList<>();
 		this.acknowledgedTasks = new HashSet<>(verticesToConfirm.size());
-		this.onCompletionPromise = new FlinkCompletableFuture<>();
+		this.onCompletionPromise = new CompletableFuture<>();
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -184,6 +182,10 @@ public class PendingCheckpoint {
 
 	public boolean isFullyAcknowledged() {
 		return this.notYetAcknowledgedTasks.isEmpty() && !discarded;
+	}
+
+	public boolean isAcknowledgedBy(ExecutionAttemptID executionAttemptId) {
+		return !notYetAcknowledgedTasks.containsKey(executionAttemptId);
 	}
 
 	public boolean isDiscarded() {
@@ -249,7 +251,7 @@ public class PendingCheckpoint {
 	 *
 	 * @return A future to the completed checkpoint
 	 */
-	public Future<CompletedCheckpoint> getCompletionFuture() {
+	public CompletableFuture<CompletedCheckpoint> getCompletionFuture() {
 		return onCompletionPromise;
 	}
 
@@ -354,13 +356,13 @@ public class PendingCheckpoint {
 	 * Acknowledges the task with the given execution attempt id and the given subtask state.
 	 *
 	 * @param executionAttemptId of the acknowledged task
-	 * @param subtaskState of the acknowledged task
+	 * @param operatorSubtaskStates of the acknowledged task
 	 * @param metrics Checkpoint metrics for the stats
 	 * @return TaskAcknowledgeResult of the operation
 	 */
 	public TaskAcknowledgeResult acknowledgeTask(
 			ExecutionAttemptID executionAttemptId,
-			SubtaskState subtaskState,
+			TaskStateSnapshot operatorSubtaskStates,
 			CheckpointMetrics metrics) {
 
 		synchronized (lock) {
@@ -384,21 +386,19 @@ public class PendingCheckpoint {
 			int subtaskIndex = vertex.getParallelSubtaskIndex();
 			long ackTimestamp = System.currentTimeMillis();
 
-			long stateSize = 0;
-			if (subtaskState != null) {
-				stateSize = subtaskState.getStateSize();
+			long stateSize = 0L;
 
-				@SuppressWarnings("deprecation")
-				ChainedStateHandle<StreamStateHandle> nonPartitionedState =
-					subtaskState.getLegacyOperatorState();
-				ChainedStateHandle<OperatorStateHandle> partitioneableState =
-					subtaskState.getManagedOperatorState();
-				ChainedStateHandle<OperatorStateHandle> rawOperatorState =
-					subtaskState.getRawOperatorState();
+			if (operatorSubtaskStates != null) {
+				for (OperatorID operatorID : operatorIDs) {
 
-				// break task state apart into separate operator states
-				for (int x = 0; x < operatorIDs.size(); x++) {
-					OperatorID operatorID = operatorIDs.get(x);
+					OperatorSubtaskState operatorSubtaskState =
+						operatorSubtaskStates.getSubtaskStateByOperatorID(operatorID);
+
+					// if no real operatorSubtaskState was reported, we insert an empty state
+					if (operatorSubtaskState == null) {
+						operatorSubtaskState = new OperatorSubtaskState();
+					}
+
 					OperatorState operatorState = operatorStates.get(operatorID);
 
 					if (operatorState == null) {
@@ -409,23 +409,8 @@ public class PendingCheckpoint {
 						operatorStates.put(operatorID, operatorState);
 					}
 
-					KeyedStateHandle managedKeyedState = null;
-					KeyedStateHandle rawKeyedState = null;
-
-					// only the head operator retains the keyed state
-					if (x == operatorIDs.size() - 1) {
-						managedKeyedState = subtaskState.getManagedKeyedState();
-						rawKeyedState = subtaskState.getRawKeyedState();
-					}
-
-					OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
-							nonPartitionedState != null ? nonPartitionedState.get(x) : null,
-							partitioneableState != null ? partitioneableState.get(x) : null,
-							rawOperatorState != null ? rawOperatorState.get(x) : null,
-							managedKeyedState,
-							rawKeyedState);
-
 					operatorState.putState(subtaskIndex, operatorSubtaskState);
+					stateSize += operatorSubtaskState.getStateSize();
 				}
 			}
 

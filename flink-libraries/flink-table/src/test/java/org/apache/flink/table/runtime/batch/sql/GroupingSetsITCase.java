@@ -84,38 +84,40 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 			"SELECT f1, f2, avg(f0) as a, GROUP_ID() as g, " +
 				" GROUPING(f1) as gf1, GROUPING(f2) as gf2, " +
 				" GROUPING_ID(f1) as gif1, GROUPING_ID(f2) as gif2, " +
-				" GROUPING_ID(f1, f2) as gid " +
+				" GROUPING_ID(f1, f2) as gid, " +
+				" COUNT(*) as cnt" +
 				" FROM " + TABLE_NAME +
-				" GROUP BY GROUPING SETS (f1, f2)";
+				" GROUP BY GROUPING SETS (f1, f2, ())";
 
 		String expected =
-			"1,null,1,1,0,1,0,1,1\n" +
-			"6,null,18,1,0,1,0,1,1\n" +
-			"2,null,2,1,0,1,0,1,1\n" +
-			"4,null,8,1,0,1,0,1,1\n" +
-			"5,null,13,1,0,1,0,1,1\n" +
-			"3,null,5,1,0,1,0,1,1\n" +
-			"null,Comment#11,17,2,1,0,1,0,2\n" +
-			"null,Comment#8,14,2,1,0,1,0,2\n" +
-			"null,Comment#2,8,2,1,0,1,0,2\n" +
-			"null,Comment#1,7,2,1,0,1,0,2\n" +
-			"null,Comment#14,20,2,1,0,1,0,2\n" +
-			"null,Comment#7,13,2,1,0,1,0,2\n" +
-			"null,Comment#6,12,2,1,0,1,0,2\n" +
-			"null,Comment#3,9,2,1,0,1,0,2\n" +
-			"null,Comment#12,18,2,1,0,1,0,2\n" +
-			"null,Comment#5,11,2,1,0,1,0,2\n" +
-			"null,Comment#15,21,2,1,0,1,0,2\n" +
-			"null,Comment#4,10,2,1,0,1,0,2\n" +
-			"null,Hi,1,2,1,0,1,0,2\n" +
-			"null,Comment#10,16,2,1,0,1,0,2\n" +
-			"null,Hello world,3,2,1,0,1,0,2\n" +
-			"null,I am fine.,5,2,1,0,1,0,2\n" +
-			"null,Hello world, how are you?,4,2,1,0,1,0,2\n" +
-			"null,Comment#9,15,2,1,0,1,0,2\n" +
-			"null,Comment#13,19,2,1,0,1,0,2\n" +
-			"null,Luke Skywalker,6,2,1,0,1,0,2\n" +
-			"null,Hello,2,2,1,0,1,0,2";
+			"1,null,1,1,1,0,1,0,2,1\n" +
+			"6,null,18,1,1,0,1,0,2,6\n" +
+			"2,null,2,1,1,0,1,0,2,2\n" +
+			"4,null,8,1,1,0,1,0,2,4\n" +
+			"5,null,13,1,1,0,1,0,2,5\n" +
+			"3,null,5,1,1,0,1,0,2,3\n" +
+			"null,Comment#11,17,2,0,1,0,1,1,1\n" +
+			"null,Comment#8,14,2,0,1,0,1,1,1\n" +
+			"null,Comment#2,8,2,0,1,0,1,1,1\n" +
+			"null,Comment#1,7,2,0,1,0,1,1,1\n" +
+			"null,Comment#14,20,2,0,1,0,1,1,1\n" +
+			"null,Comment#7,13,2,0,1,0,1,1,1\n" +
+			"null,Comment#6,12,2,0,1,0,1,1,1\n" +
+			"null,Comment#3,9,2,0,1,0,1,1,1\n" +
+			"null,Comment#12,18,2,0,1,0,1,1,1\n" +
+			"null,Comment#5,11,2,0,1,0,1,1,1\n" +
+			"null,Comment#15,21,2,0,1,0,1,1,1\n" +
+			"null,Comment#4,10,2,0,1,0,1,1,1\n" +
+			"null,Hi,1,2,0,1,0,1,1,1\n" +
+			"null,Comment#10,16,2,0,1,0,1,1,1\n" +
+			"null,Hello world,3,2,0,1,0,1,1,1\n" +
+			"null,I am fine.,5,2,0,1,0,1,1,1\n" +
+			"null,Hello world, how are you?,4,2,0,1,0,1,1,1\n" +
+			"null,Comment#9,15,2,0,1,0,1,1,1\n" +
+			"null,Comment#13,19,2,0,1,0,1,1,1\n" +
+			"null,Luke Skywalker,6,2,0,1,0,1,1,1\n" +
+			"null,Hello,2,2,0,1,0,1,1,1\n" +
+			"null,null,11,0,0,0,0,0,0,21";
 
 		checkSql(query, expected);
 	}
@@ -186,7 +188,7 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 	 * @param expected Expected result.
 	 */
 	private void checkSql(String query, String expected) throws Exception {
-		Table resultTable = tableEnv.sql(query);
+		Table resultTable = tableEnv.sqlQuery(query);
 		DataSet<Row> resultDataSet = tableEnv.toDataSet(resultTable, Row.class);
 		List<Row> results = resultDataSet.collect();
 		TestBaseUtils.compareResultAsText(results, expected);
@@ -204,12 +206,12 @@ public class GroupingSetsITCase extends TableProgramsClusterTestBase {
 		};
 
 		// Execute first query and store results
-		Table resultTable1 = tableEnv.sql(query1);
+		Table resultTable1 = tableEnv.sqlQuery(query1);
 		DataSet<Row> resultDataSet1 = tableEnv.toDataSet(resultTable1, Row.class);
 		List<String> results1 = resultDataSet1.map(mapFunction).collect();
 
 		// Execute second query and store results
-		Table resultTable2 = tableEnv.sql(query2);
+		Table resultTable2 = tableEnv.sqlQuery(query2);
 		DataSet<Row> resultDataSet2 = tableEnv.toDataSet(resultTable2, Row.class);
 		List<String> results2 = resultDataSet2.map(mapFunction).collect();
 

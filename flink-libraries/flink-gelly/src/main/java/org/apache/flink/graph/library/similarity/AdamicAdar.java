@@ -34,6 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.undirected.VertexDegree;
+import org.apache.flink.graph.asm.result.BinaryResult.MirrorResult;
 import org.apache.flink.graph.asm.result.BinaryResultBase;
 import org.apache.flink.graph.asm.result.PrintableResult;
 import org.apache.flink.graph.library.similarity.AdamicAdar.Result;
@@ -82,6 +83,8 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 
 	private float minimumRatio = 0.0f;
 
+	private boolean mirrorResults;
+
 	/**
 	 * Filter out Adamic-Adar scores less than the given minimum.
 	 *
@@ -106,6 +109,20 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		Preconditions.checkArgument(ratio >= 0, "Minimum ratio must be non-negative");
 
 		this.minimumRatio = ratio;
+
+		return this;
+	}
+
+	/**
+	 * By default only one result is output for each pair of vertices. When
+	 * mirroring a second result with the vertex order flipped is output for
+	 * each pair of vertices.
+	 *
+	 * @param mirrorResults whether output results should be mirrored
+	 * @return this
+	 */
+	public AdamicAdar<K, VV, EV> setMirrorResults(boolean mirrorResults) {
+		this.mirrorResults = mirrorResults;
 
 		return this;
 	}
@@ -136,7 +153,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, LongValue, FloatValue>> inverseLogDegree = input
 			.run(new VertexDegree<K, VV, EV>()
 				.setParallelism(parallelism))
-			.map(new VertexInverseLogDegree<K>())
+			.map(new VertexInverseLogDegree<>())
 				.setParallelism(parallelism)
 				.name("Vertex score");
 
@@ -155,7 +172,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple4<IntValue, K, K, FloatValue>> groupSpans = sourceInverseLogDegree
 			.groupBy(0)
 			.sortGroup(1, Order.ASCENDING)
-			.reduceGroup(new GenerateGroupSpans<K>())
+			.reduceGroup(new GenerateGroupSpans<>())
 				.setParallelism(parallelism)
 				.name("Generate group spans");
 
@@ -164,7 +181,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			.rebalance()
 				.setParallelism(parallelism)
 				.name("Rebalance")
-			.flatMap(new GenerateGroups<K>())
+			.flatMap(new GenerateGroups<>())
 				.setParallelism(parallelism)
 				.name("Generate groups");
 
@@ -172,19 +189,19 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		DataSet<Tuple3<K, K, FloatValue>> twoPaths = groups
 			.groupBy(0, 1)
 			.sortGroup(2, Order.ASCENDING)
-			.reduceGroup(new GenerateGroupPairs<K>())
+			.reduceGroup(new GenerateGroupPairs<>())
 				.name("Generate group pairs");
 
 		// t, u, adamic-adar score
 		GroupReduceOperator<Tuple3<K, K, FloatValue>, Result<K>> scores = twoPaths
 			.groupBy(0, 1)
-			.reduceGroup(new ComputeScores<K>(minimumScore, minimumRatio))
+			.reduceGroup(new ComputeScores<>(minimumScore, minimumRatio))
 				.name("Compute scores");
 
 		if (minimumRatio > 0.0f) {
 			// total score, number of pairs of neighbors
 			DataSet<Tuple2<FloatValue, LongValue>> sumOfScoresAndNumberOfNeighborPairs = inverseLogDegree
-				.map(new ComputeScoreFromVertex<K>())
+				.map(new ComputeScoreFromVertex<>())
 					.setParallelism(parallelism)
 					.name("Average score")
 				.sum(0)
@@ -194,7 +211,13 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 				.withBroadcastSet(sumOfScoresAndNumberOfNeighborPairs, SUM_OF_SCORES_AND_NUMBER_OF_NEIGHBOR_PAIRS);
 		}
 
-		return scores;
+		if (mirrorResults) {
+			return scores
+				.flatMap(new MirrorResult<>())
+					.name("Mirror results");
+		} else {
+			return scores;
+		}
 	}
 
 	/**
@@ -387,7 +410,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 		@Override
 		public void reduce(Iterable<Tuple3<T, T, FloatValue>> values, Collector<Result<T>> out)
 				throws Exception {
-			float sum = 0;
+			double sum = 0;
 			Tuple3<T, T, FloatValue> edge = null;
 
 			for (Tuple3<T, T, FloatValue> next : values) {
@@ -398,7 +421,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			if (sum >= minimumScore) {
 				output.setVertexId0(edge.f0);
 				output.setVertexId1(edge.f1);
-				output.setAdamicAdarScore(sum);
+				output.setAdamicAdarScore((float) sum);
 				out.collect(output);
 			}
 		}
@@ -411,7 +434,7 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 	 */
 	public static class Result<T>
 	extends BinaryResultBase<T>
-	implements PrintableResult {
+	implements PrintableResult, Comparable<Result<T>> {
 		private FloatValue adamicAdarScore = new FloatValue();
 
 		/**
@@ -451,6 +474,11 @@ extends GraphAlgorithmWrappingDataSet<K, VV, EV, Result<K>> {
 			return "Vertex IDs: (" + getVertexId0()
 				+ ", " + getVertexId1()
 				+ "), adamic-adar score: " + adamicAdarScore;
+		}
+
+		@Override
+		public int compareTo(Result<T> o) {
+			return Float.compare(adamicAdarScore.getValue(), o.adamicAdarScore.getValue());
 		}
 
 		// ----------------------------------------------------------------------------------------

@@ -166,8 +166,9 @@ public class RestartPipelinedRegionStrategy extends FailoverStrategy {
 									if (predecessorRegion != thisRegion) {
 
 										// we need to merge our region and the predecessor's region
-										thisRegion.addAll(predecessorRegion);
-										distinctRegions.remove(predecessorRegion);
+										predecessorRegion.addAll(thisRegion);
+										distinctRegions.remove(thisRegion);
+										thisRegion = predecessorRegion;
 
 										// remap the vertices from that merged region
 										for (ExecutionVertex inPredRegion: predecessorRegion) {

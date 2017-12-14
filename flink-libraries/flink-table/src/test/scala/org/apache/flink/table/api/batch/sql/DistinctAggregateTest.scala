@@ -20,8 +20,8 @@ package org.apache.flink.table.api.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
 class DistinctAggregateTest extends TableTestBase {
@@ -322,7 +322,7 @@ class DistinctAggregateTest extends TableTestBase {
         term("select", "a", "b", "COUNT(a) AS EXPR$1")
       ),
       term("groupBy", "a"),
-      term("select", "a", "SUM(EXPR$1) AS EXPR$1", "SUM(b) AS EXPR$2")
+      term("select", "a", "$SUM0(EXPR$1) AS EXPR$1", "SUM(b) AS EXPR$2")
     )
 
     util.verifySql(sqlQuery, expected)
@@ -348,7 +348,7 @@ class DistinctAggregateTest extends TableTestBase {
         term("select", "a", "b", "COUNT(*) AS EXPR$1")
       ),
       term("groupBy", "a"),
-      term("select", "a", "SUM(EXPR$1) AS EXPR$1", "SUM(b) AS EXPR$2")
+      term("select", "a", "$SUM0(EXPR$1) AS EXPR$1", "SUM(b) AS EXPR$2")
     )
 
     util.verifySql(sqlQuery, expected)

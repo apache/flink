@@ -22,26 +22,26 @@
 
 package org.apache.flink.core.fs;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.StringUtils;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.URI;
+import java.net.URISyntaxException;
+
 /**
  * Names a file or directory in a {@link FileSystem}. Path strings use slash as
  * the directory separator. A path string is absolute if it begins with a slash.
  *
- * Tailing slashes are removed from the path.
+ * <p>Tailing slashes are removed from the path.
  */
 @Public
 public class Path implements IOReadableWritable, Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
 
 	/**
@@ -71,7 +71,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Constructs a path object from a given URI.
-	 * 
+	 *
 	 * @param uri
 	 *        the URI to construct the path object from
 	 */
@@ -81,7 +81,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Resolve a child path against a parent path.
-	 * 
+	 *
 	 * @param parent
 	 *        the parent path
 	 * @param child
@@ -93,7 +93,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Resolve a child path against a parent path.
-	 * 
+	 *
 	 * @param parent
 	 *        the parent path
 	 * @param child
@@ -105,7 +105,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Resolve a child path against a parent path.
-	 * 
+	 *
 	 * @param parent
 	 *        the parent path
 	 * @param child
@@ -117,7 +117,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Resolve a child path against a parent path.
-	 * 
+	 *
 	 * @param parent
 	 *        the parent path
 	 * @param child
@@ -168,7 +168,7 @@ public class Path implements IOReadableWritable, Serializable {
 	/**
 	 * Construct a path from a String. Path strings are URIs, but with unescaped
 	 * elements and some additional normalization.
-	 * 
+	 *
 	 * @param pathString
 	 *        the string to construct a path from
 	 */
@@ -214,7 +214,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Construct a Path from a scheme, an authority and a path string.
-	 * 
+	 *
 	 * @param scheme
 	 *        the scheme string
 	 * @param authority
@@ -229,7 +229,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Initializes a path object given the scheme, authority and path string.
-	 * 
+	 *
 	 * @param scheme
 	 *        the scheme string.
 	 * @param authority
@@ -247,7 +247,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Normalizes a path string.
-	 * 
+	 *
 	 * @param path
 	 *        the path string to normalize
 	 * @return the normalized path string
@@ -262,10 +262,10 @@ public class Path implements IOReadableWritable, Serializable {
 		path = path.replaceAll("/+", "/");
 
 		// remove tailing separator
-		if(!path.equals(SEPARATOR) &&         		// UNIX root path
+		if (!path.equals(SEPARATOR) &&              // UNIX root path
 				!path.matches("/\\p{Alpha}+:/") &&  // Windows root path
-				path.endsWith(SEPARATOR))
-		{
+				path.endsWith(SEPARATOR)) {
+
 			// remove tailing slash
 			path = path.substring(0, path.length() - SEPARATOR.length());
 		}
@@ -275,7 +275,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Converts the path object to a {@link URI}.
-	 * 
+	 *
 	 * @return the {@link URI} object converted from the path object
 	 */
 	public URI toUri() {
@@ -284,7 +284,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Returns the FileSystem that owns this Path.
-	 * 
+	 *
 	 * @return the FileSystem that owns this Path
 	 * @throws IOException
 	 *         thrown if the file system could not be retrieved
@@ -295,7 +295,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Checks if the directory of this path is absolute.
-	 * 
+	 *
 	 * @return <code>true</code> if the directory of this path is absolute, <code>false</code> otherwise
 	 */
 	public boolean isAbsolute() {
@@ -305,7 +305,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Returns the final component of this path, i.e., everything that follows the last separator.
-	 * 
+	 *
 	 * @return the final component of the path
 	 */
 	public String getName() {
@@ -325,7 +325,7 @@ public class Path implements IOReadableWritable, Serializable {
 	/**
 	 * Returns the parent of a path, i.e., everything that precedes the last separator
 	 * or <code>null</code> if at root.
-	 * 
+	 *
 	 * @return the parent of a path or <code>null</code> if at root.
 	 */
 	public Path getParent() {
@@ -348,7 +348,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Adds a suffix to the final name in the path.
-	 * 
+	 *
 	 * @param suffix The suffix to be added
 	 * @return the new path including the suffix
 	 */
@@ -381,7 +381,6 @@ public class Path implements IOReadableWritable, Serializable {
 		return buffer.toString();
 	}
 
-
 	@Override
 	public boolean equals(Object o) {
 		if (!(o instanceof Path)) {
@@ -390,7 +389,6 @@ public class Path implements IOReadableWritable, Serializable {
 		Path that = (Path) o;
 		return this.uri.equals(that.uri);
 	}
-
 
 	@Override
 	public int hashCode() {
@@ -404,7 +402,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Returns the number of elements in this path.
-	 * 
+	 *
 	 * @return the number of elements in this path
 	 */
 	public int depth() {
@@ -420,7 +418,7 @@ public class Path implements IOReadableWritable, Serializable {
 
 	/**
 	 * Returns a qualified path object.
-	 * 
+	 *
 	 * @param fs
 	 *        the FileSystem that should be used to obtain the current working directory
 	 * @return the qualified path object
@@ -479,7 +477,6 @@ public class Path implements IOReadableWritable, Serializable {
 		}
 	}
 
-
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		if (uri == null) {
@@ -516,7 +513,7 @@ public class Path implements IOReadableWritable, Serializable {
 	 *        the path to check
 	 * @param slashed
 	 *         true to indicate the first character of the string is a slash, false otherwise
-	 * 
+	 *
 	 * @return <code>true</code> if the path string contains a windows drive letter, false otherwise
 	 */
 	private boolean hasWindowsDrive(String path, boolean slashed) {

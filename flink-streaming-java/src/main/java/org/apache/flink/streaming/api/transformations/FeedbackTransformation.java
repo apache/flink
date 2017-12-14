@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-import com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import java.util.Collection;
 import java.util.List;
@@ -87,7 +87,8 @@ public class FeedbackTransformation<T> extends StreamTransformation<T> {
 			throw new UnsupportedOperationException(
 					"Parallelism of the feedback stream must match the parallelism of the original" +
 							" stream. Parallelism of original stream: " + this.getParallelism() +
-							"; parallelism of feedback stream: " + transform.getParallelism());
+							"; parallelism of feedback stream: " + transform.getParallelism() +
+							". Parallelism can be modified using DataStream#setParallelism() method");
 		}
 
 		feedbackEdges.add(transform);

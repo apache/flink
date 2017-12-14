@@ -19,8 +19,22 @@
 package org.apache.flink.runtime.messages.webmonitor;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.StdSerializer;
+
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -28,40 +42,60 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * An actor message with a detailed overview of the current status of a job.
  */
-public class JobDetails implements java.io.Serializable {
+@JsonSerialize(using = JobDetails.JobDetailsSerializer.class)
+@JsonDeserialize(using = JobDetails.JobDetailsDeserializer.class)
+public class JobDetails implements Serializable {
 
 	private static final long serialVersionUID = -3391462110304948766L;
-	
+
+	private static final String FIELD_NAME_JOB_ID = "jid";
+	private static final String FIELD_NAME_JOB_NAME = "name";
+	private static final String FIELD_NAME_START_TIME = "start-time";
+	private static final String FIELD_NAME_END_TIME = "end-time";
+	private static final String FIELD_NAME_DURATION = "duration";
+	private static final String FIELD_NAME_STATUS = "state";
+	private static final String FIELD_NAME_LAST_MODIFICATION = "last-modification";
+	private static final String FIELD_NAME_TOTAL_NUMBER_TASKS = "total";
+
 	private final JobID jobId;
-	
+
 	private final String jobName;
-	
+
 	private final long startTime;
-	
+
 	private final long endTime;
-	
+
+	private final long duration;
+
 	private final JobStatus status;
-	
+
 	private final long lastUpdateTime;
 
-	private final int[] numVerticesPerExecutionState;
+	private final int[] tasksPerState;
 	
 	private final int numTasks;
 
-	
-	public JobDetails(JobID jobId, String jobName,
-						long startTime, long endTime,
-						JobStatus status,
-						long lastUpdateTime,
-						int[] numVerticesPerExecutionState, int numTasks) {
-		
+	public JobDetails(
+			JobID jobId,
+			String jobName,
+			long startTime,
+			long endTime,
+			long duration,
+			JobStatus status,
+			long lastUpdateTime,
+			int[] tasksPerState,
+			int numTasks) {
+
 		this.jobId = checkNotNull(jobId);
 		this.jobName = checkNotNull(jobName);
 		this.startTime = startTime;
 		this.endTime = endTime;
+		this.duration = duration;
 		this.status = checkNotNull(status);
 		this.lastUpdateTime = lastUpdateTime;
-		this.numVerticesPerExecutionState = checkNotNull(numVerticesPerExecutionState);
+		Preconditions.checkArgument(tasksPerState.length == ExecutionState.values().length, 
+			"tasksPerState argument must be of size {}.", ExecutionState.values().length);
+		this.tasksPerState = checkNotNull(tasksPerState);
 		this.numTasks = numTasks;
 	}
 	
@@ -83,6 +117,10 @@ public class JobDetails implements java.io.Serializable {
 		return endTime;
 	}
 
+	public long getDuration() {
+		return duration;
+	}
+
 	public JobStatus getStatus() {
 		return status;
 	}
@@ -95,8 +133,8 @@ public class JobDetails implements java.io.Serializable {
 		return numTasks;
 	}
 
-	public int[] getNumVerticesPerExecutionState() {
-		return numVerticesPerExecutionState;
+	public int[] getTasksPerState() {
+		return tasksPerState;
 	}
 
 	// ------------------------------------------------------------------------
@@ -116,7 +154,7 @@ public class JobDetails implements java.io.Serializable {
 					this.status == that.status &&
 					this.jobId.equals(that.jobId) &&
 					this.jobName.equals(that.jobName) &&
-					Arrays.equals(this.numVerticesPerExecutionState, that.numVerticesPerExecutionState);
+					Arrays.equals(this.tasksPerState, that.tasksPerState);
 		}
 		else {
 			return false;
@@ -131,7 +169,7 @@ public class JobDetails implements java.io.Serializable {
 		result = 31 * result + (int) (endTime ^ (endTime >>> 32));
 		result = 31 * result + status.hashCode();
 		result = 31 * result + (int) (lastUpdateTime ^ (lastUpdateTime >>> 32));
-		result = 31 * result + Arrays.hashCode(numVerticesPerExecutionState);
+		result = 31 * result + Arrays.hashCode(tasksPerState);
 		result = 31 * result + numTasks;
 		return result;
 	}
@@ -145,8 +183,89 @@ public class JobDetails implements java.io.Serializable {
 				", endTime=" + endTime +
 				", status=" + status +
 				", lastUpdateTime=" + lastUpdateTime +
-				", numVerticesPerExecutionState=" + Arrays.toString(numVerticesPerExecutionState) +
+				", numVerticesPerExecutionState=" + Arrays.toString(tasksPerState) +
 				", numTasks=" + numTasks +
 				'}';
+	}
+
+	public static final class JobDetailsSerializer extends StdSerializer<JobDetails> {
+		private static final long serialVersionUID = 7915913423515194428L;
+
+		public JobDetailsSerializer() {
+			super(JobDetails.class);
+		}
+
+		@Override
+		public void serialize(
+				JobDetails jobDetails,
+				JsonGenerator jsonGenerator,
+				SerializerProvider serializerProvider) throws IOException {
+			jsonGenerator.writeStartObject();
+
+			jsonGenerator.writeStringField(FIELD_NAME_JOB_ID, jobDetails.getJobId().toString());
+			jsonGenerator.writeStringField(FIELD_NAME_JOB_NAME, jobDetails.getJobName());
+			jsonGenerator.writeStringField(FIELD_NAME_STATUS, jobDetails.getStatus().name());
+
+			jsonGenerator.writeNumberField(FIELD_NAME_START_TIME, jobDetails.getStartTime());
+			jsonGenerator.writeNumberField(FIELD_NAME_END_TIME, jobDetails.getEndTime());
+			jsonGenerator.writeNumberField(FIELD_NAME_DURATION, jobDetails.getDuration());
+			jsonGenerator.writeNumberField(FIELD_NAME_LAST_MODIFICATION, jobDetails.getLastUpdateTime());
+
+			jsonGenerator.writeObjectFieldStart("tasks");
+			jsonGenerator.writeNumberField(FIELD_NAME_TOTAL_NUMBER_TASKS, jobDetails.getNumTasks());
+
+			final int[] perState = jobDetails.getTasksPerState();
+
+			for (ExecutionState executionState : ExecutionState.values()) {
+				jsonGenerator.writeNumberField(executionState.name().toLowerCase(), perState[executionState.ordinal()]);
+			}
+
+			jsonGenerator.writeEndObject();
+
+			jsonGenerator.writeEndObject();
+		}
+	}
+
+	public static final class JobDetailsDeserializer extends StdDeserializer<JobDetails> {
+
+		private static final long serialVersionUID = 6089784742093294800L;
+
+		public JobDetailsDeserializer() {
+			super(JobDetails.class);
+		}
+
+		@Override
+		public JobDetails deserialize(JsonParser jsonParser, DeserializationContext deserializationContext) throws IOException {
+
+			JsonNode rootNode = jsonParser.readValueAsTree();
+
+			JobID jobId = JobID.fromHexString(rootNode.get(FIELD_NAME_JOB_ID).textValue());
+			String jobName = rootNode.get(FIELD_NAME_JOB_NAME).textValue();
+			long startTime = rootNode.get(FIELD_NAME_START_TIME).longValue();
+			long endTime = rootNode.get(FIELD_NAME_END_TIME).longValue();
+			long duration = rootNode.get(FIELD_NAME_DURATION).longValue();
+			JobStatus jobStatus = JobStatus.valueOf(rootNode.get(FIELD_NAME_STATUS).textValue());
+			long lastUpdateTime = rootNode.get(FIELD_NAME_LAST_MODIFICATION).longValue();
+
+			JsonNode tasksNode = rootNode.get("tasks");
+			int numTasks = tasksNode.get(FIELD_NAME_TOTAL_NUMBER_TASKS).intValue();
+
+			int[] numVerticesPerExecutionState = new int[ExecutionState.values().length];
+
+			for (ExecutionState executionState : ExecutionState.values()) {
+				numVerticesPerExecutionState[executionState.ordinal()] = tasksNode.get(executionState.name().toLowerCase()).intValue();
+			}
+
+			return new JobDetails(
+				jobId,
+				jobName,
+				startTime,
+				endTime,
+				duration,
+				jobStatus,
+				lastUpdateTime,
+				numVerticesPerExecutionState,
+				numTasks);
+		}
 	}
 }

@@ -538,10 +538,31 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1990-09-12 10:20:45.123")
   }
 
+  @Test
+  def testSelectNullValues(): Unit ={
+    testAllApis(
+      'f11,
+      "f11",
+      "f11",
+      "null"
+    )
+    testAllApis(
+      'f12,
+      "f12",
+      "f12",
+      "null"
+    )
+    testAllApis(
+      'f13,
+      "f13",
+      "f13",
+      "null"
+    )
+  }
   // ----------------------------------------------------------------------------------------------
 
   def testData: Row = {
-    val testData = new Row(11)
+    val testData = new Row(14)
     testData.setField(0, Date.valueOf("1990-10-14"))
     testData.setField(1, Time.valueOf("10:20:45"))
     testData.setField(2, Timestamp.valueOf("1990-10-14 10:20:45.123"))
@@ -553,6 +574,10 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(8, 1467012213000L)
     testData.setField(9, 24)
     testData.setField(10, 12000L)
+    // null selection test.
+    testData.setField(11, null)
+    testData.setField(12, null)
+    testData.setField(13, null)
     testData
   }
 
@@ -568,6 +593,9 @@ class TemporalTypesTest extends ExpressionTestBase {
       Types.INT,
       Types.LONG,
       Types.INTERVAL_MONTHS,
-      Types.INTERVAL_MILLIS).asInstanceOf[TypeInformation[Any]]
+      Types.INTERVAL_MILLIS,
+      Types.SQL_DATE,
+      Types.SQL_TIME,
+      Types.SQL_TIMESTAMP).asInstanceOf[TypeInformation[Any]]
   }
 }

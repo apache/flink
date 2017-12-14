@@ -19,17 +19,16 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.lang.{Long => JLong}
 
+import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
+import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
-import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.common.state.ValueState
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
-import org.slf4j.{Logger, LoggerFactory}
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.util.Logging
+import org.apache.flink.types.Row
+import org.apache.flink.util.Collector
 
 /**
   * Aggregate Function used for the groupby (without window) aggregate
@@ -43,9 +42,9 @@ class GroupAggProcessFunction(
     private val generateRetraction: Boolean,
     private val queryConfig: StreamQueryConfig)
   extends ProcessFunctionWithCleanupState[CRow, CRow](queryConfig)
-    with Compiler[GeneratedAggregations] {
+    with Compiler[GeneratedAggregations]
+    with Logging {
 
-  val LOG: Logger = LoggerFactory.getLogger(this.getClass)
   private var function: GeneratedAggregations = _
 
   private var newRow: CRow = _
@@ -65,6 +64,7 @@ class GroupAggProcessFunction(
       genAggregations.code)
     LOG.debug("Instantiating AggregateHelper.")
     function = clazz.newInstance()
+    function.open(getRuntimeContext)
 
     newRow = new CRow(function.createOutputRow(), true)
     prevRow = new CRow(function.createOutputRow(), false)
@@ -97,9 +97,12 @@ class GroupAggProcessFunction(
     if (null == accumulators) {
       firstRow = true
       accumulators = function.createAccumulators()
-      inputCnt = 0L
     } else {
       firstRow = false
+    }
+
+    if (null == inputCnt) {
+      inputCnt = 0L
     }
 
     // Set group keys value to the final output
@@ -129,17 +132,19 @@ class GroupAggProcessFunction(
       state.update(accumulators)
       cntState.update(inputCnt)
 
-      // if this was not the first row and we have to emit retractions
-      if (generateRetraction && !firstRow) {
+      // if this was not the first row
+      if (!firstRow) {
         if (prevRow.row.equals(newRow.row) && !stateCleaningEnabled) {
           // newRow is the same as before and state cleaning is not enabled.
-          // We do not emit retraction and acc message.
+          // We emit nothing
           // If state cleaning is enabled, we have to emit messages to prevent too early
           // state eviction of downstream operators.
           return
         } else {
           // retract previous result
-          out.collect(prevRow)
+          if (generateRetraction) {
+            out.collect(prevRow)
+          }
         }
       }
       // emit the new result
@@ -162,7 +167,11 @@ class GroupAggProcessFunction(
 
     if (needToCleanupState(timestamp)) {
       cleanupState(state, cntState)
+      function.cleanup()
     }
   }
 
+  override def close(): Unit = {
+    function.close()
+  }
 }

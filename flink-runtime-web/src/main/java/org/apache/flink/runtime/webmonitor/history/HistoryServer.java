@@ -27,15 +27,18 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.handler.legacy.DashboardConfigHandler;
+import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
+import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
-import org.apache.flink.runtime.webmonitor.handlers.DashboardConfigHandler;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
-import io.netty.handler.codec.http.router.Router;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Router;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +49,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -100,7 +104,7 @@ public class HistoryServer {
 		final Configuration flinkConfig = GlobalConfiguration.loadConfiguration(configDir);
 
 		// run the history server
-		SecurityUtils.install(new SecurityUtils.SecurityConfiguration(flinkConfig));
+		SecurityUtils.install(new SecurityConfiguration(flinkConfig));
 
 		try {
 			SecurityUtils.getInstalledContext().runSecured(new Callable<Integer>() {
@@ -288,7 +292,7 @@ public class HistoryServer {
 
 	private void createDashboardConfigFile() throws IOException {
 		try (FileWriter fw = createOrGetFile(webDir, "config")) {
-			fw.write(DashboardConfigHandler.createConfigJson(webRefreshIntervalMillis));
+			fw.write(DashboardConfigHandler.createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now())));
 			fw.flush();
 		} catch (IOException ioe) {
 			LOG.error("Failed to write config file.");

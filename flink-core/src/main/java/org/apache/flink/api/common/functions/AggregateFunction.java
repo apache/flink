@@ -127,12 +127,15 @@ public interface AggregateFunction<IN, ACC, OUT> extends Function, Serializable 
 	ACC createAccumulator();
 
 	/**
-	 * Adds the given value to the given accumulator.
+	 * Adds the given input value to the given accumulator, returning the
+	 * new accumulator value.
+	 *
+	 * <p>For efficiency, the input accumulator may be modified and returned.
 	 * 
 	 * @param value The value to add
 	 * @param accumulator The accumulator to add the value to
 	 */
-	void add(IN value, ACC accumulator);
+	ACC add(IN value, ACC accumulator);
 
 	/**
 	 * Gets the result of the aggregation from the accumulator.

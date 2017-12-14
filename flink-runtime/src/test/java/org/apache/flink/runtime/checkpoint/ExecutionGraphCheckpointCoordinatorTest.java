@@ -18,13 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -33,11 +30,9 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
-import java.net.URL;
 import java.util.Collections;
 
 import static org.mockito.Matchers.eq;
@@ -84,19 +79,15 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 			CheckpointIDCounter counter,
 			CompletedCheckpointStore store) throws Exception {
 		ExecutionGraph executionGraph = new ExecutionGraph(
+			new DummyJobInformation(),
 			TestingUtils.defaultExecutor(),
 			TestingUtils.defaultExecutor(),
-			new JobID(),
-			"test",
-			new Configuration(),
-			new SerializedValue<>(new ExecutionConfig()),
 			Time.days(1L),
 			new NoRestartStrategy(),
 			new RestartAllStrategy.Factory(),
-			Collections.<BlobKey>emptyList(),
-			Collections.<URL>emptyList(),
 			new Scheduler(TestingUtils.defaultExecutionContext()),
-			ClassLoader.getSystemClassLoader());
+			ClassLoader.getSystemClassLoader(),
+			VoidBlobWriter.getInstance());
 
 		executionGraph.enableCheckpointing(
 				100,
@@ -104,10 +95,10 @@ public class ExecutionGraphCheckpointCoordinatorTest {
 				100,
 				1,
 				ExternalizedCheckpointSettings.none(),
-				Collections.<ExecutionJobVertex>emptyList(),
-				Collections.<ExecutionJobVertex>emptyList(),
-				Collections.<ExecutionJobVertex>emptyList(),
-				Collections.<MasterTriggerRestoreHook<?>>emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
+				Collections.emptyList(),
 				counter,
 				store,
 				null,

@@ -27,25 +27,24 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.SubtaskState;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.operators.testutils.UnregisteredTaskMetricsGroup;
-import org.apache.flink.runtime.state.TaskStateHandles;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.async.collector.AsyncCollector;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
@@ -54,11 +53,11 @@ import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEn
 import org.apache.flink.streaming.api.operators.async.queue.StreamRecordQueueEntry;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.AcknowledgeStreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -166,11 +165,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<Integer> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
 			executorService.submit(new Runnable() {
 				@Override
 				public void run() {
-					collector.collect(Collections.singletonList(input * 2));
+					resultFuture.complete(Collections.singletonList(input * 2));
 				}
 			});
 		}
@@ -178,7 +177,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 	/**
 	 * A special {@link AsyncFunction} without issuing
-	 * {@link AsyncCollector#collect} until the latch counts to zero.
+	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * This function is used in the testStateSnapshotAndRestore, ensuring
 	 * that {@link StreamElementQueueEntry} can stay
 	 * in the {@link StreamElementQueue} to be
@@ -194,7 +193,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		@Override
-		public void asyncInvoke(final Integer input, final AsyncCollector<Integer> collector) throws Exception {
+		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
 			this.executorService.submit(new Runnable() {
 				@Override
 				public void run() {
@@ -205,7 +204,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 						// do nothing
 					}
 
-					collector.collect(Collections.singletonList(input));
+					resultFuture.complete(Collections.singletonList(input));
 				}
 			});
 		}
@@ -500,7 +499,9 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			AsyncDataStream.OutputMode.ORDERED);
 
 		final StreamConfig streamConfig = testHarness.getStreamConfig();
+		OperatorID operatorID = new OperatorID(42L, 4711L);
 		streamConfig.setStreamOperator(operator);
+		streamConfig.setOperatorID(operatorID);
 
 		final AcknowledgeStreamMockEnvironment env = new AcknowledgeStreamMockEnvironment(
 				testHarness.jobConfig,
@@ -527,7 +528,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		task.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forFullCheckpoint());
+		task.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint());
 
 		env.getCheckpointLatch().await();
 
@@ -540,7 +541,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		// set the operator state from previous attempt into the restored one
 		final OneInputStreamTask<Integer, Integer> restoredTask = new OneInputStreamTask<>();
-		restoredTask.setInitialState(new TaskStateHandles(env.getCheckpointStateHandles()));
+		TaskStateSnapshot subtaskStates = env.getCheckpointStateHandles();
+		restoredTask.setInitialState(subtaskStates);
 
 		final OneInputStreamTaskTestHarness<Integer, Integer> restoredTaskHarness =
 				new OneInputStreamTaskTestHarness<>(restoredTask, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
@@ -553,6 +555,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			AsyncDataStream.OutputMode.ORDERED);
 
 		restoredTaskHarness.getStreamConfig().setStreamOperator(restoredOperator);
+		restoredTaskHarness.getStreamConfig().setOperatorID(operatorID);
 
 		restoredTaskHarness.invoke();
 		restoredTaskHarness.waitForTaskRunning();
@@ -562,7 +565,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		restoredTaskHarness.processElement(new StreamRecord<>(7, initialTime + 7));
 
 		// trigger the checkpoint while processing stream elements
-		restoredTask.triggerCheckpoint(new CheckpointMetaData(checkpointId, checkpointTimestamp), CheckpointOptions.forFullCheckpoint());
+		restoredTask.triggerCheckpoint(new CheckpointMetaData(checkpointId, checkpointTimestamp), CheckpointOptions.forCheckpoint());
 
 		restoredTaskHarness.processElement(new StreamRecord<>(8, initialTime + 8));
 
@@ -591,43 +594,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				"StateAndRestored Test Output was not correct.",
 				expectedOutput,
 				restoredTaskHarness.getOutput());
-	}
-
-	private static class AcknowledgeStreamMockEnvironment extends StreamMockEnvironment {
-		private volatile long checkpointId;
-		private volatile SubtaskState checkpointStateHandles;
-
-		private final OneShotLatch checkpointLatch = new OneShotLatch();
-
-		public long getCheckpointId() {
-			return checkpointId;
-		}
-
-		AcknowledgeStreamMockEnvironment(
-				Configuration jobConfig, Configuration taskConfig,
-				ExecutionConfig executionConfig, long memorySize,
-				MockInputSplitProvider inputSplitProvider, int bufferSize) {
-				super(jobConfig, taskConfig, executionConfig, memorySize, inputSplitProvider, bufferSize);
-		}
-
-		@Override
-		public void acknowledgeCheckpoint(
-				long checkpointId,
-				CheckpointMetrics checkpointMetrics,
-				SubtaskState checkpointStateHandles) {
-
-			this.checkpointId = checkpointId;
-			this.checkpointStateHandles = checkpointStateHandles;
-			checkpointLatch.trigger();
-		}
-
-		public OneShotLatch getCheckpointLatch() {
-			return checkpointLatch;
-		}
-
-		public SubtaskState getCheckpointStateHandles() {
-			return checkpointStateHandles;
-		}
 	}
 
 	@Test
@@ -692,7 +658,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final Configuration taskConfiguration = new Configuration();
 		final ExecutionConfig executionConfig = new ExecutionConfig();
-		final TaskMetricGroup metricGroup = new UnregisteredTaskMetricsGroup();
+		final TaskMetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
 		final TaskManagerRuntimeInfo taskManagerRuntimeInfo = new TestingTaskManagerRuntimeInfo();
 		final TaskInfo taskInfo = new TaskInfo("foobarTask", 1, 0, 1, 1);
 
@@ -850,8 +816,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				private static final long serialVersionUID = -3718276118074877073L;
 
 				@Override
-				public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
-					collector.collect(Collections.singletonList(input));
+				public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+					resultFuture.complete(Collections.singletonList(input));
 				}
 			},
 			timeout,
@@ -945,8 +911,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		private static final long serialVersionUID = 6326568632967110990L;
 
 		@Override
-		public void asyncInvoke(Integer input, AsyncCollector<Integer> collector) throws Exception {
-			collector.collect(new Exception("Test exception"));
+		public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+			resultFuture.completeExceptionally(new Exception("Test exception"));
 		}
 	}
 
@@ -1008,7 +974,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		private static final long serialVersionUID = -3060481953330480694L;
 
 		@Override
-		public void asyncInvoke(IN input, AsyncCollector<OUT> collector) throws Exception {
+		public void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception {
 			// no op
 		}
 	}

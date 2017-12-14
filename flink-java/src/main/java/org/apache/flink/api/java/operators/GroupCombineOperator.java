@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.common.operators.Operator;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.operators.Ordering;
@@ -33,13 +34,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.functions.SemanticPropUtil;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingGroupCombineOperator;
 import org.apache.flink.api.java.operators.translation.PlanUnwrappingSortedGroupCombineOperator;
-import org.apache.flink.api.common.operators.Keys.SelectorFunctionKeys;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 /**
  * This operator behaves like the GroupReduceOperator with Combine but only runs the Combine part which reduces all data
- * locally in their partitions. The combine part can return an arbitrary data type. This is useful to pre-combine values 
+ * locally in their partitions. The combine part can return an arbitrary data type. This is useful to pre-combine values
  * into an intermediate representation before applying a proper reduce operation.
  *
  * @param <IN> The type of the data set consumed by the operator.
@@ -95,12 +95,12 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 		SingleInputSemanticProperties props = super.getSemanticProperties();
 
 		// offset semantic information by extracted key fields
-		if(props != null &&
+		if (props != null &&
 				this.grouper != null &&
 				this.grouper.keys instanceof SelectorFunctionKeys) {
 
-			int offset = ((SelectorFunctionKeys<?,?>) this.grouper.keys).getKeyType().getTotalFields();
-			if(this.grouper instanceof SortedGrouping) {
+			int offset = ((SelectorFunctionKeys<?, ?>) this.grouper.keys).getKeyType().getTotalFields();
+			if (this.grouper instanceof SortedGrouping) {
 				offset += ((SortedGrouping<?>) this.grouper).getSortSelectionFunctionKey().getKeyType().getTotalFields();
 			}
 
@@ -174,7 +174,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 				Order[] sortOrders = sortedGrouper.getGroupSortOrders();
 
 				Ordering o = new Ordering();
-				for(int i=0; i < sortKeyPositions.length; i++) {
+				for (int i = 0; i < sortKeyPositions.length; i++) {
 					o.appendOrdering(sortKeyPositions[i], null, sortOrders[i]);
 				}
 				po.setGroupOrder(o);
@@ -187,7 +187,6 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 		}
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
@@ -196,8 +195,7 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 			GroupCombineFunction<IN, OUT> function,
 			TypeInformation<OUT> outputType,
 			String name,
-			Operator<IN> input)
-	{
+			Operator<IN> input) {
 		final SelectorFunctionKeys<IN, K> keys = (SelectorFunctionKeys<IN, K>) rawKeys;
 
 		TypeInformation<Tuple2<K, IN>> typeInfoWithKey = KeyFunctions.createTypeWithKey(keys);
@@ -218,10 +216,9 @@ public class GroupCombineOperator<IN, OUT> extends SingleInputUdfOperator<IN, OU
 			GroupCombineFunction<IN, OUT> function,
 			TypeInformation<OUT> outputType,
 			String name,
-			Operator<IN> input)
-	{
+			Operator<IN> input) {
 		final SelectorFunctionKeys<IN, K1> groupingKey = (SelectorFunctionKeys<IN, K1>) rawGroupingKey;
-		final SelectorFunctionKeys<IN, K2> sortingKey = (SelectorFunctionKeys<IN, K2>)rawSortingKeys;
+		final SelectorFunctionKeys<IN, K2> sortingKey = (SelectorFunctionKeys<IN, K2>) rawSortingKeys;
 		TypeInformation<Tuple3<K1, K2, IN>> typeInfoWithKey = KeyFunctions.createTypeWithKey(groupingKey, sortingKey);
 
 		Operator<Tuple3<K1, K2, IN>> inputWithKey = KeyFunctions.appendKeyExtractor(input, groupingKey, sortingKey);

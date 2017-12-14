@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -28,13 +29,11 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedRestoring;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShard;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -43,7 +42,7 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,8 +71,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> implements
 		ResultTypeQueryable<T>,
-		CheckpointedFunction,
-		CheckpointedRestoring<HashMap<KinesisStreamShard, SequenceNumber>> {
+		CheckpointedFunction {
 
 	private static final long serialVersionUID = 4724006128720664870L;
 
@@ -176,7 +174,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 		// check the configuration properties for any conflicting settings
 		KinesisConfigUtil.validateConsumerConfiguration(this.configProps);
 
-		this.deserializer = checkNotNull(deserializer, "deserializer can not be null");
+		checkNotNull(deserializer, "deserializer can not be null");
+		checkArgument(
+			InstantiationUtil.isSerializable(deserializer),
+			"The provided deserialization schema is not serializable: " + deserializer.getClass().getName() + ". " +
+				"Please check that it does not contain references to non-serializable instances.");
+		this.deserializer = deserializer;
 
 		if (LOG.isInfoEnabled()) {
 			StringBuilder sb = new StringBuilder();
@@ -352,29 +355,12 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Snapshotted state, last processed sequence numbers: {}, checkpoint id: {}, timestamp: {}",
-						lastStateSnapshot.toString(), context.getCheckpointId(), context.getCheckpointTimestamp());
+						lastStateSnapshot, context.getCheckpointId(), context.getCheckpointTimestamp());
 				}
 
 				for (Map.Entry<StreamShardMetadata, SequenceNumber> entry : lastStateSnapshot.entrySet()) {
 					sequenceNumsStateForCheckpoint.add(Tuple2.of(entry.getKey(), entry.getValue()));
 				}
-			}
-		}
-	}
-
-	@Override
-	public void restoreState(HashMap<KinesisStreamShard, SequenceNumber> restoredState) throws Exception {
-		LOG.info("Subtask {} restoring offsets from an older Flink version: {}",
-			getRuntimeContext().getIndexOfThisSubtask(), sequenceNumsToRestore);
-
-		if (restoredState.isEmpty()) {
-			sequenceNumsToRestore = null;
-		} else {
-			sequenceNumsToRestore = new HashMap<>();
-			for (Map.Entry<KinesisStreamShard, SequenceNumber> stateEntry : restoredState.entrySet()) {
-				sequenceNumsToRestore.put(
-						KinesisStreamShard.convertToStreamShardMetadata(stateEntry.getKey()),
-						stateEntry.getValue());
 			}
 		}
 	}

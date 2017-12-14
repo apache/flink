@@ -24,6 +24,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils._
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{TableException, CurrentRow, CurrentRange, UnboundedRow, UnboundedRange}
 import org.apache.flink.table.expressions.ExpressionUtils.{convertArray, toMilliInterval, toMonthInterval, toRowInterval}
+import org.apache.flink.table.api.Table
 import org.apache.flink.table.expressions.TimeIntervalUnit.TimeIntervalUnit
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
@@ -232,6 +233,25 @@ trait ImplicitExpressionOperations {
 
   def asc = Asc(expr)
   def desc = Desc(expr)
+
+  /**
+    * Returns true if an expression exists in a given list of expressions. This is a shorthand
+    * for multiple OR conditions.
+    *
+    * If the testing set contains null, the result will be null if the element can not be found
+    * and true if it can be found. If the element is null, the result is always null.
+    *
+    * e.g. "42".in(1, 2, 3) leads to false.
+    */
+  def in(elements: Expression*) = In(expr, elements)
+
+  /**
+    * Returns true if an expression exists in a given table sub-query. The sub-query table
+    * must consist of one column. This column must have the same data type as the expression.
+    *
+    * Note: This operation is not supported in a streaming environment yet.
+    */
+  def in(table: Table) = In(expr, Seq(TableReference(table.toString, table)))
 
   /**
     * Returns the start time (inclusive) of a window when applied on a window reference.
@@ -663,19 +683,19 @@ trait ImplicitExpressionOperations {
   def flatten() = Flattening(expr)
 
   /**
-    * Accesses the element of an array based on an index (starting at 1).
+    * Accesses the element of an array or map based on a key or an index (starting at 1).
     *
-    * @param index position of the element (starting at 1)
+    * @param index key or position of the element (array index starting at 1)
     * @return value of the element
     */
-  def at(index: Expression) = ArrayElementAt(expr, index)
+  def at(index: Expression) = ItemAt(expr, index)
 
   /**
-    * Returns the number of elements of an array.
+    * Returns the number of elements of an array or number of entries of a map.
     *
-    * @return number of elements
+    * @return number of elements or entries
     */
-  def cardinality() = ArrayCardinality(expr)
+  def cardinality() = Cardinality(expr)
 
   /**
     * Returns the sole element of an array with a single element. Returns null if the array is
@@ -940,6 +960,32 @@ object array {
 }
 
 /**
+  * Creates a row of expressions.
+  */
+object row {
+
+  /**
+    * Creates a row of expressions.
+    */
+  def apply(head: Expression, tail: Expression*): Expression = {
+    RowConstructor(head +: tail.toSeq)
+  }
+}
+
+/**
+  * Creates a map of expressions. The map will be a map between two objects (not primitives).
+  */
+object map {
+
+  /**
+    * Creates a map of expressions. The map will be a map between two objects (not primitives).
+    */
+  def apply(key: Expression, value: Expression, tail: Expression*): Expression = {
+    MapConstructor(Seq(key, value) ++ tail.toSeq)
+  }
+}
+
+/**
   * Returns a value that is closer than any other value to pi.
   */
 object pi {
@@ -1017,7 +1063,7 @@ object randInteger {
   */
 object concat {
   def apply(string: Expression, strings: Expression*): Expression = {
-    new Concat(Seq(string) ++ strings)
+    Concat(Seq(string) ++ strings)
   }
 }
 
@@ -1030,7 +1076,7 @@ object concat {
   **/
 object concat_ws {
   def apply(separator: Expression, string: Expression, strings: Expression*): Expression = {
-    new ConcatWs(separator, Seq(string) ++ strings)
+    ConcatWs(separator, Seq(string) ++ strings)
   }
 }
 

@@ -36,7 +36,7 @@ import java.io.Serializable;
  *
  * <p>A pane is the bucket of elements that have the same key (assigned by the
  * {@link org.apache.flink.api.java.functions.KeySelector}) and same {@link Window}. An element can
- * be in multiple panes of it was assigned to multiple windows by the
+ * be in multiple panes if it was assigned to multiple windows by the
  * {@link org.apache.flink.streaming.api.windowing.assigners.WindowAssigner}. These panes all
  * have their own instance of the {@code Trigger}.
  *
@@ -70,6 +70,11 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 	/**
 	 * Called when a processing-time timer that was set using the trigger context fires.
 	 *
+	 * <p>Note: This method is not called in case the window does not contain any elements. Thus,
+	 * if you return {@code PURGE} from a trigger method and you expect to do cleanup in a future
+	 * invocation of a timer callback it might be wise to clean any state that you would clean
+	 * in the timer callback.
+	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param window The window for which the timer fired.
 	 * @param ctx A context object that can be used to register timer callbacks.
@@ -78,6 +83,11 @@ public abstract class Trigger<T, W extends Window> implements Serializable {
 
 	/**
 	 * Called when an event-time timer that was set using the trigger context fires.
+	 *
+	 * <p>Note: This method is not called in case the window does not contain any elements. Thus,
+	 * if you return {@code PURGE} from a trigger method and you expect to do cleanup in a future
+	 * invocation of a timer callback it might be wise to clean any state that you would clean
+	 * in the timer callback.
 	 *
 	 * @param time The timestamp at which the timer fired.
 	 * @param window The window for which the timer fired.

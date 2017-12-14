@@ -30,6 +30,9 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Optional;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -275,27 +278,103 @@ public final class ExceptionUtils {
 	}
 
 	/**
-	 * Checks whether a throwable chain contains a specific type of exception.
+	 * Checks whether a throwable chain contains a specific type of exception and returns it.
 	 *
 	 * @param throwable the throwable chain to check.
 	 * @param searchType the type of exception to search for in the chain.
-	 * @return True, if the searched type is nested in the throwable, false otherwise.
+	 * @return Optional throwable of the requested type if available, otherwise empty
 	 */
-	public static boolean containsThrowable(Throwable throwable, Class<?> searchType) {
+	public static Optional<Throwable> findThrowable(Throwable throwable, Class<?> searchType) {
 		if (throwable == null || searchType == null) {
-			return false;
+			return Optional.empty();
 		}
 
 		Throwable t = throwable;
 		while (t != null) {
 			if (searchType.isAssignableFrom(t.getClass())) {
-				return true;
+				return Optional.of(t);
 			} else {
 				t = t.getCause();
 			}
 		}
 
-		return false;
+		return Optional.empty();
+	}
+
+	/**
+	 * Checks whether a throwable chain contains a specific error message and returns the corresponding throwable.
+	 *
+	 * @param throwable the throwable chain to check.
+	 * @param searchMessage the error message to search for in the chain.
+	 * @return Optional throwable containing the search message if available, otherwise empty
+	 */
+	public static Optional<Throwable> findThrowableWithMessage(Throwable throwable, String searchMessage) {
+		if (throwable == null || searchMessage == null) {
+			return Optional.empty();
+		}
+
+		Throwable t = throwable;
+		while (t != null) {
+			if (t.getMessage().contains(searchMessage)) {
+				return Optional.of(t);
+			} else {
+				t = t.getCause();
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Unpacks an {@link ExecutionException} and returns its cause. Otherwise the given
+	 * Throwable is returned.
+	 *
+	 * @param throwable to unpack if it is an ExecutionException
+	 * @return Cause of ExecutionException or given Throwable
+	 */
+	public static Throwable stripExecutionException(Throwable throwable) {
+		while (throwable instanceof ExecutionException && throwable.getCause() != null) {
+			throwable = throwable.getCause();
+		}
+
+		return throwable;
+	}
+
+	/**
+	 * Unpacks an {@link CompletionException} and returns its cause. Otherwise the given
+	 * Throwable is returned.
+	 *
+	 * @param throwable to unpack if it is an CompletionException
+	 * @return Cause of CompletionException or given Throwable
+	 */
+	public static Throwable stripCompletionException(Throwable throwable) {
+		while (throwable instanceof CompletionException && throwable.getCause() != null) {
+			throwable = throwable.getCause();
+		}
+
+		return throwable;
+	}
+
+	/**
+	 * Tries to find a {@link SerializedThrowable} as the cause of the given throwable and throws its
+	 * deserialized value. If there is no such throwable, then the original throwable is thrown.
+	 *
+	 * @param throwable to check for a SerializedThrowable
+	 * @param classLoader to be used for the deserialization of the SerializedThrowable
+	 * @throws Throwable either the deserialized throwable or the given throwable
+	 */
+	public static void tryDeserializeAndThrow(Throwable throwable, ClassLoader classLoader) throws Throwable {
+		Throwable current = throwable;
+
+		while (!(current instanceof SerializedThrowable) && current.getCause() != null) {
+			current = current.getCause();
+		}
+
+		if (current instanceof SerializedThrowable) {
+			throw ((SerializedThrowable) current).deserializeError(classLoader);
+		} else {
+			throw throwable;
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -19,16 +19,23 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.runtime.instance.ActorGateway;
+import org.apache.flink.runtime.jobmaster.JobManagerGateway;
+import org.apache.flink.runtime.rest.handler.legacy.AbstractJsonRequestHandler;
+import org.apache.flink.runtime.rest.handler.legacy.JsonFactory;
 import org.apache.flink.runtime.webmonitor.RuntimeMonitorHandler;
+import org.apache.flink.util.FlinkException;
 
-import com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
@@ -41,7 +48,8 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 
 	private final File jarDir;
 
-	public  JarListHandler(File jarDirectory) {
+	public  JarListHandler(Executor executor, File jarDirectory) {
+		super(executor);
 		jarDir = jarDirectory;
 	}
 
@@ -51,88 +59,96 @@ public class JarListHandler extends AbstractJsonRequestHandler {
 	}
 
 	@Override
-	public String handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, ActorGateway jobManager) throws Exception {
-		try {
-			StringWriter writer = new StringWriter();
-			JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
-
-			gen.writeStartObject();
-			gen.writeStringField("address", queryParams.get(RuntimeMonitorHandler.WEB_MONITOR_ADDRESS_KEY));
-			gen.writeArrayFieldStart("files");
-
-			File[] list = jarDir.listFiles(new FilenameFilter() {
-				@Override
-				public boolean accept(File dir, String name) {
-					return name.endsWith(".jar");
-				}
-			});
-
-			for (File f : list) {
-				// separate the uuid and the name parts.
-				String id = f.getName();
-
-				int startIndex = id.indexOf("_");
-				if (startIndex < 0) {
-					continue;
-				}
-				String name = id.substring(startIndex + 1);
-				if (name.length() < 5 || !name.endsWith(".jar")) {
-					continue;
-				}
-
-				gen.writeStartObject();
-				gen.writeStringField("id", id);
-				gen.writeStringField("name", name);
-				gen.writeNumberField("uploaded", f.lastModified());
-				gen.writeArrayFieldStart("entry");
-
-				String[] classes = new String[0];
+	public CompletableFuture<String> handleJsonRequest(Map<String, String> pathParams, Map<String, String> queryParams, JobManagerGateway jobManagerGateway) {
+		return CompletableFuture.supplyAsync(
+			() -> {
 				try {
-					JarFile jar = new JarFile(f);
-					Manifest manifest = jar.getManifest();
-					String assemblerClass = null;
+					StringWriter writer = new StringWriter();
+					JsonGenerator gen = JsonFactory.JACKSON_FACTORY.createGenerator(writer);
 
-					if (manifest != null) {
-						assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
-						if (assemblerClass == null) {
-							assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+					gen.writeStartObject();
+					gen.writeStringField("address", queryParams.get(RuntimeMonitorHandler.WEB_MONITOR_ADDRESS_KEY));
+					gen.writeArrayFieldStart("files");
+
+					File[] list = jarDir.listFiles(new FilenameFilter() {
+						@Override
+						public boolean accept(File dir, String name) {
+							return name.endsWith(".jar");
 						}
-					}
-					if (assemblerClass != null) {
-						classes = assemblerClass.split(",");
-					}
-				} catch (IOException ignored) {
-					// we simply show no entries here
-				}
+					});
 
-				// show every entry class that can be loaded later on.
-				for (String clazz : classes) {
-					clazz = clazz.trim();
+					// last modified ascending order
+					Arrays.sort(list, (f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
 
-					PackagedProgram program = null;
-					try {
-						program = new PackagedProgram(f, clazz, new String[0]);
-					} catch (Exception ignored) {
-						// ignore jar files which throw an error upon creating a PackagedProgram
-					}
-					if (program != null) {
+					for (File f : list) {
+						// separate the uuid and the name parts.
+						String id = f.getName();
+
+						int startIndex = id.indexOf("_");
+						if (startIndex < 0) {
+							continue;
+						}
+						String name = id.substring(startIndex + 1);
+						if (name.length() < 5 || !name.endsWith(".jar")) {
+							continue;
+						}
+
 						gen.writeStartObject();
-						gen.writeStringField("name", clazz);
-						String desc = program.getDescription();
-						gen.writeStringField("description", desc == null ? "No description provided" : desc);
+						gen.writeStringField("id", id);
+						gen.writeStringField("name", name);
+						gen.writeNumberField("uploaded", f.lastModified());
+						gen.writeArrayFieldStart("entry");
+
+						String[] classes = new String[0];
+						try {
+							JarFile jar = new JarFile(f);
+							Manifest manifest = jar.getManifest();
+							String assemblerClass = null;
+
+							if (manifest != null) {
+								assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_ASSEMBLER_CLASS);
+								if (assemblerClass == null) {
+									assemblerClass = manifest.getMainAttributes().getValue(PackagedProgram.MANIFEST_ATTRIBUTE_MAIN_CLASS);
+								}
+							}
+							if (assemblerClass != null) {
+								classes = assemblerClass.split(",");
+							}
+						} catch (IOException ignored) {
+							// we simply show no entries here
+						}
+
+						// show every entry class that can be loaded later on.
+						for (String clazz : classes) {
+							clazz = clazz.trim();
+
+							PackagedProgram program = null;
+							try {
+								program = new PackagedProgram(f, clazz, new String[0]);
+							} catch (Exception ignored) {
+								// ignore jar files which throw an error upon creating a PackagedProgram
+							}
+							if (program != null) {
+								gen.writeStartObject();
+								gen.writeStringField("name", clazz);
+								String desc = program.getDescription();
+								gen.writeStringField("description", desc == null ? "No description provided" : desc);
+								gen.writeEndObject();
+							}
+						}
+						gen.writeEndArray();
 						gen.writeEndObject();
 					}
+					gen.writeEndArray();
+					gen.writeEndObject();
+					gen.close();
+					return writer.toString();
 				}
-				gen.writeEndArray();
-				gen.writeEndObject();
-			}
-			gen.writeEndArray();
-			gen.writeEndObject();
-			gen.close();
-			return writer.toString();
-		}
-		catch (Exception e) {
-			throw new RuntimeException("Failed to fetch jar list: " + e.getMessage(), e);
-		}
+				catch (Exception e) {
+					throw new CompletionException(new FlinkException("Failed to fetch jar list.", e));
+				}
+			},
+			executor);
+
 	}
 }

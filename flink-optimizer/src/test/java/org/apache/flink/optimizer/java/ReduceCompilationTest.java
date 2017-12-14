@@ -19,23 +19,25 @@
 package org.apache.flink.optimizer.java;
 
 import org.apache.flink.api.common.Plan;
+import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
 import org.apache.flink.api.common.operators.util.FieldList;
-import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.util.CompilerTestBase;
-import org.junit.Test;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
+import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 
-import static org.junit.Assert.*;
+import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("serial")
 public class ReduceCompilationTest extends CompilerTestBase implements java.io.Serializable {
@@ -326,5 +328,53 @@ public class ReduceCompilationTest extends CompilerTestBase implements java.io.S
 			e.printStackTrace();
 			fail(e.getClass().getSimpleName() + " in test: " + e.getMessage());
 		}
+	}
+
+	/**
+	 * Test program compilation when the Reduce's combiner has been excluded
+	 * by setting {@code CombineHint.NONE}.
+	 */
+	@Test
+	public void testGroupedReduceWithoutCombiner() {
+		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(8);
+
+		DataSet<Tuple2<String, Double>> data = env.readCsvFile("file:///will/never/be/read").types(String.class, Double.class)
+			.name("source").setParallelism(6);
+
+		data
+			.groupBy(0)
+			.reduce(new RichReduceFunction<Tuple2<String, Double>>() {
+				@Override
+				public Tuple2<String, Double> reduce(Tuple2<String, Double> value1, Tuple2<String, Double> value2) {
+					return null;
+				}
+			}).setCombineHint(CombineHint.NONE).name("reducer")
+			.output(new DiscardingOutputFormat<Tuple2<String, Double>>()).name("sink");
+
+		Plan p = env.createProgramPlan();
+		OptimizedPlan op = compileNoStats(p);
+
+		OptimizerPlanNodeResolver resolver = getOptimizerPlanNodeResolver(op);
+
+		// get the original nodes
+		SourcePlanNode sourceNode = resolver.getNode("source");
+		SingleInputPlanNode reduceNode = resolver.getNode("reducer");
+		SinkPlanNode sinkNode = resolver.getNode("sink");
+
+		// check wiring
+		assertEquals(sourceNode, reduceNode.getInput().getSource());
+
+		// check the strategies
+		assertEquals(DriverStrategy.SORTED_REDUCE, reduceNode.getDriverStrategy());
+
+		// check the keys
+		assertEquals(new FieldList(0), reduceNode.getKeys(0));
+		assertEquals(new FieldList(0), reduceNode.getInput().getLocalStrategyKeys());
+
+		// check parallelism
+		assertEquals(6, sourceNode.getParallelism());
+		assertEquals(8, reduceNode.getParallelism());
+		assertEquals(8, sinkNode.getParallelism());
 	}
 }

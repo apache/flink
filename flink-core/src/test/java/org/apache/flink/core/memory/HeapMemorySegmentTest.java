@@ -24,8 +24,13 @@ import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the {@link HeapMemorySegment} in off-heap mode.
+ */
 @RunWith(Parameterized.class)
 public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 
@@ -42,30 +47,24 @@ public class HeapMemorySegmentTest extends MemorySegmentTestBase {
 	MemorySegment createSegment(int size, Object owner) {
 		return new HeapMemorySegment(new byte[size], owner);
 	}
-	
+
 	@Test
 	public void testHeapSegmentSpecifics() {
-		try {
-			final byte[] buffer = new byte[411];
-			HeapMemorySegment seg = new HeapMemorySegment(buffer);
-			
-			assertFalse(seg.isFreed());
-			assertFalse(seg.isOffHeap());
-			assertEquals(buffer.length, seg.size());
-			assertTrue(buffer == seg.getArray());
+		final byte[] buffer = new byte[411];
+		HeapMemorySegment seg = new HeapMemorySegment(buffer);
 
-			ByteBuffer buf1 = seg.wrap(1, 2);
-			ByteBuffer buf2 = seg.wrap(3, 4);
+		assertFalse(seg.isFreed());
+		assertFalse(seg.isOffHeap());
+		assertEquals(buffer.length, seg.size());
+		assertTrue(buffer == seg.getArray());
 
-			assertTrue(buf1 != buf2);
-			assertEquals(1, buf1.position());
-			assertEquals(3, buf1.limit());
-			assertEquals(3, buf2.position());
-			assertEquals(7, buf2.limit());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		ByteBuffer buf1 = seg.wrap(1, 2);
+		ByteBuffer buf2 = seg.wrap(3, 4);
+
+		assertTrue(buf1 != buf2);
+		assertEquals(1, buf1.position());
+		assertEquals(3, buf1.limit());
+		assertEquals(3, buf2.position());
+		assertEquals(7, buf2.limit());
 	}
 }

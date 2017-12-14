@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-hadoop</artifactId>
-		<version>1.4-SNAPSHOT</version>
+		<version>1.5-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -40,6 +40,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-compress</artifactId>
+			<!-- managed version -->
+		</dependency>
+
+		<!-- explicitly include avro to force Flink's managed version -->
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
 			<!-- managed version -->
 		</dependency>
 
@@ -107,10 +114,6 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -237,10 +240,6 @@ under the License.
 					<artifactId>jasper-runtime</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
 					<artifactId>jsp-api</artifactId>
 				</exclusion>
@@ -363,10 +362,6 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
@@ -493,10 +488,6 @@ under the License.
 					<artifactId>jasper-runtime</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
 					<artifactId>jsp-api</artifactId>
 				</exclusion>
@@ -619,10 +610,6 @@ under the License.
 				<exclusion>
 					<groupId>tomcat</groupId>
 					<artifactId>jasper-runtime</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.servlet</groupId>
-					<artifactId>servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>javax.servlet.jsp</groupId>
