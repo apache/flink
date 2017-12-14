@@ -24,6 +24,7 @@ import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -53,6 +54,26 @@ public class SerializedJobExecutionResult implements java.io.Serializable {
 		this.jobId = jobID;
 		this.netRuntime = netRuntime;
 		this.accumulatorResults = accumulators;
+	}
+
+	/**
+	 * Creates an instance from {@link JobExecutionResult}.
+	 */
+	public static SerializedJobExecutionResult from(final JobExecutionResult jobExecutionResult) {
+		final Map<String, Object> accumulatorResults = jobExecutionResult.getAllAccumulatorResults();
+
+		final Map<String, SerializedValue<Object>> serializedAccumulatorResults = new HashMap<>(accumulatorResults.size());
+		for (final Map.Entry<String, Object> entry : accumulatorResults.entrySet()) {
+			try {
+				serializedAccumulatorResults.put(entry.getKey(), new SerializedValue<>(entry.getValue()));
+			} catch (final IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		return new SerializedJobExecutionResult(
+			jobExecutionResult.getJobID(),
+			jobExecutionResult.getNetRuntime(),
+			serializedAccumulatorResults);
 	}
 
 	public JobID getJobId() {

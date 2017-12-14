@@ -25,6 +25,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.EitherTypeInfoFactory;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
 
+import java.io.Serializable;
+
 /**
  * This type represents a value of one two possible types, Left or Right (a
  * disjoint union), inspired by Scala's Either type.
@@ -36,7 +38,9 @@ import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
  */
 @Public
 @TypeInfo(EitherTypeInfoFactory.class)
-public abstract class Either<L, R> {
+public abstract class Either<L, R> implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Create a Left value of Either

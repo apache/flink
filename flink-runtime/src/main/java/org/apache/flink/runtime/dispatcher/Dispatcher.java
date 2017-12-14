@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.JobExecutionResultNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -53,6 +55,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -96,6 +99,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final Map<JobID, JobManagerRunner> jobManagerRunners;
 
 	private final LeaderElectionService leaderElectionService;
+
+	private final JobExecutionResultCache jobExecutionResultCache = new JobExecutionResultCache();
 
 	@Nullable
 	protected final String restAddress;
@@ -357,6 +362,28 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return CompletableFuture.completedFuture(jobManagerServices.blobServer.getPort());
 	}
 
+	@Override
+	public CompletableFuture<Either<Throwable, SerializedJobExecutionResult>> getJobExecutionResult(
+			final JobID jobId,
+			final Time timeout) {
+		final Either<Throwable, SerializedJobExecutionResult> jobExecutionResult =
+			jobExecutionResultCache.get(jobId);
+		if (jobExecutionResult == null) {
+			return FutureUtils.completedExceptionally(new JobExecutionResultNotFoundException(jobId));
+		} else {
+			return CompletableFuture.completedFuture(jobExecutionResult);
+		}
+	}
+
+	@Override
+	public CompletableFuture<Boolean> isJobExecutionResultPresent(final JobID jobId, final Time timeout) {
+		final boolean jobExecutionResultPresent = jobExecutionResultCache.contains(jobId);
+		if (!jobManagerRunners.containsKey(jobId) && !jobExecutionResultPresent) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		}
+		return CompletableFuture.completedFuture(jobExecutionResultPresent);
+	}
+
 	/**
 	 * Cleans up the job related data from the dispatcher. If cleanupHA is true, then
 	 * the data will also be removed from HA.
@@ -562,12 +589,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			log.info("Job {} finished.", jobId);
 
 			runAsync(() -> {
-					try {
-						removeJob(jobId, true);
-					} catch (Exception e) {
-						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
-					}
-				});
+				jobExecutionResultCache.put(SerializedJobExecutionResult.from(result));
+				try {
+					removeJob(jobId, true);
+				} catch (Exception e) {
+					log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
+				}
+			});
 		}
 
 		@Override
@@ -575,12 +603,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			log.info("Job {} failed.", jobId);
 
 			runAsync(() -> {
-					try {
-						removeJob(jobId, true);
-					} catch (Exception e) {
-						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
-					}
-				});
+				jobExecutionResultCache.put(jobId, cause);
+				try {
+					removeJob(jobId, true);
+				} catch (Exception e) {
+					log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
+				}
+			});
 		}
 
 		@Override
@@ -596,5 +625,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 					}
 				});
 		}
+
 	}
 }

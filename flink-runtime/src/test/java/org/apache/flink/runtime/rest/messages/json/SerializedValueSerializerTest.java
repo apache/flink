@@ -16,55 +16,66 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.util;
+package org.apache.flink.runtime.rest.messages.json;
 
-import org.apache.flink.runtime.rest.messages.json.SerializedValueDeserializer;
-import org.apache.flink.runtime.rest.messages.json.SerializedValueSerializer;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.Serializable;
+
+import static org.junit.Assert.assertEquals;
+
 /**
- * This class contains utilities for mapping requests and responses to/from JSON.
+ * Tests for {@link SerializedValueSerializer} and {@link SerializedValueDeserializer}.
  */
-public class RestMapperUtils {
-	private static final ObjectMapper objectMapper;
+public class SerializedValueSerializerTest {
 
-	static {
+	private ObjectMapper objectMapper;
+
+	@Before
+	public void setUp() {
 		objectMapper = new ObjectMapper();
-		objectMapper.enable(
-			DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES,
-			DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES,
-			DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY);
-		objectMapper.disable(
-			SerializationFeature.FAIL_ON_EMPTY_BEANS);
-
-		final SimpleModule jacksonFlinkModule = new SimpleModule();
-
+		final SimpleModule simpleModule = new SimpleModule();
 		final JavaType serializedValueWildcardType = objectMapper
 			.getTypeFactory()
 			.constructType(new TypeReference<SerializedValue<?>>() {
 			});
-
-		jacksonFlinkModule.addSerializer(new SerializedValueSerializer(serializedValueWildcardType));
-		jacksonFlinkModule.addDeserializer(
+		simpleModule.addSerializer(new SerializedValueSerializer(serializedValueWildcardType));
+		simpleModule.addDeserializer(
 			SerializedValue.class,
 			new SerializedValueDeserializer(serializedValueWildcardType));
-
-		objectMapper.registerModule(jacksonFlinkModule);
+		objectMapper.registerModule(simpleModule);
 	}
 
-	/**
-	 * Returns a preconfigured {@link ObjectMapper}.
-	 *
-	 * @return preconfigured object mapper
-	 */
-	public static ObjectMapper getStrictObjectMapper() {
-		return objectMapper;
+	@Test
+	public void testSerializationDeserialization() throws Exception {
+		final String json = objectMapper.writeValueAsString(new SerializedValue<>(new TestClass()));
+
+		final SerializedValue<TestClass> serializedValue =
+			objectMapper.readValue(json, new TypeReference<SerializedValue<TestClass>>() {
+			});
+		final TestClass deserializedValue =
+			serializedValue.deserializeValue(ClassLoader.getSystemClassLoader());
+
+		assertEquals("baz", deserializedValue.foo);
+		assertEquals(1, deserializedValue.bar);
 	}
+
+	private static class TestClass implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		private String foo = "baz";
+
+		private int bar = 1;
+
+	}
+
 }
