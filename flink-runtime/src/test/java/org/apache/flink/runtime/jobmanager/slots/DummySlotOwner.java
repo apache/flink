@@ -18,39 +18,16 @@
 
 package org.apache.flink.runtime.jobmanager.slots;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.instance.LogicalSlot;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * A combination of a {@link AllocatedSlot} and a {@link Locality}.
+ * SlotOwner implementation used for testing purposes only.
  */
-public class SlotAndLocality {
-
-	private final AllocatedSlot slot;
-
-	private final Locality locality;
-
-	public SlotAndLocality(AllocatedSlot slot, Locality locality) {
-		this.slot = checkNotNull(slot);
-		this.locality = checkNotNull(locality);
-	}
-
-	// ------------------------------------------------------------------------
-
-	public AllocatedSlot slot() {
-		return slot;
-	}
-
-	public Locality locality() {
-		return locality;
-	}
-
-	// ------------------------------------------------------------------------
-
+public class DummySlotOwner implements SlotOwner {
 	@Override
-	public String toString() {
-		return "Slot: " + slot + " (" + locality + ')';
+	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
+		return CompletableFuture.completedFuture(false);
 	}
 }

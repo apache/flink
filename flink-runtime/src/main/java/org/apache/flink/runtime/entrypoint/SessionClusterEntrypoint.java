@@ -120,7 +120,8 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 			highAvailabilityServices,
 			heartbeatServices,
 			metricRegistry,
-			this);
+			this,
+			dispatcherRestEndpoint.getRestAddress());
 
 		dispatcher = createDispatcher(
 			configuration,
@@ -238,5 +239,6 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
-		FatalErrorHandler fatalErrorHandler) throws Exception;
+		FatalErrorHandler fatalErrorHandler,
+		@Nullable String webInterfaceUrl) throws Exception;
 }

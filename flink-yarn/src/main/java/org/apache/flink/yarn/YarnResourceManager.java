@@ -52,6 +52,8 @@ import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +102,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final YarnConfiguration yarnConfig;
 
+	@Nullable
+	private final String webInterfaceUrl;
+
 	/** Client to communicate with the Resource Manager (YARN's master). */
 	private AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient;
 
@@ -123,7 +128,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			SlotManager slotManager,
 			MetricRegistry metricRegistry,
 			JobLeaderIdService jobLeaderIdService,
-			FatalErrorHandler fatalErrorHandler) {
+			FatalErrorHandler fatalErrorHandler,
+			@Nullable String webInterfaceUrl) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -153,36 +159,50 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		}
 		yarnHeartbeatIntervalMillis = yarnHeartbeatIntervalMS;
 		numPendingContainerRequests = 0;
+
+		this.webInterfaceUrl = webInterfaceUrl;
 	}
 
-	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient() {
-		AMRMClientAsync<AMRMClient.ContainerRequest> rmc = AMRMClientAsync.createAMRMClientAsync(yarnHeartbeatIntervalMillis, this);
-		rmc.init(yarnConfig);
-		rmc.start();
-		try {
-			//TODO: change akka address to tcp host and port, the getAddress() interface should return a standard tcp address
-			Tuple2<String, Integer> hostPort = parseHostPort(getAddress());
-			//TODO: the third paramter should be the webmonitor address
-			rmc.registerApplicationMaster(hostPort.f0, hostPort.f1, getAddress());
-		} catch (Exception e) {
-			log.info("registerApplicationMaster fail", e);
-		}
-		return rmc;
+	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
+			YarnConfiguration yarnConfiguration,
+			int yarnHeartbeatIntervalMillis,
+			@Nullable String webInterfaceUrl) throws Exception {
+		AMRMClientAsync<AMRMClient.ContainerRequest> resourceManagerClient = AMRMClientAsync.createAMRMClientAsync(
+			yarnHeartbeatIntervalMillis,
+			this);
+
+		resourceManagerClient.init(yarnConfiguration);
+		resourceManagerClient.start();
+
+		//TODO: change akka address to tcp host and port, the getAddress() interface should return a standard tcp address
+		Tuple2<String, Integer> hostPort = parseHostPort(getAddress());
+
+		resourceManagerClient.registerApplicationMaster(hostPort.f0, hostPort.f1, webInterfaceUrl);
+
+		return resourceManagerClient;
 	}
 
-	protected NMClient createAndStartNodeManagerClient() {
+	protected NMClient createAndStartNodeManagerClient(YarnConfiguration yarnConfiguration) {
 		// create the client to communicate with the node managers
-		NMClient nmc = NMClient.createNMClient();
-		nmc.init(yarnConfig);
-		nmc.start();
-		nmc.cleanupRunningContainersOnStop(true);
-		return nmc;
+		NMClient nodeManagerClient = NMClient.createNMClient();
+		nodeManagerClient.init(yarnConfiguration);
+		nodeManagerClient.start();
+		nodeManagerClient.cleanupRunningContainersOnStop(true);
+		return nodeManagerClient;
 	}
 
 	@Override
 	protected void initialize() throws ResourceManagerException {
-		resourceManagerClient = createAndStartResourceManagerClient();
-		nodeManagerClient = createAndStartNodeManagerClient();
+		try {
+			resourceManagerClient = createAndStartResourceManagerClient(
+				yarnConfig,
+				yarnHeartbeatIntervalMillis,
+				webInterfaceUrl);
+		} catch (Exception e) {
+			throw new ResourceManagerException("Could not start resource manager client.", e);
+		}
+
+		nodeManagerClient = createAndStartNodeManagerClient(yarnConfig);
 	}
 
 	@Override
@@ -222,7 +242,8 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 		// first, de-register from YARN
 		FinalApplicationStatus yarnStatus = getYarnStatus(finalStatus);
-		log.info("Unregistering application from the YARN Resource Manager");
+		log.info("Unregister application from the YARN Resource Manager");
+
 		try {
 			resourceManagerClient.unregisterApplicationMaster(yarnStatus, optionalDiagnostics, "");
 		} catch (Throwable t) {

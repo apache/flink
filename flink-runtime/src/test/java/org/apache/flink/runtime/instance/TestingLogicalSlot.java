@@ -44,27 +44,32 @@ public class TestingLogicalSlot implements LogicalSlot {
 	private final int slotNumber;
 
 	private final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
-
+	
 	private final AllocationID allocationId;
+
+	private final SlotRequestID slotRequestId;
 
 	public TestingLogicalSlot() {
 		this(
 			new LocalTaskManagerLocation(),
 			new SimpleAckingTaskManagerGateway(),
 			0,
-			new AllocationID());
+			new AllocationID(),
+			new SlotRequestID());
 	}
 
 	public TestingLogicalSlot(
 			TaskManagerLocation taskManagerLocation,
 			TaskManagerGateway taskManagerGateway,
 			int slotNumber,
-			AllocationID allocationId) {
+			AllocationID allocationId,
+			SlotRequestID slotRequestId) {
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
 		this.payloadReference = new AtomicReference<>();
 		this.slotNumber = slotNumber;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
+		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 	}
 
 	@Override
@@ -108,5 +113,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 	@Override
 	public AllocationID getAllocationId() {
 		return allocationId;
+	}
+
+	@Override
+	public SlotRequestID getSlotRequestId() {
+		return slotRequestId;
 	}
 }
