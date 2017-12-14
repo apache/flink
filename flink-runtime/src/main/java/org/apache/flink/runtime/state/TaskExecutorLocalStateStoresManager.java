@@ -20,35 +20,47 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * This class holds the all {@link TaskLocalStateStore} objects for a task executor (manager).
- *
- * TODO: this still still work in progress and partially still acts as a placeholder.
  */
 public class TaskExecutorLocalStateStoresManager {
 
+	/** Logger for this class. */
+	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorLocalStateStoresManager.class);
+
 	/**
 	 * This map holds all local state stores for tasks running on the task manager / executor that own the instance of
-	 * this.
+	 * this. Maps from allocation id to all the subtask's local state stores.
 	 */
-	private final Map<JobID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateStoresByJobID;
+	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateStoresByAllocationID;
 
 	/** This is the root directory for all local state of this task manager / executor. */
 	private final File[] localStateRootDirectories;
 
-	public TaskExecutorLocalStateStoresManager(File[] localStateRootDirectories) {
-		this.taskStateStoresByJobID = new HashMap<>();
-		this.localStateRootDirectories = Preconditions.checkNotNull(localStateRootDirectories);
+	/** Executor that runs the discarding of released state objects. */
+	private final Executor discardExecutor;
+
+	public TaskExecutorLocalStateStoresManager(
+		@Nonnull File[] localStateRootDirectories,
+		@Nonnull Executor discardExecutor) {
+
+		this.taskStateStoresByAllocationID = new ConcurrentHashMap<>();
+		this.localStateRootDirectories = localStateRootDirectories;
+		this.discardExecutor = discardExecutor;
 
 		for (File localStateRecoveryRootDir : localStateRootDirectories) {
 			if (!localStateRecoveryRootDir.exists()) {
@@ -59,57 +71,54 @@ public class TaskExecutorLocalStateStoresManager {
 				}
 			}
 		}
+
 	}
 
-	public TaskLocalStateStore localStateStoreForTask(
-		JobID jobId,
-		JobVertexID jobVertexID,
-		int subtaskIndex) {
-
-		Preconditions.checkNotNull(jobId);
-		final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
+	public TaskLocalStateStore localStateStoreForSubtask(
+		@Nonnull JobID jobId,
+		@Nonnull AllocationID allocationID,
+		@Nonnull JobVertexID jobVertexID,
+		@Nonnegative int subtaskIndex) {
 
 		final Map<JobVertexSubtaskKey, TaskLocalStateStore> taskStateManagers =
-			this.taskStateStoresByJobID.computeIfAbsent(jobId, k -> new HashMap<>());
+			this.taskStateStoresByAllocationID.computeIfAbsent(allocationID, k -> new ConcurrentHashMap<>());
+
+		final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
 
 		return taskStateManagers.computeIfAbsent(
-			taskKey, k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex, localStateRootDirectories));
+			taskKey,
+			k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex, localStateRootDirectories, discardExecutor));
 	}
 
-	public void releaseJob(JobID jobID) {
+	public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
 
-		Map<JobVertexSubtaskKey, TaskLocalStateStore> cleanupLocalStores = taskStateStoresByJobID.remove(jobID);
+		Map<JobVertexSubtaskKey, TaskLocalStateStore> cleanupLocalStores =
+			taskStateStoresByAllocationID.remove(allocationID);
 
 		if (cleanupLocalStores != null) {
-//			doRelease(cleanupLocalStores.values());
+			doRelease(cleanupLocalStores.values());
 		}
 	}
 
 	public void releaseAll() {
 
-		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : taskStateStoresByJobID.values()) {
-//			doRelease(stateStoreMap.values());
+		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : taskStateStoresByAllocationID.values()) {
+			doRelease(stateStoreMap.values());
 		}
 
-		taskStateStoresByJobID.clear();
+		taskStateStoresByAllocationID.clear();
 	}
 
-	private void doRelease(Iterable<TaskLocalStateStore> toRelease) throws Exception {
+	private void doRelease(Iterable<TaskLocalStateStore> toRelease) {
 
 		if (toRelease != null) {
-
-			Exception collectedExceptions = null;
 
 			for (TaskLocalStateStore stateStore : toRelease) {
 				try {
 					stateStore.dispose();
 				} catch (Exception disposeEx) {
-					collectedExceptions = ExceptionUtils.firstOrSuppressed(disposeEx, collectedExceptions);
+					LOG.warn("Exception while disposing local state store", disposeEx);
 				}
-			}
-
-			if(collectedExceptions != null) {
-				throw collectedExceptions;
 			}
 		}
 	}
@@ -119,14 +128,21 @@ public class TaskExecutorLocalStateStoresManager {
 		return localStateRootDirectories;
 	}
 
+	/**
+	 * Composite key of {@link JobVertexID} and subtask index that describes the subtask of a job vertex.
+	 */
 	private static final class JobVertexSubtaskKey {
 
+		/** The job vertex id. */
 		@Nonnull
 		final JobVertexID jobVertexID;
+
+		/** The subtask index. */
+		@Nonnegative
 		final int subtaskIndex;
 
-		public JobVertexSubtaskKey(@Nonnull JobVertexID jobVertexID, int subtaskIndex) {
-			this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
+		JobVertexSubtaskKey(@Nonnull JobVertexID jobVertexID, @Nonnegative int subtaskIndex) {
+			this.jobVertexID = jobVertexID;
 			this.subtaskIndex = subtaskIndex;
 		}
 
@@ -141,10 +157,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 			JobVertexSubtaskKey that = (JobVertexSubtaskKey) o;
 
-			if (subtaskIndex != that.subtaskIndex) {
-				return false;
-			}
-			return jobVertexID.equals(that.jobVertexID);
+			return subtaskIndex == that.subtaskIndex && jobVertexID.equals(that.jobVertexID);
 		}
 
 		@Override

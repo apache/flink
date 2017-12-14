@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -499,12 +500,12 @@ public class JobManagerHARecoveryTest extends TestLogger {
 
 			OperatorID operatorID = OperatorID.fromJobVertexID(getEnvironment().getJobVertexId());
 			TaskStateManager taskStateManager = getEnvironment().getTaskStateManager();
-			OperatorSubtaskState subtaskState = taskStateManager.operatorStates(operatorID);
+			PrioritizedOperatorSubtaskState subtaskState = taskStateManager.prioritizedOperatorState(operatorID);
 
 			if(subtaskState != null) {
 				int subtaskIndex = getIndexInSubtaskGroup();
 				if (subtaskIndex < BlockingStatefulInvokable.recoveredStates.length) {
-					OperatorStateHandle operatorStateHandle = subtaskState.getManagedOperatorState().iterator().next();
+					OperatorStateHandle operatorStateHandle = subtaskState.getJobManagerManagedOperatorState().iterator().next();
 					try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
 						BlockingStatefulInvokable.recoveredStates[subtaskIndex] =
 							InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());

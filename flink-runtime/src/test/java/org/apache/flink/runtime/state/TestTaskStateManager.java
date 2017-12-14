@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -34,7 +35,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -118,12 +121,38 @@ public class TestTaskStateManager implements TaskStateManager {
 		}
 	}
 
+	@Nonnull
 	@Override
-	public OperatorSubtaskState operatorStates(OperatorID operatorID) {
-		TaskStateSnapshot taskStateSnapshot = getLastJobManagerTaskStateSnapshot();
-		return taskStateSnapshot != null ? taskStateSnapshot.getSubtaskStateByOperatorID(operatorID) : null;
+	public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
+		TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
+		TaskStateSnapshot tmTaskStateSnapshot = getLastTaskManagerTaskStateSnapshot();
+
+		OperatorSubtaskState jmOpState = null;
+		List<OperatorSubtaskState> tmStateCollection = null;
+
+		if (jmTaskStateSnapshot != null) {
+			jmOpState = jmTaskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+		}
+
+		if (tmTaskStateSnapshot != null) {
+			OperatorSubtaskState tmOpState = tmTaskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+			if (tmOpState != null) {
+				tmStateCollection = Collections.singletonList(tmOpState);
+			}
+		}
+
+		if (jmOpState == null) {
+			jmOpState = new OperatorSubtaskState();
+		}
+
+		if (tmStateCollection == null) {
+			tmStateCollection = Collections.emptyList();
+		}
+
+		return new PrioritizedOperatorSubtaskState(jmOpState, tmStateCollection);
 	}
 
+	@Nonnull
 	@Override
 	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
 		return Preconditions.checkNotNull(localRecoveryDirectoryProvider,

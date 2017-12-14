@@ -35,7 +35,7 @@ import org.apache.flink.configuration._
 import org.apache.flink.core.fs.FileSystem
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, DefaultQuarantineHandler, QuarantineMonitor}
-import org.apache.flink.runtime.blob.{BlobCacheService, BlobClient, BlobService}
+import org.apache.flink.runtime.blob.BlobCacheService
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
@@ -71,7 +71,7 @@ import org.apache.flink.runtime.state.{TaskExecutorLocalStateStoresManager, Task
 import org.apache.flink.runtime.taskexecutor.{TaskExecutor, TaskManagerConfiguration, TaskManagerServices, TaskManagerServicesConfiguration}
 import org.apache.flink.runtime.util._
 import org.apache.flink.runtime.{FlinkActor, LeaderSessionMessageFilter, LogMessages}
-import org.apache.flink.util.{NetUtils, Preconditions}
+import org.apache.flink.util.NetUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent._
@@ -126,7 +126,8 @@ class TaskManager(
                    protected val memoryManager: MemoryManager,
                    protected val ioManager: IOManager,
                    protected val network: NetworkEnvironment,
-                   protected val taskManagerLocalStateStoresManager: TaskExecutorLocalStateStoresManager,
+                   protected val taskManagerLocalStateStoresManager:
+                   TaskExecutorLocalStateStoresManager,
                    protected val numberOfSlots: Int,
                    protected val highAvailabilityServices: HighAvailabilityServices,
                    protected val taskManagerMetricGroup: TaskManagerMetricGroup)
@@ -1202,8 +1203,9 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
-      val taskLocalStateStore = taskManagerLocalStateStoresManager.localStateStoreForTask(
+      val taskLocalStateStore = taskManagerLocalStateStoresManager.localStateStoreForSubtask(
         jobInformation.getJobId,
+        tdd.getAllocationId,
         taskInformation.getJobVertexId,
         tdd.getSubtaskIndex)
 
@@ -2018,7 +2020,8 @@ object TaskManager {
 
     val taskManagerServices = TaskManagerServices.fromConfiguration(
       taskManagerServicesConfiguration,
-      resourceID)
+      resourceID,
+      actorSystem.dispatcher)
 
     val taskManagerMetricGroup = MetricUtils.instantiateTaskManagerMetricGroup(
       metricRegistry,

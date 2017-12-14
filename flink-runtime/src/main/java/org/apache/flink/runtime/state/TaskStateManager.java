@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
@@ -57,12 +57,14 @@ public interface TaskStateManager extends CheckpointListener {
 	 * Returns means to restore previously reported state of an operator running in the owning task.
 	 *
 	 * @param operatorID the id of the operator for which we request state.
-	 * @return previous state for the operator. Null if no previous state exists.
+	 * @return Previous state for the operator. The previous state can be empty if the operator had no previous state.
 	 */
-	OperatorSubtaskState operatorStates(OperatorID operatorID);
+	@Nonnull
+	PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID);
 
 	/**
 	 * Returns the base directories for all file-based local state of the owning subtask.
 	 */
+	@Nonnull
 	LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider();
 }

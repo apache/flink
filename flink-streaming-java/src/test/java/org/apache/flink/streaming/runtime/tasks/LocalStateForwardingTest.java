@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -45,12 +46,13 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nonnegative;
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -161,12 +163,14 @@ public class LocalStateForwardingTest {
 		TemporaryFolder temporaryFolder = new TemporaryFolder();
 		temporaryFolder.create();
 
+		Executor executor = Executors.directExecutor();
+
 		try {
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}) {
+				new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}, executor) {
 					@Override
 					public void storeLocalState(
-						@Nonnull CheckpointMetaData checkpointMetaData,
+						@Nonnegative long checkpointId,
 						@Nullable TaskStateSnapshot localState) {
 
 						Assert.assertEquals(tm, localState);

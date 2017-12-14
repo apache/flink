@@ -21,7 +21,9 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
@@ -52,8 +54,10 @@ public class TaskExecutorLocalStateStoresManagerTest {
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
 			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
 
-		TaskManagerServices taskManagerServices =
-			TaskManagerServices.fromConfiguration(taskManagerServicesConfiguration, tmResourceID);
+		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
+			taskManagerServicesConfiguration,
+			tmResourceID,
+			Executors.directExecutor());
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -82,8 +86,10 @@ public class TaskExecutorLocalStateStoresManagerTest {
 		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
 			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
 
-		TaskManagerServices taskManagerServices =
-			TaskManagerServices.fromConfiguration(taskManagerServicesConfiguration, tmResourceID);
+		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
+			taskManagerServicesConfiguration,
+			tmResourceID,
+			Executors.directExecutor());
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -113,10 +119,12 @@ public class TaskExecutorLocalStateStoresManagerTest {
 			tmp.create();
 			File[] rootDirs = {tmp.newFolder(), tmp.newFolder(), tmp.newFolder()};
 			TaskExecutorLocalStateStoresManager storesManager =
-				new TaskExecutorLocalStateStoresManager(rootDirs);
+				new TaskExecutorLocalStateStoresManager(rootDirs, Executors.directExecutor());
+
+			AllocationID allocationID = new AllocationID();
 
 			TaskLocalStateStore taskLocalStateStore =
-				storesManager.localStateStoreForTask(jobID, jobVertexID, subtaskIdx);
+				storesManager.localStateStoreForSubtask(jobID, allocationID, jobVertexID, subtaskIdx);
 
 			LocalRecoveryDirectoryProvider directoryProvider =
 				taskLocalStateStore.createLocalRecoveryRootDirectoryProvider();

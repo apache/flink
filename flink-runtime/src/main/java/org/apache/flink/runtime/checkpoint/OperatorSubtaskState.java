@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,8 +49,6 @@ import java.util.List;
  * Under normal circumstances, the expected size of each collection is still 0 or 1, except for scale-down. In
  * scale-down, one operator subtask can become responsible for the state of multiple previous subtasks. The collections
  * can then store all the state handles that are relevant to build up the new subtask state.
- *
- * <p>There is no collection for legacy state because it is not rescalable.
  */
 public class OperatorSubtaskState implements CompositeStateHandle {
 
@@ -100,10 +99,10 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 	}
 
 	public OperatorSubtaskState(
-		StateObjectCollection<OperatorStateHandle> managedOperatorState,
-		StateObjectCollection<OperatorStateHandle> rawOperatorState,
-		StateObjectCollection<KeyedStateHandle> managedKeyedState,
-		StateObjectCollection<KeyedStateHandle> rawKeyedState) {
+		@Nonnull StateObjectCollection<OperatorStateHandle> managedOperatorState,
+		@Nonnull StateObjectCollection<OperatorStateHandle> rawOperatorState,
+		@Nonnull StateObjectCollection<KeyedStateHandle> managedKeyedState,
+		@Nonnull StateObjectCollection<KeyedStateHandle> rawKeyedState) {
 
 		this.managedOperatorState = Preconditions.checkNotNull(managedOperatorState);
 		this.rawOperatorState = Preconditions.checkNotNull(rawOperatorState);
@@ -119,13 +118,13 @@ public class OperatorSubtaskState implements CompositeStateHandle {
 
 	/**
 	 * For convenience because the size of the collections is typically 0 or 1. Null values are translated into empty
-	 * Collections (except for legacy state).
+	 * Collections.
 	 */
 	public OperatorSubtaskState(
-		OperatorStateHandle managedOperatorState,
-		OperatorStateHandle rawOperatorState,
-		KeyedStateHandle managedKeyedState,
-		KeyedStateHandle rawKeyedState) {
+		@Nullable OperatorStateHandle managedOperatorState,
+		@Nullable OperatorStateHandle rawOperatorState,
+		@Nullable KeyedStateHandle managedKeyedState,
+		@Nullable KeyedStateHandle rawKeyedState) {
 
 		this(
 			singletonOrEmptyOnNull(managedOperatorState),

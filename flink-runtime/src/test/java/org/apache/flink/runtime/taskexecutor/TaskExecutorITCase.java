@@ -61,7 +61,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -149,7 +148,7 @@ public class TaskExecutorITCase extends TestLogger {
 			new File[]{new File(System.getProperty("java.io.tmpdir"), "localRecovery")};
 
 		final TaskExecutorLocalStateStoresManager taskStateManager =
-			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDirs);
+			new TaskExecutorLocalStateStoresManager(taskExecutorLocalStateRootDirs, rpcService.getExecutor());
 
 		ResourceManager<ResourceID> resourceManager = new StandaloneResourceManager(
 			rpcService,

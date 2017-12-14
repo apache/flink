@@ -57,6 +57,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 /**
@@ -158,12 +159,14 @@ public class TaskManagerServices {
 	 *
 	 * @param resourceID resource ID of the task manager
 	 * @param taskManagerServicesConfiguration task manager configuration
+	 * @param taskIOExecutor executor for async IO operations.
 	 * @return task manager components
 	 * @throws Exception
 	 */
 	public static TaskManagerServices fromConfiguration(
 			TaskManagerServicesConfiguration taskManagerServicesConfiguration,
-			ResourceID resourceID) throws Exception {
+			ResourceID resourceID,
+			Executor taskIOExecutor) throws Exception {
 
 		// pre-start checks
 		checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
@@ -211,7 +214,7 @@ public class TaskManagerServices {
 		}
 
 		final TaskExecutorLocalStateStoresManager taskStateManager =
-			new TaskExecutorLocalStateStoresManager(stateRootDirectoryFiles);
+			new TaskExecutorLocalStateStoresManager(stateRootDirectoryFiles, taskIOExecutor);
 
 		return new TaskManagerServices(
 			taskManagerLocation,

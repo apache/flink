@@ -178,7 +178,7 @@ public class JvmExitOnFatalErrorTest {
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				final TaskLocalStateStore localStateStore =
-					new TaskLocalStateStore(jid, jobVertexId, 0, new File[]{temporaryFolder.newFolder()});
+					new TaskLocalStateStore(jid, jobVertexId, 0, new File[]{temporaryFolder.newFolder()}, executor);
 
 				final TaskStateManager slotStateManager =
 					new TaskStateManagerImpl(
