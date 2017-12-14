@@ -25,7 +25,7 @@ import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
-import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
@@ -105,9 +105,11 @@ class DataSetWindowAggregate(
     planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
-    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val inputDS = getInput.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
 
     val generator = new AggregationCodeGenerator(
       tableEnv.getConfig,
