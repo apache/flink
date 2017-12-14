@@ -41,31 +41,14 @@ public abstract class ResultSubpartition {
 	/** The total number of bytes (both data and event buffers) */
 	private long totalNumberOfBytes;
 
-	/** The number of non-event buffers currently in this subpartition */
-	private int buffersInBacklog;
-
 	public ResultSubpartition(int index, ResultPartition parent) {
 		this.index = index;
 		this.parent = parent;
 	}
 
 	protected void updateStatistics(Buffer buffer) {
-		if (buffer.isBuffer()) {
-			buffersInBacklog++;
-		}
-
 		totalNumberOfBuffers++;
 		totalNumberOfBytes += buffer.getSize();
-	}
-
-	protected void decreaseStatistics(Buffer buffer) {
-		if (buffer.isBuffer()) {
-			buffersInBacklog--;
-		}
-	}
-
-	protected int getBuffersInBacklog() {
-		return buffersInBacklog;
 	}
 
 	protected long getTotalNumberOfBuffers() {
@@ -98,6 +81,23 @@ public abstract class ResultSubpartition {
 	abstract int releaseMemory() throws IOException;
 
 	abstract public boolean isReleased();
+
+	/**
+	 * Gets the number of non-event buffers in this subpartition.
+	 */
+	abstract public int getBuffersInBacklog();
+
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition.
+	 */
+	abstract public void decreaseBuffersInBacklog(Buffer buffer);
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	abstract public void increaseBuffersInBacklog(Buffer buffer);
 
 	/**
 	 * Makes a best effort to get the current size of the queue.

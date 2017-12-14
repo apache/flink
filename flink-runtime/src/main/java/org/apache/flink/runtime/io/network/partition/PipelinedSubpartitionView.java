@@ -49,7 +49,7 @@ class PipelinedSubpartitionView extends ResultSubpartitionView {
 
 	@Nullable
 	@Override
-	protected Buffer getNextBufferInternal() {
+	public Buffer getNextBuffer() {
 		return parent.pollBuffer();
 	}
 

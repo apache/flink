@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
@@ -52,6 +54,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
+	/** The number of non-event buffers currently in this subpartition */
+	@GuardedBy("buffers")
+	private volatile int buffersInBacklog;
+
 	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
@@ -74,6 +80,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			buffers.add(buffer);
 			reader = readView;
 			updateStatistics(buffer);
+			increaseBuffersInBacklog(buffer);
 		}
 
 		// Notify the listener outside of the synchronized block
@@ -143,9 +150,13 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 	}
 
+	@Nullable
 	Buffer pollBuffer() {
 		synchronized (buffers) {
-			return buffers.pollFirst();
+			Buffer buffer = buffers.pollFirst();
+			decreaseBuffersInBacklog(buffer);
+
+			return buffer;
 		}
 	}
 
@@ -159,6 +170,29 @@ class PipelinedSubpartition extends ResultSubpartition {
 	@Override
 	public boolean isReleased() {
 		return isReleased;
+	}
+
+	@Override
+	public int getBuffersInBacklog() {
+		return buffersInBacklog;
+	}
+
+	@Override
+	public void decreaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog--;
+		}
+	}
+
+	@Override
+	public void increaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
 	}
 
 	@Override
@@ -206,7 +240,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		return String.format(
 			"PipelinedSubpartition [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
-			numBuffers, numBytes, getBuffersInBacklog(), finished, hasReadView);
+			numBuffers, numBytes, buffersInBacklog, finished, hasReadView);
 	}
 
 	@Override

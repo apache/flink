@@ -118,7 +118,7 @@ class SpilledSubpartitionView extends ResultSubpartitionView implements Notifica
 
 	@Nullable
 	@Override
-	protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
+	public Buffer getNextBuffer() throws IOException, InterruptedException {
 		if (fileReader.hasReachedEndOfFile() || isSpillInProgress) {
 			return null;
 		}
@@ -127,6 +127,8 @@ class SpilledSubpartitionView extends ResultSubpartitionView implements Notifica
 		// this method don't happen before recycling buffers returned earlier.
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
+
+		parent.decreaseBuffersInBacklog(buffer);
 
 		return buffer;
 	}

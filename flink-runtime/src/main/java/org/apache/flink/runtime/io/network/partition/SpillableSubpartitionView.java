@@ -137,7 +137,7 @@ class SpillableSubpartitionView extends ResultSubpartitionView {
 
 	@Nullable
 	@Override
-	protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
+	public Buffer getNextBuffer() throws IOException, InterruptedException {
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
@@ -149,13 +149,15 @@ class SpillableSubpartitionView extends ResultSubpartitionView {
 					listener.notifyBuffersAvailable(1);
 				}
 
+				parent.decreaseBuffersInBacklog(current);
+
 				return current;
 			}
 		} // else: spilled
 
 		SpilledSubpartitionView spilled = spilledView;
 		if (spilled != null) {
-			return spilled.getNextBufferInternal();
+			return spilled.getNextBuffer();
 		} else {
 			throw new IllegalStateException("No in-memory buffers available, but also nothing spilled.");
 		}

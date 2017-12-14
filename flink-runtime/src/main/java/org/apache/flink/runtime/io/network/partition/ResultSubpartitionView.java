@@ -38,25 +38,14 @@ public abstract class ResultSubpartitionView {
 	}
 
 	/**
-	 * Returns the next {@link Buffer} instance of this queue iterator and also
-	 * decreases the related statistics.
+	 * Returns the number of non-event buffers in this result subpartition.
 	 */
-	@Nullable
-	public final Buffer getNextBuffer() throws IOException, InterruptedException {
-		Buffer buffer = getNextBufferInternal();
-		if (buffer != null) {
-			parent.decreaseStatistics(buffer);
-		}
-		return buffer;
-	}
-
 	public int getBuffersInBacklog() {
 		return parent.getBuffersInBacklog();
 	}
 
 	/**
-	 * The internal method used by {@link ResultSubpartitionView#getNextBuffer()}
-	 * to return the next {@link Buffer} instance of this queue iterator.
+	 * Returns the next {@link Buffer} instance of this queue iterator.
 	 *
 	 * <p>If there is currently no instance available, it will return <code>null</code>.
 	 * This might happen for example when a pipelined queue producer is slower
@@ -67,7 +56,7 @@ public abstract class ResultSubpartitionView {
 	 * after it has been consumed.
 	 */
 	@Nullable
-	protected abstract Buffer getNextBufferInternal() throws IOException, InterruptedException;
+	public abstract Buffer getNextBuffer() throws IOException, InterruptedException;
 
 	public abstract void notifyBuffersAvailable(long buffers) throws IOException;
 

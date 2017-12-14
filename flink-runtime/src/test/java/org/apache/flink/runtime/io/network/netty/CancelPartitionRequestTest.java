@@ -191,7 +191,7 @@ public class CancelPartitionRequestTest {
 
 		@Nullable
 		@Override
-		protected Buffer getNextBufferInternal() throws IOException, InterruptedException {
+		public Buffer getNextBuffer() throws IOException, InterruptedException {
 			return bufferProvider.requestBufferBlocking();
 		}
 
