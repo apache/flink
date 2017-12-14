@@ -21,10 +21,13 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.filesystem.FixFileFsStateOutputStream;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnegative;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.File;
@@ -37,9 +40,14 @@ import java.util.UUID;
  */
 public interface CheckpointStreamWithResultProvider extends Closeable {
 
-	SnapshotResult<KeyedStateHandle> closeAndFinalizeCheckpointStreamResult(
-		KeyGroupRangeOffsets kgOffs) throws IOException;
+	/**
+	 * Closes the stream ans returns a snapshot result with the stream handle(s).
+	 */
+	SnapshotResult<StreamStateHandle> closeAndFinalizeCheckpointStreamResult() throws IOException;
 
+	/**
+	 * Returns the encapsulated output stream.
+	 */
 	CheckpointStreamFactory.CheckpointStateOutputStream getCheckpointOutputStream();
 
 	@Override
@@ -58,17 +66,13 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
 		private final CheckpointStreamFactory.CheckpointStateOutputStream outputStream;
 
-		public PrimaryStreamOnly(CheckpointStreamFactory.CheckpointStateOutputStream outputStream) {
-			this.outputStream = Preconditions.checkNotNull(outputStream);
+		public PrimaryStreamOnly(@Nonnull CheckpointStreamFactory.CheckpointStateOutputStream outputStream) {
+			this.outputStream = outputStream;
 		}
 
 		@Override
-		public SnapshotResult<KeyedStateHandle> closeAndFinalizeCheckpointStreamResult(
-			KeyGroupRangeOffsets kgOffs) throws IOException {
-
-			StreamStateHandle streamStateHandle = outputStream.closeAndGetHandle();
-			KeyGroupsStateHandle primaryStateHandle = new KeyGroupsStateHandle(kgOffs, streamStateHandle);
-			return new SnapshotResult<>(primaryStateHandle, null);
+		public SnapshotResult<StreamStateHandle> closeAndFinalizeCheckpointStreamResult() throws IOException {
+			return new SnapshotResult<>(outputStream.closeAndGetHandle(), null);
 		}
 
 		@Override
@@ -87,13 +91,12 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
 		private final DuplicatingCheckpointOutputStream outputStream;
 
-		public PrimaryAndSecondaryStream(DuplicatingCheckpointOutputStream outputStream) {
-			this.outputStream = Preconditions.checkNotNull(outputStream);
+		public PrimaryAndSecondaryStream(@Nonnull DuplicatingCheckpointOutputStream outputStream) {
+			this.outputStream = outputStream;
 		}
 
 		@Override
-		public SnapshotResult<KeyedStateHandle> closeAndFinalizeCheckpointStreamResult(
-			KeyGroupRangeOffsets offsets) throws IOException {
+		public SnapshotResult<StreamStateHandle> closeAndFinalizeCheckpointStreamResult() throws IOException {
 
 			final StreamStateHandle primaryStreamStateHandle;
 
@@ -117,15 +120,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 			}
 
 			if (primaryStreamStateHandle != null) {
-
-				final KeyGroupsStateHandle primaryKeyGroupsStateHandle =
-					new KeyGroupsStateHandle(offsets, primaryStreamStateHandle);
-
-				final KeyGroupsStateHandle secondaryKeyGroupsStateHandle = secondaryStreamStateHandle != null ?
-					new KeyGroupsStateHandle(offsets, secondaryStreamStateHandle) :
-					null;
-
-				return new SnapshotResult<>(primaryKeyGroupsStateHandle, secondaryKeyGroupsStateHandle);
+				return new SnapshotResult<>(primaryStreamStateHandle, secondaryStreamStateHandle);
 			}
 
 			return null;
@@ -142,10 +137,10 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 		private static final Logger LOG = LoggerFactory.getLogger(PrimaryAndSecondaryStream.class);
 
 		public CheckpointStreamWithResultProvider create(
-			long checkpointId,
-			long timestamp,
-			CheckpointStreamFactory primaryStreamFactory,
-			LocalRecoveryDirectoryProvider secondaryStreamDirProvider) throws Exception {
+			@Nonnegative long checkpointId,
+			@Nonnegative long timestamp,
+			@Nonnull CheckpointStreamFactory primaryStreamFactory,
+			@Nullable LocalRecoveryDirectoryProvider secondaryStreamDirProvider) throws Exception {
 
 			CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
 				primaryStreamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
@@ -171,5 +166,31 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
 			return new CheckpointStreamWithResultProvider.PrimaryStreamOnly(primaryOut);
 		}
+	}
+
+	/**
+	 * Helper method that takes a {@link SnapshotResult<StreamStateHandle>} and a {@link KeyGroupRangeOffsets} and
+	 * creates a {@link SnapshotResult<KeyGroupsStateHandle>} by combining the key groups offsets with all the
+	 * present stream state handles.
+	 */
+	static SnapshotResult<KeyedStateHandle> toKeyedStateHandleSnapshotResult(
+		@Nullable SnapshotResult<StreamStateHandle> snapshotResult,
+		@Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets) {
+
+		if (snapshotResult == null) {
+			return null;
+		}
+
+		StreamStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
+
+		if (jobManagerOwnedSnapshot == null) {
+			return null;
+		}
+
+		StreamStateHandle taskLocalSnapshot = snapshotResult.getTaskLocalSnapshot();
+
+		return new SnapshotResult<>(
+			new KeyGroupsStateHandle(keyGroupRangeOffsets, jobManagerOwnedSnapshot),
+			taskLocalSnapshot != null ? new KeyGroupsStateHandle(keyGroupRangeOffsets, taskLocalSnapshot) : null);
 	}
 }

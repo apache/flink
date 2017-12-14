@@ -57,6 +57,7 @@ import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
@@ -693,11 +694,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 						if (cancelStreamRegistry.unregisterCloseable(streamAndResultExtractor)) {
 							KeyGroupRangeOffsets kgOffs = new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
-							SnapshotResult<KeyedStateHandle> result =
-								streamAndResultExtractor.closeAndFinalizeCheckpointStreamResult(kgOffs);
+							SnapshotResult<StreamStateHandle> result =
+								streamAndResultExtractor.closeAndFinalizeCheckpointStreamResult();
 							streamAndResultExtractor = null;
 							logOperationCompleted(primaryStreamFactory, startTime);
-							return result;
+							return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(result, kgOffs);
 						}
 
 						return null;
