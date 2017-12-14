@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph.utils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.instance.LogicalSlot;
 import org.apache.flink.runtime.instance.SimpleSlot;
@@ -29,7 +28,8 @@ import org.apache.flink.runtime.instance.Slot;
 import org.apache.flink.runtime.instance.SlotProvider;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmanager.slots.SlotContext;
+import org.apache.flink.runtime.jobmanager.slots.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 
-	private final ArrayDeque<AllocatedSlot> slots;
+	private final ArrayDeque<SlotContext> slots;
 
 	public SimpleSlotProvider(JobID jobId, int numSlots) {
 		this(jobId, numSlots, new SimpleAckingTaskManagerGateway());
@@ -60,12 +60,10 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 		this.slots = new ArrayDeque<>(numSlots);
 
 		for (int i = 0; i < numSlots; i++) {
-			AllocatedSlot as = new AllocatedSlot(
+			SimpleSlotContext as = new SimpleSlotContext(
 					new AllocationID(),
-					jobId,
 					new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i),
 					0,
-					ResourceProfile.UNKNOWN,
 					taskManagerGateway);
 			slots.add(as);
 		}
@@ -76,7 +74,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 			ScheduledUnit task,
 			boolean allowQueued,
 			Collection<TaskManagerLocation> preferredLocations) {
-		final AllocatedSlot slot;
+		final SlotContext slot;
 
 		synchronized (slots) {
 			if (slots.isEmpty()) {
@@ -98,7 +96,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 	@Override
 	public CompletableFuture<Boolean> returnAllocatedSlot(Slot slot) {
 		synchronized (slots) {
-			slots.add(slot.getAllocatedSlot());
+			slots.add(slot.getSlotContext());
 		}
 		return CompletableFuture.completedFuture(true);
 	}

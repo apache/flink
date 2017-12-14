@@ -97,7 +97,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			highAvailabilityServices,
 			heartbeatServices,
 			metricRegistry,
-			this);
+			this,
+			null);
 
 		jobManagerServices = JobManagerServices.fromConfiguration(configuration, blobServer);
 
@@ -272,7 +273,8 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		HighAvailabilityServices highAvailabilityServices,
 		HeartbeatServices heartbeatServices,
 		MetricRegistry metricRegistry,
-		FatalErrorHandler fatalErrorHandler) throws Exception;
+		FatalErrorHandler fatalErrorHandler,
+		@Nullable String webInterfaceUrl) throws Exception;
 
 	protected abstract JobGraph retrieveJobGraph(Configuration configuration) throws FlinkException;
 

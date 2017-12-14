@@ -32,7 +32,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.instance.AllocatedSlot;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.TestLogger;
@@ -67,7 +67,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -104,7 +104,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -146,7 +146,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.defaultExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -191,7 +191,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleFailingActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -221,7 +221,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleFailingActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -265,7 +265,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final Instance instance = getInstance(
 				new ActorTaskManagerGateway(
 					new SimpleActorGateway(TestingUtils.directExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(slot);
@@ -310,7 +310,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 						context,
 						2)));
 
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -372,7 +372,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 		result.getPartitions()[0].addConsumer(mockEdge, 0);
 
 		AllocatedSlot allocatedSlot = mock(AllocatedSlot.class);
-		when(allocatedSlot.getSlotAllocationId()).thenReturn(new AllocationID());
+		when(allocatedSlot.getAllocationId()).thenReturn(new AllocationID());
 
 		LogicalSlot slot = mock(LogicalSlot.class);
 		when(slot.getAllocationId()).thenReturn(new AllocationID());

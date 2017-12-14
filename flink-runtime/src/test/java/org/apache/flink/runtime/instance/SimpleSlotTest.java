@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -34,7 +33,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-public class SimpleSlotTest extends TestLogger {
+public class SimpleSlotTest extends  TestLogger {
 
 	@Test
 	public void testStateTransitions() {
@@ -137,6 +136,6 @@ public class SimpleSlotTest extends TestLogger {
 			hardwareDescription,
 			1);
 
-		return instance.allocateSimpleSlot(new JobID());
+		return instance.allocateSimpleSlot();
 	}
 }

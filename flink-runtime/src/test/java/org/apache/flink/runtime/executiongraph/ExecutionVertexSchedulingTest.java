@@ -57,7 +57,7 @@ public class ExecutionVertexSchedulingTest {
 
 			// a slot than cannot be deployed to
 			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 			
 			slot.releaseInstanceSlot();
 			assertTrue(slot.isReleased());
@@ -89,7 +89,7 @@ public class ExecutionVertexSchedulingTest {
 
 			// a slot than cannot be deployed to
 			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			slot.releaseInstanceSlot();
 			assertTrue(slot.isReleased());
@@ -126,7 +126,7 @@ public class ExecutionVertexSchedulingTest {
 
 			final Instance instance = getInstance(new ActorTaskManagerGateway(
 				new ExecutionGraphTestUtils.SimpleActorGateway(TestingUtils.defaultExecutionContext())));
-			final SimpleSlot slot = instance.allocateSimpleSlot(ejv.getJobId());
+			final SimpleSlot slot = instance.allocateSimpleSlot();
 
 			Scheduler scheduler = mock(Scheduler.class);
 			CompletableFuture<SimpleSlot> future = new CompletableFuture<>();

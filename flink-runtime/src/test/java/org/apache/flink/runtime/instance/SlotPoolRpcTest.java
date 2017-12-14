@@ -23,11 +23,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
-import org.apache.flink.runtime.jobmanager.slots.AllocatedSlot;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
@@ -36,6 +36,9 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.SystemClock;
@@ -158,7 +161,7 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			assertEquals(1L, (long) pool.getNumberOfWaitingForResourceRequests().get());
 
-			slotPoolGateway.cancelSlotAllocation(requestId).get();
+			slotPoolGateway.cancelSlotRequest(requestId).get();
 
 			assertEquals(0L, (long) pool.getNumberOfWaitingForResourceRequests().get());
 		} finally {
@@ -202,7 +205,7 @@ public class SlotPoolRpcTest extends TestLogger {
 
 			assertEquals(1L, (long) pool.getNumberOfPendingRequests().get());
 
-			slotPoolGateway.cancelSlotAllocation(requestId).get();
+			slotPoolGateway.cancelSlotRequest(requestId).get();
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 		} finally {
 			RpcUtils.terminateRpcEndpoint(pool, timeout);
@@ -252,17 +255,22 @@ public class SlotPoolRpcTest extends TestLogger {
 			}
 
 			AllocationID allocationId = allocationIdFuture.get();
-			ResourceID resourceID = ResourceID.generate();
-			AllocatedSlot allocatedSlot = SlotPoolTest.createAllocatedSlot(resourceID, allocationId, jid, DEFAULT_TESTING_PROFILE);
-			slotPoolGateway.registerTaskManager(resourceID).get();
+			final SlotOffer slotOffer = new SlotOffer(
+				allocationId,
+				0,
+				DEFAULT_TESTING_PROFILE);
+			final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+			final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-			assertTrue(slotPoolGateway.offerSlot(allocatedSlot).get());
+			slotPoolGateway.registerTaskManager(taskManagerLocation.getResourceID()).get();
+
+			assertTrue(slotPoolGateway.offerSlot(taskManagerLocation, taskManagerGateway, slotOffer).get());
 
 			assertEquals(0L, (long) pool.getNumberOfPendingRequests().get());
 
 			assertTrue(pool.containsAllocatedSlot(allocationId).get());
 
-			pool.cancelSlotAllocation(requestId).get();
+			pool.cancelSlotRequest(requestId).get();
 
 			assertFalse(pool.containsAllocatedSlot(allocationId).get());
 			assertTrue(pool.containsAvailableSlot(allocationId).get());
@@ -351,14 +359,14 @@ public class SlotPoolRpcTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Acknowledge> cancelSlotAllocation(SlotRequestID slotRequestId) {
+		public CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID slotRequestId) {
 			final Consumer<SlotRequestID> currentCancelSlotAllocationConsumer = cancelSlotAllocationConsumer;
 
 			if (currentCancelSlotAllocationConsumer != null) {
 				currentCancelSlotAllocationConsumer.accept(slotRequestId);
 			}
 
-			return super.cancelSlotAllocation(slotRequestId);
+			return super.cancelSlotRequest(slotRequestId);
 		}
 
 		CompletableFuture<Boolean> containsAllocatedSlot(AllocationID allocationId) {
