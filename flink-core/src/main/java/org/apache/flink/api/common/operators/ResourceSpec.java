@@ -275,8 +275,8 @@ public class ResourceSpec implements Serializable {
 			return this;
 		}
 
-		public Builder setGPUResource(GPUResource gpuResource) {
-			this.gpuResource = gpuResource;
+		public Builder setGPUResource(double gpu) {
+			this.gpuResource = new GPUResource(gpu);
 			return this;
 		}
 
