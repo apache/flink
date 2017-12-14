@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.benchmark;
+package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.apache.flink.types.LongValue;
 
@@ -27,10 +27,10 @@ import java.util.concurrent.TimeUnit;
  * Network throughput benchmarks executed by the external
  * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
-public class NetworkThroughputBenchmark {
+public class StreamNetworkThroughputBenchmark {
 	private static final long RECEIVER_TIMEOUT = 30_000;
 
-	private NetworkBenchmarkEnvironment<LongValue> environment;
+	private StreamNetworkBenchmarkEnvironment<LongValue> environment;
 	private ReceiverThread receiver;
 	private LongRecordWriterThread[] writerThreads;
 
@@ -63,13 +63,13 @@ public class NetworkThroughputBenchmark {
 	 * @param channels
 	 * 		number of outgoing channels / receivers
 	 */
-	public void setUp(int recordWriters, int channels) throws Exception {
-		environment = new NetworkBenchmarkEnvironment<>();
+	public void setUp(int recordWriters, int channels, int flushTimeout) throws Exception {
+		environment = new StreamNetworkBenchmarkEnvironment<>();
 		environment.setUp(recordWriters, channels);
 		receiver = environment.createReceiver();
 		writerThreads = new LongRecordWriterThread[recordWriters];
 		for (int writer = 0; writer < recordWriters; writer++) {
-			writerThreads[writer] = new LongRecordWriterThread(environment.createRecordWriter(writer));
+			writerThreads[writer] = new LongRecordWriterThread(environment.createRecordWriter(writer, flushTimeout));
 			writerThreads[writer].start();
 		}
 	}
