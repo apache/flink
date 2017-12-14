@@ -20,15 +20,16 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.jobmanager.slots.SimpleSlotContext;
-import org.apache.flink.runtime.jobmanager.slots.SlotContext;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -62,7 +63,8 @@ public abstract class Slot {
 
 	// temporary placeholder for Slots that are not constructed from an AllocatedSlot (prior to FLIP-6)
 	protected static final AllocationID NO_ALLOCATION_ID = new AllocationID(0L, 0L);
-	protected static final SlotRequestID NO_SLOT_REQUEST_ID = new SlotRequestID(0L, 0L);
+	protected static final SlotRequestId NO_SLOT_REQUEST_ID = new SlotRequestId(0L, 0L);
+	protected static final SlotSharingGroupId NO_SLOT_SHARING_GROUP_ID = new SlotSharingGroupId(0L, 0L);
 
 	// ------------------------------------------------------------------------
 
@@ -112,7 +114,6 @@ public abstract class Slot {
 
 		// create a simple slot context
 		this.slotContext = new SimpleSlotContext(
-			NO_SLOT_REQUEST_ID,
 			NO_ALLOCATION_ID,
 			location,
 			slotNumber,
@@ -333,7 +334,7 @@ public abstract class Slot {
 	 * If this slot is a simple slot, it will be returned to its instance. If it is a shared slot,
 	 * it will release all of its sub-slots and release itself.
 	 */
-	public abstract void releaseInstanceSlot();
+	public abstract CompletableFuture<?> releaseSlot(@Nullable Throwable cause);
 
 
 	// --------------------------------------------------------------------------------------------

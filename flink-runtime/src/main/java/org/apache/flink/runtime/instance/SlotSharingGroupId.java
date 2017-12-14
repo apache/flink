@@ -16,19 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.slots;
+package org.apache.flink.runtime.instance;
 
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.util.AbstractID;
 
-import java.util.concurrent.CompletableFuture;
+public class SlotSharingGroupId extends AbstractID {
+	private static final long serialVersionUID = 8837647978345422042L;
 
-/**
- * SlotOwner implementation used for testing purposes only.
- */
-public class DummySlotOwner implements SlotOwner {
-	@Override
-	public CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot) {
-		return CompletableFuture.completedFuture(false);
+	public SlotSharingGroupId(long lowerPart, long upperPart) {
+		super(lowerPart, upperPart);
+	}
+
+	public SlotSharingGroupId() {
 	}
 }

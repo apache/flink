@@ -20,9 +20,11 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotAvailabilityListener;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -163,8 +165,9 @@ public class Instance implements SlotOwner {
 		 * owning the assignment group lock wants to give itself back to the instance which requires
 		 * the instance lock
 		 */
+		final FlinkException cause = new FlinkException("Instance " + this + " has been marked as dead.");
 		for (Slot slot : slots) {
-			slot.releaseInstanceSlot();
+			slot.releaseSlot(cause);
 		}
 	}
 
@@ -321,8 +324,9 @@ public class Instance implements SlotOwner {
 			copy = new ArrayList<Slot>(this.allocatedSlots);
 		}
 
+		final FlinkException cause = new FlinkException("Cancel and release all slots of instance " + this + '.');
 		for (Slot slot : copy) {
-			slot.releaseInstanceSlot();
+			slot.releaseSlot(cause);
 		}
 	}
 

@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
@@ -41,7 +41,7 @@ public class AllocatedSlotsTest extends TestLogger {
 		SlotPool.AllocatedSlots allocatedSlots = new SlotPool.AllocatedSlots();
 
 		final AllocationID allocation1 = new AllocationID();
-		final SlotRequestID slotRequestID = new SlotRequestID();
+		final SlotRequestId slotRequestID = new SlotRequestId();
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 		final ResourceID resource1 = taskManagerLocation.getResourceID();
 		final AllocatedSlot slot1 = createSlot(allocation1, taskManagerLocation);
@@ -56,7 +56,7 @@ public class AllocatedSlotsTest extends TestLogger {
 		assertEquals(1, allocatedSlots.size());
 
 		final AllocationID allocation2 = new AllocationID();
-		final SlotRequestID slotRequestID2 = new SlotRequestID();
+		final SlotRequestId slotRequestID2 = new SlotRequestId();
 		final AllocatedSlot slot2 = createSlot(allocation2, taskManagerLocation);
 
 		allocatedSlots.add(slotRequestID2, slot2);
@@ -71,7 +71,7 @@ public class AllocatedSlotsTest extends TestLogger {
 		assertEquals(2, allocatedSlots.size());
 
 		final AllocationID allocation3 = new AllocationID();
-		final SlotRequestID slotRequestID3 = new SlotRequestID();
+		final SlotRequestId slotRequestID3 = new SlotRequestId();
 		final TaskManagerLocation taskManagerLocation2 = new LocalTaskManagerLocation();
 		final ResourceID resource2 = taskManagerLocation2.getResourceID();
 		final AllocatedSlot slot3 = createSlot(allocation3, taskManagerLocation2);
@@ -143,7 +143,6 @@ public class AllocatedSlotsTest extends TestLogger {
 			taskManagerLocation,
 			0,
 			ResourceProfile.UNKNOWN,
-			new SimpleAckingTaskManagerGateway(),
-			new DummySlotOwner());
+			new SimpleAckingTaskManagerGateway());
 	}
 }

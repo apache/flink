@@ -16,36 +16,32 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.SlotContext;
-import org.apache.flink.runtime.jobmanager.slots.SlotException;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@code AllocatedSlot} represents a slot that the JobManager allocated from a TaskManager.
- * It represents a slice of allocated resources from the TaskManager.
+ * The {@code AllocatedSlot} represents a slot that the JobMaster allocated from a TaskExecutor.
+ * It represents a slice of allocated resources from the TaskExecutor.
  * 
  * <p>To allocate an {@code AllocatedSlot}, the requests a slot from the ResourceManager. The
- * ResourceManager picks (or starts) a TaskManager that will then allocate the slot to the
- * JobManager and notify the JobManager.
+ * ResourceManager picks (or starts) a TaskExecutor that will then allocate the slot to the
+ * JobMaster and notify the JobMaster.
  * 
  * <p>Note: Prior to the resource management changes introduced in (Flink Improvement Proposal 6),
  * an AllocatedSlot was allocated to the JobManager as soon as the TaskManager registered at the
  * JobManager. All slots had a default unknown resource profile. 
  */
-public class AllocatedSlot {
+public class AllocatedSlot implements SlotContext {
 
 	/** The ID under which the slot is allocated. Uniquely identifies the slot. */
 	private final AllocationID allocationId;
@@ -62,9 +58,7 @@ public class AllocatedSlot {
 	/** The number of the slot on the TaskManager to which slot belongs. Purely informational. */
 	private final int physicalSlotNumber;
 
-	private final SlotOwner slotOwner;
-
-	private final AtomicReference<LogicalSlot> logicalSlotReference;
+	private final AtomicReference<Payload> payloadReference;
 
 	// ------------------------------------------------------------------------
 
@@ -73,16 +67,14 @@ public class AllocatedSlot {
 			TaskManagerLocation location,
 			int physicalSlotNumber,
 			ResourceProfile resourceProfile,
-			TaskManagerGateway taskManagerGateway,
-			SlotOwner slotOwner) {
+			TaskManagerGateway taskManagerGateway) {
 		this.allocationId = checkNotNull(allocationId);
 		this.taskManagerLocation = checkNotNull(location);
 		this.physicalSlotNumber = physicalSlotNumber;
 		this.resourceProfile = checkNotNull(resourceProfile);
 		this.taskManagerGateway = checkNotNull(taskManagerGateway);
-		this.slotOwner = checkNotNull(slotOwner);
 
-		logicalSlotReference = new AtomicReference<>(null);
+		payloadReference = new AtomicReference<>(null);
 	}
 
 	// ------------------------------------------------------------------------
@@ -137,91 +129,55 @@ public class AllocatedSlot {
 	}
 
 	/**
+	 * Returns the physical slot number of the allocated slot. The physical slot number corresponds
+	 * to the slot index on the TaskExecutor.
+	 *
+	 * @return Physical slot number of the allocated slot
+	 */
+	public int getPhysicalSlotNumber() {
+		return physicalSlotNumber;
+	}
+
+	/**
 	 * Returns true if this slot is not being used (e.g. a logical slot is allocated from this slot).
 	 *
 	 * @return true if a logical slot is allocated from this slot, otherwise false
 	 */
 	public boolean isUsed() {
-		return logicalSlotReference.get() != null;
+		return payloadReference.get() != null;
 	}
 
 	/**
-	 * Triggers the release of the logical slot.
-	 */
-	public void triggerLogicalSlotRelease() {
-		final LogicalSlot logicalSlot = logicalSlotReference.get();
-
-		if (logicalSlot != null) {
-			logicalSlot.releaseSlot();
-		}
-	}
-
-	/**
-	 * Releases the logical slot.
+	 * Tries to assign the given payload to this allocated slot. This only works if there has not
+	 * been another payload assigned to this slot.
 	 *
-	 * @return true if the logical slot could be released, false otherwise.
+	 * @param payload to assign to this slot
+	 * @return true if the payload could be assigned, otherwise false
 	 */
-	public boolean releaseLogicalSlot() {
-		final LogicalSlot logicalSlot = logicalSlotReference.get();
+	public boolean tryAssignPayload(Payload payload) {
+		return payloadReference.compareAndSet(null, payload);
+	}
 
-		if (logicalSlot != null) {
-			if (logicalSlot instanceof Slot) {
-				final Slot slot = (Slot) logicalSlot;
-				if (slot.markReleased()) {
-					logicalSlotReference.set(null);
-					return true;
-				}
+	/**
+	 * Triggers the release of the assigned payload. If the payload could be released,
+	 * then it is removed from the slot.
+	 *
+	 * @param cause of the release operation
+	 * @return true if the payload could be released and was removed from the slot, otherwise false
+	 */
+	public boolean releasePayload(Throwable cause) {
+		final Payload payload = payloadReference.get();
+
+		if (payload != null) {
+			if (payload.release(cause)) {
+				payloadReference.set(null);
+
+				return true;
 			} else {
-				throw new RuntimeException("Unsupported logical slot type encountered " + logicalSlot.getClass());
+				return false;
 			}
-
-		}
-
-		return false;
-	}
-
-	/**
-	 * Allocates a logical {@link SimpleSlot}.
-	 *
-	 * @param slotRequestId identifying the corresponding slot request
-	 * @param locality specifying the locality of the allocated slot
-	 * @return an allocated logical simple slot
-	 * @throws SlotException if we could not allocate a simple slot
-	 */
-	public SimpleSlot allocateSimpleSlot(SlotRequestID slotRequestId, Locality locality) throws SlotException {
-		final AllocatedSlotContext allocatedSlotContext = new AllocatedSlotContext(
-			slotRequestId);
-
-		final SimpleSlot simpleSlot = new SimpleSlot(allocatedSlotContext, slotOwner, physicalSlotNumber);
-
-		if (logicalSlotReference.compareAndSet(null, simpleSlot)) {
-			simpleSlot.setLocality(locality);
-			return simpleSlot;
 		} else {
-			throw new SlotException("Could not allocate logical simple slot because the allocated slot is already used.");
-		}
-	}
-
-	/**
-	 * Allocates a logical {@link SharedSlot}.
-	 *
-	 * @param slotRequestId identifying the corresponding slot request
-	 * @param slotSharingGroupAssignment the slot sharing group to which the shared slot shall belong
-	 * @return an allocated logical shared slot
-	 * @throws SlotException if we could not allocate a shared slot
-	 */
-	public SharedSlot allocateSharedSlot(SlotRequestID slotRequestId, SlotSharingGroupAssignment slotSharingGroupAssignment) throws SlotException {
-
-		final AllocatedSlotContext allocatedSlotContext = new AllocatedSlotContext(
-			slotRequestId);
-		final SharedSlot sharedSlot = new SharedSlot(allocatedSlotContext, slotOwner, slotSharingGroupAssignment);
-
-		if (logicalSlotReference.compareAndSet(null, sharedSlot)) {
-
-
-			return sharedSlot;
-		} else {
-			throw new SlotException("Could not allocate logical shared slot because the allocated slot is already used.");
+			return true;
 		}
 	}
 
@@ -248,40 +204,22 @@ public class AllocatedSlot {
 		return "AllocatedSlot " + allocationId + " @ " + taskManagerLocation + " - " + physicalSlotNumber;
 	}
 
+	// -----------------------------------------------------------------------
+	// Interfaces
+	// -----------------------------------------------------------------------
+
 	/**
-	 * Slot context for {@link AllocatedSlot}.
+	 * Payload which can be assigned to an {@link AllocatedSlot}.
 	 */
-	private final class AllocatedSlotContext implements SlotContext {
+	interface Payload {
 
-		private final SlotRequestID slotRequestId;
-
-		private AllocatedSlotContext(SlotRequestID slotRequestId) {
-			this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
-		}
-
-		@Override
-		public SlotRequestID getSlotRequestId() {
-			return slotRequestId;
-		}
-
-		@Override
-		public AllocationID getAllocationId() {
-			return allocationId;
-		}
-
-		@Override
-		public TaskManagerLocation getTaskManagerLocation() {
-			return taskManagerLocation;
-		}
-
-		@Override
-		public int getPhysicalSlotNumber() {
-			return physicalSlotNumber;
-		}
-
-		@Override
-		public TaskManagerGateway getTaskManagerGateway() {
-			return taskManagerGateway;
-		}
+		/**
+		 * Releases the payload. If the payload could be released, then it returns true,
+		 * otherwise false.
+		 *
+		 * @param cause of the payload release
+		 * @return true if the payload could be released, otherwise false
+		 */
+		boolean release(Throwable cause);
 	}
 }

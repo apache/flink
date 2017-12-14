@@ -44,8 +44,8 @@ public class NoResourceAvailableException extends JobException {
 	NoResourceAvailableException(ScheduledUnit task, int numInstances, int numSlotsTotal, int availableSlots) {
 		super(String.format("%s Task to schedule: < %s > with groupID < %s > in sharing group < %s >. Resources available to scheduler: Number of instances=%d, total number of slots=%d, available slots=%d",
 				BASE_MESSAGE, task.getTaskToExecute(),
-				task.getLocationConstraint() == null ? task.getTaskToExecute().getVertex().getJobvertexId() : task.getLocationConstraint().getGroupId(),
-				task.getSlotSharingGroup(),
+				task.getCoLocationConstraint() == null ? task.getTaskToExecute().getVertex().getJobvertexId() : task.getCoLocationConstraint().getGroupId(),
+				task.getSlotSharingGroupId(),
 				numInstances,
 				numSlotsTotal,
 				availableSlots));

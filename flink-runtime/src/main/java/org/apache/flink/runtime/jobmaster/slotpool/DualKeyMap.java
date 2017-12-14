@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
@@ -130,6 +130,13 @@ public class DualKeyMap<A, B, V> {
 		bMap.clear();
 	}
 
+	// -----------------------------------------------------------------------
+	// Inner classes
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Collection which contains the values of the dual key map.
+	 */
 	private final class Values extends AbstractCollection<V> {
 
 		@Override
@@ -143,6 +150,9 @@ public class DualKeyMap<A, B, V> {
 		}
 	}
 
+	/**
+	 * Iterator which iterates over the values of the dual key map.
+	 */
 	private final class ValueIterator implements Iterator<V> {
 
 		private final Iterator<Tuple2<B, V>> iterator = aMap.values().iterator();

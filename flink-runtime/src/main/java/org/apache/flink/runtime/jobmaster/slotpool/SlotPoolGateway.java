@@ -16,14 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -37,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The gateway for calls on the {@link SlotPool}. 
  */
-public interface SlotPoolGateway extends RpcGateway {
+public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 
 	// ------------------------------------------------------------------------
 	//  shutdown
@@ -70,41 +73,87 @@ public interface SlotPoolGateway extends RpcGateway {
 	//  registering / un-registering TaskManagers and slots
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Registers a TaskExecutor with the given {@link ResourceID} at {@link SlotPool}.
+	 *
+	 * @param resourceID identifying the TaskExecutor to register
+	 * @return Future acknowledge which is completed after the TaskExecutor has been registered
+	 */
 	CompletableFuture<Acknowledge> registerTaskManager(ResourceID resourceID);
 
+	/**
+	 * Releases a TaskExecutor with the given {@link ResourceID} from the {@link SlotPool}.
+	 *
+	 * @param resourceID identifying the TaskExecutor which shall be released from the SlotPool
+	 * @return Future acknowledge which is completed after the TaskExecutor has been released
+	 */
 	CompletableFuture<Acknowledge> releaseTaskManager(ResourceID resourceID);
 
+	/**
+	 * Offers a slot to the {@link SlotPool}. The slot offer can be accepted or
+	 * rejected.
+	 *
+	 * @param taskManagerLocation from which the slot offer originates
+	 * @param taskManagerGateway to talk to the slot offerer
+	 * @param slotOffer slot which is offered to the {@link SlotPool}
+	 * @return True (future) if the slot has been accepted, otherwise false (future)
+	 */
 	CompletableFuture<Boolean> offerSlot(
 		TaskManagerLocation taskManagerLocation,
 		TaskManagerGateway taskManagerGateway,
 		SlotOffer slotOffer);
 
+	/**
+	 * Offers multiple slots to the {@link SlotPool}. The slot offerings can be
+	 * individually accepted or rejected by returning the collection of accepted
+	 * slot offers.
+	 *
+	 * @param taskManagerLocation from which the slot offeres originate
+	 * @param taskManagerGateway to talk to the slot offerer
+	 * @param offers slot offers which are offered to the {@link SlotPool}
+	 * @return A collection of accepted slot offers (future). The remaining slot offers are
+	 * 			implicitly rejected.
+	 */
 	CompletableFuture<Collection<SlotOffer>> offerSlots(
 		TaskManagerLocation taskManagerLocation,
 		TaskManagerGateway taskManagerGateway,
 		Collection<SlotOffer> offers);
-	
+
+	/**
+	 * Fails the slot with the given allocation id.
+	 *
+	 * @param allocationID identifying the slot which is being failed
+	 * @param cause of the failure
+	 */
 	void failAllocation(AllocationID allocationID, Exception cause);
 
 	// ------------------------------------------------------------------------
 	//  allocating and disposing slots
 	// ------------------------------------------------------------------------
 
-	CompletableFuture<LogicalSlot> allocateSlot(
-			SlotRequestID requestId,
-			ScheduledUnit task,
-			ResourceProfile resources,
-			Iterable<TaskManagerLocation> locationPreferences,
-			@RpcTimeout Time timeout);
-
-	void returnAllocatedSlot(SlotRequestID slotRequestId);
-
 	/**
-	 * Cancel a slot allocation request.
+	 * Requests to allocate a slot for the given {@link ScheduledUnit}. The request
+	 * is uniquely identified by the provided {@link SlotRequestId} which can also
+	 * be used to release the slot via {@link #releaseSlot(SlotRequestId, SlotSharingGroupId, Throwable)}.
+	 * The allocated slot will fulfill the requested {@link ResourceProfile} and it
+	 * is tried to place it on one of the location preferences.
 	 *
-	 * @param slotRequestId identifying the slot allocation request
-	 * @return Future acknowledge if the slot allocation has been cancelled
+	 * <p>If the returned future must not be completed right away (a.k.a. the slot request
+	 * can be queued), allowQueuedScheduling must be set to true.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param scheduledUnit for which to allocate slot
+	 * @param resourceProfile which the allocated slot must fulfill
+	 * @param locationPreferences which define where the allocated slot should be placed, this can also be empty
+	 * @param allowQueuedScheduling true if the slot request can be queued (e.g. the returned future must not be completed)
+	 * @param timeout for the operation
+	 * @return
 	 */
-	CompletableFuture<Acknowledge> cancelSlotRequest(SlotRequestID slotRequestId);
-
+	CompletableFuture<LogicalSlot> allocateSlot(
+			SlotRequestId slotRequestId,
+			ScheduledUnit scheduledUnit,
+			ResourceProfile resourceProfile,
+			Collection<TaskManagerLocation> locationPreferences,
+			boolean allowQueuedScheduling,
+			@RpcTimeout Time timeout);
 }

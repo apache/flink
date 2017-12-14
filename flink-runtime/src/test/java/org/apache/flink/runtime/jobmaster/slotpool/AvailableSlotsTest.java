@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmanager.slots.DummySlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.SlotAndLocality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -99,7 +98,7 @@ public class AvailableSlotsTest extends TestLogger {
 		assertNull(availableSlots.poll(DEFAULT_TESTING_BIG_PROFILE, null));
 
 		SlotAndLocality slotAndLocality = availableSlots.poll(DEFAULT_TESTING_PROFILE, null);
-		assertEquals(slot1, slotAndLocality.slot());
+		assertEquals(slot1, slotAndLocality.getSlot());
 		assertEquals(0, availableSlots.size());
 		assertFalse(availableSlots.contains(slot1.getAllocationId()));
 		assertFalse(availableSlots.containsTaskManager(resource1));
@@ -116,7 +115,6 @@ public class AvailableSlotsTest extends TestLogger {
 			mockTaskManagerLocation,
 			0,
 			DEFAULT_TESTING_PROFILE,
-			mockTaskManagerGateway,
-			new DummySlotOwner());
+			mockTaskManagerGateway);
 	}
 }

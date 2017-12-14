@@ -18,6 +18,19 @@
 
 package org.apache.flink.runtime.instance;
 
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.FlinkException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -27,18 +40,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.AbstractID;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -215,7 +216,7 @@ public class SlotSharingGroupAssignment {
 						// note that this does implicitly release the slot we have just added
 						// as well, because we release its last child slot. That is expected
 						// and desired.
-						constraintGroupSlot.releaseInstanceSlot();
+						constraintGroupSlot.releaseSlot(new FlinkException("Could not create a sub slot in this shared slot."));
 					}
 				}
 				else {
@@ -273,7 +274,7 @@ public class SlotSharingGroupAssignment {
 	 */
 	public SimpleSlot getSlotForTask(JobVertexID vertexID, Iterable<TaskManagerLocation> locationPreferences) {
 		synchronized (lock) {
-			Tuple2<SharedSlot, Locality> p = getSlotForTaskInternal(vertexID, locationPreferences, false);
+			Tuple2<SharedSlot, Locality> p = getSharedSlotForTask(vertexID, locationPreferences, false);
 
 			if (p != null) {
 				SharedSlot ss = p.f0;
@@ -324,7 +325,7 @@ public class SlotSharingGroupAssignment {
 				}
 
 				TaskManagerLocation location = previous.getTaskManagerLocation();
-				Tuple2<SharedSlot, Locality> p = getSlotForTaskInternal(
+				Tuple2<SharedSlot, Locality> p = getSharedSlotForTask(
 						constraint.getGroupId(), Collections.singleton(location), true);
 
 				if (p == null) {
@@ -355,7 +356,7 @@ public class SlotSharingGroupAssignment {
 				// grab a new slot and initialize the constraint with that one.
 				// preferred locations are defined by the vertex
 				Tuple2<SharedSlot, Locality> p =
-						getSlotForTaskInternal(constraint.getGroupId(), locationPreferences, false);
+						getSharedSlotForTask(constraint.getGroupId(), locationPreferences, false);
 				if (p == null) {
 					// could not get a shared slot for this co-location-group
 					return null;
@@ -382,9 +383,10 @@ public class SlotSharingGroupAssignment {
 	}
 
 
-	private Tuple2<SharedSlot, Locality> getSlotForTaskInternal(
-			AbstractID groupId, Iterable<TaskManagerLocation> preferredLocations, boolean localOnly)
-	{
+	public Tuple2<SharedSlot, Locality> getSharedSlotForTask(
+			AbstractID groupId,
+			Iterable<TaskManagerLocation> preferredLocations,
+			boolean localOnly) {
 		// check if there is anything at all in this group assignment
 		if (allSlots.isEmpty()) {
 			return null;
@@ -507,7 +509,7 @@ public class SlotSharingGroupAssignment {
 	}
 
 	/**
-	 * Called from {@link org.apache.flink.runtime.instance.SharedSlot#releaseInstanceSlot()}.
+	 * Called from {@link org.apache.flink.runtime.instance.SharedSlot#releaseSlot(Throwable)}.
 	 * 
 	 * @param sharedSlot The slot to be released.
 	 */
@@ -517,10 +519,11 @@ public class SlotSharingGroupAssignment {
 				// we are releasing this slot
 				
 				if (sharedSlot.hasChildren()) {
+					final FlinkException cause = new FlinkException("Releasing shared slot parent.");
 					// by simply releasing all children, we should eventually release this slot.
 					Set<Slot> children = sharedSlot.getSubSlots();
 					while (children.size() > 0) {
-						children.iterator().next().releaseInstanceSlot();
+						children.iterator().next().releaseSlot(cause);
 					}
 				}
 				else {

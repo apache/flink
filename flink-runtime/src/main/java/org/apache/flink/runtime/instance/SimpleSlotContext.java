@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.slots;
+package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.instance.SlotRequestID;
+import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -27,8 +28,6 @@ import org.apache.flink.util.Preconditions;
  * Simple implementation of the {@link SlotContext} interface for the legacy code.
  */
 public class SimpleSlotContext implements SlotContext {
-
-	private final SlotRequestID slotRequestId;
 
 	private final AllocationID allocationId;
 
@@ -39,21 +38,14 @@ public class SimpleSlotContext implements SlotContext {
 	private final TaskManagerGateway taskManagerGateway;
 
 	public SimpleSlotContext(
-			SlotRequestID slotRequestId,
 			AllocationID allocationId,
 			TaskManagerLocation taskManagerLocation,
 			int physicalSlotNumber,
 			TaskManagerGateway taskManagerGateway) {
-		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.physicalSlotNumber = physicalSlotNumber;
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
-	}
-
-	@Override
-	public SlotRequestID getSlotRequestId() {
-		return slotRequestId;
 	}
 
 	@Override

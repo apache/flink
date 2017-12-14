@@ -18,9 +18,18 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.instance.DummyActorGateway;
+import org.apache.flink.runtime.instance.HardwareDescription;
+import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -33,17 +42,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.DummyActorGateway;
-import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class SchedulerTestUtils {
@@ -83,9 +84,13 @@ public class SchedulerTestUtils {
 	
 	
 	public static Execution getDummyTask() {
+		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
+
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
+		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
+		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
 		
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
@@ -117,11 +122,14 @@ public class SchedulerTestUtils {
 	}
 
 	public static Execution getTestVertex(Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures) {
+		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
+		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
+		when(vertex.getJobvertexId()).thenReturn(new JobVertexID());
 
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
@@ -130,9 +138,11 @@ public class SchedulerTestUtils {
 		return execution;
 	}
 	
-	public static Execution getTestVertex(JobVertexID jid, int taskIndex, int numTasks) {
+	public static Execution getTestVertex(JobVertexID jid, int taskIndex, int numTasks, SlotSharingGroup slotSharingGroup) {
+		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
-		
+
+		when(executionJobVertex.getSlotSharingGroup()).thenReturn(slotSharingGroup);
 		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(Collections.emptyList());
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
@@ -141,6 +151,7 @@ public class SchedulerTestUtils {
 		when(vertex.getMaxParallelism()).thenReturn(numTasks);
 		when(vertex.toString()).thenReturn("TEST-VERTEX");
 		when(vertex.getTaskNameWithSubtaskIndex()).thenReturn("TEST-VERTEX");
+		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
 		
 		Execution execution = mock(Execution.class);
 		when(execution.getVertex()).thenReturn(vertex);
@@ -149,17 +160,26 @@ public class SchedulerTestUtils {
 	}
 
 	public static Execution getTestVertexWithLocation(
-			JobVertexID jid, int taskIndex, int numTasks, TaskManagerLocation... locations) {
+			JobVertexID jid,
+			int taskIndex,
+			int numTasks,
+			SlotSharingGroup slotSharingGroup,
+			TaskManagerLocation... locations) {
+
+		ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
+
+		when(executionJobVertex.getSlotSharingGroup()).thenReturn(slotSharingGroup);
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
-		Collection<CompletableFuture<TaskManagerLocation>> preferrecLocationFutures = new ArrayList<>(locations.length);
+		Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = new ArrayList<>(locations.length);
 
 		for (TaskManagerLocation location : locations) {
-			preferrecLocationFutures.add(CompletableFuture.completedFuture(location));
+			preferredLocationFutures.add(CompletableFuture.completedFuture(location));
 		}
 
-		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferrecLocationFutures);
+		when(vertex.getJobVertex()).thenReturn(executionJobVertex);
+		when(vertex.getPreferredLocationsBasedOnInputs()).thenReturn(preferredLocationFutures);
 		when(vertex.getJobId()).thenReturn(new JobID());
 		when(vertex.getJobvertexId()).thenReturn(jid);
 		when(vertex.getParallelSubtaskIndex()).thenReturn(taskIndex);

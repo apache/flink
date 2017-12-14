@@ -59,7 +59,7 @@ public class ExecutionVertexSchedulingTest {
 			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
 			final SimpleSlot slot = instance.allocateSimpleSlot();
 			
-			slot.releaseInstanceSlot();
+			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
 			Scheduler scheduler = mock(Scheduler.class);
@@ -91,7 +91,7 @@ public class ExecutionVertexSchedulingTest {
 			final Instance instance = getInstance(new ActorTaskManagerGateway(DummyActorGateway.INSTANCE));
 			final SimpleSlot slot = instance.allocateSimpleSlot();
 
-			slot.releaseInstanceSlot();
+			slot.releaseSlot();
 			assertTrue(slot.isReleased());
 
 			final CompletableFuture<SimpleSlot> future = new CompletableFuture<>();

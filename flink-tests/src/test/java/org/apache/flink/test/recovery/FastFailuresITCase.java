@@ -99,6 +99,8 @@ public class FastFailuresITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
+		} finally {
+			cluster.stop();
 		}
 	}
 }

@@ -16,27 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.slots;
+package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.instance.Slot;
-import org.apache.flink.runtime.instance.SlotRequestID;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 /**
- * Interface for the context of a logical {@link Slot}. This context contains information
+ * Interface for the context of a {@link LogicalSlot}. This context contains information
  * about the underlying allocated slot and how to communicate with the TaskManager on which
  * it was allocated.
  */
 public interface SlotContext {
-
-	/**
-	 * Gets the slot request id under which the slot has been requested. This id uniquely identifies the logical slot.
-	 *
-	 * @return The id under which the slot has been requested
-	 */
-	SlotRequestID getSlotRequestId();
-
 	/**
 	 * Gets the id under which the slot has been allocated on the TaskManager. This id uniquely identifies the
 	 * physical slot.

@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -31,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Simple testing logical slot for testing purposes.
+ * Simple logical slot for testing purposes.
  */
 public class TestingLogicalSlot implements LogicalSlot {
 
@@ -47,7 +49,9 @@ public class TestingLogicalSlot implements LogicalSlot {
 	
 	private final AllocationID allocationId;
 
-	private final SlotRequestID slotRequestId;
+	private final SlotRequestId slotRequestId;
+
+	private final SlotSharingGroupId slotSharingGroupId;
 
 	public TestingLogicalSlot() {
 		this(
@@ -55,7 +59,8 @@ public class TestingLogicalSlot implements LogicalSlot {
 			new SimpleAckingTaskManagerGateway(),
 			0,
 			new AllocationID(),
-			new SlotRequestID());
+			new SlotRequestId(),
+			new SlotSharingGroupId());
 	}
 
 	public TestingLogicalSlot(
@@ -63,13 +68,15 @@ public class TestingLogicalSlot implements LogicalSlot {
 			TaskManagerGateway taskManagerGateway,
 			int slotNumber,
 			AllocationID allocationId,
-			SlotRequestID slotRequestId) {
+			SlotRequestId slotRequestId,
+			SlotSharingGroupId slotSharingGroupId) {
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
 		this.payloadReference = new AtomicReference<>();
 		this.slotNumber = slotNumber;
 		this.allocationId = Preconditions.checkNotNull(allocationId);
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
+		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
 	}
 
 	@Override
@@ -80,6 +87,11 @@ public class TestingLogicalSlot implements LogicalSlot {
 	@Override
 	public TaskManagerGateway getTaskManagerGateway() {
 		return taskManagerGateway;
+	}
+
+	@Override
+	public Locality getLocality() {
+		return Locality.UNKNOWN;
 	}
 
 	@Override
@@ -99,7 +111,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 	}
 
 	@Override
-	public CompletableFuture<?> releaseSlot() {
+	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
 		releaseFuture.complete(null);
 
 		return releaseFuture;
@@ -116,7 +128,13 @@ public class TestingLogicalSlot implements LogicalSlot {
 	}
 
 	@Override
-	public SlotRequestID getSlotRequestId() {
+	public SlotRequestId getSlotRequestId() {
 		return slotRequestId;
+	}
+
+	@Nullable
+	@Override
+	public SlotSharingGroupId getSlotSharingGroupId() {
+		return slotSharingGroupId;
 	}
 }

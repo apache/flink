@@ -33,8 +33,9 @@ import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescript
 import org.apache.flink.runtime.deployment.ResultPartitionLocation;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.instance.LogicalSlot;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
@@ -50,6 +51,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -441,9 +444,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		// this method only works if the execution is in the state 'CREATED'
 		if (transitionState(CREATED, SCHEDULED)) {
 
+			final SlotSharingGroupId slotSharingGroupId = sharingGroup != null ? sharingGroup.getSlotSharingGroupId() : null;
+
 			ScheduledUnit toSchedule = locationConstraint == null ?
-					new ScheduledUnit(this, sharingGroup) :
-					new ScheduledUnit(this, sharingGroup, locationConstraint);
+					new ScheduledUnit(this, slotSharingGroupId) :
+					new ScheduledUnit(this, slotSharingGroupId, locationConstraint);
 
 			// calculate the preferred locations
 			final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture = calculatePreferredLocations(locationPreferenceConstraint);
@@ -461,7 +466,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 							return this;
 						} else {
 							// release the slot
-							logicalSlot.releaseSlot();
+							logicalSlot.releaseSlot(new FlinkException("Could not assign logical slot to execution " + this + '.'));
 
 							throw new CompletionException(new FlinkException("Could not assign slot " + logicalSlot + " to execution " + this + " because it has already been assigned "));
 						}
@@ -513,7 +518,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			// race double check, did we fail/cancel and do we need to release the slot?
 			if (this.state != DEPLOYING) {
-				slot.releaseSlot();
+				slot.releaseSlot(new FlinkException("Actual state of execution " + this + " (" + state + ") does not match expected state DEPLOYING."));
 				return;
 			}
 
@@ -622,7 +627,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					try {
 						vertex.getExecutionGraph().deregisterExecution(this);
 
-						releaseAssignedResource();
+						releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
 					}
 					finally {
 						vertex.executionCanceled(this);
@@ -890,7 +895,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 						updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
-						releaseAssignedResource();
+						releaseAssignedResource(null);
 
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
@@ -943,7 +948,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				if (transitionState(current, CANCELED)) {
 					try {
-						releaseAssignedResource();
+						releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
 
 						vertex.getExecutionGraph().deregisterExecution(this);
 					}
@@ -1035,7 +1040,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
 				try {
-					releaseAssignedResource();
+					releaseAssignedResource(t);
 					vertex.getExecutionGraph().deregisterExecution(this);
 				}
 				finally {
@@ -1176,12 +1181,14 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	/**
 	 * Releases the assigned resource and completes the release future
 	 * once the assigned resource has been successfully released
+	 *
+	 * @param cause for the resource release, null if none 	 
 	 */
-	private void releaseAssignedResource() {
+	private void releaseAssignedResource(@Nullable Throwable cause) {
 		final LogicalSlot slot = assignedResource;
 
 		if (slot != null) {
-			slot.releaseSlot().whenComplete(
+			slot.releaseSlot(cause).whenComplete(
 				(Object ignored, Throwable throwable) -> {
 					if (throwable != null) {
 						releaseFuture.completeExceptionally(throwable);

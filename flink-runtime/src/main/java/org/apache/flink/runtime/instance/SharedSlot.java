@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.jobmanager.slots.SlotContext;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
@@ -55,8 +57,6 @@ public class SharedSlot extends Slot implements LogicalSlot {
 	/** The set os sub-slots allocated from this shared slot */
 	private final Set<Slot> subSlots;
 
-	private final CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
-
 	// ------------------------------------------------------------------------
 	//  Old Constructors (prior FLIP-6)
 	// ------------------------------------------------------------------------
@@ -72,9 +72,9 @@ public class SharedSlot extends Slot implements LogicalSlot {
 	 * @param assignmentGroup The assignment group that this shared slot belongs to.
 	 */
 	public SharedSlot(
-			SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			TaskManagerGateway taskManagerGateway,
-			SlotSharingGroupAssignment assignmentGroup) {
+		SlotOwner owner, TaskManagerLocation location, int slotNumber,
+		TaskManagerGateway taskManagerGateway,
+		SlotSharingGroupAssignment assignmentGroup) {
 
 		this(owner, location, slotNumber, taskManagerGateway, assignmentGroup, null, null);
 	}
@@ -175,6 +175,11 @@ public class SharedSlot extends Slot implements LogicalSlot {
 	}
 
 	@Override
+	public Locality getLocality() {
+		return Locality.UNKNOWN;
+	}
+
+	@Override
 	public boolean tryAssignPayload(Payload payload) {
 		throw new UnsupportedOperationException("Cannot assign an execution attempt id to a shared slot.");
 	}
@@ -186,9 +191,7 @@ public class SharedSlot extends Slot implements LogicalSlot {
 	}
 
 	@Override
-	public CompletableFuture<?> releaseSlot() {
-		cancellationFuture.completeExceptionally(new FlinkException("Shared slot " + this + " is being released."));
-
+	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
 		assignmentGroup.releaseSharedSlot(this);
 
 		if (!(isReleased() && subSlots.isEmpty())) {
@@ -196,11 +199,6 @@ public class SharedSlot extends Slot implements LogicalSlot {
 		}
 
 		return CompletableFuture.completedFuture(null);
-	}
-
-	@Override
-	public void releaseInstanceSlot() {
-		releaseSlot();
 	}
 
 	@Override
@@ -214,8 +212,14 @@ public class SharedSlot extends Slot implements LogicalSlot {
 	}
 
 	@Override
-	public SlotRequestID getSlotRequestId() {
-		return getSlotContext().getSlotRequestId();
+	public SlotRequestId getSlotRequestId() {
+		return NO_SLOT_REQUEST_ID;
+	}
+
+	@Nullable
+	@Override
+	public SlotSharingGroupId getSlotSharingGroupId() {
+		return NO_SLOT_SHARING_GROUP_ID;
 	}
 
 	/**

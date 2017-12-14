@@ -20,6 +20,7 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.TestingPayload;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
@@ -43,7 +44,7 @@ public class SimpleSlotTest extends  TestLogger {
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
 
-				slot.releaseInstanceSlot();
+				slot.releaseSlot();
 				assertFalse(slot.isAlive());
 				assertTrue(slot.isCanceled());
 				assertTrue(slot.isReleased());
@@ -111,7 +112,7 @@ public class SimpleSlotTest extends  TestLogger {
 			// assign to released
 			{
 				SimpleSlot slot = getSlot();
-				slot.releaseInstanceSlot();
+				slot.releaseSlot();
 
 				assertFalse(slot.tryAssignPayload(payload1));
 				assertNull(slot.getPayload());

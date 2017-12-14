@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.slots;
+package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.runtime.instance.LogicalSlot;
-
-import java.util.concurrent.CompletableFuture;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.util.AbstractID;
 
 /**
- * Interface for components that hold slots and to which slots get released / recycled.
+ * Request id identifying slot requests made by the {@link SlotProvider} towards the
+ * {@link SlotPool}.
  */
-public interface SlotOwner {
+public final class SlotRequestId extends AbstractID {
+    private static final long serialVersionUID = -6072105912250154283L;
 
-	/**
-	 * Return the given slot to the slot owner.
-	 *
-	 * @param logicalSlot to return
-	 * @return Future which is completed with true if the slot could be returned, otherwise with false
-	 */
-	CompletableFuture<Boolean> returnAllocatedSlot(LogicalSlot logicalSlot);
+    public SlotRequestId(long lowerPart, long upperPart) {
+        super(lowerPart, upperPart);
+    }
+
+    public SlotRequestId() {}
 }

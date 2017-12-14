@@ -83,7 +83,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(0, slot.getRootSlotNumber());
 			
 			// release the slot immediately.
-			slot.releaseInstanceSlot();
+			slot.releaseSlot();
 
 			assertTrue(slot.isCanceled());
 			assertTrue(slot.isReleased());
@@ -202,7 +202,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(0, assignment.getNumberOfAvailableSlotsForGroup(vid4));
 			
 			// release from the root.
-			sharedSlot.releaseInstanceSlot();
+			sharedSlot.releaseSlot();
 
 			assertTrue(sharedSlot.isReleased());
 			assertTrue(sub1.isReleased());
@@ -261,7 +261,7 @@ public class SharedSlotsTest extends TestLogger {
 			
 			// release from the leaves.
 			
-			sub2.releaseInstanceSlot();
+			sub2.releaseSlot();
 
 			assertTrue(sharedSlot.isAlive());
 			assertTrue(sub1.isAlive());
@@ -276,7 +276,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(2, sharedSlot.getNumberLeaves());
 
 			
-			sub1.releaseInstanceSlot();
+			sub1.releaseSlot();
 
 			assertTrue(sharedSlot.isAlive());
 			assertTrue(sub1.isReleased());
@@ -290,7 +290,7 @@ public class SharedSlotsTest extends TestLogger {
 			
 			assertEquals(1, sharedSlot.getNumberLeaves());
 
-			sub3.releaseInstanceSlot();
+			sub3.releaseSlot();
 
 			assertTrue(sharedSlot.isReleased());
 			assertTrue(sub1.isReleased());
@@ -344,7 +344,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(1, assignment.getNumberOfSlots());
 			
 			
-			sub2.releaseInstanceSlot();
+			sub2.releaseSlot();
 
 			assertEquals(1, sharedSlot.getNumberLeaves());
 			assertEquals(0, assignment.getNumberOfAvailableSlotsForGroup(vid1));
@@ -362,8 +362,8 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(0, assignment.getNumberOfAvailableSlotsForGroup(vid3));
 			assertEquals(1, assignment.getNumberOfSlots());
 			
-			sub3.releaseInstanceSlot();
-			sub1.releaseInstanceSlot();
+			sub3.releaseSlot();
+			sub1.releaseSlot();
 
 			assertTrue(sharedSlot.isReleased());
 			assertEquals(0, sharedSlot.getNumberLeaves());
@@ -439,7 +439,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertFalse(constraint.isAssigned());
 			
 			// we do not immediately lock the location
-			headSlot.releaseInstanceSlot();
+			headSlot.releaseSlot();
 			assertEquals(1, sharedSlot.getNumberLeaves());
 
 			assertNotNull(constraint.getSharedSlot());
@@ -464,8 +464,8 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(4, sharedSlot.getNumberLeaves());
 			
 			// we release our co-location constraint tasks
-			headSlot.releaseInstanceSlot();
-			tailSlot.releaseInstanceSlot();
+			headSlot.releaseSlot();
+			tailSlot.releaseSlot();
 
 			assertEquals(2, sharedSlot.getNumberLeaves());
 			assertTrue(headSlot.isReleased());
@@ -497,10 +497,10 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(constraint.getGroupId(), constraint.getSharedSlot().getGroupID());
 			
 			// release all
-			sourceSlot.releaseInstanceSlot();
-			headSlot.releaseInstanceSlot();
-			tailSlot.releaseInstanceSlot();
-			sinkSlot.releaseInstanceSlot();
+			sourceSlot.releaseSlot();
+			headSlot.releaseSlot();
+			tailSlot.releaseSlot();
+			sinkSlot.releaseSlot();
 			
 			assertTrue(sharedSlot.isReleased());
 			assertTrue(sourceSlot.isReleased());
@@ -573,10 +573,10 @@ public class SharedSlotsTest extends TestLogger {
 			assertEquals(4, sharedSlot.getNumberLeaves());
 
 			// release all
-			sourceSlot.releaseInstanceSlot();
-			headSlot.releaseInstanceSlot();
-			tailSlot.releaseInstanceSlot();
-			sinkSlot.releaseInstanceSlot();
+			sourceSlot.releaseSlot();
+			headSlot.releaseSlot();
+			tailSlot.releaseSlot();
+			sinkSlot.releaseSlot();
 
 			assertTrue(sharedSlot.isReleased());
 			assertTrue(sourceSlot.isReleased());
@@ -613,7 +613,7 @@ public class SharedSlotsTest extends TestLogger {
 			SharedSlot sharedSlot = instance.allocateSharedSlot(assignment);
 
 			SimpleSlot sub = assignment.addSharedSlotAndAllocateSubSlot(sharedSlot, Locality.UNCONSTRAINED, vid);
-			sub.releaseInstanceSlot();
+			sub.releaseSlot();
 			
 			assertTrue(sub.isReleased());
 			assertTrue(sharedSlot.isReleased());
@@ -648,7 +648,7 @@ public class SharedSlotsTest extends TestLogger {
 			assertNull(sub.getGroupID());
 			assertEquals(constraint.getSharedSlot(), sub.getParent());
 			
-			sub.releaseInstanceSlot();
+			sub.releaseSlot();
 
 			assertTrue(sub.isReleased());
 			assertTrue(sharedSlot.isReleased());

@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.instance.LogicalSlot;
-import org.apache.flink.runtime.instance.SlotProvider;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;

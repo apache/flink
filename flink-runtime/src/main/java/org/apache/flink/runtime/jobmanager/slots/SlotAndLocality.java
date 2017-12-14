@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.slots;
 
-import org.apache.flink.runtime.instance.AllocatedSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.AllocatedSlot;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -39,11 +39,11 @@ public class SlotAndLocality {
 
 	// ------------------------------------------------------------------------
 
-	public AllocatedSlot slot() {
+	public AllocatedSlot getSlot() {
 		return slot;
 	}
 
-	public Locality locality() {
+	public Locality getLocality() {
 		return locality;
 	}
 

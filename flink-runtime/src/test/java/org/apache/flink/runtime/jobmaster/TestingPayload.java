@@ -16,19 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.util.AbstractID;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Request ID identifying different slot requests.
+ * Simple payload implementation for testing purposes.
  */
-public final class SlotRequestID extends AbstractID {
-    private static final long serialVersionUID = -6072105912250154283L;
+public class TestingPayload implements LogicalSlot.Payload {
 
-    public SlotRequestID(long lowerPart, long upperPart) {
-        super(lowerPart, upperPart);
-    }
+	private final CompletableFuture<?> terminationFuture;
 
-    public SlotRequestID() {}
+	public TestingPayload() {
+		this.terminationFuture = new CompletableFuture<>();
+	}
+
+
+	@Override
+	public void fail(Throwable cause) {
+		terminationFuture.complete(null);
+	}
+
+	@Override
+	public CompletableFuture<?> getTerminalStateFuture() {
+		return terminationFuture;
+	}
 }

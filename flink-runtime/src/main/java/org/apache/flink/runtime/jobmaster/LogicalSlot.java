@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -32,8 +34,22 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface LogicalSlot {
 
+	Payload TERMINATED_PAYLOAD = new Payload() {
+
+		private final CompletableFuture<?> completedTerminationFuture = CompletableFuture.completedFuture(null);
+		@Override
+		public void fail(Throwable cause) {
+			// ignore
+		}
+
+		@Override
+		public CompletableFuture<?> getTerminalStateFuture() {
+			return completedTerminationFuture;
+		}
+	};
+
 	/**
-	 * Return the TaskManager location of this slot
+	 * Return the TaskManager location of this slot.
 	 *
 	 * @return TaskManager location of this slot
 	 */
@@ -47,18 +63,25 @@ public interface LogicalSlot {
 	TaskManagerGateway getTaskManagerGateway();
 
 	/**
-	 * True if the slot is still alive.
+	 * Gets the locality of this slot.
 	 *
-	 * @return True if the slot is still alive, otherwise false
+	 * @return locality of this slot
+	 */
+	Locality getLocality();
+
+	/**
+	 * True if the slot is alive and has not been released.
+	 *
+	 * @return True if the slot is alive, otherwise false if the slot is released
 	 */
 	boolean isAlive();
 
 	/**
-	 * Tries to assign a payload to this slot. This can only happens
-	 * exactly once.
+	 * Tries to assign a payload to this slot. One can only assign a single
+	 * payload once.
 	 *
 	 * @param payload to be assigned to this slot.
-	 * @return true if the payload could be set, otherwise false
+	 * @return true if the payload could be assigned, otherwise false
 	 */
 	boolean tryAssignPayload(Payload payload);
 
@@ -75,8 +98,19 @@ public interface LogicalSlot {
 	 *
 	 * @return Future which is completed once the slot has been released,
 	 * 		in case of a failure it is completed exceptionally
+	 * @deprecated Added because extended the actual releaseSlot method with cause parameter.
 	 */
-	CompletableFuture<?> releaseSlot();
+	default CompletableFuture<?> releaseSlot() {
+		return releaseSlot(null);
+	}
+
+	/**
+	 * Releases this slot.
+	 *
+	 * @param cause why the slot was released or null if none
+	 * @return future which is completed once the slot has been released
+	 */
+	CompletableFuture<?> releaseSlot(@Nullable Throwable cause);
 
 	/**
 	 * Gets the slot number on the TaskManager.
@@ -98,7 +132,15 @@ public interface LogicalSlot {
 	 *
 	 * @return Unique id identifying the slot request with which this slot was allocated
 	 */
-	SlotRequestID getSlotRequestId();
+	SlotRequestId getSlotRequestId();
+
+	/**
+	 * Gets the slot sharing group id to which this slot belongs.
+	 *
+	 * @return slot sharing group id of this slot or null, if none.
+	 */
+	@Nullable
+	SlotSharingGroupId getSlotSharingGroupId();
 
 	/**
 	 * Payload for a logical slot.

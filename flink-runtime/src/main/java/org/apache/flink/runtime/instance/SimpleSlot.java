@@ -20,10 +20,11 @@ package org.apache.flink.runtime.instance;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmanager.slots.SimpleSlotContext;
-import org.apache.flink.runtime.jobmanager.slots.SlotContext;
-import org.apache.flink.runtime.jobmanager.slots.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.SlotContext;
+import org.apache.flink.runtime.jobmaster.SlotOwner;
+import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
@@ -69,8 +70,8 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	 * @param taskManagerGateway The gateway to communicate with the TaskManager of this slot
 	 */
 	public SimpleSlot(
-			SlotOwner owner, TaskManagerLocation location, int slotNumber,
-			TaskManagerGateway taskManagerGateway) {
+		SlotOwner owner, TaskManagerLocation location, int slotNumber,
+		TaskManagerGateway taskManagerGateway) {
 		this(owner, location, slotNumber, taskManagerGateway, null, null);
 	}
 
@@ -97,7 +98,6 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 			parent != null ?
 				parent.getSlotContext() :
 				new SimpleSlotContext(
-					NO_SLOT_REQUEST_ID,
 					NO_ALLOCATION_ID,
 					location,
 					slotNumber,
@@ -218,18 +218,13 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void releaseInstanceSlot() {
-		releaseSlot();
-	}
-
-	@Override
-	public CompletableFuture<?> releaseSlot() {
+	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
 		if (!isCanceled()) {
 			final CompletableFuture<?> terminationFuture;
 
 			if (payload != null) {
 				// trigger the failure of the slot payload
-				payload.fail(new FlinkException("TaskManager was lost/killed: " + getTaskManagerLocation()));
+				payload.fail(cause != null ? cause : new FlinkException("TaskManager was lost/killed: " + getTaskManagerLocation()));
 
 				// wait for the termination of the payload before releasing the slot
 				terminationFuture = payload.getTerminalStateFuture();
@@ -276,8 +271,14 @@ public class SimpleSlot extends Slot implements LogicalSlot {
 	}
 
 	@Override
-	public SlotRequestID getSlotRequestId() {
-		return getSlotContext().getSlotRequestId();
+	public SlotRequestId getSlotRequestId() {
+		return NO_SLOT_REQUEST_ID;
+	}
+
+	@Nullable
+	@Override
+	public SlotSharingGroupId getSlotSharingGroupId() {
+		return NO_SLOT_SHARING_GROUP_ID;
 	}
 
 	// ------------------------------------------------------------------------
