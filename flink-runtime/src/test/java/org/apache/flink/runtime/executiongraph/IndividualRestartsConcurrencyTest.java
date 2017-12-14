@@ -305,8 +305,7 @@ public class IndividualRestartsConcurrencyTest extends TestLogger {
 		when(taskManagerGateway.cancelTask(any(ExecutionAttemptID.class), any(Time.class))).thenReturn(CompletableFuture.completedFuture(Acknowledge.get()));
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(jid, parallelism, taskManagerGateway);
-		final Executor executor = TestingUtils.defaultExecutor();
-
+		final ManuallyTriggeredDirectExecutor executor = new ManuallyTriggeredDirectExecutor();
 
 		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = new CheckpointCoordinatorConfiguration(
 			10L,
