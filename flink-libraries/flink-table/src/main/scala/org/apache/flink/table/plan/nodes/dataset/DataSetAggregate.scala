@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.BatchTableEnvironment
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonAggregate
@@ -86,10 +86,12 @@ class DataSetAggregate(
     planner.getCostFactory.makeCost(rowCnt, rowCnt * aggCnt, rowCnt * rowSize)
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     val input = inputNode.asInstanceOf[DataSetRel]
-    val inputDS = input.translateToPlan(tableEnv)
+    val inputDS = input.translateToPlan(tableEnv, queryConfig)
 
     val rowTypeInfo = FlinkTypeFactory.toInternalRowTypeInfo(getRowType).asInstanceOf[RowTypeInfo]
 

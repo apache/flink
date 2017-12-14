@@ -26,9 +26,7 @@ import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.BatchTableEnvironment
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
@@ -94,12 +92,14 @@ class DataSetCorrelate(
       .itemIf("condition", condition.orNull, condition.isDefined)
   }
 
-  override def translateToPlan(tableEnv: BatchTableEnvironment): DataSet[Row] = {
+  override def translateToPlan(
+      tableEnv: BatchTableEnvironment,
+      queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     val config = tableEnv.getConfig
 
     // we do not need to specify input type
-    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv)
+    val inputDS = inputNode.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)
 
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
