@@ -531,26 +531,26 @@ public class DataStreamTest {
 	public void testResources() throws Exception{
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		ResourceSpec minResource1 = new ResourceSpec(1.0, 100);
-		ResourceSpec preferredResource1 = new ResourceSpec(2.0, 200);
+		ResourceSpec minResource1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
+		ResourceSpec preferredResource1 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(200).build();
 
-		ResourceSpec minResource2 = new ResourceSpec(1.0, 200);
-		ResourceSpec preferredResource2 = new ResourceSpec(2.0, 300);
+		ResourceSpec minResource2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(200).build();
+		ResourceSpec preferredResource2 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(300).build();
 
-		ResourceSpec minResource3 = new ResourceSpec(1.0, 300);
-		ResourceSpec preferredResource3 = new ResourceSpec(2.0, 400);
+		ResourceSpec minResource3 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(300).build();
+		ResourceSpec preferredResource3 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(400).build();
 
-		ResourceSpec minResource4 = new ResourceSpec(1.0, 400);
-		ResourceSpec preferredResource4 = new ResourceSpec(2.0, 500);
+		ResourceSpec minResource4 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(400).build();
+		ResourceSpec preferredResource4 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(500).build();
 
-		ResourceSpec minResource5 = new ResourceSpec(1.0, 500);
-		ResourceSpec preferredResource5 = new ResourceSpec(2.0, 600);
+		ResourceSpec minResource5 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(500).build();
+		ResourceSpec preferredResource5 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(600).build();
 
-		ResourceSpec minResource6 = new ResourceSpec(1.0, 600);
-		ResourceSpec preferredResource6 = new ResourceSpec(2.0, 700);
+		ResourceSpec minResource6 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(600).build();
+		ResourceSpec preferredResource6 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(700).build();
 
-		ResourceSpec minResource7 = new ResourceSpec(1.0, 700);
-		ResourceSpec preferredResource7 = new ResourceSpec(2.0, 800);
+		ResourceSpec minResource7 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(700).build();
+		ResourceSpec preferredResource7 = ResourceSpec.newBuilder().setCpuCores(2.0).setHeapMemoryInMB(800).build();
 
 		Method opMethod = SingleOutputStreamOperator.class.getDeclaredMethod("setResources", ResourceSpec.class, ResourceSpec.class);
 		opMethod.setAccessible(true);
