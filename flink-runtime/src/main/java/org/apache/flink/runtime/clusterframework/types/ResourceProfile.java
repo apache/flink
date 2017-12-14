@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework.types;
 
+import org.apache.flink.api.common.resources.Resource;
 import org.apache.flink.api.common.operators.ResourceSpec;
 
 import javax.annotation.Nonnull;
@@ -34,7 +35,7 @@ import java.util.Objects;
  * checked whether it can match another profile's requirement, and furthermore we may calculate a matching
  * score to decide which profile we should choose when we have lots of candidate slots.
  * It should be generated from {@link ResourceSpec} with the input and output memory calculated in JobMaster.
- * 
+ *
  * <p>Resource Profiles have a total ordering, defined by comparing these fields in sequence:
  * <ol>
  *     <li>Memory Size</li>
@@ -51,20 +52,20 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	// ------------------------------------------------------------------------
 
-	/** How many cpu cores are needed, use double so we can specify cpu like 0.1 */
+	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
 	private final double cpuCores;
 
-	/** How many heap memory in mb are needed */
+	/** How many heap memory in mb are needed. */
 	private final int heapMemoryInMB;
 
-	/** How many direct memory in mb are needed */
+	/** How many direct memory in mb are needed. */
 	private final int directMemoryInMB;
 
-	/** How many native memory in mb are needed */
+	/** How many native memory in mb are needed. */
 	private final int nativeMemoryInMB;
 
 	/** A extensible field for user specified resources from {@link ResourceSpec}. */
-	private final Map<String, ResourceSpec.Resource> extendedResources = new HashMap<>(1);
+	private final Map<String, Resource> extendedResources = new HashMap<>(1);
 
 	// ------------------------------------------------------------------------
 
@@ -82,7 +83,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			int heapMemoryInMB,
 			int directMemoryInMB,
 			int nativeMemoryInMB,
-			Map<String, ResourceSpec.Resource> extendedResources) {
+			Map<String, Resource> extendedResources) {
 		this.cpuCores = cpuCores;
 		this.heapMemoryInMB = heapMemoryInMB;
 		this.directMemoryInMB = directMemoryInMB;
@@ -104,8 +105,8 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	/**
 	 * Creates a copy of the given ResourceProfile.
-	 * 
-	 * @param other The ResourceProfile to copy. 
+	 *
+	 * @param other The ResourceProfile to copy.
 	 */
 	public ResourceProfile(ResourceProfile other) {
 		this(other.cpuCores, other.heapMemoryInMB, other.directMemoryInMB, other.nativeMemoryInMB, other.extendedResources);
@@ -172,7 +173,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 *
 	 * @return The extended resources
 	 */
-	public Map<String, ResourceSpec.Resource> getExtendedResources() {
+	public Map<String, Resource> getExtendedResources() {
 		return Collections.unmodifiableMap(extendedResources);
 	}
 
@@ -187,9 +188,9 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 				heapMemoryInMB >= required.getHeapMemoryInMB() &&
 				directMemoryInMB >= required.getDirectMemoryInMB() &&
 				nativeMemoryInMB >= required.getNativeMemoryInMB()) {
-			for (Map.Entry<String, ResourceSpec.Resource> resource : required.extendedResources.entrySet()) {
+			for (Map.Entry<String, Resource> resource : required.extendedResources.entrySet()) {
 				if (!extendedResources.containsKey(resource.getKey()) ||
-						!extendedResources.get(resource.getKey()).getAggregateType().equals(resource.getValue().getAggregateType()) ||
+						!extendedResources.get(resource.getKey()).getResourceAggregateType().equals(resource.getValue().getResourceAggregateType()) ||
 						extendedResources.get(resource.getKey()).getValue() < resource.getValue().getValue()) {
 					return false;
 				}
@@ -206,15 +207,15 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			cmp = Double.compare(this.cpuCores, other.cpuCores);
 		}
 		if (cmp == 0) {
-			Iterator<Map.Entry<String, ResourceSpec.Resource>> thisIterator = extendedResources.entrySet().iterator();
-			Iterator<Map.Entry<String, ResourceSpec.Resource>> otherIterator = other.extendedResources.entrySet().iterator();
+			Iterator<Map.Entry<String, Resource>> thisIterator = extendedResources.entrySet().iterator();
+			Iterator<Map.Entry<String, Resource>> otherIterator = other.extendedResources.entrySet().iterator();
 			while (thisIterator.hasNext() && otherIterator.hasNext()) {
-				Map.Entry<String, ResourceSpec.Resource> thisResource = thisIterator.next();
-				Map.Entry<String, ResourceSpec.Resource> otherResource = otherIterator.next();
+				Map.Entry<String, Resource> thisResource = thisIterator.next();
+				Map.Entry<String, Resource> otherResource = otherIterator.next();
 				if ((cmp = otherResource.getKey().compareTo(thisResource.getKey())) != 0) {
 					return cmp;
 				}
-				if (!otherResource.getValue().getAggregateType().equals(thisResource.getValue().getAggregateType())) {
+				if (!otherResource.getValue().getResourceAggregateType().equals(thisResource.getValue().getResourceAggregateType())) {
 					return 1;
 				}
 				if ((cmp = Double.compare(thisResource.getValue().getValue(), otherResource.getValue().getValue())) != 0) {
@@ -261,32 +262,26 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 	@Override
 	public String toString() {
-		String resourceStr = "";
-		for (Map.Entry<String, ResourceSpec.Resource> resource : extendedResources.entrySet()) {
-			resourceStr += ", " + resource.getKey() + "=" + resource.getValue();
+		final StringBuilder resources = new StringBuilder(extendedResources.size() * 10);
+		for (Map.Entry<String, Resource> resource : extendedResources.entrySet()) {
+			resources.append(", ").append(resource.getKey()).append('=').append(resource.getValue());
 		}
 		return "ResourceProfile{" +
 			"cpuCores=" + cpuCores +
 			", heapMemoryInMB=" + heapMemoryInMB +
 			", directMemoryInMB=" + directMemoryInMB +
-			", nativeMemoryInMB=" + nativeMemoryInMB + resourceStr +
+			", nativeMemoryInMB=" + nativeMemoryInMB + resources +
 			'}';
 	}
 
-	public static ResourceProfile fromResourceSpec(
-			ResourceSpec resourceSpec) {
-		Map<String, ResourceSpec.Resource> extendResource = new HashMap<>(1);
-		double gpu = resourceSpec.getGPUResource();
-		if (gpu > 0) {
-			extendResource.put(ResourceSpec.GPU_NAME, new ResourceSpec.GPUResource(gpu));
-		}
-		ResourceProfile resourceProfile = new ResourceProfile(
+	static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec) {
+		Map<String, Resource> copiedExtendedResources = new HashMap<>(resourceSpec.getExtendedResources());
+
+		return new ResourceProfile(
 				resourceSpec.getCpuCores(),
 				resourceSpec.getHeapMemory(),
 				resourceSpec.getDirectMemory(),
 				resourceSpec.getNativeMemory(),
-				extendResource
-		);
-		return resourceProfile;
+				copiedExtendedResources);
 	}
 }
