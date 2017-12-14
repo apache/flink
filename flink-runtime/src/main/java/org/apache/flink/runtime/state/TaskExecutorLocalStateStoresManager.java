@@ -87,7 +87,13 @@ public class TaskExecutorLocalStateStoresManager {
 
 		return taskStateManagers.computeIfAbsent(
 			taskKey,
-			k -> new TaskLocalStateStore(jobId, jobVertexID, subtaskIndex, localStateRootDirectories, discardExecutor));
+			k -> new TaskLocalStateStore(
+				jobId,
+				allocationID,
+				jobVertexID,
+				subtaskIndex,
+				localStateRootDirectories,
+				discardExecutor));
 	}
 
 	public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
@@ -100,7 +106,7 @@ public class TaskExecutorLocalStateStoresManager {
 		}
 	}
 
-	public void releaseAll() {
+	public void shutdown() {
 
 		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : taskStateStoresByAllocationID.values()) {
 			doRelease(stateStoreMap.values());

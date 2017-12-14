@@ -95,6 +95,7 @@ import akka.pattern.Patterns;
 import akka.testkit.CallingThreadDispatcher;
 import akka.testkit.JavaTestKit;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -105,6 +106,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -502,15 +504,19 @@ public class JobManagerHARecoveryTest extends TestLogger {
 			TaskStateManager taskStateManager = getEnvironment().getTaskStateManager();
 			PrioritizedOperatorSubtaskState subtaskState = taskStateManager.prioritizedOperatorState(operatorID);
 
-			if(subtaskState != null) {
-				int subtaskIndex = getIndexInSubtaskGroup();
-				if (subtaskIndex < BlockingStatefulInvokable.recoveredStates.length) {
-					OperatorStateHandle operatorStateHandle = subtaskState.getJobManagerManagedOperatorState().iterator().next();
+			int subtaskIndex = getIndexInSubtaskGroup();
+			if (subtaskIndex < BlockingStatefulInvokable.recoveredStates.length) {
+				Iterator<OperatorStateHandle> iterator =
+					subtaskState.getJobManagerManagedOperatorState().iterator();
+
+				if (iterator.hasNext()) {
+					OperatorStateHandle operatorStateHandle = iterator.next();
 					try (FSDataInputStream in = operatorStateHandle.openInputStream()) {
 						BlockingStatefulInvokable.recoveredStates[subtaskIndex] =
 							InstantiationUtil.deserializeObject(in, getUserCodeClassLoader());
 					}
 				}
+				Assert.assertFalse(iterator.hasNext());
 			}
 
 			LATCH.await();

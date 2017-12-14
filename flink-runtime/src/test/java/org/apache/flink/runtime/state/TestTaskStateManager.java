@@ -25,7 +25,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -264,6 +266,6 @@ public class TestTaskStateManager implements TaskStateManager {
 		if (!rootDir.exists()) {
 			Preconditions.checkState(rootDir.mkdirs());
 		}
-		return new LocalRecoveryDirectoryProvider(rootDir, UUID.randomUUID().toString());
+		return new LocalRecoveryDirectoryProvider(rootDir, new JobID(), new AllocationID(), new JobVertexID(), 0);
 	}
 }

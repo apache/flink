@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -130,6 +131,7 @@ public class LocalStateForwardingTest {
 	public void testForwardingFromTaskStateManagerToResponderAndTaskLocalStateStore() throws Exception {
 
 		final JobID jobID = new JobID();
+		final AllocationID allocationID = new AllocationID();
 		final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(42L, 4711L);
 		final CheckpointMetrics checkpointMetrics = new CheckpointMetrics();
@@ -167,7 +169,7 @@ public class LocalStateForwardingTest {
 
 		try {
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStore(jobID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}, executor) {
+				new TaskLocalStateStore(jobID, allocationID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}, executor) {
 					@Override
 					public void storeLocalState(
 						@Nonnegative long checkpointId,

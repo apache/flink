@@ -255,7 +255,7 @@ class TaskManager(
     }
 
     try {
-      taskManagerLocalStateStoresManager.releaseAll()
+      taskManagerLocalStateStoresManager.shutdown()
     } catch {
       case t: Exception => log.error("Task state manager did not shutdown properly.", t)
     }

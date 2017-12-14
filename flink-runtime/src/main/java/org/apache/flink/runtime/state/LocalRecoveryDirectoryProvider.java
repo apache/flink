@@ -18,40 +18,70 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnegative;
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Provides root directories and the subtask-specific path to build directories for file-based local recovery. Calls
- * to {@link #nextRootDirectory()} rotate over all available root directories. this class is thread-safe.
+ * to {@link #rootDirectory(long)} rotate over all available root directories.
  */
 public class LocalRecoveryDirectoryProvider implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	/** All available root directories that this can potentially deliver. */
+	@Nonnull
 	private final File[] rootDirectories;
 
-	/** A subtask-specific string that describes a path to it's local state from a given checkpoint root. */
-	private final String subtaskSpecificPath;
+	/** JobID of the owning job. */
+	@Nonnull
+	private final JobID jobID;
 
-	/** Current index for rotational selection of delivered root dirs. */
-	private AtomicInteger idx;
+	/** AllocationID of the owning slot. */
+	@Nonnull
+	private final AllocationID allocationID;
 
-	public LocalRecoveryDirectoryProvider(File rootDir, String subtaskSpecificPath) {
-		this(new File[]{rootDir}, subtaskSpecificPath);
+	/** JobVertexID of the owning task. */
+	@Nonnull
+	private final JobVertexID jobVertexID;
+
+	/** Index of the owning subtask. */
+	@Nonnegative
+	private final int subtaskIndex;
+
+	public LocalRecoveryDirectoryProvider(
+		File rootDir,
+		@Nonnull JobID jobID,
+		@Nonnull AllocationID allocationID,
+		@Nonnull JobVertexID jobVertexID,
+		@Nonnegative int subtaskIndex) {
+		this(new File[]{rootDir}, jobID, allocationID, jobVertexID, subtaskIndex);
 	}
 
-	public LocalRecoveryDirectoryProvider(File[] rootDirectories, String subtaskSpecificPath) {
+	public LocalRecoveryDirectoryProvider(
+		@Nonnull File[] rootDirectories,
+		@Nonnull JobID jobID,
+		@Nonnull AllocationID allocationID,
+		@Nonnull JobVertexID jobVertexID,
+		@Nonnegative int subtaskIndex) {
 
-		this.rootDirectories = Preconditions.checkNotNull(rootDirectories);
-		this.subtaskSpecificPath = Preconditions.checkNotNull(subtaskSpecificPath);
 		Preconditions.checkArgument(rootDirectories.length > 0);
+		this.rootDirectories = rootDirectories;
+		this.jobID = jobID;
+		this.allocationID = allocationID;
+		this.jobVertexID = jobVertexID;
+		this.subtaskIndex = subtaskIndex;
 
 		for (File directory : rootDirectories) {
 			Preconditions.checkNotNull(directory);
@@ -59,22 +89,57 @@ public class LocalRecoveryDirectoryProvider implements Serializable {
 				throw new IllegalStateException("Local recovery root directory " + directory + " does not exist!");
 			}
 		}
-
-		this.idx = new AtomicInteger(-1);
 	}
 
 	/**
-	 * Returns the next root directory w.r.t. our rotation over all available root dirs.
+	 * Returns the local state root directory local state for the given checkpoint id w.r.t. our rotation over all
+	 * available root dirs.
 	 */
-	public File nextRootDirectory() {
-		return rootDirectories[(idx.incrementAndGet() & Integer.MAX_VALUE) % rootDirectories.length];
+	public File rootDirectory(long checkpointId) {
+		return selectRootDirectory((((int) checkpointId) & Integer.MAX_VALUE) % rootDirectories.length);
 	}
 
 	/**
-	 * Returns a specific root dir for the given index < {@link #rootDirectoryCount()}.
+	 * Returns the local state base directory for the owning job and given checkpoint id w.r.t. our rotation over all
+	 * available root dirs. This directory is contained in the directory returned by {@link #rootDirectory(long)} for
+	 * the same checkpoint id.
+	 */
+	public File jobAndAllocationBaseDirectory(long checkpointId) {
+		return new File(rootDirectory(checkpointId), createJobAndAllocationSubDirString());
+	}
+
+	/**
+	 * Returns the local state checkpoint base directory for the given checkpoint id w.r.t. our rotation over all
+	 * available root dirs. This directory is contained in the directory returned by {@link #rootDirectory(long)} for
+	 * the same checkpoint id.
+	 */
+	public File checkpointBaseDirectory(long checkpointId) {
+		return new File(jobAndAllocationBaseDirectory(checkpointId), createCheckpointSubDirString(checkpointId));
+	}
+
+	/**
+	 * Returns the local state directory for the specific operator subtask and the given checkpoint id w.r.t. our
+	 * rotation over all available root dirs. This directory is contained in the directory returned by
+	 * {@link #checkpointBaseDirectory(long)} for the same checkpoint id.
+	 */
+	public File subtaskSpecificCheckpointDirectory(long checkpointId) {
+		return new File(checkpointBaseDirectory(checkpointId), createSpecificCheckpointSubDirString());
+	}
+
+	/**
+	 * Returns a specific root dir for the given index < {@link #rootDirectoryCount()}. The index must be between
+	 * 0 (incl.) and {@link #rootDirectoryCount()} (excl.).
 	 */
 	public File selectRootDirectory(int idx) {
 		return rootDirectories[idx];
+	}
+
+	/**
+	 * Returns a specific job-and-allocation directory, which is a root dir plus the sub-dir for job-and-allocation.
+	 * The index must be between 0 (incl.) and {@link #rootDirectoryCount()} (excl.).
+	 */
+	public File selectJobAndAllocationBaseDirectory(int idx) {
+		return new File(selectRootDirectory(idx), createJobAndAllocationSubDirString());
 	}
 
 	/**
@@ -84,29 +149,29 @@ public class LocalRecoveryDirectoryProvider implements Serializable {
 		return rootDirectories.length;
 	}
 
-	/**
-	 * Returns a string that describes a subtask-path. We typically append this somewhere under the root dir or a
-	 * checkpoint dir inside the root dir.
-	 */
-	public String getSubtaskSpecificPath() {
-		return subtaskSpecificPath;
-	}
-
-	/**
-	 * Helper method that returns a file name based on {@link #getSubtaskSpecificPath()} and the given checkpointId.
-	 */
-	public String specificFileForCheckpointId(long checkpointId) {
-		return "chk-" + checkpointId + File.separator +
-			getSubtaskSpecificPath() + File.separator +
-			UUID.randomUUID();
-	}
-
 	@Override
 	public String toString() {
 		return "LocalRecoveryDirectoryProvider{" +
 			"rootDirectories=" + Arrays.toString(rootDirectories) +
-			", subtaskSpecificPath='" + subtaskSpecificPath + '\'' +
-			", idx=" + idx +
+			", jobID=" + jobID +
+			", allocationID=" + allocationID +
+			", jobVertexID=" + jobVertexID +
+			", subtaskIndex=" + subtaskIndex +
 			'}';
+	}
+
+	@VisibleForTesting
+	String createJobAndAllocationSubDirString() {
+		return "jid_" + jobID + "_aid_" + allocationID;
+	}
+
+	@VisibleForTesting
+	String createCheckpointSubDirString(long checkpointId) {
+		return "chk_" + checkpointId;
+	}
+
+	@VisibleForTesting
+	String createSpecificCheckpointSubDirString() {
+		return "vtx_" + jobVertexID + Path.SEPARATOR + subtaskIndex;
 	}
 }

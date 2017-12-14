@@ -149,6 +149,7 @@ public class JvmExitOnFatalErrorTest {
 				taskManagerConfig.setBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
 
 				final JobID jid = new JobID();
+				final AllocationID allocationID = new AllocationID();
 				final JobVertexID jobVertexId = new JobVertexID();
 				final ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
 				final AllocationID slotAllocationId = new AllocationID();
@@ -178,7 +179,13 @@ public class JvmExitOnFatalErrorTest {
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				final TaskLocalStateStore localStateStore =
-					new TaskLocalStateStore(jid, jobVertexId, 0, new File[]{temporaryFolder.newFolder()}, executor);
+					new TaskLocalStateStore(
+						jid,
+						allocationID,
+						jobVertexId,
+						0,
+						new File[]{temporaryFolder.newFolder()},
+						executor);
 
 				final TaskStateManager slotStateManager =
 					new TaskStateManagerImpl(

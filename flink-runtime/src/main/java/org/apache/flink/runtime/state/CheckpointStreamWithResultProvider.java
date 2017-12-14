@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.util.UUID;
 
 /**
  * Interface that provides access to a CheckpointStateOutputStream and a method to provide the {@link SnapshotResult}.
@@ -153,10 +154,9 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
 			if (secondaryStreamDirProvider != null) {
 				try {
-					File currentLocalRecoveryRoot = secondaryStreamDirProvider.nextRootDirectory();
 					File outFile = new File(
-						currentLocalRecoveryRoot,
-						secondaryStreamDirProvider.specificFileForCheckpointId(checkpointId));
+						secondaryStreamDirProvider.subtaskSpecificCheckpointDirectory(checkpointId),
+						String.valueOf(UUID.randomUUID()));
 					Path outPath = new Path(outFile.toURI());
 					secondaryOut = new FixFileFsStateOutputStream(outPath.getFileSystem(), outPath);
 					final DuplicatingCheckpointOutputStream effectiveOutStream =

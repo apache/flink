@@ -303,6 +303,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		fileCache.shutdown();
 
+		localStateStoresManager.shutdown();
+
 		try {
 			super.postStop();
 		} catch (Throwable e) {

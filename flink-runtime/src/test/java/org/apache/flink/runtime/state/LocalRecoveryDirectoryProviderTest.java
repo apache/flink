@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -29,7 +33,10 @@ import java.io.IOException;
 
 public class LocalRecoveryDirectoryProviderTest {
 
-	private static final String SPECIFIC_PATH = "specificPath";
+	private static final JobID JOB_ID = new JobID();
+	private static final AllocationID ALLOCATION_ID = new AllocationID();
+	private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
+	private static final int SUBTASK_INDEX = 0;
 
 	private TemporaryFolder tmpFolder;
 	private LocalRecoveryDirectoryProvider directoryProvider;
@@ -42,7 +49,10 @@ public class LocalRecoveryDirectoryProviderTest {
 		this.rootFolders = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
 		this.directoryProvider = new LocalRecoveryDirectoryProvider(
 			rootFolders,
-			SPECIFIC_PATH);
+			JOB_ID,
+			ALLOCATION_ID,
+			JOB_VERTEX_ID,
+			SUBTASK_INDEX);
 	}
 
 	@After
@@ -53,7 +63,7 @@ public class LocalRecoveryDirectoryProviderTest {
 	@Test
 	public void nextRootDirectory() throws Exception {
 		for (int i = 0; i < 10; ++i) {
-			Assert.assertEquals(rootFolders[i % rootFolders.length], directoryProvider.nextRootDirectory());
+			Assert.assertEquals(rootFolders[i % rootFolders.length], directoryProvider.rootDirectory(i));
 		}
 	}
 
@@ -70,14 +80,9 @@ public class LocalRecoveryDirectoryProviderTest {
 	}
 
 	@Test
-	public void getSubtaskSpecificPath() throws Exception {
-		Assert.assertEquals(SPECIFIC_PATH, directoryProvider.getSubtaskSpecificPath());
-	}
-
-	@Test
 	public void testPreconditionsNotNullFiles() {
 		try {
-			new LocalRecoveryDirectoryProvider(new File[]{null}, SPECIFIC_PATH);
+			new LocalRecoveryDirectoryProvider(new File[]{null}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
 			Assert.fail();
 		} catch (NullPointerException ignore) {
 		}
@@ -86,7 +91,7 @@ public class LocalRecoveryDirectoryProviderTest {
 	@Test
 	public void testPreconditionsNonExistingFolder() {
 		try {
-			new LocalRecoveryDirectoryProvider(new File[]{new File("123")}, SPECIFIC_PATH);
+			new LocalRecoveryDirectoryProvider(new File[]{new File("123")}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
 			Assert.fail();
 		} catch (IllegalStateException ignore) {
 		}

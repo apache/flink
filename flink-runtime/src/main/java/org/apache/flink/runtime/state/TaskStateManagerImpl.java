@@ -133,7 +133,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
 	@Nonnull
 	@Override
 	public LocalRecoveryDirectoryProvider createLocalRecoveryRootDirectoryProvider() {
-		return localStateStore.createLocalRecoveryRootDirectoryProvider();
+		return localStateStore.getLocalRecoveryRootDirectoryProvider();
 	}
 
 	/**
