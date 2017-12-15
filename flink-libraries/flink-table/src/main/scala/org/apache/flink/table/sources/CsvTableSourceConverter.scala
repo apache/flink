@@ -29,7 +29,11 @@ import com.google.common.collect.ImmutableSet
 /**
   * The class defines a converter used to convert [[CsvTableSource]] to
   * or from [[ExternalCatalogTable]].
+  *
+  * @deprecated Use the more generic [[org.apache.flink.table.sources.TableSourceFactory]] instead.
   */
+@Deprecated
+@deprecated("Use the more generic table source factories instead.")
 @TableType(value = "csv")
 class CsvTableSourceConverter extends TableSourceConverter[CsvTableSource] {
 

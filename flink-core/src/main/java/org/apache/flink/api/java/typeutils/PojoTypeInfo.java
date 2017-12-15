@@ -268,7 +268,6 @@ public class PojoTypeInfo<T> extends CompositeType<T> {
 		return new PojoTypeComparatorBuilder();
 	}
 
-	// used for testing. Maybe use mockito here
 	@PublicEvolving
 	public PojoField getPojoFieldAt(int pos) {
 		if (pos < 0 || pos >= this.fields.length) {

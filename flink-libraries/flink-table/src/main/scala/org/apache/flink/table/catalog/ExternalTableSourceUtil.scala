@@ -23,21 +23,73 @@ import java.net.URL
 import org.apache.commons.configuration.{ConfigurationException, ConversionException, PropertiesConfiguration}
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.annotation.TableType
-import org.apache.flink.table.api.{AmbiguousTableSourceConverterException, NoMatchedTableSourceConverterException, TableException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.plan.schema.{BatchTableSourceTable, StreamTableSourceTable, TableSourceTable}
 import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{BatchTableSource, StreamTableSource, TableSource, TableSourceFactoryService}
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.InstantiationUtil
 import org.reflections.Reflections
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable
 
 /**
   * The utility class is used to convert ExternalCatalogTable to TableSourceTable.
   */
 object ExternalTableSourceUtil extends Logging {
+
+  /**
+    * Converts an [[ExternalCatalogTable]] instance to a [[TableSourceTable]] instance
+    *
+    * @param externalCatalogTable the [[ExternalCatalogTable]] instance which to convert
+    * @return converted [[TableSourceTable]] instance from the input catalog table
+    */
+  def fromExternalCatalogTable(
+      tableEnv: TableEnvironment,
+      externalCatalogTable: ExternalCatalogTable)
+    : TableSourceTable[_] = {
+
+    // check for the legacy external catalog path
+    if (externalCatalogTable.isLegacyTableType) {
+      LOG.warn("External catalog tables based on TableType annotations are deprecated. " +
+        "Please consider updating them to TableSourceFactories.")
+      fromExternalCatalogTableType(externalCatalogTable)
+    }
+    // use the factory approach
+    else {
+      val source = TableSourceFactoryService.findTableSourceFactory(externalCatalogTable)
+      tableEnv match {
+        // check for a batch table source in this batch environment
+        case _: BatchTableEnvironment =>
+          source match {
+            case bts: BatchTableSource[_] =>
+              new BatchTableSourceTable(
+                bts,
+                new FlinkStatistic(externalCatalogTable.getTableStats))
+            case _ => throw new TableException(
+              s"Found table source '${source.getClass.getCanonicalName}' is not applicable " +
+                s"in a batch environment.")
+          }
+        // check for a stream table source in this streaming environment
+        case _: StreamTableEnvironment =>
+          source match {
+            case sts: StreamTableSource[_] =>
+              new StreamTableSourceTable(
+                sts,
+                new FlinkStatistic(externalCatalogTable.getTableStats))
+            case _ => throw new TableException(
+              s"Found table source '${source.getClass.getCanonicalName}' is not applicable " +
+                s"in a streaming environment.")
+          }
+        case _ => throw new TableException("Unsupported table environment.")
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // NOTE: the following lines can be removed once we drop support for TableType
+  // ----------------------------------------------------------------------------------------------
 
   // config file to specify scan package to search TableSourceConverter
   private val tableSourceConverterConfigFileName = "tableSourceConverter.properties"
@@ -48,7 +100,7 @@ object ExternalTableSourceUtil extends Logging {
     val registeredConverters =
       new mutable.HashMap[String, mutable.Set[Class[_ <: TableSourceConverter[_]]]]
           with mutable.MultiMap[String, Class[_ <: TableSourceConverter[_]]]
-    // scan all config files to find TableSourceConverters which are annotationed with TableType.
+    // scan all config files to find TableSourceConverters which are annotated with TableType.
     val resourceUrls = getClass.getClassLoader.getResources(tableSourceConverterConfigFileName)
     while (resourceUrls.hasMoreElements) {
       val url = resourceUrls.nextElement()
@@ -89,12 +141,31 @@ object ExternalTableSourceUtil extends Logging {
   }
 
   /**
-    * Converts an [[ExternalCatalogTable]] instance to a [[TableSourceTable]] instance
+    * Parses scan package set from input config file
     *
-    * @param externalCatalogTable the [[ExternalCatalogTable]] instance which to convert
-    * @return converted [[TableSourceTable]] instance from the input catalog table
+    * @param url url of config file
+    * @return scan package set
     */
-  def fromExternalCatalogTable(externalCatalogTable: ExternalCatalogTable): TableSourceTable[_] = {
+  private def parseScanPackagesFromConfigFile(url: URL): Set[String] = {
+    try {
+      val config = new PropertiesConfiguration(url)
+      config.setListDelimiter(',')
+      config.getStringArray("scan.packages").filterNot(_.isEmpty).toSet
+    } catch {
+      case e: ConfigurationException =>
+        LOG.warn(s"Error happened while loading the properties file [$url]", e)
+        Set.empty
+      case e1: ConversionException =>
+        LOG.warn(s"Error happened while parsing 'scan.packages' field of properties file [$url]. " +
+            s"The value is not a String or List of Strings.", e1)
+        Set.empty
+    }
+  }
+
+  @VisibleForTesting
+  def fromExternalCatalogTableType(externalCatalogTable: ExternalCatalogTable)
+    : TableSourceTable[_] = {
+
     val tableType = externalCatalogTable.tableType
     val propertyKeys = externalCatalogTable.properties.keySet()
     tableTypeToTableSourceConvertersClazz.get(tableType) match {
@@ -141,27 +212,4 @@ object ExternalTableSourceUtil extends Logging {
         throw new NoMatchedTableSourceConverterException(tableType)
     }
   }
-
-  /**
-    * Parses scan package set from input config file
-    *
-    * @param url url of config file
-    * @return scan package set
-    */
-  private def parseScanPackagesFromConfigFile(url: URL): Set[String] = {
-    try {
-      val config = new PropertiesConfiguration(url)
-      config.setListDelimiter(',')
-      config.getStringArray("scan.packages").filterNot(_.isEmpty).toSet
-    } catch {
-      case e: ConfigurationException =>
-        LOG.warn(s"Error happened while loading the properties file [$url]", e)
-        Set.empty
-      case e1: ConversionException =>
-        LOG.warn(s"Error happened while parsing 'scan.packages' field of properties file [$url]. " +
-            s"The value is not a String or List of Strings.", e1)
-        Set.empty
-    }
-  }
-
 }

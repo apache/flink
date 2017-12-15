@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.annotation;
 
-import org.apache.flink.annotation.Public;
 import org.apache.flink.table.catalog.TableSourceConverter;
 
 import java.lang.annotation.Documented;
@@ -29,11 +28,14 @@ import java.lang.annotation.Target;
 
 /**
  * Annotates a table type of a {@link TableSourceConverter}.
+ *
+ * @deprecated Use the more generic [[org.apache.flink.table.sources.TableSourceFactory]] interface
+ * with Java service loaders instead.
  */
 @Documented
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@Public
+@Deprecated
 public @interface TableType {
 
 	/**

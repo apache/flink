@@ -290,6 +290,17 @@ abstract class TableEnvironment(val config: TableConfig) {
   }
 
   /**
+    * Creates a table from a table source.
+    *
+    * @param source table source used as table
+    */
+  def fromTableSource(source: TableSource[_]): Table = {
+    val name = createUniqueTableName()
+    registerTableSourceInternal(name, source)
+    scan(name)
+  }
+
+  /**
     * Registers an [[ExternalCatalog]] under a unique name in the TableEnvironment's schema.
     * All tables registered in the [[ExternalCatalog]] can be accessed.
     *
@@ -302,7 +313,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     }
     this.externalCatalogs.put(name, externalCatalog)
     // create an external catalog Calcite schema, register it on the root schema
-    ExternalCatalogSchema.registerCatalog(rootSchema, name, externalCatalog)
+    ExternalCatalogSchema.registerCatalog(this, rootSchema, name, externalCatalog)
   }
 
   /**
@@ -422,7 +433,19 @@ abstract class TableEnvironment(val config: TableConfig) {
     * @param name        The name under which the [[TableSource]] is registered.
     * @param tableSource The [[TableSource]] to register.
     */
-  def registerTableSource(name: String, tableSource: TableSource[_]): Unit
+  def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
+    checkValidTableName(name)
+    registerTableSourceInternal(name, tableSource)
+  }
+
+  /**
+    * Registers an internal [[TableSource]] in this [[TableEnvironment]]'s catalog without
+    * name checking. Registered tables can be referenced in SQL queries.
+    *
+    * @param name        The name under which the [[TableSource]] is registered.
+    * @param tableSource The [[TableSource]] to register.
+    */
+  protected def registerTableSourceInternal(name: String, tableSource: TableSource[_]): Unit
 
   /**
     * Registers an external [[TableSink]] with given field names and types in this
@@ -713,6 +736,9 @@ abstract class TableEnvironment(val config: TableConfig) {
       rootSchema.add(name, table)
     }
   }
+
+  /** Returns a unique table name according to the internal naming pattern. */
+  protected def createUniqueTableName(): String
 
   /**
     * Checks if the chosen table name is valid.
