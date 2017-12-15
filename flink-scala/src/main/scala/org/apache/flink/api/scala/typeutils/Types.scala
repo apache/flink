@@ -35,7 +35,7 @@ import _root_.scala.util.{Either, Try}
   *
   * In many cases, Flink tries to analyze generic signatures of functions to determine return
   * types automatically. This class is intended for cases where type information has to be
-  * supplied manually or would result in an inefficient type.
+  * supplied manually or cases where automatic type inference results in an inefficient type.
   *
   * Scala macros allow to determine type information of classes and type parameters. You can
   * use [[Types.of]] to let type information be determined automatically.
@@ -161,12 +161,12 @@ object Types {
     * A row itself must not be null.
     *
     * A row is a fixed-length, null-aware composite type for storing multiple values in a
-    * deterministic field order. Every field can be null independent of the field's type.
-    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * deterministic field order. Every field can be null regardless of the field's type.
+    * The type of row fields cannot be automatically inferred; therefore, it is required to provide
     * type information whenever a row is used.
     *
-    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
-    * must have the same length otherwise serialization fails or information is lost.
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row
+    * instances must strictly adhere to the schema defined by the type info.
     *
     * This method generates type information with fields of the given types; the fields have
     * the default names (f0, f1, f2 ..).
@@ -181,11 +181,11 @@ object Types {
     *
     * A row is a variable-length, null-aware composite type for storing multiple values in a
     * deterministic field order. Every field can be null independent of the field's type.
-    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * The type of row fields cannot be automatically inferred; therefore, it is required to provide
     * type information whenever a row is used.
     *
-    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
-    * must have the same length otherwise serialization fails or information is lost.
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row
+    * instances must strictly adhere to the schema defined by the type info.
     *
     * Example use: `Types.ROW(Array("name", "number"), Array(Types.STRING, Types.INT))`.
     *
@@ -240,7 +240,8 @@ object Types {
     * we recommend to use [[Types.POJO(Class)]].
     *
     * @param pojoClass POJO class
-    * @param fields    map of fields that map a name to type information
+    * @param fields    map of fields that map a name to type information. The map key is the name of
+    *                  the field and the value is its type.
     */
   def POJO[T](pojoClass: Class[T], fields: Map[String, TypeInformation[_]]): TypeInformation[T] = {
     JTypes.POJO(pojoClass, fields.asJava)
@@ -264,8 +265,8 @@ object Types {
     *
     * A Scala case class is a fixed-length composite type for storing multiple values in a
     * deterministic field order. Fields of a case class are typed. Case classes and tuples are
-    * the most efficient composite type; therefore, they do not support null values unless
-    * its field type supports nullability.
+    * the most efficient composite type; therefore, they do not not support null-valued fields
+    * unless the type of the field supports nullability.
     *
     * Example use: `Types.CASE_CLASS[MyCaseClass]`
     *
@@ -278,6 +279,22 @@ object Types {
     } else {
       throw new InvalidTypesException("Case class type expected but was: " + t)
     }
+  }
+
+  /**
+    * Returns type information for a Scala tuple.
+    *
+    * A Scala tuple is a fixed-length composite type for storing multiple values in a
+    * deterministic field order. Fields of a tuple are typed. Tuples are
+    * the most efficient composite type; therefore, they do not not support null-valued fields
+    * unless the type of the field supports nullability.
+    *
+    * Example use: `Types.TUPLE[(String, Int)]`
+    *
+    * @tparam T tuple to be analyzed
+    */
+  def TUPLE[T: TypeInformation]: TypeInformation[T] = {
+    CASE_CLASS[T]
   }
 
   /**

@@ -44,6 +44,7 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,9 +54,9 @@ import java.util.Map;
  *
  * <p>In many cases, Flink tries to analyze generic signatures of functions to determine return
  * types automatically. This class is intended for cases where type information has to be
- * supplied manually or would result in an inefficient type.
+ * supplied manually or cases where automatic type inference results in an inefficient type.
  *
- * <p>Please note that the Scala API and Table API provide more specialized Types classes.
+ * <p>Please note that the Scala API and Table API have dedicated Types classes.
  * (See <code>org.apache.flink.api.scala.Types</code> and <code>org.apache.flink.table.api.Types</code>)
  *
  * <p>A more convenient alternative might be a {@link TypeHint}.
@@ -154,12 +155,12 @@ public class Types {
 	 * A row itself must not be null.
 	 *
 	 * <p>A row is a fixed-length, null-aware composite type for storing multiple values in a
-	 * deterministic field order. Every field can be null independent of the field's type.
-	 * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+	 * deterministic field order. Every field can be null regardless of the field's type.
+	 * The type of row fields cannot be automatically inferred; therefore, it is required to provide
 	 * type information whenever a row is used.
 	 *
 	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
-	 * must have the same length otherwise serialization fails or information is lost.
+	 * must strictly adhere to the schema defined by the type info.
 	 * 
 	 * <p>This method generates type information with fields of the given types; the fields have
 	 * the default names (f0, f1, f2 ..).
@@ -176,11 +177,11 @@ public class Types {
 	 *
 	 * <p>A row is a fixed-length, null-aware composite type for storing multiple values in a
 	 * deterministic field order. Every field can be null independent of the field's type.
-	 * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+	 * The type of row fields cannot be automatically inferred; therefore, it is required to provide
 	 * type information whenever a row is used.
 	 *
 	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
-	 * must have the same length otherwise serialization fails or information is lost.
+	 * must strictly adhere to the schema defined by the type info.
 	 *
 	 * <p>Example use: {@code ROW_NAMED(new String[]{"name", "number"}, Types.STRING, Types.INT)}.
 	 *
@@ -198,7 +199,7 @@ public class Types {
 	 *
 	 * <p>A tuple is a fixed-length composite type for storing multiple values in a
 	 * deterministic field order. Fields of a tuple are typed. Tuples are the most efficient composite
-	 * type; a tuple does not support null values unless its field type supports nullability.
+	 * type; a tuple does not support null-valued fields unless the type of the field supports nullability.
 	 *
 	 * @param types The types of the tuple fields, e.g., Types.STRING, Types.INT
 	 */
@@ -215,7 +216,7 @@ public class Types {
 	 *
 	 * <p>A tuple is a fixed-length composite type for storing multiple values in a
 	 * deterministic field order. Fields of a tuple are typed. Tuples are the most efficient composite
-	 * type; a tuple does not support null values unless a field type supports nullability.
+	 * type; a tuple does not support null-valued fields unless the type of the field supports nullability.
 	 *
 	 * <p>The generic types for all fields of the tuple can be defined in a hierarchy of subclasses.
 	 *
@@ -257,8 +258,8 @@ public class Types {
 	 * (and non-final) or have a public getter and a setter method that follows the Java beans naming
 	 * conventions for getters and setters.
 	 *
-	 * <p>A POJO is a fixed-length, null-aware composite type with non-deterministic field order. Every field
-	 * can be null independent of the field's type.
+	 * <p>A POJO is a fixed-length and null-aware composite type. Every field can be null independent
+	 * of the field's type.
 	 *
 	 * <p>The generic types for all fields of the POJO can be defined in a hierarchy of subclasses.
 	 *
@@ -296,12 +297,13 @@ public class Types {
 	 * we recommend to use {@link Types#POJO(Class)}.
 	 *
 	 * @param pojoClass POJO class
-	 * @param fields map of fields that map a name to type information
+	 * @param fields map of fields that map a name to type information. The map key is the name of
+	 *               the field and the value is its type.
 	 */
 	public static <T> TypeInformation<T> POJO(Class<T> pojoClass, Map<String, TypeInformation<?>> fields) {
 		final List<PojoField> pojoFields = new ArrayList<>(fields.size());
 		for (Map.Entry<String, TypeInformation<?>> field : fields.entrySet()) {
-			Field f = TypeExtractor.getDeclaredField(pojoClass, field.getKey());
+			final Field f = TypeExtractor.getDeclaredField(pojoClass, field.getKey());
 			if (f == null) {
 				throw new InvalidTypesException("Field '" + field.getKey() + "'could not be accessed.");
 			}
@@ -369,7 +371,8 @@ public class Types {
 
 	/**
 	 * Returns type information for Flink value types (classes that implement
-	 * {@link org.apache.flink.types.Value}). Built-in value types do not support null values.
+	 * {@link org.apache.flink.types.Value}). Built-in value types do not support null values (except
+	 * for {@link org.apache.flink.types.StringValue}).
 	 *
 	 * <p>Value types describe their serialization and deserialization manually. Instead of going
 	 * through a general purpose serialization framework. A value type is reasonable when general purpose
@@ -394,6 +397,9 @@ public class Types {
 	 * <p>By default, maps are untyped and treated as a generic type in Flink; therefore, it is useful
 	 * to pass type information whenever a map is used.
 	 *
+	 * <p><strong>Note:</strong> Flink does not preserve the concrete {@link Map} type. It converts a map into {@link HashMap} when
+	 * copying or deserializing.
+	 *
 	 * @param keyType type information for the map's keys
 	 * @param valueType type information for the map's values
 	 */
@@ -407,6 +413,9 @@ public class Types {
 	 *
 	 * <p>By default, lists are untyped and treated as a generic type in Flink; therefore, it is useful
 	 * to pass type information whenever a list is used.
+	 *
+	 * <p><strong>Note:</strong> Flink does not preserve the concrete {@link List} type. It converts a list into {@link ArrayList} when
+	 * copying or deserializing.
 	 *
 	 * @param elementType type information for the list's elements
 	 */

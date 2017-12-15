@@ -105,12 +105,12 @@ object Types {
     * Returns type information for [[org.apache.flink.types.Row]] with fields of the given types.
     *
     * A row is a variable-length, null-aware composite type for storing multiple values in a
-    * deterministic field order. Every field can be null independent of the field's type.
-    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * deterministic field order. Every field can be null regardless of the field's type.
+    * The type of row fields cannot be automatically inferred; therefore, it is required to provide
     * type information whenever a row is used.
     *
-    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
-    * must have the same length otherwise serialization fails or information is lost.
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all
+    * row instances must strictly adhere to the schema defined by the type info.
     *
     * This method generates type information with fields of the given types; the fields have
     * the default names (f0, f1, f2 ..).
@@ -128,11 +128,11 @@ object Types {
     *
     * A row is a variable-length, null-aware composite type for storing multiple values in a
     * deterministic field order. Every field can be null independent of the field's type.
-    * The type of row fields cannot be automatically inferred; therefore, it is required to pass
+    * The type of row fields cannot be automatically inferred; therefore, it is required to provide
     * type information whenever a row is used.
     *
-    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
-    * must have the same length otherwise serialization fails or information is lost.
+    * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all
+    * row instances must strictly adhere to the schema defined by the type info.
     *
     * Example use: `Types.ROW(Array("name", "number"), Array(Types.STRING, Types.INT))`.
     *
@@ -175,7 +175,8 @@ object Types {
   }
 
   /**
-    * Generates type information for a Java HashMap.
+    * Generates type information for a Java HashMap. Null values in keys are not supported. An
+    * entry's value can be null.
     *
     * @param keyType type of the keys of the map e.g. Types.STRING
     * @param valueType type of the values of the map e.g. Types.STRING
@@ -187,7 +188,8 @@ object Types {
   }
 
   /**
-    * Generates type information for a Multiset.
+    * Generates type information for a Multiset. A Multiset is baked by a Java HashMap and maps an
+    * arbitrary key to an integer value. Null values in keys are not supported.
     *
     * @param elementType type of the elements of the multiset e.g. Types.STRING
     */
