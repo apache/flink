@@ -346,7 +346,7 @@ public class YarnResourceManagerTest extends TestLogger {
 			final SlotReport slotReport = new SlotReport(
 				new SlotStatus(
 					new SlotID(taskManagerResourceId, 1),
-					new ResourceProfile(10, 1, 1, 1)));
+					new ResourceProfile(10, 1, 1, 1, null)));
 
 			CompletableFuture<Integer> numberRegisteredSlotsFuture = rmGateway
 				.registerTaskExecutor(
