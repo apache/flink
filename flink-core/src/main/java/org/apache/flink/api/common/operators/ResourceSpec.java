@@ -300,7 +300,7 @@ public class ResourceSpec implements Serializable {
 	/**
 	 * Base class for additional resources one can specify.
 	 */
-	protected abstract static class Resource implements Serializable {
+	public abstract static class Resource implements Serializable {
 
 		private static final long serialVersionUID = 1L;
 
