@@ -108,6 +108,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -386,7 +387,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 	@Override
 	public void restore(StateObjectCollection<KeyedStateHandle> restoreState) throws Exception {
-		System.out.println(restoreState);
 		LOG.info("Initializing RocksDB keyed state backend from snapshot.");
 
 		if (LOG.isDebugEnabled()) {
@@ -400,12 +400,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		try {
 			if (restoreState == null || restoreState.isEmpty()) {
 				createDB();
-			} else if (restoreState.iterator().next() instanceof IncrementalKeyedStateHandle) {
-				RocksDBIncrementalRestoreOperation<K> restoreOperation = new RocksDBIncrementalRestoreOperation<>(this);
-				restoreOperation.restore(restoreState);
 			} else {
-				RocksDBFullRestoreOperation<K> restoreOperation = new RocksDBFullRestoreOperation<>(this);
-				restoreOperation.doRestore(restoreState);
+				KeyedStateHandle firstStateHandle = restoreState.iterator().next();
+				if (firstStateHandle instanceof IncrementalKeyedStateHandle
+					|| firstStateHandle instanceof IncrementalLocalKeyedStateHandle) {
+					RocksDBIncrementalRestoreOperation<K> restoreOperation = new RocksDBIncrementalRestoreOperation<>(this);
+					restoreOperation.restore(restoreState);
+				} else {
+					RocksDBFullRestoreOperation<K> restoreOperation = new RocksDBFullRestoreOperation<>(this);
+					restoreOperation.doRestore(restoreState);
+				}
 			}
 		} catch (Exception ex) {
 			dispose();
@@ -670,6 +674,213 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			this.stateBackend = stateBackend;
 		}
 
+		/**
+		 * Root method that branches for different implementations of {@link KeyedStateHandle}.
+		 */
+		void restore(Collection<KeyedStateHandle> restoreStateHandles) throws Exception {
+
+			boolean hasExtraKeys = (restoreStateHandles.size() > 1 ||
+				!Objects.equals(restoreStateHandles.iterator().next().getKeyGroupRange(), stateBackend.keyGroupRange));
+
+			if (hasExtraKeys) {
+				stateBackend.createDB();
+			}
+
+			for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
+
+				if (rawStateHandle instanceof IncrementalKeyedStateHandle) {
+					restoreInstance((IncrementalKeyedStateHandle) rawStateHandle, hasExtraKeys);
+				} else if (rawStateHandle instanceof IncrementalLocalKeyedStateHandle) {
+					Preconditions.checkState(!hasExtraKeys, "Cannot recover from local state after rescaling.");
+					restoreInstance((IncrementalLocalKeyedStateHandle) rawStateHandle);
+				} else {
+					throw new IllegalStateException("Unexpected state handle type, " +
+						"expected " + IncrementalKeyedStateHandle.class +
+						", but found " + rawStateHandle.getClass());
+				}
+			}
+		}
+
+		/**
+		 * Recovery from remote incremental state.
+		 */
+		private void restoreInstance(
+			IncrementalKeyedStateHandle restoreStateHandle,
+			boolean hasExtraKeys) throws Exception {
+
+			// read state data
+			Path temporaryRestoreInstancePath = new Path(
+				stateBackend.instanceBasePath.getAbsolutePath(),
+				UUID.randomUUID().toString());
+
+			try {
+
+				transferAllStateDataToDirectory(restoreStateHandle, temporaryRestoreInstancePath);
+
+				// read meta data
+				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots =
+					readMetaData(restoreStateHandle.getMetaStateHandle());
+
+				List<ColumnFamilyDescriptor> columnFamilyDescriptors =
+					createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
+
+				if (hasExtraKeys) {
+					restoreKeyGroupsShardWithTemporaryHelperInstance(
+						temporaryRestoreInstancePath,
+						columnFamilyDescriptors,
+						stateMetaInfoSnapshots);
+				} else {
+
+					// since we transferred all remote state to a local directory, we can use the same code as for
+					// local recovery.
+					IncrementalLocalKeyedStateHandle localKeyedStateHandle = new IncrementalLocalKeyedStateHandle(
+						restoreStateHandle.getBackendIdentifier(),
+						restoreStateHandle.getCheckpointId(),
+						new DirectoryStateHandle(temporaryRestoreInstancePath),
+						restoreStateHandle.getKeyGroupRange(),
+						restoreStateHandle.getMetaStateHandle(),
+						restoreStateHandle.getSharedState().keySet());
+
+					restoreLocalStateIntoFullInstance(
+						localKeyedStateHandle,
+						columnFamilyDescriptors,
+						stateMetaInfoSnapshots);
+				}
+			} finally {
+				FileSystem restoreFileSystem = temporaryRestoreInstancePath.getFileSystem();
+				if (restoreFileSystem.exists(temporaryRestoreInstancePath)) {
+					restoreFileSystem.delete(temporaryRestoreInstancePath, true);
+				}
+			}
+		}
+
+		/**
+		 * Recovery from local incremental state.
+		 */
+		private void restoreInstance(IncrementalLocalKeyedStateHandle localKeyedStateHandle) throws Exception {
+			// read meta data
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots =
+				readMetaData(localKeyedStateHandle.getMetaDataState());
+
+			List<ColumnFamilyDescriptor> columnFamilyDescriptors =
+				createAndRegisterColumnFamilyDescriptors(stateMetaInfoSnapshots);
+
+			restoreLocalStateIntoFullInstance(
+				localKeyedStateHandle,
+				columnFamilyDescriptors,
+				stateMetaInfoSnapshots);
+		}
+
+		/**
+		 * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state meta data snapshot.
+		 */
+		private List<ColumnFamilyDescriptor> createAndRegisterColumnFamilyDescriptors(
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) {
+
+			List<ColumnFamilyDescriptor> columnFamilyDescriptors =
+				new ArrayList<>(1 + stateMetaInfoSnapshots.size());
+
+			for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
+
+				ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
+					stateMetaInfoSnapshot.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
+					stateBackend.columnOptions);
+
+				columnFamilyDescriptors.add(columnFamilyDescriptor);
+				stateBackend.restoredKvStateMetaInfos.put(stateMetaInfoSnapshot.getName(), stateMetaInfoSnapshot);
+			}
+			return columnFamilyDescriptors;
+		}
+
+		/**
+		 * This method implements the core of the restore logic that unifies how local and remote state are recovered.
+		 */
+		private void restoreLocalStateIntoFullInstance(
+			IncrementalLocalKeyedStateHandle restoreStateHandle,
+			List<ColumnFamilyDescriptor> columnFamilyDescriptors,
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) throws Exception {
+			// pick up again the old backend id, so the we can reference existing state
+			stateBackend.backendUID = restoreStateHandle.getBackendIdentifier();
+
+			LOG.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
+				stateBackend.operatorIdentifier, stateBackend.backendUID);
+
+			// create hard links in the instance directory
+			if (!stateBackend.instanceRocksDBPath.mkdirs()) {
+				throw new IOException("Could not create RocksDB data directory.");
+			}
+
+			Path restoreSourcePath = restoreStateHandle.getDirectoryStateHandle().getDirectory();
+			restoreInstanceDirectoryFromPath(restoreSourcePath);
+
+			List<ColumnFamilyHandle> columnFamilyHandles =
+				new ArrayList<>(1 + columnFamilyDescriptors.size());
+
+			stateBackend.db = stateBackend.openDB(
+				stateBackend.instanceRocksDBPath.getAbsolutePath(),
+				columnFamilyDescriptors, columnFamilyHandles);
+
+			// extract and store the default column family which is located at the last index
+			stateBackend.defaultColumnFamily = columnFamilyHandles.remove(columnFamilyHandles.size() - 1);
+
+			for (int i = 0; i < columnFamilyDescriptors.size(); ++i) {
+				RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
+
+				ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
+				RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
+					new RegisteredKeyedBackendStateMetaInfo<>(
+						stateMetaInfoSnapshot.getStateType(),
+						stateMetaInfoSnapshot.getName(),
+						stateMetaInfoSnapshot.getNamespaceSerializer(),
+						stateMetaInfoSnapshot.getStateSerializer());
+
+				stateBackend.kvStateInformation.put(
+					stateMetaInfoSnapshot.getName(),
+					new Tuple2<>(columnFamilyHandle, stateMetaInfo));
+			}
+
+			// use the restore sst files as the base for succeeding checkpoints
+			synchronized (stateBackend.materializedSstFiles) {
+				stateBackend.materializedSstFiles.put(
+					restoreStateHandle.getCheckpointId(),
+					restoreStateHandle.getSharedStateHandleIDs());
+			}
+
+			stateBackend.lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
+		}
+
+		/**
+		 * This recreates the new working directory of the recovered RocksDB instance and links/copies the contents from
+		 * a local state.
+		 */
+		private void restoreInstanceDirectoryFromPath(Path source) throws IOException {
+
+			FileSystem fileSystem = source.getFileSystem();
+
+			final FileStatus[] fileStatuses = fileSystem.listStatus(source);
+
+			if (fileStatuses == null) {
+				throw new IOException("Cannot list file statues. Directory " + source + " does not exist.");
+			}
+
+			for (FileStatus fileStatus : fileStatuses) {
+				final Path filePath = fileStatus.getPath();
+				final String fileName = filePath.getName();
+				File restoreFile = new File(source.getPath(), fileName);
+				File targetFile = new File(stateBackend.instanceRocksDBPath.getPath(), fileName);
+				if (fileName.endsWith(SST_FILE_SUFFIX)) {
+					// hardlink'ing the immutable sst-files.
+					Files.createLink(targetFile.toPath(), restoreFile.toPath());
+				} else {
+					// true copy for all other files.
+					Files.copy(restoreFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+				}
+			}
+		}
+
+		/**
+		 * Reads Flink's state meta data file from the state handle.
+		 */
 		private List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> readMetaData(
 			StreamStateHandle metaStateHandle) throws Exception {
 
@@ -706,7 +917,38 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		private void readStateData(
+		private void transferAllStateDataToDirectory(
+			IncrementalKeyedStateHandle restoreStateHandle,
+			Path dest) throws IOException {
+
+			final Map<StateHandleID, StreamStateHandle> sstFiles =
+				restoreStateHandle.getSharedState();
+			final Map<StateHandleID, StreamStateHandle> miscFiles =
+				restoreStateHandle.getPrivateState();
+
+			transferAllDataFromStateHandles(sstFiles, dest);
+			transferAllDataFromStateHandles(miscFiles, dest);
+		}
+
+		/**
+		 * Copies all the files from the given stream state handles to the given path, renaming the files w.r.t. their
+		 * {@link StateHandleID}.
+		 */
+		private void transferAllDataFromStateHandles(
+			Map<StateHandleID, StreamStateHandle> stateHandleMap,
+			Path restoreInstancePath) throws IOException {
+
+			for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
+				StateHandleID stateHandleID = entry.getKey();
+				StreamStateHandle remoteFileHandle = entry.getValue();
+				copyStateDataHandleData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
+			}
+		}
+
+		/**
+		 * Copies the file from a single state handle to the given path.
+		 */
+		private void copyStateDataHandleData(
 			Path restoreFilePath,
 			StreamStateHandle remoteFileHandle) throws IOException {
 
@@ -742,215 +984,88 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 			}
 		}
 
-		private void restoreInstance(
-			IncrementalKeyedStateHandle restoreStateHandle,
-			boolean hasExtraKeys) throws Exception {
+		/**
+		 * In case of rescaling, this method creates a temporary RocksDB instance for a key-groups shard. All contents
+		 * from the temporary instance are copied into the real restore instance and then the temporary instance is
+		 * discarded.
+		 */
+		private void restoreKeyGroupsShardWithTemporaryHelperInstance(
+			Path restoreInstancePath,
+			List<ColumnFamilyDescriptor> columnFamilyDescriptors,
+			List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots) throws Exception {
 
-			// read state data
-			Path restoreInstancePath = new Path(
-				stateBackend.instanceBasePath.getAbsolutePath(),
-				UUID.randomUUID().toString());
+			List<ColumnFamilyHandle> columnFamilyHandles =
+				new ArrayList<>(1 + columnFamilyDescriptors.size());
 
-			try {
-				final Map<StateHandleID, StreamStateHandle> sstFiles =
-					restoreStateHandle.getSharedState();
-				final Map<StateHandleID, StreamStateHandle> miscFiles =
-					restoreStateHandle.getPrivateState();
+			try (RocksDB restoreDb = stateBackend.openDB(
+				restoreInstancePath.getPath(),
+				columnFamilyDescriptors,
+				columnFamilyHandles)) {
 
-				readAllStateData(sstFiles, restoreInstancePath);
-				readAllStateData(miscFiles, restoreInstancePath);
-
-				// read meta data
-				List<RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?>> stateMetaInfoSnapshots =
-					readMetaData(restoreStateHandle.getMetaStateHandle());
-
-				List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-					new ArrayList<>(1 + stateMetaInfoSnapshots.size());
-
-				for (RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
-
-					ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(
-						stateMetaInfoSnapshot.getName().getBytes(ConfigConstants.DEFAULT_CHARSET),
-						stateBackend.columnOptions);
-
-					columnFamilyDescriptors.add(columnFamilyDescriptor);
-					stateBackend.restoredKvStateMetaInfos.put(stateMetaInfoSnapshot.getName(), stateMetaInfoSnapshot);
-				}
-
-				if (hasExtraKeys) {
-
-					List<ColumnFamilyHandle> columnFamilyHandles =
-						new ArrayList<>(1 + columnFamilyDescriptors.size());
-
-					try (RocksDB restoreDb = stateBackend.openDB(
-						restoreInstancePath.getPath(),
-						columnFamilyDescriptors,
-						columnFamilyHandles)) {
-
-						try {
-							// iterating only the requested descriptors automatically skips the default column family handle
-							for (int i = 0; i < columnFamilyDescriptors.size(); ++i) {
-								ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
-								ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyDescriptors.get(i);
-								RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
-
-								Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> registeredStateMetaInfoEntry =
-									stateBackend.kvStateInformation.get(stateMetaInfoSnapshot.getName());
-
-								if (null == registeredStateMetaInfoEntry) {
-
-									RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
-										new RegisteredKeyedBackendStateMetaInfo<>(
-											stateMetaInfoSnapshot.getStateType(),
-											stateMetaInfoSnapshot.getName(),
-											stateMetaInfoSnapshot.getNamespaceSerializer(),
-											stateMetaInfoSnapshot.getStateSerializer());
-
-									registeredStateMetaInfoEntry =
-										new Tuple2<>(
-											stateBackend.db.createColumnFamily(columnFamilyDescriptor),
-											stateMetaInfo);
-
-									stateBackend.kvStateInformation.put(
-										stateMetaInfoSnapshot.getName(),
-										registeredStateMetaInfoEntry);
-								}
-
-								ColumnFamilyHandle targetColumnFamilyHandle = registeredStateMetaInfoEntry.f0;
-
-								try (RocksIterator iterator = restoreDb.newIterator(columnFamilyHandle)) {
-
-									int startKeyGroup = stateBackend.getKeyGroupRange().getStartKeyGroup();
-									byte[] startKeyGroupPrefixBytes = new byte[stateBackend.keyGroupPrefixBytes];
-									for (int j = 0; j < stateBackend.keyGroupPrefixBytes; ++j) {
-										startKeyGroupPrefixBytes[j] = (byte) (startKeyGroup >>> ((stateBackend.keyGroupPrefixBytes - j - 1) * Byte.SIZE));
-									}
-
-									iterator.seek(startKeyGroupPrefixBytes);
-
-									while (iterator.isValid()) {
-
-										int keyGroup = 0;
-										for (int j = 0; j < stateBackend.keyGroupPrefixBytes; ++j) {
-											keyGroup = (keyGroup << Byte.SIZE) + iterator.key()[j];
-										}
-
-										if (stateBackend.keyGroupRange.contains(keyGroup)) {
-											stateBackend.db.put(targetColumnFamilyHandle,
-												iterator.key(), iterator.value());
-										}
-
-										iterator.next();
-									}
-								} // releases native iterator resources
-							}
-						} finally {
-							//release native tmp db column family resources
-							for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
-								IOUtils.closeQuietly(columnFamilyHandle);
-							}
-						}
-					} // releases native tmp db resources
-				} else {
-					// pick up again the old backend id, so the we can reference existing state
-					stateBackend.backendUID = restoreStateHandle.getBackendIdentifier();
-
-					LOG.debug("Restoring keyed backend uid in operator {} from incremental snapshot to {}.",
-						stateBackend.operatorIdentifier, stateBackend.backendUID);
-
-					// create hard links in the instance directory
-					if (!stateBackend.instanceRocksDBPath.mkdirs()) {
-						throw new IOException("Could not create RocksDB data directory.");
-					}
-
-					createFileHardLinksInRestorePath(sstFiles, restoreInstancePath);
-					createFileHardLinksInRestorePath(miscFiles, restoreInstancePath);
-
-					List<ColumnFamilyHandle> columnFamilyHandles =
-						new ArrayList<>(1 + columnFamilyDescriptors.size());
-
-					stateBackend.db = stateBackend.openDB(
-						stateBackend.instanceRocksDBPath.getAbsolutePath(),
-						columnFamilyDescriptors, columnFamilyHandles);
-
-					// extract and store the default column family which is located at the last index
-					stateBackend.defaultColumnFamily = columnFamilyHandles.remove(columnFamilyHandles.size() - 1);
-
+				try {
+					// iterating only the requested descriptors automatically skips the default column family handle
 					for (int i = 0; i < columnFamilyDescriptors.size(); ++i) {
+						ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
+						ColumnFamilyDescriptor columnFamilyDescriptor = columnFamilyDescriptors.get(i);
 						RegisteredKeyedBackendStateMetaInfo.Snapshot<?, ?> stateMetaInfoSnapshot = stateMetaInfoSnapshots.get(i);
 
-						ColumnFamilyHandle columnFamilyHandle = columnFamilyHandles.get(i);
-						RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
-							new RegisteredKeyedBackendStateMetaInfo<>(
-								stateMetaInfoSnapshot.getStateType(),
+						Tuple2<ColumnFamilyHandle, RegisteredKeyedBackendStateMetaInfo<?, ?>> registeredStateMetaInfoEntry =
+							stateBackend.kvStateInformation.get(stateMetaInfoSnapshot.getName());
+
+						if (null == registeredStateMetaInfoEntry) {
+
+							RegisteredKeyedBackendStateMetaInfo<?, ?> stateMetaInfo =
+								new RegisteredKeyedBackendStateMetaInfo<>(
+									stateMetaInfoSnapshot.getStateType(),
+									stateMetaInfoSnapshot.getName(),
+									stateMetaInfoSnapshot.getNamespaceSerializer(),
+									stateMetaInfoSnapshot.getStateSerializer());
+
+							registeredStateMetaInfoEntry =
+								new Tuple2<>(
+									stateBackend.db.createColumnFamily(columnFamilyDescriptor),
+									stateMetaInfo);
+
+							stateBackend.kvStateInformation.put(
 								stateMetaInfoSnapshot.getName(),
-								stateMetaInfoSnapshot.getNamespaceSerializer(),
-								stateMetaInfoSnapshot.getStateSerializer());
+								registeredStateMetaInfoEntry);
+						}
 
-						stateBackend.kvStateInformation.put(
-							stateMetaInfoSnapshot.getName(),
-							new Tuple2<>(columnFamilyHandle, stateMetaInfo));
+						ColumnFamilyHandle targetColumnFamilyHandle = registeredStateMetaInfoEntry.f0;
+
+						try (RocksIterator iterator = restoreDb.newIterator(columnFamilyHandle)) {
+
+							int startKeyGroup = stateBackend.getKeyGroupRange().getStartKeyGroup();
+							byte[] startKeyGroupPrefixBytes = new byte[stateBackend.keyGroupPrefixBytes];
+							for (int j = 0; j < stateBackend.keyGroupPrefixBytes; ++j) {
+								startKeyGroupPrefixBytes[j] = (byte) (startKeyGroup >>> ((stateBackend.keyGroupPrefixBytes - j - 1) * Byte.SIZE));
+							}
+
+							iterator.seek(startKeyGroupPrefixBytes);
+
+							while (iterator.isValid()) {
+
+								int keyGroup = 0;
+								for (int j = 0; j < stateBackend.keyGroupPrefixBytes; ++j) {
+									keyGroup = (keyGroup << Byte.SIZE) + iterator.key()[j];
+								}
+
+								if (stateBackend.keyGroupRange.contains(keyGroup)) {
+									stateBackend.db.put(targetColumnFamilyHandle,
+										iterator.key(), iterator.value());
+								}
+
+								iterator.next();
+							}
+						} // releases native iterator resources
 					}
-
-					// use the restore sst files as the base for succeeding checkpoints
-					synchronized (stateBackend.materializedSstFiles) {
-						stateBackend.materializedSstFiles.put(restoreStateHandle.getCheckpointId(), sstFiles.keySet());
+				} finally {
+					//release native tmp db column family resources
+					for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+						IOUtils.closeQuietly(columnFamilyHandle);
 					}
-
-					stateBackend.lastCompletedCheckpointId = restoreStateHandle.getCheckpointId();
 				}
-			} finally {
-				FileSystem restoreFileSystem = restoreInstancePath.getFileSystem();
-				if (restoreFileSystem.exists(restoreInstancePath)) {
-					restoreFileSystem.delete(restoreInstancePath, true);
-				}
-			}
-		}
-
-		private void readAllStateData(
-			Map<StateHandleID, StreamStateHandle> stateHandleMap,
-			Path restoreInstancePath) throws IOException {
-
-			for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
-				StateHandleID stateHandleID = entry.getKey();
-				StreamStateHandle remoteFileHandle = entry.getValue();
-				readStateData(new Path(restoreInstancePath, stateHandleID.toString()), remoteFileHandle);
-			}
-		}
-
-		private void createFileHardLinksInRestorePath(
-			Map<StateHandleID, StreamStateHandle> stateHandleMap,
-			Path restoreInstancePath) throws IOException {
-
-			for (StateHandleID stateHandleID : stateHandleMap.keySet()) {
-				String newSstFileName = stateHandleID.toString();
-				File restoreFile = new File(restoreInstancePath.getPath(), newSstFileName);
-				File targetFile = new File(stateBackend.instanceRocksDBPath, newSstFileName);
-				Files.createLink(targetFile.toPath(), restoreFile.toPath());
-			}
-		}
-
-		void restore(Collection<KeyedStateHandle> restoreStateHandles) throws Exception {
-
-			boolean hasExtraKeys = (restoreStateHandles.size() > 1 ||
-				!Objects.equals(restoreStateHandles.iterator().next().getKeyGroupRange(), stateBackend.keyGroupRange));
-
-			if (hasExtraKeys) {
-				stateBackend.createDB();
-			}
-
-			for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
-
-				if (!(rawStateHandle instanceof IncrementalKeyedStateHandle)) {
-					throw new IllegalStateException("Unexpected state handle type, " +
-						"expected " + IncrementalKeyedStateHandle.class +
-						", but found " + rawStateHandle.getClass());
-				}
-
-				IncrementalKeyedStateHandle keyedStateHandle = (IncrementalKeyedStateHandle) rawStateHandle;
-
-				restoreInstance(keyedStateHandle, hasExtraKeys);
-			}
+			} // releases native tmp db resources
 		}
 	}
 
@@ -2173,7 +2288,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 						checkpointId,
 						directoryStateHandle,
 						stateBackend.keyGroupRange,
-						taskLocalSnapshotMetaDataStateHandle) :
+						taskLocalSnapshotMetaDataStateHandle,
+						sstFiles.keySet()) :
 					null;
 
 			return new SnapshotResult<>(incrementalKeyedStateHandle, directoryKeyedStateHandle);

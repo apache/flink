@@ -23,6 +23,7 @@ import org.apache.flink.util.ExceptionUtils;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,11 +35,9 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle 
 
 	/** Id of the checkpoint that created this state handle. */
 	@Nonnegative
-	private final long checkpointID;
+	private final long checkpointId;
 
-	/**
-	 * UUID to identify the backend which created this state handle.
-	 */
+	/** UUID to identify the backend which created this state handle. */
 	@Nonnull
 	private final UUID backendIdentifier;
 
@@ -46,17 +45,23 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle 
 	@Nonnull
 	private final StreamStateHandle metaDataState;
 
+	/** Set with the ids of all shared state handles created by the checkpoint. */
+	@Nonnull
+	private final Set<StateHandleID> sharedStateHandleIDs;
+
 	public IncrementalLocalKeyedStateHandle(
 		@Nonnull UUID backendIdentifier,
-		@Nonnegative long checkpointID,
+		@Nonnegative long checkpointId,
 		@Nonnull DirectoryStateHandle directoryStateHandle,
 		@Nonnull KeyGroupRange keyGroupRange,
-		@Nonnull StreamStateHandle metaDataState) {
+		@Nonnull StreamStateHandle metaDataState,
+		@Nonnull Set<StateHandleID> sharedStateHandleIDs) {
 
 		super(directoryStateHandle, keyGroupRange);
 		this.backendIdentifier = backendIdentifier;
-		this.checkpointID = checkpointID;
+		this.checkpointId = checkpointId;
 		this.metaDataState = metaDataState;
+		this.sharedStateHandleIDs = sharedStateHandleIDs;
 	}
 
 	@Nonnull
@@ -64,13 +69,18 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle 
 		return metaDataState;
 	}
 
-	public long getCheckpointID() {
-		return checkpointID;
+	public long getCheckpointId() {
+		return checkpointId;
 	}
 
 	@Nonnull
 	public UUID getBackendIdentifier() {
 		return backendIdentifier;
+	}
+
+	@Nonnull
+	public Set<StateHandleID> getSharedStateHandleIDs() {
+		return sharedStateHandleIDs;
 	}
 
 	@Override
