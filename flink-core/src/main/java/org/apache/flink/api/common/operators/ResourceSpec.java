@@ -54,7 +54,7 @@ public class ResourceSpec implements Serializable {
 
 	public static final ResourceSpec DEFAULT = new ResourceSpec(0, 0, 0, 0, 0);
 
-	private static final String GPU_NAME = "GPU";
+	public static final String GPU_NAME = "GPU";
 
 	/** How many cpu cores are needed, use double so we can specify cpu like 0.1. */
 	private final double cpuCores;
@@ -349,6 +349,18 @@ public class ResourceSpec implements Serializable {
 
 			Resource resource = create(value, type);
 			return resource;
+		}
+
+		public String getName() {
+			return this.name;
+		}
+
+		public ResourceAggregateType getAggregateType() {
+			return this.type;
+		}
+
+		public double getValue() {
+			return this.value;
 		}
 
 		@Override
