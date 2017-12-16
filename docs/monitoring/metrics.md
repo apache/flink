@@ -528,8 +528,6 @@ This method affects what `MetricGroup#getMetricIdentifier`, `MetricGroup#getScop
 
 **Important:** User variables cannot be used in scope formats.
 
-{% highlight java %}
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
