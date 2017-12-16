@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.datastream;
+package org.apache.flink.streaming.experimental;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -28,8 +29,12 @@ import java.net.InetAddress;
 import java.net.Socket;
 
 /**
- * A specialized data sink to be used by DataStreamUtils.collect.
+ * A specialized data sink to be used by DataStreamUtils.collect().
+ *
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
+ * for more information.
  */
+@PublicEvolving
 class CollectSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;

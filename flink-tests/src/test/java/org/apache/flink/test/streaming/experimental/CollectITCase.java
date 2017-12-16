@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util;
+package org.apache.flink.test.streaming.experimental;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.experimental.DataStreamUtils;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.streaming.util.datastream.DataStreamUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -33,7 +33,10 @@ import java.util.Iterator;
 import static org.junit.Assert.assertEquals;
 
 /**
- * This test verifies the behavior of DataStreamUtils.collect.
+ * This test verifies the behavior of DataStreamUtils.collect().
+ *
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
+ * for more information.
  */
 public class CollectITCase extends TestLogger {
 

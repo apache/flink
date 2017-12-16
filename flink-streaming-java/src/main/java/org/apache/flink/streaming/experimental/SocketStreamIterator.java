@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.datastream;
+package org.apache.flink.streaming.experimental;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 
@@ -35,8 +36,12 @@ import java.util.NoSuchElementException;
  * or {@link #hasNext()}, the iterator waits for a socket to connect, and starts receiving,
  * deserializing, and returning the data from that socket.
  *
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
+ * for more information.
+ *
  * @param <T> The type of elements returned from the iterator.
  */
+@PublicEvolving
 class SocketStreamIterator<T> implements Iterator<T> {
 
 	/** Server socket to listen at. */

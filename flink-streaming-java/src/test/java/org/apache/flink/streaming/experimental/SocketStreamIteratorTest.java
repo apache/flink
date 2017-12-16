@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.util.datastream;
+package org.apache.flink.streaming.experimental;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -34,6 +34,9 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the SocketStreamIterator.
+ *
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
+ * for more information.
  */
 public class SocketStreamIteratorTest {
 
