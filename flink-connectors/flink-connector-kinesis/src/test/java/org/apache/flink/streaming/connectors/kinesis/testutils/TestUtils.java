@@ -26,7 +26,7 @@ import java.util.Properties;
  */
 public class TestUtils {
 	/**
-	 * Get standard Kinesis-related properties.
+	 * Get standard Kinesis-related config properties.
 	 */
 	public static Properties getStandardProperties() {
 		Properties config = new Properties();
