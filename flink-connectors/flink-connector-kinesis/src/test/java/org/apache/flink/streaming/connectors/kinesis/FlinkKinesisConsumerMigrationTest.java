@@ -22,12 +22,12 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
@@ -213,12 +213,7 @@ public class FlinkKinesisConsumerMigrationTest {
 
 		private KinesisDataFetcher<T> mockFetcher;
 
-		private static Properties dummyConfig = new Properties();
-		static {
-			dummyConfig.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
-			dummyConfig.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-			dummyConfig.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
-		}
+		private static Properties dummyConfig = TestUtils.getStandardProperties();
 
 		DummyFlinkKinesisConsumer(KinesisDataFetcher<T> mockFetcher) {
 			super("dummy-topic", mock(KinesisDeserializationSchema.class), dummyConfig);
