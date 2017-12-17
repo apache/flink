@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.manualtests;
 
-import com.amazonaws.services.kinesis.AmazonKinesis;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -28,6 +27,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValida
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisEventsGeneratorProducerThread;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

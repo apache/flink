@@ -17,9 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import com.amazonaws.client.builder.AwsClientBuilder;
-import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
@@ -33,7 +30,10 @@ import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 
 import java.util.Properties;
 
@@ -59,15 +59,13 @@ public class AWSUtil {
 		AmazonKinesisClientBuilder builder = AmazonKinesisClientBuilder.standard()
 				.withCredentials(AWSUtil.getCredentialsProvider(configProps))
 				.withClientConfiguration(awsClientConfig)
-				.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)))
-//				;
+				.withRegion(Regions.fromName(configProps.getProperty(AWSConfigConstants.AWS_REGION)));
 
-//			if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
-//				builder
-				.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
+		if (configProps.containsKey(AWSConfigConstants.AWS_ENDPOINT)) {
+			builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(
 													configProps.getProperty(AWSConfigConstants.AWS_ENDPOINT),
 													configProps.getProperty(AWSConfigConstants.AWS_REGION)));
-//		}
+		}
 		return builder.build();
 	}
 
