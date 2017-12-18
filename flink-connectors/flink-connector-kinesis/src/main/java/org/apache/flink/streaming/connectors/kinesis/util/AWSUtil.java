@@ -41,6 +41,7 @@ import java.util.Properties;
  * Some utilities specific to Amazon Web Service.
  */
 public class AWSUtil {
+	/** Used for formatting Flink-specific user agent string when creating Kinesis client. */
 	private static final String USER_AGENT_FORMAT = "Apache Flink %s (%s) Kinesis Connector";
 
 	/**
