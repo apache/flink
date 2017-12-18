@@ -113,6 +113,11 @@ public class YarnTaskManagerRunner {
 		final ResourceID resourceId = new ResourceID(containerID);
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
+		// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
+		if (localKeytabPath != null && remoteKeytabPrincipal != null) {
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, localKeytabPath);
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+		}
 		try {
 
 			SecurityConfiguration sc;
@@ -125,12 +130,6 @@ public class YarnTaskManagerRunner {
 				org.apache.hadoop.conf.Configuration hadoopConfiguration = new org.apache.hadoop.conf.Configuration();
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
-
-				// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
-				if (localKeytabPath != null && remoteKeytabPrincipal != null) {
-					configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, localKeytabPath);
-					configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
-				}
 
 				sc = new SecurityConfiguration(configuration,
 					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
