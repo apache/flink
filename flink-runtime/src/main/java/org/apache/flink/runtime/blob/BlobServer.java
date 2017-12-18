@@ -139,8 +139,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 		this.readWriteLock = new ReentrantReadWriteLock();
 
 		// configure and create the storage directory
-		String storageDirectory = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
-		this.storageDir = BlobUtils.initLocalStorageDirectory(storageDirectory);
+		this.storageDir = BlobUtils.initLocalStorageDirectory(config);
 		LOG.info("Created BLOB server storage directory {}", storageDir);
 
 		// configure the maximum number of concurrent connections

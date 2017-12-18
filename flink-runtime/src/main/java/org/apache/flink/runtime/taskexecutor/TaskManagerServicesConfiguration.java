@@ -184,9 +184,7 @@ public class TaskManagerServicesConfiguration {
 			slots = 1;
 		}
 
-		final String[] tmpDirs = configuration.getString(
-			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
+		final String[] tmpDirs = parseTempDirectories(configuration);
 
 		final NetworkEnvironmentConfiguration networkConfig = parseNetworkEnvironmentConfiguration(
 			configuration,
@@ -434,6 +432,19 @@ public class TaskManagerServicesConfiguration {
 				numProxyServerQueryThreads,
 				numStateServerNetworkThreads,
 				numStateServerQueryThreads);
+	}
+
+	/**
+	 * Extracts the task manager directories for temporary files as defined by
+	 * {@link ConfigConstants#TASK_MANAGER_TMP_DIR_KEY}.
+	 *
+	 * @param configuration configuration object
+	 * @return array of configured directories (in order)
+	 */
+	public static String[] parseTempDirectories(Configuration configuration) {
+		return configuration.getString(
+			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
+			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
 	}
 
 	/**

@@ -36,8 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import scala.concurrent.duration.Duration;
 
-import java.io.File;
-
 /**
  * Configuration object for {@link TaskExecutor}.
  */
@@ -149,9 +147,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			numberSlots = 1;
 		}
 
-		final String[] tmpDirPaths = configuration.getString(
-			ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH).split(",|" + File.pathSeparator);
+		final String[] tmpDirPaths = TaskManagerServicesConfiguration.parseTempDirectories(configuration);
 
 		final Time timeout;
 

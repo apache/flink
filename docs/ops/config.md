@@ -203,6 +203,8 @@ will be used under the directory specified by jobmanager.web.tmpdir.
 - `high-availability.zookeeper.storageDir`: Required for HA. Directory for storing JobManager metadata; this is persisted in the state backend and only a pointer to this state is stored in ZooKeeper. Exactly like the checkpoint directory it must be accessible from the JobManager and a local filesystem should only be used for local deployments. Previously this key was named `recovery.zookeeper.storageDir`.
 
 - `blob.storage.directory`: Directory for storing blobs (such as user JARs) on the TaskManagers.
+If not set or empty, Flink will fall back to `taskmanager.tmp.dirs` and select one temp directory
+at random.
 
 - `blob.service.cleanup.interval`: Cleanup interval (in seconds) of transient blobs at server and caches as well as permanent blobs at the caches (DEFAULT: 1 hour).
 Whenever a job is not referenced at the cache anymore, we set a TTL for its permanent blob files and
