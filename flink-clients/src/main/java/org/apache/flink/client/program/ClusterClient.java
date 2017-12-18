@@ -527,7 +527,7 @@ public abstract class ClusterClient {
 	}
 
 	/**
-	 * Reattaches to a running from from the supplied job id.
+	 * Reattaches to a running from the supplied job id.
 	 * @param jobID The job id of the job to attach to
 	 * @return The JobExecutionResult for the jobID
 	 * @throws JobExecutionException if an error occurs during monitoring the job execution
