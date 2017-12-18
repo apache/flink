@@ -53,7 +53,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 			List<String> fakeStreams,
 			Properties fakeConfiguration,
 			int fakeTotalCountOfSubtasks,
-			int fakeTndexOfThisSubtask,
+			int fakeIndexOfThisSubtask,
 			AtomicReference<Throwable> thrownErrorUnderTest,
 			LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest,
 			HashMap<String, String> subscribedStreamsToLastDiscoveredShardIdsStateUnderTest,
@@ -61,7 +61,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 		super(fakeStreams,
 			getMockedSourceContext(),
 			fakeCheckpointLock,
-			getMockedRuntimeContext(fakeTotalCountOfSubtasks, fakeTndexOfThisSubtask),
+			getMockedRuntimeContext(fakeTotalCountOfSubtasks, fakeIndexOfThisSubtask),
 			fakeConfiguration,
 			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 			thrownErrorUnderTest,
@@ -105,7 +105,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 		return Mockito.mock(SourceFunction.SourceContext.class);
 	}
 
-	private static RuntimeContext getMockedRuntimeContext(final int fakeTotalCountOfSubtasks, final int fakeTndexOfThisSubtask) {
+	private static RuntimeContext getMockedRuntimeContext(final int fakeTotalCountOfSubtasks, final int fakeIndexOfThisSubtask) {
 		RuntimeContext mockedRuntimeContext = Mockito.mock(RuntimeContext.class);
 
 		Mockito.when(mockedRuntimeContext.getNumberOfParallelSubtasks()).thenAnswer(new Answer<Integer>() {
@@ -118,7 +118,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 		Mockito.when(mockedRuntimeContext.getIndexOfThisSubtask()).thenAnswer(new Answer<Integer>() {
 			@Override
 			public Integer answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return fakeTndexOfThisSubtask;
+				return fakeIndexOfThisSubtask;
 			}
 		});
 
@@ -132,7 +132,7 @@ public class TestableKinesisDataFetcher extends KinesisDataFetcher<String> {
 		Mockito.when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenAnswer(new Answer<String>() {
 			@Override
 			public String answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return "Fake Task (" + fakeTndexOfThisSubtask + "/" + fakeTotalCountOfSubtasks + ")";
+				return "Fake Task (" + fakeIndexOfThisSubtask + "/" + fakeTotalCountOfSubtasks + ")";
 			}
 		});
 
