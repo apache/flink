@@ -15,8 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.blob;
 
+/**
+ * Defines constants for the protocol between the BLOB {@link BlobServer server} and the
+ * {@link AbstractBlobCache caches}.
+ */
 public class BlobServerProtocol {
 
 	// --------------------------------------------------------------------------------------------

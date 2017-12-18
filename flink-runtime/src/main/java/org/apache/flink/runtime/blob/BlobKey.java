@@ -199,14 +199,14 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	/**
 	 * Adds the BLOB key to the given {@link MessageDigest}.
-	 * 
+	 *
 	 * @param md
 	 *        the message digest to add the BLOB key to
 	 */
 	public void addToMessageDigest(MessageDigest md) {
 		md.update(this.key);
 	}
-	
+
 	@Override
 	public boolean equals(final Object obj) {
 
@@ -252,7 +252,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 		final byte[] aarr = this.key;
 		final byte[] barr = o.key;
 		final int len = Math.min(aarr.length, barr.length);
-	
+
 		for (int i = 0; i < len; ++i) {
 			final int a = (aarr[i] & 0xff);
 			final int b = (barr[i] & 0xff);
@@ -274,12 +274,12 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 			return aarr.length - barr.length;
 		}
 	}
-	
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Auxiliary method to read a BLOB key from an input stream.
-	 * 
+	 *
 	 * @param inputStream
 	 *        the input stream to read the BLOB key from
 	 * @return the read BLOB key
@@ -331,7 +331,7 @@ abstract class BlobKey implements Serializable, Comparable<BlobKey> {
 
 	/**
 	 * Auxiliary method to write this BLOB key to an output stream.
-	 * 
+	 *
 	 * @param outputStream
 	 *        the output stream to write the BLOB key to
 	 * @throws IOException

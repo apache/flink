@@ -46,10 +46,10 @@ public class FileSystemBlobStore implements BlobStoreService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemBlobStore.class);
 
-	/** The file system in which blobs are stored */
+	/** The file system in which blobs are stored. */
 	private final FileSystem fileSystem;
-	
-	/** The base path of the blob store */
+
+	/** The base path of the blob store. */
 	private final String basePath;
 
 	public FileSystemBlobStore(FileSystem fileSystem, String storagePath) throws IOException {
@@ -148,7 +148,7 @@ public class FileSystemBlobStore implements BlobStoreService {
 	private boolean delete(String blobPath) {
 		try {
 			LOG.debug("Deleting {}.", blobPath);
-			
+
 			Path path = new Path(blobPath);
 
 			boolean result = fileSystem.delete(path, true);
