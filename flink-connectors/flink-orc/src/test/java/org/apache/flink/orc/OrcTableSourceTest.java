@@ -108,7 +108,7 @@ public class OrcTableSourceTest {
 		assertTrue(returnType instanceof RowTypeInfo);
 		RowTypeInfo rowType = (RowTypeInfo) returnType;
 
-		RowTypeInfo expected = Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes());
+		TypeInformation<Row> expected = Types.ROW_NAMED(getNestedFieldNames(), getNestedFieldTypes());
 		assertEquals(expected, rowType);
 	}
 
