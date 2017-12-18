@@ -62,7 +62,7 @@ public class BlobClientTest extends TestLogger {
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
 
 	/** The instance of the (non-ssl) BLOB server used during the tests. */
-	static BlobServer BLOB_SERVER;
+	static BlobServer blobServer;
 
 	/** The blob service (non-ssl) client configuration. */
 	static Configuration clientConfig;
@@ -79,8 +79,8 @@ public class BlobClientTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		BLOB_SERVER = new BlobServer(config, new VoidBlobStore());
-		BLOB_SERVER.start();
+		blobServer = new BlobServer(config, new VoidBlobStore());
+		blobServer.start();
 
 		clientConfig = new Configuration();
 	}
@@ -90,8 +90,8 @@ public class BlobClientTest extends TestLogger {
 	 */
 	@AfterClass
 	public static void stopServer() throws IOException {
-		if (BLOB_SERVER != null) {
-			BLOB_SERVER.close();
+		if (blobServer != null) {
+			blobServer.close();
 		}
 	}
 
@@ -319,7 +319,7 @@ public class BlobClientTest extends TestLogger {
 	}
 
 	protected BlobServer getBlobServer() {
-		return BLOB_SERVER;
+		return blobServer;
 	}
 
 	@Test
