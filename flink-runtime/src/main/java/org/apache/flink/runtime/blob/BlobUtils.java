@@ -19,12 +19,15 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BlobServerOptions;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
@@ -42,6 +45,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -71,6 +75,8 @@ public class BlobUtils {
 	 * The prefix of all job-unrelated directories created by the BLOB server.
 	 */
 	static final String NO_JOB_DIR_PREFIX = "no_job";
+
+	private static final Random RANDOM = new Random();
 
 	/**
 	 * Creates a BlobStore based on the parameters set in the configuration.
@@ -127,21 +133,29 @@ public class BlobUtils {
 	}
 
 	/**
-	 * Creates a local storage directory for a blob service under the given parent directory.
+	 * Creates a local storage directory for a blob service under the configuration parameter given
+	 * by {@link BlobServerOptions#STORAGE_DIRECTORY}. If this is <tt>null</tt> or empty, we will
+	 * fall back to the TaskManager temp directories (given by
+	 * {@link ConfigConstants#TASK_MANAGER_TMP_DIR_KEY}; which in turn falls back to
+	 * {@link ConfigConstants#DEFAULT_TASK_MANAGER_TMP_PATH} currently set to
+	 * <tt>java.io.tmpdir</tt>) and choose one among them at random.
 	 *
-	 * @param basePath
-	 * 		base path, i.e. parent directory, of the storage directory to use (if <tt>null</tt> or
-	 * 		empty, the path in <tt>java.io.tmpdir</tt> will be used)
+	 * @param config
+	 * 		Flink configuration
 	 *
 	 * @return a new local storage directory
 	 *
 	 * @throws IOException
 	 * 		thrown if the local file storage cannot be created or is not usable
 	 */
-	static File initLocalStorageDirectory(String basePath) throws IOException {
+	static File initLocalStorageDirectory(Configuration config) throws IOException {
+
+		String basePath = config.getString(BlobServerOptions.STORAGE_DIRECTORY);
+
 		File baseDir;
 		if (StringUtils.isNullOrWhitespaceOnly(basePath)) {
-			baseDir = new File(System.getProperty("java.io.tmpdir"));
+			final String[] tmpDirPaths = TaskManagerServicesConfiguration.parseTempDirectories(config);
+			baseDir = new File(tmpDirPaths[RANDOM.nextInt(tmpDirPaths.length)]);
 		}
 		else {
 			baseDir = new File(basePath);

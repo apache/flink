@@ -207,7 +207,8 @@ public final class ConfigConstants {
 	public static final String TASK_MANAGER_DATA_SSL_ENABLED = "taskmanager.data.ssl.enabled";
 
 	/**
-	 * The config parameter defining the directories for temporary files.
+	 * The config parameter defining the directories for temporary files, separated by
+	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
 	 */
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
