@@ -52,6 +52,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.JobManagerMessages;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsErroneous;
 import org.apache.flink.runtime.messages.accumulators.AccumulatorResultsFound;
@@ -62,6 +63,7 @@ import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
@@ -689,6 +691,39 @@ public abstract class ClusterClient {
 					new IllegalStateException("Unknown JobManager response of type " + responseMessage.getClass()));
 			}
 		});
+	}
+
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws Exception {
+		final ActorGateway jobManager = getJobManagerGateway();
+
+		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
+		CompletableFuture<Object> responseFuture = FutureUtils.toJava(
+			jobManager.ask(
+				msg,
+				FutureUtils.toFiniteDuration(timeout)));
+
+		return responseFuture.thenApply(
+			(Object response) -> {
+				if (response instanceof JobManagerMessages.DisposeSavepointSuccess$) {
+					return Acknowledge.get();
+				} else if (response instanceof JobManagerMessages.DisposeSavepointFailure) {
+					JobManagerMessages.DisposeSavepointFailure failureResponse = (JobManagerMessages.DisposeSavepointFailure) response;
+
+					if (failureResponse.cause() instanceof ClassNotFoundException) {
+						throw new CompletionException(
+							new ClassNotFoundException("Savepoint disposal failed, because of a " +
+								"missing class. This is most likely caused by a custom state " +
+								"instance, which cannot be disposed without the user code class " +
+								"loader. Please provide the program jar with which you have created " +
+								"the savepoint via -j <JAR> for disposal.",
+								failureResponse.cause().getCause()));
+					} else {
+						throw new CompletionException(failureResponse.cause());
+					}
+				} else {
+					throw new CompletionException(new FlinkRuntimeException("Unknown response type " + response.getClass().getSimpleName() + '.'));
+				}
+			});
 	}
 
 	/**
