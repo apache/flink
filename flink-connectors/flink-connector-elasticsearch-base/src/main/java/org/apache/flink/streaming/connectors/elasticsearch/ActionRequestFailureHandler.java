@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.elasticsearch.action.ActionRequest;
 
 import java.io.Serializable;
@@ -56,6 +58,7 @@ import java.io.Serializable;
  * could not be retrieved through the older version Java client APIs (thus, the types will be general {@link Exception}s
  * and only differ in the failure message). In this case, it is recommended to match on the provided REST status code.
  */
+@PublicEvolving
 public interface ActionRequestFailureHandler extends Serializable {
 
 	/**

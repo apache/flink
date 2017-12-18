@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.util;
 
+import org.apache.flink.annotation.Internal;
+
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 
@@ -28,6 +30,7 @@ import java.util.List;
 /**
  * Suite of utility methods for Elasticsearch.
  */
+@Internal
 public class ElasticsearchUtils {
 
 	/**
