@@ -39,6 +39,11 @@ import static org.powermock.api.mockito.PowerMockito.when;
 public class MockedCliFrontend extends CliFrontend {
 	public final ClusterClient client;
 
+	public MockedCliFrontend(ClusterClient clusterClient) throws Exception {
+		super(CliFrontendTestUtils.getConfigDir());
+		this.client = clusterClient;
+	}
+
 	protected MockedCliFrontend() throws Exception {
 		super(CliFrontendTestUtils.getConfigDir());
 		this.client = mock(ClusterClient.class);
