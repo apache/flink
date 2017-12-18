@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -80,6 +81,10 @@ public class DuplicatingCheckpointOutputStreamTest {
 		secondaryStateHandle.discardState();
 	}
 
+	/**
+	 * This is the first of a set of tests that check that exceptions from the secondary stream do not impact that we
+	 * can create a result for the first stream.
+	 */
 	@Test
 	public void testSecondaryWriteFail() throws Exception {
 		DuplicatingCheckpointOutputStream duplicatingStream = createDuplicatingStreamWithFailingSecondary();
@@ -115,8 +120,45 @@ public class DuplicatingCheckpointOutputStreamTest {
 	}
 
 	/**
+	 * This is the first of a set of tests that check that exceptions from the primary stream are immediately reported.
+	 */
+	@Test
+	public void testPrimaryWriteFail() throws Exception {
+		DuplicatingCheckpointOutputStream duplicatingStream = createDuplicatingStreamWithFailingPrimary();
+		testFailingPrimaryStream(duplicatingStream, () -> {
+			for (int i = 0; i < 128; i++) {
+				duplicatingStream.write(42);
+			}
+		});
+	}
+
+	@Test
+	public void testFailingPrimaryWriteArrayFail() throws Exception {
+		DuplicatingCheckpointOutputStream duplicatingStream = createDuplicatingStreamWithFailingPrimary();
+		testFailingPrimaryStream(duplicatingStream, () -> duplicatingStream.write(new byte[512]));
+	}
+
+	@Test
+	public void testFailingPrimaryWriteArrayOffsFail() throws Exception {
+		DuplicatingCheckpointOutputStream duplicatingStream = createDuplicatingStreamWithFailingPrimary();
+		testFailingPrimaryStream(duplicatingStream, () -> duplicatingStream.write(new byte[512], 20, 130));
+	}
+
+	@Test
+	public void testFailingPrimaryFlush() throws Exception {
+		DuplicatingCheckpointOutputStream duplicatingStream = createDuplicatingStreamWithFailingPrimary();
+		testFailingPrimaryStream(duplicatingStream, duplicatingStream::flush);
+	}
+
+	@Test
+	public void testFailingPrimarySync() throws Exception {
+		DuplicatingCheckpointOutputStream duplicatingStream = createDuplicatingStreamWithFailingPrimary();
+		testFailingPrimaryStream(duplicatingStream, duplicatingStream::sync);
+	}
+
+	/**
 	 * Tests that an exception from interacting with the secondary stream does not effect duplicating to the primary
-	 * stream, but is reflected lated when we want the secondary state handle.
+	 * stream, but is reflected later when we want the secondary state handle.
 	 */
 	private void testFailingSecondaryStream(
 		DuplicatingCheckpointOutputStream duplicatingStream,
@@ -143,6 +185,21 @@ public class DuplicatingCheckpointOutputStreamTest {
 			Assert.fail();
 		} catch (IOException ioEx) {
 			Assert.assertEquals(ioEx.getCause(), duplicatingStream.getSecondaryStreamException());
+		}
+	}
+
+	/**
+	 * Test that a failing primary stream brings up an exception.
+	 */
+	private void testFailingPrimaryStream(
+		DuplicatingCheckpointOutputStream duplicatingStream,
+		StreamTestMethod testMethod) throws Exception {
+		try {
+			testMethod.call();
+			Assert.fail();
+		} catch (IOException ignore) {
+		} finally {
+			IOUtils.closeQuietly(duplicatingStream);
 		}
 	}
 
@@ -191,6 +248,13 @@ public class DuplicatingCheckpointOutputStreamTest {
 		TestMemoryCheckpointOutputStream primaryStream = new TestMemoryCheckpointOutputStream(streamCapacity);
 		FailingCheckpointOutStream failSecondaryStream = new FailingCheckpointOutStream();
 		return new DuplicatingCheckpointOutputStream(primaryStream, failSecondaryStream, 64);
+	}
+
+	private DuplicatingCheckpointOutputStream createDuplicatingStreamWithFailingPrimary() throws IOException {
+		int streamCapacity = 1024 * 1024;
+		FailingCheckpointOutStream failPrimaryStream = new FailingCheckpointOutStream();
+		TestMemoryCheckpointOutputStream secondary = new TestMemoryCheckpointOutputStream(streamCapacity);
+		return new DuplicatingCheckpointOutputStream(failPrimaryStream, secondary, 64);
 	}
 
 	/**

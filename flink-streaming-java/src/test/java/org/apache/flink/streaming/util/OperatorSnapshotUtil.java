@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV1Serializer;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 
 import java.io.DataInputStream;

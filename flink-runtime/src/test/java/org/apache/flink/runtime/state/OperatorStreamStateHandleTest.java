@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class OperatorStateHandleTest {
+public class OperatorStreamStateHandleTest {
 
 	@Test
 	public void testFixedEnumOrder() {

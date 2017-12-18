@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.filesystem.FixFileFsStateOutputStream;
+import org.apache.flink.runtime.state.filesystem.FileBasedStateOutputStream;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -138,12 +138,12 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
 		public CheckpointStreamWithResultProvider create(
 			@Nonnegative long checkpointId,
-			@Nonnegative long timestamp,
+			@Nonnull CheckpointedStateScope checkpointedStateScope,
 			@Nonnull CheckpointStreamFactory primaryStreamFactory,
-			@Nullable LocalRecoveryDirectoryProvider secondaryStreamDirProvider) throws Exception {
+			@Nullable LocalRecoveryDirectoryProvider secondaryStreamDirProvider) throws IOException {
 
 			CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
-				primaryStreamFactory.createCheckpointStateOutputStream(checkpointId, timestamp);
+				primaryStreamFactory.createCheckpointStateOutputStream(checkpointedStateScope);
 
 			CheckpointStreamFactory.CheckpointStateOutputStream secondaryOut;
 
@@ -153,7 +153,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 						secondaryStreamDirProvider.subtaskSpecificCheckpointDirectory(checkpointId),
 						String.valueOf(UUID.randomUUID()));
 					Path outPath = new Path(outFile.toURI());
-					secondaryOut = new FixFileFsStateOutputStream(outPath.getFileSystem(), outPath);
+					secondaryOut = new FileBasedStateOutputStream(outPath.getFileSystem(), outPath);
 					final DuplicatingCheckpointOutputStream effectiveOutStream =
 						new DuplicatingCheckpointOutputStream(primaryOut, secondaryOut);
 

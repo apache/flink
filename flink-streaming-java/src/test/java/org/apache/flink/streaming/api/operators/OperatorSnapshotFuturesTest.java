@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.util.TestLogger;
 
@@ -58,13 +59,13 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
 			new SnapshotResult<>(keyedRawStateHandle, null);
 		when(keyedStateRawFuture.get()).thenReturn(keyedStateRawResult);
 
-		OperatorStateHandle operatorManagedStateHandle = mock(OperatorStateHandle.class);
+		OperatorStateHandle operatorManagedStateHandle = mock(OperatorStreamStateHandle.class);
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture = mock(RunnableFuture.class);
 		SnapshotResult<OperatorStateHandle> operatorStateManagedResult =
 			new SnapshotResult<>(operatorManagedStateHandle, null);
 		when(operatorStateManagedFuture.get()).thenReturn(operatorStateManagedResult);
 
-		OperatorStateHandle operatorRawStateHandle = mock(OperatorStateHandle.class);
+		OperatorStateHandle operatorRawStateHandle = mock(OperatorStreamStateHandle.class);
 		RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture = mock(RunnableFuture.class);
 		SnapshotResult<OperatorStateHandle> operatorStateRawResult =
 			new SnapshotResult<>(operatorRawStateHandle, null);

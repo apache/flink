@@ -27,8 +27,8 @@ public class LocalRecoveryConfigBase {
 	/** Encapsulates the root directories and the subtask-specific path. */
 	private final LocalRecoveryDirectoryProvider localStateDirectories;
 
-	protected LocalRecoveryConfigBase(LocalRecoveryDirectoryProvider rotatingDirectoryProvider) {
-		this.localStateDirectories = rotatingDirectoryProvider;
+	protected LocalRecoveryConfigBase(LocalRecoveryDirectoryProvider directoryProvider) {
+		this.localStateDirectories = directoryProvider;
 	}
 
 	public LocalRecoveryDirectoryProvider getLocalStateDirectories() {

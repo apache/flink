@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
@@ -80,7 +81,10 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 				new EnumMap<>(OperatorStateHandle.Mode.class);
 
 		for (OperatorStateHandle.Mode mode : OperatorStateHandle.Mode.values()) {
-			nameToStateByMode.put(mode, new HashMap<>());
+
+			nameToStateByMode.put(
+					mode,
+					new HashMap<>());
 		}
 
 		for (OperatorStateHandle psh : previousParallelSubtaskStates) {
@@ -199,7 +203,7 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 					Map<StreamStateHandle, OperatorStateHandle> mergeMap = mergeMapList.get(parallelOpIdx);
 					OperatorStateHandle operatorStateHandle = mergeMap.get(handleWithOffsets.f0);
 					if (operatorStateHandle == null) {
-						operatorStateHandle = new OperatorStateHandle(new HashMap<>(), handleWithOffsets.f0);
+						operatorStateHandle = new OperatorStreamStateHandle(new HashMap<>(), handleWithOffsets.f0);
 						mergeMap.put(handleWithOffsets.f0, operatorStateHandle);
 					}
 					operatorStateHandle.getStateNameToPartitionOffsets().put(
@@ -225,7 +229,7 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 				for (Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo> handleWithMetaInfo : e.getValue()) {
 					OperatorStateHandle operatorStateHandle = mergeMap.get(handleWithMetaInfo.f0);
 					if (operatorStateHandle == null) {
-						operatorStateHandle = new OperatorStateHandle(new HashMap<>(), handleWithMetaInfo.f0);
+						operatorStateHandle = new OperatorStreamStateHandle(new HashMap<>(), handleWithMetaInfo.f0);
 						mergeMap.put(handleWithMetaInfo.f0, operatorStateHandle);
 					}
 					operatorStateHandle.getStateNameToPartitionOffsets().put(e.getKey(), handleWithMetaInfo.f1);
@@ -246,13 +250,13 @@ public class RoundRobinOperatorStateRepartitioner implements OperatorStateRepart
 					uniformBroadcastNameToState.entrySet()) {
 
 				int oldParallelism = e.getValue().size();
-				
+
 				Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo> handleWithMetaInfo =
 							e.getValue().get(i % oldParallelism);
 
 				OperatorStateHandle operatorStateHandle = mergeMap.get(handleWithMetaInfo.f0);
 				if (operatorStateHandle == null) {
-					operatorStateHandle = new OperatorStateHandle(new HashMap<>(), handleWithMetaInfo.f0);
+					operatorStateHandle = new OperatorStreamStateHandle(new HashMap<>(), handleWithMetaInfo.f0);
 					mergeMap.put(handleWithMetaInfo.f0, operatorStateHandle);
 				}
 				operatorStateHandle.getStateNameToPartitionOffsets().put(e.getKey(), handleWithMetaInfo.f1);

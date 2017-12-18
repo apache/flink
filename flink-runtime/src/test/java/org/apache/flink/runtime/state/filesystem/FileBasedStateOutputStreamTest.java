@@ -25,18 +25,17 @@ import org.apache.flink.core.fs.Path;
 import java.io.IOException;
 
 /**
- * Tests for the {@link FsCheckpointMetadataOutputStream}.
+ * Tests for the {@link FileBasedStateOutputStream}.
  */
-public class FsCheckpointMetadataOutputStreamTest extends AbstractCheckpointStateOutputStreamTestBase {
+public class FileBasedStateOutputStreamTest extends AbstractCheckpointStateOutputStreamTestBase {
 
 	@Override
 	protected FSDataOutputStream createTestStream(FileSystem fs, Path dir, String fileName) throws IOException {
-		Path fullPath = new Path(dir, fileName);
-		return new FsCheckpointMetadataOutputStream(fs, fullPath, dir);
+		return new FileBasedStateOutputStream(fs, new Path(dir, fileName));
 	}
 
 	@Override
 	protected FileStateHandle closeAndGetResult(FSDataOutputStream stream) throws IOException {
-		return ((FsCheckpointMetadataOutputStream) stream).closeAndFinalizeCheckpoint().getMetadataHandle();
+		return ((FileBasedStateOutputStream) stream).closeAndGetHandle();
 	}
 }

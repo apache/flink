@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -31,7 +32,7 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 
-public class LocalRecoveryDirectoryProviderTest {
+public class LocalRecoveryDirectoryProviderImplTest {
 
 	private static final JobID JOB_ID = new JobID();
 	private static final AllocationID ALLOCATION_ID = new AllocationID();
@@ -39,7 +40,7 @@ public class LocalRecoveryDirectoryProviderTest {
 	private static final int SUBTASK_INDEX = 0;
 
 	private TemporaryFolder tmpFolder;
-	private LocalRecoveryDirectoryProvider directoryProvider;
+	private LocalRecoveryDirectoryProviderImpl directoryProvider;
 	private File[] rootFolders;
 
 	@Before
@@ -47,7 +48,7 @@ public class LocalRecoveryDirectoryProviderTest {
 		this.tmpFolder = new TemporaryFolder();
 		this.tmpFolder.create();
 		this.rootFolders = new File[]{tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
-		this.directoryProvider = new LocalRecoveryDirectoryProvider(
+		this.directoryProvider = new LocalRecoveryDirectoryProviderImpl(
 			rootFolders,
 			JOB_ID,
 			ALLOCATION_ID,
@@ -61,7 +62,7 @@ public class LocalRecoveryDirectoryProviderTest {
 	}
 
 	@Test
-	public void nextRootDirectory() throws Exception {
+	public void rootDirectory() throws Exception {
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertEquals(rootFolders[i % rootFolders.length], directoryProvider.rootDirectory(i));
 		}
@@ -80,9 +81,55 @@ public class LocalRecoveryDirectoryProviderTest {
 	}
 
 	@Test
+	public void jobAndAllocationBaseDir() {
+		for (int i = 0; i < 10; ++i) {
+			Assert.assertEquals(
+				new File(directoryProvider.rootDirectory(i), directoryProvider.createJobAndAllocationSubDirString()),
+				directoryProvider.jobAndAllocationBaseDirectory(i));
+		}
+	}
+
+	@Test
+	public void checkpointBaseDir() {
+		for (int i = 0; i < 10; ++i) {
+			Assert.assertEquals(
+				new File(
+					directoryProvider.jobAndAllocationBaseDirectory(i),
+					directoryProvider.createCheckpointSubDirString(i)),
+				directoryProvider.checkpointBaseDirectory(i));
+		}
+	}
+
+	@Test
+	public void subtaskSpecificDirectory() {
+		for (int i = 0; i < 10; ++i) {
+			Assert.assertEquals(
+				new File(
+					directoryProvider.checkpointBaseDirectory(i),
+					directoryProvider.createSubtaskSubDirString()),
+				directoryProvider.subtaskSpecificCheckpointDirectory(i));
+		}
+	}
+
+	@Test
+	public void testPathStringConstants() {
+		Assert.assertEquals(
+			directoryProvider.createJobAndAllocationSubDirString(),
+			"jid_" + JOB_ID + "_aid_" + ALLOCATION_ID);
+
+		Assert.assertEquals(
+			directoryProvider.createCheckpointSubDirString(42),
+			"chk_" + 42);
+
+		Assert.assertEquals(
+			directoryProvider.createSubtaskSubDirString(),
+			"vtx_" + JOB_VERTEX_ID + Path.SEPARATOR + SUBTASK_INDEX);
+	}
+
+	@Test
 	public void testPreconditionsNotNullFiles() {
 		try {
-			new LocalRecoveryDirectoryProvider(new File[]{null}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
+			new LocalRecoveryDirectoryProviderImpl(new File[]{null}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
 			Assert.fail();
 		} catch (NullPointerException ignore) {
 		}
@@ -91,7 +138,7 @@ public class LocalRecoveryDirectoryProviderTest {
 	@Test
 	public void testPreconditionsNonExistingFolder() {
 		try {
-			new LocalRecoveryDirectoryProvider(new File[]{new File("123")}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
+			new LocalRecoveryDirectoryProviderImpl(new File[]{new File("123")}, JOB_ID, ALLOCATION_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
 			Assert.fail();
 		} catch (IllegalStateException ignore) {
 		}

@@ -19,12 +19,14 @@
 package org.apache.flink.util;
 
 import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.reset;
@@ -47,7 +49,25 @@ public class MethodForwardingTestUtil {
 	public static <D, W> void testMethodForwarding(
 		Class<D> delegateClass,
 		Function<D, W> wrapperFactory) {
-		testMethodForwarding(delegateClass, wrapperFactory, Collections.emptySet());
+		testMethodForwarding(delegateClass, wrapperFactory, () -> spy(delegateClass), Collections.emptySet());
+	}
+
+	/**
+	 * This is a best effort automatic test for method forwarding between a delegate and its wrapper, where the wrapper
+	 * class is a subtype of the delegate. This ignores methods that are inherited from Object.
+	 *
+	 * @param delegateClass the class for the delegate.
+	 * @param wrapperFactory factory that produces a wrapper from a delegate.
+	 * @param delegateObjectSupplier supplier for the delegate object passed to the wrapper factory.
+	 * @param <D> type of the delegate
+	 * @param <W> type of the wrapper
+	 * @param <I> type of the object created as delegate, is a subtype of D.
+	 */
+	public static <D, W, I extends D> void testMethodForwarding(
+		Class<D> delegateClass,
+		Function<I, W> wrapperFactory,
+		Supplier<I> delegateObjectSupplier) {
+		testMethodForwarding(delegateClass, wrapperFactory, delegateObjectSupplier, Collections.emptySet());
 	}
 
 	/**
@@ -57,20 +77,30 @@ public class MethodForwardingTestUtil {
 	 *
 	 * @param delegateClass the class for the delegate.
 	 * @param wrapperFactory factory that produces a wrapper from a delegate.
+	 * @param delegateObjectSupplier supplier for the delegate object passed to the wrapper factory.
 	 * @param skipMethodSet set of methods to ignore.
 	 * @param <D> type of the delegate
 	 * @param <W> type of the wrapper
+	 * @param <I> type of the object created as delegate, is a subtype of D.
 	 */
-	public static <D, W> void testMethodForwarding(
+	public static <D, W, I extends D> void testMethodForwarding(
 		Class<D> delegateClass,
-		Function<D, W> wrapperFactory,
+		Function<I, W> wrapperFactory,
+		Supplier<I> delegateObjectSupplier,
 		Set<Method> skipMethodSet) {
 
 		Preconditions.checkNotNull(delegateClass);
 		Preconditions.checkNotNull(wrapperFactory);
 		Preconditions.checkNotNull(skipMethodSet);
 
-		D delegate = spy(delegateClass);
+		I delegate = delegateObjectSupplier.get();
+
+		//check if we need to wrap the delegate object as a spy, or if it is already testable with Mockito.
+		MockUtil mockUtil = new MockUtil();
+		if (!mockUtil.isSpy(delegate) || !mockUtil.isMock(delegate)) {
+			delegate = spy(delegate);
+		}
+
 		W wrapper = wrapperFactory.apply(delegate);
 
 		// ensure that wrapper is a subtype of delegate
@@ -85,13 +115,13 @@ public class MethodForwardingTestUtil {
 			try {
 				// find the correct method to substitute the bridge for erased generic types.
 				// if this doesn't work, the user need to exclude the method and write an additional test.
-				Method wrapperMethod = wrapper.getClass().getDeclaredMethod(
+				Method wrapperMethod = wrapper.getClass().getMethod(
 					delegateMethod.getName(),
 					delegateMethod.getParameterTypes());
 
 				// things get a bit fuzzy here, best effort to find a match but this might end up with a wrong method.
 				if (wrapperMethod.isBridge()) {
-					for (Method method : wrapper.getClass().getDeclaredMethods()) {
+					for (Method method : wrapper.getClass().getMethods()) {
 						if (!method.isBridge()
 							&& method.getName().equals(wrapperMethod.getName())
 							&& method.getParameterCount() == wrapperMethod.getParameterCount()) {

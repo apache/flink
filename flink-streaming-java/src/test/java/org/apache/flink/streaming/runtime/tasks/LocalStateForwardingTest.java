@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
+import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -125,7 +126,7 @@ public class LocalStateForwardingTest {
 
 	/**
 	 * This tests that state that was reported to the {@link org.apache.flink.runtime.state.TaskStateManager} is also
-	 * reported to {@link org.apache.flink.runtime.taskmanager.CheckpointResponder} and {@link TaskLocalStateStore}.
+	 * reported to {@link org.apache.flink.runtime.taskmanager.CheckpointResponder} and {@link TaskLocalStateStoreImpl}.
 	 */
 	@Test
 	public void testForwardingFromTaskStateManagerToResponderAndTaskLocalStateStore() throws Exception {
@@ -169,7 +170,7 @@ public class LocalStateForwardingTest {
 
 		try {
 			TaskLocalStateStore taskLocalStateStore =
-				new TaskLocalStateStore(jobID, allocationID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}, executor) {
+				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, subtaskIdx, new File[]{temporaryFolder.newFolder()}, executor) {
 					@Override
 					public void storeLocalState(
 						@Nonnegative long checkpointId,

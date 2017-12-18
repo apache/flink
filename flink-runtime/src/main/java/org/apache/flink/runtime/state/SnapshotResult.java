@@ -22,7 +22,7 @@ import org.apache.flink.util.ExceptionUtils;
  * This class contains the combined results from the snapshot of a state backend:
  * <ul>
  *   <li>A state object representing the state that will be reported to the Job Manager to acknowledge the checkpoint.</li>
- *   <li>A state object that represents the state for the {@link TaskLocalStateStore}.</li>
+ *   <li>A state object that represents the state for the {@link TaskLocalStateStoreImpl}.</li>
  * </ul>
  *
  * Both state objects are optional and can be null, e.g. if there was no state to snapshot in the backend. A local

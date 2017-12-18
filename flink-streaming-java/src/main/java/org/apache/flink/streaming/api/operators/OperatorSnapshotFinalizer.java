@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.FutureUtil;
@@ -35,7 +35,10 @@ import java.util.concurrent.ExecutionException;
  */
 public class OperatorSnapshotFinalizer {
 
+	/** Primary replica of the operator subtask state for report to JM. */
 	private final OperatorSubtaskState jobManagerOwnedState;
+
+	/** Secondary replica of the operator subtask state for faster, local recovery on TM. */
 	private final OperatorSubtaskState taskLocalState;
 
 	public OperatorSnapshotFinalizer(

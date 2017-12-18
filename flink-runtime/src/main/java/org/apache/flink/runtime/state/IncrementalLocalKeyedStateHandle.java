@@ -33,6 +33,8 @@ import java.util.UUID;
  */
 public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle {
 
+	private static final long serialVersionUID = 1L;
+
 	/** Id of the checkpoint that created this state handle. */
 	@Nonnegative
 	private final long checkpointId;

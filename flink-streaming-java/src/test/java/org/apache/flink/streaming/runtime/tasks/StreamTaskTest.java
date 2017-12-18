@@ -69,15 +69,16 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
-import org.apache.flink.runtime.state.TaskLocalStateStore;
+import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -512,7 +513,7 @@ public class StreamTaskTest extends TestLogger {
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
 			new ExecutionAttemptID(1L, 2L),
-			mock(TaskLocalStateStore.class),
+			mock(TaskLocalStateStoreImpl.class),
 			null,
 			checkpointResponder);
 
@@ -526,8 +527,8 @@ public class StreamTaskTest extends TestLogger {
 
 		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
-		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
-		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
+		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStreamStateHandle.class);
+		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStreamStateHandle.class);
 
 		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			new DoneFuture<>(new SnapshotResult<>(managedKeyedStateHandle, null)),
@@ -631,8 +632,8 @@ public class StreamTaskTest extends TestLogger {
 
 		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
 		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
-		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStateHandle.class);
-		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStateHandle.class);
+		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStreamStateHandle.class);
+		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStreamStateHandle.class);
 
 		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			new DoneFuture<>(new SnapshotResult<>(managedKeyedStateHandle, null)),
@@ -726,7 +727,7 @@ public class StreamTaskTest extends TestLogger {
 		TaskStateManager taskStateManager = new TaskStateManagerImpl(
 			new JobID(1L, 2L),
 			new ExecutionAttemptID(1L, 2L),
-			mock(TaskLocalStateStore.class),
+			mock(TaskLocalStateStoreImpl.class),
 			null,
 			checkpointResponder);
 

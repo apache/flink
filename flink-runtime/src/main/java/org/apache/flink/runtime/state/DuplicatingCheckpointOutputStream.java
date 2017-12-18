@@ -34,11 +34,17 @@ import java.io.IOException;
  */
 public class DuplicatingCheckpointOutputStream extends CheckpointStreamFactory.CheckpointStateOutputStream {
 
+	/** Flag if the positional alignment of both streams is checked after each operation. */
 	private static final boolean STRICT_ALIGNMENT_CHECKS = false;
+
+	/** Default buffer size of 8KB. */
 	private static final int DEFAULT_BUFFER_SIZER = 8 * 1024;
 
+	/** Write buffer. */
 	private final byte[] buffer;
-	private int count;
+
+	/** Position in the write buffer. */
+	private int bufferIdx;
 
 	/**
 	 * Primary stream for writing the checkpoint data. Failures from this stream are forwarded.
@@ -71,7 +77,7 @@ public class DuplicatingCheckpointOutputStream extends CheckpointStreamFactory.C
 		this.secondaryOutputStream = Preconditions.checkNotNull(secondaryOutputStream);
 
 		this.buffer = new byte[bufferSize];
-		this.count = 0;
+		this.bufferIdx = 0;
 
 		this.secondaryStreamException = null;
 
@@ -81,12 +87,12 @@ public class DuplicatingCheckpointOutputStream extends CheckpointStreamFactory.C
 	@Override
 	public void write(int b) throws IOException {
 
-		if (buffer.length <= count) {
+		if (buffer.length <= bufferIdx) {
 			flushInternalBuffer();
 		}
 
-		buffer[count] = (byte) b;
-		++count;
+		buffer[bufferIdx] = (byte) b;
+		++bufferIdx;
 	}
 
 	@Override
@@ -104,19 +110,19 @@ public class DuplicatingCheckpointOutputStream extends CheckpointStreamFactory.C
 			writeThroughInternal(b, off, len);
 		} else {
 
-			if (buffer.length < len + count) {
+			if (buffer.length < len + bufferIdx) {
 				flushInternalBuffer();
 			}
 
-			System.arraycopy(b, off, buffer, count, len);
-			count += len;
+			System.arraycopy(b, off, buffer, bufferIdx, len);
+			bufferIdx += len;
 		}
 	}
 
 	@Override
 	public long getPos() throws IOException {
 		final long referencePos = primaryOutputStream.getPos();
-		return referencePos + count;
+		return referencePos + bufferIdx;
 	}
 
 	@Override
@@ -202,9 +208,9 @@ public class DuplicatingCheckpointOutputStream extends CheckpointStreamFactory.C
 
 	private void flushInternalBuffer() throws IOException {
 
-		if (count > 0) {
-			writeThroughInternal(buffer, 0, count);
-			count = 0;
+		if (bufferIdx > 0) {
+			writeThroughInternal(buffer, 0, bufferIdx);
+			bufferIdx = 0;
 		}
 	}
 

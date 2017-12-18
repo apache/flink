@@ -26,9 +26,13 @@ import javax.annotation.Nonnull;
  */
 public class DirectoryKeyedStateHandle implements KeyedStateHandle {
 
+	private static final long serialVersionUID = 1L;
+
+	/** The directory state handle. */
 	@Nonnull
 	private final DirectoryStateHandle directoryStateHandle;
 
+	/** The key-group range. */
 	@Nonnull
 	private final KeyGroupRange keyGroupRange;
 

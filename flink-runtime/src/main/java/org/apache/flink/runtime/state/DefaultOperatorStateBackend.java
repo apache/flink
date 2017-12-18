@@ -444,7 +444,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 						StreamStateHandle stateHandle = out.closeAndGetHandle();
 
 						if (stateHandle != null) {
-							retValue = new OperatorStateHandle(writtenStatesMetaData, stateHandle);
+							retValue = new OperatorStreamStateHandle(writtenStatesMetaData, stateHandle);
 						}
 					}
 

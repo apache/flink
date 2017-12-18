@@ -37,6 +37,12 @@ import static org.mockito.Mockito.mock;
 public class StateObjectCollectionTest {
 
 	@Test
+	public void testEmptyCollection() {
+		StateObjectCollection<StateObject> empty = StateObjectCollection.empty();
+		Assert.assertEquals(0, empty.getStateSize());
+	}
+
+	@Test
 	public void testForwardingCollectionMethods() {
 		MethodForwardingTestUtil.testMethodForwarding(
 			Collection.class,

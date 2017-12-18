@@ -104,7 +104,7 @@ public class TaskExecutorLocalStateStoresManagerTest {
 	}
 
 	/**
-	 * This tests that the {@link TaskExecutorLocalStateStoresManager} creates {@link TaskLocalStateStore} that have
+	 * This tests that the {@link TaskExecutorLocalStateStoresManager} creates {@link TaskLocalStateStoreImpl} that have
 	 * a properly initialized local state base directory.
 	 */
 	@Test
@@ -112,7 +112,8 @@ public class TaskExecutorLocalStateStoresManagerTest {
 
 		JobID jobID = new JobID();
 		JobVertexID jobVertexID = new JobVertexID();
-		int subtaskIdx = 42;
+		AllocationID allocationID = new AllocationID();
+		int subtaskIdx = 23;
 		TemporaryFolder tmp = new TemporaryFolder();
 		try {
 
@@ -121,7 +122,6 @@ public class TaskExecutorLocalStateStoresManagerTest {
 			TaskExecutorLocalStateStoresManager storesManager =
 				new TaskExecutorLocalStateStoresManager(rootDirs, Executors.directExecutor());
 
-			AllocationID allocationID = new AllocationID();
 
 			TaskLocalStateStore taskLocalStateStore =
 				storesManager.localStateStoreForSubtask(jobID, allocationID, jobVertexID, subtaskIdx);
@@ -135,9 +135,16 @@ public class TaskExecutorLocalStateStoresManagerTest {
 					directoryProvider.rootDirectory(i));
 			}
 
-//			Assert.assertEquals(taskLocalStateStore.createSubtaskPath(), directoryProvider.getSubtaskSpecificPath());
-//			Assert.assertEquals(jobID + File.separator + jobVertexID + File.separator + subtaskIdx, taskLocalStateStore.createSubtaskPath());
-
+			long chkId = 42L;
+			File subtaskSpecificCheckpointDirectory = directoryProvider.subtaskSpecificCheckpointDirectory(chkId);
+			Assert.assertEquals(
+				new File(
+					directoryProvider.rootDirectory(chkId),
+					"jid_" + jobID + "_aid_" + allocationID + File.separator +
+						"chk_" + chkId + File.separator +
+						"vtx_" + jobVertexID + File.separator +
+						subtaskIdx),
+				subtaskSpecificCheckpointDirectory);
 		} finally {
 			tmp.delete();
 		}

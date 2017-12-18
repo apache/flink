@@ -56,6 +56,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
+import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
@@ -179,7 +180,7 @@ public class JvmExitOnFatalErrorTest {
 					new BlobCacheService(mock(PermanentBlobCache.class), mock(TransientBlobCache.class));
 
 				final TaskLocalStateStore localStateStore =
-					new TaskLocalStateStore(
+					new TaskLocalStateStoreImpl(
 						jid,
 						allocationID,
 						jobVertexId,

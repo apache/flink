@@ -266,6 +266,6 @@ public class TestTaskStateManager implements TaskStateManager {
 		if (!rootDir.exists()) {
 			Preconditions.checkState(rootDir.mkdirs());
 		}
-		return new LocalRecoveryDirectoryProvider(rootDir, new JobID(), new AllocationID(), new JobVertexID(), 0);
+		return new LocalRecoveryDirectoryProviderImpl(rootDir, new JobID(), new AllocationID(), new JobVertexID(), 0);
 	}
 }

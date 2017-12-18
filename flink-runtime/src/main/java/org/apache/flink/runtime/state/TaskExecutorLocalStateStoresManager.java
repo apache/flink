@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
 /**
- * This class holds the all {@link TaskLocalStateStore} objects for a task executor (manager).
+ * This class holds the all {@link TaskLocalStateStoreImpl} objects for a task executor (manager).
  */
 public class TaskExecutorLocalStateStoresManager {
 
@@ -87,7 +87,7 @@ public class TaskExecutorLocalStateStoresManager {
 
 		return taskStateManagers.computeIfAbsent(
 			taskKey,
-			k -> new TaskLocalStateStore(
+			k -> new TaskLocalStateStoreImpl(
 				jobId,
 				allocationID,
 				jobVertexID,
