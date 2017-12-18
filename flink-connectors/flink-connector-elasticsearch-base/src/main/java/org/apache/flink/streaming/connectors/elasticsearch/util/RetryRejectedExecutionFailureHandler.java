@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.util;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.util.ExceptionUtils;
@@ -30,6 +31,7 @@ import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
  * {@link EsRejectedExecutionException}s (which means that Elasticsearch node queues are currently full),
  * and fails for all other failures.
  */
+@PublicEvolving
 public class RetryRejectedExecutionFailureHandler implements ActionRequestFailureHandler {
 
 	private static final long serialVersionUID = -7423562912824511906L;
