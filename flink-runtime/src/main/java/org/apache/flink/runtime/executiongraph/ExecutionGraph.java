@@ -721,7 +721,7 @@ public class ExecutionGraph implements AccessExecutionGraph, Archiveable<Archive
 	 * Merges all accumulator results from the tasks previously executed in the Executions.
 	 * @return The accumulator map
 	 */
-	public Map<String, Accumulator<?,?>> aggregateUserAccumulators() {
+	public Map<String, Accumulator<?, ?>> aggregateUserAccumulators() {
 
 		Map<String, Accumulator<?, ?>> userAccumulators = new HashMap<>();
 
