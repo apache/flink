@@ -25,6 +25,7 @@ import java.io.IOException;
  */
 public class TestingYarnTaskManagerRunner {
 	public static void main(String[] args) throws IOException {
-		YarnTaskManagerRunner.runYarnTaskManager(args, TestingYarnTaskManager.class);
+		YarnTaskManagerRunner.runYarnTaskManager(
+				args, TestingYarnTaskManager.class, System.getenv(), null);
 	}
 }
