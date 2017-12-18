@@ -51,7 +51,29 @@ public class YarnTaskManagerRunner {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnTaskManagerRunner.class);
 
-	public static void runYarnTaskManager(String[] args, final Class<? extends YarnTaskManager> taskManager) throws IOException {
+	private static Callable<Object> createMainRunner(
+			Configuration configuration,
+			ResourceID resourceId,
+			final Class<? extends YarnTaskManager> taskManager) {
+		return new Callable<Object>() {
+			@Override
+			public Integer call() {
+				try {
+					TaskManager.selectNetworkInterfaceAndRunTaskManager(
+							configuration, resourceId, taskManager);
+				} catch (Throwable t) {
+					LOG.error("Error while starting the TaskManager", t);
+					System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
+				}
+				return null;
+			}
+		};
+	}
+
+	public static void runYarnTaskManager(String[] args,
+																				final Class<? extends YarnTaskManager> taskManager,
+																				Map<String, String> envs,
+																				Callable<Object> mainRunner) throws IOException {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "YARN TaskManager", args);
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
@@ -68,16 +90,12 @@ public class YarnTaskManagerRunner {
 		}
 
 		// read the environment variables for YARN
-		final Map<String, String> envs = System.getenv();
 		final String yarnClientUsername = envs.get(YarnConfigKeys.ENV_HADOOP_USER_NAME);
 		final String localDirs = envs.get(Environment.LOCAL_DIRS.key());
 		LOG.info("Current working/local Directory: {}", localDirs);
 
 		final String currDir = envs.get(Environment.PWD.key());
 		LOG.info("Current working Directory: {}", currDir);
-
-		final String remoteKeytabPath = envs.get(YarnConfigKeys.KEYTAB_PATH);
-		LOG.info("TM: remoteKeytabPath obtained {}", remoteKeytabPath);
 
 		final String remoteKeytabPrincipal = envs.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 		LOG.info("TM: remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
@@ -96,13 +114,6 @@ public class YarnTaskManagerRunner {
 		// tell akka to die in case of an error
 		configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
-		String localKeytabPath = null;
-		if (remoteKeytabPath != null) {
-			File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
-			localKeytabPath = f.getAbsolutePath();
-			LOG.info("localKeytabPath: {}", localKeytabPath);
-		}
-
 		UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
 
 		LOG.info("YARN daemon is running as: {} Yarn client user obtainer: {}",
@@ -113,6 +124,12 @@ public class YarnTaskManagerRunner {
 		final ResourceID resourceId = new ResourceID(containerID);
 		LOG.info("ResourceID assigned for this container: {}", resourceId);
 
+		File f = new File(currDir, Utils.KEYTAB_FILE_NAME);
+		if (remoteKeytabPrincipal != null && f.exists()) {
+			// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, f.getAbsolutePath());
+			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+		}
 		try {
 
 			SecurityConfiguration sc;
@@ -126,12 +143,6 @@ public class YarnTaskManagerRunner {
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION, "kerberos");
 				hadoopConfiguration.set(CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHORIZATION, "true");
 
-				// set keytab principal and replace path with the local path of the shipped keytab file in NodeManager
-				if (localKeytabPath != null && remoteKeytabPrincipal != null) {
-					configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, localKeytabPath);
-					configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
-				}
-
 				sc = new SecurityConfiguration(configuration,
 					Collections.singletonList(securityConfig -> new HadoopModule(securityConfig, hadoopConfiguration)));
 
@@ -142,19 +153,10 @@ public class YarnTaskManagerRunner {
 
 			SecurityUtils.install(sc);
 
-			SecurityUtils.getInstalledContext().runSecured(new Callable<Object>() {
-				@Override
-				public Integer call() {
-					try {
-						TaskManager.selectNetworkInterfaceAndRunTaskManager(configuration, resourceId, taskManager);
-					}
-					catch (Throwable t) {
-						LOG.error("Error while starting the TaskManager", t);
-						System.exit(TaskManager.STARTUP_FAILURE_RETURN_CODE());
-					}
-					return null;
-				}
-			});
+			if (mainRunner == null) {
+				mainRunner = createMainRunner(configuration, resourceId, taskManager);
+			}
+			SecurityUtils.getInstalledContext().runSecured(mainRunner);
 		} catch (Exception e) {
 			LOG.error("Exception occurred while launching Task Manager", e);
 			throw new RuntimeException(e);

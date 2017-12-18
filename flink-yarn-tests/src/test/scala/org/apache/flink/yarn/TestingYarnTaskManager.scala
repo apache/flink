@@ -72,7 +72,8 @@ class TestingYarnTaskManager(
       * @param args The command line arguments.
       */
     def main(args: Array[String]): Unit = {
-      YarnTaskManagerRunner.runYarnTaskManager(args, classOf[TestingYarnTaskManager])
+      YarnTaskManagerRunner.runYarnTaskManager(
+        args, classOf[TestingYarnTaskManager], System.getenv(), null)
     }
 
   }
