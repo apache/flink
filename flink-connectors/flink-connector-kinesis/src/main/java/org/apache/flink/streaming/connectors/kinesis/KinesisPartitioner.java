@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.Serializable;
 
@@ -26,7 +26,7 @@ import java.io.Serializable;
  *
  * @param <T> record type
  */
-@Public
+@PublicEvolving
 public abstract class KinesisPartitioner<T> implements Serializable {
 
 	/**

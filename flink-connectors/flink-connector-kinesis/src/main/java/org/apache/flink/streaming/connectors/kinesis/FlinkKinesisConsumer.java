@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -70,7 +70,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> the type of data emitted
  */
-@Public
+@PublicEvolving
 public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> implements
 		ResultTypeQueryable<T>,
 		CheckpointedFunction {
