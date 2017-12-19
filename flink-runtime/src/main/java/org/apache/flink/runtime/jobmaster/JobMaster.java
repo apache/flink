@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
@@ -101,6 +100,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
@@ -970,6 +970,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final JobID jobID = executionGraph.getJobID();
 		final String jobName = executionGraph.getJobName();
+		final JobResult.Builder builder = new JobResult.Builder()
+			.jobId(jobID)
+			.netRuntime(0);
 
 		if (newJobStatus.isGloballyTerminalState()) {
 			switch (newJobStatus) {
@@ -977,10 +980,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 					try {
 						// TODO get correct job duration
 						// job done, let's get the accumulators
-						Map<String, Object> accumulatorResults = executionGraph.getAccumulators();
-						JobExecutionResult result = new JobExecutionResult(jobID, 0L, accumulatorResults);
-
-						executor.execute(() -> jobCompletionActions.jobFinished(result));
+						final Map<String, SerializedValue<Object>> accumulatorsSerialized = executionGraph.getAccumulatorsSerialized();
+						builder.accumulatorResults(accumulatorsSerialized);
+						executor.execute(() -> jobCompletionActions.jobFinished(builder.build()));
 					}
 					catch (Exception e) {
 						log.error("Cannot fetch final accumulators for job {} ({})", jobName, jobID, e);
@@ -990,7 +992,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 								"The job is registered as 'FINISHED (successful), but this notification describes " +
 								"a failure, since the resulting accumulators could not be fetched.", e);
 
-						executor.execute(() ->jobCompletionActions.jobFailed(exception));
+						executor.execute(() -> jobCompletionActions.jobFailed(builder
+							.serializedThrowable(new SerializedThrowable(exception))
+							.build()));
 					}
 					break;
 
@@ -998,7 +1002,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 					final JobExecutionException exception = new JobExecutionException(
 						jobID, "Job was cancelled.", new Exception("The job was cancelled"));
 
-					executor.execute(() -> jobCompletionActions.jobFailed(exception));
+					executor.execute(() -> jobCompletionActions.jobFailed(builder
+						.serializedThrowable(new SerializedThrowable(exception))
+						.build()));
 					break;
 				}
 
@@ -1006,7 +1012,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 					final Throwable unpackedError = SerializedThrowable.get(error, userCodeLoader);
 					final JobExecutionException exception = new JobExecutionException(
 							jobID, "Job execution failed.", unpackedError);
-					executor.execute(() -> jobCompletionActions.jobFailed(exception));
+					executor.execute(() -> jobCompletionActions.jobFailed(builder
+						.serializedThrowable(new SerializedThrowable(exception))
+						.build()));
 					break;
 				}
 

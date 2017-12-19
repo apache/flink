@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -34,6 +33,7 @@ import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobMasterRestEndpoint;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
@@ -59,6 +59,8 @@ import akka.actor.ActorSystem;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Base class for per-job cluster entry points.
@@ -287,15 +289,17 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			LOG.info("Job({}) finished.", jobId);
 
 			shutDownAndTerminate(true);
 		}
 
 		@Override
-		public void jobFailed(Throwable cause) {
-			LOG.info("Job({}) failed.", jobId, cause);
+		public void jobFailed(JobResult result) {
+			checkArgument(result.getSerializedThrowable().isPresent());
+
+			LOG.info("Job({}) failed.", jobId, result.getSerializedThrowable().get().getMessage());
 
 			shutDownAndTerminate(false);
 		}
