@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -266,12 +265,12 @@ public class JobMasterTest extends TestLogger {
 	private static final class NoOpOnCompletionActions implements OnCompletionActions {
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(final JobExecutionResult result) {
 
 		}
 
 		@Override
-		public void jobFailed(Throwable cause) {
+		public void jobFailed(final JobExecutionResult result) {
 
 		}
 

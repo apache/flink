@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.jobmaster.JobExecutionResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -92,4 +93,40 @@ public interface RestfulGateway extends RpcGateway {
 	 * @return Future containing the collection of instance ids and the corresponding metric query service path
 	 */
 	CompletableFuture<Collection<Tuple2<ResourceID, String>>> requestTaskManagerMetricQueryServicePaths(@RpcTimeout Time timeout);
+
+	/**
+	 * Returns the JobExecutionResult for a job, or in case the job failed, the failure cause.
+	 *
+	 * @param jobId ID of the job that we are interested in.
+	 * @param timeout Timeout for the asynchronous operation.
+	 *
+	 * @see #isJobExecutionResultPresent(JobID, Time)
+	 *
+	 * @return CompletableFuture containing the JobExecutionResult. If there is no result,
+	 * the future will be completed exceptionally with
+	 * {@link org.apache.flink.runtime.messages.JobExecutionResultNotFoundException}
+	 */
+	default CompletableFuture<JobExecutionResult> getJobExecutionResult(
+			JobID jobId,
+			@RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Tests if the {@link JobExecutionResult} is present.
+	 *
+	 * @param jobId ID of the job that we are interested in.
+	 * @param timeout Timeout for the asynchronous operation.
+	 *
+	 * @see #getJobExecutionResult(JobID, Time)
+	 *
+	 * @return {@link CompletableFuture} containing {@code true} when then the
+	 * {@link JobExecutionResult} is present. The future is completed exceptionally with
+	 * {@link FlinkJobNotFoundException} if there is no job running with the specified ID, or if the
+	 * result has expired.
+	 */
+	default CompletableFuture<Boolean> isJobExecutionResultPresent(
+			JobID jobId, @RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
 }

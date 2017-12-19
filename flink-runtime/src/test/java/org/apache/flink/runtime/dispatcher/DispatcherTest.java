@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmaster.JobExecutionResult;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -51,6 +52,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -71,6 +73,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -247,6 +250,53 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 		dispatcher.submitJobLatch.await();
 		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
+	}
+
+	/**
+	 * Test that {@link JobExecutionResult} is cached when the job finishes.
+	 */
+	@Test
+	public void testCacheJobExecutionResult() throws Exception {
+		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		final DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		OnCompletionActions onCompletionActions;
+
+		final JobID failedJobId = new JobID();
+		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(failedJobId);
+
+		onCompletionActions.jobFailed(new JobExecutionResult.Builder()
+			.jobId(failedJobId)
+			.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
+			.netRuntime(Long.MAX_VALUE)
+			.build());
+
+		assertThat(
+			dispatcherGateway.isJobExecutionResultPresent(failedJobId, TIMEOUT).get(),
+			equalTo(true));
+		assertThat(
+			dispatcherGateway.getJobExecutionResult(failedJobId, TIMEOUT)
+				.get()
+				.isSuccess(),
+			equalTo(false));
+
+		final JobID successJobId = new JobID();
+		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(successJobId);
+
+		onCompletionActions.jobFinished(new JobExecutionResult.Builder()
+			.jobId(successJobId)
+			.netRuntime(Long.MAX_VALUE)
+			.build());
+
+		assertThat(
+			dispatcherGateway.isJobExecutionResultPresent(successJobId, TIMEOUT).get(),
+			equalTo(true));
+		assertThat(
+			dispatcherGateway.getJobExecutionResult(successJobId, TIMEOUT)
+				.get()
+				.isSuccess(),
+			equalTo(true));
 	}
 
 	private static class TestingDispatcher extends Dispatcher {

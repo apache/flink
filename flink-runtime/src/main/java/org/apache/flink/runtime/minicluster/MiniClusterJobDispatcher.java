@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -39,6 +40,7 @@ import org.apache.flink.util.FlinkException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -358,12 +360,12 @@ public class MiniClusterJobDispatcher {
 		}
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
 			decrementCheckAndCleanup();
 		}
 
 		@Override
-		public void jobFailed(Throwable cause) {
+		public void jobFailed(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
 			decrementCheckAndCleanup();
 		}
 
@@ -405,7 +407,7 @@ public class MiniClusterJobDispatcher {
 
 		private volatile Throwable runnerException;
 
-		private volatile JobExecutionResult result;
+		private volatile org.apache.flink.runtime.jobmaster.JobExecutionResult result;
 		
 		BlockingJobSync(JobID jobId, int numJobMastersToWaitFor) {
 			this.jobId = jobId;
@@ -413,14 +415,19 @@ public class MiniClusterJobDispatcher {
 		}
 
 		@Override
-		public void jobFinished(JobExecutionResult jobResult) {
-			this.result = jobResult;
+		public void jobFinished(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
+			this.result = result;
 			jobMastersToWaitFor.countDown();
 		}
 
 		@Override
-		public void jobFailed(Throwable cause) {
-			jobException = cause;
+		public void jobFailed(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
+			checkArgument(result.getSerializedThrowable().isPresent());
+
+			jobException = result
+				.getSerializedThrowable()
+				.get()
+				.deserializeError(ClassLoader.getSystemClassLoader());
 			jobMastersToWaitFor.countDown();
 		}
 
@@ -441,7 +448,7 @@ public class MiniClusterJobDispatcher {
 
 			final Throwable jobFailureCause = this.jobException;
 			final Throwable runnerException = this.runnerException;
-			final JobExecutionResult result = this.result;
+			final org.apache.flink.runtime.jobmaster.JobExecutionResult result = this.result;
 
 			// (1) we check if the job terminated with an exception
 			// (2) we check whether the job completed successfully
@@ -458,7 +465,14 @@ public class MiniClusterJobDispatcher {
 				}
 			}
 			else if (result != null) {
-				return result;
+				try {
+					return new SerializedJobExecutionResult(
+						jobId,
+						result.getNetRuntime(),
+						result.getAccumulatorResults()).toJobExecutionResult(ClassLoader.getSystemClassLoader());
+				} catch (final IOException | ClassNotFoundException e) {
+					throw new JobExecutionException(result.getJobId(), e);
+				}
 			}
 			else if (runnerException != null) {
 				throw new JobExecutionException(jobId,

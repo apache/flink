@@ -16,32 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.messages;
 
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.FlinkException;
+
+import static java.util.Objects.requireNonNull;
 
 /**
- * Interface for completion actions once a Flink job has reached
- * a terminal state.
+ * Exception indicating that we could not find a
+ * {@link org.apache.flink.runtime.jobmaster.JobExecutionResult} under the given {@link JobID}.
  */
-public interface OnCompletionActions {
+public class JobExecutionResultNotFoundException extends FlinkException {
 
-	/**
-	 * Job finished successfully.
-	 *
-	 * @param result of the job execution
-	 */
-	void jobFinished(JobExecutionResult result);
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Job failed with the given exception.
-	 *
-	 * @param result of the job failure
-	 */
-	void jobFailed(JobExecutionResult result);
+	private final JobID jobId;
 
-	/**
-	 * Job was finished by another JobMaster.
-	 */
-	void jobFinishedByOther();
+	public JobExecutionResultNotFoundException(JobID jobId) {
+		super("Could not find JobExecutionResult for job (" + jobId + ')');
+		this.jobId = requireNonNull(jobId, "jobId must not be null");
+	}
+
+	public JobID getJobId() {
+		return jobId;
+	}
+
 }
