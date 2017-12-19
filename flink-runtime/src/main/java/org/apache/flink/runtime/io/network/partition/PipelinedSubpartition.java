@@ -56,7 +56,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 	/** The number of non-event buffers currently in this subpartition */
 	@GuardedBy("buffers")
-	private volatile int buffersInBacklog;
+	private int buffersInBacklog;
 
 	// ------------------------------------------------------------------------
 
@@ -151,12 +151,16 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Nullable
-	Buffer pollBuffer() {
+	BufferAndBacklog pollBuffer() {
 		synchronized (buffers) {
 			Buffer buffer = buffers.pollFirst();
 			decreaseBuffersInBacklog(buffer);
 
-			return buffer;
+			if (buffer != null) {
+				return new BufferAndBacklog(buffer, buffersInBacklog);
+			} else {
+				return null;
+			}
 		}
 	}
 
@@ -177,8 +181,11 @@ class PipelinedSubpartition extends ResultSubpartition {
 		return buffersInBacklog;
 	}
 
-	@Override
-	public void decreaseBuffersInBacklog(Buffer buffer) {
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition.
+	 */
+	private void decreaseBuffersInBacklog(Buffer buffer) {
 		assert Thread.holdsLock(buffers);
 
 		if (buffer != null && buffer.isBuffer()) {
@@ -186,8 +193,11 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 	}
 
-	@Override
-	public void increaseBuffersInBacklog(Buffer buffer) {
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	private void increaseBuffersInBacklog(Buffer buffer) {
 		assert Thread.holdsLock(buffers);
 
 		if (buffer != null && buffer.isBuffer()) {

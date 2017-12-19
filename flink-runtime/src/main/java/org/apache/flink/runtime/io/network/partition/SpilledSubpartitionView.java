@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileReader;
@@ -47,12 +48,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Reads of the spilled file are done in synchronously.
  */
-class SpilledSubpartitionView extends ResultSubpartitionView implements NotificationListener {
+class SpilledSubpartitionView implements ResultSubpartitionView, NotificationListener {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SpilledSubpartitionView.class);
 
 	/** The subpartition this view belongs to. */
-	private final ResultSubpartition parent;
+	private final SpillableSubpartition parent;
 
 	/** Writer for spills. */
 	private final BufferFileWriter spillWriter;
@@ -76,13 +77,11 @@ class SpilledSubpartitionView extends ResultSubpartitionView implements Notifica
 	private volatile boolean isSpillInProgress = true;
 
 	SpilledSubpartitionView(
-		ResultSubpartition parent,
+		SpillableSubpartition parent,
 		int memorySegmentSize,
 		BufferFileWriter spillWriter,
 		long numberOfSpilledBuffers,
 		BufferAvailabilityListener availabilityListener) throws IOException {
-
-		super(parent);
 
 		this.parent = checkNotNull(parent);
 		this.bufferPool = new SpillReadBufferPool(2, memorySegmentSize);
@@ -118,7 +117,7 @@ class SpilledSubpartitionView extends ResultSubpartitionView implements Notifica
 
 	@Nullable
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
 		if (fileReader.hasReachedEndOfFile() || isSpillInProgress) {
 			return null;
 		}
@@ -130,7 +129,7 @@ class SpilledSubpartitionView extends ResultSubpartitionView implements Notifica
 
 		parent.decreaseBuffersInBacklog(buffer);
 
-		return buffer;
+		return new BufferAndBacklog(buffer, parent.getBuffersInBacklog());
 	}
 
 	@Override

@@ -189,7 +189,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 
 		numBytesIn.inc(next.getSizeUnsafe());
-		return new BufferAndAvailability(next, remaining > 0);
+		return new BufferAndAvailability(next, remaining > 0, senderBacklog.get());
 	}
 
 	// ------------------------------------------------------------------------

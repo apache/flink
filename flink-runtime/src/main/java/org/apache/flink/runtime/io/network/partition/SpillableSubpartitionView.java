@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -31,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class SpillableSubpartitionView extends ResultSubpartitionView {
+class SpillableSubpartitionView implements ResultSubpartitionView {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SpillableSubpartitionView.class);
 
@@ -73,8 +74,6 @@ class SpillableSubpartitionView extends ResultSubpartitionView {
 		IOManager ioManager,
 		int memorySegmentSize,
 		BufferAvailabilityListener listener) {
-
-		super(parent);
 
 		this.parent = checkNotNull(parent);
 		this.buffers = checkNotNull(buffers);
@@ -137,7 +136,7 @@ class SpillableSubpartitionView extends ResultSubpartitionView {
 
 	@Nullable
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
@@ -150,8 +149,7 @@ class SpillableSubpartitionView extends ResultSubpartitionView {
 				}
 
 				parent.decreaseBuffersInBacklog(current);
-
-				return current;
+				return new BufferAndBacklog(current, parent.getBuffersInBacklog());
 			}
 		} // else: spilled
 

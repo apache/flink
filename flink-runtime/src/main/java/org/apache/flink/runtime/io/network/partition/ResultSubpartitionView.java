@@ -19,30 +19,15 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * A view to consume a {@link ResultSubpartition} instance.
  */
-public abstract class ResultSubpartitionView {
-
-	/** The parent subpartition this view belongs to. */
-	private final ResultSubpartition parent;
-
-	public ResultSubpartitionView(ResultSubpartition parent) {
-		this.parent = checkNotNull(parent);
-	}
-
-	/**
-	 * Returns the number of non-event buffers in this result subpartition.
-	 */
-	public int getBuffersInBacklog() {
-		return parent.getBuffersInBacklog();
-	}
+public interface ResultSubpartitionView {
 
 	/**
 	 * Returns the next {@link Buffer} instance of this queue iterator.
@@ -56,15 +41,15 @@ public abstract class ResultSubpartitionView {
 	 * after it has been consumed.
 	 */
 	@Nullable
-	public abstract Buffer getNextBuffer() throws IOException, InterruptedException;
+	BufferAndBacklog getNextBuffer() throws IOException, InterruptedException;
 
-	public abstract void notifyBuffersAvailable(long buffers) throws IOException;
+	void notifyBuffersAvailable(long buffers) throws IOException;
 
-	public abstract void releaseAllResources() throws IOException;
+	void releaseAllResources() throws IOException;
 
-	public abstract void notifySubpartitionConsumed() throws IOException;
+	void notifySubpartitionConsumed() throws IOException;
 
-	public abstract boolean isReleased();
+	boolean isReleased();
 
-	public abstract Throwable getFailureCause();
+	Throwable getFailureCause();
 }

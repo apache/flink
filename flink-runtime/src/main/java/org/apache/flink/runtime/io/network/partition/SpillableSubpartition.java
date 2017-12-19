@@ -80,7 +80,7 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	/** The number of non-event buffers currently in this subpartition */
 	@GuardedBy("buffers")
-	private volatile int buffersInBacklog;
+	private int buffersInBacklog;
 
 	/** The read view to consume this subpartition. */
 	private ResultSubpartitionView readView;
@@ -245,10 +245,15 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	@Override
 	public int getBuffersInBacklog() {
-		return buffersInBacklog;
+		synchronized (buffers) {
+			return buffersInBacklog;
+		}
 	}
 
-	@Override
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition.
+	 */
 	public void decreaseBuffersInBacklog(Buffer buffer) {
 		if (buffer != null && buffer.isBuffer()) {
 			synchronized (buffers) {
@@ -257,8 +262,11 @@ class SpillableSubpartition extends ResultSubpartition {
 		}
 	}
 
-	@Override
-	public void increaseBuffersInBacklog(Buffer buffer) {
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	private void increaseBuffersInBacklog(Buffer buffer) {
 		assert Thread.holdsLock(buffers);
 
 		if (buffer != null && buffer.isBuffer()) {

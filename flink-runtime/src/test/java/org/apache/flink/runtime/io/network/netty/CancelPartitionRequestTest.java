@@ -19,13 +19,12 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -176,23 +175,21 @@ public class CancelPartitionRequestTest {
 
 	// ---------------------------------------------------------------------------------------------
 
-	static class InfiniteSubpartitionView extends ResultSubpartitionView {
+	static class InfiniteSubpartitionView implements ResultSubpartitionView {
 
 		private final BufferProvider bufferProvider;
 
 		private final CountDownLatch sync;
 
 		public InfiniteSubpartitionView(BufferProvider bufferProvider, CountDownLatch sync) {
-			super(mock(ResultSubpartition.class));
-
 			this.bufferProvider = checkNotNull(bufferProvider);
 			this.sync = checkNotNull(sync);
 		}
 
 		@Nullable
 		@Override
-		public Buffer getNextBuffer() throws IOException, InterruptedException {
-			return bufferProvider.requestBufferBlocking();
+		public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
+			return new BufferAndBacklog(bufferProvider.requestBufferBlocking(), 0);
 		}
 
 		@Override

@@ -55,9 +55,9 @@ public class TestInputChannel {
 
 	public TestInputChannel read(Buffer buffer) throws IOException, InterruptedException {
 		if (stubbing == null) {
-			stubbing = when(mock.getNextBuffer()).thenReturn(new InputChannel.BufferAndAvailability(buffer, true));
+			stubbing = when(mock.getNextBuffer()).thenReturn(new InputChannel.BufferAndAvailability(buffer, true, 0));
 		} else {
-			stubbing = stubbing.thenReturn(new InputChannel.BufferAndAvailability(buffer, true));
+			stubbing = stubbing.thenReturn(new InputChannel.BufferAndAvailability(buffer, true, 0));
 		}
 
 		return this;
@@ -77,7 +77,7 @@ public class TestInputChannel {
 				// Return true after finishing
 				when(mock.isReleased()).thenReturn(true);
 
-				return new InputChannel.BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false);
+				return new InputChannel.BufferAndAvailability(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), false, 0);
 			}
 		};
 

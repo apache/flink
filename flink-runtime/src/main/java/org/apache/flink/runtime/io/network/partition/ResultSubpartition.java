@@ -22,6 +22,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.io.IOException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A single subpartition of a {@link ResultPartition} instance.
  */
@@ -88,22 +90,35 @@ public abstract class ResultSubpartition {
 	abstract public int getBuffersInBacklog();
 
 	/**
-	 * Decreases the number of non-event buffers by one after fetching a non-event
-	 * buffer from this subpartition.
-	 */
-	abstract public void decreaseBuffersInBacklog(Buffer buffer);
-
-	/**
-	 * Increases the number of non-event buffers by one after adding a non-event
-	 * buffer into this subpartition.
-	 */
-	abstract public void increaseBuffersInBacklog(Buffer buffer);
-
-	/**
 	 * Makes a best effort to get the current size of the queue.
 	 * This method must not acquire locks or interfere with the task and network threads in
 	 * any way.
 	 */
 	abstract public int unsynchronizedGetNumberOfQueuedBuffers();
+
+	// ------------------------------------------------------------------------
+
+	/**
+	 * A combination of a {@link Buffer} and the backlog length indicating
+	 * how many non-event buffers available in the subpartition.
+	 */
+	public static final class BufferAndBacklog {
+
+		private final Buffer buffer;
+		private final int buffersInBacklog;
+
+		public BufferAndBacklog(Buffer buffer, int buffersInBacklog) {
+			this.buffer = checkNotNull(buffer);
+			this.buffersInBacklog = buffersInBacklog;
+		}
+
+		public Buffer buffer() {
+			return buffer;
+		}
+
+		public int buffersInBacklog() {
+			return buffersInBacklog;
+		}
+	}
 
 }

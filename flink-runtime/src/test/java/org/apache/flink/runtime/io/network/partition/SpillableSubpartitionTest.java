@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -208,23 +209,27 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		verify(listener, times(1)).notifyBuffersAvailable(eq(4L));
 
-		Buffer read = reader.getNextBuffer();
+		BufferAndBacklog read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(2, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(1, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		// End of partition
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read, ClassLoader.getSystemClassLoader()).getClass());
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
+		read.buffer().recycle();
 	}
 
 	/**
@@ -254,9 +259,9 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		// Initial notification
 		assertEquals(1, listener.getNumNotifiedBuffers());
 
-		Buffer read = reader.getNextBuffer();
+		BufferAndBacklog read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		read.buffer().recycle();
 		assertEquals(2, listener.getNumNotifiedBuffers());
 
 		// Spill now
@@ -271,17 +276,20 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(1, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		// End of partition
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read, ClassLoader.getSystemClassLoader()).getClass());
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
+		read.buffer().recycle();
 	}
 
 	private static class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
