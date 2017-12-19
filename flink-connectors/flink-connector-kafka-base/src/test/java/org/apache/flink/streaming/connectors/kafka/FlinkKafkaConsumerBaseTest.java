@@ -38,6 +38,7 @@ import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaOffsetCommitter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
@@ -46,11 +47,14 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
+
+import javax.annotation.Nonnull;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -71,16 +75,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyMap;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Tests for the {@link FlinkKafkaConsumerBase}.
  */
-public class FlinkKafkaConsumerBaseTest {
+public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 	/**
 	 * Tests that not both types of timestamp extractors / watermark generators can be used.
@@ -89,13 +90,21 @@ public class FlinkKafkaConsumerBaseTest {
 	@SuppressWarnings("unchecked")
 	public void testEitherWatermarkExtractor() {
 		try {
-			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false)
+			new DummyFlinkKafkaConsumer<String>(
+					mock(AbstractFetcher.class),
+					mock(AbstractPartitionDiscoverer.class),
+					mock(KafkaOffsetCommitter.class),
+					false)
 				.assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<String>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		try {
-			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false)
+			new DummyFlinkKafkaConsumer<String>(
+					mock(AbstractFetcher.class),
+					mock(AbstractPartitionDiscoverer.class),
+					mock(KafkaOffsetCommitter.class),
+					false)
 				.assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<String>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
@@ -103,16 +112,22 @@ public class FlinkKafkaConsumerBaseTest {
 		final AssignerWithPeriodicWatermarks<String> periodicAssigner = mock(AssignerWithPeriodicWatermarks.class);
 		final AssignerWithPunctuatedWatermarks<String> punctuatedAssigner = mock(AssignerWithPunctuatedWatermarks.class);
 
-		DummyFlinkKafkaConsumer<String> c1 =
-			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false);
+		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>(
+				mock(AbstractFetcher.class),
+				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
+				false);
 		c1.assignTimestampsAndWatermarks(periodicAssigner);
 		try {
 			c1.assignTimestampsAndWatermarks(punctuatedAssigner);
 			fail();
 		} catch (IllegalStateException ignored) {}
 
-		DummyFlinkKafkaConsumer<String> c2 =
-			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false);
+		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>(
+				mock(AbstractFetcher.class),
+				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
+				false);
 		c2.assignTimestampsAndWatermarks(punctuatedAssigner);
 		try {
 			c2.assignTimestampsAndWatermarks(periodicAssigner);
@@ -125,9 +140,14 @@ public class FlinkKafkaConsumerBaseTest {
 	 */
 	@Test
 	public void ignoreCheckpointWhenNotRunning() throws Exception {
+		final DummyKafkaOffsetCommitter offsetCommitter = new DummyKafkaOffsetCommitter();
+
 		@SuppressWarnings("unchecked")
-		final FlinkKafkaConsumerBase<String> consumer =
-			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false);
+		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
+				mock(AbstractFetcher.class),
+				mock(AbstractPartitionDiscoverer.class),
+				offsetCommitter,
+				false);
 
 		final TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
 		setupConsumer(consumer, false, listState, true, 0, 1);
@@ -137,6 +157,11 @@ public class FlinkKafkaConsumerBaseTest {
 
 		// no state should have been checkpointed
 		assertFalse(listState.get().iterator().hasNext());
+
+		// acknowledgement of the checkpoint should also not result in any offset commits
+		consumer.notifyCheckpointComplete(66L);
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount());
 	}
 
 	/**
@@ -149,6 +174,7 @@ public class FlinkKafkaConsumerBaseTest {
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
 				mock(AbstractFetcher.class),
 				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
 				false);
 
 		final TestingListState<Tuple2<KafkaTopicPartition, Long>> restoredListState = new TestingListState<>();
@@ -183,6 +209,7 @@ public class FlinkKafkaConsumerBaseTest {
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
 				mock(AbstractFetcher.class),
 				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
 				true); // auto-commit enabled; this should be ignored in this case
 
 		setupConsumer(
@@ -202,6 +229,7 @@ public class FlinkKafkaConsumerBaseTest {
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
 				mock(AbstractFetcher.class),
 				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
 				true);
 
 		setupConsumer(
@@ -221,6 +249,7 @@ public class FlinkKafkaConsumerBaseTest {
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
 				mock(AbstractFetcher.class),
 				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
 				true); // auto-commit enabled; this should be ignored in this case
 		consumer.setCommitOffsetsOnCheckpoints(false); // disabling offset committing should override everything
 
@@ -241,6 +270,7 @@ public class FlinkKafkaConsumerBaseTest {
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
 				mock(AbstractFetcher.class),
 				mock(AbstractPartitionDiscoverer.class),
+				mock(KafkaOffsetCommitter.class),
 				false);
 
 		setupConsumer(
@@ -274,17 +304,25 @@ public class FlinkKafkaConsumerBaseTest {
 		state3.put(new KafkaTopicPartition("abc", 13), 16780L);
 		state3.put(new KafkaTopicPartition("def", 7), 987654377L);
 
+		final HashMap<KafkaTopicPartition, Long> state4 = new HashMap<>();
+		state4.put(new KafkaTopicPartition("abc", 13), 16790L);
+		state4.put(new KafkaTopicPartition("def", 7), 987654479L);
+
 		// --------------------------------------------------------------------
 
 		final OneShotLatch runLatch = new OneShotLatch();
 		final OneShotLatch stopLatch = new OneShotLatch();
 		final AbstractFetcher<String, ?> fetcher = getRunnableMockFetcher(runLatch, stopLatch);
-		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
+		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3, state4);
+
+		final DummyKafkaOffsetCommitter offsetCommitter = new DummyKafkaOffsetCommitter();
 
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
 				fetcher,
 				mock(AbstractPartitionDiscoverer.class),
+				offsetCommitter,
 				false);
+		consumer.setCommitOffsetsOnCheckpoints(true); // enable offset committing
 
 		final TestingListState<Serializable> listState = new TestingListState<>();
 
@@ -340,6 +378,8 @@ public class FlinkKafkaConsumerBaseTest {
 		consumer.notifyCheckpointComplete(138L);
 		assertEquals(1, consumer.getPendingOffsetsToCommit().size());
 		assertTrue(consumer.getPendingOffsetsToCommit().containsKey(140L));
+		assertEquals(state1, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(1, offsetCommitter.getCommitCount());
 
 		// checkpoint 3
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
@@ -358,9 +398,13 @@ public class FlinkKafkaConsumerBaseTest {
 		// ack checkpoint 3, subsumes number 2
 		consumer.notifyCheckpointComplete(141L);
 		assertEquals(0, consumer.getPendingOffsetsToCommit().size());
+		assertEquals(state3, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(2, offsetCommitter.getCommitCount()); // commits for checkpoint 2 should have been skipped completely
 
-		consumer.notifyCheckpointComplete(666); // invalid checkpoint
+		// acknowledge invalid checkpoint; should not commit any offsets
+		consumer.notifyCheckpointComplete(666);
 		assertEquals(0, consumer.getPendingOffsetsToCommit().size());
+		assertEquals(state3, offsetCommitter.getLastCommittedOffsets());
 
 		// create 500 snapshots
 		for (int i = 100; i < 600; i++) {
@@ -372,13 +416,18 @@ public class FlinkKafkaConsumerBaseTest {
 		// commit only the second last
 		consumer.notifyCheckpointComplete(598);
 		assertEquals(1, consumer.getPendingOffsetsToCommit().size());
+		assertEquals(state4, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(3, offsetCommitter.getCommitCount()); // commits for all previous checkpoints should have been skipped completely
 
 		// access invalid checkpoint
 		consumer.notifyCheckpointComplete(590);
+		assertEquals(state4, offsetCommitter.getLastCommittedOffsets());
 
 		// and the last
 		consumer.notifyCheckpointComplete(599);
 		assertEquals(0, consumer.getPendingOffsetsToCommit().size());
+		assertEquals(state4, offsetCommitter.getLastCommittedOffsets()); // mock stub returns state4 for all remaining calls
+		assertEquals(4, offsetCommitter.getCommitCount());
 
 		runThread.sync();
 	}
@@ -409,9 +458,12 @@ public class FlinkKafkaConsumerBaseTest {
 		final AbstractFetcher<String, ?> fetcher = getRunnableMockFetcher(runLatch, stopLatch);
 		when(fetcher.snapshotCurrentState()).thenReturn(state1, state2, state3);
 
+		final DummyKafkaOffsetCommitter offsetCommitter = new DummyKafkaOffsetCommitter();
+
 		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
 				fetcher,
 				mock(AbstractPartitionDiscoverer.class),
+				offsetCommitter,
 				false);
 		consumer.setCommitOffsetsOnCheckpoints(false); // disable offset committing
 
@@ -465,7 +517,8 @@ public class FlinkKafkaConsumerBaseTest {
 
 		// ack checkpoint 1
 		consumer.notifyCheckpointComplete(138L);
-		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap(), Matchers.any(KafkaCommitCallback.class)); // no offsets should be committed
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount()); // no offsets should have been committed
 
 		// checkpoint 3
 		consumer.snapshotState(new StateSnapshotContextSynchronousImpl(141, 141));
@@ -482,10 +535,12 @@ public class FlinkKafkaConsumerBaseTest {
 
 		// ack checkpoint 3, subsumes number 2
 		consumer.notifyCheckpointComplete(141L);
-		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap(), Matchers.any(KafkaCommitCallback.class)); // no offsets should be committed
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount()); // no offsets should have been committed
 
 		consumer.notifyCheckpointComplete(666); // invalid checkpoint
-		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap(), Matchers.any(KafkaCommitCallback.class)); // no offsets should be committed
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount()); // no offsets should have been committed
 
 		// create 500 snapshots
 		for (int i = 100; i < 600; i++) {
@@ -496,15 +551,18 @@ public class FlinkKafkaConsumerBaseTest {
 
 		// commit only the second last
 		consumer.notifyCheckpointComplete(598);
-		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap(), Matchers.any(KafkaCommitCallback.class)); // no offsets should be committed
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount()); // no offsets should have been committed
 
 		// access invalid checkpoint
 		consumer.notifyCheckpointComplete(590);
-		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap(), Matchers.any(KafkaCommitCallback.class)); // no offsets should be committed
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount()); // no offsets should have been committed
 
 		// and the last
 		consumer.notifyCheckpointComplete(599);
-		verify(fetcher, never()).commitInternalOffsetsToKafka(anyMap(), Matchers.any(KafkaCommitCallback.class)); // no offsets should be committed
+		assertEquals(null, offsetCommitter.getLastCommittedOffsets());
+		assertEquals(0, offsetCommitter.getCommitCount()); // no offsets should have been committed
 	}
 
 	@Test
@@ -554,7 +612,11 @@ public class FlinkKafkaConsumerBaseTest {
 				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList("test-topic")),
 				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockFetchedPartitionsOnStartup));
 
-			consumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
+			consumers[i] = new DummyFlinkKafkaConsumer<>(
+					mock(AbstractFetcher.class),
+					partitionDiscoverer,
+					mock(KafkaOffsetCommitter.class),
+					false);
 			testHarnesses[i] = createTestHarness(consumers[i], initialParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
@@ -608,7 +670,11 @@ public class FlinkKafkaConsumerBaseTest {
 				TestPartitionDiscoverer.createMockGetAllTopicsSequenceFromFixedReturn(Collections.singletonList("test-topic")),
 				TestPartitionDiscoverer.createMockGetAllPartitionsFromTopicsSequenceFromFixedReturn(mockFetchedPartitionsAfterRestore));
 
-			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), partitionDiscoverer, false);
+			restoredConsumers[i] = new DummyFlinkKafkaConsumer<>(
+					mock(AbstractFetcher.class),
+					partitionDiscoverer,
+					mock(KafkaOffsetCommitter.class),
+					false);
 			restoredTestHarnesses[i] = createTestHarness(restoredConsumers[i], restoredParallelism, i);
 
 			// initializeState() is always called, null signals that we didn't restore
@@ -660,12 +726,14 @@ public class FlinkKafkaConsumerBaseTest {
 
 		private AbstractFetcher<T, ?> testFetcher;
 		private AbstractPartitionDiscoverer testPartitionDiscoverer;
+		private KafkaOffsetCommitter testOffsetCommitter;
 		private boolean isAutoCommitEnabled;
 
 		@SuppressWarnings("unchecked")
 		DummyFlinkKafkaConsumer(
 				AbstractFetcher<T, ?> testFetcher,
 				AbstractPartitionDiscoverer testPartitionDiscoverer,
+				KafkaOffsetCommitter testOffsetCommitter,
 				boolean isAutoCommitEnabled) {
 
 			super(
@@ -676,7 +744,9 @@ public class FlinkKafkaConsumerBaseTest {
 
 			this.testFetcher = testFetcher;
 			this.testPartitionDiscoverer = testPartitionDiscoverer;
+			this.testOffsetCommitter = testOffsetCommitter;
 			this.isAutoCommitEnabled = isAutoCommitEnabled;
+			this.testOffsetCommitter = testOffsetCommitter;
 		}
 
 		@Override
@@ -700,8 +770,36 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
+		KafkaOffsetCommitter createOffsetCommitter() {
+			return this.testOffsetCommitter;
+		}
+
+		@Override
 		protected boolean getIsAutoCommitEnabled() {
 			return this.isAutoCommitEnabled;
+		}
+	}
+
+	private static class DummyKafkaOffsetCommitter implements KafkaOffsetCommitter {
+
+		private Map<KafkaTopicPartition, Long> lastCommittedOffsets;
+		private int commitCount = 0;
+
+		@Override
+		public void commitInternalOffsetsToKafka(
+			Map<KafkaTopicPartition, Long> offsets,
+			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
+
+			this.lastCommittedOffsets = offsets;
+			this.commitCount++;
+		}
+
+		Map<KafkaTopicPartition, Long> getLastCommittedOffsets() {
+			return lastCommittedOffsets;
+		}
+
+		int getCommitCount() {
+			return commitCount;
 		}
 	}
 

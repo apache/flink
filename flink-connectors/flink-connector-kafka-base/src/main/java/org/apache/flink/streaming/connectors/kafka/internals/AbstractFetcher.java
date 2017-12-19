@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.SerializedValue;
@@ -51,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *            the Flink data streams.
  * @param <KPH> The type of topic/partition identifier used by Kafka in the specific version.
  */
-public abstract class AbstractFetcher<T, KPH> {
+public abstract class AbstractFetcher<T, KPH> implements KafkaOffsetCommitter {
 
 	protected static final int NO_TIMESTAMPS_WATERMARKS = 0;
 	protected static final int PERIODIC_WATERMARKS = 1;
@@ -229,20 +228,6 @@ public abstract class AbstractFetcher<T, KPH> {
 	//  Kafka version specifics
 	// ------------------------------------------------------------------------
 
-	/**
-	 * Commits the given partition offsets to the Kafka brokers (or to ZooKeeper for
-	 * older Kafka versions). This method is only ever called when the offset commit mode of
-	 * the consumer is {@link OffsetCommitMode#ON_CHECKPOINTS}.
-	 *
-	 * <p>The given offsets are the internal checkpointed offsets, representing
-	 * the last processed record of each partition. Version-specific implementations of this method
-	 * need to hold the contract that the given offsets must be incremented by 1 before
-	 * committing them, so that committed offsets to Kafka represent "the next record to process".
-	 *
-	 * @param offsets The offsets to commit to Kafka (implementations must increment offsets by 1 before committing).
-	 * @param commitCallback The callback that the user should trigger when a commit request completes or fails.
-	 * @throws Exception This method forwards exceptions.
-	 */
 	public final void commitInternalOffsetsToKafka(
 			Map<KafkaTopicPartition, Long> offsets,
 			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
