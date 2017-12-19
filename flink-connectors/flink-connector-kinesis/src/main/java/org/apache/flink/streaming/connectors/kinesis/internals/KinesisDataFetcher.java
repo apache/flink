@@ -638,4 +638,8 @@ public class KinesisDataFetcher<T> {
 
 		return new StreamShardHandle(streamShardMetadata.getStreamName(), shard);
 	}
+
+	public RuntimeContext getRuntimeContext() {
+		return runtimeContext;
+	}
 }
