@@ -214,7 +214,7 @@ public class StreamSourceOperatorTest {
 		for (; i < output.size() - 1; i++) {
 			StreamElement se = output.get(i);
 			Assert.assertTrue(se.isLatencyMarker());
-			Assert.assertEquals(-1, se.asLatencyMarker().getVertexID());
+			Assert.assertEquals(-1, se.asLatencyMarker().getOperatorId());
 			Assert.assertEquals(0, se.asLatencyMarker().getSubtaskIndex());
 			Assert.assertTrue(se.asLatencyMarker().getMarkedTime() == timestamp);
 

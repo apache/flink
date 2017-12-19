@@ -23,7 +23,6 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
 import java.util.Arrays;
 
-
 /**
  * DescriptiveStatistics histogram statistics implementation returned by {@link DescriptiveStatisticsHistogram}.
  * The statistics class wraps a {@link DescriptiveStatistics} instance and forwards the method calls accordingly.

@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 
@@ -31,38 +32,31 @@ public class LatencyStats {
 	private final Map<String, DescriptiveStatisticsHistogram> latencyStats = new HashMap<>();
 	private final MetricGroup metricGroup;
 	private final int historySize;
+	private final int subtaskIndex;
+	private final OperatorID operatorId;
 
-	public LatencyStats(MetricGroup metricGroup, int historySize) {
+	public LatencyStats(MetricGroup metricGroup, int historySize, int subtaskIndex, OperatorID operatorID) {
 		this.metricGroup = metricGroup;
 		this.historySize = historySize;
+		this.subtaskIndex = subtaskIndex;
+		this.operatorId = operatorID;
 	}
 
-	public void reportLatency(LatencyMarker marker, boolean isSink) {
-		String latencyMetricName = identifyLatencySource(marker, !isSink);
-		DescriptiveStatisticsHistogram latencyHistogram = this.latencyStats.get(latencyMetricName);
+	public void reportLatency(LatencyMarker marker) {
+		String uniqueName =  "" + marker.getOperatorId() + marker.getSubtaskIndex() + operatorId + subtaskIndex;
+		DescriptiveStatisticsHistogram latencyHistogram = this.latencyStats.get(uniqueName);
 		if (latencyHistogram == null) {
 			latencyHistogram = new DescriptiveStatisticsHistogram(this.historySize);
-			this.latencyStats.put(latencyMetricName, latencyHistogram);
-			this.metricGroup.histogram(latencyMetricName, latencyHistogram);
+			this.latencyStats.put(uniqueName, latencyHistogram);
+			this.metricGroup
+				.addGroup("source_id", String.valueOf(marker.getOperatorId()))
+				.addGroup("source_subtask_index", String.valueOf(marker.getSubtaskIndex()))
+				.addGroup("operator_id", String.valueOf(operatorId))
+				.addGroup("operator_subtask_index", String.valueOf(subtaskIndex))
+				.histogram("latency", latencyHistogram);
 		}
 
 		long now = System.currentTimeMillis();
 		latencyHistogram.update(now - marker.getMarkedTime());
-	}
-
-	/**
-	 * Creates an identifier for a latency source. from a given {@code LatencyMarker}.
-	 *
-	 * @param marker             The latency marker to extract the LatencySourceDescriptor from.
-	 * @param ignoreSubtaskIndex Set to true to ignore the subtask index, to treat the latencies
-	 *                           from all the parallel instances of a source as the same.
-	 * @return A string that identifies the latency source.
-	 */
-	private String identifyLatencySource(LatencyMarker marker, boolean ignoreSubtaskIndex) {
-		if (ignoreSubtaskIndex) {
-			return String.valueOf(marker.getVertexID());
-		} else {
-			return marker.getVertexID() + "_" + marker.getSubtaskIndex();
-		}
 	}
 }

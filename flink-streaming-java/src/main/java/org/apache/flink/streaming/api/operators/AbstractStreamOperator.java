@@ -190,14 +190,19 @@ public abstract class AbstractStreamOperator<OUT>
 			this.metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 			this.output = output;
 		}
-		Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
-		int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
-		if (historySize <= 0) {
-			LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
-			historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
-		}
 
-		this.latencyStats = new LatencyStats(this.metrics.addGroup("latency"), historySize);
+		try {
+			Configuration taskManagerConfig = container.getEnvironment().getTaskManagerInfo().getConfiguration();
+			int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
+			if (historySize <= 0) {
+				LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
+				historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
+			}
+			this.latencyStats = new LatencyStats(this.metrics.parent().parent().addGroup("latency"), historySize, container.getIndexInSubtaskGroup(), getOperatorID());
+		} catch (Exception e) {
+			LOG.warn("An error occurred while instantiating latency metrics.", e);
+			this.latencyStats = new LatencyStats(UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"), 1, 0, new OperatorID());
+		}
 
 		this.runtimeContext = new StreamingRuntimeContext(this, container.getEnvironment(), container.getAccumulatorMap());
 
@@ -671,7 +676,7 @@ public abstract class AbstractStreamOperator<OUT>
 
 	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
 		// all operators are tracking latencies
-		this.latencyStats.reportLatency(marker, false);
+		this.latencyStats.reportLatency(marker);
 
 		// everything except sinks forwards latency markers
 		this.output.emitLatencyMarker(marker);
