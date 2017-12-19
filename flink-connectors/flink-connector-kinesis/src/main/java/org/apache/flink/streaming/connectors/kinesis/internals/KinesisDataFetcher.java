@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
@@ -272,7 +273,8 @@ public class KinesisDataFetcher<T> {
 						this,
 						seededStateIndex,
 						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
-						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum()));
+						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
+						registerMetricGroupForShard(subscribedShardsState.get(seededStateIndex))));
 			}
 		}
 
@@ -318,7 +320,8 @@ public class KinesisDataFetcher<T> {
 						this,
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
-						newShardState.getLastProcessedSequenceNum()));
+						newShardState.getLastProcessedSequenceNum(),
+						registerMetricGroupForShard(newShardState)));
 			}
 
 			// we also check if we are running here so that we won't start the discovery sleep
@@ -540,6 +543,17 @@ public class KinesisDataFetcher<T> {
 
 			return subscribedShardsState.size() - 1;
 		}
+	}
+
+	/**
+	 * Registers a metric group associated with the shard id of the provided {@link KinesisStreamShardState shardState}.
+	 */
+	private MetricGroup registerMetricGroupForShard(KinesisStreamShardState shardState) {
+		return runtimeContext
+			.getMetricGroup()
+			.addGroup("Kinesis")
+			.addGroup("stream", shardState.getStreamShardHandle().getStreamName())
+			.addGroup("shardId", shardState.getStreamShardHandle().getShard().getShardId());
 	}
 
 	// ------------------------------------------------------------------------
