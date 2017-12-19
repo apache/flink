@@ -243,7 +243,7 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param commitCallback The callback that the user should trigger when a commit request completes or fails.
 	 * @throws Exception This method forwards exceptions.
 	 */
-	public final void commitInternalOffsetsToKafka(
+	public void commitInternalOffsetsToKafka(
 			Map<KafkaTopicPartition, Long> offsets,
 			@Nonnull KafkaCommitCallback commitCallback) throws Exception {
 		// Ignore sentinels. They might appear here if snapshot has started before actual offsets values
