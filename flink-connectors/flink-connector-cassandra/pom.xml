@@ -90,7 +90,7 @@ under the License.
 								-->
 								<relocation>
 									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.cassandra.shaded.io.netty</shadedPattern>
+									<shadedPattern>com.datastax.shaded.netty</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
