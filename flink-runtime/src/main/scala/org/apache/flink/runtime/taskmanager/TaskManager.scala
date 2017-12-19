@@ -585,8 +585,8 @@ class TaskManager(
               config.getMaxRegistrationPause().toMilliseconds,
               TimeUnit.MILLISECONDS))
 
-            // schedule (with our timeout s delay) a check triggers a new registration
-            // attempt, if we are not registered by then
+            // schedule a check to trigger a new registration attempt if not registered
+            // by the timeout
             scheduledTaskManagerRegistration = Option(context.system.scheduler.scheduleOnce(
               timeout,
               self,
@@ -1898,7 +1898,7 @@ object TaskManager {
   }
 
   /**
-    * Starts and runs the TaskManager. with all its components trying to bind to
+    * Starts and runs the TaskManager with all its components trying to bind to
     * a port in the specified range.
     *
     * @param taskManagerHostname The hostname/address of the interface where the actor system
