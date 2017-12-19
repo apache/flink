@@ -41,6 +41,8 @@ import java.util.Properties;
  */
 public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 
+	private static final long serialVersionUID = 1L;
+
 	/**
 	 * Flag controlling whether we are writing the Flink record's timestamp into Kafka.
 	 */
