@@ -101,13 +101,20 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ValueState<Integer> testState1;
 	private ValueState<String> testState2;
 
-	@Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
+	@Parameterized.Parameters(name = "Incremental checkpointing: {0}, large lists: {1}")
+	public static Collection<Boolean[]> parameters() {
+		return Arrays.asList(
+						new Boolean[] { false, false },
+						new Boolean[] { false, true },
+						new Boolean[] { true, false } ,
+						new Boolean[] { true, true });
 	}
 
-	@Parameterized.Parameter
+	@Parameterized.Parameter(value = 0)
 	public boolean enableIncrementalCheckpointing;
+
+	@Parameterized.Parameter(value = 1)
+	public boolean enableLargeLists;
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -119,7 +126,11 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	protected RocksDBStateBackend getStateBackend() throws IOException {
 		dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+		RocksDBStateBackend backend = new RocksDBStateBackend(
+						new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+		if (enableLargeLists) {
+			backend = backend.enableLargeListsPerKey();
+		}
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}
@@ -231,7 +242,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 				1,
 				new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
-				enableIncrementalCheckpointing);
+				enableIncrementalCheckpointing,
+				enableLargeLists);
 
 			verify(columnFamilyOptions, Mockito.times(1))
 				.setMergeOperatorName(RocksDBKeyedStateBackend.MERGE_OPERATOR_NAME);

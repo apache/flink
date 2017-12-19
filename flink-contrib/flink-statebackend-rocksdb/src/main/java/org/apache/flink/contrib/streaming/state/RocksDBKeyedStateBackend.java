@@ -198,6 +198,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	/** True if incremental checkpointing is enabled. */
 	private final boolean enableIncrementalCheckpointing;
 
+	/** True if large lists should be supported. */
+	private final boolean enableLargeListsPerKey;
+
 	/** The state handle ids of all sst files materialized in snapshots for previous checkpoints. */
 	private final SortedMap<Long, Set<StateHandleID>> materializedSstFiles;
 
@@ -218,7 +221,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		int numberOfKeyGroups,
 		KeyGroupRange keyGroupRange,
 		ExecutionConfig executionConfig,
-		boolean enableIncrementalCheckpointing
+		boolean enableIncrementalCheckpointing,
+		boolean enableLargeListsPerKey
 	) throws IOException {
 
 		super(kvStateRegistry, keySerializer, userCodeClassLoader, numberOfKeyGroups, keyGroupRange, executionConfig);
@@ -226,6 +230,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 		this.operatorIdentifier = Preconditions.checkNotNull(operatorIdentifier);
 
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
+		this.enableLargeListsPerKey = enableLargeListsPerKey;
 		this.rocksDBResourceGuard = new ResourceGuard();
 
 		// ensure that we use the right merge operator, because other code relies on this
@@ -1688,7 +1693,9 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
 		ColumnFamilyHandle columnFamily = getColumnFamily(stateDesc, namespaceSerializer);
 
-		return new RocksDBListState<>(columnFamily, namespaceSerializer, stateDesc, this);
+		return enableLargeListsPerKey
+						? new LargeRocksDBListState<>(columnFamily, namespaceSerializer, stateDesc, this)
+						: new RocksDBListState<>(columnFamily, namespaceSerializer, stateDesc, this);
 	}
 
 	@Override

@@ -122,6 +122,9 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	/** Whether we already lazily initialized our local storage directories. */
 	private transient boolean isInitialized;
 
+	/** True if large lists per single value should be supported. */
+	private boolean enableLargeListsPerKey;
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -297,11 +300,21 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	@Override
 	public RocksDBStateBackend configure(Configuration config) {
 		return new RocksDBStateBackend(this, config);
-	}
+        }
 
 	// ------------------------------------------------------------------------
 	//  State backend methods
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Enable storing large lists per single key. The list need not fit into memory
+	 * but the backend might have a slightly higher overhead in some cases.
+	 * @return this
+	 */
+	public RocksDBStateBackend enableLargeListsPerKey() {
+		this.enableLargeListsPerKey = true;
+		return this;
+	}
 
 	/**
 	 * Gets the state backend that this RocksDB state backend uses to persist
@@ -418,7 +431,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 				numberOfKeyGroups,
 				keyGroupRange,
 				env.getExecutionConfig(),
-				isIncrementalCheckpointsEnabled());
+				isIncrementalCheckpointsEnabled(),
+				enableLargeListsPerKey);
 	}
 
 	@Override

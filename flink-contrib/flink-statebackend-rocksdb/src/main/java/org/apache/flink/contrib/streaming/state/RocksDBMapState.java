@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -63,14 +64,14 @@ public class RocksDBMapState<K, N, UK, UV>
 	private static final Logger LOG = LoggerFactory.getLogger(RocksDBMapState.class);
 
 	/** Serializer for the keys and values. */
-	private final TypeSerializer<UK> userKeySerializer;
-	private final TypeSerializer<UV> userValueSerializer;
+	final TypeSerializer<UK> userKeySerializer;
+	final TypeSerializer<UV> userValueSerializer;
 
 	/**
 	 * We disable writes to the write-ahead-log here. We can't have these in the base class
 	 * because JNI segfaults for some reason if they are.
 	 */
-	private final WriteOptions writeOptions;
+	final WriteOptions writeOptions;
 
 	/**
 	 * Creates a new {@code RocksDBMapState}.
@@ -368,7 +369,8 @@ public class RocksDBMapState<K, N, UK, UV>
 					try {
 						userValue = deserializeUserValue(rawValueBytes);
 					} catch (IOException e) {
-						throw new RuntimeException("Error while deserializing the user value.");
+						throw new RuntimeException(
+										"Error while deserializing the user value.", e);
 					}
 				}
 
@@ -395,6 +397,15 @@ public class RocksDBMapState<K, N, UK, UV>
 
 			return oldValue;
 		}
+
+		@Override
+		public String toString() {
+			return "RocksDBMapEntry("
+							+ "key=" + Arrays.toString(rawKeyBytes)
+							+ ", value=" + Arrays.toString(rawValueBytes)
+							+ ")";
+		}
+
 	}
 
 	/** An auxiliary utility to scan all entries under the given key. */
@@ -472,47 +483,49 @@ public class RocksDBMapState<K, N, UK, UV>
 				return;
 			}
 
-			RocksIterator iterator = db.newIterator(columnFamily);
+			try (RocksIterator iterator = db.newIterator(columnFamily)) {
 
-			/*
-			 * The iteration starts from the prefix bytes at the first loading. The cache then is
-			 * reloaded when the next entry to return is the last one in the cache. At that time,
-			 * we will start the iterating from the last returned entry.
- 			 */
-			RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
-			byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
-			int numEntries = (lastEntry == null ? CACHE_SIZE_BASE : Math.min(cacheEntries.size() * 2, CACHE_SIZE_LIMIT));
+				/*
+				* The iteration starts from the prefix bytes at the first loading. The cache then is
+				* reloaded when the next entry to return is the last one in the cache. At that time,
+				* we will start the iterating from the last returned entry.
+				*/
+				RocksDBMapEntry lastEntry = cacheEntries.size() == 0 ? null : cacheEntries.get(cacheEntries.size() - 1);
+				byte[] startBytes = (lastEntry == null ? keyPrefixBytes : lastEntry.rawKeyBytes);
+				int numEntries = (lastEntry == null ? CACHE_SIZE_BASE : Math.min(cacheEntries.size() * 2, CACHE_SIZE_LIMIT));
 
-			cacheEntries.clear();
-			cacheIndex = 0;
+				cacheEntries.clear();
+				cacheIndex = 0;
 
-			iterator.seek(startBytes);
+				iterator.seek(startBytes);
 
-			/*
-			 * If the last returned entry is not deleted, it will be the first entry in the
-			 * iterating. Skip it to avoid redundant access in such cases.
-			 */
-			if (lastEntry != null && !lastEntry.deleted) {
-				iterator.next();
-			}
-
-			while (true) {
-				if (!iterator.isValid() || !underSameKey(iterator.key())) {
-					expired = true;
-					break;
+				/*
+				* If the last returned entry is not deleted, it will be the first entry in the
+				* iterating. Skip it to avoid redundant access in such cases.
+				*/
+				if (lastEntry != null && !lastEntry.deleted) {
+					iterator.next();
 				}
 
-				if (cacheEntries.size() >= numEntries) {
-					break;
+				while (true) {
+					if (!iterator.isValid() || !underSameKey(iterator.key())) {
+						expired = true;
+						break;
+					}
+
+					if (cacheEntries.size() >= numEntries) {
+						break;
+					}
+
+					RocksDBMapEntry entry = new RocksDBMapEntry(db, iterator.key(), iterator.value());
+					// skip any entry that doesn't have suffix
+					if (entry.rawKeyBytes.length > this.keyPrefixBytes.length) {
+						cacheEntries.add(entry);
+					}
+
+					iterator.next();
 				}
-
-				RocksDBMapEntry entry = new RocksDBMapEntry(db, iterator.key(), iterator.value());
-				cacheEntries.add(entry);
-
-				iterator.next();
 			}
-
-			iterator.close();
 		}
 
 		private boolean underSameKey(byte[] rawKeyBytes) {
