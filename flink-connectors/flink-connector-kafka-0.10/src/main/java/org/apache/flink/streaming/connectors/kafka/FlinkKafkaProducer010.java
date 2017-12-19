@@ -386,7 +386,11 @@ public class FlinkKafkaProducer010<T> extends FlinkKafkaProducer09<T> {
 	 *
 	 * <p>To enable the settings, this fake sink must override all the public methods
 	 * in {@link DataStreamSink}.</p>
+	 *
+	 * @deprecated This class is deprecated since the factory methods {@code writeToKafkaWithTimestamps}
+	 *             for the producer are also deprecated.
 	 */
+	@Deprecated
 	public static class FlinkKafkaProducer010Configuration<T> extends DataStreamSink<T> {
 
 		private final FlinkKafkaProducer010 producer;
