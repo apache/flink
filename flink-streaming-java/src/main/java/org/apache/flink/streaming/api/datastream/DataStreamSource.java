@@ -54,7 +54,8 @@ public class DataStreamSource<T> extends SingleOutputStreamOperator<T> {
 		if (parallelism != 1 && !isParallel) {
 			throw new IllegalArgumentException("Source: " + transformation.getId() + " is not a parallel source");
 		} else {
-			return (DataStreamSource<T>) super.setParallelism(parallelism);
+			super.setParallelism(parallelism);
+			return this;
 		}
 	}
 }
