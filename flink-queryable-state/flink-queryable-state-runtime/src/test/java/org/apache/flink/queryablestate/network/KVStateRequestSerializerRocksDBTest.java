@@ -36,10 +36,14 @@ import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Collection;
 
 import static org.mockito.Mockito.mock;
 
@@ -47,10 +51,19 @@ import static org.mockito.Mockito.mock;
  * Additional tests for the serialization and deserialization using
  * the KvStateSerializer with a RocksDB state back-end.
  */
+@RunWith(Parameterized.class)
 public final class KVStateRequestSerializerRocksDBTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	@Parameterized.Parameters
+	public static Collection<Boolean> parameters() {
+		return Arrays.asList(true, false);
+	}
+
+	@Parameterized.Parameter
+	public boolean enableLargeListsPerKey;
 
 	/**
 	 * Extension of {@link RocksDBKeyedStateBackend} to make {@link
@@ -59,7 +72,7 @@ public final class KVStateRequestSerializerRocksDBTest {
 	 *
 	 * @param <K> key type
 	 */
-	static final class RocksDBKeyedStateBackend2<K> extends RocksDBKeyedStateBackend<K> {
+	final class RocksDBKeyedStateBackend2<K> extends RocksDBKeyedStateBackend<K> {
 
 		RocksDBKeyedStateBackend2(
 				final String operatorIdentifier,
@@ -76,7 +89,8 @@ public final class KVStateRequestSerializerRocksDBTest {
 			super(operatorIdentifier, userCodeClassLoader,
 				instanceBasePath,
 				dbOptions, columnFamilyOptions, kvStateRegistry, keySerializer,
-				numberOfKeyGroups, keyGroupRange, executionConfig, false);
+				numberOfKeyGroups, keyGroupRange, executionConfig, false,
+				enableLargeListsPerKey);
 		}
 
 		@Override
@@ -152,7 +166,9 @@ public final class KVStateRequestSerializerRocksDBTest {
 				LongSerializer.INSTANCE,
 				1, new KeyGroupRange(0, 0),
 				new ExecutionConfig(),
-				false);
+				false,
+				enableLargeListsPerKey);
+
 		longHeapKeyedStateBackend.restore(null);
 		longHeapKeyedStateBackend.setCurrentKey(key);
 
