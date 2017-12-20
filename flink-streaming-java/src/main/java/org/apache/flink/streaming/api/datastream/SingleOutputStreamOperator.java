@@ -130,16 +130,13 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
 	}
 
 	/**
-	 * Sets the parallelism for this operator. The degree must be 1 or more.
+	 * Sets the parallelism for this operator.
 	 *
 	 * @param parallelism
 	 *            The parallelism for this operator.
 	 * @return The operator with set parallelism.
 	 */
 	public SingleOutputStreamOperator<T> setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0,
-				"The parallelism of an operator must be at least 1.");
-
 		Preconditions.checkArgument(canBeParallel() || parallelism == 1,
 				"The parallelism of non parallel operator must be 1.");
 

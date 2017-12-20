@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -198,7 +199,9 @@ public abstract class StreamTransformation<T> {
 	 * @param parallelism The new parallelism to set on this {@code StreamTransformation}.
 	 */
 	public void setParallelism(int parallelism) {
-		Preconditions.checkArgument(parallelism > 0, "Parallelism must be bigger than zero.");
+		Preconditions.checkArgument(
+				parallelism > 0 || parallelism == ExecutionConfig.PARALLELISM_DEFAULT,
+				"The parallelism must be at least one, or ExecutionConfig.PARALLELISM_DEFAULT (use system default).");
 		this.parallelism = parallelism;
 	}
 
