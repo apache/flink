@@ -38,7 +38,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.junit.AfterClass;
@@ -375,12 +374,10 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 			private class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 
 				public TestingYarnClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
-					super(flinkConfiguration, configurationDirectory);
-				}
-
-				@Override
-				public YarnClient getYarnClient() {
-					return new TestYarnClient();
+					super(
+						flinkConfiguration,
+						configurationDirectory,
+						new TestYarnClient(finalApplicationStatus));
 				}
 
 				@Override
@@ -388,52 +385,51 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 						AbstractYarnClusterDescriptor descriptor,
 						int numberTaskManagers,
 						int slotsPerTaskManager,
-						YarnClient yarnClient,
 						ApplicationReport report,
 						Configuration flinkConfiguration,
 						boolean perJobCluster) throws IOException, YarnException {
 
 					return Mockito.mock(YarnClusterClient.class);
 				}
+			}
+		}
 
-				private class TestYarnClient extends YarnClientImpl {
+		private static class TestYarnClient extends YarnClientImpl {
 
-					private final List<ApplicationReport> reports = new LinkedList<>();
+			private final List<ApplicationReport> reports = new LinkedList<>();
 
-					TestYarnClient() {
-						{   // a report that of our Yarn application we want to resume from
-							ApplicationReport report = Mockito.mock(ApplicationReport.class);
-							Mockito.when(report.getHost()).thenReturn(TEST_YARN_JOB_MANAGER_ADDRESS);
-							Mockito.when(report.getRpcPort()).thenReturn(TEST_YARN_JOB_MANAGER_PORT);
-							Mockito.when(report.getApplicationId()).thenReturn(TEST_YARN_APPLICATION_ID);
-							Mockito.when(report.getFinalApplicationStatus()).thenReturn(finalApplicationStatus);
-							this.reports.add(report);
-						}
-						{   // a second report, just for noise
-							ApplicationReport report = Mockito.mock(ApplicationReport.class);
-							Mockito.when(report.getHost()).thenReturn("1.2.3.4");
-							Mockito.when(report.getRpcPort()).thenReturn(-123);
-							Mockito.when(report.getApplicationId()).thenReturn(ApplicationId.newInstance(0, 0));
-							Mockito.when(report.getFinalApplicationStatus()).thenReturn(finalApplicationStatus);
-							this.reports.add(report);
-						}
-					}
+			TestYarnClient(FinalApplicationStatus finalApplicationStatus) {
+				{   // a report that of our Yarn application we want to resume from
+					ApplicationReport report = Mockito.mock(ApplicationReport.class);
+					Mockito.when(report.getHost()).thenReturn(TEST_YARN_JOB_MANAGER_ADDRESS);
+					Mockito.when(report.getRpcPort()).thenReturn(TEST_YARN_JOB_MANAGER_PORT);
+					Mockito.when(report.getApplicationId()).thenReturn(TEST_YARN_APPLICATION_ID);
+					Mockito.when(report.getFinalApplicationStatus()).thenReturn(finalApplicationStatus);
+					this.reports.add(report);
+				}
+				{   // a second report, just for noise
+					ApplicationReport report = Mockito.mock(ApplicationReport.class);
+					Mockito.when(report.getHost()).thenReturn("1.2.3.4");
+					Mockito.when(report.getRpcPort()).thenReturn(-123);
+					Mockito.when(report.getApplicationId()).thenReturn(ApplicationId.newInstance(0, 0));
+					Mockito.when(report.getFinalApplicationStatus()).thenReturn(finalApplicationStatus);
+					this.reports.add(report);
+				}
+			}
 
-					@Override
-					public List<ApplicationReport> getApplications() throws YarnException, IOException {
-						return reports;
-					}
+			@Override
+			public List<ApplicationReport> getApplications() throws YarnException, IOException {
+				return reports;
+			}
 
-					@Override
-					public ApplicationReport getApplicationReport(ApplicationId appId) throws YarnException, IOException {
-						for (ApplicationReport report : reports) {
-							if (report.getApplicationId().equals(appId)) {
-								return report;
-							}
-						}
-						throw new YarnException();
+			@Override
+			public ApplicationReport getApplicationReport(ApplicationId appId) throws YarnException, IOException {
+				for (ApplicationReport report : reports) {
+					if (report.getApplicationId().equals(appId)) {
+						return report;
 					}
 				}
+				throw new YarnException();
 			}
 		}
 	}

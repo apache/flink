@@ -60,4 +60,9 @@ public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<RestC
 	public RestClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		throw new UnsupportedOperationException("Can't deploy a standalone FLIP-6 per-job cluster.");
 	}
+
+	@Override
+	public void close() throws Exception {
+		// nothing to do
+	}
 }

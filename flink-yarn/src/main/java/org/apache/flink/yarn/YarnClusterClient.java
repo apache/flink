@@ -43,7 +43,6 @@ import akka.util.Timeout;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,8 +65,6 @@ import scala.concurrent.duration.FiniteDuration;
 public class YarnClusterClient extends ClusterClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClient.class);
-
-	private YarnClient yarnClient;
 
 	private Thread clientShutdownHook = new ClientShutdownHook();
 
@@ -93,7 +90,6 @@ public class YarnClusterClient extends ClusterClient {
 	 * @param clusterDescriptor The descriptor used at cluster creation
 	 * @param numberTaskManagers The number of task managers, -1 if unknown
 	 * @param slotsPerTaskManager Slots per task manager, -1 if unknown
-	 * @param yarnClient Client to talk to YARN
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
 	 * @param newlyCreatedCluster Indicator whether this cluster has just been created
@@ -104,7 +100,6 @@ public class YarnClusterClient extends ClusterClient {
 		final AbstractYarnClusterDescriptor clusterDescriptor,
 		final int numberTaskManagers,
 		final int slotsPerTaskManager,
-		final YarnClient yarnClient,
 		final ApplicationReport appReport,
 		Configuration flinkConfig,
 		boolean newlyCreatedCluster) throws Exception {
@@ -115,7 +110,6 @@ public class YarnClusterClient extends ClusterClient {
 		this.clusterDescriptor = clusterDescriptor;
 		this.numberTaskManagers = numberTaskManagers;
 		this.slotsPerTaskManager = slotsPerTaskManager;
-		this.yarnClient = yarnClient;
 		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
@@ -328,7 +322,7 @@ public class YarnClusterClient extends ClusterClient {
 			Future<Object> response =
 				Patterns.ask(applicationClient.get(),
 					new YarnMessages.LocalStopYarnSession(ApplicationStatus.CANCELED,
-							"Flink YARN Client requested shutdown"),
+						"Flink YARN Client requested shutdown"),
 					new Timeout(akkaDuration));
 			Await.ready(response, akkaDuration);
 		} catch (Exception e) {
@@ -349,7 +343,7 @@ public class YarnClusterClient extends ClusterClient {
 		}
 
 		try {
-			ApplicationReport appReport = yarnClient.getApplicationReport(appId);
+			ApplicationReport appReport = clusterDescriptor.getYarnClient().getApplicationReport(appId);
 
 			LOG.info("Application " + appId + " finished with state " + appReport
 				.getYarnApplicationState() + " and final state " + appReport
@@ -368,10 +362,6 @@ public class YarnClusterClient extends ClusterClient {
 		} catch (Exception e) {
 			LOG.warn("Couldn't get final report", e);
 		}
-
-		LOG.info("YARN Client is shutting down");
-		yarnClient.stop(); // actorRunner is using the yarnClient.
-		yarnClient = null; // set null to clearly see if somebody wants to access it afterwards.
 	}
 
 	public boolean hasBeenShutdown() {
