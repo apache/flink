@@ -24,6 +24,7 @@ import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,32 +51,40 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testExplicitLibShipping() throws Exception {
-		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(new Configuration(), temporaryFolder.getRoot().getAbsolutePath());
-		descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
+		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+			new Configuration(),
+			temporaryFolder.getRoot().getAbsolutePath(),
+			YarnClient.createYarnClient());
 
-		File libFile = temporaryFolder.newFile("libFile.jar");
-		File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+		try {
+			descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
 
-		Assert.assertFalse(descriptor.shipFiles.contains(libFile));
-		Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+			File libFile = temporaryFolder.newFile("libFile.jar");
+			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 
-		List<File> shipFiles = new ArrayList<>();
-		shipFiles.add(libFile);
-		shipFiles.add(libFolder);
+			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
+			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
 
-		descriptor.addShipFiles(shipFiles);
+			List<File> shipFiles = new ArrayList<>();
+			shipFiles.add(libFile);
+			shipFiles.add(libFolder);
 
-		Assert.assertTrue(descriptor.shipFiles.contains(libFile));
-		Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+			descriptor.addShipFiles(shipFiles);
 
-		// only execute part of the deployment to test for shipped files
-		Set<File> effectiveShipFiles = new HashSet<>();
-		descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
+			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
 
-		Assert.assertEquals(0, effectiveShipFiles.size());
-		Assert.assertEquals(2, descriptor.shipFiles.size());
-		Assert.assertTrue(descriptor.shipFiles.contains(libFile));
-		Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+			// only execute part of the deployment to test for shipped files
+			Set<File> effectiveShipFiles = new HashSet<>();
+			descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+
+			Assert.assertEquals(0, effectiveShipFiles.size());
+			Assert.assertEquals(2, descriptor.shipFiles.size());
+			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
+			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
+		}
 	}
 
 	/**
@@ -83,30 +92,37 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	 */
 	@Test
 	public void testEnvironmentLibShipping() throws Exception {
-		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(new Configuration(), temporaryFolder.getRoot().getAbsolutePath());
+		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+			new Configuration(),
+			temporaryFolder.getRoot().getAbsolutePath(),
+			YarnClient.createYarnClient());
 
-		File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
-		File libFile = new File(libFolder, "libFile.jar");
-		libFile.createNewFile();
-
-		Set<File> effectiveShipFiles = new HashSet<>();
-
-		final Map<String, String> oldEnv = System.getenv();
 		try {
-			Map<String, String> env = new HashMap<>(1);
-			env.put(ConfigConstants.ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
-			TestBaseUtils.setEnv(env);
-			// only execute part of the deployment to test for shipped files
-			descriptor.addLibFolderToShipFiles(effectiveShipFiles);
-		} finally {
-			TestBaseUtils.setEnv(oldEnv);
-		}
+			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+			File libFile = new File(libFolder, "libFile.jar");
+			libFile.createNewFile();
 
-		// only add the ship the folder, not the contents
-		Assert.assertFalse(effectiveShipFiles.contains(libFile));
-		Assert.assertTrue(effectiveShipFiles.contains(libFolder));
-		Assert.assertFalse(descriptor.shipFiles.contains(libFile));
-		Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+			Set<File> effectiveShipFiles = new HashSet<>();
+
+			final Map<String, String> oldEnv = System.getenv();
+			try {
+				Map<String, String> env = new HashMap<>(1);
+				env.put(ConfigConstants.ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
+				TestBaseUtils.setEnv(env);
+				// only execute part of the deployment to test for shipped files
+				descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+			} finally {
+				TestBaseUtils.setEnv(oldEnv);
+			}
+
+			// only add the ship the folder, not the contents
+			Assert.assertFalse(effectiveShipFiles.contains(libFile));
+			Assert.assertTrue(effectiveShipFiles.contains(libFolder));
+			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
+			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
+		}
 	}
 
 }

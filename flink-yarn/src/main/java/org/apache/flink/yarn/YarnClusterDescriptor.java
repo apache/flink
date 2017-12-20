@@ -22,13 +22,18 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
+import org.apache.hadoop.yarn.client.api.YarnClient;
+
 /**
  * Default implementation of {@link AbstractYarnClusterDescriptor} which starts an {@link YarnApplicationMasterRunner}.
  */
 public class YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
-	public YarnClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
-		super(flinkConfiguration, configurationDirectory);
+	public YarnClusterDescriptor(
+			Configuration flinkConfiguration,
+			String configurationDirectory,
+			YarnClient yarnClient) {
+		super(flinkConfiguration, configurationDirectory, yarnClient);
 	}
 
 	@Override

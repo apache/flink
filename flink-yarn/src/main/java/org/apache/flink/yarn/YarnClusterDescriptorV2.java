@@ -22,14 +22,19 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
+import org.apache.hadoop.yarn.client.api.YarnClient;
+
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the
  * new application master for a job under flip-6.
  */
 public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
 
-	public YarnClusterDescriptorV2(Configuration flinkConfiguration, String configurationDirectory) {
-		super(flinkConfiguration, configurationDirectory);
+	public YarnClusterDescriptorV2(
+			Configuration flinkConfiguration,
+			String configurationDirectory,
+			YarnClient yarnCLient) {
+		super(flinkConfiguration, configurationDirectory, yarnCLient);
 	}
 
 	@Override
