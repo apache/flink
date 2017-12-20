@@ -91,6 +91,7 @@ flink-connectors/flink-connector-filesystem,\
 flink-connectors/flink-connector-kafka-0.8,\
 flink-connectors/flink-connector-kafka-0.9,\
 flink-connectors/flink-connector-kafka-0.10,\
+flink-connectors/flink-connector-kafka-0.11,\
 flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
@@ -98,10 +99,6 @@ flink-connectors/flink-connector-twitter"
 
 MODULES_TESTS="\
 flink-tests"
-
-if [[ $PROFILE != *"scala-2.10"* ]]; then
-	MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kafka-0.11"
-fi
 
 if [[ $PROFILE == *"include-kinesis"* ]]; then
 	case $TEST in
