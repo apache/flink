@@ -71,6 +71,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.mockito.Matchers.any;
@@ -99,6 +100,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	final Environment environment;
 
+	private final Optional<MockEnvironment> internalEnvironment;
+
 	CloseableRegistry closableRegistry;
 
 	// use this as default for tests
@@ -118,11 +121,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	private volatile boolean wasFailedExternally = false;
 
 	public AbstractStreamOperatorTestHarness(
-		StreamOperator<OUT> operator,
-		int maxParallelism,
-		int parallelism,
-		int subtaskIndex) throws Exception {
-
+			StreamOperator<OUT> operator,
+			int maxParallelism,
+			int parallelism,
+			int subtaskIndex) throws Exception {
 		this(
 			operator,
 			new MockEnvironment(
@@ -134,12 +136,20 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				new ExecutionConfig(),
 				maxParallelism,
 				parallelism,
-				subtaskIndex));
+				subtaskIndex),
+			true);
 	}
 
 	public AbstractStreamOperatorTestHarness(
 			StreamOperator<OUT> operator,
 			final Environment environment) throws Exception {
+		this(operator, environment, false);
+	}
+
+	private AbstractStreamOperatorTestHarness(
+			StreamOperator<OUT> operator,
+			final Environment environment,
+			boolean environmentIsInternal) throws Exception {
 		this.operator = operator;
 		this.outputList = new ConcurrentLinkedQueue<>();
 		this.sideOutputLists = new HashMap<>();
@@ -153,6 +163,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		this.checkpointLock = new Object();
 
 		this.environment = Preconditions.checkNotNull(environment);
+		this.internalEnvironment = environmentIsInternal ? Optional.of((MockEnvironment) environment) : Optional.empty();
 
 		mockTask = mock(StreamTask.class);
 		processingTimeService = new TestProcessingTimeService();
@@ -492,6 +503,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			processingTimeService.shutdownService();
 		}
 		setupCalled = false;
+
+		internalEnvironment.ifPresent(MockEnvironment::close);
 	}
 
 	public void setProcessingTime(long time) throws Exception {

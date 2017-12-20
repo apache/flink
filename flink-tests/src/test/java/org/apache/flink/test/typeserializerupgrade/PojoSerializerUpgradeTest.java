@@ -350,50 +350,51 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			OperatorStateHandles operatorStateHandles,
 			Iterable<Long> input) throws Exception {
 
-		final MockEnvironment environment = new MockEnvironment(
-			"test task",
-			32 * 1024,
-			new MockInputSplitProvider(),
-			256,
-			taskConfiguration,
-			executionConfig,
-			16,
-			1,
-			0,
-			classLoader);
+		try (final MockEnvironment environment = new MockEnvironment(
+				"test task",
+				32 * 1024,
+				new MockInputSplitProvider(),
+				256,
+				taskConfiguration,
+				executionConfig,
+				16,
+				1,
+				0,
+				classLoader)) {
 
-		OneInputStreamOperatorTestHarness<Long, Long> harness;
+			OneInputStreamOperatorTestHarness<Long, Long> harness;
 
-		if (isKeyedState) {
-			harness = new KeyedOneInputStreamOperatorTestHarness<>(
-				operator,
-				keySelector,
-				BasicTypeInfo.LONG_TYPE_INFO,
-				environment);
-		} else {
-			harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+			if (isKeyedState) {
+				harness = new KeyedOneInputStreamOperatorTestHarness<>(
+					operator,
+					keySelector,
+					BasicTypeInfo.LONG_TYPE_INFO,
+					environment);
+			} else {
+				harness = new OneInputStreamOperatorTestHarness<>(operator, LongSerializer.INSTANCE, environment);
+			}
+
+			harness.setStateBackend(stateBackend);
+
+			harness.setup();
+			harness.initializeState(operatorStateHandles);
+			harness.open();
+
+			long timestamp = 0L;
+
+			for (Long value : input) {
+				harness.processElement(value, timestamp++);
+			}
+
+			long checkpointId = 1L;
+			long checkpointTimestamp = timestamp + 1L;
+
+			OperatorStateHandles stateHandles = harness.snapshot(checkpointId, checkpointTimestamp);
+
+			harness.close();
+
+			return stateHandles;
 		}
-
-		harness.setStateBackend(stateBackend);
-
-		harness.setup();
-		harness.initializeState(operatorStateHandles);
-		harness.open();
-
-		long timestamp = 0L;
-
-		for (Long value : input) {
-			harness.processElement(value, timestamp++);
-		}
-
-		long checkpointId = 1L;
-		long checkpointTimestamp = timestamp + 1L;
-
-		OperatorStateHandles stateHandles = harness.snapshot(checkpointId, checkpointTimestamp);
-
-		harness.close();
-
-		return stateHandles;
 	}
 
 	private static File writeSourceFile(File root, String name, String source) throws IOException {

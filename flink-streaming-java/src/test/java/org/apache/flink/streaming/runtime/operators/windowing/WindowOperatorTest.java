@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunct
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -98,7 +99,13 @@ public class WindowOperatorTest extends TestLogger {
 	// late arriving event OutputTag<StreamRecord<IN>>
 	private static final OutputTag<Tuple2<String, Integer>> lateOutputTag = new OutputTag<Tuple2<String, Integer>>("late-output") {};
 
-	private void testSlidingEventTimeWindows(OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness) throws Exception {
+	private void testSlidingEventTimeWindows(OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator) throws Exception {
+
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			createTestHarness(operator);
+
+		testHarness.setup();
+		testHarness.open();
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -134,6 +141,9 @@ public class WindowOperatorTest extends TestLogger {
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
+
+		expectedOutput.clear();
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -160,6 +170,8 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new Watermark(7999));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
+		testHarness.close();
 	}
 
 	@Test
@@ -187,15 +199,7 @@ public class WindowOperatorTest extends TestLogger {
 				0,
 				null /* late data output tag */);
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		testHarness.setup();
-		testHarness.open();
-
-		testSlidingEventTimeWindows(testHarness);
-
-		testHarness.close();
+		testSlidingEventTimeWindows(operator);
 	}
 
 	@Test
@@ -222,20 +226,16 @@ public class WindowOperatorTest extends TestLogger {
 				0,
 				null /* late data output tag */);
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		testHarness.open();
-
-		testSlidingEventTimeWindows(testHarness);
-
-		testHarness.close();
+		testSlidingEventTimeWindows(operator);
 
 		// we close once in the rest...
 		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
 	}
 
-	private void testTumblingEventTimeWindows(OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness) throws Exception {
+	private void testTumblingEventTimeWindows(OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator) throws Exception {
+		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
+			createTestHarness(operator);
+
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
 		testHarness.open();
@@ -262,7 +262,11 @@ public class WindowOperatorTest extends TestLogger {
 
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
 		testHarness.close();
+
+		testHarness = createTestHarness(operator);
+		expectedOutput.clear();
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -293,6 +297,8 @@ public class WindowOperatorTest extends TestLogger {
 		expectedOutput.add(new Watermark(7999));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple2ResultSortComparator());
+
+		testHarness.close();
 	}
 
 	@Test
@@ -319,14 +325,7 @@ public class WindowOperatorTest extends TestLogger {
 				0,
 				null /* late data output tag */);
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		testHarness.open();
-
-		testTumblingEventTimeWindows(testHarness);
-
-		testHarness.close();
+		testTumblingEventTimeWindows(operator);
 	}
 
 	@Test
@@ -352,14 +351,7 @@ public class WindowOperatorTest extends TestLogger {
 				0,
 				null /* late data output tag */);
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
-		testHarness.open();
-
-		testTumblingEventTimeWindows(testHarness);
-
-		testHarness.close();
+		testTumblingEventTimeWindows(operator);
 
 		// we close once in the rest...
 		Assert.assertEquals("Close was not called.", 2, closeCalled.get());
@@ -389,7 +381,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -405,7 +397,12 @@ public class WindowOperatorTest extends TestLogger {
 
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+
 		testHarness.close();
+
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -462,7 +459,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -478,7 +475,12 @@ public class WindowOperatorTest extends TestLogger {
 
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+
 		testHarness.close();
+
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -535,7 +537,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -549,6 +551,8 @@ public class WindowOperatorTest extends TestLogger {
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
+
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -606,7 +610,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -620,6 +624,8 @@ public class WindowOperatorTest extends TestLogger {
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
+
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -681,7 +687,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -699,6 +705,12 @@ public class WindowOperatorTest extends TestLogger {
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
 		testHarness.close();
+
+		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-10", 0L, 6500L), 6499));
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+		expectedOutput.clear();
+
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -708,8 +720,6 @@ public class WindowOperatorTest extends TestLogger {
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 6000));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 6500));
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 3), 7000));
-
-		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-10", 0L, 6500L), 6499));
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
@@ -751,7 +761,7 @@ public class WindowOperatorTest extends TestLogger {
 			null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -776,7 +786,13 @@ public class WindowOperatorTest extends TestLogger {
 
 		// do a snapshot, close and restore again
 		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
+
+		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+
 		testHarness.close();
+
+		expectedOutput.clear();
+		testHarness = createTestHarness(operator);
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
 		testHarness.open();
@@ -823,39 +839,45 @@ public class WindowOperatorTest extends TestLogger {
 				0,
 				null /* late data output tag */);
 
-		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
-
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		OperatorStateHandles snapshot;
 
-		testHarness.open();
+		try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+				createTestHarness(operator)) {
+			testHarness.open();
 
-		// add elements out-of-order
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 0));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 33), 1000));
+			// add elements out-of-order
+			testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), 0));
+			testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 33), 1000));
 
-		// do a snapshot, close and restore again
-		OperatorStateHandles snapshot = testHarness.snapshot(0L, 0L);
-		testHarness.close();
-		testHarness.setup();
-		testHarness.initializeState(snapshot);
-		testHarness.open();
+			// do a snapshot, close and restore again
+			snapshot = testHarness.snapshot(0L, 0L);
+		}
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 33), 2500));
+		try (OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
+				createTestHarness(operator)) {
+			testHarness.setup();
+			testHarness.initializeState(snapshot);
+			testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 10));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 1000));
-		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 33), 2500));
+			testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 33), 2500));
 
-		testHarness.processWatermark(new Watermark(12000));
+			testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 1), 10));
+			testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 2), 1000));
+			testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 33), 2500));
 
-		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-36", 10L, 4000L), 3999));
-		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-67", 0L, 3000L), 2999));
-		expectedOutput.add(new Watermark(12000));
+			testHarness.processWatermark(new Watermark(12000));
 
-		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+			expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-36", 10L, 4000L), 3999));
+			expectedOutput.add(new StreamRecord<>(new Tuple3<>("key2-67", 0L, 3000L), 2999));
+			expectedOutput.add(new Watermark(12000));
 
-		testHarness.close();
+			TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
+		}
+	}
+
+	private static <OUT> OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, OUT> createTestHarness(OneInputStreamOperator<Tuple2<String, Integer>, OUT> operator) throws Exception {
+		return new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
 	}
 
 	@Test
@@ -883,7 +905,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -969,7 +991,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1010,7 +1032,7 @@ public class WindowOperatorTest extends TestLogger {
 				0,
 				null /* late data output tag */);
 
-		testHarness = new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+		testHarness = createTestHarness(operator);
 
 		testHarness.setup();
 		testHarness.initializeState(snapshot);
@@ -1058,7 +1080,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1117,7 +1139,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1189,7 +1211,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+				createTestHarness(operator);
 
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -1255,7 +1277,7 @@ public class WindowOperatorTest extends TestLogger {
 				lateOutputTag);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1325,7 +1347,7 @@ public class WindowOperatorTest extends TestLogger {
 					null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1392,7 +1414,7 @@ public class WindowOperatorTest extends TestLogger {
 				lateOutputTag);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1457,7 +1479,7 @@ public class WindowOperatorTest extends TestLogger {
 				lateOutputTag /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1536,7 +1558,7 @@ public class WindowOperatorTest extends TestLogger {
 				lateOutputTag);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1628,7 +1650,7 @@ public class WindowOperatorTest extends TestLogger {
 				lateOutputTag);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1718,7 +1740,7 @@ public class WindowOperatorTest extends TestLogger {
 				lateOutputTag);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1805,7 +1827,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1906,7 +1928,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -1997,7 +2019,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2089,7 +2111,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, String> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2144,7 +2166,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2191,7 +2213,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2249,7 +2271,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2295,7 +2317,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2340,7 +2362,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple3<String, Long, Long>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 
@@ -2396,7 +2418,7 @@ public class WindowOperatorTest extends TestLogger {
 				null /* late data output tag */);
 
 		OneInputStreamOperatorTestHarness<Tuple2<String, Integer>, Tuple2<String, Integer>> testHarness =
-			new KeyedOneInputStreamOperatorTestHarness<>(operator, new TupleKeySelector(), BasicTypeInfo.STRING_TYPE_INFO);
+			createTestHarness(operator);
 
 		testHarness.open();
 

@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -70,7 +71,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class MockEnvironment implements Environment {
+/**
+ * IMPORTANT! Remember to close environment after usage!
+ */
+public class MockEnvironment implements Environment, AutoCloseable {
 	
 	private final TaskInfo taskInfo;
 	
@@ -375,5 +379,18 @@ public class MockEnvironment implements Environment {
 	@Override
 	public void failExternally(Throwable cause) {
 		throw new UnsupportedOperationException("MockEnvironment does not support external task failure.");
+	}
+
+	@Override
+	public void close() {
+		// close() method should be idempotent and calling memManager.verifyEmpty() will throw after it was shutdown.
+		if (!memManager.isShutdown()) {
+			checkState(memManager.verifyEmpty(), "Memory Manager managed memory was not completely freed.");
+		}
+
+		memManager.shutdown();
+		ioManager.shutdown();
+
+		checkState(ioManager.isProperlyShutDown(), "IO Manager has not properly shut down.");
 	}
 }

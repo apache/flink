@@ -755,43 +755,44 @@ public class StreamTaskTest extends TestLogger {
 		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
 		streamConfig.setOperatorID(new OperatorID());
 
-		MockEnvironment mockEnvironment = new MockEnvironment(
-			"Test Task",
-			32L * 1024L,
-			new MockInputSplitProvider(),
-			1,
-			taskConfiguration,
-			new ExecutionConfig());
-		StreamTask<Void, BlockingCloseStreamOperator> streamTask = new NoOpStreamTask<>(mockEnvironment);
-		final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
+		try (MockEnvironment mockEnvironment = new MockEnvironment(
+				"Test Task",
+				32L * 1024L,
+				new MockInputSplitProvider(),
+				1,
+				taskConfiguration,
+				new ExecutionConfig())) {
+			StreamTask<Void, BlockingCloseStreamOperator> streamTask = new NoOpStreamTask<>(mockEnvironment);
+			final AtomicReference<Throwable> atomicThrowable = new AtomicReference<>(null);
 
-		CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
-			() -> {
-				try {
-					streamTask.invoke();
-				} catch (Exception e) {
-					atomicThrowable.set(e);
-				}
-			},
-			TestingUtils.defaultExecutor());
+			CompletableFuture<Void> invokeFuture = CompletableFuture.runAsync(
+				() -> {
+					try {
+						streamTask.invoke();
+					} catch (Exception e) {
+						atomicThrowable.set(e);
+					}
+				},
+				TestingUtils.defaultExecutor());
 
-		BlockingCloseStreamOperator.IN_CLOSE.await();
+			BlockingCloseStreamOperator.IN_CLOSE.await();
 
-		// check that the StreamTask is not yet in isRunning == false
-		assertTrue(streamTask.isRunning());
+			// check that the StreamTask is not yet in isRunning == false
+			assertTrue(streamTask.isRunning());
 
-		// let the operator finish its close operation
-		BlockingCloseStreamOperator.FINISH_CLOSE.trigger();
+			// let the operator finish its close operation
+			BlockingCloseStreamOperator.FINISH_CLOSE.trigger();
 
-		// wait until the invoke is complete
-		invokeFuture.get();
+			// wait until the invoke is complete
+			invokeFuture.get();
 
-		// now the StreamTask should no longer be running
-		assertFalse(streamTask.isRunning());
+			// now the StreamTask should no longer be running
+			assertFalse(streamTask.isRunning());
 
-		// check if an exception occurred
-		if (atomicThrowable.get() != null) {
-			throw atomicThrowable.get();
+			// check if an exception occurred
+			if (atomicThrowable.get() != null) {
+				throw atomicThrowable.get();
+			}
 		}
 	}
 
