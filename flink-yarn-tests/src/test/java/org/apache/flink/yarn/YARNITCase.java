@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -49,10 +50,14 @@ public class YARNITCase extends YarnTestBase {
 
 	@Ignore("The cluster cannot be stopped yet.")
 	@Test
-	public void testPerJobMode() {
+	public void testPerJobMode() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-		YarnClusterDescriptorV2 yarnClusterDescriptorV2 = new YarnClusterDescriptorV2(configuration, System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR));
+		final YarnClient yarnClient = YarnClient.createYarnClient();
+		YarnClusterDescriptorV2 yarnClusterDescriptorV2 = new YarnClusterDescriptorV2(
+			configuration,
+			System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
+			yarnClient);
 
 		yarnClusterDescriptorV2.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
 		yarnClusterDescriptorV2.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
@@ -78,6 +83,9 @@ public class YARNITCase extends YarnTestBase {
 		jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 
 		YarnClusterClient clusterClient = yarnClusterDescriptorV2.deployJobCluster(clusterSpecification, jobGraph);
+
+		clusterClient.shutdown();
+		yarnClusterDescriptorV2.close();
 	}
 
 	private static class InfiniteSource implements ParallelSourceFunction<Integer> {

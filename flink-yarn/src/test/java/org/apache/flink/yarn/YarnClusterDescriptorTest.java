@@ -29,6 +29,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,9 +60,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() {
 
+		final YarnClient yarnClient = YarnClient.createYarnClient();
+
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			new Configuration(),
-			temporaryFolder.getRoot().getAbsolutePath());
+			temporaryFolder.getRoot().getAbsolutePath(),
+			yarnClient);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
@@ -81,6 +85,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			if (!(e.getCause() instanceof IllegalConfigurationException)) {
 				throw e;
 			}
+		} finally {
+			clusterDescriptor.close();
 		}
 	}
 
@@ -90,9 +96,12 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
 
+		final YarnClient yarnClient = YarnClient.createYarnClient();
+
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
-			temporaryFolder.getRoot().getAbsolutePath());
+			temporaryFolder.getRoot().getAbsolutePath(),
+			yarnClient);
 
 		clusterDescriptor.setLocalJarPath(new Path(flinkJar.getPath()));
 
@@ -113,15 +122,19 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			if (!(e.getCause() instanceof IllegalConfigurationException)) {
 				throw e;
 			}
+		} finally {
+			clusterDescriptor.close();
 		}
 	}
 
 	@Test
 	public void testSetupApplicationMasterContainer() {
 		Configuration cfg = new Configuration();
+		final YarnClient yarnClient = YarnClient.createYarnClient();
 		YarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			cfg,
-			temporaryFolder.getRoot().getAbsolutePath());
+			temporaryFolder.getRoot().getAbsolutePath(),
+			yarnClient);
 
 		final String java = "$JAVA_HOME/bin/java";
 		final String jvmmem = "-Xmx424m";
@@ -142,219 +155,223 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			"2> " + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.err";
 		final int jobManagerMemory = 1024;
 
-		// no logging, with/out krb5
-		assertEquals(
-			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + // logging
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					false,
-					false,
-					false,
-					jobManagerMemory)
-				.getCommands().get(0));
+		try {
+			// no logging, with/out krb5
+			assertEquals(
+				java + " " + jvmmem +
+					" " + // jvmOpts
+					" " + // logging
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						false,
+						false,
+						false,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		assertEquals(
-			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
-				" " + // logging
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					false,
-					false,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			assertEquals(
+				java + " " + jvmmem +
+					" " + " " + krb5 + // jvmOpts
+					" " + // logging
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						false,
+						false,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		// logback only, with/out krb5
-		assertEquals(
-			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + logfile + " " + logback +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					false,
-					false,
-					jobManagerMemory)
-				.getCommands().get(0));
+			// logback only, with/out krb5
+			assertEquals(
+				java + " " + jvmmem +
+					" " + // jvmOpts
+					" " + logfile + " " + logback +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						false,
+						false,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		assertEquals(
-			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
-				" " + logfile + " " + logback +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					false,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			assertEquals(
+				java + " " + jvmmem +
+					" " + " " + krb5 + // jvmOpts
+					" " + logfile + " " + logback +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						false,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		// log4j, with/out krb5
-		assertEquals(
-			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + logfile + " " + log4j +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					false,
-					true,
-					false,
-					jobManagerMemory)
-				.getCommands().get(0));
+			// log4j, with/out krb5
+			assertEquals(
+				java + " " + jvmmem +
+					" " + // jvmOpts
+					" " + logfile + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						false,
+						true,
+						false,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		assertEquals(
-			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
-				" " + logfile + " " + log4j +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					false,
-					true,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			assertEquals(
+				java + " " + jvmmem +
+					" " + " " + krb5 + // jvmOpts
+					" " + logfile + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						false,
+						true,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		// logback + log4j, with/out krb5
-		assertEquals(
-			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					false,
-					jobManagerMemory)
-				.getCommands().get(0));
+			// logback + log4j, with/out krb5
+			assertEquals(
+				java + " " + jvmmem +
+					" " + // jvmOpts
+					" " + logfile + " " + logback + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						false,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		assertEquals(
-			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
-				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			assertEquals(
+				java + " " + jvmmem +
+					" " + " " + krb5 + // jvmOpts
+					" " + logfile + " " + logback + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		// logback + log4j, with/out krb5, different JVM opts
-		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor,
-		// because we have a reference to the ClusterDescriptor's configuration which we modify continuously
-		cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
-		assertEquals(
-			java + " " + jvmmem +
-				" " + jvmOpts +
-				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					false,
-					jobManagerMemory)
-				.getCommands().get(0));
+			// logback + log4j, with/out krb5, different JVM opts
+			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor,
+			// because we have a reference to the ClusterDescriptor's configuration which we modify continuously
+			cfg.setString(CoreOptions.FLINK_JVM_OPTIONS, jvmOpts);
+			assertEquals(
+				java + " " + jvmmem +
+					" " + jvmOpts +
+					" " + logfile + " " + logback + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						false,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		assertEquals(
-			java + " " + jvmmem +
-				" " + jvmOpts + " " + krb5 + // jvmOpts
-				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			assertEquals(
+				java + " " + jvmmem +
+					" " + jvmOpts + " " + krb5 + // jvmOpts
+					" " + logfile + " " + logback + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		// logback + log4j, with/out krb5, different JVM opts
-		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
-		cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
-		assertEquals(
-			java + " " + jvmmem +
-				" " + jvmOpts + " " + jmJvmOpts +
-				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					false,
-					jobManagerMemory)
-				.getCommands().get(0));
+			// logback + log4j, with/out krb5, different JVM opts
+			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
+			cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
+			assertEquals(
+				java + " " + jvmmem +
+					" " + jvmOpts + " " + jmJvmOpts +
+					" " + logfile + " " + logback + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						false,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		assertEquals(
-			java + " " + jvmmem +
-				" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-				" " + logfile + " " + logback + " " + log4j +
-				" " + mainClass + " "  + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			assertEquals(
+				java + " " + jvmmem +
+					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" " + logfile + " " + logback + " " + log4j +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		// now try some configurations with different yarn.container-start-command-template
-		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
-		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
-			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
-		assertEquals(
-			java + " 1 " + jvmmem +
-				" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-				" 3 " + logfile + " " + logback + " " + log4j +
-				" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			// now try some configurations with different yarn.container-start-command-template
+			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
+			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+				"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
+			assertEquals(
+				java + " 1 " + jvmmem +
+					" 2 " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" 3 " + logfile + " " + logback + " " + log4j +
+					" 4 " + mainClass + " 5 " + args + " 6 " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
 
-		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
-			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
-		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
-		assertEquals(
-			java +
-				" " + logfile + " " + logback + " " + log4j +
-				" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
-				" " + jvmmem +
-				" " + mainClass + " " + args + " " + redirects,
-			clusterDescriptor
-				.setupApplicationMasterContainer(
-					mainClass,
-					true,
-					true,
-					true,
-					jobManagerMemory)
-				.getCommands().get(0));
+			cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
+				"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
+			// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
+			assertEquals(
+				java +
+					" " + logfile + " " + logback + " " + log4j +
+					" " + jvmOpts + " " + jmJvmOpts + " " + krb5 + // jvmOpts
+					" " + jvmmem +
+					" " + mainClass + " " + args + " " + redirects,
+				clusterDescriptor
+					.setupApplicationMasterContainer(
+						mainClass,
+						true,
+						true,
+						true,
+						jobManagerMemory)
+					.getCommands().get(0));
+		} finally {
+			clusterDescriptor.close();
+		}
 	}
 }

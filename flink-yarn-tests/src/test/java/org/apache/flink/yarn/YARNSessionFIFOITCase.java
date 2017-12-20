@@ -227,10 +227,14 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		Configuration configuration = GlobalConfiguration.loadConfiguration();
-		AbstractYarnClusterDescriptor flinkYarnClient = new YarnClusterDescriptor(configuration, confDirPath);
-		Assert.assertNotNull("unable to get yarn client", flinkYarnClient);
-		flinkYarnClient.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		flinkYarnClient.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+		final YarnClient yarnClient = YarnClient.createYarnClient();
+		AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+			configuration,
+			confDirPath,
+			yarnClient);
+		Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
+		clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
+		clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
 		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
 			.setMasterMemoryMB(768)
@@ -238,11 +242,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			.setNumberTaskManagers(1)
 			.setSlotsPerTaskManager(1)
 			.createClusterSpecification();
-
 		// deploy
 		ClusterClient yarnCluster = null;
 		try {
-			yarnCluster = flinkYarnClient.deploySessionCluster(clusterSpecification);
+			yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
 		} catch (Exception e) {
 			LOG.warn("Failing test", e);
 			Assert.fail("Error while deploying YARN cluster: " + e.getMessage());
@@ -272,6 +275,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		LOG.info("Shutting down cluster. All tests passed");
 		// shutdown cluster
 		yarnCluster.shutdown();
+		clusterDescriptor.close();
 		LOG.info("Finished testJavaAPI()");
 	}
 }
