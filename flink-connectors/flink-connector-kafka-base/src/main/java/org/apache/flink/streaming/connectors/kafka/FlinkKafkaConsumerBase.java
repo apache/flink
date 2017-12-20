@@ -545,20 +545,18 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			sourceContext.markAsTemporarilyIdle();
 		}
 
-		// create the fetcher that will communicate with the Kafka brokers
-		final AbstractFetcher<T, ?> fetcher = createFetcher(
+		// from this point forward:
+		//   - 'snapshotState' will draw offsets from the fetcher,
+		//     instead of being built from `subscribedPartitionsToStartOffsets`
+		//   - 'notifyCheckpointComplete' will start to do work (i.e. commit offsets to
+		//     Kafka through the fetcher, if configured to do so)
+		this.kafkaFetcher = createFetcher(
 				sourceContext,
 				subscribedPartitionsToStartOffsets,
 				periodicWatermarkAssigner,
 				punctuatedWatermarkAssigner,
 				(StreamingRuntimeContext) getRuntimeContext(),
 				offsetCommitMode);
-
-		// publish the reference, for snapshot-, commit-, and cancel calls
-		// IMPORTANT: We can only do that now, because only now will calls to
-		//            the fetchers 'snapshotCurrentState()' method return at least
-		//            the restored offsets
-		this.kafkaFetcher = fetcher;
 
 		if (!running) {
 			return;
@@ -598,7 +596,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 							// no need to add the discovered partitions if we were closed during the meantime
 							if (running && !discoveredPartitions.isEmpty()) {
-								fetcher.addDiscoveredPartitions(discoveredPartitions);
+								kafkaFetcher.addDiscoveredPartitions(discoveredPartitions);
 							}
 
 							// do not waste any time sleeping if we're not running anymore
@@ -621,7 +619,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			});
 
 			discoveryLoopThread.start();
-			fetcher.runFetchLoop();
+			kafkaFetcher.runFetchLoop();
 
 			// --------------------------------------------------------------------
 
@@ -638,7 +636,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			// won't be using the discoverer
 			partitionDiscoverer.close();
 
-			fetcher.runFetchLoop();
+			kafkaFetcher.runFetchLoop();
 		}
 	}
 
