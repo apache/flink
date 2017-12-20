@@ -128,7 +128,7 @@ Class unloading means that the Garbage Collector finds that no objects from a cl
 
 Whenever a TaskManager starts (or restarts) a task, it will load that specific task's code. Unless classes can be unloaded, this will
 become a memory leak, as new versions of classes are loaded and the total number of loaded classes accumulates over time. This
-typically manifests itself though a **OutOfMemoryError: PermGen**.
+typically manifests itself though a **OutOfMemoryError: Metaspace**.
 
 Common causes for class leaks and suggested fixes:
 

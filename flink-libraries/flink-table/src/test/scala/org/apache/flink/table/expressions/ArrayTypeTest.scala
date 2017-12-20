@@ -99,6 +99,9 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       "Array(Array(1, 2, 3), Array(3, 2, 1))",
       "ARRAY[ARRAY[1, 2, 3], ARRAY[3, 2, 1]]",
       "[[1, 2, 3], [3, 2, 1]]")
+
+    // implicit type cast only works on SQL APIs.
+    testSqlApi("ARRAY[CAST(1 AS DOUBLE), CAST(2 AS FLOAT)]", "[1.0, 2.0]")
   }
 
   @Test

@@ -821,9 +821,9 @@ The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internal
 | `Types.FLOAT`          | `REAL, FLOAT`               | `java.lang.Float`      |
 | `Types.DOUBLE`         | `DOUBLE`                    | `java.lang.Double`     |
 | `Types.DECIMAL`        | `DECIMAL`                   | `java.math.BigDecimal` |
-| `Types.DATE`           | `DATE`                      | `java.sql.Date`        |
-| `Types.TIME`           | `TIME`                      | `java.sql.Time`        |
-| `Types.TIMESTAMP`      | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
+| `Types.SQL_DATE`       | `DATE`                      | `java.sql.Date`        |
+| `Types.SQL_TIME`       | `TIME`                      | `java.sql.Time`        |
+| `Types.SQL_TIMESTAMP`  | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
 | `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
 | `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
 | `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
