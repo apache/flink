@@ -882,4 +882,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	OffsetCommitMode getOffsetCommitMode() {
 		return offsetCommitMode;
 	}
+
+	@VisibleForTesting
+	LinkedMap getPendingOffsetsToCommit() {
+		return pendingOffsetsToCommit;
+	}
 }
