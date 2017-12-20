@@ -43,6 +43,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaOffsetCommitter;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionAssigner;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
@@ -158,6 +159,11 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 	/** The partition discoverer, used to find new partitions. */
 	private transient volatile AbstractPartitionDiscoverer partitionDiscoverer;
+
+	/**
+	 * The offset committer service that commits offsets back to Kafka's brokers / Zookeeper.
+	 */
+	private transient volatile KafkaOffsetCommitter kafkaOffsetCommitter;
 
 	/**
 	 * The offsets to restore to, if the consumer restores state from a checkpoint.
@@ -545,8 +551,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			sourceContext.markAsTemporarilyIdle();
 		}
 
-		// create the fetcher that will communicate with the Kafka brokers
-		final AbstractFetcher<T, ?> fetcher = createFetcher(
+		// from this point forward, 'snapshotState' will draw offsets
+		// from the fetcher, instead of being built from `subscribedPartitionsToStartOffsets`
+		this.kafkaFetcher = createFetcher(
 				sourceContext,
 				subscribedPartitionsToStartOffsets,
 				periodicWatermarkAssigner,
@@ -554,11 +561,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				(StreamingRuntimeContext) getRuntimeContext(),
 				offsetCommitMode);
 
-		// publish the reference, for snapshot-, commit-, and cancel calls
-		// IMPORTANT: We can only do that now, because only now will calls to
-		//            the fetchers 'snapshotCurrentState()' method return at least
-		//            the restored offsets
-		this.kafkaFetcher = fetcher;
+		// only from this point forward, 'notifyCheckpointComplete' will
+		// actually do work (i.e. commit offsets to Kafka)
+		this.kafkaOffsetCommitter = createOffsetCommitter();
 
 		if (!running) {
 			return;
@@ -598,7 +603,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 							// no need to add the discovered partitions if we were closed during the meantime
 							if (running && !discoveredPartitions.isEmpty()) {
-								fetcher.addDiscoveredPartitions(discoveredPartitions);
+								kafkaFetcher.addDiscoveredPartitions(discoveredPartitions);
 							}
 
 							// do not waste any time sleeping if we're not running anymore
@@ -621,7 +626,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			});
 
 			discoveryLoopThread.start();
-			fetcher.runFetchLoop();
+			kafkaFetcher.runFetchLoop();
 
 			// --------------------------------------------------------------------
 
@@ -638,7 +643,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			// won't be using the discoverer
 			partitionDiscoverer.close();
 
-			fetcher.runFetchLoop();
+			kafkaFetcher.runFetchLoop();
 		}
 	}
 
@@ -770,8 +775,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			return;
 		}
 
-		final AbstractFetcher<?, ?> fetcher = this.kafkaFetcher;
-		if (fetcher == null) {
+		final KafkaOffsetCommitter offsetCommitter = this.kafkaOffsetCommitter;
+		if (offsetCommitter == null) {
 			LOG.debug("notifyCheckpointComplete() called on uninitialized source");
 			return;
 		}
@@ -803,7 +808,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					return;
 				}
 
-				fetcher.commitInternalOffsetsToKafka(offsets, offsetCommitCallback);
+				offsetCommitter.commitInternalOffsetsToKafka(offsets, offsetCommitCallback);
 			} catch (Exception e) {
 				if (running) {
 					throw e;
@@ -881,5 +886,15 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	@VisibleForTesting
 	OffsetCommitMode getOffsetCommitMode() {
 		return offsetCommitMode;
+	}
+
+	@VisibleForTesting
+	LinkedMap getPendingOffsetsToCommit() {
+		return pendingOffsetsToCommit;
+	}
+
+	@VisibleForTesting
+	KafkaOffsetCommitter createOffsetCommitter() {
+		return this.kafkaFetcher;
 	}
 }
