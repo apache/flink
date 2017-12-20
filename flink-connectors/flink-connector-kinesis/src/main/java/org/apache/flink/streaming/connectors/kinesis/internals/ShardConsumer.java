@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
@@ -102,12 +101,13 @@ public class ShardConsumer<T> implements Runnable {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		MetricGroup kinesisMetricGroup = fetcherRef.getRuntimeContext()
 			.getMetricGroup()
-			.addGroup("Kinesis");
+			.addGroup("Kinesis")
+			.addGroup("<shard_id>", subscribedShard.getShard().getShardId());
 		kinesisMetricGroup
 			.getAllVariables()
 			.put("<shard_id>", subscribedShard.getShard().getShardId());
 
-		kinesisMetricGroup.gauge("millisBehindLatest", (Gauge<Long>) () -> millisBehindLatest);
+		kinesisMetricGroup.gauge("millisBehindLatest", () -> millisBehindLatest);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
