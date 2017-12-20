@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -63,26 +64,29 @@ public class InputFormatSourceFunctionTest {
 
 		final LifeCycleTestInputFormat format = new LifeCycleTestInputFormat();
 		final InputFormatSourceFunction<Integer> reader = new InputFormatSourceFunction<>(format, TypeInformation.of(Integer.class));
-		reader.setRuntimeContext(new MockRuntimeContext(format, noOfSplits));
 
-		Assert.assertTrue(!format.isConfigured);
-		Assert.assertTrue(!format.isInputFormatOpen);
-		Assert.assertTrue(!format.isSplitOpen);
+		try (MockEnvironment environment = new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16)) {
+			reader.setRuntimeContext(new MockRuntimeContext(format, noOfSplits, environment));
 
-		reader.open(new Configuration());
-		Assert.assertTrue(format.isConfigured);
+			Assert.assertTrue(!format.isConfigured);
+			Assert.assertTrue(!format.isInputFormatOpen);
+			Assert.assertTrue(!format.isSplitOpen);
 
-		TestSourceContext ctx = new TestSourceContext(reader, format, midCancel, cancelAt);
-		reader.run(ctx);
+			reader.open(new Configuration());
+			Assert.assertTrue(format.isConfigured);
 
-		int splitsSeen = ctx.getSplitsSeen();
-		Assert.assertTrue(midCancel ? splitsSeen == cancelAt : splitsSeen == noOfSplits);
+			TestSourceContext ctx = new TestSourceContext(reader, format, midCancel, cancelAt);
+			reader.run(ctx);
 
-		// we have exhausted the splits so the
-		// format and splits should be closed by now
+			int splitsSeen = ctx.getSplitsSeen();
+			Assert.assertTrue(midCancel ? splitsSeen == cancelAt : splitsSeen == noOfSplits);
 
-		Assert.assertTrue(!format.isSplitOpen);
-		Assert.assertTrue(!format.isInputFormatOpen);
+			// we have exhausted the splits so the
+			// format and splits should be closed by now
+
+			Assert.assertTrue(!format.isSplitOpen);
+			Assert.assertTrue(!format.isInputFormatOpen);
+		}
 	}
 
 	private static class LifeCycleTestInputFormat extends RichInputFormat<Integer, InputSplit> {
@@ -255,10 +259,9 @@ public class InputFormatSourceFunctionTest {
 		private final LifeCycleTestInputFormat format;
 		private InputSplit[] inputSplits;
 
-		private MockRuntimeContext(LifeCycleTestInputFormat format, int noOfSplits) {
-
+		private MockRuntimeContext(LifeCycleTestInputFormat format, int noOfSplits, Environment environment) {
 			super(new MockStreamOperator(),
-				new MockEnvironment("no", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
+				environment,
 				Collections.<String, Accumulator<?, ?>>emptyMap());
 
 			this.noOfSplits = noOfSplits;
