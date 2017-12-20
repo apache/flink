@@ -27,7 +27,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 
 /**
- * This class gives access to the type information of the most most common types.
+ * This class gives access to the type information of the most common types.
  */
 @PublicEvolving
 public class Types {
