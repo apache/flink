@@ -527,7 +527,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		private final Set<SharedBufferEdge<K, V>> edges;
 		private final SharedBufferPage<K, V> page;
 		private int referenceCounter;
-		private transient Integer entryId;
+		private transient int entryId;
 
 		SharedBufferEntry(
 				final ValueTimeWrapper<V> valueTime,
@@ -547,6 +547,8 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			}
 
 			referenceCounter = 0;
+
+			entryId = -1;
 
 			this.page = page;
 		}
@@ -932,15 +934,15 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 				for (Map.Entry<ValueTimeWrapper<V>, SharedBufferEntry<K, V>> sharedBufferEntry: page.entries.entrySet()) {
 					SharedBufferEntry<K, V> sharedBuffer = sharedBufferEntry.getValue();
 
-					Integer id = sharedBuffer.entryId;
-					Preconditions.checkState(id != null, "Could not find id for entry: " + sharedBuffer);
+					int id = sharedBuffer.entryId;
+					Preconditions.checkState(id != -1, "Could not find id for entry: " + sharedBuffer);
 
 					for (SharedBufferEdge<K, V> edge: sharedBuffer.edges) {
 						// in order to serialize the previous relation we simply serialize the ids
 						// of the source and target SharedBufferEntry
 						if (edge.target != null) {
-							Integer targetId = edge.getTarget().entryId;
-							Preconditions.checkState(targetId != null,
+							int targetId = edge.getTarget().entryId;
+							Preconditions.checkState(targetId != -1,
 									"Could not find id for entry: " + edge.getTarget());
 
 							target.writeInt(id);
