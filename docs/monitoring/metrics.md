@@ -1307,7 +1307,7 @@ Thus, in order to infer the metric identifier:
     <tr>
       <th rowspan="1">Operator</th>
       <td>millisBehindLatest</td>
-      <td>The number of milliseconds the <a>GetRecords</a> response is from the tip of the stream,
+      <td>The number of milliseconds the <a>GetRecords</a> response is from the head of the stream,
       indicating how far behind current time the consumer is. A value of zero indicates record
       processing is caught up, and there are no new records to process at this moment.
       </td>

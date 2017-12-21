@@ -80,16 +80,19 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param subscribedShard the shard this consumer is subscribed to
 	 * @param lastSequenceNum the sequence number in the shard to start consuming
+	 * @param kinesisMetricGroup the metric group to report to
 	 */
 	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 						Integer subscribedShardStateIndex,
 						StreamShardHandle subscribedShard,
-						SequenceNumber lastSequenceNum) {
+						SequenceNumber lastSequenceNum,
+						MetricGroup kinesisMetricGroup) {
 		this(fetcherRef,
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
-			KinesisProxy.create(fetcherRef.getConsumerConfiguration()));
+			KinesisProxy.create(fetcherRef.getConsumerConfiguration()),
+			kinesisMetricGroup);
 	}
 
 	/** This constructor is exposed for testing purposes. */
@@ -97,20 +100,16 @@ public class ShardConsumer<T> implements Runnable {
 							Integer subscribedShardStateIndex,
 							StreamShardHandle subscribedShard,
 							SequenceNumber lastSequenceNum,
-							KinesisProxyInterface kinesis) {
+							KinesisProxyInterface kinesis,
+							MetricGroup kinesisMetricGroup) {
 		this.fetcherRef = checkNotNull(fetcherRef);
-		MetricGroup kinesisMetricGroup = fetcherRef.getRuntimeContext()
-			.getMetricGroup()
-			.addGroup("Kinesis")
-			.addGroup("<shard_id>", subscribedShard.getShard().getShardId());
-		kinesisMetricGroup
-			.getAllVariables()
-			.put("<shard_id>", subscribedShard.getShard().getShardId());
-
-		kinesisMetricGroup.gauge("millisBehindLatest", () -> millisBehindLatest);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
+
+		checkNotNull(kinesisMetricGroup)
+			.gauge("millisBehindLatest", () -> millisBehindLatest);
+
 		checkArgument(
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
 			"Should not start a ShardConsumer if the shard has already been completely read.");
