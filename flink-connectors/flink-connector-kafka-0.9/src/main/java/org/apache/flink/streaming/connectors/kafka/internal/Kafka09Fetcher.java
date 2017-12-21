@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +72,9 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	/** Flag to mark the main work loop as alive. */
 	private volatile boolean running = true;
 
+	/** The specific date used to set the offset of kafka. */
+	protected Date startupDate;
+
 	// ------------------------------------------------------------------------
 
 	public Kafka09Fetcher(
@@ -87,7 +91,8 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
 			MetricGroup consumerMetricGroup,
-			boolean useMetrics) throws Exception {
+			boolean useMetrics,
+			Date startupDate) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -101,6 +106,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 		this.deserializer = deserializer;
 		this.handover = new Handover();
+		this.startupDate = startupDate;
 
 		this.consumerThread = new KafkaConsumerThread(
 				LOG,
