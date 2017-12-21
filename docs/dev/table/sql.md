@@ -1575,6 +1575,50 @@ LOG(x numeric), LOG(base numeric, x numeric)
       <p>Returns the natural logarithm of a specified number of a specified base. If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
     </td>
    </tr>
+   
+    <tr>
+     <td>
+       {% highlight text %}
+SHIFT_LEFT(input integer, n integer)
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns the integer number after input shift left n bits, equals to input << n </p>
+    </td>
+   </tr>
+   
+    <tr>
+     <td>
+       {% highlight text %}
+SHIFT_LEFT(input long, n integer)
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns the long number after input shift left n bits, equals to input << n </p>
+    </td>
+   </tr>
+   
+    <tr>
+     <td>
+       {% highlight text %}
+SHIFT_RIGHT(input integer, n integer)
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns the integer number after input shift right n bits, equals to input >> n </p>
+    </td>
+   </tr>
+   
+    <tr>
+     <td>
+       {% highlight text %}
+SHIFT_RIGHT(input long, n integer)
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns the long number after input shift right n bits, equals to input >> n </p>
+    </td>
+   </tr>
 
   </tbody>
 </table>
