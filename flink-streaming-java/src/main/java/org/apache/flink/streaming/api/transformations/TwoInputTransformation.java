@@ -31,8 +31,8 @@ import java.util.List;
 
 /**
  * This Transformation represents the application of a
- * {@link org.apache.flink.streaming.api.operators.TwoInputStreamOperator} to two input
- * {@code StreamTransformations}. The result is again only one stream.
+ * {@link TwoInputStreamOperator} to two input {@code StreamTransformations}.
+ * The result is again only one stream.
  *
  * @param <IN1> The type of the elements in the first input {@code StreamTransformation}
  * @param <IN2> The type of the elements in the second input {@code StreamTransformation}
