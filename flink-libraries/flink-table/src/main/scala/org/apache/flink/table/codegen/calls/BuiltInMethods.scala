@@ -96,9 +96,13 @@ object BuiltInMethods {
     Types.lookupMethod(
       classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
 
-  val SHIFT_LEFT_INT = Types.lookupMethod(classOf[ScalarFunctions], "shiftLeft", classOf[Int], classOf[Int])
-  val SHIFT_LEFT_LONG = Types.lookupMethod(classOf[ScalarFunctions], "shiftLeft", classOf[Long], classOf[Int])
-  val SHIFT_RIGHT_INT = Types.lookupMethod(classOf[ScalarFunctions], "shiftRight", classOf[Int], classOf[Int])
-  val SHIFT_RIGHT_LONG = Types.lookupMethod(classOf[ScalarFunctions], "shiftRight", classOf[Long], classOf[Int])
+  val SHIFT_LEFT_INT =
+    Types.lookupMethod(classOf[ScalarFunctions], "shiftLeft", classOf[Int], classOf[Int])
+  val SHIFT_LEFT_LONG =
+    Types.lookupMethod(classOf[ScalarFunctions], "shiftLeft", classOf[Long], classOf[Int])
+  val SHIFT_RIGHT_INT =
+    Types.lookupMethod(classOf[ScalarFunctions], "shiftRight", classOf[Int], classOf[Int])
+  val SHIFT_RIGHT_LONG =
+    Types.lookupMethod(classOf[ScalarFunctions], "shiftRight", classOf[Long], classOf[Int])
 
 }
