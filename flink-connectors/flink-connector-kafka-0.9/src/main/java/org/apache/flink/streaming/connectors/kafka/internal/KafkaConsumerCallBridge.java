@@ -47,4 +47,7 @@ public class KafkaConsumerCallBridge {
 		consumer.seekToEnd(partition);
 	}
 
+	public void seekPartitionToDate(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
+		throw new RuntimeException("Seek offset from a specific date is only supported for version 0.10 and later.");
+	}
 }

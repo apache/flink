@@ -414,6 +414,9 @@ public class KafkaConsumerThread extends Thread {
 				} else if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.LATEST_OFFSET) {
 					consumerCallBridge.seekPartitionToEnd(consumerTmp, newPartitionState.getKafkaPartitionHandle());
 					newPartitionState.setOffset(consumerTmp.position(newPartitionState.getKafkaPartitionHandle()) - 1);
+				} else if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.TIMESTAMP) {
+					consumerCallBridge.seekPartitionToDate(consumerTmp, newPartitionState.getKafkaPartitionHandle());
+					newPartitionState.setOffset(consumerTmp.position(newPartitionState.getKafkaPartitionHandle()) - 1);
 				} else if (newPartitionState.getOffset() == KafkaTopicPartitionStateSentinel.GROUP_OFFSET) {
 					// the KafkaConsumer by default will automatically seek the consumer position
 					// to the committed group offset, so we do not need to do it.

@@ -255,7 +255,8 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 				deserializer,
 				properties,
 				pollTimeout,
-				useMetrics);
+				useMetrics,
+				null);
 	}
 
 	@Override

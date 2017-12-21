@@ -25,6 +25,9 @@ package org.apache.flink.streaming.connectors.kafka.internals;
  */
 public class KafkaTopicPartitionStateSentinel {
 
+	/** Magic number that defines the partition should start from specify timestamp. */
+	public static final long TIMESTAMP = -915623761777L;
+
 	/** Magic number that defines an unset offset. */
 	public static final long OFFSET_NOT_SET = -915623761776L;
 

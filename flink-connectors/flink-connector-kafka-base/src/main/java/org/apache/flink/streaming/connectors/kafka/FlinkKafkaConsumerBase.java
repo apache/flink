@@ -141,10 +141,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private final long discoveryIntervalMillis;
 
 	/** The startup mode for the consumer (default is {@link StartupMode#GROUP_OFFSETS}). */
-	private StartupMode startupMode = StartupMode.GROUP_OFFSETS;
+	protected StartupMode startupMode = StartupMode.GROUP_OFFSETS;
 
 	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS}. */
-	private Map<KafkaTopicPartition, Long> specificStartupOffsets;
+	protected Map<KafkaTopicPartition, Long> specificStartupOffsets;
 
 	// ------------------------------------------------------------------------
 	//  runtime state (used individually by each parallel subtask)
