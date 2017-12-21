@@ -51,7 +51,7 @@ public class BloomFilter {
 	public BloomFilter(int expectedEntries, int byteSize) {
 		checkArgument(expectedEntries > 0, "expectedEntries should be > 0");
 		this.expectedEntries = expectedEntries;
-		this.numHashFunctions = optimalNumOfHashFunctions(expectedEntries, byteSize << 3);
+		this.numHashFunctions = optimalNumOfHashFunctions(expectedEntries, (long) byteSize << 3);
 		this.bitSet = new BitSet(byteSize);
 	}
 	

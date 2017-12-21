@@ -365,10 +365,10 @@ public class SingleInputGateTest {
 			assertEquals(initialBackoff, ch.getCurrentBackoff());
 
 			assertTrue(ch.increaseBackoff());
-			assertEquals(initialBackoff * 2, ch.getCurrentBackoff());
+			assertEquals(initialBackoff * 2L, ch.getCurrentBackoff());
 
 			assertTrue(ch.increaseBackoff());
-			assertEquals(initialBackoff * 2 * 2, ch.getCurrentBackoff());
+			assertEquals(initialBackoff * 2L * 2L, ch.getCurrentBackoff());
 
 			assertTrue(ch.increaseBackoff());
 			assertEquals(maxBackoff, ch.getCurrentBackoff());

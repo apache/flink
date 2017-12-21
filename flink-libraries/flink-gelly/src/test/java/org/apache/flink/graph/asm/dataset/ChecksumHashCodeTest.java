@@ -51,13 +51,14 @@ public class ChecksumHashCodeTest {
 	public void testList() throws Exception {
 		List<Long> list = Arrays.asList(ArrayUtils.toObject(
 			new long[]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }));
+		long listSize = list.size();
 
 		DataSet<Long> dataset = env.fromCollection(list);
 
 		Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
 
-		assertEquals(list.size(), checksum.getCount());
-		assertEquals(list.size() * (list.size() - 1) / 2, checksum.getChecksum());
+		assertEquals(listSize, checksum.getCount());
+		assertEquals(listSize * (listSize - 1) / 2, checksum.getChecksum());
 	}
 
 	@Test

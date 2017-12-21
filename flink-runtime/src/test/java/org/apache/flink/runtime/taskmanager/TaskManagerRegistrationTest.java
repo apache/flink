@@ -453,7 +453,7 @@ public class TaskManagerRegistrationTest extends TestLogger {
 
 				int exp = Math.min(maxExponent, exponent);
 
-				long difference = timeout.toMillis() - (initialRegistrationPause * (1 << exp));
+				long difference = timeout.toMillis() - (initialRegistrationPause * (1L << exp));
 
 				int numberRegisterTaskManagerMessages = exp;
 

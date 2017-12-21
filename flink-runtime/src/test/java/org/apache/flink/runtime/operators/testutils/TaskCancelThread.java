@@ -49,7 +49,7 @@ public class TaskCancelThread extends Thread {
 	@Override
 	public void run() {
 		try {
-			Thread.sleep(this.cancelTimeout*1000);
+			Thread.sleep(this.cancelTimeout*1000L);
 		}
 		catch (InterruptedException e) {
 			Assert.fail("CancelThread interruped while waiting for cancel timeout");

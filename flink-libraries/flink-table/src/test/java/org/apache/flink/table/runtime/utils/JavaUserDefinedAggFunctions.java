@@ -100,7 +100,7 @@ public class JavaUserDefinedAggFunctions {
 
 		//Overloaded accumulate method
 		public void accumulate(WeightedAvgAccum accumulator, int iValue, int iWeight) {
-			accumulator.sum += iValue * iWeight;
+			accumulator.sum += (long) iValue * iWeight;
 			accumulator.count += iWeight;
 		}
 	}
@@ -146,7 +146,7 @@ public class JavaUserDefinedAggFunctions {
 
 		//Overloaded retract method
 		public void retract(WeightedAvgAccum accumulator, int iValue, int iWeight) {
-			accumulator.sum -= iValue * iWeight;
+			accumulator.sum -= (long) iValue * iWeight;
 			accumulator.count -= iWeight;
 		}
 	}

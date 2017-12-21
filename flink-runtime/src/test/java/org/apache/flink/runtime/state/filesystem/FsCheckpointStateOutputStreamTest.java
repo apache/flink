@@ -110,7 +110,7 @@ public class FsCheckpointStateOutputStreamTest {
 
 		byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
-		for (int i = 0; i < 7; ++i) {
+		for (long i = 0; i < 7; ++i) {
 			Assert.assertEquals(i * (1 + data.length), stream.getPos());
 			stream.write(0x42);
 			stream.write(data);

@@ -927,7 +927,7 @@ public class RollingSinkITCase extends TestLogger {
 					// with 5 elements in each time window
 					latch1.await();
 					latch2.await();
-					ModifyableClock.setCurrentTime(i * 1000);
+					ModifyableClock.setCurrentTime(i * 1000L);
 				}
 				ctx.collect(Tuple2.of(i, "message #" + i));
 			}

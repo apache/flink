@@ -807,7 +807,7 @@ public class FlinkKafkaProducer011<IN>
 			// case we adjust nextFreeTransactionalId by the range of transactionalIds that could be used for this
 			// scaling up.
 			if (getRuntimeContext().getNumberOfParallelSubtasks() > nextTransactionalIdHint.lastParallelism) {
-				nextFreeTransactionalId += getRuntimeContext().getNumberOfParallelSubtasks() * kafkaProducersPoolSize;
+				nextFreeTransactionalId += (long) getRuntimeContext().getNumberOfParallelSubtasks() * kafkaProducersPoolSize;
 			}
 
 			nextTransactionalIdHintState.add(new NextTransactionalIdHint(

@@ -234,7 +234,7 @@ public class FlinkClient {
 
 		if (options != null) {
 			try {
-				Thread.sleep(1000 * options.get_wait_secs());
+				Thread.sleep(1000L * options.get_wait_secs());
 			} catch (final InterruptedException e) {
 				throw new RuntimeException(e);
 			}

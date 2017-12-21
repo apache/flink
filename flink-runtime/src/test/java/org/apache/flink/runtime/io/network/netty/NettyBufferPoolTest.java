@@ -95,7 +95,7 @@ public class NettyBufferPoolTest {
 			// Allocate a little more (one more chunk required)
 			nettyBufferPool.directBuffer(128);
 			long allocated = nettyBufferPool.getNumberOfAllocatedBytes().get();
-			assertEquals(2 * chunkSize, allocated);
+			assertEquals(2L * chunkSize, allocated);
 		}
 	}
 }

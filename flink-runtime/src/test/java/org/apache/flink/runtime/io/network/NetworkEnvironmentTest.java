@@ -153,7 +153,7 @@ public class NetworkEnvironmentTest {
 			public Void answer(final InvocationOnMock invocation) throws Throwable {
 				BufferPool bp = invocation.getArgumentAt(0, BufferPool.class);
 				if (partitionType == ResultPartitionType.PIPELINED_BOUNDED) {
-					assertEquals(channels * 2 + 8, bp.getMaxNumberOfMemorySegments());
+					assertEquals(channels * 2L + 8, bp.getMaxNumberOfMemorySegments());
 				} else if (partitionType == ResultPartitionType.PIPELINED_CREDIT_BASED) {
 					assertEquals(8, bp.getMaxNumberOfMemorySegments());
 				} else {

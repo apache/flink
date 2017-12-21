@@ -190,7 +190,7 @@ public final class ChannelWriterOutputView extends AbstractPagedOutputView {
 	 */
 	public long getBytesMemoryUsed()
 	{
-		return (this.blockCount - 1) * getSegmentSize() + getCurrentPositionInSegment();
+		return (long) (this.blockCount - 1) * getSegmentSize() + getCurrentPositionInSegment();
 	}
 
 	// --------------------------------------------------------------------------------------------

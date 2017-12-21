@@ -86,7 +86,7 @@ public class CollectionExecutionWithBroadcastVariableTest {
 
 			env.execute();
 
-			assertEquals(TEST_DATA.length * TEST_DATA.length, result.size());
+			assertEquals((long) TEST_DATA.length * TEST_DATA.length, result.size());
 			for (String s : result) {
 				assertTrue(s.indexOf(SUFFIX) == 2);
 			}

@@ -140,8 +140,8 @@ public class PointwisePatternTest {
 			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(2, inEdges.length);
 			
-			assertEquals(ev.getParallelSubtaskIndex() * 2, inEdges[0].getSource().getPartitionNumber());
-			assertEquals(ev.getParallelSubtaskIndex() * 2 + 1, inEdges[1].getSource().getPartitionNumber());
+			assertEquals(ev.getParallelSubtaskIndex() * 2L, inEdges[0].getSource().getPartitionNumber());
+			assertEquals(ev.getParallelSubtaskIndex() * 2L + 1, inEdges[1].getSource().getPartitionNumber());
 		}
 	}
 	
@@ -188,9 +188,9 @@ public class PointwisePatternTest {
 			ExecutionEdge[] inEdges = ev.getInputEdges(0);
 			assertEquals(3, inEdges.length);
 			
-			assertEquals(ev.getParallelSubtaskIndex() * 3, inEdges[0].getSource().getPartitionNumber());
-			assertEquals(ev.getParallelSubtaskIndex() * 3 + 1, inEdges[1].getSource().getPartitionNumber());
-			assertEquals(ev.getParallelSubtaskIndex() * 3 + 2, inEdges[2].getSource().getPartitionNumber());
+			assertEquals(ev.getParallelSubtaskIndex() * 3L, inEdges[0].getSource().getPartitionNumber());
+			assertEquals(ev.getParallelSubtaskIndex() * 3L + 1, inEdges[1].getSource().getPartitionNumber());
+			assertEquals(ev.getParallelSubtaskIndex() * 3L + 2, inEdges[2].getSource().getPartitionNumber());
 		}
 	}
 	

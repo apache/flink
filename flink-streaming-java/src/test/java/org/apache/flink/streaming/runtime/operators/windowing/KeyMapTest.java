@@ -105,7 +105,7 @@ public class KeyMapTest {
 				assertEquals(Integer.highestOneBit(Integer.MAX_VALUE), map.getCurrentTableCapacity());
 				assertEquals(30, map.getLog2TableCapacity());
 				assertEquals(0, map.getShift());
-				assertEquals(maxCap / 4 * 3, map.getRehashThreshold());
+				assertEquals(maxCap / 4L * 3, map.getRehashThreshold());
 			}
 			catch (OutOfMemoryError e) {
 				// this may indeed happen in small test setups. we tolerate this in this test

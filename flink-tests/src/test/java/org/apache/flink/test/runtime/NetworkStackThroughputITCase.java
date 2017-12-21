@@ -86,7 +86,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				// Determine the amount of data to send per subtask
 				int dataVolumeGb = getTaskConfiguration().getInteger(NetworkStackThroughputITCase.DATA_VOLUME_GB_CONFIG_KEY, 1);
 
-				long dataMbPerSubtask = (dataVolumeGb * 1024) / getCurrentNumberOfSubtasks();
+				long dataMbPerSubtask = (dataVolumeGb * 1024L) / getCurrentNumberOfSubtasks();
 				long numRecordsToEmit = (dataMbPerSubtask * 1024 * 1024) / SpeedTestRecord.RECORD_SIZE;
 
 				LOG.info(String.format("%d/%d: Producing %d records (each record: %d bytes, total: %.2f GB)",
@@ -272,7 +272,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 				parallelism),
 			false);
 
-		long dataVolumeMbit = dataVolumeGb * 8192;
+		long dataVolumeMbit = dataVolumeGb * 8192L;
 		long runtimeSecs = jer.getNetRuntime(TimeUnit.SECONDS);
 
 		int mbitPerSecond = (int) (((double) dataVolumeMbit) / runtimeSecs);

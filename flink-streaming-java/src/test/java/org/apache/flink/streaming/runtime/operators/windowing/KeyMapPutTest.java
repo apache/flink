@@ -55,11 +55,11 @@ public class KeyMapPutTest {
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
 
 			for (int i = 0; i < numElements; i++) {
-				assertEquals(2 * i + 1, map.get(i).intValue());
+				assertEquals(2L * i + 1, map.get(i).intValue());
 			}
 
 			for (int i = numElements - 1; i >= 0; i--) {
-				assertEquals(2 * i + 1, map.get(i).intValue());
+				assertEquals(2L * i + 1, map.get(i).intValue());
 			}
 
 			BitSet bitset = new BitSet();
@@ -67,7 +67,7 @@ public class KeyMapPutTest {
 			for (KeyMap.Entry<Integer, Integer> entry : map) {
 				numContained++;
 
-				assertEquals(entry.getKey() * 2 + 1, entry.getValue().intValue());
+				assertEquals(entry.getKey() * 2L + 1, entry.getValue().intValue());
 				assertFalse(bitset.get(entry.getKey()));
 				bitset.set(entry.getKey());
 			}
@@ -100,7 +100,7 @@ public class KeyMapPutTest {
 			for (int i = 0; i < numElements; i += 3) {
 				Integer put = map.put(i, 2 * i);
 				assertNotNull(put);
-				assertEquals(2 * i + 1, put.intValue());
+				assertEquals(2L * i + 1, put.intValue());
 			}
 
 			for (int i = 0; i < numElements; i++) {

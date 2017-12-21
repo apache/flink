@@ -47,7 +47,7 @@ public class SingletonEdgeGraphTest extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraphMetrics() throws Exception {
-		int vertexPairCount = 10;
+		long vertexPairCount = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
 			.generate();

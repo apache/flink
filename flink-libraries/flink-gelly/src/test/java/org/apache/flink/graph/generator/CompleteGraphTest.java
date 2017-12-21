@@ -47,7 +47,7 @@ public class CompleteGraphTest extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraphMetrics() throws Exception {
-		int vertexCount = 10;
+		long vertexCount = 10;
 
 		Graph<LongValue, NullValue, NullValue> graph = new CompleteGraph(env, vertexCount)
 			.generate();

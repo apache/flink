@@ -982,7 +982,7 @@ public class SchedulerSlotSharingTest extends SchedulerTestBase {
 				}
 				
 				assertEquals(4, testingSlotProvider.getNumberOfAvailableSlots());
-				assertEquals(13 * (run + 1), testingSlotProvider.getNumberOfUnconstrainedAssignments());
+				assertEquals(13L * (run + 1), testingSlotProvider.getNumberOfUnconstrainedAssignments());
 			}
 		}
 		catch (Exception e) {

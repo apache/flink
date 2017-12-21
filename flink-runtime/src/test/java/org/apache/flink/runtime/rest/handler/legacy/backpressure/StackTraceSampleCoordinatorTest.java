@@ -221,7 +221,7 @@ public class StackTraceSampleCoordinatorTest extends TestLogger {
 				vertices, 1, Time.milliseconds(100L), 0);
 
 			// Wait for the timeout
-			Thread.sleep(timeout * 2);
+			Thread.sleep(timeout * 2L);
 
 			boolean success = false;
 			for (int i = 0; i < 10; i++) {

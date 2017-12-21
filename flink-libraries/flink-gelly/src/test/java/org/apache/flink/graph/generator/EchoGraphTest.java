@@ -90,7 +90,7 @@ public class EchoGraphTest extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraphMetrics() throws Exception {
-		int vertexCount = 10;
+		long vertexCount = 10;
 		int vertexDegree = 3;
 
 		Graph<LongValue, NullValue, NullValue> graph = new EchoGraph(env, vertexCount, vertexDegree)

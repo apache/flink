@@ -147,7 +147,7 @@ public class StateInitializationContextImplTest {
 				DataInputView div = new DataInputViewStreamWrapper(is);
 
 				int val = div.readInt();
-				Assert.assertEquals(i * NUM_HANDLES + s, val);
+				Assert.assertEquals((long) i * NUM_HANDLES + s, val);
 			}
 
 			++s;

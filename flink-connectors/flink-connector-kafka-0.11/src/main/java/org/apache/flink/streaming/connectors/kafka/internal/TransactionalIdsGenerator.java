@@ -71,7 +71,7 @@ public class TransactionalIdsGenerator {
 	public Set<String> generateIdsToUse(long nextFreeTransactionalId) {
 		Set<String> transactionalIds = new HashSet<>();
 		for (int i = 0; i < poolSize; i++) {
-			long transactionalId = nextFreeTransactionalId + subtaskIndex * poolSize + i;
+			long transactionalId = nextFreeTransactionalId + (long) subtaskIndex * poolSize + i;
 			transactionalIds.add(generateTransactionalId(transactionalId));
 		}
 		return transactionalIds;
@@ -85,7 +85,7 @@ public class TransactionalIdsGenerator {
 	public Set<String> generateIdsToAbort() {
 		Set<String> idsToAbort = new HashSet<>();
 		for (int i = 0; i < safeScaleDownFactor; i++) {
-			idsToAbort.addAll(generateIdsToUse(i * poolSize * totalNumberOfSubtasks));
+			idsToAbort.addAll(generateIdsToUse((long) i * poolSize * totalNumberOfSubtasks));
 		}
 		return idsToAbort;
 	}

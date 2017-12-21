@@ -383,7 +383,7 @@ public class IterateITCase extends AbstractTestBase {
 				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
 						.map(noOpBoolMap).name("ParallelizeMap");
 
-				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
+				IterativeStream<Boolean> iteration = source.iterate(3000L * timeoutScale);
 
 				DataStream<Boolean> increment = iteration.flatMap(new IterationHead()).map(noOpBoolMap);
 
@@ -427,7 +427,7 @@ public class IterateITCase extends AbstractTestBase {
 
 				ConnectedIterativeStreams<Integer, String> coIt = env.fromElements(0, 0)
 						.map(noOpIntMap).name("ParallelizeMap")
-						.iterate(2000 * timeoutScale)
+						.iterate(2000L * timeoutScale)
 						.withFeedbackType("String");
 
 				try {
@@ -533,7 +533,7 @@ public class IterateITCase extends AbstractTestBase {
 				DataStream<Integer> source = env.fromElements(1, 2, 3)
 						.map(noOpIntMap).name("ParallelizeMap");
 
-				IterativeStream<Integer> it = source.keyBy(key).iterate(3000 * timeoutScale);
+				IterativeStream<Integer> it = source.keyBy(key).iterate(3000L * timeoutScale);
 
 				DataStream<Integer> head = it.flatMap(new RichFlatMapFunction<Integer, Integer>() {
 
@@ -591,7 +591,7 @@ public class IterateITCase extends AbstractTestBase {
 				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
 						.map(noOpBoolMap).name("ParallelizeMap");
 
-				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
+				IterativeStream<Boolean> iteration = source.iterate(3000L * timeoutScale);
 
 				iteration.closeWith(iteration.flatMap(new IterationHead())).addSink(new ReceiveCheckNoOpSink<Boolean>());
 

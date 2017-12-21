@@ -510,8 +510,8 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 			testHarness.open();
 
 			for (int i = 0; i < FlinkKafkaProducer011.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE * 2; i++) {
-				testHarness.processElement(i, i * 2);
-				testHarness.snapshot(i, i * 2 + 1);
+				testHarness.processElement(i, i * 2L);
+				testHarness.snapshot(i, i * 2L + 1);
 			}
 		}
 		catch (Exception ex) {

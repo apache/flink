@@ -49,7 +49,7 @@ public class CirculantGraphTest extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraphMetrics() throws Exception {
-		int vertexCount = 10;
+		long vertexCount = 10;
 		int offset = 4;
 		int length = 2;
 

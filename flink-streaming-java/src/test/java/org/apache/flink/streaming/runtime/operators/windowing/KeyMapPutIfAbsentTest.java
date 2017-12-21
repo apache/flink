@@ -52,11 +52,11 @@ public class KeyMapPutIfAbsentTest {
 			assertEquals(1 << 21, map.getCurrentTableCapacity());
 
 			for (int i = 0; i < numElements; i++) {
-				assertEquals(2 * i + 1, map.get(i).intValue());
+				assertEquals(2L * i + 1, map.get(i).intValue());
 			}
 
 			for (int i = numElements - 1; i >= 0; i--) {
-				assertEquals(2 * i + 1, map.get(i).intValue());
+				assertEquals(2L * i + 1, map.get(i).intValue());
 			}
 
 			assertEquals(numElements, map.size());
@@ -88,11 +88,11 @@ public class KeyMapPutIfAbsentTest {
 			for (int i = 0; i < numElements; i += 3) {
 				factory.set(2 * i);
 				Integer put = map.putIfAbsent(i, factory);
-				assertEquals(2 * i + 1, put.intValue());
+				assertEquals(2L * i + 1, put.intValue());
 			}
 
 			for (int i = 0; i < numElements; i++) {
-				assertEquals(2 * i + 1, map.get(i).intValue());
+				assertEquals(2L * i + 1, map.get(i).intValue());
 			}
 
 			assertEquals(numElements, map.size());

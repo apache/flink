@@ -199,7 +199,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 	 * @return The hash table's total capacity.
 	 */
 	public long getCapacity() {
-		return numAllMemorySegments * segmentSize;
+		return (long) numAllMemorySegments * segmentSize;
 	}
 
 	/**
@@ -208,7 +208,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 	 * @return The number of bytes occupied.
 	 */
 	public long getOccupancy() {
-		return numAllMemorySegments * segmentSize - freeMemorySegments.size() * segmentSize;
+		return (long) numAllMemorySegments * segmentSize - (long) freeMemorySegments.size() * segmentSize;
 	}
 
 	private void open(int numBucketSegments) {
@@ -562,7 +562,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		}
 
 		public long getTotalSize() {
-			return segments.size() * segmentSize;
+			return (long) segments.size() * segmentSize;
 		}
 
 		// ----------------------- Output -----------------------

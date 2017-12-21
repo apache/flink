@@ -48,7 +48,7 @@ public class StarGraphTest extends GraphGeneratorTestBase {
 
 	@Test
 	public void testGraphMetrics() throws Exception {
-		int vertexCount = 100;
+		long vertexCount = 100;
 
 		Graph<LongValue, NullValue, NullValue> graph = new StarGraph(env, vertexCount)
 			.generate();
