@@ -31,12 +31,12 @@ public interface OperatorStateRepartitioner {
 	/**
 	 * @param previousParallelSubtaskStates List of state handles to the parallel subtask states of an operator, as they
 	 *                                      have been checkpointed.
-	 * @param parallelism                   The parallelism that we consider for the state redistribution. Determines the size of the
+	 * @param newParallelism                The parallelism that we consider for the state redistribution. Determines the size of the
 	 *                                      returned list.
 	 * @return List with one entry per parallel subtask. Each subtask receives now one collection of states that build
 	 * of the new total state for this subtask.
 	 */
 	List<Collection<OperatorStateHandle>> repartitionState(
 			List<OperatorStateHandle> previousParallelSubtaskStates,
-			int parallelism);
+			int newParallelism);
 }

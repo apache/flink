@@ -98,9 +98,7 @@ public abstract class AbstractKeyedStateBackend<K>
 
 	private final ExecutionConfig executionConfig;
 
-	/**
-	 * Decorates the input and output streams to write key-groups compressed.
-	 */
+	/** Decorates the input and output streams to write key-groups compressed. */
 	protected final StreamCompressionDecorator keyGroupCompressionDecorator;
 
 	public AbstractKeyedStateBackend(
