@@ -1216,6 +1216,69 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
   }
 
+  @Test
+  def testShiftLeft(): Unit = {
+    testSqlApi(
+      "SHIFT_LEFT(1,1)",
+      "2"
+    )
+
+    testSqlApi(
+      "SHIFT_LEFT(21,1)",
+      "42"
+    )
+
+    testSqlApi(
+      "SHIFT_LEFT(21,1)",
+      "42"
+    )
+
+    testSqlApi(
+      "SHIFT_LEFT(2147483647,-2147483648)",
+      "2147483647"
+    )
+
+    testSqlApi(
+      "SHIFT_LEFT(-2147483648,2147483647)",
+      "0"
+    )
+
+    testSqlApi(
+      "SHIFT_LEFT(9223372036854775807,-2147483648)",
+      "9223372036854775807"
+    )
+  }
+
+  @Test
+  def testShiftRight(): Unit = {
+    testSqlApi(
+      "SHIFT_RIGHT(1,1)",
+      "0"
+    )
+
+    testSqlApi(
+      "SHIFT_RIGHT(21,1)",
+      "10"
+    )
+
+    testSqlApi(
+      "SHIFT_RIGHT(2147483647,-2147483648)",
+      "2147483647"
+    )
+
+    testSqlApi(
+      "SHIFT_RIGHT(-2147483648,2147483647)",
+      "-1"
+    )
+
+    testSqlApi(
+      "SHIFT_RIGHT(123456789,-2147483648)",
+      "123456789"
+    )
+  }
+
+
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------

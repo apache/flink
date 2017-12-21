@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions
 import scala.annotation.varargs
 import java.math.{BigDecimal => JBigDecimal}
 import java.lang.StringBuilder
+import java.{lang => jl}
 
 /**
   * Built-in scalar runtime functions.
@@ -109,4 +110,69 @@ object ScalarFunctions {
       Math.log(x) / Math.log(base)
     }
   }
+
+  /**
+    * Returns the Int number after the input number left shift n bits
+    * @param input Int type
+    * @param n
+    * @return input << n
+    */
+  def shiftLeft(input: Int, n: Int): Int = {
+    _shiftLeft(input, n).asInstanceOf[Int]
+  }
+
+  /**
+    * Returns the Long number after the input number left shift n bits
+    * @param input Long type
+    * @param n
+    * @return input << n
+    */
+  def shiftLeft(input: Long, n: Int): Long = {
+    _shiftLeft(input, n).asInstanceOf[Long]
+  }
+
+  /**
+    * Returns the Int number after the input number right shift n bits
+    * @param input Int type
+    * @param n
+    * @return input >> n
+    */
+  def shiftRight(input: Int, n: Int): Int = {
+    _shiftRight(input, n).asInstanceOf[Int]
+  }
+
+  /**
+    * Returns the Long number after the input number right shift n bits
+    * @param input Long type
+    * @param n
+    * @return input >> n
+    */
+  def shiftRight(input: Long, n: Int): Long = {
+    _shiftRight(input, n).asInstanceOf[Long]
+  }
+
+  /**
+    * Returns the number after the input number left shift n bits
+    * Input must be type 'Long' or type 'Int'
+    */
+  private def _shiftLeft(input: Any, n: Int): Any = {
+    input match {
+      case l: jl.Long => l << n
+      case i: jl.Integer => i << n
+      case _ => throw new IllegalArgumentException(s"type of input in function 'shiftLeft(input, n)' must be Long or Integer")
+    }
+  }
+
+  /**
+    * Returns the number after the input number right shift n bits
+    * Input must be type 'Long' or type 'Int'
+    */
+  private def _shiftRight(input: Any, n: Int): Any = {
+    input match {
+      case l: jl.Long => l >> n
+      case i: jl.Integer => i >> n
+      case _ => throw new IllegalArgumentException(s"type of input in function 'shiftRight(input, n)' must be Long or Integer")
+    }
+  }
+
 }
