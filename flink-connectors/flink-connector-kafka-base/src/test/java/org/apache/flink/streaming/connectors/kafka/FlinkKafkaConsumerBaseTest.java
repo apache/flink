@@ -567,7 +567,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
 
 	@Test
 	public void testScaleUp() throws Exception {
-		testRescaling(5, 2, 15, 1000);
+		testRescaling(5, 2, 8, 30);
 	}
 
 	@Test
