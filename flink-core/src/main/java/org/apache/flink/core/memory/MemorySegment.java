@@ -272,7 +272,7 @@ public abstract class MemorySegment {
 	//  - Grab mutable fields onto the stack before checking and using. This
 	//    guards us against concurrent modifications which invalidate the
 	//    pointers
-	//  - Use subtrations for range checks, as they are tolerant
+	//  - Use subtractions for range checks, as they are tolerant
 	//------------------------------------------------------------------------
 
 	/**
@@ -402,7 +402,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Reads an character value (16 bit, 2 bytes) from the given position, in little-endian byte order.
+	 * Reads a character value (16 bit, 2 bytes) from the given position, in little-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
 	 * is possibly slower than {@link #getChar(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
@@ -423,7 +423,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Reads an character value (16 bit, 2 bytes) from the given position, in big-endian byte order.
+	 * Reads a character value (16 bit, 2 bytes) from the given position, in big-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
 	 * is possibly slower than {@link #getChar(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
@@ -444,7 +444,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Writes a char value to teh given position, in the system's native byte order.
+	 * Writes a char value to the given position, in the system's native byte order.
 	 *
 	 * @param index The position at which the memory will be written.
 	 * @param value The char value to be written.
@@ -476,7 +476,7 @@ public abstract class MemorySegment {
 	 * one in which it is read, and {@link #putChar(int, char)} is the preferable choice.
 	 *
 	 * @param index The position at which the value will be written.
-	 * @param value The short value to be written.
+	 * @param value The char value to be written.
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
 	 */
@@ -497,7 +497,7 @@ public abstract class MemorySegment {
 	 * one in which it is read, and {@link #putChar(int, char)} is the preferable choice.
 	 *
 	 * @param index The position at which the value will be written.
-	 * @param value The short value to be written.
+	 * @param value The char value to be written.
 	 *
 	 * @throws IndexOutOfBoundsException Thrown, if the index is negative, or larger then the segment size minus 2.
 	 */
@@ -510,7 +510,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Reads two memory at the given position, composing them into a short value
+	 * Reads a short integer value (16 bit, 2 bytes) from the given position, composing them into a short value
 	 * according to the current byte order.
 	 *
 	 * @param index The position from which the memory will be read.
@@ -534,7 +534,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Reads an short integer value (16 bit, 2 bytes) from the given position, in little-endian byte order.
+	 * Reads a short integer value (16 bit, 2 bytes) from the given position, in little-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
 	 * is possibly slower than {@link #getShort(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
@@ -555,7 +555,7 @@ public abstract class MemorySegment {
 	}
 
 	/**
-	 * Reads an short integer value (16 bit, 2 bytes) from the given position, in big-endian byte order.
+	 * Reads a short integer value (16 bit, 2 bytes) from the given position, in big-endian byte order.
 	 * This method's speed depends on the system's native byte order, and it
 	 * is possibly slower than {@link #getShort(int)}. For most cases (such as
 	 * transient storage in memory or serialization for I/O and network),
