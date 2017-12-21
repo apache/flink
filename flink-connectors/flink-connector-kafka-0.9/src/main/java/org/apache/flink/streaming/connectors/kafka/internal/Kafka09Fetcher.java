@@ -70,7 +70,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 	/** Flag to mark the main work loop as alive. */
 	private volatile boolean running = true;
 
-	/** The specific date used to set the offset of kafka */
+	/** The specific date used to set the offset of kafka. */
 	protected Date startupDate;
 
 	// ------------------------------------------------------------------------
