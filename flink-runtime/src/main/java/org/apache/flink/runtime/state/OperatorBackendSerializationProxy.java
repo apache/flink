@@ -33,9 +33,10 @@ import java.util.List;
  */
 public class OperatorBackendSerializationProxy extends VersionedIOReadableWritable {
 
-	public static final int VERSION = 2;
+	public static final int VERSION = 3;
 
-	private List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots;
+	private List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> operatorStateMetaInfoSnapshots;
+	private List<RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> broadcastStateMetaInfoSnapshots;
 	private ClassLoader userCodeClassLoader;
 
 	public OperatorBackendSerializationProxy(ClassLoader userCodeClassLoader) {
@@ -43,10 +44,15 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	}
 
 	public OperatorBackendSerializationProxy(
-			List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> stateMetaInfoSnapshots) {
+			List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> operatorStateMetaInfoSnapshots,
+			List<RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> broadcastStateMetaInfoSnapshots) {
 
-		this.stateMetaInfoSnapshots = Preconditions.checkNotNull(stateMetaInfoSnapshots);
-		Preconditions.checkArgument(stateMetaInfoSnapshots.size() <= Short.MAX_VALUE);
+		this.operatorStateMetaInfoSnapshots = Preconditions.checkNotNull(operatorStateMetaInfoSnapshots);
+		this.broadcastStateMetaInfoSnapshots = Preconditions.checkNotNull(broadcastStateMetaInfoSnapshots);
+		Preconditions.checkArgument(
+				operatorStateMetaInfoSnapshots.size() <= Short.MAX_VALUE &&
+						broadcastStateMetaInfoSnapshots.size() <= Short.MAX_VALUE
+		);
 	}
 
 	@Override
@@ -56,19 +62,26 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 
 	@Override
 	public int[] getCompatibleVersions() {
-		// we are compatible with version 2 (Flink 1.3.x) and version 1 (Flink 1.2.x)
-		return new int[] {VERSION, 1};
+		// we are compatible with version 3 (Flink 1.5.x), 2 (Flink 1.4.x, Flink 1.3.x) and version 1 (Flink 1.2.x)
+		return new int[] {VERSION, 2, 1};
 	}
 
 	@Override
 	public void write(DataOutputView out) throws IOException {
 		super.write(out);
 
-		out.writeShort(stateMetaInfoSnapshots.size());
-		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> kvState : stateMetaInfoSnapshots) {
+		out.writeShort(operatorStateMetaInfoSnapshots.size());
+		for (RegisteredOperatorBackendStateMetaInfo.Snapshot<?> state : operatorStateMetaInfoSnapshots) {
 			OperatorBackendStateMetaInfoSnapshotReaderWriters
-				.getWriterForVersion(VERSION, kvState)
-				.writeStateMetaInfo(out);
+					.getOperatorStateWriterForVersion(VERSION, state)
+					.writeOperatorStateMetaInfo(out);
+		}
+
+		out.writeShort(broadcastStateMetaInfoSnapshots.size());
+		for (RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?> state : broadcastStateMetaInfoSnapshots) {
+			OperatorBackendStateMetaInfoSnapshotReaderWriters
+					.getBroadcastStateWriterForVersion(VERSION, state)
+					.writeBroadcastStateMetaInfo(out);
 		}
 	}
 
@@ -76,17 +89,35 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
 	public void read(DataInputView in) throws IOException {
 		super.read(in);
 
-		int numKvStates = in.readShort();
-		stateMetaInfoSnapshots = new ArrayList<>(numKvStates);
-		for (int i = 0; i < numKvStates; i++) {
-			stateMetaInfoSnapshots.add(
-				OperatorBackendStateMetaInfoSnapshotReaderWriters
-					.getReaderForVersion(getReadVersion(), userCodeClassLoader)
-					.readStateMetaInfo(in));
+		int numOperatorStates = in.readShort();
+		operatorStateMetaInfoSnapshots = new ArrayList<>(numOperatorStates);
+		for (int i = 0; i < numOperatorStates; i++) {
+			operatorStateMetaInfoSnapshots.add(
+					OperatorBackendStateMetaInfoSnapshotReaderWriters
+							.getOperatorStateReaderForVersion(getReadVersion(), userCodeClassLoader)
+							.readOperatorStateMetaInfo(in));
+		}
+
+		if (getReadVersion() >= 3) {
+			// broadcast states did not exist prior to version 3
+			int numBroadcastStates = in.readShort();
+			broadcastStateMetaInfoSnapshots = new ArrayList<>(numBroadcastStates);
+			for (int i = 0; i < numBroadcastStates; i++) {
+				broadcastStateMetaInfoSnapshots.add(
+						OperatorBackendStateMetaInfoSnapshotReaderWriters
+								.getBroadcastStateReaderForVersion(getReadVersion(), userCodeClassLoader)
+								.readBroadcastStateMetaInfo(in));
+			}
+		} else {
+			broadcastStateMetaInfoSnapshots = new ArrayList<>();
 		}
 	}
 
-	public List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> getStateMetaInfoSnapshots() {
-		return stateMetaInfoSnapshots;
+	public List<RegisteredOperatorBackendStateMetaInfo.Snapshot<?>> getOperatorStateMetaInfoSnapshots() {
+		return operatorStateMetaInfoSnapshots;
+	}
+
+	public List<RegisteredBroadcastBackendStateMetaInfo.Snapshot<?, ?>> getBroadcastStateMetaInfoSnapshots() {
+		return broadcastStateMetaInfoSnapshots;
 	}
 }

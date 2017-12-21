@@ -30,6 +30,31 @@ import java.util.Set;
 public interface OperatorStateStore {
 
 	/**
+	 * Creates (or restores) a {@link BroadcastState broadcast state}. This type of state can only be created to store
+	 * the state of a {@code BroadcastStream}. Each state is registered under a unique name.
+	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
+	 * The returned broadcast state has {@code key-value} format.
+	 *
+	 * <p><b>CAUTION: the user has to guarantee that all task instances store the same elements in this type of state.</b>
+	 *
+	 * <p>Each operator instance individually maintains and stores elements in the broadcast state. The fact that the
+	 * incoming stream is a broadcast one guarantees that all instances see all the elements. Upon recovery
+	 * or re-scaling, the same state is given to each of the instances. To avoid hotspots, each task reads its previous
+	 * partition, and if there are more tasks (scale up), then the new instances read from the old instances in a round
+	 * robin fashion. This is why each instance has to guarantee that it stores the same elements as the rest. If not,
+	 * upon recovery or rescaling you may have unpredictable redistribution of the partitions, thus unpredictable results.
+	 *
+	 * @param stateDescriptor The descriptor for this state, providing a name, a serializer for the keys and one for the
+	 *                        values.
+	 * @param <K> The type of the keys in the broadcast state.
+	 * @param <V> The type of the values in the broadcast state.
+	 *
+	 * @return The {@link BroadcastState Broadcast State}.
+	 * @throws Exception
+	 */
+	<K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception;
+
+	/**
 	 * Creates (or restores) a list state. Each state is registered under a unique name.
 	 * The provided serializer is used to de/serialize the state in case of checkpointing (snapshot/restore).
 	 *
@@ -82,6 +107,13 @@ public interface OperatorStateStore {
 	 * @return set of names for all registered states.
 	 */
 	Set<String> getRegisteredStateNames();
+
+	/**
+	 * Returns a set with the names of all currently registered broadcast states.
+	 *
+	 * @return set of names for all registered broadcast states.
+	 */
+	Set<String> getRegisteredBroadcastStateNames();
 
 	// -------------------------------------------------------------------------------------------
 	//  Deprecated methods

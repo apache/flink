@@ -36,8 +36,9 @@ public class OperatorStateHandle implements StreamStateHandle {
 	 * The modes that determine how an {@link OperatorStateHandle} is assigned to tasks during restore.
 	 */
 	public enum Mode {
-		SPLIT_DISTRIBUTE, // The operator state partitions in the state handle are split and distributed to one task each.
-		BROADCAST // The operator state partitions are broadcast to all task.
+		SPLIT_DISTRIBUTE,	// The operator state partitions in the state handle are split and distributed to one task each.
+		UNION,				// The operator state partitions are UNION-ed upon restoring and sent to all tasks.
+		BROADCAST			// The operator states are identical, as the state is produced from a broadcast stream.
 	}
 
 	private static final long serialVersionUID = 35876522969227335L;

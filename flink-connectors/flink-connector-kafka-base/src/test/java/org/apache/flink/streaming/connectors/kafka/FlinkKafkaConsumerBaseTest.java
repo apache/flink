@@ -19,9 +19,11 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -894,12 +896,22 @@ public class FlinkKafkaConsumerBaseTest {
 		}
 
 		@Override
+		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor) throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
 		public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
 		public Set<String> getRegisteredStateNames() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Set<String> getRegisteredBroadcastStateNames() {
 			throw new UnsupportedOperationException();
 		}
 	}
