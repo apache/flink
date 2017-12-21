@@ -414,6 +414,34 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.LOG_WITH_BASE)
 
+  addSqlFunctionMethod(
+    SHIFT_LEFT,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.SHIFT_LEFT_INT
+  )
+
+  addSqlFunctionMethod(
+    SHIFT_LEFT,
+    Seq(LONG_TYPE_INFO, INT_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.SHIFT_LEFT_LONG
+  )
+
+  addSqlFunctionMethod(
+    SHIFT_RIGHT,
+    Seq(INT_TYPE_INFO, INT_TYPE_INFO),
+    INT_TYPE_INFO,
+    BuiltInMethods.SHIFT_RIGHT_INT
+  )
+
+  addSqlFunctionMethod(
+    SHIFT_RIGHT,
+    Seq(LONG_TYPE_INFO, INT_TYPE_INFO),
+    LONG_TYPE_INFO,
+    BuiltInMethods.SHIFT_RIGHT_LONG
+  )
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
