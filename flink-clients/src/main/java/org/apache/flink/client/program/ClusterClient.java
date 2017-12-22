@@ -124,7 +124,7 @@ public abstract class ClusterClient {
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
 	 * which lets us access the execution result here.
 	 */
-	private JobExecutionResult lastJobExecutionResult;
+	protected JobExecutionResult lastJobExecutionResult;
 
 	/** Switch for blocking/detached job submission of the client. */
 	private boolean detachedJobSubmission = false;
