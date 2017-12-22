@@ -160,7 +160,9 @@ object ScalarFunctions {
       case l: jl.Long => l << n
       case i: jl.Integer => i << n
       case _ =>
-        throw new IllegalArgumentException(s"type of input in function 'shiftLeft(input, n)' must be Long or Integer")
+        throw new IllegalArgumentException(
+          s"type of input in function 'shiftLeft(input, n)' must be Long or Integer"
+        )
     }
   }
 
@@ -173,7 +175,9 @@ object ScalarFunctions {
       case l: jl.Long => l >> n
       case i: jl.Integer => i >> n
       case _ =>
-        throw new IllegalArgumentException(s"type of input in function 'shiftRight(input, n)' must be Long or Integer")
+        throw new IllegalArgumentException(
+          s"type of input in function 'shiftRight(input, n)' must be Long or Integer"
+        )
     }
   }
 
