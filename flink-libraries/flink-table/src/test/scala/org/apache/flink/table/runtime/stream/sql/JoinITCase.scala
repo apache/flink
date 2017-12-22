@@ -30,7 +30,6 @@ import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
-import org.hamcrest.CoreMatchers
 import org.junit.Assert._
 import org.junit._
 
@@ -463,14 +462,13 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.compareWithList(expected)
   }
 
-  /** test process time non-window inner join **/
+  /** test non-window inner join **/
   @Test
-  def testProcessTimeNonWindowInnerJoin(): Unit = {
+  def testNonWindowInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
     env.setStateBackend(getStateBackend)
     StreamITCase.clear
-    env.setParallelism(1)
 
     val data1 = new mutable.MutableList[(Int, Long, String)]
     data1.+=((1, 1L, "Hi1"))

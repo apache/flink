@@ -26,13 +26,13 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
-import org.apache.flink.table.runtime.CRowWrappingMultiOuputCollector
+import org.apache.flink.table.runtime.CRowWrappingMultiOutputCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.slf4j.LoggerFactory
 import org.apache.flink.table.codegen.Compiler
+import org.apache.flink.table.util.Logging
 
 
 /**
@@ -45,7 +45,7 @@ import org.apache.flink.table.codegen.Compiler
   * @param genJoinFuncCode   the function name of other non-equi condition
   * @param queryConfig       the configuration for the query to generate
   */
-class DataStreamInnerJoin(
+class NonWindowInnerJoin(
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
     resultType: TypeInformation[CRow],
@@ -53,13 +53,14 @@ class DataStreamInnerJoin(
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
   extends CoProcessFunction[CRow, CRow, CRow]
-          with Compiler[FlatJoinFunction[Row, Row, Row]] {
+          with Compiler[FlatJoinFunction[Row, Row, Row]]
+          with Logging {
 
   // state to hold left stream element
   private var leftState: MapState[Row, JTuple2[Int, Long]] = _
   // state to hold right stream element
   private var rightState: MapState[Row, JTuple2[Int, Long]] = _
-  private var cRowWrapper: CRowWrappingMultiOuputCollector = _
+  private var cRowWrapper: CRowWrappingMultiOutputCollector = _
 
   private val minRetentionTime: Long = queryConfig.getMinIdleStateRetentionTime
   private val maxRetentionTime: Long = queryConfig.getMaxIdleStateRetentionTime
@@ -72,8 +73,6 @@ class DataStreamInnerJoin(
 
   // other condition function
   private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
-
-  val LOG = LoggerFactory.getLogger(this.getClass)
 
   override def open(parameters: Configuration): Unit = {
     LOG.debug(s"Compiling JoinFunction: $genJoinFuncName \n\n " +
@@ -101,7 +100,7 @@ class DataStreamInnerJoin(
     val valueStateDescriptor2 = new ValueStateDescriptor[Long]("timervaluestate2", classOf[Long])
     rightTimer = getRuntimeContext.getState(valueStateDescriptor2)
 
-    cRowWrapper = new CRowWrappingMultiOuputCollector()
+    cRowWrapper = new CRowWrappingMultiOutputCollector()
   }
 
   /**
@@ -195,11 +194,12 @@ class DataStreamInnerJoin(
       otherSideState: MapState[Row, JTuple2[Int, Long]],
       isLeft: Boolean): Unit = {
 
+    val inputRow = value.row
     cRowWrapper.setCollector(out)
     cRowWrapper.setChange(value.change)
 
     val curProcessTime = ctx.timerService.currentProcessingTime
-    val oldCntAndExpiredTime = currentSideState.get(value.row)
+    val oldCntAndExpiredTime = currentSideState.get(inputRow)
     val cntAndExpiredTime = if (null == oldCntAndExpiredTime) {
       JTuple2.of(0, -1L)
     } else {
@@ -216,30 +216,31 @@ class DataStreamInnerJoin(
     if (!value.change) {
       cntAndExpiredTime.f0 = cntAndExpiredTime.f0 - 1
       if (cntAndExpiredTime.f0 <= 0) {
-        currentSideState.remove(value.row)
+        currentSideState.remove(inputRow)
       } else {
-        currentSideState.put(value.row, cntAndExpiredTime)
+        currentSideState.put(inputRow, cntAndExpiredTime)
       }
     } else {
       cntAndExpiredTime.f0 = cntAndExpiredTime.f0 + 1
-      currentSideState.put(value.row, cntAndExpiredTime)
+      currentSideState.put(inputRow, cntAndExpiredTime)
     }
 
-    val otherSideRowsIterator = otherSideState.keys().iterator()
+    val otherSideIterator = otherSideState.iterator()
     // join other side data
-    while (otherSideRowsIterator.hasNext) {
-      val otherSideRow = otherSideRowsIterator.next()
-      val cntAndExpiredTime = otherSideState.get(otherSideRow)
+    while (otherSideIterator.hasNext) {
+      val otherSideEntry = otherSideIterator.next()
+      val otherSideRow = otherSideEntry.getKey
+      val cntAndExpiredTime = otherSideEntry.getValue
       // join
       cRowWrapper.setTimes(cntAndExpiredTime.f0)
       if (isLeft) {
-        joinFunction.join(value.row, otherSideRow, cRowWrapper)
+        joinFunction.join(inputRow, otherSideRow, cRowWrapper)
       } else {
-        joinFunction.join(otherSideRow, value.row, cRowWrapper)
+        joinFunction.join(otherSideRow, inputRow, cRowWrapper)
       }
       // clear expired data. Note: clear after join to keep closer to the original semantics
       if (stateCleaningEnabled && curProcessTime >= cntAndExpiredTime.f1) {
-        otherSideRowsIterator.remove()
+        otherSideIterator.remove()
       }
     }
   }
@@ -255,14 +256,14 @@ class DataStreamInnerJoin(
       timerState: ValueState[Long],
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext): Unit = {
 
-    val keyIter = rowMapState.keys().iterator()
+    val rowMapIter = rowMapState.iterator()
     var validTimestamp: Boolean = false
 
-    while (keyIter.hasNext) {
-      val record = keyIter.next
-      val recordExpiredTime = rowMapState.get(record).f1
+    while (rowMapIter.hasNext) {
+      val mapEntry = rowMapIter.next()
+      val recordExpiredTime = mapEntry.getValue.f1
       if (recordExpiredTime <= curTime) {
-        keyIter.remove()
+        rowMapIter.remove()
       } else {
         // we found a timestamp that is still valid
         validTimestamp = true

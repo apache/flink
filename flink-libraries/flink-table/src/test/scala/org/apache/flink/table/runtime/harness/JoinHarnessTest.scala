@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamInnerJoin, RowT
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.runtime.harness.HarnessTestBase.{RowResultSortComparator, TupleRowKeySelector}
-import org.apache.flink.table.runtime.join.DataStreamInnerJoin
+import org.apache.flink.table.runtime.join.NonWindowInnerJoin
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 import org.junit.Assert.{assertEquals, assertTrue}
@@ -253,7 +253,7 @@ class JoinHarnessTest extends HarnessTestBase {
     testHarness.close()
   }
 
-  /** a.c1 >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20 **/
+  /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20 **/
   @Test
   def testRowTimeJoinWithCommonBounds() {
 
@@ -445,7 +445,7 @@ class JoinHarnessTest extends HarnessTestBase {
         STRING_TYPE_INFO),
       Array("a", "b", "c", "d")))
 
-    val joinProcessFunc = new DataStreamInnerJoin(
+    val joinProcessFunc = new NonWindowInnerJoin(
       rowType,
       rowType,
       joinReturnType,
@@ -549,7 +549,7 @@ class JoinHarnessTest extends HarnessTestBase {
         STRING_TYPE_INFO),
       Array("a", "b", "c", "d")))
 
-    val joinProcessFunc = new DataStreamInnerJoin(
+    val joinProcessFunc = new NonWindowInnerJoin(
       rowType,
       rowType,
       joinReturnType,

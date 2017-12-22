@@ -24,10 +24,11 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.DataStreamJoin
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
-import org.apache.flink.table.plan.schema.{RowSchema, TimeIndicatorRelDataType}
+import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.join.WindowJoinUtil
 
 import scala.collection.JavaConverters._
@@ -50,10 +51,7 @@ class DataStreamJoinRule
     expr match {
       case i: RexInputRef =>
         val accessedType = inputType.getFieldList.get(i.getIndex).getType
-        accessedType match {
-          case _: TimeIndicatorRelDataType => true
-          case _ => false
-        }
+        FlinkTypeFactory.isTimeIndicatorType(accessedType)
       case c: RexCall =>
         c.operands.asScala.exists(accessesTimeAttribute(_, inputType))
       case _ => false
@@ -75,7 +73,12 @@ class DataStreamJoinRule
     val remainingPredsAccessTime = remainingPreds.isDefined &&
       accessesTimeAttribute(remainingPreds.get, join.getRowType)
 
-    !windowBounds.isDefined && !remainingPredsAccessTime
+    // Check that no event-time attributes are in the input because non-window join is unbounded
+    // and we don't know how much to hold back watermarks.
+    val rowTimeAttrInOutput = join.getRowType.getFieldList.asScala
+      .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
+
+    windowBounds.isEmpty && !remainingPredsAccessTime && !rowTimeAttrInOutput
   }
 
   override def convert(rel: RelNode): RelNode = {

@@ -135,7 +135,7 @@ object UpdatingPlanChecker {
           val windowStartEnd = w.getWindowProperties.map(_.name)
           // we have only a unique key if at least one window property is selected
           if (windowStartEnd.nonEmpty) {
-            val smallestAttribute = windowStartEnd.sorted.head
+            val smallestAttribute = windowStartEnd.min
             Some((groupKeys.map(e => (e, e)) ++ windowStartEnd.map((_, smallestAttribute))).toList)
           } else {
             None
@@ -174,7 +174,14 @@ object UpdatingPlanChecker {
       }
     }
 
-
+    /**
+      * Get output keys for non-window inner join according to it's inputs.
+      *
+      * @param inNames  Input field names of left and right
+      * @param inKeys   Input keys of left and right
+      * @param joinKeys JoinKeys of inner join
+      * @return Return output keys of inner join
+      */
     def getOutputKeysForInnerJoin(
         inNames: Seq[String],
         inKeys: List[(String, String)],
@@ -185,8 +192,8 @@ object UpdatingPlanChecker {
 
       // merge two groups
       def merge(nameA: String, nameB: String): Unit = {
-        val ga: String = findGroup(nameA);
-        val gb: String = findGroup(nameB);
+        val ga: String = findGroup(nameA)
+        val gb: String = findGroup(nameB)
         if (!ga.equals(gb)) {
           if(ga.compare(gb) < 0) {
             nameToGroups += (gb -> ga)

@@ -47,6 +47,22 @@ class JoinValidationTest extends TableTestBase {
   }
 
   /**
+    * At least one equi-join predicate required for non-window inner join.
+    */
+  @Test(expected = classOf[TableException])
+  def testNonWindowInnerJoinWithoutEquiPredicate(): Unit = {
+    val util = streamTestUtil()
+    val left = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+    val right = util.addTable[(Long, Int, String)]('d, 'e, 'f)
+
+    val resultTable = left.join(right)
+      .select('a, 'e)
+
+    val expected = ""
+    util.verifyTable(resultTable, expected)
+  }
+
+  /**
     * There must be complete window-bounds.
     */
   @Test(expected = classOf[TableException])
@@ -143,7 +159,6 @@ class JoinValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testNoEquiJoin(): Unit = {
-
     ds2.join(ds1, 'b < 'd).select('c, 'g)
   }
 

@@ -25,7 +25,7 @@ import org.apache.flink.util.Collector
 /**
   * The collector to wrap a [[Row]] into a [[CRow]] and collect it multiple times.
   */
-class CRowWrappingMultiOuputCollector() extends Collector[Row] {
+class CRowWrappingMultiOutputCollector() extends Collector[Row] {
 
   private var out: Collector[CRow] = _
   private val outCRow: CRow = new CRow()

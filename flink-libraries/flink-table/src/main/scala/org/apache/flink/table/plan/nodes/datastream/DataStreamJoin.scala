@@ -29,7 +29,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, Ta
 import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
-import org.apache.flink.table.runtime.join.DataStreamInnerJoin
+import org.apache.flink.table.runtime.join.NonWindowInnerJoin
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
 
@@ -106,41 +106,29 @@ class DataStreamJoin(
     // get the equality keys
     val leftKeys = ArrayBuffer.empty[Int]
     val rightKeys = ArrayBuffer.empty[Int]
-    if (keyPairs.isEmpty) {
-      // if no equality keys => not supported
-      throw TableException(
-        "Joins should have at least one equality condition.\n" +
-          s"\tLeft: ${left.toString},\n" +
-          s"\tRight: ${right.toString},\n" +
-          s"\tCondition: (${joinConditionToString(schema.relDataType,
-             joinCondition, getExpressionString)})"
-      )
-    }
-    else {
-      // at least one equality expression
-      val leftFields = left.getRowType.getFieldList
-      val rightFields = right.getRowType.getFieldList
 
-      keyPairs.foreach(pair => {
-        val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
-        val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
+    // at least one equality expression
+    val leftFields = left.getRowType.getFieldList
+    val rightFields = right.getRowType.getFieldList
 
-        // check if keys are compatible
-        if (leftKeyType == rightKeyType) {
-          // add key pair
-          leftKeys.add(pair.source)
-          rightKeys.add(pair.target)
-        } else {
-          throw TableException(
-            "Equality join predicate on incompatible types.\n" +
-              s"\tLeft: ${left.toString},\n" +
-              s"\tRight: ${right.toString},\n" +
-              s"\tCondition: (${joinConditionToString(schema.relDataType,
-                joinCondition, getExpressionString)})"
-          )
-        }
-      })
-    }
+    keyPairs.foreach(pair => {
+      val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
+      val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
+      // check if keys are compatible
+      if (leftKeyType == rightKeyType) {
+        // add key pair
+        leftKeys.add(pair.source)
+        rightKeys.add(pair.target)
+      } else {
+        throw TableException(
+          "Equality join predicate on incompatible types.\n" +
+            s"\tLeft: ${left},\n" +
+            s"\tRight: ${right},\n" +
+            s"\tCondition: (${joinConditionToString(schema.relDataType,
+              joinCondition, getExpressionString)})"
+        )
+      }
+    })
 
     val leftDataStream =
       left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
@@ -149,7 +137,8 @@ class DataStreamJoin(
 
     val (connectOperator, nullCheck) = joinType match {
       case JoinRelType.INNER => (leftDataStream.connect(rightDataStream), false)
-      case _ => throw new UnsupportedOperationException(s"An Unsupported JoinType [ $joinType ]")
+      case _ => throw TableException(s"An Unsupported JoinType [ $joinType ]. Currently only " +
+                  s"non-window inner joins with at least one equality predicate are supported")
     }
 
     val generator = new FunctionCodeGenerator(
@@ -160,7 +149,6 @@ class DataStreamJoin(
     val conversion = generator.generateConverterResultExpression(
       schema.typeInfo,
       schema.fieldNames)
-
 
     val body = if (joinInfo.isEqui) {
       // only equality condition
@@ -186,11 +174,8 @@ class DataStreamJoin(
       body,
       returnType)
 
-
-    val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
-
     val coMapFun =
-      new DataStreamInnerJoin(
+      new NonWindowInnerJoin(
         leftSchema.typeInfo,
         rightSchema.typeInfo,
         CRowTypeInfo(returnType),
@@ -198,6 +183,7 @@ class DataStreamJoin(
         genFunction.code,
         queryConfig)
 
+    val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
     connectOperator
       .keyBy(leftKeys.toArray, rightKeys.toArray)
       .process(coMapFun)
