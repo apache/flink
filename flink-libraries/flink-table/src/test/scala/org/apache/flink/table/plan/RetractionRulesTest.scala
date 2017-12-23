@@ -291,12 +291,8 @@ class RetractionRulesTest extends TableTestBase {
         binaryNode(
           "DataStreamJoin",
           unaryNode(
-            "DataStreamCalc",
-            unaryNode(
-              "DataStreamGroupAggregate",
-              "DataStreamScan(true, Acc)",
-              "true, AccRetract"
-            ),
+            "DataStreamGroupAggregate",
+            "DataStreamScan(true, Acc)",
             "true, AccRetract"
           ),
           "DataStreamScan(true, Acc)",

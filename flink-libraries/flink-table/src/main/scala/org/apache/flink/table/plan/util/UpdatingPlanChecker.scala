@@ -146,21 +146,36 @@ object UpdatingPlanChecker {
           joinType match {
             case JoinRelType.INNER => {
               // get key(s) for inner join
-              val lInputKeys = visit(j.getLeft)
-              val rInputKeys = visit(j.getRight)
-              if (lInputKeys.isEmpty || rInputKeys.isEmpty) {
+              val lInKeys = visit(j.getLeft)
+              val rInKeys = visit(j.getRight)
+              if (lInKeys.isEmpty || rInKeys.isEmpty) {
                 None
               } else {
                 // Output of inner join must have keys if left and right both contain key(s).
                 // Key groups from both side will be merged by join equi-predicates
-                val lFieldNames: Seq[String] = j.getLeft.getRowType.getFieldNames
-                val rFieldNames: Seq[String] = j.getRight.getRowType.getFieldNames
-                val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys.map(lFieldNames.get(_))
-                val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys.map(rFieldNames.get(_))
+                val lInNames: Seq[String] = j.getLeft.getRowType.getFieldNames
+                val rInNames: Seq[String] = j.getRight.getRowType.getFieldNames
+                val joinNames = j.getRowType.getFieldNames
+
+                // if right field names equal to left field names, calcite will rename right
+                // field names. For example, T1(pk, a) join T2(pk, b), calcite will rename T2(pk, b)
+                // to T2(pk0, b).
+                val rInNamesToJoinNamesMap = rInNames
+                  .zip(joinNames.subList(lInNames.size, joinNames.length))
+                  .toMap
+
+                val lJoinKeys: Seq[String] = j.getJoinInfo.leftKeys
+                  .map(lInNames.get(_))
+                val rJoinKeys: Seq[String] = j.getJoinInfo.rightKeys
+                  .map(rInNames.get(_))
+                  .map(rInNamesToJoinNamesMap(_))
+
+                val inKeys: List[(String, String)] = lInKeys.get ++ rInKeys.get
+                    .map(e => (rInNamesToJoinNamesMap(e._1), rInNamesToJoinNamesMap(e._2)))
 
                 getOutputKeysForInnerJoin(
-                  lFieldNames ++ rFieldNames,
-                  lInputKeys.get ++ rInputKeys.get,
+                  joinNames,
+                  inKeys,
                   lJoinKeys.zip(rJoinKeys).toList
                 )
               }
@@ -177,8 +192,8 @@ object UpdatingPlanChecker {
     /**
       * Get output keys for non-window inner join according to it's inputs.
       *
-      * @param inNames  Input field names of left and right
-      * @param inKeys   Input keys of left and right
+      * @param inNames  Field names of join
+      * @param inKeys   Input keys of join
       * @param joinKeys JoinKeys of inner join
       * @return Return output keys of inner join
       */
