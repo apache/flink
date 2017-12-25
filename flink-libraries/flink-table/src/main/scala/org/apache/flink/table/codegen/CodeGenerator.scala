@@ -692,7 +692,9 @@ abstract class CodeGenerator(
         generateNonNullLiteral(resultType, decimalField)
 
       case VARCHAR | CHAR =>
-        val escapedValue = StringEscapeUtils.ESCAPE_JAVA.translate(value.toString)
+        val escapedValue = StringEscapeUtils.escapeJava(
+          StringEscapeUtils.unescapeJava(value.toString)
+        )
         generateNonNullLiteral(resultType, "\"" + escapedValue + "\"")
 
       case SYMBOL =>

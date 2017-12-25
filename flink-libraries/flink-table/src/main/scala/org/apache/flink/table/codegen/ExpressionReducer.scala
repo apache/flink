@@ -23,6 +23,7 @@ import java.util
 import org.apache.calcite.plan.RelOptPlanner
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -119,6 +120,12 @@ class ExpressionReducer(config: TableConfig)
              SqlTypeName.MAP |
              SqlTypeName.MULTISET =>
           reducedValues.add(unreduced)
+        // after expression reduce, the literal string has to be escaped
+        case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
+          val escapeVarchar = StringEscapeUtils
+            .escapeJava(reduced.getField(reducedIdx).asInstanceOf[String])
+          reducedValues.add(rexBuilder.makeLiteral(escapeVarchar, unreduced.getType, true))
+          reducedIdx += 1
         case _ =>
           val reducedValue = reduced.getField(reducedIdx)
           // RexBuilder handle double literal incorrectly, convert it into BigDecimal manually

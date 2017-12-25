@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions.utils
 
 import java.sql.{Date, Time, Timestamp}
 
+import org.apache.commons.lang3.StringUtils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction}
@@ -287,4 +288,16 @@ object Func19 extends ScalarFunction {
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
 
+}
+
+class SplitUDF(deterministic: Boolean) extends ScalarFunction {
+  def eval(x: String, sep: String, index: Int): String = {
+    val splits = StringUtils.splitByWholeSeparator(x, sep)
+    if (splits.length > index) {
+      splits(index)
+    } else {
+      null
+    }
+  }
+  override def isDeterministic: Boolean = deterministic
 }
