@@ -478,13 +478,17 @@ class JoinITCase extends StreamingWithStateTestBase {
     data1.+=((2, 7L, "Hi5"))
     data1.+=((1, 9L, "Hi6"))
     data1.+=((1, 8L, "Hi8"))
+    data1.+=((3, 8L, "Hi9"))
 
     val data2 = new mutable.MutableList[(Int, Long, String)]
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
+    data2.+=((3, 2L, "HeHe"))
 
     val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c)
+      .select(('a === 3) ? (Null(Types.INT), 'a) as 'a, 'b, 'c)
     val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c)
+      .select(('a === 3) ? (Null(Types.INT), 'a) as 'a, 'b, 'c)
 
     tEnv.registerTable("T1", t1)
     tEnv.registerTable("T2", t2)
@@ -507,7 +511,8 @@ class JoinITCase extends StreamingWithStateTestBase {
       "1,HiHi,Hi3",
       "1,HiHi,Hi6",
       "1,HiHi,Hi8",
-      "2,HeHe,Hi5")
+      "2,HeHe,Hi5",
+      "null,HeHe,Hi9")
 
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }

@@ -29,6 +29,7 @@ import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, Ta
 import org.apache.flink.table.codegen.FunctionCodeGenerator
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.join.NonWindowInnerJoin
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.types.Row
@@ -185,7 +186,9 @@ class DataStreamJoin(
 
     val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
     connectOperator
-      .keyBy(leftKeys.toArray, rightKeys.toArray)
+      .keyBy(
+        new CRowKeySelector(leftKeys.toArray, leftSchema.projectedTypeInfo(leftKeys.toArray)),
+        new CRowKeySelector(rightKeys.toArray, rightSchema.projectedTypeInfo(rightKeys.toArray)))
       .process(coMapFun)
       .name(joinOpName)
       .returns(CRowTypeInfo(returnType))
