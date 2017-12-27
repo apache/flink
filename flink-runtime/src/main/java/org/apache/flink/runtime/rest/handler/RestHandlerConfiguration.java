@@ -45,12 +45,18 @@ public class RestHandlerConfiguration {
 
 	private final Map<String, String> responseHeaders;
 
+	private final boolean submitEnable;
+
+	private final File uploadDir;
+
 	public RestHandlerConfiguration(
 			long refreshInterval,
 			int maxCheckpointStatisticCacheEntries,
 			Time timeout,
 			File tmpDir,
-			Map<String, String> responseHeaders) {
+			Map<String, String> responseHeaders,
+			boolean submitEnable,
+			File uploadDir) {
 		Preconditions.checkArgument(refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
 		this.refreshInterval = refreshInterval;
 
@@ -60,6 +66,9 @@ public class RestHandlerConfiguration {
 		this.tmpDir = Preconditions.checkNotNull(tmpDir);
 
 		this.responseHeaders = Preconditions.checkNotNull(responseHeaders);
+
+		this.submitEnable = submitEnable;
+		this.uploadDir = uploadDir;
 	}
 
 	public long getRefreshInterval() {
@@ -82,6 +91,14 @@ public class RestHandlerConfiguration {
 		return Collections.unmodifiableMap(responseHeaders);
 	}
 
+	public boolean isSubmitEnable() {
+		return submitEnable;
+	}
+
+	public File getUploadDir() {
+		return uploadDir;
+	}
+
 	public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
 		final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
 
@@ -96,11 +113,17 @@ public class RestHandlerConfiguration {
 			HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
 			configuration.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
 
+		final boolean submitEnable = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
+		File uploadBaseDir = new File(configuration.getString(WebOptions.UPLOAD_DIR, configuration.getString(WebOptions.TMP_DIR)));
+		final File uploadDir = submitEnable ? (configuration.contains(WebOptions.UPLOAD_DIR) ? uploadBaseDir : new File(uploadBaseDir, "flink-web-" + UUID.randomUUID())) : null;
+
 		return new RestHandlerConfiguration(
 			refreshInterval,
 			maxCheckpointStatisticCacheEntries,
 			timeout,
 			tmpDir,
-			responseHeaders);
+			responseHeaders,
+			submitEnable,
+			uploadDir);
 	}
 }
