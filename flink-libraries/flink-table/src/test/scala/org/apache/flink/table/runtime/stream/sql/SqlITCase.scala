@@ -26,10 +26,12 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.SplitUDF
+import org.apache.flink.table.expressions.utils.Func15
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 import org.apache.flink.table.utils.MemoryTableSinkUtil
+
 import org.junit.Assert._
 import org.junit._
 
@@ -514,6 +516,31 @@ class SqlITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testUDFWithLongVarargs(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.clear
+
+    tEnv.registerFunction("func15", Func15)
+
+    val parameters = "c," + (0 until 255).map(_ => "a").mkString(",")
+    val sqlQuery = s"SELECT func15($parameters) FROM T1"
+
+    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("T1", t1)
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List(
+      "Hi255",
+      "Hello255",
+      "Hello world255")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
