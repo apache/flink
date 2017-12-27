@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
@@ -69,7 +69,7 @@ public class JobWithJars {
 		this.classpaths = Collections.<URL>emptyList();
 	}
 
-	JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths, ClassLoader userCodeClassLoader) {
+	public JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths, ClassLoader userCodeClassLoader) {
 		this.plan = plan;
 		this.jarFiles = jarFiles;
 		this.classpaths = classpaths;
@@ -98,7 +98,7 @@ public class JobWithJars {
 	}
 
 	/**
-	 * Gets the {@link java.lang.ClassLoader} that must be used to load user code classes.
+	 * Gets the {@link ClassLoader} that must be used to load user code classes.
 	 *
 	 * @return The user code ClassLoader.
 	 */
