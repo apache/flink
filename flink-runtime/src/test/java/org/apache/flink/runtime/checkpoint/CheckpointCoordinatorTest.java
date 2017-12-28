@@ -2199,7 +2199,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	@Test
 	public void testRestoreLatestCheckpointedStateScaleOut() throws Exception {
-		testRestoreLatestCheckpointedStateWithChangingParallelism(false);
+		testRestoreLatestCheckpointedStateWithChangingParallelism(true);
 	}
 
 	@Test
