@@ -1290,6 +1290,18 @@ Thus, in order to infer the metric identifier:
        <td>Kafka offset commit failure count if Kafka commit is turned on and checkpointing is enabled.</td>
        <td>Counter</td>
     </tr>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>currentOffsets</td>
+      <td>Kafka current offset.This metric has two user-scope variables: topic, partition, which can be used to specifiy particular metric by topic name and partition id</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>committedOffsets</td>
+      <td>Kafka successfully committed offset if Kafka commit is turned on and checkpointing is enabled. This metric has two user-scope variables: topic, partition, which can be used to specifiy particular metric by topic name and partition id</td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 
