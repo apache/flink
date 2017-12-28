@@ -82,12 +82,9 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 
 	private transient Map<K, SharedBufferPage<K, V>> pages;
 
-	private final transient List<SharedBufferEntry<K, V>> prunedEntries;
-
 	public SharedBuffer(final TypeSerializer<V> valueSerializer) {
 		this.valueSerializer = valueSerializer;
 		this.pages = new HashMap<>();
-		this.prunedEntries = new ArrayList<>();
 	}
 
 	public TypeSerializer<V> getValueSerializer() {
@@ -194,6 +191,7 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 	 */
 	public boolean prune(long pruningTimestamp) {
 		Iterator<Map.Entry<K, SharedBufferPage<K, V>>> iter = pages.entrySet().iterator();
+		List<SharedBufferEntry<K, V>> prunedEntries = new ArrayList<>();
 
 		while (iter.hasNext()) {
 			SharedBufferPage<K, V> page = iter.next().getValue();
@@ -339,7 +337,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 		Map<K, SharedBufferPage<K, V>> pages) {
 		this.valueSerializer = valueSerializer;
 		this.pages = pages;
-		this.prunedEntries = new ArrayList<>();
 	}
 
 	private SharedBufferEntry<K, V> get(
