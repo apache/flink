@@ -76,12 +76,117 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testArithmetic(): Unit = {
-    // math arthmetic
-    testTableApi('f8 - 5, "f8 - 5", "0")
-    testTableApi('f8 + 5, "f8 + 5", "10")
-    testTableApi('f8 / 2, "f8 / 2", "2")
-    testTableApi('f8 * 2, "f8 * 2", "10")
-    testTableApi('f8 % 2, "f8 % 2", "1")
+
+    // math arithmetic
+
+    // test addition
+    testAllApis(
+      1514356320000L + 6000,
+      "1514356320000L + 6000",
+      "1514356320000 + 6000",
+      "1514356326000")
+
+    testAllApis(
+      'f20 + 6,
+      "f20 + 6",
+      "f20 + 6",
+      "1514356320006")
+
+    testAllApis(
+      'f20 + 'f20,
+      "f20 + f20",
+      "f20 + f20",
+      "3028712640000")
+
+    // test subtraction
+    testAllApis(
+      1514356320000L - 6000,
+      "1514356320000L - 6000",
+      "1514356320000 - 6000",
+      "1514356314000")
+
+    testAllApis(
+      'f20 - 6,
+      "f20 - 6",
+      "f20 - 6",
+      "1514356319994")
+
+    testAllApis(
+      'f20 - 'f20,
+      "f20 - f20",
+      "f20 - f20",
+      "0")
+
+    // test multiplication
+    testAllApis(
+      1514356320000L * 60000,
+      "1514356320000L * 60000",
+      "1514356320000 * 60000",
+      "90861379200000000")
+
+    testAllApis(
+      'f20 * 6,
+      "f20 * 6",
+      "f20 * 6",
+      "9086137920000")
+
+    testAllApis(
+      'f20 * 'f20,
+      "f20 * f20",
+      "f20 * f20",
+      "2293275063923942400000000")
+
+    // test division
+    testAllApis(
+      1514356320000L / 60000,
+      "1514356320000L / 60000",
+      "1514356320000 / 60000",
+      "25239272")
+
+    testAllApis(
+      'f20 / 6,
+      "f20 / 6",
+      "f20 / 6",
+      "252392720000")
+
+    testAllApis(
+      'f20 / 'f20,
+      "f20 / f20",
+      "f20 / f20",
+      "1")
+
+    // test modulo
+    testAllApis(
+      1514356320000L % 60000,
+      "1514356320000L % 60000",
+      "mod(1514356320000,60000)",
+      "0")
+
+    testAllApis(
+      'f20.mod('f20),
+      "f20.mod(f20)",
+      "mod(f20,f20)",
+      "0")
+
+    testAllApis(
+      'f20.mod(6),
+      "f20.mod(6)",
+      "mod(f20,6)",
+      "0")
+
+    testAllApis(
+      'f3.mod('f2),
+      "f3.mod(f2)",
+      "MOD(f3, f2)",
+      "0")
+
+    testAllApis(
+      'f3.mod(3),
+      "mod(f3, 3)",
+      "MOD(f3, 3)",
+      "1")
+
+    // other math arithmetic
     testTableApi(-'f8, "-f8", "-5")
     testTableApi( +'f8, "+f8", "5") // additional space before "+" required because of checkstyle
     testTableApi(3.toExpr + 'f8, "3 + f8", "8")

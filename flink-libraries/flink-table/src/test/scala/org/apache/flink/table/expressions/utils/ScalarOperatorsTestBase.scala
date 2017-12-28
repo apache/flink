@@ -30,7 +30,7 @@ import org.apache.flink.types.Row
 class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   def testData: Row = {
-    val testData = new Row(20)
+    val testData = new Row(21)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -51,6 +51,7 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(17, BigDecimal("10.0").bigDecimal)
     testData.setField(18, Array[Integer](1,2))
     testData.setField(19, Array[(Int, String)]((1,"a"), (2, "b")))
+    testData.setField(20, BigDecimal("1514356320000").bigDecimal)
     testData
   }
 
@@ -75,7 +76,8 @@ class ScalarOperatorsTestBase extends ExpressionTestBase {
       Types.DECIMAL,
       Types.DECIMAL,
       Types.OBJECT_ARRAY(Types.INT),
-      Types.OBJECT_ARRAY(createTypeInformation[(Int, String)])
+      Types.OBJECT_ARRAY(createTypeInformation[(Int, String)]),
+      Types.DECIMAL
       ).asInstanceOf[TypeInformation[Any]]
   }
 

@@ -47,9 +47,22 @@ object ScalarOperators {
       nullCheck: Boolean,
       resultType: TypeInformation[_],
       left: GeneratedExpression,
-      right: GeneratedExpression)
-    : GeneratedExpression = {
-    val leftCasting = numericCasting(left.resultType, resultType)
+      right: GeneratedExpression): GeneratedExpression = {
+
+    val leftCasting = operator match {
+      case "%" =>
+        if (left.resultType == right.resultType) {
+          numericCasting(left.resultType, resultType)
+        } else {
+          val castedType = if (isDecimal(left.resultType)) {
+            Types.LONG
+          } else {
+            left.resultType
+          }
+          numericCasting(left.resultType, castedType)
+        }
+      case _ => numericCasting(left.resultType, resultType)
+    }
     val rightCasting = numericCasting(right.resultType, resultType)
     val resultTypeTerm = primitiveTypeTermForTypeInfo(resultType)
 
