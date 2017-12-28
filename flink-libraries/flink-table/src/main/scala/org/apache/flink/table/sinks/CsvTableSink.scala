@@ -33,12 +33,14 @@ import org.apache.flink.streaming.api.datastream.DataStream
   * @param fieldDelim The field delimiter
   * @param numFiles The number of files to write to
   * @param writeMode The write mode to specify whether existing files are overwritten or not.
+  * @param trailingDelim Whether a trailing field delimiter should be appended for each row.
   */
 class CsvTableSink(
     path: String,
     fieldDelim: Option[String],
     numFiles: Option[Int],
-    writeMode: Option[WriteMode])
+    writeMode: Option[WriteMode],
+    trailingDelim: Boolean)
   extends TableSinkBase[Row] with BatchTableSink[Row] with AppendStreamTableSink[Row] {
 
   /**
@@ -46,9 +48,10 @@ class CsvTableSink(
     *
     * @param path The output path to write the Table to.
     * @param fieldDelim The field delimiter, ',' by default.
+    * @param trailingDelim Whether a trailing field delimiter should be appended for each row.
     */
-  def this(path: String, fieldDelim: String = ",") {
-    this(path, Some(fieldDelim), None, None)
+  def this(path: String, fieldDelim: String = ",", trailingDelim: Boolean = false) {
+    this(path, Some(fieldDelim), None, None, trailingDelim)
   }
 
   /**
@@ -58,13 +61,19 @@ class CsvTableSink(
     * @param fieldDelim The field delimiter.
     * @param numFiles The number of files to write to.
     * @param writeMode The write mode to specify whether existing files are overwritten or not.
+    * @param trailingDelim Whether a trailing field delimiter should be appended for each row.
     */
-  def this(path: String, fieldDelim: String, numFiles: Int, writeMode: WriteMode) {
-    this(path, Some(fieldDelim), Some(numFiles), Some(writeMode))
+  def this(
+      path: String,
+      fieldDelim: String,
+      numFiles: Int,
+      writeMode: WriteMode,
+      trailingDelim: Boolean) {
+    this(path, Some(fieldDelim), Some(numFiles), Some(writeMode), trailingDelim)
   }
 
   override def emitDataSet(dataSet: DataSet[Row]): Unit = {
-    val csvRows = dataSet.map(new CsvFormatter(fieldDelim.getOrElse(",")))
+    val csvRows = dataSet.map(new CsvFormatter(fieldDelim.getOrElse(","), trailingDelim))
 
     if (numFiles.isDefined) {
       csvRows.setParallelism(numFiles.get)
@@ -81,7 +90,7 @@ class CsvTableSink(
   }
 
   override def emitDataStream(dataStream: DataStream[Row]): Unit = {
-    val csvRows = dataStream.map(new CsvFormatter(fieldDelim.getOrElse(",")))
+    val csvRows = dataStream.map(new CsvFormatter(fieldDelim.getOrElse(","), trailingDelim))
 
     if (numFiles.isDefined) {
       csvRows.setParallelism(numFiles.get)
@@ -98,7 +107,7 @@ class CsvTableSink(
   }
 
   override protected def copy: TableSinkBase[Row] = {
-    new CsvTableSink(path, fieldDelim, numFiles, writeMode)
+    new CsvTableSink(path, fieldDelim, numFiles, writeMode, trailingDelim)
   }
 
   override def getOutputType: TypeInformation[Row] = {
@@ -111,7 +120,9 @@ class CsvTableSink(
   *
   * @param fieldDelim The field delimiter.
   */
-class CsvFormatter(fieldDelim: String) extends MapFunction[Row, String] {
+class CsvFormatter(fieldDelim: String, trailingDelim: Boolean)
+  extends MapFunction[Row, String] {
+
   override def map(row: Row): String = {
 
     val builder = new StringBuilder
@@ -130,6 +141,8 @@ class CsvFormatter(fieldDelim: String) extends MapFunction[Row, String] {
         builder.append(v.toString)
       }
     }
+
+    if (trailingDelim) builder.append(fieldDelim)
     builder.mkString
   }
 }
