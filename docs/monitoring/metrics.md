@@ -528,8 +528,6 @@ This method affects what `MetricGroup#getMetricIdentifier`, `MetricGroup#getScop
 
 **Important:** User variables cannot be used in scope formats.
 
-{% highlight java %}
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -905,8 +903,8 @@ Thus, in order to infer the metric identifier:
   <tbody>
     <tr>
       <th rowspan="1"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="1">Status.JVM.ClassLoader</td>
-      <td>Threads.Count</td>
+      <td rowspan="1">Status.JVM.Threads</td>
+      <td>Count</td>
       <td>The total number of live threads.</td>
       <td>Gauge</td>
     </tr>
