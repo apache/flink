@@ -208,7 +208,6 @@ public class SharedBuffer<K extends Serializable, V> implements Serializable {
 			for (Map.Entry<K, SharedBufferPage<K, V>> entry : pages.entrySet()) {
 				entry.getValue().removeEdges(prunedEntries);
 			}
-			prunedEntries.clear();
 			return true;
 		} else {
 			return false;
