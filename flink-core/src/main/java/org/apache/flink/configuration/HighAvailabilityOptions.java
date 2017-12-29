@@ -100,11 +100,6 @@ public class HighAvailabilityOptions {
 			.defaultValue("/flink")
 			.withDeprecatedKeys("recovery.zookeeper.path.root");
 
-	public static final ConfigOption<String> HA_ZOOKEEPER_NAMESPACE =
-			key("high-availability.zookeeper.path.namespace")
-			.noDefaultValue()
-			.withDeprecatedKeys("recovery.zookeeper.path.namespace");
-
 	public static final ConfigOption<String> HA_ZOOKEEPER_LATCH_PATH =
 			key("high-availability.zookeeper.path.latch")
 			.defaultValue("/leaderlatch")

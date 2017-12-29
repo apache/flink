@@ -1031,7 +1031,7 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String HA_ZOOKEEPER_DIR_KEY = "high-availability.zookeeper.path.root";
 
-	/** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_NAMESPACE}. */
+	/** @deprecated in favor of {@link HighAvailabilityOptions#HA_CLUSTER_ID}. */
 	@PublicEvolving
 	@Deprecated
 	public static final String HA_ZOOKEEPER_NAMESPACE_KEY = "high-availability.zookeeper.path.namespace";
@@ -1788,7 +1788,7 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String DEFAULT_ZOOKEEPER_DIR_KEY = "/flink";
 
-	/** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_NAMESPACE}. */
+	/** @deprecated in favor of {@link HighAvailabilityOptions#HA_CLUSTER_ID}. */
 	@Deprecated
 	public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
