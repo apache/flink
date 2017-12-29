@@ -686,8 +686,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			.getYarnApplicationState() + " and final state " + appReport
 			.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
 
-		if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED || appReport.getYarnApplicationState()
-			== YarnApplicationState.KILLED) {
+		if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED) {
 			LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
 			LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
 				+ "the full application log using this command:"
