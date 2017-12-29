@@ -350,16 +350,14 @@ public class CliFrontendParser {
 			boolean runOptions) {
 		// prints options from all available command-line classes
 		for (CustomCommandLine cli: customCommandLines) {
-			if (cli.getId() != null) {
-				formatter.setSyntaxPrefix("  Options for " + cli.getId() + " mode:");
-				Options customOpts = new Options();
-				cli.addGeneralOptions(customOpts);
-				if (runOptions) {
-					cli.addRunOptions(customOpts);
-				}
-				formatter.printHelp(" ", customOpts);
-				System.out.println();
+			formatter.setSyntaxPrefix("  Options for " + cli.getId() + " mode:");
+			Options customOpts = new Options();
+			cli.addGeneralOptions(customOpts);
+			if (runOptions) {
+				cli.addRunOptions(customOpts);
 			}
+			formatter.printHelp(" ", customOpts);
+			System.out.println();
 		}
 	}
 
