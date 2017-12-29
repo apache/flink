@@ -127,6 +127,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	private final Option detached;
 	private final Option zookeeperNamespace;
 	private final Option flip6;
+	private final Option help;
 
 	/**
 	 * @deprecated Streaming mode has been deprecated without replacement. Set the
@@ -198,6 +199,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
 		flip6 = new Option(shortPrefix + "f6", longPrefix + "flip6", false, "Specify this option to start a Flip-6 Yarn session cluster.");
+		help = new Option(shortPrefix + "h", longPrefix + "help", false, "Help for the Yarn session CLI.");
 
 		allOptions = new Options();
 		allOptions.addOption(flinkJar);
@@ -215,6 +217,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		allOptions.addOption(applicationId);
 		allOptions.addOption(zookeeperNamespace);
 		allOptions.addOption(flip6);
+		allOptions.addOption(help);
 
 		// try loading a potential yarn properties file
 		this.yarnPropertiesFileLocation = configuration.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION);
@@ -563,6 +566,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 		//	Command Line Options
 		//
 		final CommandLine cmd = parseCommandLineOptions(args, true);
+
+		if (cmd.hasOption(help.getOpt())) {
+			printUsage();
+			return 0;
+		}
 
 		final AbstractYarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
 
