@@ -45,7 +45,7 @@ public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
 
 	@Override
 	public String getId() {
-		return null;
+		return "Default CLI";
 	}
 
 	@Override
