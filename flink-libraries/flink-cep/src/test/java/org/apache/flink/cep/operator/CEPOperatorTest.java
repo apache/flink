@@ -34,17 +34,16 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -113,7 +112,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
 
 			// simulate snapshot/restore with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			harness = getCepTestHarness(false);
@@ -136,7 +135,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(endEvent, 5L));
 
 			// simulate snapshot/restore with empty element queue but NFA state
-			OperatorStateHandles snapshot2 = harness.snapshot(1L, 1L);
+			OperatorSubtaskState snapshot2 = harness.snapshot(1L, 1L);
 			harness.close();
 
 			harness = getCepTestHarness(false);
@@ -182,7 +181,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(new Event(42, "foobar", 1.0), 2L));
 
 			// simulate snapshot/restore with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			harness = getCepTestHarness(false);
@@ -205,7 +204,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processWatermark(new Watermark(2L));
 
 			// simulate snapshot/restore with empty element queue but NFA state
-			OperatorStateHandles snapshot2 = harness.snapshot(1L, 1L);
+			OperatorSubtaskState snapshot2 = harness.snapshot(1L, 1L);
 			harness.close();
 
 			harness = getCepTestHarness(false);
@@ -348,7 +347,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(startEvent, 1L));
 
 			// simulate snapshot/restore with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
@@ -359,7 +358,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.open();
 
 			harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
-			OperatorStateHandles snapshot2 = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot2 = harness.snapshot(0L, 0L);
 			harness.close();
 
 			operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
@@ -409,7 +408,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(startEvent, 1L));
 
 			// simulate snapshot/restore with some elements in internal sorting queue
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
@@ -423,7 +422,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.open();
 
 			harness.processElement(new StreamRecord<>(new Event(42, "d", 1.0), 4L));
-			OperatorStateHandles snapshot2 = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot2 = harness.snapshot(0L, 0L);
 			harness.close();
 
 			operator = CepOperatorTestUtilities.getKeyedCepOpearator(true, new SimpleNFAFactory());
@@ -588,7 +587,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(startEvent2, 4L));
 			harness.processElement(new StreamRecord<Event>(middleEvent2, 5L));
 
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperator(false);
@@ -764,7 +763,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(startEvent2, 3L));
 			harness.processElement(new StreamRecord<Event>(middleEvent2, 4L));
 
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperator(true);
@@ -955,7 +954,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<>(middleEvent1, 3L));
 			harness.processElement(new StreamRecord<>(startEvent2, 3L));
 
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperatorWithComparator(true);
@@ -1016,7 +1015,7 @@ public class CEPOperatorTest extends TestLogger {
 			harness.processElement(new StreamRecord<Event>(middleEvent2, 5L));
 			harness.processElement(new StreamRecord<Event>(middleEvent1, 5L));
 
-			OperatorStateHandles snapshot = harness.snapshot(0L, 0L);
+			OperatorSubtaskState snapshot = harness.snapshot(0L, 0L);
 			harness.close();
 
 			SelectCepOperator<Event, Integer, Map<String, List<Event>>> operator2 = getKeyedCepOperatorWithComparator(false);
