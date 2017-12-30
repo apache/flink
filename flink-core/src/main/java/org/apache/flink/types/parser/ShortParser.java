@@ -36,6 +36,12 @@ public class ShortParser extends FieldParser<Short> {
 
 	@Override
 	public int parseField(byte[] bytes, int startPos, int limit, byte[] delimiter, Short reusable) {
+
+		if (startPos == limit) {
+			setErrorState(ParseErrorState.EMPTY_COLUMN);
+			return -1;
+		}
+
 		int val = 0;
 		boolean neg = false;
 
@@ -148,6 +154,7 @@ public class ShortParser extends FieldParser<Short> {
 				throw new NumberFormatException("Value overflow/underflow");
 			}
 		}
+
 		return (short) (neg ? -val : val);
 	}
 }
