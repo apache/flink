@@ -150,7 +150,7 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
         // set the callback to be executed once the request by the client is complete
         // the callback simply forwards the result to the collector
         resultFuture.onSuccess {
-            case result: String => asyncCollector.collect(Iterable((str, result)));
+            case result: String => asyncCollector.collect(Iterable((str, result)))
         }
     }
 }

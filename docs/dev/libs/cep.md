@@ -578,7 +578,7 @@ pattern.oneOrMore().optional()
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
                        .oneOrMore().consecutive()
-  .followedBy("end1").where(_.getName().equals("b"));
+  .followedBy("end1").where(_.getName().equals("b"))
 {% endhighlight %}
 
             <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
@@ -599,7 +599,7 @@ Pattern.begin("start").where(_.getName().equals("c"))
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
                        .oneOrMore().allowCombinations()
-  .followedBy("end1").where(_.getName().equals("b"));
+  .followedBy("end1").where(_.getName().equals("b"))
 {% endhighlight %}
 
                       <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>

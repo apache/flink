@@ -86,11 +86,11 @@ DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val consumerConfig = new Properties();
-consumerConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-consumerConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-consumerConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+val consumerConfig = new Properties()
+consumerConfig.put(ConsumerConfigConstants.AWS_REGION, "us-east-1")
+consumerConfig.put(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+consumerConfig.put(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
 
 val env = StreamExecutionEnvironment.getEnvironment
 
@@ -285,18 +285,18 @@ simpleStringStream.addSink(kinesis);
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val producerConfig = new Properties();
-producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
+val producerConfig = new Properties()
+producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1")
+producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 
-val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig);
-kinesis.setFailOnError(true);
-kinesis.setDefaultStream("kinesis_stream_name");
-kinesis.setDefaultPartition("0");
+val kinesis = new FlinkKinesisProducer[String](new SimpleStringSchema, producerConfig)
+kinesis.setFailOnError(true)
+kinesis.setDefaultStream("kinesis_stream_name")
+kinesis.setDefaultPartition("0")
 
-val simpleStringStream = ...;
-simpleStringStream.addSink(kinesis);
+val simpleStringStream = ...
+simpleStringStream.addSink(kinesis)
 {% endhighlight %}
 </div>
 </div>
@@ -335,11 +335,11 @@ producerConfig.put(ProducerConfigConstants.AWS_ENDPOINT, "http://localhost:4567"
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val producerConfig = new Properties();
-producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1");
-producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
-producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
-producerConfig.put(ProducerConfigConstants.AWS_ENDPOINT, "http://localhost:4567");
+val producerConfig = new Properties()
+producerConfig.put(ProducerConfigConstants.AWS_REGION, "us-east-1")
+producerConfig.put(ProducerConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
+producerConfig.put(ProducerConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
+producerConfig.put(ProducerConfigConstants.AWS_ENDPOINT, "http://localhost:4567")
 {% endhighlight %}
 </div>
 </div>

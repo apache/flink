@@ -571,7 +571,7 @@ data.reduceGroup { elements => elements.sum }
         data set.</p>
 {% highlight scala %}
 val input: DataSet[(Int, String, Double)] = // [...]
-val output: DataSet[(Int, String, Doublr)] = input.aggregate(SUM, 0).aggregate(MIN, 2);
+val output: DataSet[(Int, String, Double)] = input.aggregate(SUM, 0).aggregate(MIN, 2)
 {% endhighlight %}
   <p>You can also use short-hand syntax for minimum, maximum, and sum aggregations.</p>
 {% highlight scala %}
@@ -1037,7 +1037,7 @@ val csvInput = env.readCsvFile[Person](
 val values = env.fromElements("Foo", "bar", "foobar", "fubar")
 
 // generate a number sequence
-val numbers = env.generateSequence(1, 10000000);
+val numbers = env.generateSequence(1, 10000000)
 
 // read a file from the specified path of type TextInputFormat
 val tuples = env.readHadoopFile(new TextInputFormat, classOf[LongWritable],
@@ -1288,7 +1288,7 @@ val values: DataSet[(String, Int, Double)] = // [...]
 values.writeAsCsv("file:///path/to/the/result/file", "\n", "|")
 
 // this writes tuples in the text formatting "(a, b, c)", rather than as CSV lines
-values.writeAsText("file:///path/to/the/result/file");
+values.writeAsText("file:///path/to/the/result/file")
 
 // this writes values as strings using a user-defined formatting
 values map { tuple => tuple._1 + " - " + tuple._2 }
@@ -1309,19 +1309,19 @@ val pData: DataSet[(BookPojo, Double)] = // [...]
 val sData: DataSet[String] = // [...]
 
 // sort output on String field in ascending order
-tData.sortPartition(1, Order.ASCENDING).print;
+tData.sortPartition(1, Order.ASCENDING).print()
 
 // sort output on Double field in descending and Int field in ascending order
-tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print;
+tData.sortPartition(2, Order.DESCENDING).sortPartition(0, Order.ASCENDING).print()
 
 // sort output on the "author" field of nested BookPojo in descending order
-pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...);
+pData.sortPartition("_1.author", Order.DESCENDING).writeAsText(...)
 
 // sort output on the full tuple in ascending order
-tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...);
+tData.sortPartition("_", Order.ASCENDING).writeAsCsv(...)
 
 // sort atomic type (String) output in descending order
-sData.sortPartition("_", Order.DESCENDING).writeAsText(...);
+sData.sortPartition("_", Order.DESCENDING).writeAsText(...)
 
 {% endhighlight %}
 
@@ -1486,7 +1486,7 @@ val result = count map { c => c / 10000.0 * 4 }
 
 result.print()
 
-env.execute("Iterative Pi Example");
+env.execute("Iterative Pi Example")
 {% endhighlight %}
 
 You can also check out the
@@ -1693,7 +1693,7 @@ val env = ExecutionEnvironment.createLocalEnvironment()
 val lines = env.readTextFile(pathToTextFile)
 // build your program
 
-env.execute();
+env.execute()
 {% endhighlight %}
 </div>
 </div>
