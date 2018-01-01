@@ -1229,11 +1229,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     )
 
     testSqlApi(
-      "SHIFT_LEFT(21,1)",
-      "42"
-    )
-
-    testSqlApi(
       "SHIFT_LEFT(2147483647,-2147483648)",
       "2147483647"
     )

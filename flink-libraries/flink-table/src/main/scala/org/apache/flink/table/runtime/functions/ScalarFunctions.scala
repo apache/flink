@@ -118,7 +118,7 @@ object ScalarFunctions {
     * @return input << n
     */
   def shiftLeft(input: Int, n: Int): Int = {
-    _shiftLeft(input, n).asInstanceOf[Int]
+    input << n
   }
 
   /**
@@ -128,7 +128,7 @@ object ScalarFunctions {
     * @return input << n
     */
   def shiftLeft(input: Long, n: Int): Long = {
-    _shiftLeft(input, n).asInstanceOf[Long]
+    input << n
   }
 
   /**
@@ -138,7 +138,7 @@ object ScalarFunctions {
     * @return input >> n
     */
   def shiftRight(input: Int, n: Int): Int = {
-    _shiftRight(input, n).asInstanceOf[Int]
+    input >> n
   }
 
   /**
@@ -148,37 +148,7 @@ object ScalarFunctions {
     * @return input >> n
     */
   def shiftRight(input: Long, n: Int): Long = {
-    _shiftRight(input, n).asInstanceOf[Long]
-  }
-
-  /**
-    * Returns the number after the input number left shift n bits
-    * Input must be type 'Long' or type 'Int'
-    */
-  private def _shiftLeft(input: Any, n: Int): Any = {
-    input match {
-      case l: jl.Long => l << n
-      case i: jl.Integer => i << n
-      case _ =>
-        throw new IllegalArgumentException(
-          s"type of input in function 'shiftLeft(input, n)' must be Long or Integer"
-        )
-    }
-  }
-
-  /**
-    * Returns the number after the input number right shift n bits
-    * Input must be type 'Long' or type 'Int'
-    */
-  private def _shiftRight(input: Any, n: Int): Any = {
-    input match {
-      case l: jl.Long => l >> n
-      case i: jl.Integer => i >> n
-      case _ =>
-        throw new IllegalArgumentException(
-          s"type of input in function 'shiftRight(input, n)' must be Long or Integer"
-        )
-    }
+    input >> n
   }
 
 }
