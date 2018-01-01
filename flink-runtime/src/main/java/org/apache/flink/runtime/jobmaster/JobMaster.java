@@ -32,6 +32,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -123,6 +124,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -848,6 +850,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			return resourceManagerConnection.getTargetGateway().requestTaskManagerMetricQueryServicePaths(timeout);
 		} else {
 			return CompletableFuture.completedFuture(Collections.emptyList());
+		}
+	}
+
+	@Override
+	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
+			final JobID jobId,
+			final String targetDirectory,
+			final Time timeout) {
+		checkArgument(
+			jobGraph.getJobID().equals(jobId),
+			"Expected job id %s, was %s",
+			jobGraph.getJobID(),
+			jobId);
+		try {
+			return executionGraph.getCheckpointCoordinator()
+				.triggerSavepoint(System.currentTimeMillis(), targetDirectory);
+		} catch (Exception e) {
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 

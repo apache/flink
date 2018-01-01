@@ -21,6 +21,7 @@ package org.apache.flink.runtime.webmonitor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -135,6 +136,23 @@ public interface RestfulGateway extends RpcGateway {
 	 */
 	default CompletableFuture<Boolean> isJobExecutionResultPresent(
 			JobID jobId, @RpcTimeout Time timeout) {
+		throw new UnsupportedOperationException();
+	}
+
+	/**
+	 * Triggers a savepoint with the given savepoint directory as a target.
+	 *
+	 * @param targetDirectory Target directory for the savepoint.
+	 * @param timeout for the asynchronous operation
+	 * @return A future to the completed checkpoint
+	 * @throws IllegalStateException If no savepoint directory has been
+	 *                               specified and no default savepoint directory has been
+	 *                               configured
+	 */
+	default CompletableFuture<CompletedCheckpoint> triggerSavepoint(
+			JobID jobId,
+			String targetDirectory,
+			@RpcTimeout Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 }

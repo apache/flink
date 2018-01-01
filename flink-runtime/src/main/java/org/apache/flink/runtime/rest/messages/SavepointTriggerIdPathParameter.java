@@ -16,21 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.RestHandlerException;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
 
 /**
- * A special exception that indicates that an element was not found and that the
- * request should be answered with a {@code 404} return code.
+ * Path parameter identifying savepoint trigger requests.
  */
-public class NotFoundException extends RestHandlerException {
+public class SavepointTriggerIdPathParameter extends MessagePathParameter<SavepointTriggerId> {
 
-	private static final long serialVersionUID = -4036006746423754639L;
+	public static final String KEY = "savepointtriggerid";
 
-	public NotFoundException(String message) {
-		super(message, HttpResponseStatus.NOT_FOUND);
+	public SavepointTriggerIdPathParameter() {
+		super(KEY);
+	}
+
+	@Override
+	protected SavepointTriggerId convertFromString(String value) {
+		return SavepointTriggerId.fromHexString(value);
+	}
+
+	@Override
+	protected String convertToString(SavepointTriggerId value) {
+		return value.toString();
 	}
 }

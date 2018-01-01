@@ -18,30 +18,35 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
-import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.util.SerializedThrowable;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+
+import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link SavepointTriggerResponseBody}.
+ * Tests for {@link SavepointInfo}.
  */
-public class SavepointTriggerResponseBodyTest
-		extends RestResponseMarshallingTestBase<SavepointTriggerResponseBody> {
+public class SavepointInfoTest {
 
-	@Override
-	protected Class<SavepointTriggerResponseBody> getTestResponseClass() {
-		return SavepointTriggerResponseBody.class;
+	@Test
+	public void testNullRequestId() {
+		try {
+			new SavepointInfo(null, "/tmp", null);
+			fail("Expected exception not thrown");
+		} catch (NullPointerException e) {
+		}
 	}
 
-	@Override
-	protected SavepointTriggerResponseBody getTestResponseInstance() {
-		return new SavepointTriggerResponseBody(new SavepointTriggerId());
-	}
-
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(
-			final SavepointTriggerResponseBody expected,
-			final SavepointTriggerResponseBody actual) {
-		assertEquals(expected.getSavepointTriggerId(), actual.getSavepointTriggerId());
+	@Test
+	public void testSetBothLocationAndFailureCause()  {
+		try {
+			new SavepointInfo(
+				new SavepointTriggerId(),
+				"/tmp",
+				new SerializedThrowable(new RuntimeException()));
+			fail("Expected exception not thrown");
+		} catch (IllegalArgumentException e) {
+		}
 	}
 }

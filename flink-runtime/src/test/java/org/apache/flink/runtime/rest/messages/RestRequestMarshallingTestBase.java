@@ -59,7 +59,17 @@ public abstract class RestRequestMarshallingTestBase<R extends RequestBody> exte
 		final String marshalled = objectMapper.writeValueAsString(expected);
 
 		final R unmarshalled = objectMapper.readValue(marshalled, getTestRequestClass());
-		Assert.assertEquals(expected, unmarshalled);
+		assertOriginalEqualsToUnmarshalled(expected, unmarshalled);
+	}
+
+	/**
+	 * Asserts that two objects are equal. If they are not, an {@link AssertionError} is thrown.
+	 *
+	 * @param expected expected value
+	 * @param actual   the value to check against expected
+	 */
+	protected void assertOriginalEqualsToUnmarshalled(R expected, R actual) {
+		Assert.assertEquals(expected, actual);
 	}
 
 }

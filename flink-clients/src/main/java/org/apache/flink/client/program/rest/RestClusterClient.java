@@ -48,19 +48,25 @@ import org.apache.flink.runtime.rest.messages.JobTerminationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
-import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
+import org.apache.flink.runtime.rest.messages.queue.AsynchronouslyCreatedResource;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
 
@@ -72,6 +78,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -79,7 +86,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
@@ -134,7 +140,21 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			throw new ProgramInvocationException(e);
 		}
 
-		final JobResult jobExecutionResult = waitForJobExecutionResult(jobGraph.getJobID());
+		final JobResult jobExecutionResult;
+		try {
+			jobExecutionResult = waitForResource(
+				() -> {
+					final JobMessageParameters messageParameters = new JobMessageParameters();
+					messageParameters.jobPathParameter.resolve(jobGraph.getJobID());
+					return restClient.sendRequest(
+						restClusterClientConfiguration.getRestServerAddress(),
+						restClusterClientConfiguration.getRestServerPort(),
+						JobExecutionResultHeaders.getInstance(),
+						messageParameters);
+				});
+		} catch (final Exception e) {
+			throw new ProgramInvocationException(e);
+		}
 
 		if (jobExecutionResult.getSerializedThrowable().isPresent()) {
 			final SerializedThrowable serializedThrowable = jobExecutionResult.getSerializedThrowable().get();
@@ -194,37 +214,19 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		}
 	}
 
-	private JobResult waitForJobExecutionResult(
-			final JobID jobId) throws ProgramInvocationException {
-
-		final JobMessageParameters messageParameters = new JobMessageParameters();
-		messageParameters.jobPathParameter.resolve(jobId);
-		JobExecutionResultResponseBody jobExecutionResultResponseBody;
-		try {
-			long attempt = 0;
-			do {
-				final CompletableFuture<JobExecutionResultResponseBody> responseFuture =
-					restClient.sendRequest(
-						restClusterClientConfiguration.getRestServerAddress(),
-						restClusterClientConfiguration.getRestServerPort(),
-						JobExecutionResultHeaders.getInstance(),
-						messageParameters);
-				jobExecutionResultResponseBody = responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-				Thread.sleep(waitStrategy.sleepTime(attempt));
-				attempt++;
-			}
-			while (jobExecutionResultResponseBody.getStatus().getStatusId() != QueueStatus.StatusId.COMPLETED);
-		} catch (IOException | TimeoutException | ExecutionException e) {
-			throw new ProgramInvocationException(e);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new ProgramInvocationException(e);
+	private <R, T extends AsynchronouslyCreatedResource<R>> R waitForResource(
+			final SupplierWithException<CompletableFuture<T>, IOException> resourceFutureSupplier)
+				throws IOException, InterruptedException, ExecutionException, TimeoutException {
+		T asynchronouslyCreatedResource;
+		long attempt = 0;
+		do {
+			final CompletableFuture<T> responseFuture = resourceFutureSupplier.get();
+			asynchronouslyCreatedResource = responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			Thread.sleep(waitStrategy.sleepTime(attempt));
+			attempt++;
 		}
-
-		final JobResult jobExecutionResult = jobExecutionResultResponseBody.getJobExecutionResult();
-		checkState(jobExecutionResult != null, "jobExecutionResult must not be null");
-
-		return jobExecutionResult;
+		while (asynchronouslyCreatedResource.queueStatus().getStatusId() != QueueStatus.StatusId.COMPLETED);
+		return asynchronouslyCreatedResource.resource();
 	}
 
 	@Override
@@ -261,14 +263,13 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	}
 
 	@Override
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException {
-		SavepointTriggerHeaders headers = SavepointTriggerHeaders.getInstance();
-		SavepointMessageParameters params = headers.getUnresolvedMessageParameters();
-		params.jobID.resolve(jobId);
-
-		if (savepointDirectory != null) {
-			params.targetDirectory.resolve(Collections.singletonList(savepointDirectory));
-		}
+	public CompletableFuture<String> triggerSavepoint(
+			final JobID jobId,
+			final @Nullable String savepointDirectory) throws FlinkException {
+		final SavepointTriggerHeaders savepointTriggerHeaders = SavepointTriggerHeaders.getInstance();
+		final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
+			savepointTriggerHeaders.getUnresolvedMessageParameters();
+		savepointTriggerMessageParameters.jobID.resolve(jobId);
 
 		final CompletableFuture<SavepointTriggerResponseBody> responseFuture;
 
@@ -276,13 +277,44 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			responseFuture = restClient.sendRequest(
 				restClusterClientConfiguration.getRestServerAddress(),
 				restClusterClientConfiguration.getRestServerPort(),
-				headers,
-				params);
+				savepointTriggerHeaders,
+				savepointTriggerMessageParameters,
+				new SavepointTriggerRequestBody(savepointDirectory));
 		} catch (IOException e) {
 			throw new FlinkException("Could not send trigger savepoint request to Flink cluster.", e);
 		}
 
-		return responseFuture.thenApply(SavepointTriggerResponseBody::getLocation);
+		return responseFuture.thenApply(savepointTriggerResponseBody -> {
+			final SavepointTriggerId savepointTriggerId = savepointTriggerResponseBody.getSavepointTriggerId();
+			final SavepointInfo savepointInfo;
+			try {
+				savepointInfo = waitForSavepointCompletion(jobId, savepointTriggerId);
+			} catch (Exception e) {
+				throw new CompletionException(e);
+			}
+			if (savepointInfo.getFailureCause() != null) {
+				throw new CompletionException(savepointInfo.getFailureCause());
+			}
+			return savepointInfo.getLocation();
+		});
+	}
+
+	private SavepointInfo waitForSavepointCompletion(
+			final JobID jobId,
+			final SavepointTriggerId savepointTriggerId) throws Exception {
+		return waitForResource(() -> {
+			final SavepointStatusHeaders savepointStatusHeaders = SavepointStatusHeaders.getInstance();
+			final SavepointStatusMessageParameters savepointStatusMessageParameters =
+				savepointStatusHeaders.getUnresolvedMessageParameters();
+			savepointStatusMessageParameters.jobIdPathParameter.resolve(jobId);
+			savepointStatusMessageParameters.savepointTriggerIdPathParameter.resolve(savepointTriggerId);
+			return restClient.sendRequest(
+				restClusterClientConfiguration.getRestServerAddress(),
+				restClusterClientConfiguration.getRestServerPort(),
+				savepointStatusHeaders,
+				savepointStatusMessageParameters
+			);
+		});
 	}
 
 	@Override

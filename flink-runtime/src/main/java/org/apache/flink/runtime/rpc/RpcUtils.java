@@ -27,11 +27,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Utility functions for Flink's RPC implementation
+ * Utility functions for Flink's RPC implementation.
  */
 public class RpcUtils {
 
-	public static final Time INF_TIMEOUT = Time.milliseconds(Long.MAX_VALUE);
+	/**
+	 * <b>HACK:</b> Set to 21474835 seconds, Akka's maximum delay (Akka 2.4.20). The value cannot be
+	 * higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the private
+	 * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
+	 */
+	public static final Time INF_TIMEOUT = Time.milliseconds(TimeUnit.SECONDS.toMillis(21474835));
 
 	/**
 	 * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.

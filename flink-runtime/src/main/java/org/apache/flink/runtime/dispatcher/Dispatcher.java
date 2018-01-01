@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -389,6 +390,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		}
 		return CompletableFuture.completedFuture(jobExecutionResultPresent);
+	}
+
+	@Override
+	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
+			final JobID jobId,
+			final String targetDirectory,
+			final Time timeout) {
+		if (jobManagerRunners.containsKey(jobId)) {
+			return jobManagerRunners.get(jobId)
+				.getJobManagerGateway()
+				.triggerSavepoint(jobId, targetDirectory, timeout);
+		} else {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		}
 	}
 
 	/**

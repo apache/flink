@@ -26,6 +26,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -52,16 +53,23 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.SavepointTriggerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTargetDirectoryParameter;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointInfo;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointResponseBody;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointStatusMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
+import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.testutils.category.Flip6;
@@ -70,6 +78,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -87,11 +96,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -295,44 +307,108 @@ public class RestClusterClientTest extends TestLogger {
 
 	@Test
 	public void testTriggerSavepoint() throws Exception {
-		String targetSavepointDirectory = "/alternate";
-		TestSavepointTriggerHandler triggerHandler = new TestSavepointTriggerHandler(targetSavepointDirectory);
-		try (TestRestServerEndpoint ignored = createRestServerEndpoint(triggerHandler)) {
+		final String targetSavepointDirectory = "/tmp";
+		final TestSavepointHandlers testSavepointHandlers = new TestSavepointHandlers();
+		final TestSavepointHandlers.TestSavepointTriggerHandler triggerHandler =
+			testSavepointHandlers.new TestSavepointTriggerHandler(
+				Arrays.asList(null, targetSavepointDirectory, null).iterator());
+		final TestSavepointHandlers.TestSavepointHandler savepointHandler =
+			testSavepointHandlers.new TestSavepointHandler(Arrays.asList(
+				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
+					testSavepointHandlers.testSavepointTriggerId,
+					"/other/savepoint-0d2fb9-8d5e0106041a",
+					null)),
+				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
+					testSavepointHandlers.testSavepointTriggerId,
+					"/tmp/savepoint-0d2fb9-8d5e0106041a",
+					null)),
+				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
+					testSavepointHandlers.testSavepointTriggerId,
+					null,
+					new SerializedThrowable(new RuntimeException("expected"))))).iterator());
+		try (TestRestServerEndpoint ignored = createRestServerEndpoint(
+			triggerHandler,
+			savepointHandler)) {
+
 			JobID id = new JobID();
 			{
 				CompletableFuture<String> savepointPathFuture = restClusterClient.triggerSavepoint(id, null);
 				String savepointPath = savepointPathFuture.get();
-				Assert.assertEquals("/universe", savepointPath);
+				assertEquals("/other/savepoint-0d2fb9-8d5e0106041a", savepointPath);
 			}
 
 			{
 				CompletableFuture<String> savepointPathFuture = restClusterClient.triggerSavepoint(id, targetSavepointDirectory);
 				String savepointPath = savepointPathFuture.get();
-				Assert.assertEquals(targetSavepointDirectory + "/universe", savepointPath);
+				assertEquals("/tmp/savepoint-0d2fb9-8d5e0106041a", savepointPath);
+			}
+
+			{
+				try {
+					restClusterClient.triggerSavepoint(id, null).get();
+					fail("Expected exception not thrown.");
+				} catch (ExecutionException e) {
+					final Throwable cause = e.getCause();
+					assertThat(cause, instanceOf(SerializedThrowable.class));
+					assertThat(((SerializedThrowable) cause)
+						.deserializeError(ClassLoader.getSystemClassLoader())
+						.getMessage(), equalTo("expected"));
+				}
 			}
 		}
 	}
 
-	private class TestSavepointTriggerHandler extends TestHandler<EmptyRequestBody, SavepointTriggerResponseBody, SavepointMessageParameters> {
+	private class TestSavepointHandlers {
 
-		private final String expectedSavepointDirectory;
+		private final SavepointTriggerId testSavepointTriggerId = new SavepointTriggerId();
 
-		TestSavepointTriggerHandler(String expectedSavepointDirectory) {
-			super(SavepointTriggerHeaders.getInstance());
-			this.expectedSavepointDirectory = expectedSavepointDirectory;
+		private class TestSavepointTriggerHandler extends TestHandler<SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
+
+			private final Iterator<String> expectedTargetDirectories;
+
+			TestSavepointTriggerHandler(final Iterator<String> expectedTargetDirectories) {
+				super(SavepointTriggerHeaders.getInstance());
+				this.expectedTargetDirectories = expectedTargetDirectories;
+			}
+
+			@Override
+			protected CompletableFuture<SavepointTriggerResponseBody> handleRequest(
+					@Nonnull HandlerRequest<SavepointTriggerRequestBody, SavepointTriggerMessageParameters> request,
+					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+				final String targetDirectory = request.getRequestBody().getTargetDirectory();
+				if (Objects.equals(expectedTargetDirectories.next(), targetDirectory)) {
+					return CompletableFuture.completedFuture(
+						new SavepointTriggerResponseBody(testSavepointTriggerId));
+				} else {
+					// return new random savepoint trigger id so that test can fail
+					return CompletableFuture.completedFuture(
+						new SavepointTriggerResponseBody(new SavepointTriggerId()));
+				}
+			}
 		}
 
-		@Override
-		protected CompletableFuture<SavepointTriggerResponseBody> handleRequest(@Nonnull HandlerRequest<EmptyRequestBody, SavepointMessageParameters> request, @Nonnull DispatcherGateway gateway) throws RestHandlerException {
-			List<String> targetDirectories = request.getQueryParameter(SavepointTargetDirectoryParameter.class);
-			if (targetDirectories.isEmpty()) {
-				return CompletableFuture.completedFuture(new SavepointTriggerResponseBody("growing", "/universe", "big-bang"));
-			} else {
-				String targetDir = targetDirectories.get(0);
-				if (targetDir.equals(expectedSavepointDirectory)) {
-					return CompletableFuture.completedFuture(new SavepointTriggerResponseBody("growing", targetDir + "/universe", "big-bang"));
+		private class TestSavepointHandler
+				extends TestHandler<EmptyRequestBody, SavepointResponseBody, SavepointStatusMessageParameters> {
+
+			private final Iterator<SavepointResponseBody> expectedSavepointResponseBodies;
+
+			TestSavepointHandler(final Iterator<SavepointResponseBody> expectedSavepointResponseBodies) {
+				super(SavepointStatusHeaders.getInstance());
+				this.expectedSavepointResponseBodies = expectedSavepointResponseBodies;
+			}
+
+			@Override
+			protected CompletableFuture<SavepointResponseBody> handleRequest(
+					@Nonnull HandlerRequest<EmptyRequestBody, SavepointStatusMessageParameters> request,
+					@Nonnull DispatcherGateway gateway) throws RestHandlerException {
+				final SavepointTriggerId savepointTriggerId = request.getPathParameter(SavepointTriggerIdPathParameter.class);
+				if (testSavepointTriggerId.equals(savepointTriggerId)) {
+					return CompletableFuture.completedFuture(expectedSavepointResponseBodies.next());
 				} else {
-					return CompletableFuture.completedFuture(new SavepointTriggerResponseBody("growing", "savepoint directory (" + targetDir + ") did not match expected (" + expectedSavepointDirectory + ')', "big-bang"));
+					return FutureUtils.completedExceptionally(
+						new RestHandlerException(
+							"Unexpected savepoint trigger id: " + savepointTriggerId,
+							HttpResponseStatus.BAD_REQUEST));
 				}
 			}
 		}
