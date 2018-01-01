@@ -67,12 +67,12 @@ DataStream<String> streamSource = env.addSource(new TwitterSource(props));
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val props = new Properties();
-props.setProperty(TwitterSource.CONSUMER_KEY, "");
-props.setProperty(TwitterSource.CONSUMER_SECRET, "");
-props.setProperty(TwitterSource.TOKEN, "");
-props.setProperty(TwitterSource.TOKEN_SECRET, "");
-DataStream<String> streamSource = env.addSource(new TwitterSource(props));
+val props = new Properties()
+props.setProperty(TwitterSource.CONSUMER_KEY, "")
+props.setProperty(TwitterSource.CONSUMER_SECRET, "")
+props.setProperty(TwitterSource.TOKEN, "")
+props.setProperty(TwitterSource.TOKEN_SECRET, "")
+val streamSource = env.addSource(new TwitterSource(props))
 {% endhighlight %}
 </div>
 </div>
