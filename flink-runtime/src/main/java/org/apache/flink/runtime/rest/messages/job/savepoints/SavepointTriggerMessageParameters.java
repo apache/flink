@@ -18,30 +18,28 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
-import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
+import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-import static org.junit.Assert.assertEquals;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * Tests for {@link SavepointTriggerResponseBody}.
+ * The parameters for triggering a savepoint.
  */
-public class SavepointTriggerResponseBodyTest
-		extends RestResponseMarshallingTestBase<SavepointTriggerResponseBody> {
+public class SavepointTriggerMessageParameters extends MessageParameters {
+
+	public JobIDPathParameter jobID = new JobIDPathParameter();
 
 	@Override
-	protected Class<SavepointTriggerResponseBody> getTestResponseClass() {
-		return SavepointTriggerResponseBody.class;
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.singleton(jobID);
 	}
 
 	@Override
-	protected SavepointTriggerResponseBody getTestResponseInstance() {
-		return new SavepointTriggerResponseBody(new SavepointTriggerId());
-	}
-
-	@Override
-	protected void assertOriginalEqualsToUnmarshalled(
-			final SavepointTriggerResponseBody expected,
-			final SavepointTriggerResponseBody actual) {
-		assertEquals(expected.getSavepointTriggerId(), actual.getSavepointTriggerId());
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptyList();
 	}
 }

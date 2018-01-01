@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -26,54 +27,45 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 /**
  * These headers define the protocol for triggering a savepoint.
  */
-public class SavepointTriggerHeaders
-		implements MessageHeaders<SavepointTriggerRequestBody, SavepointTriggerResponseBody, SavepointTriggerMessageParameters> {
+public class SavepointStatusHeaders
+		implements MessageHeaders<EmptyRequestBody, SavepointResponseBody, SavepointStatusMessageParameters> {
 
-	private static final SavepointTriggerHeaders INSTANCE = new SavepointTriggerHeaders();
+	private static final SavepointStatusHeaders INSTANCE = new SavepointStatusHeaders();
 
-	private SavepointTriggerHeaders() {
+	private SavepointStatusHeaders() {
 	}
 
 	@Override
-	public Class<SavepointTriggerRequestBody> getRequestClass() {
-		return SavepointTriggerRequestBody.class;
+	public Class<EmptyRequestBody> getRequestClass() {
+		return EmptyRequestBody.class;
 	}
 
 	@Override
-	public Class<SavepointTriggerResponseBody> getResponseClass() {
-		return SavepointTriggerResponseBody.class;
+	public Class<SavepointResponseBody> getResponseClass() {
+		return SavepointResponseBody.class;
 	}
 
 	@Override
 	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.ACCEPTED;
+		return HttpResponseStatus.OK;
 	}
 
 	@Override
-	public SavepointTriggerMessageParameters getUnresolvedMessageParameters() {
-		return new SavepointTriggerMessageParameters();
+	public SavepointStatusMessageParameters getUnresolvedMessageParameters() {
+		return new SavepointStatusMessageParameters();
 	}
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
+		return HttpMethodWrapper.GET;
 	}
 
 	@Override
 	public String getTargetRestEndpointURL() {
-		/*
-		Note: this is different to the existing implementation for which the targetDirectory is a path parameter
-		Having it as a path parameter has several downsides as it
-			- is optional (which we only allow for query parameters)
-			- causes parsing issues, since the path is not reliably treated as a single parameter
-			- does not denote a hierarchy which path parameters are supposed to do
-			- interacts badly with the POST spec, as it would require the progress url to also contain the targetDirectory
-		 */
-
-		return "/jobs/:jobid/savepoints";
+		return "/jobs/:jobid/savepoints/:savepointtriggerid";
 	}
 
-	public static SavepointTriggerHeaders getInstance() {
+	public static SavepointStatusHeaders getInstance() {
 		return INSTANCE;
 	}
 }

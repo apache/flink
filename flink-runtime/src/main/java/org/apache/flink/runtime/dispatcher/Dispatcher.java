@@ -391,6 +391,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return CompletableFuture.completedFuture(jobExecutionResultPresent);
 	}
 
+	@Override
+	public CompletableFuture<String> triggerSavepoint(
+			final JobID jobId,
+			final String targetDirectory,
+			final Time timeout) {
+		if (jobManagerRunners.containsKey(jobId)) {
+			return jobManagerRunners.get(jobId)
+				.getJobManagerGateway()
+				.triggerSavepoint(jobId, targetDirectory, timeout);
+		} else {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		}
+	}
+
 	/**
 	 * Cleans up the job related data from the dispatcher. If cleanupHA is true, then
 	 * the data will also be removed from HA.

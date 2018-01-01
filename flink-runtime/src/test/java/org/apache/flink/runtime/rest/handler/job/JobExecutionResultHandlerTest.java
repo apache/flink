@@ -102,8 +102,8 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 			mockRestfulGateway).get();
 
 		assertThat(
-			responseBody.getStatus().getStatusId(),
-			equalTo(QueueStatus.StatusId.IN_PROGRESS));
+			responseBody.getStatus().getId(),
+			equalTo(QueueStatus.Id.IN_PROGRESS));
 	}
 
 	@Test
@@ -122,8 +122,8 @@ public class JobExecutionResultHandlerTest extends TestLogger {
 			mockRestfulGateway).get();
 
 		assertThat(
-			responseBody.getStatus().getStatusId(),
-			equalTo(QueueStatus.StatusId.COMPLETED));
+			responseBody.getStatus().getId(),
+			equalTo(QueueStatus.Id.COMPLETED));
 		assertThat(responseBody.getJobExecutionResult(), not(nullValue()));
 	}
 
