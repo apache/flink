@@ -55,7 +55,7 @@ val graph: Graph[java.lang.Long, java.lang.Long, NullValue] = ...
 val verticesWithCommunity = graph.run(new LabelPropagation[java.lang.Long, java.lang.Long, NullValue](30))
 
 // print the result
-verticesWithCommunity.print
+verticesWithCommunity.print()
 
 {% endhighlight %}
 </div>

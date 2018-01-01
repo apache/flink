@@ -210,40 +210,40 @@ For a pattern named `start`, the following are valid quantifiers:
  start.times(4).optional()
 
  // expecting 2, 3 or 4 occurrences
- start.times(2, 4);
+ start.times(2, 4)
 
  // expecting 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).greedy();
+ start.times(2, 4).greedy()
 
  // expecting 0, 2, 3 or 4 occurrences
- start.times(2, 4).optional();
+ start.times(2, 4).optional()
 
  // expecting 0, 2, 3 or 4 occurrences and repeating as many as possible
- start.times(2, 4).optional().greedy();
+ start.times(2, 4).optional().greedy()
 
  // expecting 1 or more occurrences
  start.oneOrMore()
 
  // expecting 1 or more occurrences and repeating as many as possible
- start.oneOrMore().greedy();
+ start.oneOrMore().greedy()
 
  // expecting 0 or more occurrences
  start.oneOrMore().optional()
 
  // expecting 0 or more occurrences and repeating as many as possible
- start.oneOrMore().optional().greedy();
+ start.oneOrMore().optional().greedy()
 
  // expecting 2 or more occurrences
- start.timesOrMore(2);
+ start.timesOrMore(2)
 
  // expecting 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).greedy();
+ start.timesOrMore(2).greedy()
 
  // expecting 0, 2 or more occurrences
- start.timesOrMore(2).optional();
+ start.timesOrMore(2).optional()
 
  // expecting 0, 2 or more occurrences and repeating as many as possible
- start.timesOrMore(2).optional().greedy();
+ start.timesOrMore(2).optional().greedy()
  {% endhighlight %}
  </div>
  </div>
@@ -729,7 +729,7 @@ pattern.times(2)
              <p>By default a relaxed internal contiguity (between subsequent events) is used. For more info on
              internal contiguity see <a href="#consecutive_java">consecutive</a>.</p>
 {% highlight scala %}
-pattern.times(2, 4);
+pattern.times(2, 4)
 {% endhighlight %}
          </td>
        </tr>
@@ -765,7 +765,7 @@ pattern.oneOrMore().greedy()
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
                        .oneOrMore().consecutive()
-  .followedBy("end1").where(_.getName().equals("b"));
+  .followedBy("end1").where(_.getName().equals("b"))
 {% endhighlight %}
 
             <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
@@ -786,7 +786,7 @@ Pattern.begin("start").where(_.getName().equals("c"))
 Pattern.begin("start").where(_.getName().equals("c"))
   .followedBy("middle").where(_.getName().equals("a"))
                        .oneOrMore().allowCombinations()
-  .followedBy("end1").where(_.getName().equals("b"));
+  .followedBy("end1").where(_.getName().equals("b"))
 {% endhighlight %}
 
                       <p>Will generate the following matches for an input sequence: C D A1 A2 A3 D A4 B</p>
@@ -1491,7 +1491,7 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.select(outp
     pattern: Map[String, Iterable[Event]] => ComplexEvent()
 }
 
-val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag);
+val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
 ~~~
 
 The `flatSelect` API call offers the same overloaded version which takes as the first parameter a timeout function and as second parameter a selection function.
@@ -1510,7 +1510,7 @@ val result: SingleOutputStreamOperator[ComplexEvent] = patternStream.flatSelect(
         out.collect(ComplexEvent())
 }
 
-val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag);
+val timeoutResult: DataStream<TimeoutEvent> = result.getSideOutput(outputTag)
 ~~~
 
 </div>
