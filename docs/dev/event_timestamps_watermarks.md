@@ -154,7 +154,7 @@ env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val stream: DataStream[MyEvent] = env.readFile(
          myFormat, myFilePath, FileProcessingMode.PROCESS_CONTINUOUSLY, 100,
-         FilePathFilter.createDefaultFilter());
+         FilePathFilter.createDefaultFilter())
 
 val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
         .filter( _.severity == WARNING )
@@ -240,19 +240,19 @@ public class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks<My
  */
 class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
 
-    val maxOutOfOrderness = 3500L; // 3.5 seconds
+    val maxOutOfOrderness = 3500L // 3.5 seconds
 
-    var currentMaxTimestamp: Long;
+    var currentMaxTimestamp: Long
 
     override def extractTimestamp(element: MyEvent, previousElementTimestamp: Long): Long = {
         val timestamp = element.getCreationTime()
         currentMaxTimestamp = max(timestamp, currentMaxTimestamp)
-        timestamp;
+        timestamp
     }
 
     override def getCurrentWatermark(): Watermark = {
         // return the watermark as current highest timestamp minus the out-of-orderness bound
-        new Watermark(currentMaxTimestamp - maxOutOfOrderness);
+        new Watermark(currentMaxTimestamp - maxOutOfOrderness)
     }
 }
 
@@ -262,7 +262,7 @@ class BoundedOutOfOrdernessGenerator extends AssignerWithPeriodicWatermarks[MyEv
  */
 class TimeLagWatermarkGenerator extends AssignerWithPeriodicWatermarks[MyEvent] {
 
-    val maxTimeLag = 5000L; // 5 seconds
+    val maxTimeLag = 5000L // 5 seconds
 
     override def extractTimestamp(element: MyEvent, previousElementTimestamp: Long): Long = {
         element.getCreationTime

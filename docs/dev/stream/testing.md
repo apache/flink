@@ -247,8 +247,8 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100));
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-env.enableCheckpointing(500);
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100));
+env.enableCheckpointing(500)
+env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 100))
 {% endhighlight %}
 </div>
 </div>

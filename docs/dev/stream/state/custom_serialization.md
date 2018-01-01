@@ -61,7 +61,7 @@ val descriptor = new ListStateDescriptor[(String, Integer)](
     new CustomTypeSerializer)
 )
 
-checkpointedState = getRuntimeContext.getListState(descriptor);
+checkpointedState = getRuntimeContext.getListState(descriptor)
 {% endhighlight %}
 </div>
 </div>

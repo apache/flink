@@ -130,14 +130,14 @@ DataStream<String> stream = env
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
+val properties = new Properties()
+properties.setProperty("bootstrap.servers", "localhost:9092")
 // only required for Kafka 0.8
-properties.setProperty("zookeeper.connect", "localhost:2181");
-properties.setProperty("group.id", "test");
+properties.setProperty("zookeeper.connect", "localhost:2181")
+properties.setProperty("group.id", "test")
 stream = env
     .addSource(new FlinkKafkaConsumer08[String]("topic", new SimpleStringSchema(), properties))
-    .print
+    .print()
 {% endhighlight %}
 </div>
 </div>
@@ -422,17 +422,17 @@ DataStream<String> stream = env
 </div>
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val properties = new Properties();
-properties.setProperty("bootstrap.servers", "localhost:9092");
+val properties = new Properties()
+properties.setProperty("bootstrap.servers", "localhost:9092")
 // only required for Kafka 0.8
-properties.setProperty("zookeeper.connect", "localhost:2181");
-properties.setProperty("group.id", "test");
+properties.setProperty("zookeeper.connect", "localhost:2181")
+properties.setProperty("group.id", "test")
 
-val myConsumer = new FlinkKafkaConsumer08[String]("topic", new SimpleStringSchema(), properties);
-myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter());
+val myConsumer = new FlinkKafkaConsumer08[String]("topic", new SimpleStringSchema(), properties)
+myConsumer.assignTimestampsAndWatermarks(new CustomWatermarkEmitter())
 stream = env
     .addSource(myConsumer)
-    .print
+    .print()
 {% endhighlight %}
 </div>
 </div>

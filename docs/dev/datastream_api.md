@@ -113,7 +113,7 @@ object WindowWordCount {
       .timeWindow(Time.seconds(5))
       .sum(1)
 
-    counts.print
+    counts.print()
 
     env.execute("Window Stream WordCount")
   }

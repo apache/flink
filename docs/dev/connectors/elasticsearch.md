@@ -159,7 +159,7 @@ input.addSink(new ElasticsearchSink(config, transportAddresses, new Elasticsearc
     return Requests.indexRequest()
             .index("my-index")
             .type("my-type")
-            .source(json);
+            .source(json)
   }
 }))
 {% endhighlight %}
@@ -185,7 +185,7 @@ input.addSink(new ElasticsearchSink(config, transportAddresses, new Elasticsearc
     return Requests.indexRequest()
             .index("my-index")
             .type("my-type")
-            .source(json);
+            .source(json)
   }
 }))
 {% endhighlight %}
@@ -298,7 +298,7 @@ input.addSink(new ElasticsearchSink(config, new ElasticsearchSinkFunction[String
     return Requests.indexRequest()
             .index("my-index")
             .type("my-type")
-            .source(json);
+            .source(json)
   }
 }))
 {% endhighlight %}
