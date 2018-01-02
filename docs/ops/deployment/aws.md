@@ -397,14 +397,28 @@ Caused by: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3native
 
 If you have configured everything properly, but get a `Bad Request` Exception **and** your S3 bucket is located in region `eu-central-1`, you might be running an S3 client, which does not support [Amazon's signature version 4](http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html).
 
-Currently, this includes all Hadoop versions up to 2.7.2 running `NativeS3FileSystem`, which depend on `JetS3t 0.9.0` instead of a version [>= 0.9.4](http://www.jets3t.org/RELEASE_NOTES.html).
-
-The only workaround is to change the bucket region.
-
 ```
 [...]
 Caused by: java.io.IOException: s3://<bucket-in-eu-central-1>/<endpoint> : 400 : Bad Request [...]
 Caused by: org.jets3t.service.impl.rest.HttpException [...]
+```
+or
+```
+com.amazonaws.services.s3.model.AmazonS3Exception: Status Code: 400, AWS Service: Amazon S3, AWS Request ID: [...], AWS Error Code: null, AWS Error Message: Bad Request, S3 Extended Request ID: [...]
+
+```
+
+This should not apply to our shaded Hadoop/Presto S3 file systems but can occur for Hadoop-provided
+S3 file systems. In particular, all Hadoop versions up to 2.7.2 running `NativeS3FileSystem` (which
+depend on `JetS3t 0.9.0` instead of a version [>= 0.9.4](http://www.jets3t.org/RELEASE_NOTES.html))
+are affected but users also reported this happening with the `S3AFileSystem`.
+
+Except for changing the bucket region, you may also be able to solve this by
+[requesting signature version 4 for request authentication](https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version),
+e.g. by adding this to Flink's JVM options in `flink-conf.yaml` (see
+[configuration](../config.html#common-options)):
+```
+env.java.opts: -Dcom.amazonaws.services.s3.enableV4
 ```
 
 {% top %}
