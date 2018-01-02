@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.util;
+package org.apache.flink.client.cli.util;
 
-import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.CliFrontendTestUtils;
+import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;

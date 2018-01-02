@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CommandLineOptions;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -317,8 +317,8 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 		@Override
 		// make method public
-		public ClusterClient createClient(CommandLineOptions options, PackagedProgram program) throws Exception {
-			return super.createClient(options, program);
+		public ClusterClient createClient(CustomCommandLine<?> customCommandLine, CommandLine commandLine, PackagedProgram program) throws Exception {
+			return super.createClient(customCommandLine, commandLine, program);
 		}
 
 		@Override

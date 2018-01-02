@@ -18,7 +18,7 @@
 
 package org.apache.flink.yarn.cli;
 
-import org.apache.flink.client.CliFrontend;
+import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterSpecification;

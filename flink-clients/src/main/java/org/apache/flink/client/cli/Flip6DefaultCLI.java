@@ -33,7 +33,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
 
-import static org.apache.flink.client.CliFrontend.setJobManagerAddressInConfig;
+import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConfig;
 
 /**
  * The default CLI which is used for interaction with standalone clusters.

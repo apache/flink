@@ -18,7 +18,6 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.CliFrontend;
 import org.apache.flink.configuration.CoreOptions;
 
 import org.apache.commons.cli.CommandLine;
@@ -137,12 +136,12 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
 	}
 
-	private static final Options RUN_OPTIONS = getRunOptions(buildGeneralOptions(new Options()));
-	private static final Options INFO_OPTIONS = getInfoOptions(buildGeneralOptions(new Options()));
-	private static final Options LIST_OPTIONS = getListOptions(buildGeneralOptions(new Options()));
-	private static final Options CANCEL_OPTIONS = getCancelOptions(buildGeneralOptions(new Options()));
-	private static final Options STOP_OPTIONS = getStopOptions(buildGeneralOptions(new Options()));
-	private static final Options SAVEPOINT_OPTIONS = getSavepointOptions(buildGeneralOptions(new Options()));
+	private static final Options RUN_OPTIONS = getRunCommandOptions();
+	private static final Options INFO_OPTIONS = getInfoCommandOptions();
+	private static final Options LIST_OPTIONS = getListCommandOptions();
+	private static final Options CANCEL_OPTIONS = getCancelCommandOptions();
+	private static final Options STOP_OPTIONS = getStopCommandOptions();
+	private static final Options SAVEPOINT_OPTIONS = getSavepointCommandOptions();
 
 	private static Options buildGeneralOptions(Options options) {
 		options.addOption(HELP_OPTION);
@@ -177,6 +176,10 @@ public class CliFrontendParser {
 		return options;
 	}
 
+	static Options getRunCommandOptions() {
+		return getRunOptions(buildGeneralOptions(new Options()));
+	}
+
 	private static Options getRunOptions(Options options) {
 		options = getProgramSpecificOptions(options);
 		options.addOption(SAVEPOINT_PATH_OPTION);
@@ -191,10 +194,18 @@ public class CliFrontendParser {
 		return options;
 	}
 
+	static Options getInfoCommandOptions() {
+		return getInfoOptions(buildGeneralOptions(new Options()));
+	}
+
 	private static Options getInfoOptions(Options options) {
 		options = getProgramSpecificOptions(options);
 		options = getJobManagerAddressOption(options);
 		return addCustomCliOptions(options, false);
+	}
+
+	static Options getListCommandOptions() {
+		return getListOptions(buildGeneralOptions(new Options()));
 	}
 
 	private static Options getListOptions(Options options) {
@@ -204,15 +215,27 @@ public class CliFrontendParser {
 		return addCustomCliOptions(options, false);
 	}
 
+	static Options getCancelCommandOptions() {
+		return getCancelOptions(buildGeneralOptions(new Options()));
+	}
+
 	private static Options getCancelOptions(Options options) {
 		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 		options = getJobManagerAddressOption(options);
 		return addCustomCliOptions(options, false);
 	}
 
+	static Options getStopCommandOptions() {
+		return getStopOptions(buildGeneralOptions(new Options()));
+	}
+
 	private static Options getStopOptions(Options options) {
 		options = getJobManagerAddressOption(options);
 		return addCustomCliOptions(options, false);
+	}
+
+	static Options getSavepointCommandOptions() {
+		return getSavepointOptions(buildGeneralOptions(new Options()));
 	}
 
 	private static Options getSavepointOptions(Options options) {
@@ -475,6 +498,16 @@ public class CliFrontendParser {
 			return new InfoOptions(line);
 		}
 		catch (ParseException e) {
+			throw new CliArgsException(e.getMessage());
+		}
+	}
+
+	public static CommandLine parse(Options options, String[] args, boolean stopAtNonOptions) throws CliArgsException {
+		final DefaultParser parser = new DefaultParser();
+
+		try {
+			return parser.parse(options, args, stopAtNonOptions);
+		} catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());
 		}
 	}
