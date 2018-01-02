@@ -39,7 +39,7 @@ import org.apache.flink.runtime.blob.BlobCacheService
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager
 import org.apache.flink.runtime.clusterframework.BootstrapTools
 import org.apache.flink.runtime.clusterframework.messages.StopCluster
-import org.apache.flink.runtime.clusterframework.types.ResourceID
+import org.apache.flink.runtime.clusterframework.types.{AllocationID, ResourceID}
 import org.apache.flink.runtime.concurrent.{Executors, FutureUtils}
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor
 import org.apache.flink.runtime.execution.ExecutionState
@@ -1203,14 +1203,19 @@ class TaskManager(
           config.getTimeout().getSize(),
           config.getTimeout().getUnit()))
 
+      val jobID = jobInformation.getJobId
+
+      // Allocation ids do not work properly without flip-6, so we just fake one, based on the jid.
+      val fakeAllocationID = new AllocationID(jobID.getLowerPart, jobID.getUpperPart)
+
       val taskLocalStateStore = taskManagerLocalStateStoresManager.localStateStoreForSubtask(
-        jobInformation.getJobId,
-        tdd.getAllocationId,
+        jobID,
+        fakeAllocationID,
         taskInformation.getJobVertexId,
         tdd.getSubtaskIndex)
 
       val taskLocalStateManager = new TaskStateManagerImpl(
-        jobInformation.getJobId,
+        jobID,
         tdd.getExecutionAttemptId,
         taskLocalStateStore,
         tdd.getTaskRestore,

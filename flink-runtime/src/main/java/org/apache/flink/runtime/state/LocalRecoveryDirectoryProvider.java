@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -63,10 +64,16 @@ public interface LocalRecoveryDirectoryProvider extends Serializable {
 	 * Returns a specific job-and-allocation directory, which is a root dir plus the sub-dir for job-and-allocation.
 	 * The index must be between 0 (incl.) and {@link #rootDirectoryCount()} (excl.).
 	 */
-	File selectJobAndAllocationBaseDirectory(int idx);
+	File selectAllocationBaseDirectory(int idx);
 
 	/**
 	 * Returns the total number of root directories.
 	 */
 	int rootDirectoryCount();
+
+	/**
+	 * Proactive cleanup of all allocation base directories. This will remove all files and directories in the
+	 * allocation base directories except the subdirectory for the current JobID.
+	 */
+	void cleanupAllocationBaseDirectories() throws IOException;
 }

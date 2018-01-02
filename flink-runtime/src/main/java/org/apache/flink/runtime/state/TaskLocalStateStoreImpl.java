@@ -121,6 +121,13 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			allocationID,
 			jobVertexID,
 			subtaskIndex);
+
+		// Proactively cleanup potential leftover data from previous jobs under this allocation/slot.
+		try {
+			this.directoryProvider.cleanupAllocationBaseDirectories();
+		} catch (IOException e) {
+			LOG.warn("Exception in proactive cleanup of orphaned local state subdirectories!", e);
+		}
 	}
 
 	@Override
@@ -190,7 +197,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			// delete all state directories for this job.
 			for (int i = 0; i < directoryProvider.rootDirectoryCount(); ++i) {
 				try {
-					File directoryToDelete = directoryProvider.selectJobAndAllocationBaseDirectory(i);
+					File directoryToDelete = directoryProvider.selectAllocationBaseDirectory(i);
 					LOG.debug("Deleting local state directory {} of job {}.", directoryToDelete, jobID);
 					deleteDirectory(directoryToDelete);
 				} catch (IOException deleteEx) {

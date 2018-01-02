@@ -24,6 +24,9 @@ import org.apache.flink.streaming.api.operators.StreamOperatorSnapshotRestoreTes
 
 import java.io.IOException;
 
+/**
+ * Test snapshot/restore of stream operators for RocksDB (incremental snapshots).
+ */
 public class IncrementalRocksStreamOperatorSnapshotRestoreTest extends StreamOperatorSnapshotRestoreTest {
 
 	@Override

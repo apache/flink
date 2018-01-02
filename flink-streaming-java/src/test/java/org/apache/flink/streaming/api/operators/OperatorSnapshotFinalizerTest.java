@@ -33,6 +33,9 @@ import org.junit.Test;
 
 import java.util.Random;
 
+/**
+ * Tests for {@link OperatorSnapshotFinalizer}.
+ */
 public class OperatorSnapshotFinalizerTest {
 
 	/**

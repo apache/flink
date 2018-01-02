@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
@@ -387,23 +386,23 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		final int parallelism3 = 3;
 		final int maxParallelism = Math.max(parallelism1, Math.max(parallelism2, parallelism3));
 
-		List<OperatorStateHandle> OperatorSubtaskState = repartitionAndExecute(
+		List<OperatorStateHandle> operatorSubtaskState = repartitionAndExecute(
 			topic,
 			Collections.emptyList(),
 			parallelism1,
 			maxParallelism,
 			IntStream.range(0, parallelism1).boxed().iterator());
 
-		OperatorSubtaskState = repartitionAndExecute(
+		operatorSubtaskState = repartitionAndExecute(
 			topic,
-			OperatorSubtaskState,
+			operatorSubtaskState,
 			parallelism2,
 			maxParallelism,
 			IntStream.range(parallelism1,  parallelism1 + parallelism2).boxed().iterator());
 
-		OperatorSubtaskState = repartitionAndExecute(
+		operatorSubtaskState = repartitionAndExecute(
 			topic,
-			OperatorSubtaskState,
+			operatorSubtaskState,
 			parallelism3,
 			maxParallelism,
 			IntStream.range(parallelism1 + parallelism2,  parallelism1 + parallelism2 + parallelism3).boxed().iterator());
@@ -412,9 +411,9 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 		// not allow us to read all committed messages from the topic. Thus we initialize operators from
 		// OperatorSubtaskState once more, but without any new data. This should terminate all ongoing transactions.
 
-		OperatorSubtaskState = repartitionAndExecute(
+		operatorSubtaskState = repartitionAndExecute(
 			topic,
-			OperatorSubtaskState,
+			operatorSubtaskState,
 			1,
 			maxParallelism,
 			Collections.emptyIterator());

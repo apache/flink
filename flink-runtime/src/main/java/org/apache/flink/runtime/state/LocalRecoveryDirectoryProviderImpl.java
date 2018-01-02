@@ -23,12 +23,18 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -37,7 +43,11 @@ import java.util.Arrays;
  */
 public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirectoryProvider {
 
+	/** Serial version. */
 	private static final long serialVersionUID = 1L;
+
+	/** Logger for this class. */
+	private static final Logger LOG = LoggerFactory.getLogger(LocalRecoveryDirectoryProviderImpl.class);
 
 	/** All available root directories that this can potentially deliver. */
 	@Nonnull
@@ -82,10 +92,10 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 		this.jobVertexID = jobVertexID;
 		this.subtaskIndex = subtaskIndex;
 
-		for (File directory : rootDirectories) {
-			Preconditions.checkNotNull(directory);
-			if (!directory.isDirectory()) {
-				throw new IllegalStateException("Local recovery root directory " + directory + " does not exist!");
+		for (File rootDir : rootDirectories) {
+			Preconditions.checkNotNull(rootDir);
+			if (!rootDir.isDirectory()) {
+				throw new IllegalStateException("Local recovery root directory " + rootDir + " does not exist!");
 			}
 		}
 	}
@@ -102,12 +112,12 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 
 	@Override
 	public File jobAndCheckpointBaseDirectory(long checkpointId) {
-		return new File(allocationBaseDirectory(checkpointId), createJobCheckpointSubDirString(checkpointId));
+		return new File(allocationBaseDirectory(checkpointId), jobCheckpointSubDirString(checkpointId));
 	}
 
 	@Override
 	public File subtaskSpecificCheckpointDirectory(long checkpointId) {
-		return new File(jobAndCheckpointBaseDirectory(checkpointId), createSubtaskSubDirString());
+		return new File(jobAndCheckpointBaseDirectory(checkpointId), subtaskSubDirString());
 	}
 
 	@Override
@@ -116,13 +126,47 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 	}
 
 	@Override
-	public File selectJobAndAllocationBaseDirectory(int idx) {
+	public File selectAllocationBaseDirectory(int idx) {
 		return new File(selectRootDirectory(idx), allocationSubDirString());
 	}
 
 	@Override
 	public int rootDirectoryCount() {
 		return rootDirectories.length;
+	}
+
+	@Override
+	public void cleanupAllocationBaseDirectories() throws IOException {
+
+		String jobSubDirString = jobSubDirString();
+
+		for (int i = 0; i < rootDirectoryCount(); ++i) {
+
+			// iterate all allocation base directories ...
+			File allocationBaseDir = selectAllocationBaseDirectory(i);
+
+			if (allocationBaseDir.isDirectory()) {
+
+				// ... detect all files that are not the subdir for the current job, running in this slot ...
+				File[] cleanupFiles = allocationBaseDir.listFiles((dir, name) -> !jobSubDirString.equals(name));
+				if (cleanupFiles != null) {
+
+					// ... and delete them.
+					IOException collectedExceptions = null;
+					for (File file : cleanupFiles) {
+						try {
+							FileUtils.deleteFileOrDirectory(file);
+						} catch (IOException e) {
+							collectedExceptions = ExceptionUtils.firstOrSuppressed(e, collectedExceptions);
+						}
+					}
+
+					if (collectedExceptions != null) {
+						throw collectedExceptions;
+					}
+				}
+			}
+		}
 	}
 
 	@Override
@@ -142,12 +186,17 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 	}
 
 	@VisibleForTesting
-	String createJobCheckpointSubDirString(long checkpointId) {
-		return "jid_" + jobID + Path.SEPARATOR + "chk_" + checkpointId;
+	String jobSubDirString() {
+		return "jid_" + jobID;
 	}
 
 	@VisibleForTesting
-	String createSubtaskSubDirString() {
+	String jobCheckpointSubDirString(long checkpointId) {
+		return  jobSubDirString() + Path.SEPARATOR + "chk_" + checkpointId;
+	}
+
+	@VisibleForTesting
+	String subtaskSubDirString() {
 		return "vtx_" + jobVertexID + Path.SEPARATOR + subtaskIndex;
 	}
 }

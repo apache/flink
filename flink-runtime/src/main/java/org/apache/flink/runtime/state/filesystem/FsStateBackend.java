@@ -520,7 +520,8 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
 	 * This enum represents the different modes for local recovery.
 	 */
 	public enum LocalRecoveryMode {
-		DISABLED, ENABLE_FILE_BASED, ENABLE_HEAP_BASED
+		//TODO we can implement local state based on heap objects in the future.
+		DISABLED, ENABLE_FILE_BASED /*, ENABLE_HEAP_BASED */
 	}
 
 	/**

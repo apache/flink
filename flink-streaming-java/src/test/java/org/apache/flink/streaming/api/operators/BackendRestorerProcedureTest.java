@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -52,6 +51,9 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.verifyZeroInteractions;
 import static org.powermock.api.mockito.PowerMockito.when;
 
+/**
+ * Tests for {@link BackendRestorerProcedure}.
+ */
 public class BackendRestorerProcedureTest {
 
 	private final ThrowingSupplier<OperatorStateBackend, Exception> backendSupplier =
@@ -83,7 +85,7 @@ public class BackendRestorerProcedureTest {
 			listState.add(3);
 
 			RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
-				originalBackend.snapshot(0L, 0L, checkpointStreamFactory, CheckpointOptions.forCheckpoint());
+				originalBackend.snapshot(0L, 0L, checkpointStreamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 			snapshot.run();
 			snapshotResult = snapshot.get();

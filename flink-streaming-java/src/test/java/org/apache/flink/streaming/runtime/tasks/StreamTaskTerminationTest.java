@@ -55,9 +55,9 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -99,7 +99,6 @@ public class StreamTaskTerminationTest extends TestLogger {
 	public static final OneShotLatch RUN_LATCH = new OneShotLatch();
 	public static final OneShotLatch CHECKPOINTING_LATCH = new OneShotLatch();
 	private static final OneShotLatch CLEANUP_LATCH = new OneShotLatch();
-	private static final OneShotLatch HANDLE_ASYNC_EXCEPTION_LATCH = new OneShotLatch();
 
 	/**
 	 * FLINK-6833

@@ -348,7 +348,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 			boolean isKeyedState,
 			StateBackend stateBackend,
 			ClassLoader classLoader,
-			OperatorSubtaskState OperatorSubtaskState,
+			OperatorSubtaskState operatorSubtaskState,
 			Iterable<Long> input) throws Exception {
 
 		try (final MockEnvironment environment = new MockEnvironment(
@@ -379,7 +379,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 				harness.setStateBackend(stateBackend);
 
 				harness.setup();
-				harness.initializeState(OperatorSubtaskState);
+				harness.initializeState(operatorSubtaskState);
 				harness.open();
 
 				long timestamp = 0L;

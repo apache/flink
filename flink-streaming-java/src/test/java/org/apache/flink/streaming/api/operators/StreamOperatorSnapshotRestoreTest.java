@@ -101,7 +101,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 	/**
 	 * Test restoring an operator from a snapshot (local recovery activated, JM snapshot deleted).
 	 *
-	 * This case does not really simulate a practical scenario, but we make sure that restore happens from the local
+	 * <p>This case does not really simulate a practical scenario, but we make sure that restore happens from the local
 	 * state here because we discard the JM state.
 	 */
 	@Test
@@ -112,7 +112,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 	/**
 	 * Test restoring an operator from a snapshot (local recovery activated, local TM snapshot deleted).
 	 *
-	 * This tests discards the local state, to simulate corruption and checks that we still recover from the fallback
+	 * <p>This tests discards the local state, to simulate corruption and checks that we still recover from the fallback
 	 * JM state.
 	 */
 	@Test

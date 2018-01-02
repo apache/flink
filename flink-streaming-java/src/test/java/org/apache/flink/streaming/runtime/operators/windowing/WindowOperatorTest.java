@@ -32,8 +32,6 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -73,6 +71,9 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Assert;
 import org.junit.Test;

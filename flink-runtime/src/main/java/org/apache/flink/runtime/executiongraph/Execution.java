@@ -1217,7 +1217,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 */
 	@VisibleForTesting
 	public CompletableFuture<Collection<TaskManagerLocation>> calculatePreferredLocations(LocationPreferenceConstraint locationPreferenceConstraint) {
-		final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = getVertex().getPreferredLocationsBasedOnInputs();
+		final Collection<CompletableFuture<TaskManagerLocation>> preferredLocationFutures = getVertex().getPreferredLocations();
 		final CompletableFuture<Collection<TaskManagerLocation>> preferredLocationsFuture;
 
 		switch(locationPreferenceConstraint) {

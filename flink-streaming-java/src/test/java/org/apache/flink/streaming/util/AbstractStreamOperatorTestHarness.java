@@ -358,7 +358,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 				jmOperatorStateHandles.getManagedKeyedState(),
 				localKeyGroupRange);
 
-
 			List<KeyedStateHandle> localRawKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
 				jmOperatorStateHandles.getRawKeyedState(),
 				localKeyGroupRange);

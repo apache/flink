@@ -31,7 +31,13 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
+/**
+ * Tests for {@link LocalRecoveryDirectoryProvider}.
+ */
 public class LocalRecoveryDirectoryProviderImplTest {
 
 	private static final JobID JOB_ID = new JobID();
@@ -95,7 +101,7 @@ public class LocalRecoveryDirectoryProviderImplTest {
 			Assert.assertEquals(
 				new File(
 					directoryProvider.allocationBaseDirectory(i),
-					directoryProvider.createJobCheckpointSubDirString(i)),
+					directoryProvider.jobCheckpointSubDirString(i)),
 				directoryProvider.jobAndCheckpointBaseDirectory(i));
 		}
 	}
@@ -106,7 +112,7 @@ public class LocalRecoveryDirectoryProviderImplTest {
 			Assert.assertEquals(
 				new File(
 					directoryProvider.jobAndCheckpointBaseDirectory(i),
-					directoryProvider.createSubtaskSubDirString()),
+					directoryProvider.subtaskSubDirString()),
 				directoryProvider.subtaskSpecificCheckpointDirectory(i));
 		}
 	}
@@ -118,11 +124,11 @@ public class LocalRecoveryDirectoryProviderImplTest {
 			"aid_" + ALLOCATION_ID);
 
 		Assert.assertEquals(
-			directoryProvider.createJobCheckpointSubDirString(42),
+			directoryProvider.jobCheckpointSubDirString(42),
 			"jid_" + JOB_ID + File.separator + "chk_" + 42);
 
 		Assert.assertEquals(
-			directoryProvider.createSubtaskSubDirString(),
+			directoryProvider.subtaskSubDirString(),
 			"vtx_" + JOB_VERTEX_ID + Path.SEPARATOR + SUBTASK_INDEX);
 	}
 
@@ -144,4 +150,53 @@ public class LocalRecoveryDirectoryProviderImplTest {
 		}
 	}
 
+	/**
+	 * This tests that the proactive cleanup will remove all directories under an allocation base dir that are not from
+	 * the current job.
+	 */
+	@Test
+	public void testProactiveCleanup() throws IOException {
+
+		List<File> toCleanup = new ArrayList<>(2 * directoryProvider.rootDirectoryCount());
+		List<File> toPreserve = new ArrayList<>(directoryProvider.rootDirectoryCount());
+
+		for (int i = 0; i< directoryProvider.rootDirectoryCount(); ++i) {
+
+			File allocBaseDir = directoryProvider.selectAllocationBaseDirectory(i);
+
+			// This should NOT be cleaned up later.
+			File jobChkDir = new File(allocBaseDir, directoryProvider.jobSubDirString());
+			Assert.assertTrue(jobChkDir.mkdirs());
+
+			// This should be cleaned up later.
+			File oldDir = new File(allocBaseDir, String.valueOf(UUID.randomUUID()));
+			Assert.assertTrue(oldDir.mkdirs());
+
+			// This should be cleaned up later.
+			File oldFile = new File(oldDir, String.valueOf(UUID.randomUUID()));
+			Assert.assertTrue(oldFile.createNewFile());
+
+			toPreserve.add(jobChkDir);
+			toCleanup.add(oldDir);
+			toCleanup.add(oldFile);
+		}
+
+		for (File file : toCleanup) {
+			Assert.assertTrue(file.exists());
+		}
+
+		for (File file : toPreserve) {
+			Assert.assertTrue(file.exists());
+		}
+
+		directoryProvider.cleanupAllocationBaseDirectories();
+
+		for (File file : toCleanup) {
+			Assert.assertFalse(file.exists());
+		}
+
+		for (File file : toPreserve) {
+			Assert.assertTrue(file.exists());
+		}
+	}
 }

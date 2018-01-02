@@ -34,10 +34,10 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -59,8 +59,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Random;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -93,19 +91,6 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry);
-
-		verify(stateBackend).createKeyedStateBackend(
-			any(Environment.class),
-			any(JobID.class),
-			any(String.class),
-			eq(typeSerializer),
-			anyInt(),
-			any(KeyGroupRange.class),
-			any(TaskKvStateRegistry.class));
-
-		verify(stateBackend).createOperatorStateBackend(
-			any(Environment.class),
-			any(String.class));
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
@@ -206,19 +191,6 @@ public class StreamTaskStateInitializerImplTest {
 			streamOperator,
 			typeSerializer,
 			closeableRegistry);
-
-		verify(mockingBackend).createKeyedStateBackend(
-			any(Environment.class),
-			any(JobID.class),
-			any(String.class),
-			eq(typeSerializer),
-			anyInt(),
-			any(KeyGroupRange.class),
-			any(TaskKvStateRegistry.class));
-
-		verify(mockingBackend).createOperatorStateBackend(
-			any(Environment.class),
-			any(String.class));
 
 		OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
 		AbstractKeyedStateBackend<?> keyedStateBackend = stateContext.keyedStateBackend();
