@@ -28,10 +28,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
 /**
@@ -46,6 +48,7 @@ public class TaskExecutorLocalStateStoresManager {
 	 * This map holds all local state stores for tasks running on the task manager / executor that own the instance of
 	 * this. Maps from allocation id to all the subtask's local state stores.
 	 */
+	@GuardedBy("lock")
 	private final Map<AllocationID, Map<JobVertexSubtaskKey, TaskLocalStateStore>> taskStateStoresByAllocationID;
 
 	/** This is the root directory for all local state of this task manager / executor. */
@@ -54,13 +57,21 @@ public class TaskExecutorLocalStateStoresManager {
 	/** Executor that runs the discarding of released state objects. */
 	private final Executor discardExecutor;
 
+	/** Guarding lock for taskStateStoresByAllocationID and closed-flag. */
+	private final Object lock;
+
+	@GuardedBy("lock")
+	private boolean closed;
+
 	public TaskExecutorLocalStateStoresManager(
 		@Nonnull File[] localStateRootDirectories,
 		@Nonnull Executor discardExecutor) {
 
-		this.taskStateStoresByAllocationID = new ConcurrentHashMap<>();
+		this.taskStateStoresByAllocationID = new HashMap<>();
 		this.localStateRootDirectories = localStateRootDirectories;
 		this.discardExecutor = discardExecutor;
+		this.lock = new Object();
+		this.closed = false;
 
 		for (File localStateRecoveryRootDir : localStateRootDirectories) {
 			if (!localStateRecoveryRootDir.exists()) {
@@ -71,35 +82,49 @@ public class TaskExecutorLocalStateStoresManager {
 				}
 			}
 		}
-
 	}
 
+	@Nonnull
 	public TaskLocalStateStore localStateStoreForSubtask(
 		@Nonnull JobID jobId,
 		@Nonnull AllocationID allocationID,
 		@Nonnull JobVertexID jobVertexID,
 		@Nonnegative int subtaskIndex) {
 
-		final Map<JobVertexSubtaskKey, TaskLocalStateStore> taskStateManagers =
-			this.taskStateStoresByAllocationID.computeIfAbsent(allocationID, k -> new ConcurrentHashMap<>());
+		synchronized (lock) {
 
-		final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
+			if (closed) {
+				throw new IllegalStateException("TaskExecutorLocalStateStoresManager is already closed and cannot " +
+					"register a new TaskLocalStateStore.");
+			}
 
-		return taskStateManagers.computeIfAbsent(
-			taskKey,
-			k -> new TaskLocalStateStoreImpl(
-				jobId,
-				allocationID,
-				jobVertexID,
-				subtaskIndex,
-				localStateRootDirectories,
-				discardExecutor));
+			final Map<JobVertexSubtaskKey, TaskLocalStateStore> taskStateManagers =
+				this.taskStateStoresByAllocationID.computeIfAbsent(allocationID, k -> new HashMap<>());
+
+			final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
+
+			return taskStateManagers.computeIfAbsent(
+				taskKey,
+				k -> new TaskLocalStateStoreImpl(
+					jobId,
+					allocationID,
+					jobVertexID,
+					subtaskIndex,
+					localStateRootDirectories,
+					discardExecutor));
+		}
 	}
 
 	public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
 
-		Map<JobVertexSubtaskKey, TaskLocalStateStore> cleanupLocalStores =
-			taskStateStoresByAllocationID.remove(allocationID);
+		Map<JobVertexSubtaskKey, TaskLocalStateStore> cleanupLocalStores;
+
+		synchronized (lock) {
+			if (closed) {
+				return;
+			}
+			cleanupLocalStores = taskStateStoresByAllocationID.remove(allocationID);
+		}
 
 		if (cleanupLocalStores != null) {
 			doRelease(cleanupLocalStores.values());
@@ -108,11 +133,17 @@ public class TaskExecutorLocalStateStoresManager {
 
 	public void shutdown() {
 
-		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : taskStateStoresByAllocationID.values()) {
-			doRelease(stateStoreMap.values());
+		ArrayList<Map<JobVertexSubtaskKey, TaskLocalStateStore>> toRelease;
+
+		synchronized (lock) {
+			closed = true;
+			toRelease = new ArrayList<>(taskStateStoresByAllocationID.values());
+			taskStateStoresByAllocationID.clear();
 		}
 
-		taskStateStoresByAllocationID.clear();
+		for (Map<JobVertexSubtaskKey, TaskLocalStateStore> stateStoreMap : toRelease) {
+			doRelease(stateStoreMap.values());
+		}
 	}
 
 	private void doRelease(Iterable<TaskLocalStateStore> toRelease) {

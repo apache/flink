@@ -129,26 +129,23 @@ public class TestTaskStateManager implements TaskStateManager {
 		TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
 		TaskStateSnapshot tmTaskStateSnapshot = getLastTaskManagerTaskStateSnapshot();
 
-		OperatorSubtaskState jmOpState = null;
-		List<OperatorSubtaskState> tmStateCollection = null;
-
-		if (jmTaskStateSnapshot != null) {
-			jmOpState = jmTaskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+		if (jmTaskStateSnapshot == null) {
+			return PrioritizedOperatorSubtaskState.emptyNotRestored();
 		}
+
+		OperatorSubtaskState jmOpState = jmTaskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
+
+		if (jmOpState == null) {
+			return PrioritizedOperatorSubtaskState.emptyNotRestored();
+		}
+
+		List<OperatorSubtaskState> tmStateCollection = Collections.emptyList();
 
 		if (tmTaskStateSnapshot != null) {
 			OperatorSubtaskState tmOpState = tmTaskStateSnapshot.getSubtaskStateByOperatorID(operatorID);
 			if (tmOpState != null) {
 				tmStateCollection = Collections.singletonList(tmOpState);
 			}
-		}
-
-		if (jmOpState == null) {
-			jmOpState = new OperatorSubtaskState();
-		}
-
-		if (tmStateCollection == null) {
-			tmStateCollection = Collections.emptyList();
 		}
 
 		return new PrioritizedOperatorSubtaskState(jmOpState, tmStateCollection);

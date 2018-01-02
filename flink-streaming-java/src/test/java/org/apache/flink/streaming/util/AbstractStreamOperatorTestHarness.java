@@ -321,11 +321,27 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 * subtask.
 	 */
 	public void initializeState(OperatorSubtaskState operatorStateHandles) throws Exception {
+		initializeState(operatorStateHandles, null);
+	}
+
+	/**
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#initializeState()}.
+	 * Calls {@link org.apache.flink.streaming.api.operators.StreamOperator#setup(StreamTask, StreamConfig, Output)}
+	 * if it was not called before.
+	 *
+	 * @param jmOperatorStateHandles the primary state (owned by JM)
+	 * @param tmOperatorStateHandles the (optional) local state (owned by TM) or null.
+	 * @throws Exception
+	 */
+	public void initializeState(
+		OperatorSubtaskState jmOperatorStateHandles,
+		OperatorSubtaskState tmOperatorStateHandles) throws Exception {
+
 		if (!setupCalled) {
 			setup();
 		}
 
-		if (operatorStateHandles != null) {
+		if (jmOperatorStateHandles != null) {
 			int numKeyGroups = getEnvironment().getTaskInfo().getMaxNumberOfParallelSubtasks();
 			int numSubtasks = getEnvironment().getTaskInfo().getNumberOfParallelSubtasks();
 			int subtaskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
@@ -339,17 +355,17 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			KeyGroupRange localKeyGroupRange = keyGroupPartitions.get(subtaskIndex);
 
 			List<KeyedStateHandle> localManagedKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
-				operatorStateHandles.getManagedKeyedState(),
+				jmOperatorStateHandles.getManagedKeyedState(),
 				localKeyGroupRange);
 
 
 			List<KeyedStateHandle> localRawKeyGroupState = StateAssignmentOperation.getKeyedStateHandles(
-				operatorStateHandles.getRawKeyedState(),
+				jmOperatorStateHandles.getRawKeyedState(),
 				localKeyGroupRange);
 
 			List<OperatorStateHandle> managedOperatorState = new ArrayList<>();
 
-			managedOperatorState.addAll(operatorStateHandles.getManagedOperatorState());
+			managedOperatorState.addAll(jmOperatorStateHandles.getManagedOperatorState());
 
 			Collection<OperatorStateHandle> localManagedOperatorState = operatorStateRepartitioner.repartitionState(
 				managedOperatorState,
@@ -357,23 +373,31 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 			List<OperatorStateHandle> rawOperatorState = new ArrayList<>();
 
-			rawOperatorState.addAll(operatorStateHandles.getRawOperatorState());
+			rawOperatorState.addAll(jmOperatorStateHandles.getRawOperatorState());
 
 			Collection<OperatorStateHandle> localRawOperatorState = operatorStateRepartitioner.repartitionState(
 				rawOperatorState,
 				numSubtasks).get(subtaskIndex);
 
-			OperatorSubtaskState operatorSubtaskState = new OperatorSubtaskState(
+			OperatorSubtaskState processedJmOpSubtaskState = new OperatorSubtaskState(
 				new StateObjectCollection<>(nullToEmptyCollection(localManagedOperatorState)),
 				new StateObjectCollection<>(nullToEmptyCollection(localRawOperatorState)),
 				new StateObjectCollection<>(nullToEmptyCollection(localManagedKeyGroupState)),
 				new StateObjectCollection<>(nullToEmptyCollection(localRawKeyGroupState)));
 
-			TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
-			taskStateSnapshot.putSubtaskStateByOperatorID(operator.getOperatorID(), operatorSubtaskState);
+			TaskStateSnapshot jmTaskStateSnapshot = new TaskStateSnapshot();
+			jmTaskStateSnapshot.putSubtaskStateByOperatorID(operator.getOperatorID(), processedJmOpSubtaskState);
 
 			taskStateManager.setReportedCheckpointId(0);
-			taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(Collections.singletonMap(0L, taskStateSnapshot));
+			taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(
+				Collections.singletonMap(0L, jmTaskStateSnapshot));
+
+			if (tmOperatorStateHandles != null) {
+				TaskStateSnapshot tmTaskStateSnapshot = new TaskStateSnapshot();
+				tmTaskStateSnapshot.putSubtaskStateByOperatorID(operator.getOperatorID(), tmOperatorStateHandles);
+				taskStateManager.setTaskManagerTaskStateSnapshotsByCheckpointId(
+					Collections.singletonMap(0L, tmTaskStateSnapshot));
+			}
 		}
 
 		operator.initializeState();
@@ -453,6 +477,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions, org.apache.flink.runtime.state.CheckpointStreamFactory)}.
 	 */
 	public OperatorSubtaskState snapshot(long checkpointId, long timestamp) throws Exception {
+		return snapshotWithLocalState(checkpointId, timestamp).getJobManagerOwnedState();
+	}
+
+	/**
+	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions)}.
+	 */
+	public OperatorSnapshotFinalizer snapshotWithLocalState(long checkpointId, long timestamp) throws Exception {
 
 		OperatorSnapshotFutures operatorStateResult = operator.snapshotState(
 			checkpointId,
@@ -460,8 +491,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			CheckpointOptions.forCheckpointWithDefaultLocation(),
 			checkpointStorage.resolveCheckpointStorageLocation(checkpointId, CheckpointStorageLocationReference.getDefault()));
 
-		OperatorSnapshotFinalizer operatorSnapshotFinalizer = new OperatorSnapshotFinalizer(operatorStateResult);
-		return operatorSnapshotFinalizer.getJobManagerOwnedState();
+		return new OperatorSnapshotFinalizer(operatorStateResult);
 	}
 
 	/**

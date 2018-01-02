@@ -104,7 +104,7 @@ public abstract class AbstractEventTimeWindowCheckpointingITCase extends TestLog
 	public TestName name = new TestName();
 
 	private StateBackendEnum stateBackendEnum;
-	private AbstractStateBackend stateBackend;
+	protected AbstractStateBackend stateBackend;
 
 	AbstractEventTimeWindowCheckpointingITCase(StateBackendEnum stateBackendEnum) {
 		this.stateBackendEnum = stateBackendEnum;
