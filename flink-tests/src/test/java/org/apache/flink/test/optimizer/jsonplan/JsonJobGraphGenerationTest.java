@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
@@ -42,7 +41,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -59,6 +60,8 @@ import static org.junit.Assert.fail;
  * Test job graph generation in JSON format.
  */
 public class JsonJobGraphGenerationTest {
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private PrintStream out;
 	private PrintStream err;
@@ -106,7 +109,7 @@ public class JsonJobGraphGenerationTest {
 				JsonValidator validator = new GenericValidator(parallelism, 3);
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
 
-				String tmpDir = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
+				String tmpDir = tempFolder.newFolder().getAbsolutePath();
 				WordCount.main(new String[] {
 						"--input", tmpDir,
 						"--output", tmpDir});
@@ -139,7 +142,7 @@ public class JsonJobGraphGenerationTest {
 				JsonValidator validator = new GenericValidator(parallelism, 6);
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
 
-				String tmpDir = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
+				String tmpDir = tempFolder.newFolder().getAbsolutePath();
 				WebLogAnalysis.main(new String[] {
 						"--documents", tmpDir,
 						"--ranks", tmpDir,
@@ -174,7 +177,7 @@ public class JsonJobGraphGenerationTest {
 				JsonValidator validator = new GenericValidator(parallelism, 9);
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
 
-				String tmpDir = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
+				String tmpDir = tempFolder.newFolder().getAbsolutePath();
 				KMeans.main(new String[] {
 					"--points", tmpDir,
 					"--centroids", tmpDir,
@@ -210,7 +213,7 @@ public class JsonJobGraphGenerationTest {
 				JsonValidator validator = new GenericValidator(parallelism, 9);
 				TestingExecutionEnvironment.setAsNext(validator, parallelism);
 
-				String tmpDir = ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH;
+				String tmpDir = tempFolder.newFolder().getAbsolutePath();
 				ConnectedComponents.main(
 						"--vertices", tmpDir,
 						"--edges", tmpDir,
