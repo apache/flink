@@ -19,7 +19,6 @@
 package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -31,15 +30,15 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -58,8 +57,8 @@ import static org.junit.Assert.fail;
  * Tests for the {@link FsStateBackend}.
  */
 public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
-
-	private static File tempDir;
+	@ClassRule
+	public static TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private static String hdfsRootUri;
 
@@ -76,10 +75,8 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		Assume.assumeTrue("HDFS cluster cannot be started on Windows without extensions.", !OperatingSystem.isWindows());
 
 		try {
-			tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH, UUID.randomUUID().toString());
-
 			Configuration hdConf = new Configuration();
-			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempDir.getAbsolutePath());
+			hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempFolder.newFolder().getAbsolutePath());
 			MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
 			hdfsCluster = builder.build();
 
@@ -96,14 +93,8 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
 	@AfterClass
 	public static void destroyHDFS() {
-		try {
-			if (hdfsCluster != null) {
-				hdfsCluster.shutdown();
-			}
-			if (tempDir != null) {
-				FileUtils.deleteDirectory(tempDir);
-			}
-		} catch (IOException ignored) {
+		if (hdfsCluster != null) {
+			hdfsCluster.shutdown();
 		}
 	}
 

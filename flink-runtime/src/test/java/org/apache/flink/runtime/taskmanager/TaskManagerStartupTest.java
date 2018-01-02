@@ -36,8 +36,12 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 import scala.Option;
 
 import java.io.File;
@@ -47,13 +51,14 @@ import java.net.BindException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Tests that check how the TaskManager behaves when encountering startup
  * problems.
  */
 public class TaskManagerStartupTest extends TestLogger {
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 
 	private HighAvailabilityServices highAvailabilityServices;
 
@@ -131,13 +136,9 @@ public class TaskManagerStartupTest extends TestLogger {
 	 */
 	@Test
 	public void testIODirectoryNotWritable() throws Exception {
-		File tempDir = new File(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH);
-		File nonWritable = new File(tempDir, UUID.randomUUID().toString());
-
-		if (!nonWritable.mkdirs() || !nonWritable.setWritable(false, false)) {
-			System.err.println("Cannot create non-writable temporary file directory. Skipping test.");
-			return;
-		}
+		File nonWritable = tempFolder.newFolder();
+		Assume.assumeTrue("Cannot create non-writable temporary file directory. Skipping test.",
+			nonWritable.setWritable(false, false));
 
 		try {
 			Configuration cfg = new Configuration();
