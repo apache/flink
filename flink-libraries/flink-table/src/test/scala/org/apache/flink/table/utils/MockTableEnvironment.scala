@@ -33,10 +33,6 @@ class MockTableEnvironment extends TableEnvironment(new TableConfig) {
 
   override protected def checkValidTableName(name: String): Unit = ???
 
-  override protected def checkValidTableType(table: Table): Unit = ???
-
-  override protected def checkValidTableSourceType(table: TableSource[_]): Unit = ???
-
   override def sql(query: String): Table = ???
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = ???

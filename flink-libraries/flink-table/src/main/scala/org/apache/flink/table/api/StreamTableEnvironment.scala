@@ -118,9 +118,8 @@ abstract class StreamTableEnvironment(
               s"A rowtime attribute requires an EventTime time characteristic in stream " +
                 s"environment. But is: ${execEnv.getStreamTimeCharacteristic}")
         }
-        val tableSourceTable = new StreamTableSourceTable(streamTableSource)
-        checkValidTableSourceType(tableSource)
-        registerTableInternal(name, tableSourceTable)
+        TableEnvironment.checkValidTableType(tableSource)
+        registerTableInternal(name, new StreamTableSourceTable(streamTableSource))
       case _ =>
         throw new TableException("Only StreamTableSource can be registered in " +
           "StreamTableEnvironment")

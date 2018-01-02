@@ -98,9 +98,8 @@ abstract class BatchTableEnvironment(
 
     tableSource match {
       case batchTableSource: BatchTableSource[_] =>
-        val table = new BatchTableSourceTable(batchTableSource)
-        checkValidTableSourceType(tableSource)
-        registerTableInternal(name, table)
+        TableEnvironment.checkValidTableType(tableSource)
+        registerTableInternal(name, new BatchTableSourceTable(batchTableSource))
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +
             "BatchTableEnvironment")
