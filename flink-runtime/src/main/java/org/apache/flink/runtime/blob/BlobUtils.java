@@ -150,7 +150,8 @@ public class BlobUtils {
 		File storageDir;
 
 		// NOTE: although we will be using UUIDs, there may be collisions
-		for (int attempt = 0; attempt < 10; attempt++) {
+		int maxAttempts = 10;
+		for (int attempt = 0; attempt < maxAttempts; attempt++) {
 			storageDir = new File(baseDir, String.format(
 					"blobStore-%s", UUID.randomUUID().toString()));
 
