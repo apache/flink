@@ -42,6 +42,12 @@ class TableConfig {
   private var calciteConfig = CalciteConfig.DEFAULT
 
   /**
+    * Generated Code will be split in sub function calls
+    * if Generated Code length beyond maxGeneratedCodeLength
+    */
+  private var maxGeneratedCodeLength: Int = 48 * 1024
+
+  /**
    * Sets the timezone for date/time/timestamp conversions.
    */
   def setTimeZone(timeZone: TimeZone): Unit = {
@@ -77,6 +83,19 @@ class TableConfig {
     */
   def setCalciteConfig(calciteConfig: CalciteConfig): Unit = {
     this.calciteConfig = calciteConfig
+  }
+
+  /**
+    * @return current maxGeneratedCodeLength
+    */
+  def getMaxGeneratedCodeLength: Int = maxGeneratedCodeLength
+
+  /**
+    * set current maxGeneratedCodeLength
+    * @param maxGeneratedCodeLength
+    */
+  def setMaxGeneratedCodeLength(maxGeneratedCodeLength: Int): Unit = {
+    this.maxGeneratedCodeLength = maxGeneratedCodeLength
   }
 }
 

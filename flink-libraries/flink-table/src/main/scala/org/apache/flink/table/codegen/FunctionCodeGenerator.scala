@@ -41,7 +41,7 @@ import org.apache.flink.table.codegen.Indenter.toISC
 class FunctionCodeGenerator(
     config: TableConfig,
     nullableInput: Boolean,
-    input1: TypeInformation[_ <: Any],
+    val input1: TypeInformation[_ <: Any],
     input2: Option[TypeInformation[_ <: Any]] = None,
     input1FieldMapping: Option[Array[Int]] = None,
     input2FieldMapping: Option[Array[Int]] = None)
@@ -80,6 +80,8 @@ class FunctionCodeGenerator(
     * @param bodyCode code contents of the SAM (Single Abstract Method). Inputs, collector, or
     *                 output record can be accessed via the given term methods.
     * @param returnType expected return type
+    * @param splitCode indicator for code split
+    * @param splitFunc (definitions, bodies) for split function call
     * @tparam F Flink Function to be generated.
     * @tparam T Return type of the Flink Function.
     * @return instance of GeneratedFunction
@@ -88,7 +90,9 @@ class FunctionCodeGenerator(
     name: String,
     clazz: Class[F],
     bodyCode: String,
-    returnType: TypeInformation[T])
+    returnType: TypeInformation[T],
+    splitCode: Boolean = false,
+    splitFunc: (Seq[String], Seq[String]) = (Seq(), Seq()))
   : GeneratedFunction[F, T] = {
     val funcName = newName(name)
 
@@ -175,6 +179,24 @@ class FunctionCodeGenerator(
           ${reusePerRecordCode()}
           ${reuseInputUnboxingCode()}
           $bodyCode
+        }
+
+        ${
+          if (splitCode) {
+            splitFunc._1.zip(splitFunc._2) map {
+              case (define, body) => {
+                s"""
+                   |$define {
+                   |  ${reusePerRecordCode()}
+                   |  ${reuseInputUnboxingCode()}
+                   |  $body
+                   |}
+                 """.stripMargin
+              }
+            } mkString "\n"
+          } else {
+            ""
+          }
         }
 
         @Override
