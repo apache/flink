@@ -20,6 +20,7 @@ package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -77,7 +78,7 @@ public class YarnEntrypointUtils {
 		return SecurityUtils.getInstalledContext();
 	}
 
-	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env) {
+	public static Configuration loadConfiguration(String workingDirectory, Map<String, String> env, Logger log) {
 		Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
 
 		final String remoteKeytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
@@ -143,6 +144,17 @@ public class YarnEntrypointUtils {
 		if (keytabPath != null && remoteKeytabPrincipal != null) {
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
 			configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, remoteKeytabPrincipal);
+		}
+
+		// configure local directory
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			log.info("Overriding YARN's temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
+		}
+		else {
+			final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());
+			log.info("Setting directories for temporary files to: {}", localDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
 		}
 
 		return configuration;

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -147,7 +148,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 			numberSlots = 1;
 		}
 
-		final String[] tmpDirPaths = TaskManagerServicesConfiguration.parseTempDirectories(configuration);
+		final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(configuration);
 
 		final Time timeout;
 

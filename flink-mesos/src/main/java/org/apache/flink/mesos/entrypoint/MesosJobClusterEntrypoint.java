@@ -19,7 +19,6 @@
 package org.apache.flink.mesos.entrypoint;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager;
 import org.apache.flink.mesos.runtime.clusterframework.MesosTaskManagerParameters;
@@ -218,7 +217,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 		}
 
 		Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-		Configuration configuration = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
+		Configuration configuration = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
 
 		MesosJobClusterEntrypoint clusterEntrypoint = new MesosJobClusterEntrypoint(configuration, dynamicProperties);
 
