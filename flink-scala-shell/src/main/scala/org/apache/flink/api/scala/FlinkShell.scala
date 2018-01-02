@@ -22,9 +22,8 @@ import java.io._
 import java.util.Collections
 
 import org.apache.commons.cli.CommandLine
-import org.apache.flink.client.cli.CliFrontendParser
+import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.program.ClusterClient
-import org.apache.flink.client.CliFrontend
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
 import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.{FlinkMiniCluster, LocalFlinkMiniCluster}

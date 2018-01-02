@@ -16,20 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.StandaloneClusterClient;
-import org.apache.flink.client.util.MockedCliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -44,7 +46,9 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -114,14 +118,14 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 			String[] parameters = { jobId.toString() };
 
-			int returnCode = frontend.savepoint(parameters);
-
-			assertNotEquals(0, returnCode);
-
-			assertTrue(buffer.toString().contains(expectedTestException));
+			try {
+				frontend.savepoint(parameters);
+				fail("This should have failed.");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());
+			}
 		}
 		finally {
-
 			clusterClient.shutdown();
 			restoreStdOutAndStdErr();
 		}
@@ -137,10 +141,13 @@ public class CliFrontendSavepointTest extends TestLogger {
 				new TestingHighAvailabilityServices()));
 
 			String[] parameters = { "invalid job id" };
-			int returnCode = frontend.savepoint(parameters);
 
-			assertTrue(buffer.toString().contains("not a valid ID"));
-			assertNotEquals(0, returnCode);
+			try {
+				frontend.savepoint(parameters);
+				fail("Should have failed.");
+			} catch (CliArgsException e) {
+				assertThat(e.getMessage(), Matchers.containsString("Cannot parse JobID"));
+			}
 		}
 		finally {
 			restoreStdOutAndStdErr();
