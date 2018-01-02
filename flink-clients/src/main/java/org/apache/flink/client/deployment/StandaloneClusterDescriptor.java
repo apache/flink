@@ -26,7 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 /**
  * A deployment descriptor for an existing cluster.
  */
-public class StandaloneClusterDescriptor implements ClusterDescriptor<StandaloneClusterClient> {
+public class StandaloneClusterDescriptor implements ClusterDescriptor {
 
 	private final Configuration config;
 

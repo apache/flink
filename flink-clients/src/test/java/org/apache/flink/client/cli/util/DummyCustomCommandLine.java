@@ -31,13 +31,11 @@ import javax.annotation.Nullable;
 
 /**
  * Dummy implementation of the {@link CustomCommandLine} for testing purposes.
- *
- * @param <T> type of the returned cluster client
  */
-public class DummyCustomCommandLine<T extends ClusterClient> implements CustomCommandLine<T> {
-	private final T clusterClient;
+public class DummyCustomCommandLine implements CustomCommandLine {
+	private final ClusterClient clusterClient;
 
-	public DummyCustomCommandLine(T clusterClient) {
+	public DummyCustomCommandLine(ClusterClient clusterClient) {
 		this.clusterClient = Preconditions.checkNotNull(clusterClient);
 	}
 
@@ -62,8 +60,8 @@ public class DummyCustomCommandLine<T extends ClusterClient> implements CustomCo
 	}
 
 	@Override
-	public ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) {
-		return new DummyClusterDescriptor<>(clusterClient);
+	public ClusterDescriptor createClusterDescriptor(CommandLine commandLine) {
+		return new DummyClusterDescriptor(clusterClient);
 	}
 
 	@Override

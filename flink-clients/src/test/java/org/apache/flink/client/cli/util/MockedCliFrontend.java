@@ -34,6 +34,6 @@ public class MockedCliFrontend extends CliFrontend {
 	public MockedCliFrontend(ClusterClient clusterClient) throws Exception {
 		super(
 			new Configuration(),
-			Collections.singletonList(new DummyCustomCommandLine<>(clusterClient)));
+			Collections.singletonList(new DummyCustomCommandLine(clusterClient)));
 	}
 }

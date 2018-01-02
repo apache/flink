@@ -62,7 +62,7 @@ public class DefaultCLITest extends TestLogger {
 
 		final InetSocketAddress expectedAddress = new InetSocketAddress(localhost, port);
 
-		final ClusterDescriptor<?> clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
@@ -89,7 +89,7 @@ public class DefaultCLITest extends TestLogger {
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final ClusterDescriptor<?> clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final ClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
 
 		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
