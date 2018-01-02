@@ -78,7 +78,7 @@ class StreamWindowJoinHarnessTest extends HarnessTestBase {
 
   /** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime + 20 **/
   @Test
-  def testProcTimeJoinWithCommonBounds() {
+  def testProcTimeInnerJoinWithCommonBounds() {
 
     val joinProcessFunc = new ProcTimeBoundedStreamJoin(
       JoinType.INNER, -10, 20, rowType, rowType, "TestJoinFunction", funcCode)
@@ -168,7 +168,7 @@ class StreamWindowJoinHarnessTest extends HarnessTestBase {
 
   /** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime - 5 **/
   @Test
-  def testProcTimeJoinWithNegativeBounds() {
+  def testProcTimeInnerJoinWithNegativeBounds() {
 
     val joinProcessFunc = new ProcTimeBoundedStreamJoin(
       JoinType.INNER, -10, -5, rowType, rowType, "TestJoinFunction", funcCode)
@@ -248,9 +248,9 @@ class StreamWindowJoinHarnessTest extends HarnessTestBase {
     testHarness.close()
   }
 
-  /** a.c1 >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20 **/
+  /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20 **/
   @Test
-  def testRowTimeJoinWithCommonBounds() {
+  def testRowTimeInnerJoinWithCommonBounds() {
 
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.INNER, -10, 20, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
@@ -349,7 +349,7 @@ class StreamWindowJoinHarnessTest extends HarnessTestBase {
 
   /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime - 7 **/
   @Test
-  def testRowTimeJoinWithNegativeBounds() {
+  def testRowTimeInnerJoinWithNegativeBounds() {
 
     val joinProcessFunc = new RowTimeBoundedStreamJoin(
       JoinType.INNER, -10, -7, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
@@ -419,6 +419,354 @@ class StreamWindowJoinHarnessTest extends HarnessTestBase {
       CRow(Row.of(6L: JLong, "k1", 13L: JLong, "k1"), true), 0))
     expectedOutput.add(new Watermark(0))
     expectedOutput.add(new Watermark(8))
+
+    val result = testHarness.getOutput
+    verify(
+      expectedOutput,
+      result,
+      new RowResultSortComparatorWithWatermarks(),
+      checkWaterMark = true)
+    testHarness.close()
+  }
+
+  /** a.rowtime >= b.rowtime - 5 and a.rowtime <= b.rowtime + 9 **/
+  @Test
+  def testRowTimeLeftOuterJoin() {
+
+    val joinProcessFunc = new RowTimeBoundedStreamJoin(
+      JoinType.LEFT_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
+
+    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+        joinProcessFunc,
+        joinProcessFunc.getMaxOutputDelay)
+    val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
+      new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
+        operator,
+        new TupleRowKeySelector[String](1),
+        new TupleRowKeySelector[String](1),
+        Types.STRING,
+        1, 1, 0)
+
+    testHarness.open()
+
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(1L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(1L: JLong, "k2"), true), 0))
+
+    assertEquals(2, testHarness.numEventTimeTimers())
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    // The left row with timestamp = 1 will be padded and removed (14=1+5+1+((5+9)/2)).
+    testHarness.processWatermark1(new Watermark(14))
+    testHarness.processWatermark2(new Watermark(14))
+
+    assertEquals(1, testHarness.numEventTimeTimers())
+    assertEquals(2, testHarness.numKeyedStateEntries())
+
+    // The right row with timestamp = 1 will be removed (18=1+9+1+((5+9)/2)).
+    testHarness.processWatermark1(new Watermark(18))
+    testHarness.processWatermark2(new Watermark(18))
+
+    assertEquals(0, testHarness.numEventTimeTimers())
+    assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(2L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(2L: JLong, "k2"), true), 0))
+
+    // The late rows with timestamp = 2 will not be cached, but a null padding result for the left
+    // row will be emitted.
+    assertEquals(0, testHarness.numKeyedStateEntries())
+    assertEquals(0, testHarness.numEventTimeTimers())
+
+    // Make sure the common (inner) join can be performed.
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(19L: JLong, "k1"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(20L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(26L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(25L: JLong, "k1"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(21L: JLong, "k1"), true), 0))
+
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(39L: JLong, "k2"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(40L: JLong, "k2"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(50L: JLong, "k2"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(49L: JLong, "k2"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(41L: JLong, "k2"), true), 0))
+
+    testHarness.processWatermark1(new Watermark(100))
+    testHarness.processWatermark2(new Watermark(100))
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    // The timestamp 14 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1L: JLong, "k1", null: JLong, null: String), true), 14))
+    expectedOutput.add(new Watermark(5))
+    expectedOutput.add(new Watermark(9))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2L: JLong, "k1", null: JLong, null: String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(20L: JLong, "k1", 25L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(21L: JLong, "k1", 25L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(21L: JLong, "k1", 26L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(49L: JLong, "k2", 40L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(49L: JLong, "k2", 41L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(50L: JLong, "k2", 41L: JLong, "k2": String), true), 0))
+    // The timestamp 32 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(19L: JLong, "k1", null: JLong, null: String), true), 32))
+    expectedOutput.add(new Watermark(91))
+
+
+    val result = testHarness.getOutput
+    verify(
+      expectedOutput,
+      result,
+      new RowResultSortComparatorWithWatermarks(),
+      checkWaterMark = true)
+    testHarness.close()
+  }
+
+  /** a.rowtime >= b.rowtime - 5 and a.rowtime <= b.rowtime + 9 **/
+  @Test
+  def testRowTimeRightOuterJoin() {
+
+    val joinProcessFunc = new RowTimeBoundedStreamJoin(
+      JoinType.RIGHT_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
+
+    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+        joinProcessFunc,
+        joinProcessFunc.getMaxOutputDelay)
+    val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
+      new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
+        operator,
+        new TupleRowKeySelector[String](1),
+        new TupleRowKeySelector[String](1),
+        Types.STRING,
+        1, 1, 0)
+
+    testHarness.open()
+
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(1L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(1L: JLong, "k2"), true), 0))
+
+    assertEquals(2, testHarness.numEventTimeTimers())
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    // The left row with timestamp = 1 will be removed (14=1+5+1+((5+9)/2)).
+    testHarness.processWatermark1(new Watermark(14))
+    testHarness.processWatermark2(new Watermark(14))
+
+    assertEquals(1, testHarness.numEventTimeTimers())
+    assertEquals(2, testHarness.numKeyedStateEntries())
+
+    // The right row with timestamp = 1 will be padded and removed (18=1+9+1+((5+9)/2)).
+    testHarness.processWatermark1(new Watermark(18))
+    testHarness.processWatermark2(new Watermark(18))
+
+    assertEquals(0, testHarness.numEventTimeTimers())
+    assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(2L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(2L: JLong, "k2"), true), 0))
+
+    // The late rows with timestamp = 2 will not be cached, but a null padding result for the right
+    // row will be emitted.
+    assertEquals(0, testHarness.numKeyedStateEntries())
+    assertEquals(0, testHarness.numEventTimeTimers())
+
+    // Make sure the common (inner) join can be performed.
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(19L: JLong, "k1"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(20L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(26L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(25L: JLong, "k1"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(21L: JLong, "k1"), true), 0))
+
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(39L: JLong, "k2"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(40L: JLong, "k2"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(50L: JLong, "k2"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(49L: JLong, "k2"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(41L: JLong, "k2"), true), 0))
+
+    testHarness.processWatermark1(new Watermark(100))
+    testHarness.processWatermark2(new Watermark(100))
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    expectedOutput.add(new Watermark(5))
+    // The timestamp 18 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JLong, null: String, 1L: JLong, "k2": String), true), 18))
+    expectedOutput.add(new Watermark(9))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JLong, null: String, 2L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(20L: JLong, "k1", 25L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(21L: JLong, "k1", 25L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(21L: JLong, "k1", 26L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(49L: JLong, "k2", 40L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(49L: JLong, "k2", 41L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(50L: JLong, "k2", 41L: JLong, "k2": String), true), 0))
+    // The timestamp 56 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JLong, null: String, 39L: JLong, "k2": String), true), 56))
+    expectedOutput.add(new Watermark(91))
+
+    val result = testHarness.getOutput
+    verify(
+      expectedOutput,
+      result,
+      new RowResultSortComparatorWithWatermarks(),
+      checkWaterMark = true)
+    testHarness.close()
+  }
+
+  /** a.rowtime >= b.rowtime - 5 and a.rowtime <= b.rowtime + 9 **/
+  @Test
+  def testRowTimeFullOuterJoin() {
+
+    val joinProcessFunc = new RowTimeBoundedStreamJoin(
+      JoinType.FULL_OUTER, -5, 9, 0, rowType, rowType, "TestJoinFunction", funcCode, 0, 0)
+
+    val operator: KeyedCoProcessOperator[String, CRow, CRow, CRow] =
+      new KeyedCoProcessOperatorWithWatermarkDelay[String, CRow, CRow, CRow](
+        joinProcessFunc,
+        joinProcessFunc.getMaxOutputDelay)
+    val testHarness: KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow] =
+      new KeyedTwoInputStreamOperatorTestHarness[String, CRow, CRow, CRow](
+        operator,
+        new TupleRowKeySelector[String](1),
+        new TupleRowKeySelector[String](1),
+        Types.STRING,
+        1, 1, 0)
+
+    testHarness.open()
+
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(1L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(1L: JLong, "k2"), true), 0))
+
+    assertEquals(2, testHarness.numEventTimeTimers())
+    assertEquals(4, testHarness.numKeyedStateEntries())
+
+    // The left row with timestamp = 1 will be padded and removed (14=1+5+1+((5+9)/2)).
+    testHarness.processWatermark1(new Watermark(14))
+    testHarness.processWatermark2(new Watermark(14))
+
+    assertEquals(1, testHarness.numEventTimeTimers())
+    assertEquals(2, testHarness.numKeyedStateEntries())
+
+    // The right row with timestamp = 1 will be padded and removed (18=1+9+1+((5+9)/2)).
+    testHarness.processWatermark1(new Watermark(18))
+    testHarness.processWatermark2(new Watermark(18))
+
+    assertEquals(0, testHarness.numEventTimeTimers())
+    assertEquals(0, testHarness.numKeyedStateEntries())
+
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(2L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(2L: JLong, "k2"), true), 0))
+
+    // The late rows with timestamp = 2 will not be cached, but a null padding result for the right
+    // row will be emitted.
+    assertEquals(0, testHarness.numKeyedStateEntries())
+    assertEquals(0, testHarness.numEventTimeTimers())
+
+    // Make sure the common (inner) join can be performed.
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(19L: JLong, "k1"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(20L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(26L: JLong, "k1"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(25L: JLong, "k1"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(21L: JLong, "k1"), true), 0))
+
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(39L: JLong, "k2"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(40L: JLong, "k2"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(50L: JLong, "k2"), true), 0))
+    testHarness.processElement1(new StreamRecord[CRow](
+      CRow(Row.of(49L: JLong, "k2"), true), 0))
+    testHarness.processElement2(new StreamRecord[CRow](
+      CRow(Row.of(41L: JLong, "k2"), true), 0))
+
+    testHarness.processWatermark1(new Watermark(100))
+    testHarness.processWatermark2(new Watermark(100))
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+    // The timestamp 14 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(1L: JLong, "k1", null: JLong, null: String), true), 14))
+    expectedOutput.add(new Watermark(5))
+    // The timestamp 18 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JLong, null: String, 1L: JLong, "k2": String), true), 18))
+    expectedOutput.add(new Watermark(9))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(2L: JLong, "k1", null: JLong, null: String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JLong, null: String, 2L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(20L: JLong, "k1", 25L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(21L: JLong, "k1", 25L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(21L: JLong, "k1", 26L: JLong, "k1": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(49L: JLong, "k2", 40L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(49L: JLong, "k2", 41L: JLong, "k2": String), true), 0))
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(50L: JLong, "k2", 41L: JLong, "k2": String), true), 0))
+    // The timestamp 32 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(19L: JLong, "k1", null: JLong, null: String), true), 32))
+    // The timestamp 56 is set with the triggered timer.
+    expectedOutput.add(new StreamRecord(
+      CRow(Row.of(null: JLong, null: String, 39L: JLong, "k2": String), true), 56))
+    expectedOutput.add(new Watermark(91))
 
     val result = testHarness.getOutput
     verify(

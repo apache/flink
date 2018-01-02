@@ -23,40 +23,26 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * Collector to track whether there's a joined result.
+  * Collector to wrap a Row into a [[CRow]] and to track whether a row has been emitted by the inner
+  * collector.
   */
-class JoinAwareCollector extends Collector[Row]{
+class EmitAwareCollector extends Collector[Row]{
 
-  private var emitted = false
-  private var emittedThisTurn = false
-  private var innerCollector: Collector[CRow] = _
+  var emitted = false
+  var innerCollector: Collector[CRow] = _
   private val cRow: CRow = new CRow()
 
-  def setCollector(collector: Collector[CRow]): Unit = {
-    this.innerCollector = collector
+  /** Sets the change value of the CRow. **/
+  def setCRowChange(change: Boolean): Unit = {
+   cRow.change = change
   }
 
+  /** Resets the emitted flag. **/
   def reset(): Unit = {
     emitted = false
-    emittedThisTurn = false
-  }
-
-  def resetThisTurn(): Unit = {
-    emittedThisTurn = false
-  }
-
-  def everEmitted: Boolean = emitted
-
-  def everEmittedThisTurn: Boolean = emittedThisTurn
-
-  /** Collects a record without notifying the collector. **/
-  def collectWithoutNotifying(record: Row): Unit = {
-    cRow.row = record
-    innerCollector.collect(cRow)
   }
 
   override def collect(record: Row): Unit = {
-    emittedThisTurn = true
     emitted = true
     cRow.row = record
     innerCollector.collect(cRow)

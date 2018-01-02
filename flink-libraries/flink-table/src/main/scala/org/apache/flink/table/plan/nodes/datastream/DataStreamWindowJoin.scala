@@ -27,14 +27,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableException}
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
-import org.apache.flink.table.runtime.CRowKeySelector
-import org.apache.flink.table.runtime.join.{ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin, WindowJoinUtil}
+import org.apache.flink.table.runtime.{CRowKeySelector, CRowWrappingCollector}
+import org.apache.flink.table.runtime.join.{OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin, WindowJoinUtil}
 import org.apache.flink.table.runtime.operators.KeyedCoProcessOperatorWithWatermarkDelay
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.util.Logging
@@ -153,7 +154,13 @@ class DataStreamWindowJoin(
     if (relativeWindowSize < 0) {
       LOG.warn(s"The relative window size $relativeWindowSize is negative," +
         " please check the join conditions.")
-      createEmptyJoin(leftDataStream, rightDataStream, returnTypeInfo)
+      createNegativeWindowSizeJoin(
+        flinkJoinType,
+        leftDataStream,
+        rightDataStream,
+        leftSchema.arity,
+        rightSchema.arity,
+        returnTypeInfo)
     } else {
       if (isRowTime) {
         createRowTimeJoin(
@@ -183,23 +190,48 @@ class DataStreamWindowJoin(
     }
   }
 
-  def createEmptyJoin(
+  def createNegativeWindowSizeJoin(
+      joinType: JoinType,
       leftDataStream: DataStream[CRow],
       rightDataStream: DataStream[CRow],
+      leftArity: Int,
+      rightArity: Int,
       returnTypeInfo: TypeInformation[CRow]): DataStream[CRow] = {
     leftDataStream.connect(rightDataStream).process(
       new CoProcessFunction[CRow, CRow, CRow] {
+        var paddingUtil: OuterJoinPaddingUtil = _
+        var collector: CRowWrappingCollector = _
+
+        override def open(parameters: Configuration): Unit = {
+          paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
+          collector = new CRowWrappingCollector
+          collector.setChange(true)
+        }
+
         override def processElement1(
           value: CRow,
           ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
           out: Collector[CRow]): Unit = {
-          //Do nothing.
+          joinType match {
+            case JoinType.INNER | JoinType.RIGHT_OUTER => // Do nothing.
+            case JoinType.LEFT_OUTER | JoinType.FULL_OUTER =>
+              // Pad results for the left outer and the full outer joins.
+              collector.out = out
+              collector.collect(paddingUtil.padLeft(value.row))
+          }
         }
+
         override def processElement2(
           value: CRow,
           ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
           out: Collector[CRow]): Unit = {
-          //Do nothing.
+          joinType match {
+            case JoinType.INNER | JoinType.LEFT_OUTER => // Do nothing.
+            case JoinType.RIGHT_OUTER | JoinType.FULL_OUTER =>
+              // Pad results for the right outer and the full outer joins.
+              collector.out = out
+              collector.collect(paddingUtil.padRight(value.row))
+          }
         }
       }).returns(returnTypeInfo)
   }
