@@ -20,7 +20,6 @@ package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
@@ -157,7 +156,7 @@ public class MesosApplicationMasterRunner {
 			CommandLine cmd = parser.parse(ALL_OPTIONS, args);
 
 			final Configuration dynamicProperties = BootstrapTools.parseDynamicProperties(cmd);
-			final Configuration config = GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
+			final Configuration config = MesosEntrypointUtils.loadConfiguration(dynamicProperties, LOG);
 
 			// configure the filesystems
 			try {

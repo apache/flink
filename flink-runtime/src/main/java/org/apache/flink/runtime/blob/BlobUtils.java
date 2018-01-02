@@ -134,7 +134,7 @@ public class BlobUtils {
 	/**
 	 * Creates a local storage directory for a blob service under the configuration parameter given
 	 * by {@link BlobServerOptions#STORAGE_DIRECTORY}. If this is <tt>null</tt> or empty, we will
-	 * fall back to the TaskManager temp directories (given by
+	 * fall back to Flink's temp directories (given by
 	 * {@link org.apache.flink.configuration.CoreOptions#TMP_DIRS}) and choose one among them at
 	 * random.
 	 *
