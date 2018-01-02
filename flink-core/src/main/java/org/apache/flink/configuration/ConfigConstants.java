@@ -209,7 +209,10 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the directories for temporary files, separated by
 	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
+	 *
+	 * @deprecated Use {@link CoreOptions#TMP_DIRS} instead
 	 */
+	@Deprecated
 	public static final String TASK_MANAGER_TMP_DIR_KEY = "taskmanager.tmp.dirs";
 
 	/**
@@ -1338,7 +1341,10 @@ public final class ConfigConstants {
 
 	/**
 	 * The default directory for temporary files of the task manager.
+	 *
+	 * @deprecated {@link CoreOptions#TMP_DIRS} provides the default value now
 	 */
+	@Deprecated
 	public static final String DEFAULT_TASK_MANAGER_TMP_PATH = System.getProperty("java.io.tmpdir");
 
 	/**

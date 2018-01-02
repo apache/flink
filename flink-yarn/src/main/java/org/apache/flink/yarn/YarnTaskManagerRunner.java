@@ -19,8 +19,8 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -83,14 +83,13 @@ public class YarnTaskManagerRunner {
 		LOG.info("TM: remoteKeytabPrincipal obtained {}", remoteKeytabPrincipal);
 
 		// configure local directory
-		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
-		if (flinkTempDirs == null) {
-			LOG.info("Setting directories for temporary file " + localDirs);
-			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, localDirs);
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding YARN's temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
 		}
 		else {
-			LOG.info("Overriding YARN's temporary file directories with those " +
-				"specified in the Flink config: " + flinkTempDirs);
+			LOG.info("Setting directories for temporary files to: {}", localDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, localDirs);
 		}
 
 		// tell akka to die in case of an error

@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.taskexecutor.TaskManagerConfiguration;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -73,7 +73,6 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 	@Test
 	public void testComponentsStartupShutdown() throws Exception {
 
-		final String[] TMP_DIR = new String[] { ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH };
 		final Time timeout = Time.seconds(100);
 		final int BUFFER_SIZE = 32 * 1024;
 
@@ -81,6 +80,8 @@ public class TaskManagerComponentsStartupShutdownTest extends TestLogger {
 		config.setString(AkkaOptions.WATCH_HEARTBEAT_INTERVAL, "200 ms");
 		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "1 s");
 		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 1);
+
+		final String[] TMP_DIR = TaskManagerServicesConfiguration.parseTempDirectories(config);
 
 		ActorSystem actorSystem = null;
 

@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -142,7 +143,7 @@ public class TaskManagerStartupTest extends TestLogger {
 
 		try {
 			Configuration cfg = new Configuration();
-			cfg.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, nonWritable.getAbsolutePath());
+			cfg.setString(CoreOptions.TMP_DIRS, nonWritable.getAbsolutePath());
 			cfg.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 4L);
 			cfg.setString(JobManagerOptions.ADDRESS, "localhost");
 			cfg.setInteger(JobManagerOptions.PORT, 21656);

@@ -19,8 +19,8 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -89,14 +89,13 @@ public class MesosTaskManagerRunner {
 		final String tmpDirs = envs.get(MesosConfigKeys.ENV_FLINK_TMP_DIR);
 
 		// configure local directory
-		String flinkTempDirs = configuration.getString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, null);
-		if (flinkTempDirs != null) {
-			LOG.info("Overriding Mesos temporary file directories with those " +
-				"specified in the Flink config: {}", flinkTempDirs);
+		if (configuration.contains(CoreOptions.TMP_DIRS)) {
+			LOG.info("Overriding Mesos' temporary file directories with those " +
+				"specified in the Flink config: " + configuration.getValue(CoreOptions.TMP_DIRS));
 		}
 		else if (tmpDirs != null) {
 			LOG.info("Setting directories for temporary files to: {}", tmpDirs);
-			configuration.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, tmpDirs);
+			configuration.setString(CoreOptions.TMP_DIRS, tmpDirs);
 		}
 
 		// configure the filesystems

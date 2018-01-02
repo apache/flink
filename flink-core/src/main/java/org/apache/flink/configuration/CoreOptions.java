@@ -20,6 +20,8 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import static org.apache.flink.configuration.ConfigOptions.key;
+
 /**
  * The set of configuration options for core parameters.
  */
@@ -95,6 +97,19 @@ public class CoreOptions {
 	public static final ConfigOption<String> FLINK_TM_JVM_OPTIONS = ConfigOptions
 		.key("env.java.opts.taskmanager")
 		.defaultValue("");
+
+	// ------------------------------------------------------------------------
+	//  generic io
+	// ------------------------------------------------------------------------
+
+	/**
+	 * The config parameter defining the directories for temporary files, separated by
+	 * ",", "|", or the system's {@link java.io.File#pathSeparator}.
+	 */
+	public static final ConfigOption<String> TMP_DIRS =
+		key("io.tmp.dirs")
+			.defaultValue(System.getProperty("java.io.tmpdir"))
+			.withDeprecatedKeys("taskmanager.tmp.dirs");
 
 	// ------------------------------------------------------------------------
 	//  program

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,8 +50,7 @@ public class BlobUtilsTest {
 		Configuration config = new Configuration();
 		String blobStorageDir = temporaryFolder.newFolder().getAbsolutePath();
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, blobStorageDir);
-		config.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY,
-			temporaryFolder.newFolder().getAbsolutePath());
+		config.setString(CoreOptions.TMP_DIRS, temporaryFolder.newFolder().getAbsolutePath());
 
 		File dir = BlobUtils.initLocalStorageDirectory(config);
 		assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
@@ -58,13 +58,13 @@ public class BlobUtilsTest {
 
 	/**
 	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
-	 * {@link ConfigConstants#TASK_MANAGER_TMP_DIR_KEY} with a single temp directory.
+	 * {@link CoreOptions#TMP_DIRS} with a single temp directory.
 	 */
 	@Test
 	public void testTaskManagerFallbackBlobStorageDirectory1() throws IOException {
 		Configuration config = new Configuration();
 		String blobStorageDir = temporaryFolder.getRoot().getAbsolutePath();
-		config.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, blobStorageDir);
+		config.setString(CoreOptions.TMP_DIRS, blobStorageDir);
 
 		File dir = BlobUtils.initLocalStorageDirectory(config);
 		assertThat(dir.getAbsolutePath(), startsWith(blobStorageDir));
@@ -72,14 +72,14 @@ public class BlobUtilsTest {
 
 	/**
 	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
-	 * {@link ConfigConstants#TASK_MANAGER_TMP_DIR_KEY} having multiple temp directories.
+	 * {@link CoreOptions#TMP_DIRS} having multiple temp directories.
 	 */
 	@Test
 	public void testTaskManagerFallbackBlobStorageDirectory2a() throws IOException {
 		Configuration config = new Configuration();
 		String blobStorageDirs = temporaryFolder.newFolder().getAbsolutePath() + "," +
 			temporaryFolder.newFolder().getAbsolutePath();
-		config.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, blobStorageDirs);
+		config.setString(CoreOptions.TMP_DIRS, blobStorageDirs);
 
 		File dir = BlobUtils.initLocalStorageDirectory(config);
 		assertThat(dir.getAbsolutePath(), startsWith(temporaryFolder.getRoot().getAbsolutePath()));
@@ -87,22 +87,22 @@ public class BlobUtilsTest {
 
 	/**
 	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
-	 * {@link ConfigConstants#TASK_MANAGER_TMP_DIR_KEY} having multiple temp directories.
+	 * {@link CoreOptions#TMP_DIRS} having multiple temp directories.
 	 */
 	@Test
 	public void testTaskManagerFallbackBlobStorageDirectory2b() throws IOException {
 		Configuration config = new Configuration();
 		String blobStorageDirs = temporaryFolder.newFolder().getAbsolutePath() + File.pathSeparator +
 			temporaryFolder.newFolder().getAbsolutePath();
-		config.setString(ConfigConstants.TASK_MANAGER_TMP_DIR_KEY, blobStorageDirs);
+		config.setString(CoreOptions.TMP_DIRS, blobStorageDirs);
 
 		File dir = BlobUtils.initLocalStorageDirectory(config);
 		assertThat(dir.getAbsolutePath(), startsWith(temporaryFolder.getRoot().getAbsolutePath()));
 	}
 
 	/**
-	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to
-	 * {@link ConfigConstants#DEFAULT_TASK_MANAGER_TMP_PATH}.
+	 * Tests {@link BlobUtils#initLocalStorageDirectory}'s fallback to the default value of
+	 * {@link CoreOptions#TMP_DIRS}.
 	 */
 	@Test
 	public void testTaskManagerFallbackFallbackBlobStorageDirectory1() throws IOException {
@@ -110,6 +110,6 @@ public class BlobUtilsTest {
 
 		File dir = BlobUtils.initLocalStorageDirectory(config);
 		assertThat(dir.getAbsolutePath(),
-			startsWith(ConfigConstants.DEFAULT_TASK_MANAGER_TMP_PATH));
+			startsWith(CoreOptions.TMP_DIRS.defaultValue()));
 	}
 }

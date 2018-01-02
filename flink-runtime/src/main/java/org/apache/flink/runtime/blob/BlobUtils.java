@@ -20,7 +20,6 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -136,9 +135,8 @@ public class BlobUtils {
 	 * Creates a local storage directory for a blob service under the configuration parameter given
 	 * by {@link BlobServerOptions#STORAGE_DIRECTORY}. If this is <tt>null</tt> or empty, we will
 	 * fall back to the TaskManager temp directories (given by
-	 * {@link ConfigConstants#TASK_MANAGER_TMP_DIR_KEY}; which in turn falls back to
-	 * {@link ConfigConstants#DEFAULT_TASK_MANAGER_TMP_PATH} currently set to
-	 * <tt>java.io.tmpdir</tt>) and choose one among them at random.
+	 * {@link org.apache.flink.configuration.CoreOptions#TMP_DIRS}) and choose one among them at
+	 * random.
 	 *
 	 * @param config
 	 * 		Flink configuration
