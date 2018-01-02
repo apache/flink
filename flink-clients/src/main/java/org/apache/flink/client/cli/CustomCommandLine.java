@@ -20,7 +20,6 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -31,7 +30,7 @@ import javax.annotation.Nullable;
 /**
  * Custom command-line interface to load hooks for the command-line interface.
  */
-public interface CustomCommandLine<ClusterType extends ClusterClient> {
+public interface CustomCommandLine {
 
 	/**
 	 * Signals whether the custom command-line wants to execute or not.
@@ -67,7 +66,7 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	 * @return ClusterDescriptor
 	 * @throws FlinkException if the ClusterDescriptor could not be created
 	 */
-	ClusterDescriptor<ClusterType> createClusterDescriptor(CommandLine commandLine) throws FlinkException;
+	ClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException;
 
 	/**
 	 * Returns the cluster id if a cluster id was specified on the command line, otherwise it

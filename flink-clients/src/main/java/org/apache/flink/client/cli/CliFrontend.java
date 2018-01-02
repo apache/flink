@@ -106,7 +106,7 @@ public class CliFrontend {
 
 	private final Configuration configuration;
 
-	private final List<CustomCommandLine<?>> customCommandLines;
+	private final List<CustomCommandLine> customCommandLines;
 
 	private final Options customCommandLineOptions;
 
@@ -116,7 +116,7 @@ public class CliFrontend {
 
 	public CliFrontend(
 			Configuration configuration,
-			List<CustomCommandLine<?>> customCommandLines) throws Exception {
+			List<CustomCommandLine> customCommandLines) throws Exception {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
 
@@ -129,7 +129,7 @@ public class CliFrontend {
 
 		this.customCommandLineOptions = new Options();
 
-		for (CustomCommandLine<?> customCommandLine : customCommandLines) {
+		for (CustomCommandLine customCommandLine : customCommandLines) {
 			customCommandLine.addGeneralOptions(customCommandLineOptions);
 			customCommandLine.addRunOptions(customCommandLineOptions);
 		}
@@ -196,9 +196,9 @@ public class CliFrontend {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
-		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine customCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
+		final ClusterDescriptor clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
 
 		try {
 			final String clusterId = customCommandLine.getClusterId(commandLine);
@@ -351,8 +351,8 @@ public class CliFrontend {
 			scheduled = true;
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final ClusterDescriptor clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
 
 		final String clusterId = activeCommandLine.getClusterId(commandLine);
 
@@ -473,9 +473,9 @@ public class CliFrontend {
 			throw new CliArgsException("Missing JobID");
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
+		final ClusterDescriptor clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
 
 		final String clusterId = activeCommandLine.getClusterId(commandLine);
 
@@ -553,9 +553,9 @@ public class CliFrontend {
 			throw new CliArgsException("Missing JobID in the command line arguments.");
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
+		final ClusterDescriptor clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
 
 		final String clusterId = activeCommandLine.getClusterId(commandLine);
 
@@ -617,9 +617,9 @@ public class CliFrontend {
 			return;
 		}
 
-		CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+		CustomCommandLine customCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
+		final ClusterDescriptor clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
 
 		final String clusterId = customCommandLine.getClusterId(commandLine);
 
@@ -972,7 +972,7 @@ public class CliFrontend {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
 		// 3. load the custom command lines
-		final List<CustomCommandLine<?>> customCommandLines = loadCustomCommandLines(
+		final List<CustomCommandLine> customCommandLines = loadCustomCommandLines(
 			configuration,
 			configurationDirectory);
 
@@ -1039,8 +1039,8 @@ public class CliFrontend {
 		config.setInteger(JobManagerOptions.PORT, address.getPort());
 	}
 
-	public static List<CustomCommandLine<?>> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
-		List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(2);
+	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
+		List<CustomCommandLine> customCommandLines = new ArrayList<>(2);
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
@@ -1087,7 +1087,7 @@ public class CliFrontend {
 	 * @param className The fully-qualified class name to load.
 	 * @param params The constructor parameters
 	 */
-	private static CustomCommandLine<?> loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
+	private static CustomCommandLine loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
 
 		Class<? extends CustomCommandLine> customCliClass =
 			Class.forName(className).asSubclass(CustomCommandLine.class);

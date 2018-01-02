@@ -99,8 +99,8 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties
 /**
  * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
  */
-public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
-	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
+public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor {
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractYarnClusterDescriptor.class);
 
 	/**
 	 * Minimum memory requirements, checked by the Client.
