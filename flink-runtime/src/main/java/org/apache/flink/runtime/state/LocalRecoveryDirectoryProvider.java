@@ -37,19 +37,19 @@ public interface LocalRecoveryDirectoryProvider extends Serializable {
 	 * available root dirs. This directory is contained in the directory returned by {@link #rootDirectory(long)} for
 	 * the same checkpoint id.
 	 */
-	File jobAndAllocationBaseDirectory(long checkpointId);
+	File allocationBaseDirectory(long checkpointId);
 
 	/**
 	 * Returns the local state checkpoint base directory for the given checkpoint id w.r.t. our rotation over all
 	 * available root dirs. This directory is contained in the directory returned by {@link #rootDirectory(long)} for
 	 * the same checkpoint id.
 	 */
-	File checkpointBaseDirectory(long checkpointId);
+	File jobAndCheckpointBaseDirectory(long checkpointId);
 
 	/**
 	 * Returns the local state directory for the specific operator subtask and the given checkpoint id w.r.t. our
 	 * rotation over all available root dirs. This directory is contained in the directory returned by
-	 * {@link #checkpointBaseDirectory(long)} for the same checkpoint id.
+	 * {@link #jobAndCheckpointBaseDirectory(long)} for the same checkpoint id.
 	 */
 	File subtaskSpecificCheckpointDirectory(long checkpointId);
 

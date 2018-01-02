@@ -96,18 +96,18 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 	}
 
 	@Override
-	public File jobAndAllocationBaseDirectory(long checkpointId) {
-		return new File(rootDirectory(checkpointId), createJobAndAllocationSubDirString());
+	public File allocationBaseDirectory(long checkpointId) {
+		return new File(rootDirectory(checkpointId), allocationSubDirString());
 	}
 
 	@Override
-	public File checkpointBaseDirectory(long checkpointId) {
-		return new File(jobAndAllocationBaseDirectory(checkpointId), createCheckpointSubDirString(checkpointId));
+	public File jobAndCheckpointBaseDirectory(long checkpointId) {
+		return new File(allocationBaseDirectory(checkpointId), createJobCheckpointSubDirString(checkpointId));
 	}
 
 	@Override
 	public File subtaskSpecificCheckpointDirectory(long checkpointId) {
-		return new File(checkpointBaseDirectory(checkpointId), createSubtaskSubDirString());
+		return new File(jobAndCheckpointBaseDirectory(checkpointId), createSubtaskSubDirString());
 	}
 
 	@Override
@@ -117,7 +117,7 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 
 	@Override
 	public File selectJobAndAllocationBaseDirectory(int idx) {
-		return new File(selectRootDirectory(idx), createJobAndAllocationSubDirString());
+		return new File(selectRootDirectory(idx), allocationSubDirString());
 	}
 
 	@Override
@@ -137,13 +137,13 @@ public class LocalRecoveryDirectoryProviderImpl implements LocalRecoveryDirector
 	}
 
 	@VisibleForTesting
-	String createJobAndAllocationSubDirString() {
-		return "jid_" + jobID + "_aid_" + allocationID;
+	String allocationSubDirString() {
+		return "aid_" + allocationID;
 	}
 
 	@VisibleForTesting
-	String createCheckpointSubDirString(long checkpointId) {
-		return "chk_" + checkpointId;
+	String createJobCheckpointSubDirString(long checkpointId) {
+		return "jid_" + jobID + Path.SEPARATOR + "chk_" + checkpointId;
 	}
 
 	@VisibleForTesting

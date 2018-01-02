@@ -84,8 +84,8 @@ public class LocalRecoveryDirectoryProviderImplTest {
 	public void jobAndAllocationBaseDir() {
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertEquals(
-				new File(directoryProvider.rootDirectory(i), directoryProvider.createJobAndAllocationSubDirString()),
-				directoryProvider.jobAndAllocationBaseDirectory(i));
+				new File(directoryProvider.rootDirectory(i), directoryProvider.allocationSubDirString()),
+				directoryProvider.allocationBaseDirectory(i));
 		}
 	}
 
@@ -94,9 +94,9 @@ public class LocalRecoveryDirectoryProviderImplTest {
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertEquals(
 				new File(
-					directoryProvider.jobAndAllocationBaseDirectory(i),
-					directoryProvider.createCheckpointSubDirString(i)),
-				directoryProvider.checkpointBaseDirectory(i));
+					directoryProvider.allocationBaseDirectory(i),
+					directoryProvider.createJobCheckpointSubDirString(i)),
+				directoryProvider.jobAndCheckpointBaseDirectory(i));
 		}
 	}
 
@@ -105,7 +105,7 @@ public class LocalRecoveryDirectoryProviderImplTest {
 		for (int i = 0; i < 10; ++i) {
 			Assert.assertEquals(
 				new File(
-					directoryProvider.checkpointBaseDirectory(i),
+					directoryProvider.jobAndCheckpointBaseDirectory(i),
 					directoryProvider.createSubtaskSubDirString()),
 				directoryProvider.subtaskSpecificCheckpointDirectory(i));
 		}
@@ -114,12 +114,12 @@ public class LocalRecoveryDirectoryProviderImplTest {
 	@Test
 	public void testPathStringConstants() {
 		Assert.assertEquals(
-			directoryProvider.createJobAndAllocationSubDirString(),
-			"jid_" + JOB_ID + "_aid_" + ALLOCATION_ID);
+			directoryProvider.allocationSubDirString(),
+			"aid_" + ALLOCATION_ID);
 
 		Assert.assertEquals(
-			directoryProvider.createCheckpointSubDirString(42),
-			"chk_" + 42);
+			directoryProvider.createJobCheckpointSubDirString(42),
+			"jid_" + JOB_ID + File.separator + "chk_" + 42);
 
 		Assert.assertEquals(
 			directoryProvider.createSubtaskSubDirString(),

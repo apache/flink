@@ -140,7 +140,8 @@ public class TaskExecutorLocalStateStoresManagerTest {
 			Assert.assertEquals(
 				new File(
 					directoryProvider.rootDirectory(chkId),
-					"jid_" + jobID + "_aid_" + allocationID + File.separator +
+					"aid_" + allocationID + File.separator +
+						"jid_" + jobID + File.separator +
 						"chk_" + chkId + File.separator +
 						"vtx_" + jobVertexID + File.separator +
 						subtaskIdx),

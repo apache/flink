@@ -2183,7 +2183,10 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 				if (closeableRegistry.unregisterCloseable(streamWithResultProvider)) {
 					result = streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
 					streamWithResultProvider = null;
+				} else {
+					throw new IOException("Stream already closed and cannot return a handle.");
 				}
+
 				return result;
 			} finally {
 				if (streamWithResultProvider != null) {

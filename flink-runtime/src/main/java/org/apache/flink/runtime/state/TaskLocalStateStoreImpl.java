@@ -269,7 +269,7 @@ public class TaskLocalStateStoreImpl implements TaskLocalStateStore {
 			LOG.warn("Exception while discarding local state of checkpoint " + checkpointID + ".", discardEx);
 		}
 
-		File checkpointBaseDirectory = directoryProvider.checkpointBaseDirectory(checkpointID);
+		File checkpointBaseDirectory = directoryProvider.jobAndCheckpointBaseDirectory(checkpointID);
 		LOG.debug("Deleting local state directory {} of checkpoint {} for {}/{}/{}/{}.",
 			checkpointBaseDirectory, checkpointID, jobID, jobVertexID, subtaskIndex);
 		try {
