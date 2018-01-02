@@ -26,14 +26,12 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * Dummy {@link ClusterDescriptor} implementation for testing purposes.
- *
- * @param <C> type of the returned {@link ClusterClient}
  */
-public class DummyClusterDescriptor<C extends ClusterClient> implements ClusterDescriptor<C> {
+public class DummyClusterDescriptor implements ClusterDescriptor {
 
-	private final C clusterClient;
+	private final ClusterClient clusterClient;
 
-	public DummyClusterDescriptor(C clusterClient) {
+	public DummyClusterDescriptor(ClusterClient clusterClient) {
 		this.clusterClient = Preconditions.checkNotNull(clusterClient);
 	}
 
@@ -43,17 +41,17 @@ public class DummyClusterDescriptor<C extends ClusterClient> implements ClusterD
 	}
 
 	@Override
-	public C retrieve(String applicationID) throws UnsupportedOperationException {
+	public ClusterClient retrieve(String applicationID) throws UnsupportedOperationException {
 		return clusterClient;
 	}
 
 	@Override
-	public C deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
+	public ClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
 		return clusterClient;
 	}
 
 	@Override
-	public C deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public ClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		return clusterClient;
 	}
 

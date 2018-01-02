@@ -21,7 +21,6 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
@@ -32,7 +31,7 @@ import javax.annotation.Nullable;
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterClient> {
+public class DefaultCLI extends AbstractCustomCommandLine {
 
 	public DefaultCLI(Configuration configuration) {
 		super(configuration);
@@ -50,7 +49,7 @@ public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterClien
 	}
 
 	@Override
-	public ClusterDescriptor<StandaloneClusterClient> createClusterDescriptor(
+	public ClusterDescriptor createClusterDescriptor(
 			CommandLine commandLine) throws FlinkException {
 		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 

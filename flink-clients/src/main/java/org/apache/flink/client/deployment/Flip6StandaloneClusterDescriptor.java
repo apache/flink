@@ -27,7 +27,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * A deployment descriptor for an existing cluster.
  */
-public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<RestClusterClient> {
+public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor {
 
 	private final Configuration config;
 
