@@ -62,6 +62,7 @@ object AggregateUtil {
     *
     * @param generator       code generator instance
     * @param namedAggregates Physical calls to aggregate functions and their output field names
+    * @param aggregateInputType Physical type of the aggregate functions's input row.
     * @param inputType Physical type of the row.
     * @param inputTypeInfo Physical type information of the row.
     * @param inputFieldTypeInfo Physical type information of the row's fields.
@@ -72,6 +73,7 @@ object AggregateUtil {
   private[flink] def createUnboundedOverProcessFunction(
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      aggregateInputType: RelDataType,
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
@@ -84,7 +86,7 @@ object AggregateUtil {
     val (aggFields, aggregates, accTypes, accSpecs) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
-        inputType,
+        aggregateInputType,
         needRetraction = false,
         isStateBackedDataViews = true)
 
@@ -203,6 +205,7 @@ object AggregateUtil {
     *
     * @param generator       code generator instance
     * @param namedAggregates Physical calls to aggregate functions and their output field names
+    * @param aggregateInputType Physical type of the aggregate functions's input row.
     * @param inputType Physical type of the row.
     * @param inputTypeInfo Physical type information of the row.
     * @param inputFieldTypeInfo Physical type information of the row's fields.
@@ -214,6 +217,7 @@ object AggregateUtil {
   private[flink] def createBoundedOverProcessFunction(
       generator: AggregationCodeGenerator,
       namedAggregates: Seq[CalcitePair[AggregateCall, String]],
+      aggregateInputType: RelDataType,
       inputType: RelDataType,
       inputTypeInfo: TypeInformation[Row],
       inputFieldTypeInfo: Seq[TypeInformation[_]],
@@ -227,7 +231,7 @@ object AggregateUtil {
     val (aggFields, aggregates, accTypes, accSpecs) =
       transformToAggregateFunctions(
         namedAggregates.map(_.getKey),
-        inputType,
+        aggregateInputType,
         needRetract,
         isStateBackedDataViews = true)
 
@@ -827,7 +831,8 @@ object AggregateUtil {
       inputType: RelDataType,
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       outputType: RelDataType,
-      groupings: Array[Int]): (Option[DataSetPreAggFunction],
+      groupings: Array[Int]): (
+        Option[DataSetPreAggFunction],
         Option[TypeInformation[Row]],
         Either[DataSetAggFunction, DataSetFinalAggFunction]) = {
 
@@ -1114,7 +1119,7 @@ object AggregateUtil {
 
   private def transformToAggregateFunctions(
       aggregateCalls: Seq[AggregateCall],
-      inputType: RelDataType,
+      aggregateInputType: RelDataType,
       needRetraction: Boolean,
       isStateBackedDataViews: Boolean = false)
   : (Array[Array[Int]],
@@ -1130,259 +1135,263 @@ object AggregateUtil {
     // create aggregate function instances by function type and aggregate field data type.
     aggregateCalls.zipWithIndex.foreach { case (aggregateCall, index) =>
       val argList: util.List[Integer] = aggregateCall.getArgList
-      if (argList.isEmpty) {
-        if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
-          aggFieldIndexes(index) = Array[Int](0)
+
+      if (aggregateCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
+        aggregates(index) = new CountAggFunction
+        if (argList.isEmpty) {
+          aggFieldIndexes(index) = Array[Int](-1)
         } else {
-          throw new TableException("Aggregate fields should not be empty.")
+          aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
         }
       } else {
-        aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
-      }
-      val relDataType = inputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
-      val sqlTypeName = relDataType.getSqlTypeName
-      aggregateCall.getAggregation match {
+        if (argList.isEmpty) {
+          throw new TableException("Aggregate fields should not be empty.")
+        } else {
+          aggFieldIndexes(index) = argList.asScala.map(i => i.intValue).toArray
+        }
 
-        case _: SqlSumAggFunction =>
-          if (needRetraction) {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSumWithRetractAggFunction
-              case SMALLINT =>
-                new ShortSumWithRetractAggFunction
-              case INTEGER =>
-                new IntSumWithRetractAggFunction
-              case BIGINT =>
-                new LongSumWithRetractAggFunction
-              case FLOAT =>
-                new FloatSumWithRetractAggFunction
-              case DOUBLE =>
-                new DoubleSumWithRetractAggFunction
-              case DECIMAL =>
-                new DecimalSumWithRetractAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
-            }
-          } else {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSumAggFunction
-              case SMALLINT =>
-                new ShortSumAggFunction
-              case INTEGER =>
-                new IntSumAggFunction
-              case BIGINT =>
-                new LongSumAggFunction
-              case FLOAT =>
-                new FloatSumAggFunction
-              case DOUBLE =>
-                new DoubleSumAggFunction
-              case DECIMAL =>
-                new DecimalSumAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
-            }
-          }
+        val relDataType = aggregateInputType.getFieldList.get(aggFieldIndexes(index)(0)).getType
+        val sqlTypeName = relDataType.getSqlTypeName
+        aggregateCall.getAggregation match {
 
-        case _: SqlSumEmptyIsZeroAggFunction =>
-          if (needRetraction) {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSum0WithRetractAggFunction
-              case SMALLINT =>
-                new ShortSum0WithRetractAggFunction
-              case INTEGER =>
-                new IntSum0WithRetractAggFunction
-              case BIGINT =>
-                new LongSum0WithRetractAggFunction
-              case FLOAT =>
-                new FloatSum0WithRetractAggFunction
-              case DOUBLE =>
-                new DoubleSum0WithRetractAggFunction
-              case DECIMAL =>
-                new DecimalSum0WithRetractAggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
-            }
-          } else {
-            aggregates(index) = sqlTypeName match {
-              case TINYINT =>
-                new ByteSum0AggFunction
-              case SMALLINT =>
-                new ShortSum0AggFunction
-              case INTEGER =>
-                new IntSum0AggFunction
-              case BIGINT =>
-                new LongSum0AggFunction
-              case FLOAT =>
-                new FloatSum0AggFunction
-              case DOUBLE =>
-                new DoubleSum0AggFunction
-              case DECIMAL =>
-                new DecimalSum0AggFunction
-              case sqlType: SqlTypeName =>
-                throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
-            }
-          }
-
-        case _: SqlAvgAggFunction =>
-          aggregates(index) = sqlTypeName match {
-            case TINYINT =>
-              new ByteAvgAggFunction
-            case SMALLINT =>
-              new ShortAvgAggFunction
-            case INTEGER =>
-              new IntAvgAggFunction
-            case BIGINT =>
-              new LongAvgAggFunction
-            case FLOAT =>
-              new FloatAvgAggFunction
-            case DOUBLE =>
-              new DoubleAvgAggFunction
-            case DECIMAL =>
-              new DecimalAvgAggFunction
-            case sqlType: SqlTypeName =>
-              throw new TableException(s"Avg aggregate does no support type: '$sqlType'")
-          }
-
-        case sqlMinMaxFunction: SqlMinMaxAggFunction =>
-          aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
+          case _: SqlSumAggFunction =>
             if (needRetraction) {
-              sqlTypeName match {
+              aggregates(index) = sqlTypeName match {
                 case TINYINT =>
-                  new ByteMinWithRetractAggFunction
+                  new ByteSumWithRetractAggFunction
                 case SMALLINT =>
-                  new ShortMinWithRetractAggFunction
+                  new ShortSumWithRetractAggFunction
                 case INTEGER =>
-                  new IntMinWithRetractAggFunction
+                  new IntSumWithRetractAggFunction
                 case BIGINT =>
-                  new LongMinWithRetractAggFunction
+                  new LongSumWithRetractAggFunction
                 case FLOAT =>
-                  new FloatMinWithRetractAggFunction
+                  new FloatSumWithRetractAggFunction
                 case DOUBLE =>
-                  new DoubleMinWithRetractAggFunction
+                  new DoubleSumWithRetractAggFunction
                 case DECIMAL =>
-                  new DecimalMinWithRetractAggFunction
-                case BOOLEAN =>
-                  new BooleanMinWithRetractAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMinWithRetractAggFunction
-                case TIMESTAMP =>
-                  new TimestampMinWithRetractAggFunction
-                case DATE =>
-                  new DateMinWithRetractAggFunction
-                case TIME =>
-                  new TimeMinWithRetractAggFunction
+                  new DecimalSumWithRetractAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException(
-                    s"Min with retract aggregate does no support type: '$sqlType'")
+                  throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
               }
             } else {
-              sqlTypeName match {
+              aggregates(index) = sqlTypeName match {
                 case TINYINT =>
-                  new ByteMinAggFunction
+                  new ByteSumAggFunction
                 case SMALLINT =>
-                  new ShortMinAggFunction
+                  new ShortSumAggFunction
                 case INTEGER =>
-                  new IntMinAggFunction
+                  new IntSumAggFunction
                 case BIGINT =>
-                  new LongMinAggFunction
+                  new LongSumAggFunction
                 case FLOAT =>
-                  new FloatMinAggFunction
+                  new FloatSumAggFunction
                 case DOUBLE =>
-                  new DoubleMinAggFunction
+                  new DoubleSumAggFunction
                 case DECIMAL =>
-                  new DecimalMinAggFunction
-                case BOOLEAN =>
-                  new BooleanMinAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMinAggFunction
-                case TIMESTAMP =>
-                  new TimestampMinAggFunction
-                case DATE =>
-                  new DateMinAggFunction
-                case TIME =>
-                  new TimeMinAggFunction
+                  new DecimalSumAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException(s"Min aggregate does no support type: '$sqlType'")
+                  throw new TableException(s"Sum aggregate does no support type: '$sqlType'")
               }
             }
-          } else {
+
+          case _: SqlSumEmptyIsZeroAggFunction =>
             if (needRetraction) {
-              sqlTypeName match {
+              aggregates(index) = sqlTypeName match {
                 case TINYINT =>
-                  new ByteMaxWithRetractAggFunction
+                  new ByteSum0WithRetractAggFunction
                 case SMALLINT =>
-                  new ShortMaxWithRetractAggFunction
+                  new ShortSum0WithRetractAggFunction
                 case INTEGER =>
-                  new IntMaxWithRetractAggFunction
+                  new IntSum0WithRetractAggFunction
                 case BIGINT =>
-                  new LongMaxWithRetractAggFunction
+                  new LongSum0WithRetractAggFunction
                 case FLOAT =>
-                  new FloatMaxWithRetractAggFunction
+                  new FloatSum0WithRetractAggFunction
                 case DOUBLE =>
-                  new DoubleMaxWithRetractAggFunction
+                  new DoubleSum0WithRetractAggFunction
                 case DECIMAL =>
-                  new DecimalMaxWithRetractAggFunction
-                case BOOLEAN =>
-                  new BooleanMaxWithRetractAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMaxWithRetractAggFunction
-                case TIMESTAMP =>
-                  new TimestampMaxWithRetractAggFunction
-                case DATE =>
-                  new DateMaxWithRetractAggFunction
-                case TIME =>
-                  new TimeMaxWithRetractAggFunction
+                  new DecimalSum0WithRetractAggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException(
-                    s"Max with retract aggregate does no support type: '$sqlType'")
+                  throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
               }
             } else {
-              sqlTypeName match {
+              aggregates(index) = sqlTypeName match {
                 case TINYINT =>
-                  new ByteMaxAggFunction
+                  new ByteSum0AggFunction
                 case SMALLINT =>
-                  new ShortMaxAggFunction
+                  new ShortSum0AggFunction
                 case INTEGER =>
-                  new IntMaxAggFunction
+                  new IntSum0AggFunction
                 case BIGINT =>
-                  new LongMaxAggFunction
+                  new LongSum0AggFunction
                 case FLOAT =>
-                  new FloatMaxAggFunction
+                  new FloatSum0AggFunction
                 case DOUBLE =>
-                  new DoubleMaxAggFunction
+                  new DoubleSum0AggFunction
                 case DECIMAL =>
-                  new DecimalMaxAggFunction
-                case BOOLEAN =>
-                  new BooleanMaxAggFunction
-                case VARCHAR | CHAR =>
-                  new StringMaxAggFunction
-                case TIMESTAMP =>
-                  new TimestampMaxAggFunction
-                case DATE =>
-                  new DateMaxAggFunction
-                case TIME =>
-                  new TimeMaxAggFunction
+                  new DecimalSum0AggFunction
                 case sqlType: SqlTypeName =>
-                  throw new TableException(s"Max aggregate does no support type: '$sqlType'")
+                  throw new TableException(s"Sum0 aggregate does no support type: '$sqlType'")
               }
             }
-          }
 
-        case _: SqlCountAggFunction =>
-          aggregates(index) = new CountAggFunction
+          case _: SqlAvgAggFunction =>
+            aggregates(index) = sqlTypeName match {
+              case TINYINT =>
+                new ByteAvgAggFunction
+              case SMALLINT =>
+                new ShortAvgAggFunction
+              case INTEGER =>
+                new IntAvgAggFunction
+              case BIGINT =>
+                new LongAvgAggFunction
+              case FLOAT =>
+                new FloatAvgAggFunction
+              case DOUBLE =>
+                new DoubleAvgAggFunction
+              case DECIMAL =>
+                new DecimalAvgAggFunction
+              case sqlType: SqlTypeName =>
+                throw new TableException(s"Avg aggregate does no support type: '$sqlType'")
+            }
 
-        case collect: SqlAggFunction if collect.getKind == SqlKind.COLLECT =>
-          aggregates(index) = new CollectAggFunction(FlinkTypeFactory.toTypeInfo(relDataType))
-          accTypes(index) = aggregates(index).getAccumulatorType
+          case sqlMinMaxFunction: SqlMinMaxAggFunction =>
+            aggregates(index) = if (sqlMinMaxFunction.getKind == SqlKind.MIN) {
+              if (needRetraction) {
+                sqlTypeName match {
+                  case TINYINT =>
+                    new ByteMinWithRetractAggFunction
+                  case SMALLINT =>
+                    new ShortMinWithRetractAggFunction
+                  case INTEGER =>
+                    new IntMinWithRetractAggFunction
+                  case BIGINT =>
+                    new LongMinWithRetractAggFunction
+                  case FLOAT =>
+                    new FloatMinWithRetractAggFunction
+                  case DOUBLE =>
+                    new DoubleMinWithRetractAggFunction
+                  case DECIMAL =>
+                    new DecimalMinWithRetractAggFunction
+                  case BOOLEAN =>
+                    new BooleanMinWithRetractAggFunction
+                  case VARCHAR | CHAR =>
+                    new StringMinWithRetractAggFunction
+                  case TIMESTAMP =>
+                    new TimestampMinWithRetractAggFunction
+                  case DATE =>
+                    new DateMinWithRetractAggFunction
+                  case TIME =>
+                    new TimeMinWithRetractAggFunction
+                  case sqlType: SqlTypeName =>
+                    throw new TableException(
+                      s"Min with retract aggregate does no support type: '$sqlType'")
+                }
+              } else {
+                sqlTypeName match {
+                  case TINYINT =>
+                    new ByteMinAggFunction
+                  case SMALLINT =>
+                    new ShortMinAggFunction
+                  case INTEGER =>
+                    new IntMinAggFunction
+                  case BIGINT =>
+                    new LongMinAggFunction
+                  case FLOAT =>
+                    new FloatMinAggFunction
+                  case DOUBLE =>
+                    new DoubleMinAggFunction
+                  case DECIMAL =>
+                    new DecimalMinAggFunction
+                  case BOOLEAN =>
+                    new BooleanMinAggFunction
+                  case VARCHAR | CHAR =>
+                    new StringMinAggFunction
+                  case TIMESTAMP =>
+                    new TimestampMinAggFunction
+                  case DATE =>
+                    new DateMinAggFunction
+                  case TIME =>
+                    new TimeMinAggFunction
+                  case sqlType: SqlTypeName =>
+                    throw new TableException(s"Min aggregate does no support type: '$sqlType'")
+                }
+              }
+            } else {
+              if (needRetraction) {
+                sqlTypeName match {
+                  case TINYINT =>
+                    new ByteMaxWithRetractAggFunction
+                  case SMALLINT =>
+                    new ShortMaxWithRetractAggFunction
+                  case INTEGER =>
+                    new IntMaxWithRetractAggFunction
+                  case BIGINT =>
+                    new LongMaxWithRetractAggFunction
+                  case FLOAT =>
+                    new FloatMaxWithRetractAggFunction
+                  case DOUBLE =>
+                    new DoubleMaxWithRetractAggFunction
+                  case DECIMAL =>
+                    new DecimalMaxWithRetractAggFunction
+                  case BOOLEAN =>
+                    new BooleanMaxWithRetractAggFunction
+                  case VARCHAR | CHAR =>
+                    new StringMaxWithRetractAggFunction
+                  case TIMESTAMP =>
+                    new TimestampMaxWithRetractAggFunction
+                  case DATE =>
+                    new DateMaxWithRetractAggFunction
+                  case TIME =>
+                    new TimeMaxWithRetractAggFunction
+                  case sqlType: SqlTypeName =>
+                    throw new TableException(
+                      s"Max with retract aggregate does no support type: '$sqlType'")
+                }
+              } else {
+                sqlTypeName match {
+                  case TINYINT =>
+                    new ByteMaxAggFunction
+                  case SMALLINT =>
+                    new ShortMaxAggFunction
+                  case INTEGER =>
+                    new IntMaxAggFunction
+                  case BIGINT =>
+                    new LongMaxAggFunction
+                  case FLOAT =>
+                    new FloatMaxAggFunction
+                  case DOUBLE =>
+                    new DoubleMaxAggFunction
+                  case DECIMAL =>
+                    new DecimalMaxAggFunction
+                  case BOOLEAN =>
+                    new BooleanMaxAggFunction
+                  case VARCHAR | CHAR =>
+                    new StringMaxAggFunction
+                  case TIMESTAMP =>
+                    new TimestampMaxAggFunction
+                  case DATE =>
+                    new DateMaxAggFunction
+                  case TIME =>
+                    new TimeMaxAggFunction
+                  case sqlType: SqlTypeName =>
+                    throw new TableException(s"Max aggregate does no support type: '$sqlType'")
+                }
+              }
+            }
 
-        case udagg: AggSqlFunction =>
-          aggregates(index) = udagg.getFunction
-          accTypes(index) = udagg.accType
+          case collect: SqlAggFunction if collect.getKind == SqlKind.COLLECT =>
+            aggregates(index) = new CollectAggFunction(FlinkTypeFactory.toTypeInfo(relDataType))
+            accTypes(index) = aggregates(index).getAccumulatorType
 
-        case unSupported: SqlAggFunction =>
-          throw new TableException(s"unsupported Function: '${unSupported.getName}'")
+          case udagg: AggSqlFunction =>
+            aggregates(index) = udagg.getFunction
+            accTypes(index) = udagg.accType
+
+          case unSupported: SqlAggFunction =>
+            throw new TableException(s"unsupported Function: '${unSupported.getName}'")
+        }
       }
     }
 
