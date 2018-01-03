@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -30,6 +31,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
@@ -332,7 +334,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	// -------------------------------------------------------------
 
 	@Override
-	public YarnClusterClient retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
+	public ClusterClient<ApplicationId> retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
 
 		try {
 			// check if required Hadoop environment variables are set. If not, warn user
@@ -352,11 +354,17 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				throw new RuntimeException("The Yarn application " + applicationId + " doesn't run anymore.");
 			}
 
-			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
-				appReport.getHost(), appReport.getRpcPort(), applicationId);
+			final String host = appReport.getHost();
+			final int rpcPort = appReport.getRpcPort();
 
-			flinkConfiguration.setString(JobManagerOptions.ADDRESS, appReport.getHost());
-			flinkConfiguration.setInteger(JobManagerOptions.PORT, appReport.getRpcPort());
+			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
+				host, rpcPort, applicationId);
+
+			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
+
+			flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
+			flinkConfiguration.setInteger(RestOptions.REST_PORT, rpcPort);
 
 			return createYarnClusterClient(
 				this,
@@ -371,7 +379,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	@Override
-	public YarnClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
+	public ClusterClient<ApplicationId> deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
 		try {
 			return deployInternal(
 				clusterSpecification,
@@ -383,7 +391,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	@Override
-	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) throws ClusterDeploymentException {
+	public ClusterClient<ApplicationId> deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) throws ClusterDeploymentException {
 		try {
 			return deployInternal(
 				clusterSpecification,
@@ -410,7 +418,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * @param clusterSpecification Initial cluster specification for the to be deployed Flink cluster
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, null if none
 	 */
-	protected YarnClusterClient deployInternal(
+	protected ClusterClient<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
 			String yarnClusterEntrypoint,
 			@Nullable JobGraph jobGraph) throws Exception {
@@ -487,6 +495,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// Correctly initialize the Flink config
 		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
+
+		flinkConfiguration.setString(RestOptions.REST_ADDRESS, host);
+		flinkConfiguration.setInteger(RestOptions.REST_PORT, port);
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
@@ -1534,20 +1545,12 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	/**
 	 * Creates a YarnClusterClient; may be overriden in tests.
 	 */
-	protected YarnClusterClient createYarnClusterClient(
+	protected abstract ClusterClient<ApplicationId> createYarnClusterClient(
 			AbstractYarnClusterDescriptor descriptor,
 			int numberTaskManagers,
 			int slotsPerTaskManager,
 			ApplicationReport report,
 			org.apache.flink.configuration.Configuration flinkConfiguration,
-			boolean perJobCluster) throws Exception {
-		return new YarnClusterClient(
-			descriptor,
-			numberTaskManagers,
-			slotsPerTaskManager,
-			report,
-			flinkConfiguration,
-			perJobCluster);
-	}
+			boolean perJobCluster) throws Exception;
 }
 

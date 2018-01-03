@@ -318,28 +318,24 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		return false;
 	}
 
-	// ======================================
-	// Legacy stuff we ignore
-	// ======================================
-
 	@Override
 	public void waitForClusterToBeReady() {
-		throw new UnsupportedOperationException();
+		// no op
 	}
 
 	@Override
 	public String getWebInterfaceURL() {
-		throw new UnsupportedOperationException();
+		return "http://" + restClusterClientConfiguration.getRestServerAddress() + ':' + restClusterClientConfiguration.getRestServerPort();
 	}
 
 	@Override
 	public GetClusterStatusResponse getClusterStatus() {
-		throw new UnsupportedOperationException();
+		return null;
 	}
 
 	@Override
 	public List<String> getNewMessages() {
-		throw new UnsupportedOperationException();
+		return Collections.emptyList();
 	}
 
 	@Override

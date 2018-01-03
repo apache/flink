@@ -18,19 +18,23 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 
 /**
  * Implementation of {@link org.apache.flink.yarn.AbstractYarnClusterDescriptor} which is used to start the
  * new application master for a job under flip-6.
  */
-public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
+public class Flip6YarnClusterDescriptor extends AbstractYarnClusterDescriptor {
 
-	public YarnClusterDescriptorV2(
+	public Flip6YarnClusterDescriptor(
 			Configuration flinkConfiguration,
 			String configurationDirectory,
 			YarnClient yarnCLient) {
@@ -45,5 +49,18 @@ public class YarnClusterDescriptorV2 extends AbstractYarnClusterDescriptor {
 	@Override
 	protected String getYarnJobClusterEntrypoint() {
 		return YarnJobClusterEntrypoint.class.getName();
+	}
+
+	@Override
+	protected ClusterClient<ApplicationId> createYarnClusterClient(
+			AbstractYarnClusterDescriptor descriptor,
+			int numberTaskManagers,
+			int slotsPerTaskManager,
+			ApplicationReport report,
+			Configuration flinkConfiguration,
+			boolean perJobCluster) throws Exception {
+		return new RestClusterClient<>(
+			flinkConfiguration,
+			report.getApplicationId());
 	}
 }
