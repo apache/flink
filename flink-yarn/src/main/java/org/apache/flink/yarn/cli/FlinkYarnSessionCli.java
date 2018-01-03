@@ -38,8 +38,8 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
+import org.apache.flink.yarn.Flip6YarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
-import org.apache.flink.yarn.YarnClusterDescriptorV2;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.cli.CommandLine;
@@ -522,7 +522,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		for (Option option : commandLine.getOptions()) {
 			if (allOptions.hasOption(option.getOpt())) {
-				if (!option.getOpt().equals(detached.getOpt())) {
+				if (!option.getOpt().equals(detached.getOpt()) && !option.getOpt().equals(flip6.getOpt())) {
 					// don't resume from properties file if yarn options have been specified
 					canApplyYarnProperties = false;
 					break;
@@ -653,14 +653,19 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 						deleteYarnPropertiesFile();
 
+						ApplicationReport applicationReport;
+
 						try {
-							final ApplicationReport applicationReport = yarnClusterDescriptor
+							applicationReport = yarnClusterDescriptor
 								.getYarnClient()
 								.getApplicationReport(yarnApplicationId);
-
-							logFinalApplicationReport(applicationReport);
 						} catch (YarnException | IOException e) {
 							LOG.info("Could not log the final application report.", e);
+							applicationReport = null;
+						}
+
+						if (applicationReport != null) {
+							logFinalApplicationReport(applicationReport);
 						}
 					}
 				}
@@ -950,7 +955,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private static AbstractYarnClusterDescriptor getClusterDescriptor(Configuration configuration, String configurationDirectory, boolean flip6) {
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 		if (flip6) {
-			return new YarnClusterDescriptorV2(configuration, configurationDirectory, yarnClient);
+			return new Flip6YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);
 		} else {
 			return new YarnClusterDescriptor(configuration, configurationDirectory, yarnClient);
 		}
