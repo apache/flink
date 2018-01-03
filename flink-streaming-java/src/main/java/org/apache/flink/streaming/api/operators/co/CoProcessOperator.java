@@ -84,10 +84,7 @@ public class CoProcessOperator<IN1, IN2, OUT>
 		currentWatermark = mark.getTimestamp();
 	}
 
-	private class ContextImpl
-			extends CoProcessFunction<IN1, IN2, OUT>.Context
-			implements TimerService {
-
+	private class ContextImpl extends CoProcessFunction<IN1, IN2, OUT>.Context implements TimerService {
 		private final ProcessingTimeService timerService;
 
 		private StreamRecord<?> element;
@@ -120,12 +117,22 @@ public class CoProcessOperator<IN1, IN2, OUT>
 
 		@Override
 		public void registerProcessingTimeTimer(long time) {
-			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
+			throw new UnsupportedOperationException("Setting timers is only supported on a KeyedStream.");
 		}
 
 		@Override
 		public void registerEventTimeTimer(long time) {
-			throw new UnsupportedOperationException("Setting timers is only supported on a keyed streams.");
+			throw new UnsupportedOperationException("Setting timers is only supported on a KeyedStream.");
+		}
+
+		@Override
+		public int numProcessingTimeTimers() {
+			throw new UnsupportedOperationException("Getting number of timers is only supported on a KeyedStream.");
+		}
+
+		@Override
+		public int numEventTimeTimers() {
+			throw new UnsupportedOperationException("Getting number of timers is only supported on a KeyedStream.");
 		}
 
 		@Override

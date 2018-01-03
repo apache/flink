@@ -51,4 +51,16 @@ public interface TimerService {
 	 * will also be active when you receive the timer notification.
 	 */
 	void registerEventTimeTimer(long time);
+
+	/**
+	 *
+	 * @return
+	 */
+	int numProcessingTimeTimers();
+
+	/**
+	 *
+	 * @return
+	 */
+	int numEventTimeTimers();
 }
