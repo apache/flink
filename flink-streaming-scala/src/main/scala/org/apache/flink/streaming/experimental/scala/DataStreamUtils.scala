@@ -18,28 +18,31 @@
 
 package org.apache.flink.streaming.experimental.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.experimental.{DataStreamUtils => JavaStreamUtils}
 
-package object scala {
+import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
+
+/**
+  * This class provides simple utility methods for collecting a [[DataStream]],
+  * effectively enriching it with the functionality encapsulated by [[DataStreamUtils]].
+  *
+  * This experimental class is relocated from flink-streaming-contrib.
+  *
+  * @param self DataStream
+  */
+@PublicEvolving
+class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
 
   /**
-    * This class provides simple utility methods for collecting a [[DataStream]],
-    * effectively enriching it with the functionality encapsulated by [[DataStreamUtils]].
-    *
-    * This experimental class is relocated from flink-streaming-contrib.
-    *
-    * @param self DataStream
+    * Returns a scala iterator to iterate over the elements of the DataStream.
+    * @return The iterator
     */
-  implicit class DataStreamUtils[T: TypeInformation : ClassTag](val self: DataStream[T]) {
-
-    /**
-      * Returns a scala iterator to iterate over the elements of the DataStream.
-      * @return The iterator
-      */
-    def collect() : Iterator[T] = {
-      JavaStreamUtils.collect(self.javaStream).asScala
-    }
+  def collect() : Iterator[T] = {
+    JavaStreamUtils.collect(self.javaStream).asScala
   }
 }
+
