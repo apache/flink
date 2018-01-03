@@ -60,10 +60,10 @@ public class CliFrontendListTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-k"};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.list(parameters);
 	}
 
