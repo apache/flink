@@ -16,16 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.experimental
+package org.apache.flink.streaming.experimental.scala
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.experimental.{DataStreamUtils => JavaStreamUtils}
 
-import scala.reflect.ClassTag
-import scala.collection.JavaConverters._
-
-package object utils {
+package object scala {
 
   /**
     * This class provides simple utility methods for collecting a [[DataStream]],
