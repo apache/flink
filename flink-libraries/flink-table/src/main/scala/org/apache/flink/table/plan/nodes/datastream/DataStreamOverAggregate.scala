@@ -145,6 +145,14 @@ class DataStreamOverAggregate(
       inputSchema.typeInfo,
       Some(constants))
 
+    val constantTypes = constants.map(_.getType)
+    val fieldTypes = input.getRowType.getFieldList.asScala.map(_.getType)
+    val aggInTypes = fieldTypes ++ constantTypes
+    val aggInNames = aggInTypes.indices.map("f" + _)
+
+    val aggregateInputType =
+      getCluster.getTypeFactory.createStructType(aggInTypes.asJava, aggInNames.asJava)
+
     val timeType = schema.relDataType
       .getFieldList
       .get(orderKey.getFieldIndex)
@@ -167,6 +175,7 @@ class DataStreamOverAggregate(
         generator,
         inputDS,
         rowTimeIdx,
+        aggregateInputType,
         isRowsClause = overWindow.isRows)
     } else if (
       overWindow.lowerBound.isPreceding && !overWindow.lowerBound.isUnbounded &&
@@ -178,6 +187,7 @@ class DataStreamOverAggregate(
         generator,
         inputDS,
         rowTimeIdx,
+        aggregateInputType,
         isRowsClause = overWindow.isRows)
     } else {
       throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.")
@@ -189,6 +199,7 @@ class DataStreamOverAggregate(
     generator: AggregationCodeGenerator,
     inputDS: DataStream[CRow],
     rowTimeIdx: Option[Int],
+    aggregateInputType: RelDataType,
     isRowsClause: Boolean): DataStream[CRow] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
@@ -203,6 +214,7 @@ class DataStreamOverAggregate(
     val processFunction = AggregateUtil.createUnboundedOverProcessFunction(
       generator,
       namedAggregates,
+      aggregateInputType,
       inputSchema.relDataType,
       inputSchema.typeInfo,
       inputSchema.fieldTypeInfos,
@@ -236,6 +248,7 @@ class DataStreamOverAggregate(
     generator: AggregationCodeGenerator,
     inputDS: DataStream[CRow],
     rowTimeIdx: Option[Int],
+    aggregateInputType: RelDataType,
     isRowsClause: Boolean): DataStream[CRow] = {
 
     val overWindow: Group = logicWindow.groups.get(0)
@@ -253,6 +266,7 @@ class DataStreamOverAggregate(
     val processFunction = AggregateUtil.createBoundedOverProcessFunction(
       generator,
       namedAggregates,
+      aggregateInputType,
       inputSchema.relDataType,
       inputSchema.typeInfo,
       inputSchema.fieldTypeInfos,

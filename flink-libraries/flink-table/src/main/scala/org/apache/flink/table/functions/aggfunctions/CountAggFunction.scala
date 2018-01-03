@@ -33,7 +33,20 @@ class CountAccumulator extends JTuple1[Long] {
 /**
   * built-in count aggregate function
   */
-class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
+class CountAggFunction
+  extends AggregateFunction[JLong, CountAccumulator] {
+
+  // process argument is optimized by Calcite.
+  // For instance count(42) or count(*) will be optimized to count().
+  def accumulate(acc: CountAccumulator): Unit = {
+    acc.f0 += 1L
+  }
+
+  // process argument is optimized by Calcite.
+  // For instance count(42) or count(*) will be optimized to count().
+  def retract(acc: CountAccumulator): Unit = {
+    acc.f0 -= 1L
+  }
 
   def accumulate(acc: CountAccumulator, value: Any): Unit = {
     if (value != null) {

@@ -121,7 +121,7 @@ class AggregationCodeGenerator(
 
     // get parameter lists for aggregation functions
     val parametersCode = aggFields.map { inFields =>
-      val fields = inFields.map { f =>
+      val fields = inFields.filter(_ > -1).map { f =>
         // index to constant
         if (f >= physicalInputTypes.length) {
           constantFields(f - physicalInputTypes.length)
@@ -139,7 +139,7 @@ class AggregationCodeGenerator(
     val classes = UserDefinedFunctionUtils.typeInfoToClass(physicalInputTypes)
     val constantClasses = UserDefinedFunctionUtils.typeInfoToClass(constantTypes)
     val methodSignaturesList = aggFields.map { inFields =>
-      inFields.map { f =>
+      inFields.filter(_ > -1).map { f =>
         // index to constant
         if (f >= physicalInputTypes.length) {
           constantClasses(f - physicalInputTypes.length)
@@ -363,8 +363,8 @@ class AggregationCodeGenerator(
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
              |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.accumulate(
-             |      acc$i,
-             |      ${parametersCode(i)});""".stripMargin
+             |      acc$i ${if (!parametersCode(i).isEmpty) "," else "" } ${parametersCode(i)});
+           """.stripMargin
         }
       }.mkString("\n")
 
@@ -387,8 +387,8 @@ class AggregationCodeGenerator(
              |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
              |    ${genDataViewFieldSetter(s"acc$i", i)}
              |    ${aggs(i)}.retract(
-             |      acc$i,
-             |      ${parametersCode(i)});""".stripMargin
+             |      acc$i ${if (!parametersCode(i).isEmpty) "," else "" } ${parametersCode(i)});
+           """.stripMargin
         }
       }.mkString("\n")
 

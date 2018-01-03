@@ -152,7 +152,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT " +
       "c, " +
       "count(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
-      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) " +
+      "sum(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding), " +
+      "sum(2) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED preceding) " +
       "from T1"
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -160,8 +161,8 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     env.execute()
 
     val expected = List(
-      "Hello World,1,7", "Hello World,2,15", "Hello World,3,35",
-      "Hello,1,1", "Hello,2,3", "Hello,3,6", "Hello,4,10", "Hello,5,15", "Hello,6,21")
+      "Hello World,1,7,2", "Hello World,2,15,4", "Hello World,3,35,6",
+      "Hello,1,1,2", "Hello,2,3,4", "Hello,3,6,6", "Hello,4,10,8", "Hello,5,15,10", "Hello,6,21,12")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 
@@ -179,7 +180,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
     val sqlQuery = "SELECT c, cnt1 from " +
       "(SELECT " +
       "c, " +
-      "count(a) " +
+      "count(1) " +
       " OVER (PARTITION BY c ORDER BY proctime ROWS BETWEEN UNBOUNDED preceding AND CURRENT ROW) " +
       "as cnt1 from T1)"
 
@@ -366,7 +367,7 @@ class OverWindowITCase extends StreamingWithStateTestBase {
       " c, a, " +
       "  LTCNT(a, CAST('4' AS BIGINT)) " +
       "    OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), " +
-      "  COUNT(a) " +
+      "  COUNT(1) " +
       "    OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), " +
       "  SUM(a) " +
       "    OVER (PARTITION BY c ORDER BY rowtime ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) " +

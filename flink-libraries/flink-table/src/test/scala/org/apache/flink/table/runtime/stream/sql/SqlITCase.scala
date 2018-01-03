@@ -22,10 +22,13 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.SplitUDF
+import org.apache.flink.table.runtime.stream.sql.SqlITCase.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
@@ -33,7 +36,74 @@ import org.apache.flink.table.utils.MemoryTableSinkUtil
 import org.junit.Assert._
 import org.junit._
 
+import scala.collection.mutable
+
 class SqlITCase extends StreamingWithStateTestBase {
+
+  val data = List(
+    (1000L, "1", "Hello"),
+    (2000L, "2", "Hello"),
+    (3000L, null.asInstanceOf[String], "Hello"),
+    (4000L, "4", "Hello"),
+    (5000L, null.asInstanceOf[String], "Hello"),
+    (6000L, "6", "Hello"),
+    (7000L, "7", "Hello World"),
+    (8000L, "8", "Hello World"),
+    (20000L, "20", "Hello World"))
+
+  @Test
+  def testRowTimeTumbleWindow(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.testResults = mutable.MutableList()
+    StreamITCase.clear
+    env.setParallelism(1)
+
+    val stream = env
+                 .fromCollection(data)
+                 .assignTimestampsAndWatermarks(
+                   new TimestampAndWatermarkWithOffset[(Long, String, String)](0L))
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+
+    tEnv.registerTable("T1", table)
+
+    val sqlQuery = "SELECT c, COUNT(*), COUNT(1), COUNT(b) FROM T1 " +
+      "GROUP BY TUMBLE(rowtime, interval '5' SECOND), c"
+
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = List("Hello World,2,2,2", "Hello World,1,1,1", "Hello,4,4,3", "Hello,2,2,1")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testNonWindowedCount(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    StreamITCase.retractedResults = mutable.ArrayBuffer()
+    StreamITCase.clear
+
+    env.setParallelism(1)
+
+    val stream = env.fromCollection(data)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c)
+
+    tEnv.registerTable("T1", table)
+
+    val sqlQuery = "SELECT c, COUNT(*), COUNT(1), COUNT(b) FROM T1 GROUP BY c"
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    result.addSink(new StreamITCase.RetractingSink)
+    env.execute()
+
+    val expected = List("Hello World,3,3,3", "Hello,6,6,4")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
+  }
 
    /** test row stream registered table **/
   @Test
@@ -516,4 +586,24 @@ class SqlITCase extends StreamingWithStateTestBase {
     val expected = List("a,a,d,d,e,e", "x,x,z,z,z,z")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
+}
+
+object SqlITCase {
+
+  class TimestampAndWatermarkWithOffset[T <: Product](
+      offset: Long) extends AssignerWithPunctuatedWatermarks[T] {
+
+    override def checkAndGetNextWatermark(
+        lastElement: T,
+        extractedTimestamp: Long): Watermark = {
+      new Watermark(extractedTimestamp - offset)
+    }
+
+    override def extractTimestamp(
+        element: T,
+        previousElementTimestamp: Long): Long = {
+      element.productElement(0).asInstanceOf[Long]
+    }
+  }
+
 }
