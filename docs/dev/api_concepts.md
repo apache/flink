@@ -64,7 +64,7 @@ derived from these by transforming them using API methods such as `map`, `filter
 Anatomy of a Flink Program
 --------------------------
 
-Flink program programs look like regular programs that transform collections of data.
+Flink programs look like regular programs that transform collections of data.
 Each program consists of the same basic parts:
 
 1. Obtain an `execution environment`,
