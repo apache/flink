@@ -146,14 +146,31 @@ abstract class AggFunctionTestBase[T, ACC] {
     val accumulator = aggregator.createAccumulator()
     vals.foreach(
       v =>
-        accumulateFunc.invoke(aggregator, accumulator.asInstanceOf[Object], v.asInstanceOf[Object])
+        if (accumulateFunc.getParameterCount == 1) {
+          this.accumulateFunc.invoke(aggregator, accumulator.asInstanceOf[Object])
+        } else {
+          this.accumulateFunc.invoke(
+            aggregator,
+            accumulator.asInstanceOf[Object],
+            v.asInstanceOf[Object])
+        }
     )
     accumulator
   }
 
-  private def retractVals(accumulator:ACC, vals: Seq[_]) = {
+  private def retractVals(accumulator: ACC, vals: Seq[_]) = {
     vals.foreach(
-      v => retractFunc.invoke(aggregator, accumulator.asInstanceOf[Object], v.asInstanceOf[Object])
+      v =>
+        if (retractFunc.getParameterCount == 1) {
+          this.retractFunc.invoke(
+            aggregator,
+            accumulator.asInstanceOf[Object])
+        } else {
+          this.retractFunc.invoke(
+            aggregator,
+            accumulator.asInstanceOf[Object],
+            v.asInstanceOf[Object])
+        }
     )
   }
 }

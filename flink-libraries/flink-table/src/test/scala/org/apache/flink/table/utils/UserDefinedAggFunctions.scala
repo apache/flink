@@ -45,8 +45,8 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
   /**
     * Adds a new entry and count to the top 10 entries if necessary.
     *
-    * @param acc The current top 10
-    * @param id The ID
+    * @param acc   The current top 10
+    * @param id    The ID
     * @param value The value for the ID
     */
   def accumulate(acc: Array[JTuple2[JInt, JFloat]], id: Int, value: Float) {
@@ -91,7 +91,7 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
       its: java.lang.Iterable[Array[JTuple2[JInt, JFloat]]]): Unit = {
 
     val it = its.iterator()
-    while(it.hasNext) {
+    while (it.hasNext) {
       val acc2 = it.next()
 
       var i = 0
@@ -123,4 +123,23 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
   override def getResultType: TypeInformation[Array[JTuple2[JInt, JFloat]]] = {
     ObjectArrayTypeInfo.getInfoFor(new TupleTypeInfo[JTuple2[JInt, JFloat]](Types.INT, Types.FLOAT))
   }
+}
+
+case class NonMergableCountAcc(var count: Long)
+
+class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
+
+  def accumulate(acc: NonMergableCountAcc, value: Any): Unit = {
+    if (null != value) {
+      acc.count = acc.count + 1
+    }
+  }
+
+  def resetAccumulator(acc: NonMergableCountAcc): Unit = {
+    acc.count = 0
+  }
+
+  override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)
+
+  override def getValue(acc: NonMergableCountAcc): Long = acc.count
 }

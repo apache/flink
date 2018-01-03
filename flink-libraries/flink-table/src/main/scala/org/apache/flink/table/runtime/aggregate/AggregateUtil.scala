@@ -829,7 +829,7 @@ object AggregateUtil {
       outputType: RelDataType,
       groupings: Array[Int]): (Option[DataSetPreAggFunction],
         Option[TypeInformation[Row]],
-        RichGroupReduceFunction[Row, Row]) = {
+        Either[DataSetAggFunction, DataSetFinalAggFunction]) = {
 
     val needRetract = false
     val (aggInFields, aggregates, accTypes, _) = transformToAggregateFunctions(
@@ -899,7 +899,7 @@ object AggregateUtil {
       (
         Some(new DataSetPreAggFunction(genPreAggFunction)),
         Some(preAggRowType),
-        new DataSetFinalAggFunction(genFinalAggFunction)
+        Right(new DataSetFinalAggFunction(genFinalAggFunction))
       )
     }
     else {
@@ -922,7 +922,7 @@ object AggregateUtil {
       (
         None,
         None,
-        new DataSetAggFunction(genFunction)
+        Left(new DataSetAggFunction(genFunction))
       )
     }
 

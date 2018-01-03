@@ -28,7 +28,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
-import org.apache.flink.table.utils.Top10
+import org.apache.flink.table.utils.{NonMergableCount, Top10}
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -36,6 +36,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class AggregationsITCase(
@@ -266,10 +267,33 @@ class AggregationsITCase(
       .select('a.sum as 'd, 'b)
       .groupBy('b, 'd)
       .select('b)
-
     val expected = "1\n" + "2\n" + "3\n" + "4\n" + "5\n" + "6\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
+  }
+
+  @Test
+  def testAggregateEmptyDataSets(): Unit = {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val myAgg = new NonMergableCount
+
+    val t1 = env.fromCollection(new mutable.MutableList[(Int, String)]).toTable(tEnv, 'a, 'b)
+      .select('a.sum, 'a.count)
+    val t2 = env.fromCollection(new mutable.MutableList[(Int, String)]).toTable(tEnv, 'a, 'b)
+      .select('a.sum, myAgg('b), 'a.count)
+
+    val expected1 = "null,0"
+    val expected2 = "null,0,0"
+
+    val results1 = t1.toDataSet[Row].collect()
+    val results2 = t2.toDataSet[Row].collect()
+
+    TestBaseUtils.compareResultAsText(results1.asJava, expected1)
+    TestBaseUtils.compareResultAsText(results2.asJava, expected2)
+
   }
 
   @Test

@@ -36,22 +36,13 @@ class DistinctAggregateTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetAggregate",
       unaryNode(
-        "DataSetUnion",
+        "DataSetDistinct",
         unaryNode(
-          "DataSetValues",
-          unaryNode(
-            "DataSetDistinct",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a")
-            ),
-            term("distinct", "a")
-          ),
-          tuples(List(null)),
-          term("values", "a")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a")
         ),
-        term("union", "a")
+        term("distinct", "a")
       ),
       term("select", "COUNT(a) AS EXPR$0")
     )
@@ -69,22 +60,13 @@ class DistinctAggregateTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetAggregate",
       unaryNode(
-        "DataSetUnion",
+        "DataSetDistinct",
         unaryNode(
-          "DataSetValues",
-          unaryNode(
-            "DataSetDistinct",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a")
-            ),
-            term("distinct", "a")
-          ),
-          tuples(List(null)),
-          term("values", "a")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a")
         ),
-        term("union", "a")
+        term("distinct", "a")
       ),
       term("select", "COUNT(a) AS EXPR$0", "SUM(a) AS EXPR$1", "MAX(a) AS EXPR$2")
     )
@@ -103,23 +85,14 @@ class DistinctAggregateTest extends TableTestBase {
     val expected0 = unaryNode(
       "DataSetAggregate",
       unaryNode(
-        "DataSetUnion",
+        "DataSetAggregate",
         unaryNode(
-          "DataSetValues",
-          unaryNode(
-            "DataSetAggregate",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a", "b")
-            ),
-            term("groupBy", "a"),
-            term("select", "a", "SUM(b) AS EXPR$1")
-          ),
-          tuples(List(null, null)),
-          term("values", "a", "EXPR$1")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a", "b")
         ),
-        term("union", "a", "EXPR$1")
+        term("groupBy", "a"),
+        term("select", "a", "SUM(b) AS EXPR$1")
       ),
       term("select", "COUNT(a) AS EXPR$0", "SUM(EXPR$1) AS EXPR$1")
     )
@@ -132,23 +105,14 @@ class DistinctAggregateTest extends TableTestBase {
     val expected1 = unaryNode(
       "DataSetAggregate",
       unaryNode(
-        "DataSetUnion",
+        "DataSetAggregate",
         unaryNode(
-          "DataSetValues",
-          unaryNode(
-            "DataSetAggregate",
-            unaryNode(
-              "DataSetCalc",
-              batchTableNode(0),
-              term("select", "a", "b")
-            ),
-            term("groupBy", "b"),
-            term("select", "b", "COUNT(a) AS EXPR$0")
-          ),
-          tuples(List(null, null)),
-          term("values", "b", "EXPR$0")
+          "DataSetCalc",
+          batchTableNode(0),
+          term("select", "a", "b")
         ),
-        term("union", "b", "EXPR$0")
+        term("groupBy", "b"),
+        term("select", "b", "COUNT(a) AS EXPR$0")
       ),
       term("select", "$SUM0(EXPR$0) AS EXPR$0", "SUM(b) AS EXPR$1")
     )
@@ -168,44 +132,26 @@ class DistinctAggregateTest extends TableTestBase {
       unaryNode(
         "DataSetAggregate",
         unaryNode(
-          "DataSetUnion",
+          "DataSetDistinct",
           unaryNode(
-            "DataSetValues",
-            unaryNode(
-              "DataSetDistinct",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(0),
-                term("select", "a")
-              ),
-              term("distinct", "a")
-            ),
-            tuples(List(null)),
-            term("values", "a")
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "a")
           ),
-          term("union", "a")
+          term("distinct", "a")
         ),
         term("select", "COUNT(a) AS EXPR$0")
       ),
       unaryNode(
         "DataSetAggregate",
         unaryNode(
-          "DataSetUnion",
+          "DataSetDistinct",
           unaryNode(
-            "DataSetValues",
-            unaryNode(
-              "DataSetDistinct",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(0),
-                term("select", "b")
-              ),
-              term("distinct", "b")
-            ),
-            tuples(List(null)),
-            term("values", "b")
+            "DataSetCalc",
+            batchTableNode(0),
+            term("select", "b")
           ),
-          term("union", "b")
+          term("distinct", "b")
         ),
         term("select", "SUM(b) AS EXPR$1")
       ),
@@ -232,37 +178,19 @@ class DistinctAggregateTest extends TableTestBase {
           "DataSetSingleRowJoin",
           unaryNode(
             "DataSetAggregate",
-            unaryNode(
-              "DataSetUnion",
-              unaryNode(
-                "DataSetValues",
-                batchTableNode(0),
-                tuples(List(null, null, null)),
-                term("values", "a, b, c")
-              ),
-              term("union", "a, b, c")
-            ),
+            batchTableNode(0),
             term("select", "COUNT(c) AS EXPR$2")
           ),
           unaryNode(
             "DataSetAggregate",
             unaryNode(
-              "DataSetUnion",
+              "DataSetDistinct",
               unaryNode(
-                "DataSetValues",
-                unaryNode(
-                  "DataSetDistinct",
-                  unaryNode(
-                    "DataSetCalc",
-                    batchTableNode(0),
-                    term("select", "a")
-                  ),
-                  term("distinct", "a")
-                ),
-                tuples(List(null)),
-                term("values", "a")
+                "DataSetCalc",
+                batchTableNode(0),
+                term("select", "a")
               ),
-              term("union", "a")
+              term("distinct", "a")
             ),
             term("select", "COUNT(a) AS EXPR$0")
           ),
@@ -273,22 +201,13 @@ class DistinctAggregateTest extends TableTestBase {
         unaryNode(
           "DataSetAggregate",
           unaryNode(
-            "DataSetUnion",
+            "DataSetDistinct",
             unaryNode(
-              "DataSetValues",
-              unaryNode(
-                "DataSetDistinct",
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "b")
-                ),
-                term("distinct", "b")
-              ),
-              tuples(List(null)),
-              term("values", "b")
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "b")
             ),
-            term("union", "b")
+            term("distinct", "b")
           ),
           term("select", "SUM(b) AS EXPR$1")
         ),

@@ -27,6 +27,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
 import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMode
+import org.apache.flink.table.utils.NonMergableCount
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.junit._
@@ -34,6 +35,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class AggregateITCase(
@@ -262,6 +264,8 @@ class AggregateITCase(
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
+    val myAgg = new NonMergableCount
+    tEnv.registerFunction("myAgg", myAgg)
 
     val sqlQuery = "SELECT avg(a), sum(a), count(b) " +
       "FROM MyTable where a = 4 group by a"
@@ -271,6 +275,9 @@ class AggregateITCase(
 
     val sqlQuery3 = "SELECT avg(a), sum(a), count(b) " +
       "FROM MyTable"
+
+    val sqlQuery4 = "SELECT avg(a), sum(a), count(b), myAgg(b)" +
+      "FROM MyTable where a = 4"
 
     val ds = env.fromElements(
       (1: Byte, 1: Short),
@@ -282,6 +289,7 @@ class AggregateITCase(
     val result = tEnv.sqlQuery(sqlQuery)
     val result2 = tEnv.sqlQuery(sqlQuery2)
     val result3 = tEnv.sqlQuery(sqlQuery3)
+    val result4 = tEnv.sqlQuery(sqlQuery4)
 
     val results = result.toDataSet[Row].collect()
     val expected = Seq.empty
@@ -289,11 +297,14 @@ class AggregateITCase(
     val expected2 = "null,null,0"
     val results3 = result3.toDataSet[Row].collect()
     val expected3 = "1,3,2"
+    val results4 =  result4.toDataSet[Row].collect()
+    val expected4 = "null,null,0,0"
 
     assert(results.equals(expected),
       "Empty result is expected for grouped set, but actual: " + results)
     TestBaseUtils.compareResultAsText(results2.asJava, expected2)
     TestBaseUtils.compareResultAsText(results3.asJava, expected3)
+    TestBaseUtils.compareResultAsText(results4.asJava, expected4)
   }
 
   @Test
