@@ -101,20 +101,11 @@ class SetOperatorsTest extends TableTestBase {
             batchTableNode(0),
             unaryNode(
               "DataSetAggregate",
-              binaryNode(
-                "DataSetUnion",
-                values(
-                  "DataSetValues",
-                  term("tuples", "[{ null }]"),
-                  term("values", "b")
-                ),
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "b"),
-                  term("where", "OR(=(b, 6), =(b, 1))")
-                ),
-                term("union", "b")
+              unaryNode(
+                "DataSetCalc",
+                batchTableNode(0),
+                term("select", "b"),
+                term("where", "OR(=(b, 6), =(b, 1))")
               ),
               term("select", "COUNT(*) AS $f0", "COUNT(b) AS $f1")
             ),

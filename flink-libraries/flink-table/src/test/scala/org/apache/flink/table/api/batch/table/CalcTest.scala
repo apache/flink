@@ -139,19 +139,10 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetAggregate",
-      binaryNode(
-        "DataSetUnion",
-        values(
-          "DataSetValues",
-          tuples(List(null, null)),
-          term("values", "a", "b")
-        ),
-        unaryNode(
-          "DataSetCalc",
-          batchTableNode(0),
-          term("select", "a", "b")
-        ),
-        term("union", "a", "b")
+      unaryNode(
+        "DataSetCalc",
+        batchTableNode(0),
+        term("select", "a", "b")
       ),
       term("select", "SUM(a) AS TMP_0", "MAX(b) AS TMP_1")
     )

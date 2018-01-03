@@ -36,21 +36,9 @@ class AggregateTest extends TableTestBase {
 
     val sqlQuery = "SELECT avg(a), sum(b), count(c) FROM MyTable"
 
-    val setValues = unaryNode(
-      "DataSetValues",
-      batchTableNode(0),
-      tuples(List(null,null,null)),
-      term("values","a","b","c")
-    )
-    val union = unaryNode(
-      "DataSetUnion",
-      setValues,
-      term("union","a","b","c")
-    )
-
     val aggregate = unaryNode(
       "DataSetAggregate",
-      union,
+      batchTableNode(0),
       term("select",
         "AVG(a) AS EXPR$0",
         "SUM(b) AS EXPR$1",
@@ -73,22 +61,9 @@ class AggregateTest extends TableTestBase {
       term("where", "=(a, 1)")
     )
 
-    val setValues =  unaryNode(
-        "DataSetValues",
-        calcNode,
-        tuples(List(null,null,null)),
-        term("values","a","b","c")
-    )
-
-    val union = unaryNode(
-      "DataSetUnion",
-      setValues,
-      term("union","a","b","c")
-    )
-
     val aggregate = unaryNode(
       "DataSetAggregate",
-      union,
+      calcNode,
       term("select",
         "AVG(a) AS EXPR$0",
         "SUM(b) AS EXPR$1",
@@ -111,22 +86,9 @@ class AggregateTest extends TableTestBase {
       term("where", "=(a, 1)")
     )
 
-    val setValues =  unaryNode(
-      "DataSetValues",
-      calcNode,
-      tuples(List(null,null,null,null)),
-      term("values","a","b","c","$f3")
-    )
-
-    val union = unaryNode(
-      "DataSetUnion",
-      setValues,
-      term("union","a","b","c","$f3")
-    )
-
     val aggregate = unaryNode(
       "DataSetAggregate",
-      union,
+      calcNode,
       term("select",
         "AVG(a) AS EXPR$0",
         "SUM(b) AS EXPR$1",
