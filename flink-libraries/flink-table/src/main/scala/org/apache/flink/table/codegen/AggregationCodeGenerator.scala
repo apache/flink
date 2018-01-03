@@ -121,7 +121,7 @@ class AggregationCodeGenerator(
 
     // get parameter lists for aggregation functions
     val parametersCode = aggFields.map { inFields =>
-      val fields = inFields.map { f =>
+      val fields = inFields.filter(_ > -1).map { f =>
         // index to constant
         if (f >= physicalInputTypes.length) {
           constantFields(f - physicalInputTypes.length)
@@ -139,7 +139,7 @@ class AggregationCodeGenerator(
     val classes = UserDefinedFunctionUtils.typeInfoToClass(physicalInputTypes)
     val constantClasses = UserDefinedFunctionUtils.typeInfoToClass(constantTypes)
     val methodSignaturesList = aggFields.map { inFields =>
-      inFields.map { f =>
+      inFields.filter(_ > -1).map { f =>
         // index to constant
         if (f >= physicalInputTypes.length) {
           constantClasses(f - physicalInputTypes.length)
@@ -359,12 +359,17 @@ class AggregationCodeGenerator(
 
       val accumulate: String = {
         for (i <- aggs.indices) yield {
-          j"""
-             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-             |    ${genDataViewFieldSetter(s"acc$i", i)}
-             |    ${aggs(i)}.accumulate(
-             |      acc$i,
-             |      ${parametersCode(i)});""".stripMargin
+          val accumulateCode =
+            j"""
+               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |    ${genDataViewFieldSetter(s"acc$i", i)}
+               |    ${aggs(i)}.accumulate(acc$i""".stripMargin
+
+          if (parametersCode(i).equals("")) {
+            j"""$accumulateCode);""".stripMargin
+          } else {
+            j"""$accumulateCode,${parametersCode(i)});""".stripMargin
+          }
         }
       }.mkString("\n")
 
@@ -383,12 +388,16 @@ class AggregationCodeGenerator(
 
       val retract: String = {
         for (i <- aggs.indices) yield {
-          j"""
-             |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
-             |    ${genDataViewFieldSetter(s"acc$i", i)}
-             |    ${aggs(i)}.retract(
-             |      acc$i,
-             |      ${parametersCode(i)});""".stripMargin
+          val retractCode =
+            j"""
+               |    ${accTypes(i)} acc$i = (${accTypes(i)}) accs.getField($i);
+               |    ${genDataViewFieldSetter(s"acc$i", i)}
+               |    ${aggs(i)}.retract(acc$i""".stripMargin
+          if (parametersCode(i).equals("")) {
+            j"""$retractCode);""".stripMargin
+          } else {
+            j"""$retractCode,${parametersCode(i)});""".stripMargin
+          }
         }
       }.mkString("\n")
 
