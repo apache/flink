@@ -93,7 +93,7 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", new HashCode(10))
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
 {% endhighlight %}
 </div>
 </div>
@@ -198,17 +198,17 @@ val myTable = ...         // table schema: [a: String]
 // Use the table function in the Scala Table API (Note: No registration required in Scala Table API).
 val split = new Split("#")
 // "as" specifies the field names of the generated table.
-myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length);
-myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length);
+myTable.join(split('a) as ('word, 'length)).select('a, 'word, 'length)
+myTable.leftOuterJoin(split('a) as ('word, 'length)).select('a, 'word, 'length)
 
 // Register the table function to use it in SQL queries.
 tableEnv.registerFunction("split", new Split("#"))
 
 // Use the table function in SQL with LATERAL and TABLE keywords.
 // CROSS JOIN a table function (equivalent to "join" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)");
+tableEnv.sqlQuery("SELECT a, word, length FROM MyTable, LATERAL TABLE(split(a)) as T(word, length)")
 // LEFT JOIN a table function (equivalent to "leftOuterJoin" in Table API)
-tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE");
+tableEnv.sqlQuery("SELECT a, word, length FROM MyTable LEFT JOIN TABLE(split(a)) as T(word, length) ON TRUE")
 {% endhighlight %}
 **IMPORTANT:** Do not implement TableFunction as a Scala object. Scala object is a singleton and will cause concurrency issues.
 </div>
@@ -723,7 +723,7 @@ tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
 {% highlight scala %}
 object hashCode extends ScalarFunction {
 
-  var hashcode_factor = 12;
+  var hashcode_factor = 12
 
   override def open(context: FunctionContext): Unit = {
     // access "hashcode_factor" parameter
@@ -743,7 +743,7 @@ myTable.select('string, hashCode('string))
 
 // register and use the function in SQL
 tableEnv.registerFunction("hashCode", hashCode)
-tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable");
+tableEnv.sqlQuery("SELECT string, HASHCODE(string) FROM MyTable")
 {% endhighlight %}
 
 </div>
