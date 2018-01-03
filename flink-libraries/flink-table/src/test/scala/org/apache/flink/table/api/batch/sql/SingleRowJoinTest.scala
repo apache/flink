@@ -47,16 +47,7 @@ class SingleRowJoinTest extends TableTestBase {
           "DataSetCalc",
           unaryNode(
             "DataSetAggregate",
-            unaryNode(
-              "DataSetUnion",
-              unaryNode(
-                "DataSetValues",
-                batchTableNode(0),
-                tuples(List(null, null)),
-                term("values", "a1", "a2")
-              ),
-              term("union","a1","a2")
-            ),
+            batchTableNode(0),
             term("select", "SUM(a1) AS $f0", "SUM(a2) AS $f1")
           ),
           term("select", "+($f0, $f1) AS asum")
@@ -88,18 +79,9 @@ class SingleRowJoinTest extends TableTestBase {
           unaryNode(
             "DataSetAggregate",
             unaryNode(
-              "DataSetUnion",
-              unaryNode(
-                "DataSetValues",
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "a1")
-                ),
-                tuples(List(null)),
-                term("values", "a1")
-              ),
-              term("union","a1")
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "a1")
             ),
             term("select", "COUNT(a1) AS cnt")
           ),
@@ -132,18 +114,9 @@ class SingleRowJoinTest extends TableTestBase {
           unaryNode(
             "DataSetAggregate",
             unaryNode(
-              "DataSetUnion",
-              unaryNode(
-                "DataSetValues",
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "a1")
-                ),
-                tuples(List(null)),
-                term("values", "a1")
-              ),
-              term("union", "a1")
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "a1")
             ),
             term("select", "COUNT(a1) AS cnt")
           ),
@@ -173,16 +146,7 @@ class SingleRowJoinTest extends TableTestBase {
       batchTableNode(0),
       unaryNode(
         "DataSetAggregate",
-        unaryNode(
-          "DataSetUnion",
-          unaryNode(
-            "DataSetValues",
-            batchTableNode(1),
-            tuples(List(null, null)),
-            term("values", "b1", "b2")
-          ),
-          term("union","b1","b2")
-        ),
+        batchTableNode(1),
         term("select", "MIN(b1) AS b1", "MAX(b2) AS b2")
       ),
       term("where", "AND(<(a1, b1)", "=(a2, b2))"),
@@ -221,17 +185,9 @@ class SingleRowJoinTest extends TableTestBase {
         unaryNode(
           "DataSetAggregate",
           unaryNode(
-            "DataSetUnion",
-            unaryNode(
-              "DataSetValues",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(1),
-                term("select", "0 AS $f0")),
-              tuples(List(null)), term("values", "$f0")
-            ),
-            term("union", "$f0")
-          ),
+            "DataSetCalc",
+            batchTableNode(1),
+            term("select", "0 AS $f0")),
           term("select", "COUNT(*) AS cnt")
         )
 
@@ -266,17 +222,9 @@ class SingleRowJoinTest extends TableTestBase {
         unaryNode(
           "DataSetAggregate",
           unaryNode(
-            "DataSetUnion",
-            unaryNode(
-              "DataSetValues",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(1),
-                term("select", "0 AS $f0")),
-              tuples(List(null)), term("values", "$f0")
-            ),
-            term("union", "$f0")
-          ),
+            "DataSetCalc",
+            batchTableNode(1),
+            term("select", "0 AS $f0")),
           term("select", "COUNT(*) AS cnt")
         )
 
@@ -308,21 +256,13 @@ class SingleRowJoinTest extends TableTestBase {
         ),
         term("select", "a1")
       ) + unaryNode(
-          "DataSetAggregate",
-          unaryNode(
-            "DataSetUnion",
-            unaryNode(
-              "DataSetValues",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(1),
-                term("select", "0 AS $f0")),
-              tuples(List(null)), term("values", "$f0")
-            ),
-            term("union", "$f0")
-          ),
-          term("select", "COUNT(*) AS cnt")
-        ) + "\n" +
+        "DataSetAggregate",
+        unaryNode(
+          "DataSetCalc",
+          batchTableNode(1),
+          term("select", "0 AS $f0")),
+        term("select", "COUNT(*) AS cnt")
+      ) + "\n" +
         batchTableNode(0)
 
     util.verifySql(queryRightJoin, expected)
@@ -356,17 +296,9 @@ class SingleRowJoinTest extends TableTestBase {
         unaryNode(
           "DataSetAggregate",
           unaryNode(
-            "DataSetUnion",
-            unaryNode(
-              "DataSetValues",
-              unaryNode(
-                "DataSetCalc",
-                batchTableNode(1),
-                term("select", "0 AS $f0")),
-              tuples(List(null)), term("values", "$f0")
-            ),
-            term("union", "$f0")
-          ),
+            "DataSetCalc",
+            batchTableNode(1),
+            term("select", "0 AS $f0")),
           term("select", "COUNT(*) AS cnt")
         ) + "\n" +
         batchTableNode(0)
@@ -406,17 +338,9 @@ class SingleRowJoinTest extends TableTestBase {
           unaryNode(
             "DataSetAggregate",
             unaryNode(
-              "DataSetUnion",
-              unaryNode(
-                "DataSetValues",
-                unaryNode(
-                  "DataSetCalc",
-                  batchTableNode(0),
-                  term("select", "a1")
-                ),
-                tuples(List(null)), term("values", "a1")
-              ),
-              term("union", "a1")
+              "DataSetCalc",
+              batchTableNode(0),
+              term("select", "a1")
             ),
             term("select", "SUM(a1) AS $f0")
           ),

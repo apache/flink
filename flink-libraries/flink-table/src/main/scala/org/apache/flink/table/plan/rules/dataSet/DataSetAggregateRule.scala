@@ -37,12 +37,6 @@ class DataSetAggregateRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: FlinkLogicalAggregate = call.rel(0).asInstanceOf[FlinkLogicalAggregate]
 
-    // for non-grouped agg sets we attach null row to source data
-    // we need to apply DataSetAggregateWithNullValuesRule
-    if (agg.getGroupSet.isEmpty) {
-      return false
-    }
-
     // distinct is translated into dedicated operator
     if (agg.getAggCallList.isEmpty &&
       agg.getGroupCount == agg.getRowType.getFieldCount &&

@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.aggregate
 
 import java.lang.Iterable
 
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
+import org.apache.flink.api.common.functions.{MapPartitionFunction, RichGroupReduceFunction}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.{Compiler, GeneratedAggregationsFunction}
 import org.apache.flink.table.util.Logging
@@ -27,14 +27,15 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * [[RichGroupReduceFunction]] to compute aggregates that do not support pre-aggregation for batch
-  * (DataSet) queries.
+  * [[RichGroupReduceFunction]] and [[MapPartitionFunction]] to compute aggregates that do
+  * not support pre-aggregation for batch(DataSet) queries.
   *
   * @param genAggregations Code-generated [[GeneratedAggregations]]
   */
 class DataSetAggFunction(
     private val genAggregations: GeneratedAggregationsFunction)
   extends RichGroupReduceFunction[Row, Row]
+    with MapPartitionFunction[Row, Row]
     with Compiler[GeneratedAggregations] with Logging {
 
   private var output: Row = _
@@ -56,6 +57,12 @@ class DataSetAggFunction(
     accumulators = function.createAccumulators()
   }
 
+  /**
+    * Computes a non-pre-aggregated aggregation.
+    *
+    * @param records An iterator over all records of the group.
+    * @param out     The collector to hand results to.
+    */
   override def reduce(records: Iterable[Row], out: Collector[Row]): Unit = {
 
     // reset accumulators
@@ -79,4 +86,15 @@ class DataSetAggFunction(
 
     out.collect(output)
   }
+
+  /**
+    * Computes a non-pre-aggregated aggregation and returns a row even if the input is empty.
+    *
+    * @param records An iterator over all records of the partition.
+    * @param out     The collector to hand results to.
+    */
+  override def mapPartition(records: Iterable[Row], out: Collector[Row]): Unit = {
+    reduce(records, out)
+  }
+
 }
