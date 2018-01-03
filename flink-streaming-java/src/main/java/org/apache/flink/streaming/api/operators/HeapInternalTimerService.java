@@ -128,7 +128,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 * <ol>
 	 *     <li>Setting the {@code keySerialized} and {@code namespaceSerializer} for the timers it will contain.</li>
 	 *     <li>Setting the {@code triggerTarget} which contains the action to be performed when a timer fires.</li>
-	 *     <li>Re-registering timers that were retrieved after recoveting from a node failure, if any.</li>
+	 *     <li>Re-registering timers that were retrieved after recovering from a node failure, if any.</li>
 	 * </ol>
 	 * This method can be called multiple times, as long as it is called with the same serializers.
 	 */

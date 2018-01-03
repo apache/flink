@@ -156,7 +156,7 @@ public class FlinkClient {
 		return this;
 	}
 
-	// The following methods are derived from "backtype.storm.generated.Nimubs.Client"
+	// The following methods are derived from "backtype.storm.generated.Nimbus.Client"
 
 	/**
 	 * Parameter {@code uploadedJarLocation} is actually used to point to the local jar, because Flink does not support

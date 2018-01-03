@@ -251,7 +251,7 @@ public class HeartbeatManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTargetUnmonitoring() throws InterruptedException, ExecutionException {
-		// this might be too aggresive for Travis, let's see...
+		// this might be too aggressive for Travis, let's see...
 		long heartbeatTimeout = 100L;
 		ResourceID resourceID = new ResourceID("foobar");
 		ResourceID targetID = new ResourceID("target");

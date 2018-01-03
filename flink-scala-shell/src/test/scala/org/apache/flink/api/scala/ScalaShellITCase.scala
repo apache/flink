@@ -325,7 +325,7 @@ object ScalaShellITCase {
 
   @AfterClass
   def afterAll(): Unit = {
-    // The Scala interpreter somehow changes the class loader. Therfore, we have to reset it
+    // The Scala interpreter somehow changes the class loader. Therefore, we have to reset it
     Thread.currentThread().setContextClassLoader(classOf[ScalaShellITCase].getClassLoader)
 
     cluster.foreach(_.close)

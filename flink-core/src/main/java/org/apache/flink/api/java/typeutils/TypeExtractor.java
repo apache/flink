@@ -481,7 +481,7 @@ public class TypeExtractor {
 				final int paramLen = exec.getParameterTypes().length;
 
 				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(Partitioner.class);
-				// number of parameters the SAM of implemented interface has, the parameter indexing aplicates to this range
+				// number of parameters the SAM of implemented interface has; the parameter indexing applies to this range
 				final int baseParametersLen = sam.getParameterTypes().length;
 
 				final Type keyType = TypeExtractionUtils.extractTypeFromLambda(
@@ -581,7 +581,7 @@ public class TypeExtractor {
 
 				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(baseClass);
 
-				// number of parameters the SAM of implemented interface has, the parameter indexing aplicates to this range
+				// number of parameters the SAM of implemented interface has; the parameter indexing applies to this range
 				final int baseParametersLen = sam.getParameterTypes().length;
 
 				// executable references "this" implicitly

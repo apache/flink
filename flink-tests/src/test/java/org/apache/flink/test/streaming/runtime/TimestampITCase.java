@@ -301,7 +301,7 @@ public class TimestampITCase extends TestLogger {
 
 	/**
 	 * This tests whether timestamps are properly extracted in the timestamp
-	 * extractor and whether watermarks are also correctly forwared from this with the auto watermark
+	 * extractor and whether watermarks are also correctly forwarded from this with the auto watermark
 	 * interval.
 	 */
 	@Test
@@ -363,7 +363,7 @@ public class TimestampITCase extends TestLogger {
 	}
 
 	/**
-	 * This thests whether timestamps are properly extracted in the timestamp
+	 * This tests whether timestamps are properly extracted in the timestamp
 	 * extractor and whether watermark are correctly forwarded from the custom watermark emit
 	 * function.
 	 */

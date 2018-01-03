@@ -243,7 +243,7 @@ object TableSourceUtil {
     * Returns the Calcite schema of a [[TableSource]].
     *
     * @param tableSource The [[TableSource]] for which the Calcite schema is generated.
-    * @param selectedFields The indicies of all selected fields. None, if all fields are selected.
+    * @param selectedFields The indices of all selected fields. None, if all fields are selected.
     * @param streaming Flag to determine whether the schema of a stream or batch table is created.
     * @param typeFactory The type factory to create the schema.
     * @return The Calcite schema for the selected fields of the given [[TableSource]].

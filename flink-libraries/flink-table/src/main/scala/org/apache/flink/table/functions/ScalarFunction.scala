@@ -61,7 +61,7 @@ abstract class ScalarFunction extends UserDefinedFunction {
   /**
     * Returns the result type of the evaluation method with a given signature.
     *
-    * This method needs to be overriden in case Flink's type extraction facilities are not
+    * This method needs to be overridden in case Flink's type extraction facilities are not
     * sufficient to extract the [[TypeInformation]] based on the return type of the evaluation
     * method. Flink's type extraction facilities can handle basic types or
     * simple POJOs but might be wrong for more complex, custom, or composite types.

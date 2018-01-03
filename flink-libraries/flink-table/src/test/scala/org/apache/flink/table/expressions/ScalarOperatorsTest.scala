@@ -76,7 +76,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
   @Test
   def testArithmetic(): Unit = {
-    // math arthmetic
+    // math arithmetic
     testTableApi('f8 - 5, "f8 - 5", "0")
     testTableApi('f8 + 5, "f8 + 5", "10")
     testTableApi('f8 / 2, "f8 / 2", "2")

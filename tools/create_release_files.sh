@@ -266,7 +266,7 @@ prepare
 
 make_source_release
 
-# build dist by input parameter of "--scala-vervion xxx --hadoop-version xxx"
+# build dist by input parameter of "--scala-version xxx --hadoop-version xxx"
 if [ "$SCALA_VERSION" == "none" ] && [ "$HADOOP_VERSION" == "none" ]; then
   make_binary_release "hadoop2" "" "2.11"
   make_binary_release "hadoop26" "-Dhadoop.version=2.6.5" "2.11"

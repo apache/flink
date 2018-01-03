@@ -142,7 +142,7 @@ public abstract class ElasticsearchSinkBase<T> extends RichSinkFunction<T> imple
 	/** The user specified config map that we forward to Elasticsearch when we create the {@link Client}. */
 	private final Map<String, String> userConfig;
 
-	/** The function that is used to construct mulitple {@link ActionRequest ActionRequests} from each incoming element. */
+	/** The function that is used to construct multiple {@link ActionRequest ActionRequests} from each incoming element. */
 	private final ElasticsearchSinkFunction<T> elasticsearchSinkFunction;
 
 	/** User-provided handler for failed {@link ActionRequest ActionRequests}. */

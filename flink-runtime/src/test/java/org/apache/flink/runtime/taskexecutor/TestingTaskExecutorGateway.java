@@ -104,7 +104,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public void disconnectJobManager(JobID jobId, Exception cause) {
-		// nooop
+		// noop
 	}
 
 	@Override

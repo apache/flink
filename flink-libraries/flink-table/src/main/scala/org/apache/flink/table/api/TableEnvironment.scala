@@ -301,7 +301,7 @@ abstract class TableEnvironment(val config: TableConfig) {
       throw new ExternalCatalogAlreadyExistException(name)
     }
     this.externalCatalogs.put(name, externalCatalog)
-    // create an external catalog calicte schema, register it on the root schema
+    // create an external catalog Calcite schema, register it on the root schema
     ExternalCatalogSchema.registerCatalog(rootSchema, name, externalCatalog)
   }
 

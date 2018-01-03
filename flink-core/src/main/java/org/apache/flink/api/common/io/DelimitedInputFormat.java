@@ -588,7 +588,7 @@ public abstract class DelimitedInputFormat<OT> extends FileInputFormat<OT> imple
 			int startPos = this.readPos - delimPos;
 			int count;
 
-			// Search for next occurence of delimiter in read buffer.
+			// Search for next occurrence of delimiter in read buffer.
 			while (this.readPos < this.limit && delimPos < this.delimiter.length) {
 				if ((this.readBuffer[this.readPos]) == this.delimiter[delimPos]) {
 					// Found the expected delimiter character. Continue looking for the next character of delimiter.

@@ -611,7 +611,7 @@ public class CoGroupedStreams<T1, T2> {
 
 	// ------------------------------------------------------------------------
 	//  Utility functions that implement the CoGroup logic based on the tagged
-	//  untion window reduce
+	//  union window reduce
 	// ------------------------------------------------------------------------
 
 	private static class Input1Tagger<T1, T2> implements MapFunction<T1, TaggedUnion<T1, T2>> {

@@ -632,7 +632,7 @@ object UserDefinedFunctionUtils {
   /**
     * Creates a [[LogicalTableFunctionCall]] by parsing a String expression.
     *
-    * @param tableEnv The table environmenent to lookup the function.
+    * @param tableEnv The table environment to lookup the function.
     * @param udtf a String expression of a TableFunctionCall, such as "split(c)"
     * @return A LogicalTableFunctionCall.
     */

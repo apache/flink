@@ -48,7 +48,7 @@ trait Transformer[Self <: Transformer[Self]]
   with Serializable {
   that: Self =>
 
-  /** Transform operation which transforms an input [[DataSet]] of type I into an ouptut [[DataSet]]
+  /** Transform operation which transforms an input [[DataSet]] of type I into an output [[DataSet]]
     * of type O. The actual transform operation is implemented within the
     * [[TransformDataSetOperation]].
     *
@@ -57,7 +57,7 @@ trait Transformer[Self <: Transformer[Self]]
     * @param transformOperation [[TransformDataSetOperation]] which encapsulates the algorithm's
     *                          logic
     * @tparam Input Input data type
-    * @tparam Output Ouptut data type
+    * @tparam Output Output data type
     * @return
     */
   def transform[Input, Output](
@@ -125,7 +125,7 @@ object Transformer{
   * @tparam Instance Type of the [[Transformer]] for which the [[TransformDataSetOperation]] is
   *                  defined
   * @tparam Input Input data type
-  * @tparam Output Ouptut data type
+  * @tparam Output Output data type
   */
 trait TransformDataSetOperation[Instance, Input, Output] extends Serializable{
   def transformDataSet(
@@ -148,10 +148,10 @@ trait TransformOperation[Instance, Model, Input, Output] extends Serializable{
   /** Retrieves the model of the [[Transformer]] for which this operation has been defined.
     *
     * @param instance
-    * @param transformParemters
+    * @param transformParameters
     * @return
     */
-  def getModel(instance: Instance, transformParemters: ParameterMap): DataSet[Model]
+  def getModel(instance: Instance, transformParameters: ParameterMap): DataSet[Model]
 
   /** Transforms a single element with respect to the model associated with the respective
     * [[Transformer]]

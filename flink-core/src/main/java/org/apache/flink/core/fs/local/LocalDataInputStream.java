@@ -75,7 +75,7 @@ public class LocalDataInputStream extends FSDataInputStream {
 
 	@Override
 	public void close() throws IOException {
-		// Accoring to javadoc, this also closes the channel
+		// According to javadoc, this also closes the channel
 		this.fis.close();
 	}
 

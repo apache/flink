@@ -133,7 +133,7 @@ public class NFATest extends TestLogger {
 
 	/**
 	 * Tests that elements whose timestamp difference is exactly the window length are not matched.
-	 * The reaon is that the right window side (later elements) is exclusive.
+	 * The reason is that the right window side (later elements) is exclusive.
 	 */
 	@Test
 	public void testWindowBorders() {

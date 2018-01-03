@@ -79,7 +79,7 @@ public class SharedStateRegistry implements AutoCloseable {
 	 *
 	 * @param state the shared state for which we register a reference.
 	 * @return the result of this registration request, consisting of the state handle that is
-	 * registered under the key by the end of the oepration and its current reference count.
+	 * registered under the key by the end of the operation and its current reference count.
 	 */
 	public Result registerReference(SharedStateRegistryKey registrationKey, StreamStateHandle state) {
 

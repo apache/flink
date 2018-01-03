@@ -283,7 +283,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		@Override
 		public OperatorStateHandle call() throws Exception {
-			// notify that we have started the asynchronous checkpointint operation
+			// notify that we have started the asynchronous checkpointed operation
 			CHECKPOINTING_LATCH.trigger();
 			// wait until we have reached the StreamTask#cleanup --> This will already cancel this FutureTask
 			CLEANUP_LATCH.await();

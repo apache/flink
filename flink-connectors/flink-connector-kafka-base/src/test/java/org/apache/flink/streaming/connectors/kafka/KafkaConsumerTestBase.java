@@ -406,7 +406,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		final String consumeExtraRecordsJobName = "Consume Extra Records Job";
 		final String writeExtraRecordsJobName = "Write Extra Records Job";
 
-		// seriliazation / deserialization schemas for writing and consuming the extra records
+		// serialization / deserialization schemas for writing and consuming the extra records
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
 			TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {});
 

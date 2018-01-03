@@ -309,7 +309,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Returns the Chill Kryo Serializer which is implictly added to the classpath via flink-runtime.
+	 * Returns the Chill Kryo Serializer which is implicitly added to the classpath via flink-runtime.
 	 * Falls back to the default Kryo serializer if it can't be found.
 	 * @return The Kryo serializer instance.
 	 */

@@ -86,7 +86,7 @@ public final class PojoComparator<T> extends CompositeTypeComparator<T> implemen
 					inverted = k.invertNormalizedKey();
 				}
 				else if (k.invertNormalizedKey() != inverted) {
-					// if a successor does not agree on the invertion direction, it cannot be part of the normalized key
+					// if a successor does not agree on the inversion direction, it cannot be part of the normalized key
 					break;
 				}
 

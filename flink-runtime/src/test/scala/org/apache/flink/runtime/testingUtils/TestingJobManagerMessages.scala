@@ -121,7 +121,7 @@ object TestingJobManagerMessages {
     */
   case object NotifyWhenClientConnects
   /**
-    * Notifes of client connect
+    * Notifies of client connect
     */
   case object ClientConnected
   /**

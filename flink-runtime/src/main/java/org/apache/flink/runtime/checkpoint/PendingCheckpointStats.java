@@ -56,7 +56,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 	/** Current buffered bytes during alignment over all collected subtasks. */
 	private volatile long currentAlignmentBuffered;
 
-	/** Stats of the latest acknowleged subtask. */
+	/** Stats of the latest acknowledged subtask. */
 	private volatile SubtaskStateStats latestAcknowledgedSubtask;
 
 	/**

@@ -426,7 +426,7 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 		private final ArrayList<S> internalList;
 
 		/**
-		 * A serializer that allows to perfom deep copies of internalList
+		 * A serializer that allows to perform deep copies of internalList
 		 */
 		private final ArrayListSerializer<S> internalListCopySerializer;
 

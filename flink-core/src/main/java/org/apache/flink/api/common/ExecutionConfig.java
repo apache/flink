@@ -205,7 +205,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Sets the interval of the automatic watermark emission. Watermaks are used throughout
+	 * Sets the interval of the automatic watermark emission. Watermarks are used throughout
 	 * the streaming system to keep track of the progress of time. They are used, for example,
 	 * for time based windowing.
 	 *

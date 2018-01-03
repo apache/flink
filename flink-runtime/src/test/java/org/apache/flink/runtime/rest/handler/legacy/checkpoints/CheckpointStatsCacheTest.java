@@ -30,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for the CheckpoitnStatsCache.
+ * Tests for the CheckpointStatsCache.
  */
 public class CheckpointStatsCacheTest {
 

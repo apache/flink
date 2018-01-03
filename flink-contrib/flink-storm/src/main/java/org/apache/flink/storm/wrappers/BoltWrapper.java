@@ -75,7 +75,7 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 
 	/** The IDs of the input streams for this bolt per producer task ID. */
 	private final HashMap<Integer, String> inputStreamIds = new HashMap<Integer, String>();
-	/** The IDs of the producres for this bolt per producer task ID.. */
+	/** The IDs of the producers for this bolt per producer task ID.. */
 	private final HashMap<Integer, String> inputComponentIds = new HashMap<Integer, String>();
 	/** The schema (ie, ordered field names) of the input streams per producer taskID. */
 	private final HashMap<Integer, Fields> inputSchemas = new HashMap<Integer, Fields>();
@@ -131,8 +131,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not within range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not within range
 	 *             [1;25].
 	 */
 	public BoltWrapper(final IRichBolt bolt, final String[] rawOutputs)
@@ -153,8 +153,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [1;25].
 	 */
 	public BoltWrapper(final IRichBolt bolt, final Collection<String> rawOutputs) throws IllegalArgumentException {
@@ -176,8 +176,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public BoltWrapper(
@@ -199,14 +199,14 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *            The Storm {@link IRichBolt bolt} to be used.
 	 * @param inputSchema
 	 *            The schema (ie, ordered field names) of the input stream. @throws IllegalArgumentException If
-	 *            {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *            {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *            {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *            {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 * @param rawOutputs
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public BoltWrapper(final IRichBolt bolt, final Fields inputSchema,
@@ -229,8 +229,8 @@ public class BoltWrapper<IN, OUT> extends AbstractStreamOperator<OUT> implements
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public BoltWrapper(final IRichBolt bolt, final String name, final String inputStreamId,

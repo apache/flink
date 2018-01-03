@@ -204,7 +204,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			ResultSubpartitionView view = readView;
 
 			if (view != null && view.getClass() == SpillableSubpartitionView.class) {
-				// If there is a spilalble view, it's the responsibility of the
+				// If there is a spillable view, it's the responsibility of the
 				// view to release memory.
 				SpillableSubpartitionView spillableView = (SpillableSubpartitionView) view;
 				return spillableView.releaseMemory();

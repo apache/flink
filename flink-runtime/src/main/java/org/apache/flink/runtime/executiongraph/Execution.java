@@ -782,7 +782,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * @param sampleId of the stack trace sample
 	 * @param numSamples the sample should contain
 	 * @param delayBetweenSamples to wait
-	 * @param maxStrackTraceDepth of the samples
+	 * @param maxStackTraceDepth of the samples
 	 * @param timeout until the request times out
 	 * @return Future stack trace sample response
 	 */
@@ -790,7 +790,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			int sampleId,
 			int numSamples,
 			Time delayBetweenSamples,
-			int maxStrackTraceDepth,
+			int maxStackTraceDepth,
 			Time timeout) {
 
 		final LogicalSlot slot = assignedResource;
@@ -803,7 +803,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				sampleId,
 				numSamples,
 				delayBetweenSamples,
-				maxStrackTraceDepth,
+				maxStackTraceDepth,
 				timeout);
 		} else {
 			return FutureUtils.completedExceptionally(new Exception("The execution has no slot assigned."));

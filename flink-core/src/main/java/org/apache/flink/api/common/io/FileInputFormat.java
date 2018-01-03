@@ -256,7 +256,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 		// paths) to compute the preview graph. The following is a workaround for
 		// this situation and we should fix this.
 
-		// comment (Stephan Ewen) this should be no longer relevant with the current Java/Scalal APIs.
+		// comment (Stephan Ewen) this should be no longer relevant with the current Java/Scala APIs.
 		if (filePath.isEmpty()) {
 			setFilePath(new Path());
 			return;

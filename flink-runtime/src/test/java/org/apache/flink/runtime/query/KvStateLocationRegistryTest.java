@@ -44,7 +44,7 @@ import static org.mockito.Mockito.when;
 public class KvStateLocationRegistryTest {
 
 	/**
-	 * Simple test registering/unregistereing state and looking it up again.
+	 * Simple test registering/unregistering state and looking it up again.
 	 */
 	@Test
 	public void testRegisterAndLookup() throws Exception {

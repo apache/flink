@@ -484,7 +484,7 @@ public final class ConfigConstants {
 	public static final String YARN_TASK_MANAGER_ENV_PREFIX = "yarn.taskmanager.env.";
 
 	/**
-	 * Template for the YARN container start incovation.
+	 * Template for the YARN container start invocation.
 	 */
 	public static final String YARN_CONTAINER_START_COMMAND_TEMPLATE =
 		"yarn.container-start-command-template";
@@ -594,7 +594,7 @@ public final class ConfigConstants {
 	// ------------------------ Hadoop Configuration ------------------------
 
 	/**
-	 * Path to hdfs-defaul.xml file
+	 * Path to hdfs-default.xml file
 	 *
 	 * @deprecated Use environment variable HADOOP_CONF_DIR instead.
 	 */
@@ -980,7 +980,7 @@ public final class ConfigConstants {
 
 	// --------------------------- High Availability --------------------------
 
-	/** Defines high availabilty mode used for the cluster execution ("NONE", "ZOOKEEPER") */
+	/** Defines high availability mode used for the cluster execution ("NONE", "ZOOKEEPER") */
 	@PublicEvolving
 	public static final String HA_MODE = "high-availability";
 

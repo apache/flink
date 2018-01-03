@@ -808,7 +808,7 @@ public class CsvInputFormatTest {
 
 	}
 
-	// Test disabled becase we do not support double-quote escaped quotes right now.
+	// Test disabled because we do not support double-quote escaped quotes right now.
 	// @Test
 	public void testParserCorrectness() throws Exception {
 		// RFC 4180 Compliance Test content
@@ -875,13 +875,13 @@ public class CsvInputFormatTest {
 	@Test
 	public void testWindowsLineEndRemoval() {
 
-		//Check typical use case -- linux file is correct and it is set up to linuc(\n)
+		//Check typical use case -- linux file is correct and it is set up to linux (\n)
 		this.testRemovingTrailingCR("\n", "\n");
 
 		//Check typical windows case -- windows file endings and file has windows file endings set up
 		this.testRemovingTrailingCR("\r\n", "\r\n");
 
-		//Check problematic case windows file -- windows file endings(\r\n) but linux line endings (\n) set up
+		//Check problematic case windows file -- windows file endings (\r\n) but linux line endings (\n) set up
 		this.testRemovingTrailingCR("\r\n", "\n");
 
 		//Check problematic case linux file -- linux file endings (\n) but windows file endings set up (\r\n)

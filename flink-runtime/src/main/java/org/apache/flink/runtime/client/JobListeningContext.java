@@ -114,7 +114,7 @@ public final class JobListeningContext {
 	}
 
 	/**
-	 * @return The Job Client actor which communicats with the JobManager.
+	 * @return The Job Client actor which communicates with the JobManager.
 	 */
 	public ActorRef getJobClientActor() {
 		return jobClientActor;

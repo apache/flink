@@ -1550,7 +1550,7 @@ public class Task implements Runnable, TaskActions {
 
 				// It is possible that the user code does not react to the task canceller.
 				// for that reason, we spawn this separate thread that repeatedly interrupts
-				// the user code until it exits. If the suer user code does not exit within
+				// the user code until it exits. If the user code does not exit within
 				// the timeout, we notify the job manager about a fatal error.
 				while (executer.isAlive()) {
 					long now = System.nanoTime();

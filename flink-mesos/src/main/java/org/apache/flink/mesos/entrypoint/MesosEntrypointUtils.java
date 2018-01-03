@@ -42,7 +42,7 @@ import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
 
 /**
- * Utils for Mesos entrpoints.
+ * Utils for Mesos entry points.
  */
 public class MesosEntrypointUtils {
 

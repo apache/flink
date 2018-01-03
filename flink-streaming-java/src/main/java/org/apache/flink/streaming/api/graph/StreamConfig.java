@@ -499,7 +499,7 @@ public class StreamConfig implements Serializable {
 
 
 	// ------------------------------------------------------------------------
-	//  Miscellansous
+	//  Miscellaneous
 	// ------------------------------------------------------------------------
 
 	public void setChainStart() {

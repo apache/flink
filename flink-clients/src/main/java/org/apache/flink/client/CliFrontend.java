@@ -1164,7 +1164,7 @@ public class CliFrontend {
 
 	/**
 	 * Retrieves the loaded custom command-lines.
-	 * @return An unmodifiyable list of loaded custom command-lines.
+	 * @return An unmodifiable list of loaded custom command-lines.
 	 */
 	public static List<CustomCommandLine<?>> getCustomCommandLineList() {
 		return Collections.unmodifiableList(customCommandLines);

@@ -82,7 +82,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	/** The state backend that we use for creating checkpoint streams. */
 	private final AbstractStateBackend checkpointStreamBackend;
 
-	/** Operator identifier that is used to uniqueify the RocksDB storage path. */
+	/** Operator identifier that is used to uniquify the RocksDB storage path. */
 	private String operatorIdentifier;
 
 	/** JobID for uniquifying backup paths. */
@@ -202,7 +202,7 @@ public class RocksDBStateBackend extends AbstractStateBackend {
 	 * {@link AbstractStateBackend#createStreamFactory(JobID, String) checkpoint stream}.
 	 *
 	 * @param checkpointStreamBackend The backend to store the
-	 * @param enableIncrementalCheckpointing True if incremental checkponting is enabled
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled
 	 */
 	public RocksDBStateBackend(AbstractStateBackend checkpointStreamBackend, boolean enableIncrementalCheckpointing) {
 		this.checkpointStreamBackend = requireNonNull(checkpointStreamBackend);

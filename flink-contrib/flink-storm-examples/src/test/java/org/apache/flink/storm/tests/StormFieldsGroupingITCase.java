@@ -77,7 +77,7 @@ public class StormFieldsGroupingITCase extends StreamingProgramTestBase {
 		Collections.sort(expectedResults);
 		System.out.println(actualResults);
 		for (int i = 0; i < actualResults.size(); ++i) {
-			//compare against actual results with removed prefex (as it depends e.g. on the hash function used)
+			//compare against actual results with removed prefix (as it depends e.g. on the hash function used)
 			Assert.assertEquals(expectedResults.get(i), actualResults.get(i));
 		}
 	}

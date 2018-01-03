@@ -39,7 +39,7 @@ class MinByOperatorTest {
 
   /**
     * This test validates that an index which is out of bounds throws an
-    * IndexOutOfBOundsExcpetion.
+    * IndexOutOfBoundsException.
     */
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testOutOfTupleBoundsDataset1() {
@@ -53,7 +53,7 @@ class MinByOperatorTest {
 
   /**
     * This test validates that an index which is out of bounds throws an
-    * IndexOutOfBOundsExcpetion.
+    * IndexOutOfBoundsException.
     */
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testOutOfTupleBoundsDataset2() {
@@ -66,7 +66,7 @@ class MinByOperatorTest {
 
   /**
     * This test validates that an index which is out of bounds throws an
-    * IndexOutOfBOundsExcpetion.
+    * IndexOutOfBoundsException.
     */
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testOutOfTupleBoundsDataset3() {
@@ -78,7 +78,7 @@ class MinByOperatorTest {
   }
 
   /**
-    * This test validates that an InvalidProgrammException is thrown when minBy
+    * This test validates that an InvalidProgramException is thrown when minBy
     * is used on a custom data type.
     */
   @Test(expected = classOf[InvalidProgramException])
@@ -109,7 +109,7 @@ class MinByOperatorTest {
   }
 
   /**
-    * This test validates that an InvalidProgrammException is thrown when minBy
+    * This test validates that an InvalidProgramException is thrown when minBy
     * is used on a custom data type.
     */
   @Test(expected = classOf[InvalidProgramException])
@@ -123,7 +123,7 @@ class MinByOperatorTest {
 
   /**
     * This test validates that an index which is out of bounds throws an
-    * IndexOutOfBOundsExcpetion.
+    * IndexOutOfBoundsException.
     */
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testOutOfTupleBoundsGrouping1() {
@@ -136,7 +136,7 @@ class MinByOperatorTest {
 
   /**
     * This test validates that an index which is out of bounds throws an
-    * IndexOutOfBOundsExcpetion.
+    * IndexOutOfBoundsException.
     */
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testOutOfTupleBoundsGrouping2() {
@@ -149,7 +149,7 @@ class MinByOperatorTest {
 
   /**s
     * This test validates that an index which is out of bounds throws an
-    * IndexOutOfBOundsExcpetion.
+    * IndexOutOfBoundsException.
     */
   @Test(expected = classOf[IndexOutOfBoundsException])
   def testOutOfTupleBoundsGrouping3() {

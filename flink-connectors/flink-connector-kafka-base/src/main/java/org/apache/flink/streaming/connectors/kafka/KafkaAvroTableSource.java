@@ -156,7 +156,7 @@ public abstract class KafkaAvroTableSource extends KafkaTableSource implements D
 		private Map<String, String> fieldMapping;
 
 		/**
-		 * Sets the class of the Avro records that aree read from the Kafka topic.
+		 * Sets the class of the Avro records that are read from the Kafka topic.
 		 *
 		 * @param avroClass The class of the Avro records that are read from the Kafka topic.
 		 * @return The builder.

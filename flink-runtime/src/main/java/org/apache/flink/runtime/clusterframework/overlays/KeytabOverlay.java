@@ -33,7 +33,7 @@ import java.io.IOException;
 /**
  * Overlays cluster-level Kerberos credentials (i.e. keytab) into a container.
  *
- * The folloowing Flink configuration entries are updated:
+ * The following Flink configuration entries are updated:
  *  - security.kerberos.login.keytab
  */
 public class KeytabOverlay extends AbstractContainerOverlay {

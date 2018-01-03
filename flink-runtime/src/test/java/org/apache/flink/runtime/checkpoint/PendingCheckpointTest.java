@@ -249,7 +249,7 @@ public class PendingCheckpointTest {
 	@Test
 	public void testPendingCheckpointStatsCallbacks() throws Exception {
 		{
-			// Complete sucessfully
+			// Complete successfully
 			PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
 			PendingCheckpoint pending = createPendingCheckpoint(CheckpointProperties.forStandardCheckpoint(), null);
 			pending.setStatsCallback(callback);

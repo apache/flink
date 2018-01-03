@@ -424,7 +424,7 @@ public abstract class StreamExecutionEnvironment {
 	 *
 	 * <p>Shorthand for {@code getCheckpointConfig().getCheckpointingMode()}.
 	 *
-	 * @return The checkpoin
+	 * @return The checkpoint mode
 	 */
 	public CheckpointingMode getCheckpointingMode() {
 		return checkpointCfg.getCheckpointingMode();

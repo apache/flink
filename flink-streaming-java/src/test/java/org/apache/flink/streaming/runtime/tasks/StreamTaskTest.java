@@ -743,7 +743,7 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the StreamTask first closes alls its operators before setting its
+	 * Tests that the StreamTask first closes all of its operators before setting its
 	 * state to not running (isRunning == false)
 	 *
 	 * <p>See FLINK-7430.

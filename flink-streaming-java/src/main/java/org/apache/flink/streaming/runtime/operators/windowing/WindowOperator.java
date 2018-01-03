@@ -628,7 +628,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	/**
 	 * Returns the cleanup time for a window, which is
 	 * {@code window.maxTimestamp + allowedLateness}. In
-	 * case this leads to a value greated than {@link Long#MAX_VALUE}
+	 * case this leads to a value greater than {@link Long#MAX_VALUE}
 	 * then a cleanup time of {@link Long#MAX_VALUE} is
 	 * returned.
 	 *

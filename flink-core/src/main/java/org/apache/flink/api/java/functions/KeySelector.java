@@ -25,7 +25,7 @@ import java.io.Serializable;
 
 /**
  * The {@link KeySelector} allows to use deterministic objects for operations such as
- * reduce, reduceGroup, join, coGoup, etc. If invoked multiple times on the same object,
+ * reduce, reduceGroup, join, coGroup, etc. If invoked multiple times on the same object,
  * the returned key must be the same.
  * 
  * The extractor takes an object and returns the deterministic key for that object.

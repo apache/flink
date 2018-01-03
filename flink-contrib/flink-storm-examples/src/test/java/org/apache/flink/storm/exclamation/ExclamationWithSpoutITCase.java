@@ -23,7 +23,7 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 
 /**
- * Test for the ExclamantionWithSpout example.
+ * Test for the ExclamationWithSpout example.
  */
 public class ExclamationWithSpoutITCase extends StreamingProgramTestBase {
 

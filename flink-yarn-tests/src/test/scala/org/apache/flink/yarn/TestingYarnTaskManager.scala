@@ -36,7 +36,7 @@ import org.apache.flink.runtime.testingUtils.TestingTaskManagerLike
   * @param config Configuration object for the actor
   * @param resourceID The Yarn container id
   * @param connectionInfo Connection information of this actor
-  * @param memoryManager MemoryManager which is responsibel for Flink's managed memory allocation
+  * @param memoryManager MemoryManager which is responsible for Flink's managed memory allocation
   * @param ioManager IOManager responsible for I/O
   * @param network NetworkEnvironment for this actor
   * @param numberOfSlots Number of slots for this TaskManager

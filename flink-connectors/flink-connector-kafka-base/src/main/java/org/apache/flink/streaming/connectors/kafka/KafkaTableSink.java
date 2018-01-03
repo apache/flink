@@ -61,7 +61,7 @@ public abstract class KafkaTableSink implements AppendStreamTableSink<Row> {
 	}
 
 	/**
-	 * Returns the version-specifid Kafka producer.
+	 * Returns the version-specific Kafka producer.
 	 *
 	 * @param topic               Kafka topic to produce to.
 	 * @param properties          Properties for the Kafka producer.

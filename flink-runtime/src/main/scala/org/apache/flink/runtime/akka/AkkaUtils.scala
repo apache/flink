@@ -588,7 +588,7 @@ object AkkaUtils {
    * @param tries maximum number of tries before the future fails
    * @param executionContext which shall execute the future
    * @param timeout of the future
-   * @return future which tries to receover by re-executing itself a given number of times
+   * @return future which tries to recover by re-executing itself a given number of times
    */
   def retry(target: ActorRef, message: Any, tries: Int)(implicit executionContext:
   ExecutionContext, timeout: FiniteDuration): Future[Any] = {

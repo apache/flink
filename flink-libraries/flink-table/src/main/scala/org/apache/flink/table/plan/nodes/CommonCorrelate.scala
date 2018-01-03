@@ -143,7 +143,7 @@ trait CommonCorrelate {
          |""".stripMargin
     } else {
 
-      // adjust indicies of InputRefs to adhere to schema expected by generator
+      // adjust indices of InputRefs to adhere to schema expected by generator
       val changeInputRefIndexShuttle = new RexShuttle {
         override def visitInputRef(inputRef: RexInputRef): RexNode = {
           new RexInputRef(inputSchema.arity + inputRef.getIndex, inputRef.getType)

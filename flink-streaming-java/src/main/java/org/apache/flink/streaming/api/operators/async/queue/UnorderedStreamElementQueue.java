@@ -219,7 +219,7 @@ public class UnorderedStreamElementQueue implements StreamElementQueue {
 
 	/**
 	 * Callback for onComplete events for the given stream element queue entry. Whenever a queue
-	 * entry is completed, it is checked whether this entry belogns to the first set. If this is the
+	 * entry is completed, it is checked whether this entry belongs to the first set. If this is the
 	 * case, then the element is added to the completed entries queue from where it can be consumed.
 	 * If the first set becomes empty, then the next set is polled from the uncompleted entries
 	 * queue. Completed entries from this new set are then added to the completed entries queue.

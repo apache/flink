@@ -353,7 +353,7 @@ public class BootstrapTools {
 	/**
 	 * Generates the shell command to start a task manager.
 	 * @param flinkConfig The Flink configuration.
-	 * @param tmParams Paramaters for the task manager.
+	 * @param tmParams Parameters for the task manager.
 	 * @param configDirectory The configuration directory for the flink-conf.yaml
 	 * @param logDirectory The log directory.
 	 * @param hasLogback Uses logback?

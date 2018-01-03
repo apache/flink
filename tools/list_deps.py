@@ -23,7 +23,7 @@ import sys
 
 # This lists all dependencies in the Maven Project root given as first
 # argument. If a dependency is included in several versions it is listed once
-# for every version. The resul output is sorted. So this can be used
+# for every version. The result output is sorted. So this can be used
 # to get a diff between the Maven dependencies of two versions of a project.
 
 path = sys.argv[1]

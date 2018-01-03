@@ -108,7 +108,7 @@ public interface SlotPoolGateway extends AllocatedSlotActions, RpcGateway {
 	 * individually accepted or rejected by returning the collection of accepted
 	 * slot offers.
 	 *
-	 * @param taskManagerLocation from which the slot offeres originate
+	 * @param taskManagerLocation from which the slot offers originate
 	 * @param taskManagerGateway to talk to the slot offerer
 	 * @param offers slot offers which are offered to the {@link SlotPool}
 	 * @return A collection of accepted slot offers (future). The remaining slot offers are

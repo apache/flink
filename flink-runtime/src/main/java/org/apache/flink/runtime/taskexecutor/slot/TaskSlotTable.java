@@ -179,7 +179,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 		boolean result = taskSlot.allocate(jobId, allocationId);
 
 		if (result) {
-			// update the alloction id to task slot map
+			// update the allocation id to task slot map
 			allocationIDTaskSlotMap.put(allocationId, taskSlot);
 
 			// register a timeout for this slot since it's in state allocated

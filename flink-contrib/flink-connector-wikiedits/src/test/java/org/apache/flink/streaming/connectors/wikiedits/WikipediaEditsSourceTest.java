@@ -71,7 +71,7 @@ public class WikipediaEditsSourceTest {
 
 				// Execute the source in a different thread and collect events into the queue.
 				// We do this in a separate thread in order to not block the main test thread
-				// indefinitely in case that somethign bad happens (like not receiving any
+				// indefinitely in case that something bad happens (like not receiving any
 				// events)
 				executorService.execute(() -> {
 					try {

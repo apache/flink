@@ -27,7 +27,7 @@ import akka.actor.ActorSystem;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An abrstact implementation of {@link MesosServices}.
+ * An abstract implementation of {@link MesosServices}.
  */
 public abstract class AbstractMesosServices implements MesosServices {
 
