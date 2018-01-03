@@ -42,20 +42,20 @@ public class CliFrontendInfoTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testMissingOption() throws Exception {
 		String[] parameters = {};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-l"};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
@@ -65,10 +65,10 @@ public class CliFrontendInfoTest extends TestLogger {
 		try {
 
 			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
+			Configuration configuration = new Configuration();
 			CliFrontend testFrontend = new CliFrontend(
-				new Configuration(),
-				Collections.singletonList(new DefaultCLI()),
-				CliFrontendTestUtils.getConfigDir());
+				configuration,
+				Collections.singletonList(new DefaultCLI(configuration)));
 			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
 		}
@@ -82,10 +82,10 @@ public class CliFrontendInfoTest extends TestLogger {
 		replaceStdOut();
 		try {
 			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
+			Configuration configuration = new Configuration();
 			CliFrontend testFrontend = new CliFrontend(
-				new Configuration(),
-				Collections.singletonList(new DefaultCLI()),
-				CliFrontendTestUtils.getConfigDir());
+				configuration,
+				Collections.singletonList(new DefaultCLI(configuration)));
 			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));
 		}

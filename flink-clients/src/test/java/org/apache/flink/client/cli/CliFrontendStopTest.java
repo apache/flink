@@ -69,10 +69,10 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = { "-v", "-l" };
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.stop(parameters);
 	}
 
@@ -80,10 +80,10 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testMissingJobId() throws Exception {
 		// test missing job id
 		String[] parameters = {};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.stop(parameters);
 	}
 
