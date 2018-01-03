@@ -215,8 +215,5 @@ class TableConversions(table: Table) {
             "can be converted to Scala DataStreams.")
     }
   }
-
-
-
 }
 
