@@ -303,7 +303,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
 				operator,
 				new IntToStringKeySelector<>(),
-				new IdentityKeySelector<String>(),
+				new IdentityKeySelector<>(),
 				BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
@@ -507,14 +507,19 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		private static final long serialVersionUID = 1L;
 
+		int numProcessingTimeTimers = 0;
+		int numEventTimeTimers = 0;
+
 		@Override
 		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerEventTimeTimer(6);
+			assertEquals(++ numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 
 		@Override
 		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerProcessingTimeTimer(5);
+			assertEquals(++ numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
@@ -524,8 +529,10 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
 				out.collect("EVENT:1777");
+				assertEquals(-- numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 			} else {
 				out.collect("PROC:1777");
+				assertEquals(Math.max(0, -- numProcessingTimeTimers), ctx.timerService().numProcessingTimeTimers());
 			}
 		}
 	}

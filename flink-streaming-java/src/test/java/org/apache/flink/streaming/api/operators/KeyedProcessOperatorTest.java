@@ -110,12 +110,11 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 	@Test
 	public void testEventTimeTimers() throws Exception {
-
 		KeyedProcessOperator<Integer, Integer, Integer> operator =
 				new KeyedProcessOperator<>(new TriggeringFlatMapFunction(TimeDomain.EVENT_TIME));
 
 		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<Integer>(), BasicTypeInfo.INT_TYPE_INFO);
+				new KeyedOneInputStreamOperatorTestHarness<>(operator, new IdentityKeySelector<>(), BasicTypeInfo.INT_TYPE_INFO);
 
 		testHarness.setup();
 		testHarness.open();
@@ -419,8 +418,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 			out.collect(value);
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
 				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
+				assertEquals(1, ctx.timerService().numEventTimeTimers());
 			} else {
 				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
+				assertEquals(1, ctx.timerService().numProcessingTimeTimers());
 			}
 		}
 
@@ -432,6 +433,12 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 			assertEquals(this.timeDomain, ctx.timeDomain());
 			out.collect(1777);
+
+			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+				assertEquals(0, ctx.timerService().numEventTimeTimers());
+			} else {
+				assertEquals(0, ctx.timerService().numProcessingTimeTimers());
+			}
 		}
 	}
 
@@ -444,6 +451,8 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		private final TimeDomain timeDomain;
 
+		int count = 0;
+
 		public TriggeringStatefulFlatMapFunction(TimeDomain timeDomain) {
 			this.timeDomain = timeDomain;
 		}
@@ -454,8 +463,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 			getRuntimeContext().getState(state).update(value);
 			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
 				ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
+				assertEquals(++ count, ctx.timerService().numEventTimeTimers());
 			} else {
 				ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
+				assertEquals(++ count, ctx.timerService().numProcessingTimeTimers());
 			}
 		}
 
@@ -466,6 +477,12 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 			assertEquals(this.timeDomain, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
+
+			if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+				assertEquals(-- count, ctx.timerService().numEventTimeTimers());
+			} else {
+				assertEquals(-- count, ctx.timerService().numProcessingTimeTimers());
+			}
 		}
 	}
 
@@ -475,8 +492,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 
 		@Override
 		public void processElement(Integer value, Context ctx, Collector<String> out) throws Exception {
-			ctx.timerService().registerProcessingTimeTimer(5);
 			ctx.timerService().registerEventTimeTimer(6);
+			assertEquals(1, ctx.timerService().numEventTimeTimers());
+			ctx.timerService().registerProcessingTimeTimer(5);
+			assertEquals(1, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
@@ -486,8 +505,10 @@ public class KeyedProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
 				out.collect("EVENT:1777");
+				assertEquals(0, ctx.timerService().numEventTimeTimers());
 			} else {
 				out.collect("PROC:1777");
+				assertEquals(0, ctx.timerService().numProcessingTimeTimers());
 			}
 		}
 	}

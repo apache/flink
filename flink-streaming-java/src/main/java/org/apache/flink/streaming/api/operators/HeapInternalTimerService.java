@@ -197,7 +197,6 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	public void registerProcessingTimeTimer(N namespace, long time) {
 		K key = (K) keyContext.getCurrentKey();
 		InternalTimer<K, N> timer = new InternalTimer<>(time, key, namespace);
-		incrementProcessingTimeTimer(key, namespace);
 
 		// make sure we only put one timer per key into the queue
 		Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
@@ -207,6 +206,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			long nextTriggerTime = oldHead != null ? oldHead.getTimestamp() : Long.MAX_VALUE;
 
 			processingTimeTimersQueue.add(timer);
+			incrementProcessingTimeTimer(key, namespace);
 
 			// check if we need to re-schedule our timer to earlier
 			if (time < nextTriggerTime) {
@@ -222,11 +222,11 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	public void registerEventTimeTimer(N namespace, long time) {
 		K key = (K) keyContext.getCurrentKey();
 		InternalTimer<K, N> timer = new InternalTimer<>(time, key, namespace);
-		incrementEventTimeTimer(key, namespace);
 
 		Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 		if (timerSet.add(timer)) {
 			eventTimeTimersQueue.add(timer);
+			incrementEventTimeTimer(key, namespace);
 		}
 	}
 
@@ -237,9 +237,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
 		if (timerSet.remove(timer)) {
 			processingTimeTimersQueue.remove(timer);
+			decrementProcessingTimeTimer(key, namespace);
 		}
-
-		decrementProcessingTimeTimer(key, namespace);
 	}
 
 	@Override
@@ -249,9 +248,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 		if (timerSet.remove(timer)) {
 			eventTimeTimersQueue.remove(timer);
+			decrementEventTimeTimer(key, namespace);
 		}
-
-		decrementEventTimeTimer(key, namespace);
 	}
 
 	@Override
@@ -267,8 +265,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
 
 			timerSet.remove(timer);
-			processingTimeTimersQueue.remove();
 			decrementProcessingTimeTimer(timer.getKey(), timer.getNamespace());
+			processingTimeTimersQueue.remove();
 
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onProcessingTime(timer);
@@ -290,8 +288,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 			Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 			timerSet.remove(timer);
-			eventTimeTimersQueue.remove();
 			decrementEventTimeTimer(timer.getKey(), timer.getNamespace());
+			eventTimeTimersQueue.remove();
 
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onEventTime(timer);
