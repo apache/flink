@@ -27,7 +27,7 @@ This page provides details on setting up and configuring distributed file system
 ## Flink' File System support
 
 Flink uses file systems both as a source and sink in streaming/batch applications, and as a target for checkpointing.
-These file systens can for example be *Unix/Windows file systems*, *HDFS*, or even object stores like *S3*.
+These file systems can for example be *Unix/Windows file systems*, *HDFS*, or even object stores like *S3*.
 
 The file system used for a specific file is determined by the file URI's scheme. For example `file:///home/user/text.txt` refers to
 a file in the local file system, while `hdfs://namenode:50010/data/user/text.txt` refers to a file in a specific HDFS cluster.
