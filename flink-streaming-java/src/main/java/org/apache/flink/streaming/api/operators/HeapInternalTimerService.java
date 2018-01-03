@@ -261,12 +261,10 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		InternalTimer<K, N> timer;
 
 		while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-
 			Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
-
 			timerSet.remove(timer);
-			decrementProcessingTimeTimer(timer.getKey(), timer.getNamespace());
 			processingTimeTimersQueue.remove();
+			decrementProcessingTimeTimer(timer.getKey(), timer.getNamespace());
 
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onProcessingTime(timer);
@@ -279,17 +277,17 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		}
 	}
 
+	private int i = 0;
 	public void advanceWatermark(long time) throws Exception {
 		currentWatermark = time;
 
 		InternalTimer<K, N> timer;
 
 		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-
 			Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 			timerSet.remove(timer);
-			decrementEventTimeTimer(timer.getKey(), timer.getNamespace());
 			eventTimeTimersQueue.remove();
+			decrementEventTimeTimer(timer.getKey(), timer.getNamespace());
 
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onEventTime(timer);
@@ -512,7 +510,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	private void decrementTimeTimer(Table<K, N, Integer> table, K key, N namespace) {
 		if (table.contains(key, namespace)) {
-			if (table.get(key, namespace) != 1) {
+			if (table.get(key, namespace) > 1) {
 				table.put(key, namespace, table.get(key, namespace) - 1);
 			} else {
 				table.remove(key, namespace);
