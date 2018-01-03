@@ -29,7 +29,7 @@ public class OffsetCommitModes {
 	 * @param enableCommitOnCheckpoint whether or not committing on checkpoints is enabled.
 	 * @param enableCheckpointing whether or not checkpoint is enabled for the consumer.
 	 *
-	 * @return the offset commmit mode to use, based on the configuration values.
+	 * @return the offset commit mode to use, based on the configuration values.
 	 */
 	public static OffsetCommitMode fromConfiguration(
 			boolean enableAutoCommit,

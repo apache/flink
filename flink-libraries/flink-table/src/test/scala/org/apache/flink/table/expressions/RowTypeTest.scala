@@ -49,7 +49,7 @@ class RowTypeTest extends RowTypeTestBase {
         "Map('foo', 'bar'), row(1, true))",
       "ROW(DATE '1985-04-11', CAST(0.1 AS DECIMAL), ARRAY[1, 2, 3], " +
         "MAP['foo', 'bar'], row(1, true))",
-      "1985-04-11,0.1,[1, 2, 3],{foo=bar},1,true") // string faltten
+      "1985-04-11,0.1,[1, 2, 3],{foo=bar},1,true") // string flatten
 
     testAllApis(
       row(1 + 1, 2 * 3, Null(Types.STRING)),

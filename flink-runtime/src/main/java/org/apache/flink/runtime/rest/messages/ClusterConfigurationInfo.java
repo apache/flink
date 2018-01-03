@@ -24,7 +24,7 @@ import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
 import java.util.ArrayList;
 
 /**
- * Response of the {@link ClusterConfigHandler}, respresented as a list
+ * Response of the {@link ClusterConfigHandler}, represented as a list
  * of key-value pairs of the cluster {@link Configuration}.
  */
 public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfoEntry> implements ResponseBody {

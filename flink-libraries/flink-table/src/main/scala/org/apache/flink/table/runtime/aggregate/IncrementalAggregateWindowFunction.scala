@@ -27,7 +27,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 /**
-  * Computes the final aggregate value from incrementally computed aggreagtes.
+  * Computes the final aggregate value from incrementally computed aggregates.
   *
   * @param numGroupingKey The number of grouping keys.
   * @param numAggregates The number of aggregates.

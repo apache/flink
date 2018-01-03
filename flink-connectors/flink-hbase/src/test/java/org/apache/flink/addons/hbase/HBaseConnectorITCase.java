@@ -312,7 +312,7 @@ public class HBaseConnectorITCase extends HBaseTestingClusterAutostarter {
 		}
 	}
 
-	// ######## TableInputFormate tests ############
+	// ######## TableInputFormat tests ############
 
 	class InputFormatForTestTable extends TableInputFormat<Tuple1<Integer>> {
 

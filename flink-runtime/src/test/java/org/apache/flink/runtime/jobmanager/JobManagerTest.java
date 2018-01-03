@@ -906,7 +906,7 @@ public class JobManagerTest extends TestLogger {
 			msg = new TestingJobManagerMessages.WaitForAllVerticesToBeRunning(jobGraph.getJobID());
 			Await.result(jobManager.ask(msg, timeout), timeout);
 
-			// Notify when canelled
+			// Notify when cancelled
 			msg = new NotifyWhenJobStatus(jobGraph.getJobID(), JobStatus.CANCELED);
 			Future<Object> cancelled = jobManager.ask(msg, timeout);
 

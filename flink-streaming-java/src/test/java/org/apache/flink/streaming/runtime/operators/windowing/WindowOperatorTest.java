@@ -713,7 +713,7 @@ public class WindowOperatorTest extends TestLogger {
 
 		TestHarnessUtil.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput(), new Tuple3ResultSortComparator());
 
-		// add an element that merges the two "key1" sessions, they should now have count 6, and therfore fire
+		// add an element that merges the two "key1" sessions, they should now have count 6, and therefore fire
 		testHarness.processElement(new StreamRecord<>(new Tuple2<>("key1", 10), 4500));
 
 		expectedOutput.add(new StreamRecord<>(new Tuple3<>("key1-22", 10L, 10000L), 9999L));

@@ -95,7 +95,7 @@ public class ParallelSessionsEventGenerator<K, E> {
 			final int index = i % subGeneratorLists.size();
 			EventGenerator<K, E> subGenerator = subGeneratorLists.get(index);
 
-			// check if the sub-generator can produce an event under the current gloabl watermark
+			// check if the sub-generator can produce an event under the current global watermark
 			if (subGenerator.canGenerateEventAtWatermark(globalWatermark)) {
 
 				E event = subGenerator.generateEvent(globalWatermark);

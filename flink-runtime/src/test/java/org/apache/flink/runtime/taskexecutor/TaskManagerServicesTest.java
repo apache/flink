@@ -174,7 +174,7 @@ public class TaskManagerServicesTest extends TestLogger{
 	/**
 	 * Returns the value or the lower/upper bound in case the value is less/greater than the lower/upper bound, respectively.
 	 *
-	 * @param value value to inspec
+	 * @param value value to inspect
 	 * @param lower lower bound
 	 * @param upper upper bound
 	 *

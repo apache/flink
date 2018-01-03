@@ -32,7 +32,7 @@ public interface SlotContext {
 	 * Gets the id under which the slot has been allocated on the TaskManager. This id uniquely identifies the
 	 * physical slot.
 	 *
-	 * @return The id under whic teh slot has been allocated on the TaskManager
+	 * @return The id under which the slot has been allocated on the TaskManager
 	 */
 	AllocationID getAllocationId();
 

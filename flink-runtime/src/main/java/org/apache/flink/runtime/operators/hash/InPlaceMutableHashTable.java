@@ -628,7 +628,7 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
 		}
 
 		/**
-		 * Overwrites a record at the sepcified position. The record is read from a DataInputView  (this will be the staging area).
+		 * Overwrites a record at the specified position. The record is read from a DataInputView  (this will be the staging area).
 		 * WARNING: The record must not be larger than the original record.
 		 * @param pointer Points to the position to overwrite.
 		 * @param input The DataInputView to read the record from

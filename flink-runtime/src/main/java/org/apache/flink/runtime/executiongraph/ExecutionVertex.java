@@ -447,7 +447,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 *     <li>Repeated executions of stateful tasks try to co-locate the execution with its state.
 	 * </ul>
 	 * 
-	 * @return The preferred excution locations for the execution attempt.
+	 * @return The preferred execution locations for the execution attempt.
 	 * 
 	 * @see #getPreferredLocationsBasedOnState()
 	 * @see #getPreferredLocationsBasedOnInputs() 

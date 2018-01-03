@@ -38,7 +38,7 @@ import static org.junit.Assert.assertEquals;
 public class KvStateLocationTest {
 
 	/**
-	 * Simple test registering/unregistereing state and looking it up again.
+	 * Simple test registering/unregistering state and looking it up again.
 	 */
 	@Test
 	public void testRegisterAndLookup() throws Exception {

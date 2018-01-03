@@ -122,7 +122,7 @@ public class TaskEventDispatcherTest extends TestLogger {
 
 		ted.unregisterPartition(partitionId2);
 
-		// publis something for partitionId1 triggering all according listeners
+		// publish something for partitionId1 triggering all according listeners
 		assertTrue(ted.publish(partitionId1, event));
 		assertTrue("listener should have fired for AllWorkersDoneEvent", eventListener1a.fired);
 		assertTrue("listener should have fired for AllWorkersDoneEvent", eventListener2.fired);

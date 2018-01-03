@@ -76,7 +76,7 @@ public class TypeSerializerSerializationUtil {
 
 	/**
 	 * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing objects of
-	 * anonymous classes or our Scala serializer classes and also replaces occurences of GenericData.Array
+	 * anonymous classes or our Scala serializer classes and also replaces occurrences of GenericData.Array
 	 * (from Avro) by a dummy class so that the KryoSerializer can still be deserialized without
 	 * Avro being on the classpath.
 	 *

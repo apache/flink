@@ -192,7 +192,7 @@ abstract class RowTimeUnboundedOver(
         val curTimestamp = sortedTimestamps.removeFirst()
         val curRowList = rowMapState.get(curTimestamp)
 
-        // process the same timestamp datas, the mechanism is different according ROWS or RANGE
+        // process the same timestamp data, the mechanism is different according ROWS or RANGE
         processElementsWithSameTimestamp(curRowList, lastAccumulator, out)
 
         rowMapState.remove(curTimestamp)
@@ -234,7 +234,7 @@ abstract class RowTimeUnboundedOver(
   }
 
   /**
-   * Process the same timestamp datas, the mechanism is different between
+   * Process the same timestamp data, the mechanism is different between
    * rows and range window.
    */
   def processElementsWithSameTimestamp(

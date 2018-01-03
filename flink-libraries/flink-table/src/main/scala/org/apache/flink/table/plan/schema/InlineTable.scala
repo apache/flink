@@ -46,9 +46,9 @@ abstract class InlineTable[T](
   // check uniqueness of field names
   if (fieldNames.length != fieldNames.toSet.size) {
     val duplicateFields = fieldNames
-      // count occurences of field names
+      // count occurrences of field names
       .groupBy(identity).mapValues(_.length)
-      // filter for occurences > 1 and map to field name
+      // filter for occurrences > 1 and map to field name
       .filter(g => g._2 > 1).keys
 
     throw new TableException(

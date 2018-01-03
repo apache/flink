@@ -313,7 +313,7 @@ public abstract class KafkaTableSource
 
 		/**
 		 * Configures a field of the table to be a processing time attribute.
-		 * The configured field must be present in the tabel schema and of type {@link Types#SQL_TIMESTAMP()}.
+		 * The configured field must be present in the table schema and of type {@link Types#SQL_TIMESTAMP()}.
 		 *
 		 * @param proctimeAttribute The name of the processing time attribute in the table schema.
 		 * @return The builder.
@@ -328,7 +328,7 @@ public abstract class KafkaTableSource
 
 		/**
 		 * Configures a field of the table to be a rowtime attribute.
-		 * The configured field must be present in the tabel schema and of type {@link Types#SQL_TIMESTAMP()}.
+		 * The configured field must be present in the table schema and of type {@link Types#SQL_TIMESTAMP()}.
 		 *
 		 * @param rowtimeAttribute The name of the rowtime attribute in the table schema.
 		 * @param timestampExtractor The {@link TimestampExtractor} to extract the rowtime attribute from the physical type.

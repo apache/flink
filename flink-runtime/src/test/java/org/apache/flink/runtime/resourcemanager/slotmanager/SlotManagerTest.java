@@ -999,7 +999,7 @@ public class SlotManagerTest extends TestLogger {
 				() -> slotManager.isTaskManagerIdle(taskManagerConnection.getInstanceID()),
 				mainThreadExecutor);
 
-			// check that the TaskManaer is not idle
+			// check that the TaskManager is not idle
 			assertFalse(idleFuture.get());
 
 			final SlotID slotId = slotIdArgumentCaptor.getValue();

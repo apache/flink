@@ -31,7 +31,7 @@ import java.util.List;
  * is a list that can be appended and iterated over.
  * 
  * <p>Using {@code ListState} is typically more efficient than manually maintaining a list in a
- * {@link ValueState}, because the backing implementation can support efficient appends, rathern then
+ * {@link ValueState}, because the backing implementation can support efficient appends, rather than
  * replacing the full list on write.
  * 
  * <p>To create keyed list state (on a KeyedStream), use 

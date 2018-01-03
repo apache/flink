@@ -101,7 +101,7 @@ public class FlinkKafkaProducer011ITCase extends KafkaTestBase {
 				assertIsCausedBy(FlinkKafka011ErrorCode.PRODUCERS_POOL_EMPTY, ex);
 			}
 
-			// Resume transactions before testHrness1 is being closed (in case of failures close() might not be called)
+			// Resume transactions before testHarness1 is being closed (in case of failures close() might not be called)
 			try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness2 = createTestHarness(topic)) {
 				testHarness2.setup();
 				// restore from snapshot1, transactions with records 43 and 44 should be aborted

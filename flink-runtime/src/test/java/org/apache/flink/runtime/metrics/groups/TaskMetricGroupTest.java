@@ -147,7 +147,7 @@ public class TaskMetricGroupTest extends TestLogger {
 
 		taskMetricGroup.close();
 
-		// now alle registered metrics should have been unregistered
+		// now all registered metrics should have been unregistered
 		assertEquals(0, registry.getNumberRegisteredMetrics());
 
 		registry.shutdown();

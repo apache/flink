@@ -95,7 +95,7 @@ public class GlobalModVersionTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that failures during a global faiover are not handed to the local
+	 * Tests that failures during a global failover are not handed to the local
 	 * failover strategy.
 	 */
 	@Test

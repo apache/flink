@@ -51,7 +51,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 
 /**
- * Integraiton tests for Hadoop IO formats.
+ * Integration tests for Hadoop IO formats.
  */
 @RunWith(Parameterized.class)
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {

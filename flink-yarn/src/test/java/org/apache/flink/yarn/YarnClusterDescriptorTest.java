@@ -291,7 +291,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				.getCommands().get(0));
 
 		// logback + log4j, with/out krb5, different JVM opts
-		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
+		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(CoreOptions.FLINK_JM_JVM_OPTIONS, jmJvmOpts);
 		assertEquals(
 			java + " " + jvmmem +
@@ -322,7 +322,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 				.getCommands().get(0));
 
 		// now try some configurations with different yarn.container-start-command-template
-		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
+		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% 1 %jvmmem% 2 %jvmopts% 3 %logging% 4 %class% 5 %args% 6 %redirects%");
 		assertEquals(
@@ -341,7 +341,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
 		cfg.setString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,
 			"%java% %logging% %jvmopts% %jvmmem% %class% %args% %redirects%");
-		// IMPORTANT: Beaware that we are using side effects here to modify the created YarnClusterDescriptor
+		// IMPORTANT: Be aware that we are using side effects here to modify the created YarnClusterDescriptor
 		assertEquals(
 			java +
 				" " + logfile + " " + logback + " " + log4j +

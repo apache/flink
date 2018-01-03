@@ -946,7 +946,7 @@ public class CheckpointCoordinator {
 	 * Fails all pending checkpoints which have not been acknowledged by the given execution
 	 * attempt id.
 	 *
-	 * @param executionAttemptId for which to discard unaknowledged pending checkpoints
+	 * @param executionAttemptId for which to discard unacknowledged pending checkpoints
 	 * @param cause of the failure
 	 */
 	public void failUnacknowledgedPendingCheckpointsFor(ExecutionAttemptID executionAttemptId, Throwable cause) {

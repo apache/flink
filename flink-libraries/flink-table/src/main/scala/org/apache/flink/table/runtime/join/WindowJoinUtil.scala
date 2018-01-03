@@ -420,7 +420,7 @@ object WindowJoinUtil {
     * Generates a JoinFunction that applies additional join predicates and projects the result.
     *
     * @param  config          table env config
-    * @param  joinType        join type to determain whether input can be null
+    * @param  joinType        join type to determine whether input can be null
     * @param  leftType        left stream type
     * @param  rightType       right stream type
     * @param  returnType      return type

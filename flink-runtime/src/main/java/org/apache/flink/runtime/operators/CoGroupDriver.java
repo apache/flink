@@ -122,14 +122,14 @@ public class CoGroupDriver<IT1, IT2, OT> implements Driver<CoGroupFunction<IT1, 
 		}
 
 		if (objectReuseEnabled) {
-			// create CoGropuTaskIterator according to provided local strategy.
+			// create CoGroupTaskIterator according to provided local strategy.
 			this.coGroupIterator = new ReusingSortMergeCoGroupIterator<IT1, IT2>(
 					in1, in2,
 					serializer1, groupComparator1,
 					serializer2, groupComparator2,
 					pairComparatorFactory.createComparator12(groupComparator1, groupComparator2));
 		} else {
-			// create CoGropuTaskIterator according to provided local strategy.
+			// create CoGroupTaskIterator according to provided local strategy.
 			this.coGroupIterator = new NonReusingSortMergeCoGroupIterator<IT1, IT2>(
 					in1, in2,
 					serializer1, groupComparator1,

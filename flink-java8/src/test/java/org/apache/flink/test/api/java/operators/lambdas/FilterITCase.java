@@ -28,7 +28,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * IT cases for lambda filter funtions.
+ * IT cases for lambda filter functions.
  */
 public class FilterITCase extends JavaProgramTestBase {
 

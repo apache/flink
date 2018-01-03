@@ -62,7 +62,7 @@ public class WordCount {
 		DataStream<Tuple2<String, Integer>> counts =
 				// normalize and split each line
 				text.map(line -> line.toLowerCase().split("\\W+"))
-				// convert splitted line in pairs (2-tuples) containing: (word,1)
+				// convert split line in pairs (2-tuples) containing: (word,1)
 				.flatMap((String[] tokens, Collector<Tuple2<String, Integer>> out) -> {
 					// emit the pairs with non-zero-length words
 					Arrays.stream(tokens)

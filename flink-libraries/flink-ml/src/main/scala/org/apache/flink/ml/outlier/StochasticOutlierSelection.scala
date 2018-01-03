@@ -154,7 +154,7 @@ object StochasticOutlierSelection extends WithParameters {
     new TransformDataSetOperation[StochasticOutlierSelection, LabeledVector, (Int, Double)] {
 
 
-      /** Overrides the method of the parent class and applies the sochastic outlier selection
+      /** Overrides the method of the parent class and applies the stochastic outlier selection
         * algorithm.
         *
         * @param instance Instance of the class
@@ -181,7 +181,7 @@ object StochasticOutlierSelection extends WithParameters {
   }
 
   /** [[TransformDataSetOperation]] applies the stochastic outlier selection algorithm on a
-    * [[Vector]] which will transform the high-dimensionaly input to a single Double output.
+    * [[Vector]] which will transform the high-dimensional input to a single Double output.
     *
     * @tparam T Type of the input and output data which has to be a subtype of [[Vector]]
     * @return [[TransformDataSetOperation]] a single double which represents the oulierness of

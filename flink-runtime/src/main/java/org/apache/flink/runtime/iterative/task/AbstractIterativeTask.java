@@ -97,7 +97,7 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
 		// check if the driver is resettable
 		if (this.driver instanceof ResettableDriver) {
 			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-			// make sure that the according inputs are not reseted
+			// make sure that the according inputs are not reset
 			for (int i = 0; i < resDriver.getNumberOfInputs(); i++) {
 				if (resDriver.isInputResettable(i)) {
 					excludeFromReset(i);

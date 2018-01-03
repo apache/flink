@@ -131,7 +131,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 	protected int[] iterativeInputs;
 	
 	/**
-	 * The indices of the iterative broadcast inputs. Empty, if non of the inputs is iteratve. 
+	 * The indices of the iterative broadcast inputs. Empty, if non of the inputs is iterative.
 	 */
 	protected int[] iterativeBroadcastInputs;
 	
@@ -184,13 +184,13 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 	/**
 	 * Certain inputs may be excluded from resetting. For example, the initial partial solution
-	 * in an iteration head must not be reseted (it is read through the back channel), when all
-	 * others are reseted.
+	 * in an iteration head must not be reset (it is read through the back channel), when all
+	 * others are reset.
 	 */
 	private boolean[] excludeFromReset;
 
 	/**
-	 * Flag indicating for each input whether it is cached and can be reseted.
+	 * Flag indicating for each input whether it is cached and can be reset.
 	 */
 	private boolean[] inputIsCached;
 

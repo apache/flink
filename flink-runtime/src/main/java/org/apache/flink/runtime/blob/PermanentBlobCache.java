@@ -261,7 +261,7 @@ public class PermanentBlobCache extends AbstractBlobCache implements PermanentBl
 
 					/*
 					 * NOTE: normally it is not required to acquire the write lock to delete the job's
-					 *       storage directory since there should be noone accessing it with the ref
+					 *       storage directory since there should be no one accessing it with the ref
 					 *       counter being 0 - acquire it just in case, to always be on the safe side
 					 */
 						readWriteLock.writeLock().lock();

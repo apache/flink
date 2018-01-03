@@ -55,7 +55,7 @@ public class HistoryServerStaticFileServerHandlerTest {
 
 		int port = webUI.getServerPort();
 		try {
-			// verify that 404 message is returned when requesting a non-existant file
+			// verify that 404 message is returned when requesting a non-existent file
 			String notFound404 = HistoryServerTest.getFromHTTP("http://localhost:" + port + "/hello");
 			Assert.assertTrue(notFound404.contains("404 Not Found"));
 

@@ -244,7 +244,7 @@ abstract class CodeGenerator(
     * @param returnType conversion target type. Inputs and output must have the same arity.
     * @param resultFieldNames result field names necessary for a mapping to POJO fields.
     * @param rowtimeExpression an expression to extract the value of a rowtime field from
-    *                          the input data. Required if the field indicies include a rowtime
+    *                          the input data. Required if the field indices include a rowtime
     *                          marker.
     * @return instance of GeneratedExpression
     */

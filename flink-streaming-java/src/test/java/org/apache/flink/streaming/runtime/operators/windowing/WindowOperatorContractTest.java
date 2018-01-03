@@ -1468,7 +1468,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 			@Override
 			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
 				Trigger.TriggerContext context = (Trigger.TriggerContext) invocation.getArguments()[3];
-				// don't intefere with cleanup timers
+				// don't interfere with cleanup timers
 				timeAdaptor.registerTimer(context, 0L);
 				context.getPartitionedState(valueStateDescriptor).update("hello");
 				return TriggerResult.CONTINUE;
@@ -1479,7 +1479,7 @@ public abstract class WindowOperatorContractTest extends TestLogger {
 			@Override
 			public TriggerResult answer(InvocationOnMock invocation) throws Exception {
 				Trigger.OnMergeContext context = (Trigger.OnMergeContext) invocation.getArguments()[1];
-				// don't intefere with cleanup timers
+				// don't interfere with cleanup timers
 				timeAdaptor.registerTimer(context, 0L);
 				context.getPartitionedState(valueStateDescriptor).update("hello");
 				return TriggerResult.CONTINUE;

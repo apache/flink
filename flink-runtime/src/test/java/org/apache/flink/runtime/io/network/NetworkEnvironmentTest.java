@@ -112,7 +112,7 @@ public class NetworkEnvironmentTest {
 	 * @param partitionType
 	 * 		the produced partition type
 	 * @param channels
-	 * 		the nummer of output channels
+	 * 		the number of output channels
 	 *
 	 * @return instance with minimal data set and some mocks so that it is useful for {@link
 	 * NetworkEnvironment#registerTask(Task)}
@@ -140,7 +140,7 @@ public class NetworkEnvironmentTest {
 	 * @param partitionType
 	 * 		the consumed partition type
 	 * @param channels
-	 * 		the nummer of input channels
+	 * 		the number of input channels
 	 *
 	 * @return mock with minimal functionality necessary by {@link NetworkEnvironment#registerTask(Task)}
 	 */

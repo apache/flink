@@ -54,7 +54,7 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<MapState<UK, UV>
 	}
 
 	/**
-	 * Create a new {@code MapStateDescriptor} with the given name and the given type informations.
+	 * Create a new {@code MapStateDescriptor} with the given name and the given type information.
 	 *
 	 * @param name The name of the {@code MapStateDescriptor}.
 	 * @param keyTypeInfo The type information for the keys in the state.

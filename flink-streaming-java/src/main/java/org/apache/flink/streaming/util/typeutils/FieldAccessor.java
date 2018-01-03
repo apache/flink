@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>Field expressions that specify nested fields (e.g. "f1.a.foo") result in nested field
  * accessors. These penetrate one layer, and then delegate the rest of the work to an
- * "innerAccesor". (see PojoFieldAccessor, RecursiveTupleFieldAccessor,
+ * "innerAccessor". (see PojoFieldAccessor, RecursiveTupleFieldAccessor,
  * RecursiveProductFieldAccessor)
  */
 @Internal

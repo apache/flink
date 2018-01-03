@@ -209,7 +209,7 @@ public class PlanFinalizer implements Visitor<PlanNode> {
 			}
 		}
 
-		// pass the visitor to the iteraton's step function
+		// pass the visitor to the iteration's step function
 		if (visitable instanceof IterationPlanNode) {
 			// push the iteration node onto the stack
 			final IterationPlanNode iterNode = (IterationPlanNode) visitable;

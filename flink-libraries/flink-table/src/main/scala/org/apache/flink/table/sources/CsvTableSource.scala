@@ -153,7 +153,6 @@ class CsvTableSource private (
   override def projectFields(fields: Array[Int]): CsvTableSource = {
 
     val selectedFields = if (fields.isEmpty) Array(0) else fields
-//    val selectedFiels = fields
 
     new CsvTableSource(
       path,

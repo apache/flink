@@ -36,7 +36,7 @@ import org.apache.storm.utils.Utils;
  * <p>The input is a plain text file with lines separated by newline characters.
  *
  * <p>Usage:
- * <code>ExclamationWithmBolt &lt;text path&gt; &lt;result path&gt; &lt;number of exclamation marks&gt;</code><br>
+ * <code>ExclamationWithBolt &lt;text path&gt; &lt;result path&gt; &lt;number of exclamation marks&gt;</code><br>
  * If no parameters are provided, the program is run with default data from {@link WordCountData} with x=2.
  *
  * <p>This example shows how to:

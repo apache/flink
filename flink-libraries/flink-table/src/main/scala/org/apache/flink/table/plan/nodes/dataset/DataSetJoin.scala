@@ -443,11 +443,11 @@ class DataSetJoin(
       s"join: (${joinSelectionToString(joinRowType)})"
   }
 
-  /** Returns an array of indicies with some indicies being a prefix. */
+  /** Returns an array of indices with some indices being a prefix. */
   private def getFullIndiciesWithPrefix(keys: Array[Int], numFields: Int): Array[Int] = {
-    // get indicies of all fields which are not keys
+    // get indices of all fields which are not keys
     val nonKeys = (0 until numFields).filter(!keys.contains(_))
-    // return all field indicies prefixed by keys
+    // return all field indices prefixed by keys
     keys ++ nonKeys
   }
 

@@ -53,7 +53,7 @@ import java.util.ArrayList;
  *
  * @param <K> Type of key
  * @param <V> Type of value
- * @param <T> The type iself
+ * @param <T> The type itself
  */
 @Internal
 public abstract class HadoopInputFormatBase<K, V, T> extends HadoopInputFormatCommonBase<T, HadoopInputSplit> {

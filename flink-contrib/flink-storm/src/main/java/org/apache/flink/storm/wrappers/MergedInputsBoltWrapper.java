@@ -63,8 +63,8 @@ public final class MergedInputsBoltWrapper<IN, OUT> extends BoltWrapper<StormTup
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not within range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not within range
 	 *             [1;25].
 	 */
 	public MergedInputsBoltWrapper(final IRichBolt bolt, final String[] rawOutputs)
@@ -85,8 +85,8 @@ public final class MergedInputsBoltWrapper<IN, OUT> extends BoltWrapper<StormTup
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [1;25].
 	 */
 	public MergedInputsBoltWrapper(final IRichBolt bolt, final Collection<String> rawOutputs)
@@ -109,8 +109,8 @@ public final class MergedInputsBoltWrapper<IN, OUT> extends BoltWrapper<StormTup
 	 *            Contains stream names if a single attribute output stream, should not be of type {@link Tuple1} but be
 	 *            of a raw type.
 	 * @throws IllegalArgumentException
-	 *             If {@code rawOuput} is {@code true} and the number of declared output attributes is not 1 or if
-	 *             {@code rawOuput} is {@code false} and the number of declared output attributes is not with range
+	 *             If {@code rawOutput} is {@code true} and the number of declared output attributes is not 1 or if
+	 *             {@code rawOutput} is {@code false} and the number of declared output attributes is not with range
 	 *             [0;25].
 	 */
 	public MergedInputsBoltWrapper(final IRichBolt bolt, final String name, final Collection<String> rawOutputs)

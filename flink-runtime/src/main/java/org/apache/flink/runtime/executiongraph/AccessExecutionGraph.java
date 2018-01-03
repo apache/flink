@@ -50,7 +50,7 @@ public interface AccessExecutionGraph {
 	JobID getJobID();
 
 	/**
-	 * Returns the job name for thie execution graph.
+	 * Returns the job name for the execution graph.
 	 *
 	 * @return job name for this execution graph
 	 */
@@ -90,7 +90,7 @@ public interface AccessExecutionGraph {
 	/**
 	 * Returns an iterable containing all job vertices for this execution graph in the order they were created.
 	 *
-	 * @return iterable containing all job vertices for this execution graph in the order they were creater
+	 * @return iterable containing all job vertices for this execution graph in the order they were created
 	 */
 	Iterable<? extends AccessExecutionJobVertex> getVerticesTopologically();
 

@@ -1493,7 +1493,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		assertTrue(pending.isDiscarded());
 		assertTrue(savepointFuture.isDone());
 
-		// the now the saveppoint should be completed but not added to the completed checkpoint store
+		// the now the savepoint should be completed but not added to the completed checkpoint store
 		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 

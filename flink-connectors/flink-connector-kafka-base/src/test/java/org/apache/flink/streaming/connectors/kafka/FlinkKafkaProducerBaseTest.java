@@ -189,7 +189,7 @@ public class FlinkKafkaProducerBaseTest {
 	 * Test ensuring that if an async exception is caught for one of the flushed requests on checkpoint,
 	 * it should be rethrown; we set a timeout because the test will not finish if the logic is broken.
 	 *
-	 * <p>Note that this test does not test the snapshot method is blocked correctly when there are pending recorrds.
+	 * <p>Note that this test does not test the snapshot method is blocked correctly when there are pending records.
 	 * The test for that is covered in testAtLeastOnceProducer.
 	 */
 	@SuppressWarnings("unchecked")

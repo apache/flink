@@ -70,7 +70,7 @@ public class ClosableBlockingQueue<E> {
 
 	/**
 	 * Creates a new empty queue, reserving space for at least the specified number
-	 * of elements. The queu can still grow, of more elements are added than the
+	 * of elements. The queue can still grow, of more elements are added than the
 	 * reserved space.
 	 *
 	 * @param initialSize The number of elements to reserve space for.

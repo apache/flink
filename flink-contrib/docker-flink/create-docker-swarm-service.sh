@@ -50,5 +50,5 @@ docker network create -d overlay ${OVERLAY_NETWORK_NAME}
 # Create the jobmanager service
 docker service create --name ${JOB_MANAGER_NAME} --env JOB_MANAGER_RPC_ADDRESS=${JOB_MANAGER_RPC_ADDRESS} -p ${SERVICE_PORT}:8081 --network ${OVERLAY_NETWORK_NAME} ${IMAGE_NAME} jobmanager
 
-# Create the taskmanger service (scale this out as needed)
+# Create the taskmanager service (scale this out as needed)
 docker service create --name ${TASK_MANAGER_NAME} --env JOB_MANAGER_RPC_ADDRESS=${JOB_MANAGER_RPC_ADDRESS} --network ${OVERLAY_NETWORK_NAME} ${IMAGE_NAME} taskmanager

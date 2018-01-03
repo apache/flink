@@ -463,7 +463,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	 *  - snapshot was taken without any Kryo registrations, specific serializers or default serializers for the state type
 	 *  - restored with the state type registered (no specific serializer)
 	 *
-	 * This test should not fail, because de- / serialization of the state should noth be performed with Kryo's default
+	 * This test should not fail, because de- / serialization of the state should not be performed with Kryo's default
 	 * {@link com.esotericsoftware.kryo.serializers.FieldSerializer}.
 	 */
 	@Test

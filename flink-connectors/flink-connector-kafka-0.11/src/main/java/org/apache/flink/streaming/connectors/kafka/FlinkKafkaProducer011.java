@@ -170,7 +170,7 @@ public class FlinkKafkaProducer011<IN>
 	public static final String KEY_DISABLE_METRICS = "flink.disable-metrics";
 
 	/**
-	 * Descriptor of the transacionalIds list.
+	 * Descriptor of the transactional IDs list.
 	 */
 	private static final ListStateDescriptor<NextTransactionalIdHint> NEXT_TRANSACTIONAL_ID_HINT_DESCRIPTOR =
 		new ListStateDescriptor<>("next-transactional-id-hint", TypeInformation.of(NextTransactionalIdHint.class));

@@ -558,7 +558,7 @@ public class StreamGraphGenerator {
 	/**
 	 * Transforms a {@code TwoInputTransformation}.
 	 *
-	 * <p>This recusively transforms the inputs, creates a new {@code StreamNode} in the graph and
+	 * <p>This recursively transforms the inputs, creates a new {@code StreamNode} in the graph and
 	 * wired the inputs to this new node.
 	 */
 	private <IN1, IN2, OUT> Collection<Integer> transformTwoInputTransform(TwoInputTransformation<IN1, IN2, OUT> transform) {
@@ -617,7 +617,7 @@ public class StreamGraphGenerator {
 	 *
 	 * <p>If the user specifies a group name, this is taken as is. If nothing is specified and
 	 * the input operations all have the same group name then this name is taken. Otherwise the
-	 * default group is choosen.
+	 * default group is chosen.
 	 *
 	 * @param specifiedGroup The group specified by the user.
 	 * @param inputIds The IDs of the input operations.

@@ -75,7 +75,7 @@ class CoGroupedStreams[T1, T2](input1: DataStream[T1], input2: DataStream[T2]) {
    * A co-group operation that has [[KeySelector]]s defined for the first input.
    *
    * You need to specify a [[KeySelector]] for the second input using [[equalTo()]]
-   * before you can proceeed with specifying a [[WindowAssigner]] using [[EqualTo.window()]].
+   * before you can proceed with specifying a [[WindowAssigner]] using [[EqualTo.window()]].
    *
    * @tparam KEY Type of the key. This must be the same for both inputs
    */

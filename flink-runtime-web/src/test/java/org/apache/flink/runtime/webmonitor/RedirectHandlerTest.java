@@ -59,7 +59,7 @@ public class RedirectHandlerTest extends TestLogger {
 	 * Tests the behaviour of the RedirectHandler under the following conditions.
 	 *
 	 * <p>1. No local address known --> service unavailable
-	 * 2. Local address knwon but no gateway resolved --> service unavailable
+	 * 2. Local address known but no gateway resolved --> service unavailable
 	 * 3. Remote leader gateway --> redirection
 	 * 4. Local leader gateway
 	 * @throws Exception

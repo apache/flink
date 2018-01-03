@@ -187,7 +187,7 @@ public class DataStreamTest {
 			assertTrue(edge.getPartitioner() instanceof ForwardPartitioner);
 		}
 
-		// verify self union with differnt partitioners
+		// verify self union with different partitioners
 		assertTrue(streamGraph.getStreamNode(selfUnionDifferentPartition.getId()).getInEdges().size() == 2);
 		boolean hasForward = false;
 		boolean hasBroadcast = false;

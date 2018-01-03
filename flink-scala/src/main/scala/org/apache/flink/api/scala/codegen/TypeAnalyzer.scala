@@ -204,7 +204,7 @@ private[flink] trait TypeAnalyzer[C <: Context] { this: MacroContextHolder[C]
       }
 
       if (!hasZeroCtor) {
-        // We don't support POJOs without zero-paramter ctor
+        // We don't support POJOs without zero-parameter ctor
         return GenericClassDescriptor(id, tpe)
       }
 

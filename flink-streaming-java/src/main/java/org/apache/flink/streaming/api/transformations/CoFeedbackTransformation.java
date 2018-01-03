@@ -61,7 +61,7 @@ public class CoFeedbackTransformation<F> extends StreamTransformation<F> {
 	/**
 	 * Creates a new {@code CoFeedbackTransformation} from the given input.
 	 *
-	 * @param parallelism The parallelism of the upstream {@code StreamTransformatino} and the
+	 * @param parallelism The parallelism of the upstream {@code StreamTransformation} and the
 	 *                    feedback edges.
 	 * @param feedbackType The type of the feedback edges
 	 * @param waitTime The wait time of the feedback operator. After the time expires
