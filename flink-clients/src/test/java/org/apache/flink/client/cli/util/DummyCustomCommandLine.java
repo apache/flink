@@ -22,7 +22,6 @@ import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -43,7 +42,7 @@ public class DummyCustomCommandLine<T extends ClusterClient> implements CustomCo
 	}
 
 	@Override
-	public boolean isActive(CommandLine commandLine, Configuration configuration) {
+	public boolean isActive(CommandLine commandLine) {
 		return true;
 	}
 
@@ -63,21 +62,18 @@ public class DummyCustomCommandLine<T extends ClusterClient> implements CustomCo
 	}
 
 	@Override
-	public ClusterDescriptor<T> createClusterDescriptor(
-			Configuration configuration,
-			String configurationDirectory,
-			CommandLine commandLine) {
+	public ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) {
 		return new DummyClusterDescriptor<>(clusterClient);
 	}
 
 	@Override
 	@Nullable
-	public String getClusterId(Configuration configuration, CommandLine commandLine) {
+	public String getClusterId(CommandLine commandLine) {
 		return "dummy";
 	}
 
 	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration, CommandLine commandLine) {
+	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
 		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }

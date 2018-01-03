@@ -256,22 +256,15 @@ object FlinkShell {
     val options = CliFrontendParser.parseRunCommand(args.toArray)
     val frontend = new CliFrontend(
       configuration,
-      CliFrontend.loadCustomCommandLines(),
-      configurationDirectory)
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(
-      config,
-      frontend.getConfigurationDirectory,
-      options.getCommandLine)
+    val clusterDescriptor = customCLI.createClusterDescriptor(options.getCommandLine)
 
-    val clusterSpecification = customCLI.getClusterSpecification(
-      config,
-      options.getCommandLine)
+    val clusterSpecification = customCLI.getClusterSpecification(options.getCommandLine)
 
-    val cluster = clusterDescriptor.deploySessionCluster(
-      clusterSpecification)
+    val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
     val port = cluster.getJobManagerAddress.getPort
@@ -291,19 +284,13 @@ object FlinkShell {
     val options = CliFrontendParser.parseRunCommand(args.toArray)
     val frontend = new CliFrontend(
       configuration,
-      CliFrontend.loadCustomCommandLines(),
-      configurationDirectory)
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(
-      configuration,
-      configurationDirectory,
-      options.getCommandLine)
+    val clusterDescriptor = customCLI.createClusterDescriptor(options.getCommandLine)
 
-    val clusterId = customCLI.getClusterId(
-      configuration,
-      options.getCommandLine)
+    val clusterId = customCLI.getClusterId(options.getCommandLine)
 
     val cluster = clusterDescriptor.retrieve(clusterId)
 
