@@ -1304,7 +1304,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add(17L);
 			state.add(11L);
 			assertThat(state.get(), containsInAnyOrder(17L, 11L));
+			// update(null) should remain the value null
 			state.update(null);
+			assertNull(state.get());
+			// update(emptyList) should remain the value null
+			state.update(Arrays.asList());
 			assertNull(state.get());
 			state.update(Arrays.asList(10L, 16L));
 			assertThat(state.get(), containsInAnyOrder(16L, 10L));

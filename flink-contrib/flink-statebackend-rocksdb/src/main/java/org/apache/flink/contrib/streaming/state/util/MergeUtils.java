@@ -33,11 +33,11 @@ public class MergeUtils {
 	 * Merge operands into a single value that can be put directly into RocksDB.
 	 */
 	public static byte[] merge(List<byte[]> operands) {
-		if (operands == null) {
+		if (operands == null || operands.size() == 0) {
 			return null;
 		}
 
-		if (operands.size() < 2) {
+		if (operands.size() == 1) {
 			return operands.get(0);
 		}
 

@@ -176,7 +176,12 @@ public class RocksDBListState<K, N, V>
 					bytes.add(keySerializationStream.toByteArray());
 				}
 
-				backend.db.put(columnFamily, writeOptions, key, MergeUtils.merge(bytes));
+				byte[] premerge = MergeUtils.merge(bytes);
+				if (premerge != null) {
+					backend.db.put(columnFamily, writeOptions, key, premerge);
+				} else {
+					throw new IOException("Failed pre-merge values");
+				}
 			} catch (IOException | RocksDBException e) {
 				throw new RuntimeException("Error while updating data to RocksDB", e);
 			}

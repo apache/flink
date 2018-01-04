@@ -20,7 +20,6 @@ package org.apache.flink.contrib.streaming.state.util;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -32,15 +31,25 @@ import static org.junit.Assert.assertTrue;
 public class MergeUtilsTest {
 	@Test
 	public void testMerge() {
-		List<byte[]> list = new ArrayList<>();
-		list.add(new byte[4]);
-		list.add(new byte[1]);
-		list.add(new byte[2]);
+		List<byte[]> list = Arrays.asList(
+				new byte[4],
+				new byte[1],
+				new byte[2]);
 
 		byte[] expected = new byte[9];
 		expected[4] = MergeUtils.DELIMITER;
 		expected[6] = MergeUtils.DELIMITER;
 
 		assertTrue(Arrays.equals(expected, MergeUtils.merge(list)));
+
+		// Empty list
+		list = Arrays.asList();
+
+		assertTrue(Arrays.equals(null, MergeUtils.merge(list)));
+
+		// Singleton list
+		list = Arrays.asList(new byte[1]);
+
+		assertTrue(Arrays.equals(new byte[1], MergeUtils.merge(list)));
 	}
 }
