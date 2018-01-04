@@ -83,7 +83,7 @@ public class RocksDBListStatePerformanceTest extends TestLogger {
 		final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
 
 		// The number of values added to ListState. Can be changed for benchmarking
-		final int num = 5000;
+		final int num = 1000;
 
 		try (
 			final Options options = new Options()
