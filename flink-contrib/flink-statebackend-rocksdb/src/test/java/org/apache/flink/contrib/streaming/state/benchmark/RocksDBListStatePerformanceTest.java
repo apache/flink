@@ -44,14 +44,14 @@ import java.util.List;
  * Benchmarking
  * Computer: MacbookPro (Mid 2015), Flash Storage, Processor 2.5GHz Intel Core i7, Memory 16GB 1600MHz DDR3
  *
- * Number of values added | time for add() API | time for update() API | perf improvement of update() over add()
- * 500	                    978703 ns            55397 ns                17.66x
- * 1000	                    3044179 ns           89474 ns                34.02x
- * 5000	                    9247395 ns           305580 ns               30.26x
- * 10000                    16416442 ns          605963 ns               27.09x
- * 50000                    84311205 ns          5691288 ns              14.81x
- * 100000                   195103310 ns         12914182 ns             15.11x
- * 500000                   1223141510 ns        70595881 ns             17.33x
+ * Number of values added | time for add()   |  time for update() | perf improvement of update() over add()
+ * 500						978703 ns			55397 ns			17.66x
+ * 1000						3044179 ns			89474 ns			34.02x
+ * 5000						9247395 ns			305580 ns			30.26x
+ * 10000					16416442 ns			605963 ns			27.09x
+ * 50000					84311205 ns			5691288 ns			14.81x
+ * 100000					195103310 ns		12914182 ns			15.11x
+ * 500000					1223141510 ns		70595881 ns			17.33x
  *
  * In summary, update() API which pre-merges all values gives users 15-35x performance improvements.
  * For most frequent use cases where there are a few hundreds to a few thousands values per key,
