@@ -440,36 +440,7 @@ For the execution of your Flink program, it is recommended to build a
 so-called uber-jar (executable jar) containing all your dependencies
 (see [here]({{site.baseurl}}/dev/linking.html) for further information).
 
-However, when an uber-jar containing an Elasticsearch sink is executed,
-an `IllegalArgumentException` may occur, which is caused by conflicting
-files of Elasticsearch and it's dependencies in `META-INF/services`:
-
-```
-IllegalArgumentException[An SPI class of type org.apache.lucene.codecs.PostingsFormat with name 'Lucene50' does not exist.  You need to add the corresponding JAR file supporting this SPI to your classpath.  The current classpath supports the following names: [es090, completion090, XBloomFilter]]
-```
-
-If the uber-jar is built using Maven, this issue can be avoided by
-adding the following to the Maven POM file in the plugins section:
-
-~~~xml
-<plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-shade-plugin</artifactId>
-    <version>2.4.3</version>
-    <executions>
-        <execution>
-            <phase>package</phase>
-            <goals>
-                <goal>shade</goal>
-            </goals>
-            <configuration>
-                <transformers>
-                    <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                </transformers>
-            </configuration>
-        </execution>
-    </executions>
-</plugin>
-~~~
+Alternatively, you can put the connector's jar file into Flink's `lib/` folder to make it available
+system-wide, i.e. for all job being run.
 
 {% top %}
