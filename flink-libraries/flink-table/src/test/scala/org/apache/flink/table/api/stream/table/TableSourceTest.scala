@@ -47,7 +47,8 @@ class TableSourceTest extends TableTestBase {
 
     val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
 
-    val expected = "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, id, name, val])"
+    val expected = "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, id, name, val], " +
+      "source=[TestTableSourceWithTime(id, rowtime, val, name)])"
     util.verifyTable(t, expected)
   }
 
@@ -69,7 +70,8 @@ class TableSourceTest extends TableTestBase {
 
     val t = util.tableEnv.scan("rowTimeT").select("rowtime, id, name, val")
 
-    val expected = "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, id, name, val])"
+    val expected = "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, id, name, val], " +
+      "source=[TestTableSourceWithTime(id, rowtime, val, name)])"
     util.verifyTable(t, expected)
   }
 
@@ -102,7 +104,8 @@ class TableSourceTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, val, name])",
+            "StreamTableSourceScan(table=[[rowTimeT]], fields=[rowtime, val, name], " +
+              "source=[TestTableSourceWithTime(id, rowtime, val, name)])",
             term("select", "rowtime", "val", "name"),
             term("where", ">(val, 100)")
           ),
@@ -135,7 +138,8 @@ class TableSourceTest extends TableTestBase {
     val expected =
       unaryNode(
         "DataStreamCalc",
-        "StreamTableSourceScan(table=[[procTimeT]], fields=[id, proctime, val, name])",
+        "StreamTableSourceScan(table=[[procTimeT]], fields=[id, proctime, val, name], " +
+          "source=[TestTableSourceWithTime(id, proctime, val, name)])",
         term("select", "PROCTIME(proctime) AS proctime", "id", "name", "val")
       )
     util.verifyTable(t, expected)
@@ -166,7 +170,8 @@ class TableSourceTest extends TableTestBase {
         "DataStreamCalc",
         unaryNode(
           "DataStreamOverAggregate",
-          "StreamTableSourceScan(table=[[procTimeT]], fields=[id, proctime, val, name])",
+          "StreamTableSourceScan(table=[[procTimeT]], fields=[id, proctime, val, name], " +
+            "source=[TestTableSourceWithTime(id, proctime, val, name)])",
           term("partitionBy", "id"),
           term("orderBy", "proctime"),
           term("range", "BETWEEN 7200000 PRECEDING AND CURRENT ROW"),

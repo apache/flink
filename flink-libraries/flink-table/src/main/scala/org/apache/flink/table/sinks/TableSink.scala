@@ -31,7 +31,7 @@ import org.apache.flink.table.api.Table
 trait TableSink[T] {
 
   /**
-    * Return the type expected by this [[TableSink]].
+    * Returns the type expected by this [[TableSink]].
     *
     * This type should depend on the types returned by [[getFieldNames]].
     *
