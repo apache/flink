@@ -27,13 +27,54 @@ import org.apache.flink.annotation.PublicEvolving;
 public class CoreOptions {
 
 	// ------------------------------------------------------------------------
-	//  process parameters
+	//  Classloading Parameters
 	// ------------------------------------------------------------------------
 
+	/**
+	 * Defines the class resolution strategy when loading classes from user code,
+	 * meaning whether to first check the user code jar ({@code "child-first"}) or
+	 * the application classpath ({@code "parent-first"})
+	 *
+	 * <p>The default settings indicate to load classes first from the user code jar,
+	 * which means that user code jars can include and load different dependencies than
+	 * Flink uses (transitively).
+	 *
+	 * <p>Exceptions to the rules are defined via {@link #ALWAYS_PARENT_FIRST_LOADER}.
+	 */
 	public static final ConfigOption<String> CLASSLOADER_RESOLVE_ORDER = ConfigOptions
 		.key("classloader.resolve-order")
 		.defaultValue("child-first");
 
+	/**
+	 * The namespace patterns for classes that are loaded with a preference from the
+	 * parent classloader, meaning the application class path, rather than any user code
+	 * jar file. This option only has an effect when {@link #CLASSLOADER_RESOLVE_ORDER} is
+	 * set to {@code "child-first"}.
+	 *
+	 * <p>It is important that all classes whose objects move between Flink's runtime and
+	 * any user code (including Flink connectors that run as part of the user code) are
+	 * covered by these patterns here. Otherwise it is be possible that the Flink runtime
+	 * and the user code load two different copies of a class through the different class
+	 * loaders. That leads to errors like "X cannot be cast to X" exceptions, where both
+	 * class names are equal, or "X cannot be assigned to Y", where X should be a subclass
+	 * of Y.
+	 *
+	 * <p>The following classes are loaded parent-first, to avoid any duplication:
+	 * <ul>
+	 *     <li>All core Java classes (java.*), because they must never be duplicated.</li>
+	 *     <li>All core Scala classes (scala.*). Currently Scala is used in the Flink
+	 *         runtime and in the user code, and some Scala classes cross the boundary,
+	 *         such as the <i>FunctionX</i> classes. That may change if Scala eventually
+	 *         lives purely as part of the user code.</li>
+	 *     <li>All Flink classes (org.apache.flink.*). Note that this means that connectors
+	 *         and formats (flink-avro, etc) are loaded parent-first as well if they are in the
+	 *         core classpath.</li>
+	 *     <li>Java annotations and loggers, defined by the following list:
+	 *         javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback.
+	 *         This is done for convenience, to avoid duplication of annotations and multiple
+	 *         log bindings.</li>
+	 * </ul>
+	 */
 	public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER = ConfigOptions
 		.key("classloader.parent-first-patterns")
 		.defaultValue("java.;scala.;org.apache.flink.;javax.annotation;org.slf4j;org.apache.log4j;org.apache.logging.log4j;ch.qos.logback");
