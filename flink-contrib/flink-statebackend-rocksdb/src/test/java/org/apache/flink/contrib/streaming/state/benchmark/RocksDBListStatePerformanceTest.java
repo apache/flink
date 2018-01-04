@@ -18,12 +18,12 @@
 
 package org.apache.flink.contrib.streaming.state.benchmark;
 
-import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.util.MergeUtils;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -41,9 +41,9 @@ import java.util.List;
 /**
  * Test that validates that the performance of APIs of RocksDB's ListState is as expected.
  *
- * Benchmarking
- * Computer: MacbookPro (Mid 2015), Flash Storage, Processor 2.5GHz Intel Core i7, Memory 16GB 1600MHz DDR3
+ * <p>Benchmarking:
  *
+ * <p>Computer: MacbookPro (Mid 2015), Flash Storage, Processor 2.5GHz Intel Core i7, Memory 16GB 1600MHz DDR3
  * Number of values added | time for add()   |  time for update() | perf improvement of update() over add()
  * 500						978703 ns			55397 ns			17.66x
  * 1000						3044179 ns			89474 ns			34.02x
@@ -53,7 +53,7 @@ import java.util.List;
  * 100000					195103310 ns		12914182 ns			15.11x
  * 500000					1223141510 ns		70595881 ns			17.33x
  *
- * In summary, update() API which pre-merges all values gives users 15-35x performance improvements.
+ * <p>In summary, update() API which pre-merges all values gives users 15-35x performance improvements.
  * For most frequent use cases where there are a few hundreds to a few thousands values per key,
  * users can get 30x - 35x performance improvement!
  *
