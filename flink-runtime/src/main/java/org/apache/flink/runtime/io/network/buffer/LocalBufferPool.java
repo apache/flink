@@ -180,8 +180,7 @@ class LocalBufferPool implements BufferPool {
 	@Override
 	public Buffer requestBuffer() throws IOException {
 		try {
-			BufferBuilder bufferBuilder = requestBufferBuilder(false);
-			return bufferBuilder != null ? bufferBuilder.build() : null;
+			return toBuffer(requestMemorySegment(false));
 		}
 		catch (InterruptedException e) {
 			throw new IOException(e);
@@ -190,16 +189,29 @@ class LocalBufferPool implements BufferPool {
 
 	@Override
 	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		BufferBuilder bufferBuilder = requestBufferBuilder(true);
-		return bufferBuilder != null ? bufferBuilder.build() : null;
+		return toBuffer(requestMemorySegment(true));
 	}
 
 	@Override
 	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
-		return requestBufferBuilder(true);
+		return toBufferBuilder(requestMemorySegment(true));
 	}
 
-	private BufferBuilder requestBufferBuilder(boolean isBlocking) throws InterruptedException, IOException {
+	private Buffer toBuffer(MemorySegment memorySegment) {
+		if (memorySegment == null) {
+			return null;
+		}
+		return new NetworkBuffer(memorySegment, this);
+	}
+
+	private BufferBuilder toBufferBuilder(MemorySegment memorySegment) {
+		if (memorySegment == null) {
+			return null;
+		}
+		return new BufferBuilder(memorySegment, this);
+	}
+
+	private MemorySegment requestMemorySegment(boolean isBlocking) throws InterruptedException, IOException {
 		synchronized (availableMemorySegments) {
 			returnExcessMemorySegments();
 
@@ -234,7 +246,7 @@ class LocalBufferPool implements BufferPool {
 				}
 			}
 
-			return new BufferBuilder(availableMemorySegments.poll(), this);
+			return availableMemorySegments.poll();
 		}
 	}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.serialization.types.LargeObjectType;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 
 /**
@@ -134,7 +136,8 @@ public class SpanningRecordSerializationTest {
 
 		// -------------------------------------------------------------------------------------------------------------
 
-		serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
+		BufferBuilder bufferBuilder = createBufferBuilder(segmentSize);
+		serializer.setNextBufferBuilder(bufferBuilder);
 
 		int numRecords = 0;
 		for (SerializationTestType record : records) {
@@ -146,7 +149,7 @@ public class SpanningRecordSerializationTest {
 			// serialize record
 			if (serializer.addRecord(record).isFullBuffer()) {
 				// buffer is full => start deserializing
-				deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), segmentSize);
+				deserializer.setNextBuffer(buildSingleBuffer(bufferBuilder));
 
 				while (!serializedRecords.isEmpty()) {
 					SerializationTestType expected = serializedRecords.poll();
@@ -162,14 +165,18 @@ public class SpanningRecordSerializationTest {
 				}
 
 				// move buffers as long as necessary (for long records)
-				while (serializer.setNextBufferBuilder(createBufferBuilder(segmentSize)).isFullBuffer()) {
-					deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), segmentSize);
+				bufferBuilder = createBufferBuilder(segmentSize);
+				serializer.clear();
+				while (serializer.setNextBufferBuilder(bufferBuilder).isFullBuffer()) {
+					deserializer.setNextBuffer(buildSingleBuffer(bufferBuilder));
+					bufferBuilder = createBufferBuilder(segmentSize);
+					serializer.clear();
 				}
 			}
 		}
 
 		// deserialize left over records
-		deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), segmentSize);
+		deserializer.setNextBuffer(buildSingleBuffer(bufferBuilder));
 
 		while (!serializedRecords.isEmpty()) {
 			SerializationTestType expected = serializedRecords.poll();

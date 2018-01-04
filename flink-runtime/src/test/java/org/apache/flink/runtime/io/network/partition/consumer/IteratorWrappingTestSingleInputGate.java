@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
@@ -32,6 +33,7 @@ import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.mockito.Mockito.when;
 
@@ -69,13 +71,15 @@ public class IteratorWrappingTestSingleInputGate<T extends IOReadableWritable> e
 			@Override
 			public InputChannel.BufferAndAvailability answer(InvocationOnMock invocationOnMock) throws Throwable {
 				if (hasData) {
-					serializer.setNextBufferBuilder(createBufferBuilder(bufferSize));
+					serializer.clear();
+					BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+					serializer.setNextBufferBuilder(bufferBuilder);
 					serializer.addRecord(reuse);
 
 					hasData = inputIterator.next(reuse) != null;
 
 					// Call getCurrentBuffer to ensure size is set
-					return new InputChannel.BufferAndAvailability(serializer.getCurrentBuffer(), true, 0);
+					return new InputChannel.BufferAndAvailability(buildSingleBuffer(bufferBuilder), true, 0);
 				} else {
 					when(inputChannel.getInputChannel().isReleased()).thenReturn(true);
 

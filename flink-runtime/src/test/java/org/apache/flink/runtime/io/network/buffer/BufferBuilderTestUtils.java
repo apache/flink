@@ -29,4 +29,10 @@ public class BufferBuilderTestUtils {
 			MemorySegmentFactory.allocateUnpooledSegment(size),
 			FreeingBufferRecycler.INSTANCE);
 	}
+
+	public static Buffer buildSingleBuffer(BufferBuilder bufferBuilder) {
+		try (BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer()) {
+			return bufferConsumer.build();
+		}
+	}
 }

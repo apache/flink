@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -38,6 +39,7 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
@@ -102,12 +104,14 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					} else if (input != null && input.isStreamRecord()) {
 						Object inputElement = input.getStreamRecord();
 
-						recordSerializer.setNextBufferBuilder(createBufferBuilder(bufferSize));
+						BufferBuilder bufferBuilder = createBufferBuilder(bufferSize);
+						recordSerializer.setNextBufferBuilder(bufferBuilder);
 						delegate.setInstance(inputElement);
 						recordSerializer.addRecord(delegate);
+						bufferBuilder.finish();
 
 						// Call getCurrentBuffer to ensure size is set
-						return new BufferAndAvailability(recordSerializer.getCurrentBuffer(), false, 0);
+						return new BufferAndAvailability(buildSingleBuffer(bufferBuilder), false, 0);
 					} else if (input != null && input.isEvent()) {
 						AbstractEvent event = input.getEvent();
 						return new BufferAndAvailability(EventSerializer.toBuffer(event), false, 0);

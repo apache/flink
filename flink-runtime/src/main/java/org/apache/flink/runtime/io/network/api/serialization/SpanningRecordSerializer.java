@@ -147,16 +147,6 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	@Override
-	public Buffer getCurrentBuffer() {
-		if (targetBuffer == null) {
-			return null;
-		}
-		Buffer result = targetBuffer.build();
-		targetBuffer = null;
-		return result;
-	}
-
-	@Override
 	public void clear() {
 		targetBuffer = null;
 	}

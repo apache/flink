@@ -27,10 +27,12 @@ import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
@@ -60,6 +62,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	/** {@link RecordSerializer} per outgoing channel. */
 	private final RecordSerializer<T>[] serializers;
 
+	private final Optional<BufferConsumer>[] bufferConsumers;
+
 	private final Random rng = new XORShiftRandom();
 
 	private Counter numBytesOut = new SimpleCounter();
@@ -81,8 +85,10 @@ public class RecordWriter<T extends IOReadableWritable> {
 		 * serializer.
 		 */
 		this.serializers = new SpanningRecordSerializer[numChannels];
+		this.bufferConsumers = new Optional[numChannels];
 		for (int i = 0; i < numChannels; i++) {
 			serializers[i] = new SpanningRecordSerializer<T>();
+			bufferConsumers[i] = Optional.empty();
 		}
 	}
 
@@ -128,6 +134,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 				} else {
 					BufferBuilder bufferBuilder =
 						targetPartition.getBufferProvider().requestBufferBuilderBlocking();
+					checkState(!bufferConsumers[targetChannel].isPresent());
+					bufferConsumers[targetChannel] = Optional.of(bufferBuilder.createBufferConsumer());
 					result = serializer.setNextBufferBuilder(bufferBuilder);
 				}
 			}
@@ -166,18 +174,11 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	public void clearBuffers() {
-		for (RecordSerializer<?> serializer : serializers) {
+		for (int targetChannel = 0; targetChannel < numChannels; targetChannel++) {
+			RecordSerializer<?> serializer = serializers[targetChannel];
 			synchronized (serializer) {
-				try {
-					Buffer buffer = serializer.getCurrentBuffer();
-
-					if (buffer != null) {
-						buffer.recycleBuffer();
-					}
-				}
-				finally {
-					serializer.clear();
-				}
+				closeBufferConsumer(targetChannel);
+				serializer.clear();
 			}
 		}
 	}
@@ -190,8 +191,8 @@ public class RecordWriter<T extends IOReadableWritable> {
 	}
 
 	/**
-	 * Writes the buffer to the {@link ResultPartitionWriter} and removes the
-	 * buffer from the serializer state.
+	 * Tries to consume serialized data and (if data present) writes them to the {@link ResultPartitionWriter}.
+	 * After writing it clean ups the state.
 	 *
 	 * <p><b>Needs to be synchronized on the serializer!</b>
 	 *
@@ -201,17 +202,25 @@ public class RecordWriter<T extends IOReadableWritable> {
 			int targetChannel,
 			RecordSerializer<T> serializer) throws IOException {
 
-		Buffer buffer = serializer.getCurrentBuffer();
-		if (buffer == null) {
+		Optional<BufferConsumer> bufferConsumer = bufferConsumers[targetChannel];
+		if (!bufferConsumer.isPresent()) {
 			return false;
 		}
 
-		numBytesOut.inc(buffer.getSizeUnsafe());
+		numBytesOut.inc(bufferConsumer.get().getWrittenBytes());
 		try {
-			targetPartition.writeBuffer(buffer, targetChannel);
+			targetPartition.writeBuffer(bufferConsumer.get().build(), targetChannel);
 			return true;
 		} finally {
 			serializer.clear();
+			closeBufferConsumer(targetChannel);
+		}
+	}
+
+	private void closeBufferConsumer(int targetChannel) {
+		if (bufferConsumers[targetChannel].isPresent()) {
+			bufferConsumers[targetChannel].get().close();
+			bufferConsumers[targetChannel] = Optional.empty();
 		}
 	}
 }
