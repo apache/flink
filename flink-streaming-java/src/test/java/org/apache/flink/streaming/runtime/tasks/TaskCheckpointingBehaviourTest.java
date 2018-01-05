@@ -362,9 +362,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) {
 			return new LockingOutputStream();
 		}
-
-		@Override
-		public void close() {}
 	}
 
 	private static final class LockingOutputStream extends CheckpointStateOutputStream {
