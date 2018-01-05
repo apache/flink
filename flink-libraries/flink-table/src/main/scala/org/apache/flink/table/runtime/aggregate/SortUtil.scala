@@ -135,7 +135,8 @@ object SortUtil {
 
     val fieldComps = for ((k, o) <- sortFields.zip(sortDirections)) yield {
       FlinkTypeFactory.toTypeInfo(inputType.getFieldList.get(k).getType) match {
-        case a: AtomicType[AnyRef] => a.createComparator(o, execConfig)
+        case a: AtomicType[_] =>
+          a.createComparator(o, execConfig).asInstanceOf[TypeComparator[AnyRef]]
         case x: TypeInformation[_] =>  
           throw new TableException(s"Unsupported field type $x to sort on.")
       }

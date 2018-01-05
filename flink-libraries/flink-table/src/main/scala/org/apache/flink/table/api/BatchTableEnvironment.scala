@@ -293,7 +293,6 @@ abstract class BatchTableEnvironment(
     val inputType = dataSet.getType
 
     val (fieldNames, fieldIndexes) = getFieldInfo[T](
-      isReferenceByPosition(inputType, fields),
       inputType,
       fields)
 

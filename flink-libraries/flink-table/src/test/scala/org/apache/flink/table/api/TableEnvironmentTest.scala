@@ -467,11 +467,6 @@ class TableEnvironmentTest extends TableTestBase {
 
     utils.foreach { util =>
 
-      // atomic
-      util.verifySchema(
-        util.addTable[Int]('myint as 'new),
-        Seq("new" -> INT))
-
       // case class
       util.verifySchema(
         util.addTable[CClass]('cf1, 'cf3 as 'new, 'cf2),
@@ -495,34 +490,34 @@ class TableEnvironmentTest extends TableTestBase {
 
     // atomic
     util.verifySchema(
-      util.addTable[Int](('myint as 'new).proctime),
+      util.addTable[Int]('new.proctime),
       Seq("new" -> PROCTIME))
 
     // case class
     util.verifySchema(
-      util.addTable[CClassWithTime]('cf1, ('newnew as 'new).proctime, 'cf2),
+      util.addTable[CClassWithTime]('cf1, 'new.proctime, 'cf2),
       Seq("cf1" -> INT, "new" -> PROCTIME, "cf2" -> LONG))
 
     util.verifySchema(
-      util.addTable[CClassWithTime]('cf1, ('newnew as 'new).rowtime, 'cf2),
+      util.addTable[CClassWithTime]('cf1, 'new.rowtime, 'cf2),
       Seq("cf1" -> INT, "new" -> ROWTIME, "cf2" -> LONG))
 
     // row
     util.verifySchema(
-      util.addTable('rf1, ('newnew as 'new).proctime, 'rf2)(TEST_ROW_WITH_TIME),
+      util.addTable('rf1, 'new.proctime, 'rf2)(TEST_ROW_WITH_TIME),
       Seq("rf1" -> INT, "new" -> PROCTIME, "rf2" -> LONG))
 
     util.verifySchema(
-      util.addTable('rf1, ('newnew as 'new).rowtime, 'rf2)(TEST_ROW_WITH_TIME),
+      util.addTable('rf1, 'new.rowtime, 'rf2)(TEST_ROW_WITH_TIME),
       Seq("rf1" -> INT, "new" -> ROWTIME, "rf2" -> LONG))
 
     // tuple
     util.verifySchema(
-      util.addTable[JTuple3[Int, Long, String]]('f0, ('newnew as 'new).proctime, 'f1),
+      util.addTable[JTuple3[Int, Long, String]]('f0, 'new.proctime, 'f1),
       Seq("f0" -> INT, "new" -> PROCTIME, "f1" -> LONG))
 
     util.verifySchema(
-      util.addTable[JTuple3[Int, Long, String]]('f0, ('newnew as 'new).rowtime, 'f1),
+      util.addTable[JTuple3[Int, Long, String]]('f0, 'new.rowtime, 'f1),
       Seq("f0" -> INT, "new" -> ROWTIME, "f1" -> LONG))
   }
 
@@ -532,35 +527,27 @@ class TableEnvironmentTest extends TableTestBase {
 
     // atomic
     util.verifySchema(
-      util.addTable[Int](('myint as 'new).proctime),
+      util.addTable[Long]('new.rowtime),
+      Seq("new" -> ROWTIME))
+
+    util.verifySchema(
+      util.addTable[Int]('new.proctime),
       Seq("new" -> PROCTIME))
 
     // case class
     util.verifySchema(
-      util.addTable[CClassWithTime]('cf1, ('cf3 as 'new).proctime, 'cf2),
-      Seq("cf1" -> INT, "new" -> PROCTIME, "cf2" -> LONG))
-
-    util.verifySchema(
-      util.addTable[CClassWithTime]('cf1, ('cf3 as 'new).rowtime, 'cf2),
-      Seq("cf1" -> INT, "new" -> ROWTIME, "cf2" -> LONG))
+      util.addTable[CClassWithTime]('cf1, ('cf2 as 'new).rowtime, 'cf3),
+      Seq("cf1" -> INT, "new" -> ROWTIME, "cf3" -> STRING))
 
     // row
     util.verifySchema(
-      util.addTable('rf1, ('rf3 as 'new).proctime, 'rf2)(TEST_ROW_WITH_TIME),
-      Seq("rf1" -> INT, "new" -> PROCTIME, "rf2" -> LONG))
-
-    util.verifySchema(
-      util.addTable('rf1, ('rf3 as 'new).rowtime, 'rf2)(TEST_ROW_WITH_TIME),
-      Seq("rf1" -> INT, "new" -> ROWTIME, "rf2" -> LONG))
+      util.addTable('rf1, ('rf2 as 'new).rowtime, 'rf3)(TEST_ROW_WITH_TIME),
+      Seq("rf1" -> INT, "new" -> ROWTIME, "rf3" -> STRING))
 
     // tuple
     util.verifySchema(
-      util.addTable[JTuple3[Int, Long, String]]('f0, ('f2 as 'new).proctime, 'f1),
-      Seq("f0" -> INT, "new" -> PROCTIME, "f1" -> LONG))
-
-    util.verifySchema(
-      util.addTable[JTuple3[Int, Long, String]]('f0, ('f2 as 'new).rowtime, 'f1),
-      Seq("f0" -> INT, "new" -> ROWTIME, "f1" -> LONG))
+      util.addTable[JTuple3[Int, Long, String]]('f0, ('f1 as 'new).rowtime, 'f2),
+      Seq("f0" -> INT, "new" -> ROWTIME, "f2" -> STRING))
   }
 }
 

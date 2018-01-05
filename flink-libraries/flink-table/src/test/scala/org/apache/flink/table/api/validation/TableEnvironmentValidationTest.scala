@@ -55,6 +55,20 @@ class TableEnvironmentValidationTest extends TableTestBase {
   val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
   @Test(expected = classOf[TableException])
+  def testInvalidAliasInRefByPosMode(): Unit = {
+    val util = batchTestUtil()
+    // all references must happen position-based
+    util.addTable('a, 'b, 'f2 as 'c)(tupleType)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasOnAtomicType(): Unit = {
+    val util = batchTestUtil()
+    // alias not allowed
+    util.addTable('g as 'c)(atomicType)
+  }
+
+  @Test(expected = classOf[TableException])
   def testGetFieldInfoPojoNames1(): Unit = {
     val util = batchTestUtil()
     // duplicate name
