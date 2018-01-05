@@ -165,6 +165,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 			if (spilled != null) {
 				spilled.releaseAllResources();
 			}
+			// we are never giving this buffer out in getNextBuffer(), so we need to clean it up
+			synchronized (buffers) {
+				if (nextBuffer != null) {
+					nextBuffer.recycle();
+					nextBuffer = null;
+				}
+			}
 		}
 	}
 
