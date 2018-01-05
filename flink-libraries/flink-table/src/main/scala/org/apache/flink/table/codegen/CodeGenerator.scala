@@ -370,10 +370,10 @@ abstract class CodeGenerator(
           case _ => // ok
         }
 
-      case at: AtomicType[_] if at != fieldExprs.head.resultType =>
+      case t: TypeInformation[_] if t != fieldExprs.head.resultType =>
         throw new CodeGenException(
           s"Incompatible types of expression and result type. Expression [${fieldExprs.head}] " +
-          s"type is [${fieldExprs.head.resultType}], result type is [$at]")
+          s"type is [${fieldExprs.head.resultType}], result type is [$t]")
 
       case _ => // ok
     }
@@ -531,7 +531,7 @@ abstract class CodeGenerator(
 
         GeneratedExpression(resultTerm, "false", resultCode, returnType)
 
-      case a: AtomicType[_] =>
+      case t: TypeInformation[_] =>
         val fieldExpr = boxedFieldExprs.head
         val nullCheckCode = if (nullCheck) {
           s"""
@@ -1079,8 +1079,7 @@ abstract class CodeGenerator(
 
     val fieldType = inputType match {
       case ct: CompositeType[_] => ct.getTypeAt(index)
-      case at: AtomicType[_] => at
-      case _ => throw new CodeGenException("Unsupported type for input field access.")
+      case t: TypeInformation[_] => t
     }
     val resultTypeTerm = primitiveTypeTermForTypeInfo(fieldType)
     val defaultValue = primitiveDefaultValue(fieldType)
@@ -1110,6 +1109,7 @@ abstract class CodeGenerator(
       index: Int)
     : GeneratedExpression = {
     inputType match {
+
       case ct: CompositeType[_] =>
         val accessor = fieldAccessorFor(ct, index)
         val fieldType: TypeInformation[Any] = ct.getTypeAt(index)
@@ -1156,13 +1156,10 @@ abstract class CodeGenerator(
             }
         }
 
-      case at: AtomicType[_] =>
-        val fieldTypeTerm = boxedTypeTermForTypeInfo(at)
+      case t: TypeInformation[_] =>
+        val fieldTypeTerm = boxedTypeTermForTypeInfo(t)
         val inputCode = s"($fieldTypeTerm) $inputTerm"
-        generateInputFieldUnboxing(at, inputCode)
-
-      case _ =>
-        throw new CodeGenException("Unsupported type for input field access.")
+        generateInputFieldUnboxing(t, inputCode)
     }
   }
 

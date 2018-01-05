@@ -30,77 +30,102 @@ import org.junit.Test
 
 class StreamTableEnvironmentValidationTest extends TableTestBase {
 
+  // ----------------------------------------------------------------------------------------------
+  // schema definition by position
+  // ----------------------------------------------------------------------------------------------
+
   @Test(expected = classOf[TableException])
-  def testInvalidTimeAttributes(): Unit = {
+  def testInvalidRowtimeAliasByPosition(): Unit = {
+    val util = streamTestUtil()
+    // don't allow aliasing by position
+    util.addTable[(Long, Int, String, Int, Long)](('a as 'b).rowtime, 'b, 'c, 'd, 'e)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidRowtimeAttributesByPosition(): Unit = {
     val util = streamTestUtil()
     // table definition makes no sense
     util.addTable[(Long, Int, String, Int, Long)]('a.rowtime.rowtime, 'b, 'c, 'd, 'e)
   }
 
   @Test(expected = classOf[TableException])
-  def testInvalidProctimeAttribute(): Unit = {
+  def testInvalidProctimeAttributesByPosition(): Unit = {
+    val util = streamTestUtil()
+    // table definition makes no sense
+    util.addTable[(Long, Int, String, Int, Long)]('a.proctime.proctime, 'b, 'c, 'd, 'e)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidTimeAttributesByPosition(): Unit = {
+    val util = streamTestUtil()
+    // table definition makes no sense
+    util.addTable[(Long, Int, String, Int, Long)]('a.rowtime.rowtime, 'b, 'c, 'd, 'e)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidProctimeAttributeByPosition(): Unit = {
     val util = streamTestUtil()
     // cannot replace an attribute with proctime
     util.addTable[(Long, Int, String, Int, Long)]('a, 'b.proctime, 'c, 'd, 'e)
   }
 
   @Test(expected = classOf[TableException])
-  def testRowtimeAttributeReplaceFieldOfInvalidType(): Unit = {
+  def testRowtimeAttributeReplaceFieldOfInvalidTypeByPosition(): Unit = {
     val util = streamTestUtil()
     // cannot replace a non-time attribute with rowtime
     util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c.rowtime, 'd, 'e)
   }
 
   @Test(expected = classOf[TableException])
-  def testRowtimeAndInvalidProctimeAttribute(): Unit = {
+  def testRowtimeAndInvalidProctimeAttributeByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int, String, Int, Long)]('rt.rowtime, 'b, 'c, 'd, 'pt.proctime)
   }
 
   @Test(expected = classOf[TableException])
-  def testOnlyOneRowtimeAttribute1(): Unit = {
+  def testOnlyOneRowtimeAttribute1ByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int, String, Int, Long)]('a.rowtime, 'b, 'c, 'd, 'e, 'rt.rowtime)
   }
 
   @Test(expected = classOf[TableException])
-  def testOnlyOneProctimeAttribute1(): Unit = {
+  def testOnlyOneProctimeAttribute1ByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'pt1.proctime, 'pt2.proctime)
   }
 
   @Test(expected = classOf[TableException])
-  def testRowtimeAttributeUsedName(): Unit = {
+  def testRowtimeAttributeUsedNameByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'a.rowtime)
   }
 
   @Test(expected = classOf[TableException])
-  def testProctimeAttributeUsedName(): Unit = {
+  def testProctimeAttributeUsedNameByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Long, Int, String, Int, Long)]('a, 'b, 'c, 'd, 'e, 'b.proctime)
   }
 
   @Test(expected = classOf[TableException])
-  def testAsWithToManyFields(): Unit = {
+  def testAsWithToManyFieldsByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Int, Long, String)]('a, 'b, 'c, 'd)
   }
 
   @Test(expected = classOf[TableException])
-  def testAsWithAmbiguousFields(): Unit = {
+  def testAsWithAmbiguousFieldsByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Int, Long, String)]('a, 'b, 'b)
   }
 
   @Test(expected = classOf[TableException])
-  def testOnlyFieldRefInAs(): Unit = {
+  def testOnlyFieldRefInAsByPosition(): Unit = {
     val util = streamTestUtil()
     util.addTable[(Int, Long, String)]('a, 'b as 'c, 'd)
   }
 
   @Test(expected = classOf[TableException])
-  def testInvalidTimeCharacteristic(): Unit = {
+  def testInvalidTimeCharacteristicByPosition(): Unit = {
     val data = List((1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"))
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env)
@@ -108,5 +133,58 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
     stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string)
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // schema definition by name
+  // ----------------------------------------------------------------------------------------------
+
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasByName(): Unit = {
+    val util = streamTestUtil()
+    // we reference by name, but the field does not exist
+    util.addTable[(Long, Int, String, Int, Long)]('x as 'r)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidFieldByName(): Unit = {
+    val util = streamTestUtil()
+    // we reference by name, but the field does not exist
+    util.addTable[(Long, Int, String, Int, Long)]('x as 'r)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidField2ByName(): Unit = {
+    val util = streamTestUtil()
+    // we mix reference by position and by name
+    util.addTable[(Long, Int, String, Int, Long)]('x, '_1)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasWithProctimeAttribute(): Unit = {
+    val util = streamTestUtil()
+    // alias in proctime not allowed
+    util.addTable[(Int, Long, String)]('_1, ('_2 as 'new).proctime, '_3)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidReplacingProctimeAttribute(): Unit = {
+    val util = streamTestUtil()
+    // proctime must not replace an existing field
+    util.addTable[(Int, Long, String)]('_1, '_2.proctime, '_3)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasWithRowtimeAttribute(): Unit = {
+    val util = streamTestUtil()
+    // aliased field does not exist
+    util.addTable[(Int, Long, String)]('_1, ('newnew as 'new).rowtime, '_3)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidAliasWithRowtimeAttribute2(): Unit = {
+    val util = streamTestUtil()
+    // aliased field has wrong type
+    util.addTable[(Int, Long, String)]('_1, ('_3 as 'new).rowtime, '_2)
   }
 }

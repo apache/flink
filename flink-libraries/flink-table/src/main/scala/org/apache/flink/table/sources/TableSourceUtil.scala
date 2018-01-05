@@ -27,7 +27,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.{AtomicType, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
@@ -95,7 +95,7 @@ object TableSourceUtil {
         mappedFieldCnt += 1
     }
     // ensure that only one field is mapped to an atomic type
-    if (tableSource.getReturnType.isInstanceOf[AtomicType[_]] && mappedFieldCnt > 1) {
+    if (!tableSource.getReturnType.isInstanceOf[CompositeType[_]] && mappedFieldCnt > 1) {
       throw ValidationException(
         s"More than one table field matched to atomic input type ${tableSource.getReturnType}.")
     }
@@ -231,7 +231,7 @@ object TableSourceUtil {
     }
 
     // ensure that only one field is mapped to an atomic type
-    if (inputType.isInstanceOf[AtomicType[_]] && mapping.count(_ >= 0) > 1) {
+    if (!inputType.isInstanceOf[CompositeType[_]] && mapping.count(_ >= 0) > 1) {
       throw ValidationException(
         s"More than one table field matched to atomic input type $inputType.")
     }
@@ -466,9 +466,7 @@ object TableSourceUtil {
     /** Look up a field by name in a type information */
     def lookupField(fieldName: String, failMsg: String): (String, Int, TypeInformation[_]) = {
       returnType match {
-        case a: AtomicType[_] =>
-          // no composite type, we return the full atomic type as field
-          (fieldName, 0, a)
+
         case c: CompositeType[_] =>
           // get and check field index
           val idx = c.getFieldIndex(fieldName)
@@ -477,7 +475,10 @@ object TableSourceUtil {
           }
           // return field name, index, and field type
           (fieldName, idx, c.getTypeAt(idx))
-        case _ => throw TableException("Unexpected type information.")
+
+        case t: TypeInformation[_] =>
+          // no composite type, we return the full atomic type as field
+          (fieldName, 0, t)
       }
     }
 
