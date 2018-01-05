@@ -59,6 +59,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}, and
  * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}, most spillable partitions
  * will be spilled for real-world data sets.
+ *
+ * <p>Note on thread safety. Synchronizing on {@code buffers} is used to synchronize
+ * writes and reads. Synchronizing on {@code this} is used against concurrent
+ * {@link #add(Buffer)} and clean ups {@link #release()} / {@link #finish()} which
+ * also are touching {@code spillWriter}. Since we do not want to block reads during
+ * spilling, we need those two synchronization. Probably this model could be simplified.
  */
 class SpillableSubpartition extends ResultSubpartition {
 
@@ -93,7 +99,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(Buffer buffer) throws IOException {
+	public synchronized boolean add(Buffer buffer) throws IOException {
 		checkNotNull(buffer);
 
 		synchronized (buffers) {
@@ -131,7 +137,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void finish() throws IOException {
+	public synchronized void finish() throws IOException {
 		synchronized (buffers) {
 			if (add(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE))) {
 				isFinished = true;
@@ -145,7 +151,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void release() throws IOException {
+	public synchronized void release() throws IOException {
 		final ResultSubpartitionView view;
 
 		synchronized (buffers) {
