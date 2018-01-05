@@ -67,6 +67,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
+				buffer.recycle();
 				return false;
 			}
 
