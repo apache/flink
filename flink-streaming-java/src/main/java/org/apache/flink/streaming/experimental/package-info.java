@@ -18,8 +18,8 @@
 /**
  * This package holds classes that are experimental.
  *
- * They are NOT battle-tested code and may be changed or removed in future versions.
+ * <p>They are NOT battle-tested code and may be changed or removed in future versions.
  *
- * None of the classes should be @Public.
+ * <p>None of the classes should be @Public.
  */
 package org.apache.flink.streaming.experimental;
