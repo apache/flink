@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -116,7 +116,10 @@ public abstract class YarnTestBase extends TestLogger {
 		// very specific on purpose
 		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
 		"Remote connection to [null] failed with java.nio.channels.NotYetConnectedException",
-		"java.io.IOException: Connection reset by peer"
+		"java.io.IOException: Connection reset by peer",
+
+		// this can happen in Akka 2.4 on shutdown.
+		"java.util.concurrent.RejectedExecutionException: Worker has already been shutdown"
 	};
 
 	// Temp directory which is deleted after the unit test.
