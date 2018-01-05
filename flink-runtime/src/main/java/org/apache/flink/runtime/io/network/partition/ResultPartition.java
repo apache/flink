@@ -120,14 +120,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 	private volatile Throwable cause;
 
-	// - Statistics ----------------------------------------------------------
-
-	/** The total number of buffers (both data and event buffers) */
-	private int totalNumberOfBuffers;
-
-	/** The total number of bytes (both data and event buffers) */
-	private long totalNumberOfBytes;
-
 	public ResultPartition(
 		String owningTaskName,
 		TaskActions taskActions, // actions on the owning task
@@ -224,24 +216,6 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 		return bufferPool;
 	}
 
-	/**
-	 * Returns the total number of processed network buffers since initialization.
-	 *
-	 * @return overall number of processed network buffers
-	 */
-	public int getTotalNumberOfBuffers() {
-		return totalNumberOfBuffers;
-	}
-
-	/**
-	 * Returns the total size of processed network buffers since initialization.
-	 *
-	 * @return overall size of processed network buffers
-	 */
-	public long getTotalNumberOfBytes() {
-		return totalNumberOfBytes;
-	}
-
 	public int getNumberOfQueuedBuffers() {
 		int totalBuffers = 0;
 
@@ -275,13 +249,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 
 			// retain for buffer use after add() but also to have a simple path for recycle()
 			buffer.retain();
-			synchronized (subpartition) {
-				success = subpartition.add(buffer);
-
-				// Update statistics
-				totalNumberOfBuffers++;
-				totalNumberOfBytes += buffer.getSize();
-			}
+			success = subpartition.add(buffer);
 		} finally {
 			if (success) {
 				notifyPipelinedConsumers();
@@ -304,9 +272,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			checkInProduceState();
 
 			for (ResultSubpartition subpartition : subpartitions) {
-				synchronized (subpartition) {
-					subpartition.finish();
-				}
+				subpartition.finish();
 			}
 
 			success = true;
@@ -339,9 +305,7 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			// Release all subpartitions
 			for (ResultSubpartition subpartition : subpartitions) {
 				try {
-					synchronized (subpartition) {
-						subpartition.release();
-					}
+					subpartition.release();
 				}
 				// Catch this in order to ensure that release is called on all subpartitions
 				catch (Throwable t) {
