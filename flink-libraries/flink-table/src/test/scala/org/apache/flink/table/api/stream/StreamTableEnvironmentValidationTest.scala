@@ -35,6 +35,13 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test(expected = classOf[TableException])
+  def testInvalidRowtimeAliasByPosition(): Unit = {
+    val util = streamTestUtil()
+    // don't allow aliasing by position
+    util.addTable[(Long, Int, String, Int, Long)](('a as 'b).rowtime, 'b, 'c, 'd, 'e)
+  }
+
+  @Test(expected = classOf[TableException])
   def testInvalidRowtimeAttributesByPosition(): Unit = {
     val util = streamTestUtil()
     // table definition makes no sense
@@ -133,6 +140,13 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test(expected = classOf[TableException])
+  def testInvalidAliasByName(): Unit = {
+    val util = streamTestUtil()
+    // we reference by name, but the field does not exist
+    util.addTable[(Long, Int, String, Int, Long)]('x as 'r)
+  }
+
+  @Test(expected = classOf[TableException])
   def testInvalidFieldByName(): Unit = {
     val util = streamTestUtil()
     // we reference by name, but the field does not exist
@@ -150,7 +164,14 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   def testInvalidAliasWithProctimeAttribute(): Unit = {
     val util = streamTestUtil()
     // alias in proctime not allowed
-    util.addTable[(Int, Long, String)]('_1, ('newnew as 'new).proctime, '_3)
+    util.addTable[(Int, Long, String)]('_1, ('_2 as 'new).proctime, '_3)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testInvalidReplacingProctimeAttribute(): Unit = {
+    val util = streamTestUtil()
+    // alias in proctime not allowed
+    util.addTable[(Int, Long, String)]('_1, '_2.proctime, '_3)
   }
 
   @Test(expected = classOf[TableException])

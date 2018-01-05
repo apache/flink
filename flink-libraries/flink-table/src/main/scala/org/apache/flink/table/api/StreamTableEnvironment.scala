@@ -479,24 +479,27 @@ abstract class StreamTableEnvironment(
         // it is possible to replace an existing field or append the time attribute at the end
         if (isRefByPos) {
           // check type of field that is replaced
-          if (idx < 0) {
-            throw new TableException(
-              s"The rowtime attribute can only replace a valid field. " +
-                s"${origName.getOrElse(name)} is not a field of type $streamType.")
-          }
-          else if (idx < fieldTypes.length) {
+          if (idx < fieldTypes.length) {
             checkRowtimeType(fieldTypes(idx))
           }
+          // aliases are not permitted
+          if (origName.isDefined) {
+            throw new TableException(
+              s"Invalid alias '${origName.get}' because fields are referenced by position.")
+          }
         }
-        // check for valid alias if referenced by name
-        else if (origName.isDefined) {
-          // check for valid alias
+        // check reference-by-name
+        else {
+          val aliasOrName = origName.getOrElse(name)
           streamType match {
-            case ct: CompositeType[_] if ct.hasField(origName.get) =>
-              val t = ct.getTypeAt(ct.getFieldIndex(origName.get))
+            // both alias and reference must have a valid type if they replace a field
+            case ct: CompositeType[_] if ct.hasField(aliasOrName) =>
+              val t = ct.getTypeAt(ct.getFieldIndex(aliasOrName))
               checkRowtimeType(t)
-            case _ =>
-              throw new TableException("An alias must always reference an existing field.")
+            // alias could not be found
+            case _ if origName.isDefined =>
+              throw new TableException(s"Alias '${origName.get}' must reference an existing field.")
+            case _ => // ok
           }
         }
 
@@ -517,7 +520,17 @@ abstract class StreamTableEnvironment(
           if (idx < fieldTypes.length) {
             throw new TableException(
               "The proctime attribute can only be appended to the table schema and not replace " +
-                "an existing field. Please move it to the end of the schema.")
+                s"an existing field. Please move '$name' to the end of the schema.")
+          }
+        }
+        // check reference-by-name
+        else {
+          streamType match {
+            // proctime attribute must not replace a field
+            case ct: CompositeType[_] if ct.hasField(name) =>
+              throw new TableException(
+                s"The proctime attribute '$name' must not replace an existing field.")
+            case _ => // ok
           }
         }
         proctime = Some(idx, name)

@@ -868,7 +868,7 @@ abstract class TableEnvironment(val config: TableConfig) {
           case (Alias(UnresolvedFieldReference(origName), name: String, _), _) =>
             if (isRefByPos) {
               throw new TableException(
-                "Aliases are not allowed if other fields are referenced by position.")
+                s"Alias '$name' is not allowed if other fields are referenced by position.")
             } else {
               referenceByName(origName, t).map((_, name))
             }
