@@ -36,7 +36,7 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable
 import org.apache.calcite.tools._
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation, PrimitiveArrayTypeInfo}
+import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, _}
 import org.apache.flink.api.java.{ExecutionEnvironment => JavaBatchExecEnv}
@@ -1144,33 +1144,6 @@ object TableEnvironment {
       clazz.getCanonicalName == null) {
       throw TableException(s"Class '$clazz' described in type information '$typeInfo' must be " +
         s"static and globally accessible.")
-    }
-  }
-
-  /**
-    * Checks if the chosen table type is valid.
-    * @param table The table to check
-    */
-  def checkValidTableType(table: Any): Unit = {
-    val types = table match {
-      case t: Table => table.asInstanceOf[Table].getSchema.getTypes
-      case st: TableSource[_] => table.asInstanceOf[TableSource[_]].getTableSchema.getTypes
-    }
-    for (typeInfo <- types) {
-      if(!typeInfo.asInstanceOf[TypeInformation[_]].isBasicType &&
-        !typeInfo.isInstanceOf[PrimitiveArrayTypeInfo[_]]) {
-        val typeClass = typeInfo.asInstanceOf[TypeInformation[_]].getTypeClass
-        if (typeClass.getMethod("hashCode").getDeclaringClass eq classOf[Object]) {
-          throw new ValidationException(s"Illegal Table type." +
-            s"Please make sure type ${typeClass.getCanonicalName}" +
-            s" implement own hashCode method")
-        }
-        if (typeClass.getMethod("equals", classOf[Any]).getDeclaringClass eq classOf[Object]) {
-          throw new ValidationException(s"Illegal Table type." +
-            s"Please make sure type ${typeClass.getCanonicalName}" +
-            s" implement own equals method")
-        }
-      }
     }
   }
 

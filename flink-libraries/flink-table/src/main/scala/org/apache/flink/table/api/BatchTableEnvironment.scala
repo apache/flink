@@ -100,7 +100,6 @@ abstract class BatchTableEnvironment(
 
     tableSource match {
       case batchTableSource: BatchTableSource[_] =>
-        TableEnvironment.checkValidTableType(tableSource)
         registerTableInternal(name, new BatchTableSourceTable(batchTableSource))
       case _ =>
         throw new TableException("Only BatchTableSource can be registered in " +

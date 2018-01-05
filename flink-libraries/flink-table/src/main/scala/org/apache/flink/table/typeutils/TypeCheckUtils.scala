@@ -19,7 +19,9 @@ package org.apache.flink.table.typeutils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo._
-import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo}
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, PojoTypeInfo}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.{INTERVAL_MILLIS, INTERVAL_MONTHS}
 import org.apache.flink.table.validate._
 
@@ -102,6 +104,60 @@ object TypeCheckUtils {
       ValidationSuccess
     } else {
       ValidationFailure(s"$caller requires orderable types, get $dataType here")
+    }
+  }
+
+  /**
+    * Checks whether a type implements own hashCode() and equals() methods for storing an instance
+    * in Flink's state.
+    *
+    * @param t type information to be validated
+    */
+  def validateStateType(t: TypeInformation[_]): Unit = t match {
+    // make sure that a POJO class is a valid state type
+    case pt: PojoTypeInfo[_] =>
+      // we don't check the types recursively to give a chance of wrapping
+      // proper hashCode/equals methods around an immutable type
+      validateStateType(pt.getClass)
+    // recursively check composite types
+    case ct: CompositeType[_] =>
+      validateStateType(t.getTypeClass)
+      // we check recursively for entering Flink types such as tuples and rows
+      for (i <- 0 until ct.getArity) {
+        val subtype = ct.getTypeAt(i)
+        validateStateType(subtype)
+      }
+    // check other type information only based on the type class
+    case _: TypeInformation[_] =>
+      validateStateType(t.getTypeClass)
+  }
+
+  /**
+    * Checks whether a class implements own hashCode() and equals() methods for storing an instance
+    * in Flink's state.
+    *
+    * @param c class to be validated
+    */
+  def validateStateType(c: Class[_]): Unit = {
+    // skip primitives
+    if (!c.isPrimitive) {
+      // check the component type of arrays
+      if (c.isArray) {
+        validateStateType(c.getComponentType)
+      }
+      // check type for methods
+      else {
+        if (c.getMethod("hashCode").getDeclaringClass eq classOf[Object]) {
+          throw new ValidationException(
+            s"Type '${c.getCanonicalName}' cannot be used in a stateful operation because it " +
+            s"does not implement a proper hashCode() method.")
+        }
+        if (c.getMethod("equals", classOf[Object]).getDeclaringClass eq classOf[Object]) {
+          throw new ValidationException(
+            s"Type '${c.getCanonicalName}' cannot be used in a stateful operation because it " +
+            s"does not implement a proper equals() method.")
+        }
+      }
     }
   }
 }
