@@ -64,7 +64,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
     val sink = new MemoryTableSinkUtil.UnsafeMemoryAppendTableSink
     tEnv.registerTableSink("targetTable", fieldNames, fieldTypes, sink)
 
-    val results = input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
+    input.toTable(tEnv, 'a, 'b, 'c, 't.rowtime)
       .where('a < 3 || 'a > 19)
       .select('c, 't, 'b)
       .insertInto("targetTable")
@@ -97,7 +97,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       .assignAscendingTimestamps(_._2)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    val results = input.toTable(tEnv, 'a, 'b.rowtime, 'c)
+    input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
       .writeToSink(new CsvTableSink(path))
@@ -246,6 +246,31 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       "9,1,true").sorted
     assertEquals(expected, retracted)
 
+  }
+
+  @Test
+  def testUpsertSinkOnUpdatingTableWithFullKey2(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+
+    val data = new mutable.MutableList[(Int, Int, Int)]
+    data.+=((1, 11, 1))
+    data.+=((11, 1, 1))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+
+    t.groupBy('a, 'b)
+      .select('a, 'b, 'c.count as 'c)
+      .writeToSink(new TestUpsertSink(Array("a", "b"), false))
+
+    env.execute()
+    val results = RowCollector.getAndClearValues
+
+    val retracted = upsertResults(results, Array(0, 1)).sorted
+    val expected = List("1,11,1", "11,1,1").sorted
+    assertEquals(expected, retracted)
   }
 
   @Test
@@ -556,11 +581,10 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
   /** Converts a list of upsert messages into a list of final results. */
   private def upsertResults(results: List[JTuple2[JBool, Row]], keys: Array[Int]): List[String] = {
 
-    def getKeys(r: Row): List[String] =
-      keys.foldLeft(List[String]())((k, i) => r.getField(i).toString :: k)
+    def getKeys(r: Row): Row = Row.project(r, keys)
 
-    val upserted = results.foldLeft(Map[String, String]()){ (o: Map[String, String], r) =>
-      val key = getKeys(r.f1).mkString("")
+    val upserted = results.foldLeft(Map[Row, String]()){ (o: Map[Row, String], r) =>
+      val key = getKeys(r.f1)
       if (r.f0) {
         o + (key -> r.f1.toString)
       } else {
@@ -570,7 +594,6 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     upserted.values.toList
   }
-
 }
 
 private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
