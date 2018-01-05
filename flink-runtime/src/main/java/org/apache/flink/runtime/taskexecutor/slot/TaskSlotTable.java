@@ -448,7 +448,7 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 				throw new SlotNotActiveException(task.getJobID(), task.getAllocationId());
 			}
 		} else {
-			throw new SlotNotFoundException(taskSlot.getAllocationId());
+			throw new SlotNotFoundException(task.getAllocationId());
 		}
 	}
 
