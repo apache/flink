@@ -276,7 +276,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 			resourceManagerClient.releaseAssignedContainer(container.getId());
 			workerNodeMap.remove(workerNode.getResourceID());
 		} else {
-			log.error("Can not find container with resource ID {}.", workerNode.getResourceID());
+			log.error("Error while calling YARN Node Manager to stop container. Given container is null!");
 		}
 		return true;
 	}
