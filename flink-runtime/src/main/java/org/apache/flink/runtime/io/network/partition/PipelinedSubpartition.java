@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
@@ -52,6 +54,10 @@ class PipelinedSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
+	/** The number of non-event buffers currently in this subpartition */
+	@GuardedBy("buffers")
+	private int buffersInBacklog;
+
 	// ------------------------------------------------------------------------
 
 	PipelinedSubpartition(int index, ResultPartition parent) {
@@ -74,6 +80,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			buffers.add(buffer);
 			reader = readView;
 			updateStatistics(buffer);
+			increaseBuffersInBacklog(buffer);
 		}
 
 		// Notify the listener outside of the synchronized block
@@ -143,9 +150,17 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 	}
 
-	Buffer pollBuffer() {
+	@Nullable
+	BufferAndBacklog pollBuffer() {
 		synchronized (buffers) {
-			return buffers.pollFirst();
+			Buffer buffer = buffers.pollFirst();
+			decreaseBuffersInBacklog(buffer);
+
+			if (buffer != null) {
+				return new BufferAndBacklog(buffer, buffersInBacklog);
+			} else {
+				return null;
+			}
 		}
 	}
 
@@ -159,6 +174,35 @@ class PipelinedSubpartition extends ResultSubpartition {
 	@Override
 	public boolean isReleased() {
 		return isReleased;
+	}
+
+	@Override
+	public int getBuffersInBacklog() {
+		return buffersInBacklog;
+	}
+
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition.
+	 */
+	private void decreaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog--;
+		}
+	}
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	private void increaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
 	}
 
 	@Override
@@ -205,8 +249,8 @@ class PipelinedSubpartition extends ResultSubpartition {
 		}
 
 		return String.format(
-				"PipelinedSubpartition [number of buffers: %d (%d bytes), finished? %s, read view? %s]",
-				numBuffers, numBytes, finished, hasReadView);
+			"PipelinedSubpartition [number of buffers: %d (%d bytes), number of buffers in backlog: %d, finished? %s, read view? %s]",
+			numBuffers, numBytes, buffersInBacklog, finished, hasReadView);
 	}
 
 	@Override

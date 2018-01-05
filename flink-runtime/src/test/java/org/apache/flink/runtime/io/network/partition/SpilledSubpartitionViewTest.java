@@ -72,7 +72,7 @@ public class SpilledSubpartitionViewTest {
 			false, new TestConsumerCallback.RecyclingCallback());
 
 		SpilledSubpartitionView view = new SpilledSubpartitionView(
-			mock(ResultSubpartition.class),
+			mock(SpillableSubpartition.class),
 			viewBufferPool.getMemorySegmentSize(),
 			writer,
 			numberOfBuffersToWrite + 1, // +1 for end-of-partition
@@ -98,7 +98,7 @@ public class SpilledSubpartitionViewTest {
 			false, new TestConsumerCallback.RecyclingCallback());
 
 		SpilledSubpartitionView view = new SpilledSubpartitionView(
-			mock(ResultSubpartition.class),
+			mock(SpillableSubpartition.class),
 			32 * 1024,
 			writer,
 			numberOfBuffersToWrite + 1,
@@ -139,7 +139,7 @@ public class SpilledSubpartitionViewTest {
 
 			BufferProvider inputBuffers = new TestPooledBufferProvider(2);
 
-			ResultSubpartition parent = mock(ResultSubpartition.class);
+			SpillableSubpartition parent = mock(SpillableSubpartition.class);
 
 			// Wait for writers to finish
 			for (BufferFileWriter writer : writers) {

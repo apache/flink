@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -40,6 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
@@ -181,32 +183,53 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.add(buffer);
 		partition.add(buffer);
 
+		assertEquals(3, partition.getTotalNumberOfBuffers());
+		assertEquals(3, partition.getBuffersInBacklog());
+		assertEquals(4096 * 3, partition.getTotalNumberOfBytes());
+
+		assertFalse(buffer.isRecycled());
 		assertEquals(3, partition.releaseMemory());
 
+		// now the buffer may be freed, depending on the timing of the write operation
+		// -> let's do this check at the end of the test (to save some time)
+		// still same statistics
+		assertEquals(3, partition.getTotalNumberOfBuffers());
+		assertEquals(3, partition.getBuffersInBacklog());
+		assertEquals(4096 * 3, partition.getTotalNumberOfBytes());
+
 		partition.finish();
+
+		// + one EndOfPartitionEvent
+		assertEquals(4, partition.getTotalNumberOfBuffers());
+		assertEquals(3, partition.getBuffersInBacklog());
+		assertEquals(4096 * 3 + 4, partition.getTotalNumberOfBytes());
 
 		BufferAvailabilityListener listener = mock(BufferAvailabilityListener.class);
 		SpilledSubpartitionView reader = (SpilledSubpartitionView) partition.createReadView(listener);
 
 		verify(listener, times(1)).notifyBuffersAvailable(eq(4L));
 
-		Buffer read = reader.getNextBuffer();
+		BufferAndBacklog read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(2, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(1, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		// End of partition
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read, ClassLoader.getSystemClassLoader()).getClass());
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
+		read.buffer().recycle();
 	}
 
 	/**
@@ -226,36 +249,47 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		partition.add(buffer);
 		partition.finish();
 
+		assertEquals(4, partition.getTotalNumberOfBuffers());
+		assertEquals(3, partition.getBuffersInBacklog());
+		assertEquals(4096 * 3 + 4, partition.getTotalNumberOfBytes());
+
 		AwaitableBufferAvailablityListener listener = new AwaitableBufferAvailablityListener();
 		SpillableSubpartitionView reader = (SpillableSubpartitionView) partition.createReadView(listener);
 
 		// Initial notification
 		assertEquals(1, listener.getNumNotifiedBuffers());
 
-		Buffer read = reader.getNextBuffer();
+		BufferAndBacklog read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		read.buffer().recycle();
 		assertEquals(2, listener.getNumNotifiedBuffers());
 
 		// Spill now
 		assertEquals(2, partition.releaseMemory());
+		// still same statistics:
+		assertEquals(4, partition.getTotalNumberOfBuffers());
+		assertEquals(2, partition.getBuffersInBacklog());
+		assertEquals(4096 * 3 + 4, partition.getTotalNumberOfBytes());
 
 		listener.awaitNotifications(4, 30_000);
 		assertEquals(4, listener.getNumNotifiedBuffers());
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(1, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		read.buffer().recycle();
 
 		// End of partition
 		read = reader.getNextBuffer();
 		assertNotNull(read);
-		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read, ClassLoader.getSystemClassLoader()).getClass());
-		read.recycle();
+		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
+		read.buffer().recycle();
 	}
 
 	private static class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {

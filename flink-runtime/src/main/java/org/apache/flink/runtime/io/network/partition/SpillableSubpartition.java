@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
@@ -77,6 +78,10 @@ class SpillableSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
+	/** The number of non-event buffers currently in this subpartition */
+	@GuardedBy("buffers")
+	private int buffersInBacklog;
+
 	/** The read view to consume this subpartition. */
 	private ResultSubpartitionView readView;
 
@@ -99,6 +104,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			// the read views. If you ever remove this line here,
 			// make sure to still count the number of buffers.
 			updateStatistics(buffer);
+			increaseBuffersInBacklog(buffer);
 
 			if (spillWriter == null) {
 				buffers.add(buffer);
@@ -238,6 +244,37 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	public int getBuffersInBacklog() {
+		synchronized (buffers) {
+			return buffersInBacklog;
+		}
+	}
+
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition.
+	 */
+	public void decreaseBuffersInBacklog(Buffer buffer) {
+		if (buffer != null && buffer.isBuffer()) {
+			synchronized (buffers) {
+				buffersInBacklog--;
+			}
+		}
+	}
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	private void increaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
+	}
+
+	@Override
 	public int unsynchronizedGetNumberOfQueuedBuffers() {
 		// since we do not synchronize, the size may actually be lower than 0!
 		return Math.max(buffers.size(), 0);
@@ -246,9 +283,9 @@ class SpillableSubpartition extends ResultSubpartition {
 	@Override
 	public String toString() {
 		return String.format("SpillableSubpartition [%d number of buffers (%d bytes)," +
-						"finished? %s, read view? %s, spilled? %s]",
-				getTotalNumberOfBuffers(), getTotalNumberOfBytes(), isFinished, readView != null,
-				spillWriter != null);
+				"%d number of buffers in backlog, finished? %s, read view? %s, spilled? %s]",
+			getTotalNumberOfBuffers(), getTotalNumberOfBytes(),
+			buffersInBacklog, isFinished, readView != null, spillWriter != null);
 	}
 
 }
