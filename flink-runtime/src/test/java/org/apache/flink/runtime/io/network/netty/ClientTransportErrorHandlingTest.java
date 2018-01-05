@@ -76,17 +76,13 @@ public class ClientTransportErrorHandlingTest {
 	@Test
 	public void testExceptionOnWrite() throws Exception {
 
-		NettyProtocol protocol = new NettyProtocol() {
+		NettyProtocol protocol = new NettyProtocol(
+				mock(ResultPartitionProvider.class),
+				mock(TaskEventDispatcher.class)) {
+
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[0];
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new PartitionRequestProtocol(
-						mock(ResultPartitionProvider.class),
-						mock(TaskEventDispatcher.class)).getClientChannelHandlers();
 			}
 		};
 
@@ -215,7 +211,10 @@ public class ClientTransportErrorHandlingTest {
 	@Test
 	public void testExceptionOnRemoteClose() throws Exception {
 
-		NettyProtocol protocol = new NettyProtocol() {
+		NettyProtocol protocol = new NettyProtocol(
+				mock(ResultPartitionProvider.class),
+				mock(TaskEventDispatcher.class)) {
+
 			@Override
 			public ChannelHandler[] getServerChannelHandlers() {
 				return new ChannelHandler[] {
@@ -229,13 +228,6 @@ public class ClientTransportErrorHandlingTest {
 							}
 						}
 				};
-			}
-
-			@Override
-			public ChannelHandler[] getClientChannelHandlers() {
-				return new PartitionRequestProtocol(
-						mock(ResultPartitionProvider.class),
-						mock(TaskEventDispatcher.class)).getClientChannelHandlers();
 			}
 		};
 
@@ -380,7 +372,7 @@ public class ClientTransportErrorHandlingTest {
 	// ---------------------------------------------------------------------------------------------
 
 	private EmbeddedChannel createEmbeddedChannel() {
-		PartitionRequestProtocol protocol = new PartitionRequestProtocol(
+		NettyProtocol protocol = new NettyProtocol(
 				mock(ResultPartitionProvider.class),
 				mock(TaskEventDispatcher.class));
 
