@@ -136,7 +136,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 				buffer.recycle();
 			}
 
-			// Get the view...
 			view = readView;
 			readView = null;
 
@@ -146,7 +145,6 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		LOG.debug("Released {}.", this);
 
-		// Release all resources of the view
 		if (view != null) {
 			view.releaseAllResources();
 		}
