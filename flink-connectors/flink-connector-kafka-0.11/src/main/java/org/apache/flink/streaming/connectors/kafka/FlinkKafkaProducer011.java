@@ -277,13 +277,21 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	/**
-	 * Creates a FlinkKafkaProducer for a given topic. the sink produces a DataStream to
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
+	 *
+	 * <p>Using this constructor, the default {@link FlinkFixedPartitioner} will be used as
+	 * the partitioner. This default partitioner maps each sink subtask to a single Kafka
+	 * partition (i.e. all records received by a sink subtask will end up in the same
+	 * Kafka partition).
+	 *
+	 * <p>To use a custom partitioner, please use
+	 * {@link #FlinkKafkaProducer011(String, SerializationSchema, Properties, Optional)} instead.
 	 *
 	 * @param topicId
 	 * 			ID of the Kafka topic.
 	 * @param serializationSchema
-	 * 			User defined (keyless) serialization schema.
+	 * 			User defined key-less serialization schema.
 	 * @param producerConfig
 	 * 			Properties with the producer configuration.
 	 */
@@ -296,15 +304,26 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	/**
-	 * Creates a FlinkKafkaProducer for a given topic. the sink produces a DataStream to
-	 * the topic.
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a key-less {@link SerializationSchema} and possibly a custom {@link FlinkKafkaPartitioner}.
+	 *
+	 * <p>Since a key-less {@link SerializationSchema} is used, all records sent to Kafka will not have an
+	 * attached key. Therefore, if a partitioner is also not provided, records will be distributed to Kafka
+	 * partitions in a round-robin fashion.
 	 *
 	 * @param topicId The topic to write data to
-	 * @param serializationSchema A (keyless) serializable serialization schema for turning user objects into a kafka-consumable byte[]
+	 * @param serializationSchema A key-less serializable serialization schema for turning user objects into a kafka-consumable byte[]
 	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
-	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions (when passing null, we'll use Kafka's partitioner)
+	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
+	 *                          If a partitioner is not provided, records will be distributed to Kafka partitions
+	 *                          in a round-robin fashion.
 	 */
-	public FlinkKafkaProducer011(String topicId, SerializationSchema<IN> serializationSchema, Properties producerConfig, Optional<FlinkKafkaPartitioner<IN>> customPartitioner) {
+	public FlinkKafkaProducer011(
+			String topicId,
+			SerializationSchema<IN> serializationSchema,
+			Properties producerConfig,
+			Optional<FlinkKafkaPartitioner<IN>> customPartitioner) {
+
 		this(topicId, new KeyedSerializationSchemaWrapper<>(serializationSchema), producerConfig, customPartitioner);
 	}
 
@@ -313,6 +332,14 @@ public class FlinkKafkaProducer011<IN>
 	/**
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
+	 *
+	 * <p>Using this constructor, the default {@link FlinkFixedPartitioner} will be used as
+	 * the partitioner. This default partitioner maps each sink subtask to a single Kafka
+	 * partition (i.e. all records received by a sink subtask will end up in the same
+	 * Kafka partition).
+	 *
+	 * <p>To use a custom partitioner, please use
+	 * {@link #FlinkKafkaProducer011(String, KeyedSerializationSchema, Properties, Optional)} instead.
 	 *
 	 * @param brokerList
 	 *			Comma separated addresses of the brokers
@@ -333,6 +360,14 @@ public class FlinkKafkaProducer011<IN>
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
 	 *
+	 * <p>Using this constructor, the default {@link FlinkFixedPartitioner} will be used as
+	 * the partitioner. This default partitioner maps each sink subtask to a single Kafka
+	 * partition (i.e. all records received by a sink subtask will end up in the same
+	 * Kafka partition).
+	 *
+	 * <p>To use a custom partitioner, please use
+	 * {@link #FlinkKafkaProducer011(String, KeyedSerializationSchema, Properties, Optional)} instead.
+	 *
 	 * @param topicId
 	 * 			ID of the Kafka topic.
 	 * @param serializationSchema
@@ -352,12 +387,22 @@ public class FlinkKafkaProducer011<IN>
 	 * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to
 	 * the topic.
 	 *
+	 * <p>Using this constructor, the default {@link FlinkFixedPartitioner} will be used as
+	 * the partitioner. This default partitioner maps each sink subtask to a single Kafka
+	 * partition (i.e. all records received by a sink subtask will end up in the same
+	 * Kafka partition).
+	 *
+	 * <p>To use a custom partitioner, please use
+	 * {@link #FlinkKafkaProducer011(String, KeyedSerializationSchema, Properties, Optional, Semantic, int)} instead.
+	 *
 	 * @param topicId
 	 * 			ID of the Kafka topic.
 	 * @param serializationSchema
 	 * 			User defined serialization schema supporting key/value messages
 	 * @param producerConfig
 	 * 			Properties with the producer configuration.
+	 * @param semantic
+	 * 			Defines semantic that will be used by this producer (see {@link Semantic}).
 	 */
 	public FlinkKafkaProducer011(
 			String topicId,
@@ -374,12 +419,22 @@ public class FlinkKafkaProducer011<IN>
 
 
 	/**
-	 * The main constructor for creating a FlinkKafkaProducer.
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a keyed {@link KeyedSerializationSchema} and possibly a custom {@link FlinkKafkaPartitioner}.
+	 *
+	 * <p>If a partitioner is not provided, written records will be partitioned by the attached key of each
+	 * record (as determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If written records do not
+	 * have a key (i.e., {@link KeyedSerializationSchema#serializeKey(Object)} returns {@code null}), they
+	 * will be distributed to Kafka partitions in a round-robin fashion.
 	 *
 	 * @param defaultTopicId The default topic to write data to
 	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
 	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
-	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions. Passing null will use Kafka's partitioner.
+	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
+	 *                          If a partitioner is not provided, records will be partitioned by the key of each record
+	 *                          (determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If the keys
+	 *                          are {@code null}, then records will be distributed to Kafka partitions in a
+	 *                          round-robin fashion.
 	 */
 	public FlinkKafkaProducer011(
 			String defaultTopicId,
@@ -396,12 +451,22 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	/**
-	 * The main constructor for creating a FlinkKafkaProducer.
+	 * Creates a FlinkKafkaProducer for a given topic. The sink produces its input to
+	 * the topic. It accepts a keyed {@link KeyedSerializationSchema} and possibly a custom {@link FlinkKafkaPartitioner}.
+	 *
+	 * <p>If a partitioner is not provided, written records will be partitioned by the attached key of each
+	 * record (as determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If written records do not
+	 * have a key (i.e., {@link KeyedSerializationSchema#serializeKey(Object)} returns {@code null}), they
+	 * will be distributed to Kafka partitions in a round-robin fashion.
 	 *
 	 * @param defaultTopicId The default topic to write data to
 	 * @param serializationSchema A serializable serialization schema for turning user objects into a kafka-consumable byte[] supporting key/value messages
 	 * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is the only required argument.
-	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions. Passing null will use Kafka's partitioner.
+	 * @param customPartitioner A serializable partitioner for assigning messages to Kafka partitions.
+	 *                          If a partitioner is not provided, records will be partitioned by the key of each record
+	 *                          (determined by {@link KeyedSerializationSchema#serializeKey(Object)}). If the keys
+	 *                          are {@code null}, then records will be distributed to Kafka partitions in a
+	 *                          round-robin fashion.
 	 * @param semantic Defines semantic that will be used by this producer (see {@link Semantic}).
 	 * @param kafkaProducersPoolSize Overwrite default KafkaProducers pool size (see {@link Semantic#EXACTLY_ONCE}).
 	 */
