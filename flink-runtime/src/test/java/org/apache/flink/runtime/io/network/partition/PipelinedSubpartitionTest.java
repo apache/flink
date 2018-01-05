@@ -19,9 +19,11 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
@@ -29,7 +31,9 @@ import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
+
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutorService;
@@ -258,5 +262,73 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		// Wait for producer and consumer to finish
 		producerResult.get();
 		consumerResult.get();
+	}
+
+
+	/**
+	 * Tests cleanup of {@link PipelinedSubpartition#release()} with no read view attached.
+	 */
+	@Test
+	public void testCleanupReleasedPartitionNoView() throws Exception {
+		testCleanupReleasedPartition(false);
+	}
+
+	/**
+	 * Tests cleanup of {@link PipelinedSubpartition#release()} with a read view attached.
+	 */
+	@Test
+	public void testCleanupReleasedPartitionWithView() throws Exception {
+		testCleanupReleasedPartition(true);
+	}
+
+	/**
+	 * Tests cleanup of {@link PipelinedSubpartition#release()}.
+	 *
+	 * @param createView
+	 * 		whether the partition should have a view attached to it (<tt>true</tt>) or not (<tt>false</tt>)
+	 */
+	private void testCleanupReleasedPartition(boolean createView) throws Exception {
+		PipelinedSubpartition partition = createSubpartition();
+
+		Buffer buffer1 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		Buffer buffer2 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		boolean buffer1Recycled;
+		boolean buffer2Recycled;
+		try {
+			partition.add(buffer1);
+			partition.add(buffer2);
+			// create the read view first
+			ResultSubpartitionView view = null;
+			if (createView) {
+				view = partition.createReadView(numBuffers -> {});
+			}
+
+			partition.release();
+
+			assertTrue(partition.isReleased());
+			if (createView) {
+				assertTrue(view.isReleased());
+			}
+			assertTrue(buffer1.isRecycled());
+		} finally {
+			buffer1Recycled = buffer1.isRecycled();
+			if (!buffer1Recycled) {
+				buffer1.recycle();
+			}
+			buffer2Recycled = buffer2.isRecycled();
+			if (!buffer2Recycled) {
+				buffer2.recycle();
+			}
+		}
+		if (!buffer1Recycled) {
+			Assert.fail("buffer 1 not recycled");
+		}
+		if (!buffer2Recycled) {
+			Assert.fail("buffer 2 not recycled");
+		}
+		assertEquals(2, partition.getTotalNumberOfBuffers());
+		assertEquals(2 * 4096, partition.getTotalNumberOfBytes());
 	}
 }

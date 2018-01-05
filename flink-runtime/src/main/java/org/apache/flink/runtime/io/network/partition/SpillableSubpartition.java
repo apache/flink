@@ -152,6 +152,7 @@ class SpillableSubpartition extends ResultSubpartition {
 
 	@Override
 	public synchronized void release() throws IOException {
+		// view reference accessible outside the lock, but assigned inside the locked scope
 		final ResultSubpartitionView view;
 
 		synchronized (buffers) {
@@ -159,16 +160,18 @@ class SpillableSubpartition extends ResultSubpartition {
 				return;
 			}
 
+			// Release all available buffers
+			for (Buffer buffer : buffers) {
+				buffer.recycle();
+			}
+			buffers.clear();
+
 			view = readView;
 
 			// No consumer yet, we are responsible to clean everything up. If
 			// one is available, the view is responsible is to clean up (see
 			// below).
 			if (view == null) {
-				for (Buffer buffer : buffers) {
-					buffer.recycle();
-				}
-				buffers.clear();
 
 				// TODO This can block until all buffers are written out to
 				// disk if a spill is in-progress before deleting the file.

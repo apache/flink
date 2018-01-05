@@ -594,6 +594,105 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(0, partition.getTotalNumberOfBytes());
 	}
 
+	/**
+	 * Tests cleanup of {@link SpillableSubpartition#release()} with a spillable partition and no
+	 * read view attached.
+	 */
+	@Test
+	public void testCleanupReleasedSpillablePartitionNoView() throws Exception {
+		testCleanupReleasedPartition(false, false);
+	}
+
+	/**
+	 * Tests cleanup of {@link SpillableSubpartition#release()} with a spillable partition and a
+	 * read view attached - [FLINK-8371].
+	 */
+	@Test
+	public void testCleanupReleasedSpillablePartitionWithView() throws Exception {
+		testCleanupReleasedPartition(false, true);
+	}
+
+	/**
+	 * Tests cleanup of {@link SpillableSubpartition#release()} with a spilled partition and no
+	 * read view attached.
+	 */
+	@Test
+	public void testCleanupReleasedSpilledPartitionNoView() throws Exception {
+		testCleanupReleasedPartition(true, false);
+	}
+
+	/**
+	 * Tests cleanup of {@link SpillableSubpartition#release()} with a spilled partition and a
+	 * read view attached.
+	 */
+	@Test
+	public void testCleanupReleasedSpilledPartitionWithView() throws Exception {
+		testCleanupReleasedPartition(true, true);
+	}
+
+	/**
+	 * Tests cleanup of {@link SpillableSubpartition#release()}.
+	 *
+	 * @param spilled
+	 * 		whether the partition should be spilled to disk (<tt>true</tt>) or not (<tt>false</tt>,
+	 * 		spillable)
+	 * @param createView
+	 * 		whether the partition should have a view attached to it (<tt>true</tt>) or not (<tt>false</tt>)
+	 */
+	private void testCleanupReleasedPartition(boolean spilled, boolean createView) throws Exception {
+		SpillableSubpartition partition = createSubpartition();
+
+		Buffer buffer1 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		Buffer buffer2 = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096),
+			FreeingBufferRecycler.INSTANCE);
+		boolean buffer1Recycled;
+		boolean buffer2Recycled;
+		try {
+			partition.add(buffer1);
+			partition.add(buffer2);
+			// create the read view before spilling
+			// (tests both code paths since this view may then contain the spilled view)
+			ResultSubpartitionView view = null;
+			if (createView) {
+				partition.finish();
+				view = partition.createReadView(numBuffers -> {});
+			}
+			if (spilled) {
+				// note: in case we create a view, one buffer will already reside in the view and
+				//       one EndOfPartitionEvent will be added instead (so overall the number of
+				//       buffers to spill is the same
+				assertEquals(2, partition.releaseMemory());
+			}
+
+			partition.release();
+
+			assertTrue(partition.isReleased());
+			if (createView) {
+				assertTrue(view.isReleased());
+			}
+			assertTrue(buffer1.isRecycled());
+		} finally {
+			buffer1Recycled = buffer1.isRecycled();
+			if (!buffer1Recycled) {
+				buffer1.recycle();
+			}
+			buffer2Recycled = buffer2.isRecycled();
+			if (!buffer2Recycled) {
+				buffer2.recycle();
+			}
+		}
+		if (!buffer1Recycled) {
+			Assert.fail("buffer 1 not recycled");
+		}
+		if (!buffer2Recycled) {
+			Assert.fail("buffer 2 not recycled");
+		}
+		// note: in case we create a view, there will be an additional EndOfPartitionEvent
+		assertEquals(createView ? 3 : 2, partition.getTotalNumberOfBuffers());
+		assertEquals((createView ? 4 : 0) + 2 * 4096, partition.getTotalNumberOfBytes());
+	}
+
 	private static class AwaitableBufferAvailablityListener implements BufferAvailabilityListener {
 
 		private long numNotifiedBuffers;
