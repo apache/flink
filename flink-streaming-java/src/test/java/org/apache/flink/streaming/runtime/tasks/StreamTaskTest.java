@@ -358,7 +358,6 @@ public class StreamTaskTest extends TestLogger {
 			streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpoint());
 			fail("Expected test exception here.");
 		} catch (Exception e) {
-			e.printStackTrace();
 			assertEquals(testException, e.getCause());
 		}
 
