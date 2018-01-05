@@ -170,7 +170,7 @@ class StreamTableEnvironmentValidationTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testInvalidReplacingProctimeAttribute(): Unit = {
     val util = streamTestUtil()
-    // alias in proctime not allowed
+    // proctime must not replace an existing field
     util.addTable[(Int, Long, String)]('_1, '_2.proctime, '_3)
   }
 

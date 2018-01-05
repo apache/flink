@@ -478,14 +478,14 @@ abstract class StreamTableEnvironment(
         // if the fields are referenced by position,
         // it is possible to replace an existing field or append the time attribute at the end
         if (isRefByPos) {
-          // check type of field that is replaced
-          if (idx < fieldTypes.length) {
-            checkRowtimeType(fieldTypes(idx))
-          }
           // aliases are not permitted
           if (origName.isDefined) {
             throw new TableException(
               s"Invalid alias '${origName.get}' because fields are referenced by position.")
+          }
+          // check type of field that is replaced
+          if (idx < fieldTypes.length) {
+            checkRowtimeType(fieldTypes(idx))
           }
         }
         // check reference-by-name
