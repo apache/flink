@@ -375,9 +375,6 @@ iteration.closeWith(iterationBody.filter(/* one part of the stream */));
 DataStream<Integer> output = iterationBody.filter(/* some other part of the stream */);
 {% endhighlight %}
 
-By default the partitioning of the feedback stream will be automatically set to be the same as the input of the
-iteration head. To override this the user can set an optional boolean flag in the `closeWith` method.
-
 For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
 
 {% highlight java %}
@@ -424,13 +421,9 @@ are forwarded downstream using filters.
 val iteratedStream = someDataStream.iterate(
   iteration => {
     val iterationBody = iteration.map(/* this is executed many times */)
-    (tail.filter(/* one part of the stream */), tail.filter(/* some other part of the stream */))
+    (iterationBody.filter(/* one part of the stream */), iterationBody.filter(/* some other part of the stream */))
 })
 {% endhighlight %}
-
-
-By default the partitioning of the feedback stream will be automatically set to be the same as the input of the
-iteration head. To override this the user can set an optional boolean flag in the `closeWith` method.
 
 For example, here is program that continuously subtracts 1 from a series of integers until they reach zero:
 
