@@ -147,25 +147,30 @@ public class StreamOperatorChainingTest {
 		StreamMap<Integer, Integer> headOperator =
 				streamConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
 
-		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
-				createMockTask(streamConfig, chainedVertex.getName());
+		try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
+			StreamTask<Integer, StreamMap<Integer, Integer>> mockTask = createMockTask(streamConfig, environment);
 
-		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
+			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
 
-		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
+			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-			if (operator != null) {
-				operator.open();
+			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+				if (operator != null) {
+					operator.open();
+				}
 			}
+
+			headOperator.processElement(new StreamRecord<>(1));
+			headOperator.processElement(new StreamRecord<>(2));
+			headOperator.processElement(new StreamRecord<>(3));
+
+			assertThat(sink1Results, contains("First: 1", "First: 2", "First: 3"));
+			assertThat(sink2Results, contains("Second: 1", "Second: 2", "Second: 3"));
 		}
+	}
 
-		headOperator.processElement(new StreamRecord<>(1));
-		headOperator.processElement(new StreamRecord<>(2));
-		headOperator.processElement(new StreamRecord<>(3));
-
-		assertThat(sink1Results, contains("First: 1", "First: 2", "First: 3"));
-		assertThat(sink2Results, contains("Second: 1", "Second: 2", "Second: 3"));
+	private MockEnvironment createMockEnvironment(String taskName) {
+		return new MockEnvironment(taskName, 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
 	}
 
 	@Test
@@ -287,38 +292,40 @@ public class StreamOperatorChainingTest {
 		StreamMap<Integer, Integer> headOperator =
 				streamConfig.getStreamOperator(Thread.currentThread().getContextClassLoader());
 
-		StreamTask<Integer, StreamMap<Integer, Integer>> mockTask =
-				createMockTask(streamConfig, chainedVertex.getName());
+		try (MockEnvironment environment = createMockEnvironment(chainedVertex.getName())) {
+			StreamTask<Integer, StreamMap<Integer, Integer>> mockTask = createMockTask(streamConfig, environment);
 
-		OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
+			OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain = new OperatorChain<>(mockTask);
 
-		headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
+			headOperator.setup(mockTask, streamConfig, operatorChain.getChainEntryPoint());
 
-		for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-			if (operator != null) {
-				operator.open();
+			for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+				if (operator != null) {
+					operator.open();
+				}
 			}
+
+			headOperator.processElement(new StreamRecord<>(1));
+			headOperator.processElement(new StreamRecord<>(2));
+			headOperator.processElement(new StreamRecord<>(3));
+
+			assertThat(sink1Results, contains("First 1: 1"));
+			assertThat(sink2Results, contains("First 2: 1"));
+			assertThat(sink3Results, contains("Second: 2", "Second: 3"));
 		}
-
-		headOperator.processElement(new StreamRecord<>(1));
-		headOperator.processElement(new StreamRecord<>(2));
-		headOperator.processElement(new StreamRecord<>(3));
-
-		assertThat(sink1Results, contains("First 1: 1"));
-		assertThat(sink2Results, contains("First 2: 1"));
-		assertThat(sink3Results, contains("Second: 2", "Second: 3"));
 	}
 
-	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(StreamConfig streamConfig, String taskName) {
+	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(
+			StreamConfig streamConfig,
+			Environment environment) {
 		final Object checkpointLock = new Object();
-		final Environment env = new MockEnvironment(taskName, 3 * 1024 * 1024, new MockInputSplitProvider(), 1024);
 
 		@SuppressWarnings("unchecked")
 		StreamTask<IN, OT> mockTask = mock(StreamTask.class);
 		when(mockTask.getName()).thenReturn("Mock Task");
 		when(mockTask.getCheckpointLock()).thenReturn(checkpointLock);
 		when(mockTask.getConfiguration()).thenReturn(streamConfig);
-		when(mockTask.getEnvironment()).thenReturn(env);
+		when(mockTask.getEnvironment()).thenReturn(environment);
 		when(mockTask.getExecutionConfig()).thenReturn(new ExecutionConfig().enableObjectReuse());
 
 		return mockTask;
