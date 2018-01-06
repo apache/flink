@@ -229,7 +229,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    * [[KeyedStream]] is maintained (heap, managed memory, externally), and where state
    * snapshots/checkpoints are stored, both for the key/value state, and for checkpointed
    * functions (implementing the interface 
-   * [[org.apache.flink.streaming.api.checkpoint.Checkpointed]].
+   * [[org.apache.flink.streaming.api.checkpoint.CheckpointedFunction]].
    *
    * <p>The [[org.apache.flink.runtime.state.memory.MemoryStateBackend]] for example
    * maintains the state in heap memory, as objects. It is lightweight without extra 
