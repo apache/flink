@@ -186,14 +186,12 @@ abstract class TimeBoundedStreamJoin(
             joinCollector.reset()
             val tuple = rightRows.get(i)
             joinFunction.join(leftRow, tuple.f0, joinCollector)
-            if (joinCollector.emitted) {
-              emitted = true
-              if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
-                if (!tuple.f1) {
-                  // Mark the right row as being successfully joined and emitted.
-                  tuple.f1 = true
-                  entryUpdated = true
-                }
+            emitted ||= joinCollector.emitted
+            if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
+              if (!tuple.f1 && joinCollector.emitted) {
+                // Mark the right row as being successfully joined and emitted.
+                tuple.f1 = true
+                entryUpdated = true
               }
             }
             i += 1
@@ -281,14 +279,12 @@ abstract class TimeBoundedStreamJoin(
             joinCollector.reset()
             val tuple = leftRows.get(i)
             joinFunction.join(tuple.f0, rightRow, joinCollector)
-            if (joinCollector.emitted) {
-              emitted = true
-              if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
-                if (!tuple.f1) {
-                  // Mark the left row as being successfully joined and emitted.
-                  tuple.f1 = true
-                  entryUpdated = true
-                }
+            emitted ||= joinCollector.emitted
+            if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
+              if (!tuple.f1 && joinCollector.emitted) {
+                // Mark the left row as being successfully joined and emitted.
+                tuple.f1 = true
+                entryUpdated = true
               }
             }
             i += 1
@@ -427,6 +423,7 @@ abstract class TimeBoundedStreamJoin(
     * Remove the expired rows. Register a new timer if the cache still holds valid rows
     * after the cleaning up.
     *
+    * @param collector      the collector to emit results
     * @param expirationTime the expiration time for this cache
     * @param rowCache       the row cache
     * @param timerState     timer state for the opposite stream
@@ -434,7 +431,7 @@ abstract class TimeBoundedStreamJoin(
     * @param removeLeft     whether to remove the left rows
     */
   private def removeExpiredRows(
-      collector: EmitAwareCollector,
+      collector: Collector[Row],
       expirationTime: Long,
       rowCache: MapState[Long, JList[JTuple2[Row, Boolean]]],
       timerState: ValueState[Long],
@@ -451,20 +448,27 @@ abstract class TimeBoundedStreamJoin(
       val entry = iterator.next
       val rowTime = entry.getKey
       if (rowTime <= expirationTime) {
-        if ((joinType == JoinType.RIGHT_OUTER && !removeLeft) ||
-          (joinType == JoinType.LEFT_OUTER && removeLeft) ||
-          joinType == JoinType.FULL_OUTER) {
+        if (removeLeft &&
+          (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER)) {
           val rows = entry.getValue
           var i = 0
           while (i < rows.size) {
             val tuple = rows.get(i)
             if (!tuple.f1) {
               // Emit a null padding result if the row has never been successfully joined.
-              if (removeLeft) {
-                collector.collect(paddingUtil.padLeft(tuple.f0))
-              } else {
-                collector.collect(paddingUtil.padRight(tuple.f0))
-              }
+              collector.collect(paddingUtil.padLeft(tuple.f0))
+            }
+            i += 1
+          }
+        } else if (!removeLeft &&
+          (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER)) {
+          val rows = entry.getValue
+          var i = 0
+          while (i < rows.size) {
+            val tuple = rows.get(i)
+            if (!tuple.f1) {
+              // Emit a null padding result if the row has never been successfully joined.
+              collector.collect(paddingUtil.padRight(tuple.f0))
             }
             i += 1
           }

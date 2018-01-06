@@ -23,7 +23,7 @@ import org.apache.flink.types.Row
 /**
   * An utility to generate reusable padding results for outer joins.
   */
-class OuterJoinPaddingUtil(leftArity: Int, rightArity: Int) {
+class OuterJoinPaddingUtil(leftArity: Int, rightArity: Int) extends java.io.Serializable{
 
   private val resultArity = leftArity + rightArity
   private val leftNullPaddingResult = new Row(resultArity)

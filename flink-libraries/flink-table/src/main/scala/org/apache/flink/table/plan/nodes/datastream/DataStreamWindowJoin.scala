@@ -23,10 +23,12 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.common.functions.{FlatMapFunction, MapFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
@@ -197,43 +199,41 @@ class DataStreamWindowJoin(
       leftArity: Int,
       rightArity: Int,
       returnTypeInfo: TypeInformation[CRow]): DataStream[CRow] = {
-    leftDataStream.connect(rightDataStream).process(
-      new CoProcessFunction[CRow, CRow, CRow] {
-        var paddingUtil: OuterJoinPaddingUtil = _
-        var collector: CRowWrappingCollector = _
+    // We filter all records instead of adding an empty source to preserve the watermarks.
+    val allFilter = new FlatMapFunction[CRow, CRow] with ResultTypeQueryable[CRow] {
+      override def flatMap(value: CRow, out: Collector[CRow]): Unit = { }
+      override def getProducedType: TypeInformation[CRow] = returnTypeInfo
+    }
 
-        override def open(parameters: Configuration): Unit = {
-          paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
-          collector = new CRowWrappingCollector
-          collector.setChange(true)
-        }
+    val leftPadder = new MapFunction[CRow, CRow] with ResultTypeQueryable[CRow] {
+      val paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
+      override def map(value: CRow): CRow = new CRow(paddingUtil.padLeft(value.row), true)
+      override def getProducedType: TypeInformation[CRow] = returnTypeInfo
+    }
 
-        override def processElement1(
-          value: CRow,
-          ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-          out: Collector[CRow]): Unit = {
-          joinType match {
-            case JoinType.INNER | JoinType.RIGHT_OUTER => // Do nothing.
-            case JoinType.LEFT_OUTER | JoinType.FULL_OUTER =>
-              // Pad results for the left outer and the full outer joins.
-              collector.out = out
-              collector.collect(paddingUtil.padLeft(value.row))
-          }
-        }
+    val rightPadder = new MapFunction[CRow, CRow] with ResultTypeQueryable[CRow] {
+      val paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
+      override def map(value: CRow): CRow = new CRow(paddingUtil.padRight(value.row), true)
+      override def getProducedType: TypeInformation[CRow] = returnTypeInfo
+    }
 
-        override def processElement2(
-          value: CRow,
-          ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
-          out: Collector[CRow]): Unit = {
-          joinType match {
-            case JoinType.INNER | JoinType.LEFT_OUTER => // Do nothing.
-            case JoinType.RIGHT_OUTER | JoinType.FULL_OUTER =>
-              // Pad results for the right outer and the full outer joins.
-              collector.out = out
-              collector.collect(paddingUtil.padRight(value.row))
-          }
-        }
-      }).returns(returnTypeInfo)
+    val leftP = leftDataStream.getParallelism
+    val rightP = rightDataStream.getParallelism
+
+    joinType match {
+      case JoinType.INNER =>
+        leftDataStream.flatMap(allFilter).name("Empty Inner Join").setParallelism(leftP)
+          .union(rightDataStream.flatMap(allFilter).name("Empty Inner Join").setParallelism(rightP))
+      case JoinType.LEFT_OUTER =>
+        leftDataStream.map(leftPadder).name("Left Outer Join").setParallelism(leftP)
+          .union(rightDataStream.flatMap(allFilter).name("Left Outer Join").setParallelism(rightP))
+      case JoinType.RIGHT_OUTER =>
+        leftDataStream.flatMap(allFilter).name("Right Outer Join").setParallelism(leftP)
+          .union(rightDataStream.map(rightPadder).name("Right Outer Join").setParallelism(rightP))
+      case JoinType.FULL_OUTER =>
+        leftDataStream.map(leftPadder).name("Full Outer Join").setParallelism(leftP)
+          .union(rightDataStream.map(rightPadder).name("Full Outer Join").setParallelism(rightP))
+    }
   }
 
   def createProcTimeJoin(
