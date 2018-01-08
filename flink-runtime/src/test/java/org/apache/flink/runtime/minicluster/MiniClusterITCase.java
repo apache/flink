@@ -99,7 +99,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	private static void executeJob(MiniCluster miniCluster) throws Exception {
 		JobGraph job = getSimpleJob();
-		miniCluster.runJobBlocking(job);
+		miniCluster.executeJobBlocking(job);
 	}
 
 	private static JobGraph getSimpleJob() throws IOException {
