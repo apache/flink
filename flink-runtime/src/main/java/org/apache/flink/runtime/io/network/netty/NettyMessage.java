@@ -198,6 +198,9 @@ public abstract class NettyMessage {
 				case CloseRequest.ID:
 					decodedMsg = CloseRequest.readFrom(msg);
 					break;
+				case AddCredit.ID:
+					decodedMsg = AddCredit.readFrom(msg);
+					break;
 				default:
 					throw new ProtocolException("Received unknown message from producer: " + msg);
 			}
@@ -221,6 +224,8 @@ public abstract class NettyMessage {
 
 		final int sequenceNumber;
 
+		final int backlog;
+
 		// ---- Deserialization -----------------------------------------------
 
 		final boolean isBuffer;
@@ -232,7 +237,8 @@ public abstract class NettyMessage {
 
 		private BufferResponse(
 				ByteBuf retainedSlice, boolean isBuffer, int sequenceNumber,
-				InputChannelID receiverId) {
+				InputChannelID receiverId,
+				int backlog) {
 			// When deserializing we first have to request a buffer from the respective buffer
 			// provider (at the handler) and copy the buffer from Netty's space to ours. Only
 			// retainedSlice is set in this case.
@@ -242,15 +248,17 @@ public abstract class NettyMessage {
 			this.isBuffer = isBuffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
+			this.backlog = backlog;
 		}
 
-		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId) {
+		BufferResponse(Buffer buffer, int sequenceNumber, InputChannelID receiverId, int backlog) {
 			this.buffer = checkNotNull(buffer);
 			this.retainedSlice = null;
 			this.isBuffer = buffer.isBuffer();
 			this.size = buffer.getSize();
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
+			this.backlog = backlog;
 		}
 
 		boolean isBuffer() {
@@ -280,7 +288,7 @@ public abstract class NettyMessage {
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			checkNotNull(buffer, "No buffer instance to serialize.");
 
-			int length = 16 + 4 + 1 + 4 + buffer.getSize();
+			int length = 16 + 4 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
 			try {
@@ -288,6 +296,7 @@ public abstract class NettyMessage {
 
 				receiverId.writeTo(result);
 				result.writeInt(sequenceNumber);
+				result.writeInt(backlog);
 				result.writeBoolean(buffer.isBuffer());
 				result.writeInt(buffer.getSize());
 				result.writeBytes(buffer.getNioBuffer());
@@ -309,12 +318,13 @@ public abstract class NettyMessage {
 		static BufferResponse readFrom(ByteBuf buffer) {
 			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
 			int sequenceNumber = buffer.readInt();
+			int backlog = buffer.readInt();
 			boolean isBuffer = buffer.readBoolean();
 			int size = buffer.readInt();
 
 			ByteBuf retainedSlice = buffer.readSlice(size).retain();
 
-			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId);
+			return new BufferResponse(retainedSlice, isBuffer, sequenceNumber, receiverId, backlog);
 		}
 	}
 
@@ -575,6 +585,67 @@ public abstract class NettyMessage {
 
 		static CloseRequest readFrom(@SuppressWarnings("unused") ByteBuf buffer) throws Exception {
 			return new CloseRequest();
+		}
+	}
+
+	/**
+	 * Incremental credit announcement from the client to the server.
+	 */
+	static class AddCredit extends NettyMessage {
+
+		private static final byte ID = 6;
+
+		final ResultPartitionID partitionId;
+
+		final int credit;
+
+		final InputChannelID receiverId;
+
+		AddCredit(ResultPartitionID partitionId, int credit, InputChannelID receiverId) {
+			checkArgument(credit > 0, "The announced credit should be greater than 0");
+
+			this.partitionId = partitionId;
+			this.credit = credit;
+			this.receiverId = receiverId;
+		}
+
+		@Override
+		ByteBuf write(ByteBufAllocator allocator) throws IOException {
+			ByteBuf result = null;
+
+			try {
+				result = allocateBuffer(allocator, ID, 16 + 16 + 4 + 16);
+
+				partitionId.getPartitionId().writeTo(result);
+				partitionId.getProducerId().writeTo(result);
+				result.writeInt(credit);
+				receiverId.writeTo(result);
+
+				return result;
+			}
+			catch (Throwable t) {
+				if (result != null) {
+					result.release();
+				}
+
+				throw new IOException(t);
+			}
+		}
+
+		static AddCredit readFrom(ByteBuf buffer) {
+			ResultPartitionID partitionId =
+				new ResultPartitionID(
+					IntermediateResultPartitionID.fromByteBuf(buffer),
+					ExecutionAttemptID.fromByteBuf(buffer));
+			int credit = buffer.readInt();
+			InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+
+			return new AddCredit(partitionId, credit, receiverId);
+		}
+
+		@Override
+		public String toString() {
+			return String.format("AddCredit(%s : %d)", receiverId, credit);
 		}
 	}
 }
