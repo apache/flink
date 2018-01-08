@@ -22,8 +22,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
 
-import static org.junit.Assert.fail;
-
 /**
  * Base class for unit tests that run a single test.
  *
@@ -48,33 +46,12 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 	@Test
 	public void testJob() throws Exception {
 		// pre-submit
-		try {
-			preSubmit();
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Pre-submit work caused an error: " + e.getMessage());
-		}
+		preSubmit();
 
 		// call the test program
-		try {
-			testProgram();
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Error while calling the test program: " + e.getMessage());
-		}
+		testProgram();
 
 		// post-submit
-		try {
-			postSubmit();
-		}
-		catch (Exception e) {
-			System.err.println(e.getMessage());
-			e.printStackTrace();
-			fail("Post-submit work caused an error: " + e.getMessage());
-		}
+		postSubmit();
 	}
 }
