@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
@@ -28,66 +29,60 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 
 import java.io.IOException;
 import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 public class TestPooledBufferProvider implements BufferProvider {
 
-	private final Object bufferCreationLock = new Object();
-
-	private final ArrayBlockingQueue<Buffer> buffers;
+	private final BlockingQueue<Buffer> buffers = new LinkedBlockingDeque<>();
 
 	private final TestBufferFactory bufferFactory;
 
 	private final PooledBufferProviderRecycler bufferRecycler;
 
-	private final int poolSize;
-
 	public TestPooledBufferProvider(int poolSize) {
-		checkArgument(poolSize > 0);
-		this.poolSize = poolSize;
+		this(poolSize, 32 * 1024);
+	}
 
-		this.buffers = new ArrayBlockingQueue<Buffer>(poolSize);
+	public TestPooledBufferProvider(int poolSize, int bufferSize) {
+		checkArgument(poolSize > 0);
+
 		this.bufferRecycler = new PooledBufferProviderRecycler(buffers);
-		this.bufferFactory = new TestBufferFactory(32 * 1024, bufferRecycler);
+		this.bufferFactory = new TestBufferFactory(poolSize, bufferSize, bufferRecycler);
 	}
 
 	@Override
 	public Buffer requestBuffer() throws IOException {
 		final Buffer buffer = buffers.poll();
-
 		if (buffer != null) {
 			return buffer;
 		}
-		else {
-			synchronized (bufferCreationLock) {
-				if (bufferFactory.getNumberOfCreatedBuffers() < poolSize) {
-					return bufferFactory.create();
-				}
-			}
 
-			return null;
-		}
+		return bufferFactory.create();
 	}
 
 	@Override
 	public Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		final Buffer buffer = buffers.poll();
-
+		Buffer buffer = buffers.poll();
 		if (buffer != null) {
 			return buffer;
 		}
-		else {
-			synchronized (bufferCreationLock) {
-				if (bufferFactory.getNumberOfCreatedBuffers() < poolSize) {
-					return bufferFactory.create();
-				}
-			}
 
-			return buffers.take();
+		buffer = bufferFactory.create();
+		if (buffer != null) {
+			return buffer;
 		}
+
+		return buffers.take();
+	}
+
+	@Override
+	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
+		Buffer buffer = requestBufferBlocking();
+		return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
 	}
 
 	@Override
@@ -107,6 +102,10 @@ public class TestPooledBufferProvider implements BufferProvider {
 
 	public int getNumberOfAvailableBuffers() {
 		return buffers.size();
+	}
+
+	public int getNumberOfCreatedBuffers() {
+		return bufferFactory.getNumberOfCreatedBuffers();
 	}
 
 	private static class PooledBufferProviderRecycler implements BufferRecycler {

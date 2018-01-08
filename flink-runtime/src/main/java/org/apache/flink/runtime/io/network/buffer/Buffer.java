@@ -54,11 +54,14 @@ public class Buffer {
 	}
 
 	public Buffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
+		this(memorySegment, recycler, isBuffer, memorySegment.size());
+	}
+
+	public Buffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, int size) {
 		this.memorySegment = checkNotNull(memorySegment);
 		this.recycler = checkNotNull(recycler);
 		this.isBuffer = isBuffer;
-
-		this.currentSize = memorySegment.size();
+		this.currentSize = size;
 	}
 
 	public boolean isBuffer() {

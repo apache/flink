@@ -19,19 +19,16 @@
 package org.apache.flink.runtime.io.network.api.serialization;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
 
-import static org.mockito.Mockito.mock;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
 
 public class SpanningRecordSerializationTest {
 
@@ -129,13 +126,11 @@ public class SpanningRecordSerializationTest {
 	{
 		final int SERIALIZATION_OVERHEAD = 4; // length encoding
 
-		final Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(segmentSize), mock(BufferRecycler.class));
-
 		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<SerializationTestType>();
 
 		// -------------------------------------------------------------------------------------------------------------
 
-		serializer.setNextBuffer(buffer);
+		serializer.setNextBufferBuilder(createBufferBuilder(segmentSize));
 
 		int numBytes = 0;
 		int numRecords = 0;
@@ -164,7 +159,7 @@ public class SpanningRecordSerializationTest {
 					}
 				}
 
-				while (serializer.setNextBuffer(buffer).isFullBuffer()) {
+				while (serializer.setNextBufferBuilder(createBufferBuilder(segmentSize)).isFullBuffer()) {
 					deserializer.setNextMemorySegment(serializer.getCurrentBuffer().getMemorySegment(), segmentSize);
 				}
 
