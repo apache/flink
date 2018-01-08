@@ -28,7 +28,6 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -406,27 +405,8 @@ final class BufferReadRequest implements ReadRequest {
 		final FileChannel fileChannel = channel.fileChannel;
 
 		if (fileChannel.size() - fileChannel.position() > 0) {
-			final ByteBuffer header = ByteBuffer.allocateDirect(8);
-
-			fileChannel.read(header);
-			header.flip();
-
-			final boolean isBuffer = header.getInt() == 1;
-			final int size = header.getInt();
-
-			if (size > buffer.getMaxCapacity()) {
-				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMaxCapacity() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
-			}
-			checkArgument(buffer.getSize() == 0, "Buffer not empty");
-
-			fileChannel.read(buffer.getNioBuffer(0, size));
-			buffer.setSize(size);
-
-			if (!isBuffer) {
-				buffer.tagAsEvent();
-			}
-
-			hasReachedEndOfFile.set(fileChannel.size() - fileChannel.position() == 0);
+			BufferFileChannelReader reader = new BufferFileChannelReader(fileChannel);
+			hasReachedEndOfFile.set(reader.readBufferFromFileChannel(buffer));
 		}
 		else {
 			hasReachedEndOfFile.set(true);
