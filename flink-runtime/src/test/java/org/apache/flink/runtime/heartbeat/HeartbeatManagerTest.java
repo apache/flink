@@ -23,9 +23,11 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.util.DirectExecutorService;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +56,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link HeartbeatManager}.
  */
+@Category(Flip6.class)
 public class HeartbeatManagerTest extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(HeartbeatManagerTest.class);
 

@@ -26,8 +26,10 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.testutils.category.Flip6;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import scala.Option;
 import scala.Tuple2;
@@ -43,6 +45,7 @@ import static org.junit.Assert.*;
  * This test validates that the RPC service gives a good message when it cannot
  * connect to an RpcEndpoint.
  */
+@Category(Flip6.class)
 public class RpcConnectionTest {
 
 	@Test
