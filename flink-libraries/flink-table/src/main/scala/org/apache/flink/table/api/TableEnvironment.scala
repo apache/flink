@@ -777,8 +777,7 @@ abstract class TableEnvironment(val config: TableConfig) {
     * can be used for any input type, including POJOs.
     *
     * Reference input fields by position:
-    * Field references must refer to existing fields in the input type (except for
-    * renaming with alias (as)). In this mode, fields are simply renamed. Event-time attributes can
+    * In this mode, fields are simply renamed. Event-time attributes can
     * replace the field on their position in the input data (if it is of correct type) or be
     * appended at the end. Proctime attributes must be appended at the end. This mode can only be
     * used if the input type has a defined field order (tuple, case class, Row) and no of fields
