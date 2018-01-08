@@ -545,7 +545,7 @@ case $TEST in
 				printf "Running Wordcount end-to-end test\n"
 				printf "==============================================================================\n"
 				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_batch_wordcount.sh
-				EXIT_CODE=$(($EXIT_CODE+$?))
+				EXIT_CODE=$?
 			fi
 
 			if [ $EXIT_CODE == 0 ]; then
@@ -553,7 +553,7 @@ case $TEST in
 				printf "Running Kafka end-to-end test\n"
 				printf "==============================================================================\n"
 				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_kafka010.sh
-				EXIT_CODE=$(($EXIT_CODE+$?))
+				EXIT_CODE=$?
 			fi
 
 			if [ $EXIT_CODE == 0 ]; then
@@ -561,7 +561,7 @@ case $TEST in
 				printf "Running class loading end-to-end test\n"
 				printf "==============================================================================\n"
 				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_streaming_classloader.sh
-				EXIT_CODE=$(($EXIT_CODE+$?))
+				EXIT_CODE=$?
 			fi
 
 			if [ $EXIT_CODE == 0 ]; then
@@ -569,7 +569,7 @@ case $TEST in
 				printf "Running Shaded Hadoop S3A end-to-end test\n"
 				printf "==============================================================================\n"
 				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_hadoop_s3a.sh
-				EXIT_CODE=$(($EXIT_CODE+$?))
+				EXIT_CODE=$?
 			fi
 
 			if [ $EXIT_CODE == 0 ]; then
@@ -577,7 +577,7 @@ case $TEST in
 				printf "Running Shaded Presto S3 end-to-end test\n"
 				printf "==============================================================================\n"
 				FLINK_DIR=build-target CLUSTER_MODE=cluster test-infra/end-to-end-test/test_shaded_presto_s3.sh
-				EXIT_CODE=$(($EXIT_CODE+$?))
+				EXIT_CODE=$?
 			fi			
 		else
 			printf "\n==============================================================================\n"
