@@ -1242,6 +1242,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "SHIFT_LEFT(9223372036854775807,-2147483648)",
       "9223372036854775807"
     )
+
+    testSqlApi(
+      "SHIFT_LEFT(f4,1)", // f4 is BIGINT type
+      "88"
+    )
   }
 
   @Test
@@ -1269,6 +1274,11 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "SHIFT_RIGHT(123456789,-2147483648)",
       "123456789"
+    )
+
+    testSqlApi(
+      "SHIFT_RIGHT(f4,1)", // f4 is BIGINT type
+      "22"
     )
   }
 

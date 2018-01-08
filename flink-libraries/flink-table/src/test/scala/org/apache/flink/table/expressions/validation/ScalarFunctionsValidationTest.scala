@@ -47,6 +47,24 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     )
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidShiftLeft(): Unit = {
+    // invalid arithmetic argument
+    testSqlApi(
+      "SHIFT_LEFT(f28,1)",
+      "2"
+    )
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidShiftRight(): Unit = {
+    // invalid arithmetic argument
+    testSqlApi(
+      "SHIFT_RIGHT(f28,1)",
+      "2"
+    )
+  }
+
   // ----------------------------------------------------------------------------------------------
   // String functions
   // ----------------------------------------------------------------------------------------------

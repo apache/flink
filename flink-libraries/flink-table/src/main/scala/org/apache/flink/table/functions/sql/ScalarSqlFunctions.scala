@@ -63,7 +63,7 @@ object ScalarSqlFunctions {
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.ARG0,
     null,
-    OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.INTEGER),
+    OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC
   )
 
@@ -72,7 +72,7 @@ object ScalarSqlFunctions {
     SqlKind.OTHER_FUNCTION,
     ReturnTypes.ARG0,
     null,
-    OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.INTEGER),
+    OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC
   )
 
