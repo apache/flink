@@ -53,6 +53,8 @@ angular.module('flinkApp')
     $http.post(flinkConfig.jobServer + "jars/" + encodeURIComponent(id) + "/run", {}, {params: args})
     .success (data, status, headers, config) ->
       deferred.resolve(data)
+    .error (err) ->
+      deferred.reject(err)
 
     deferred.promise
 

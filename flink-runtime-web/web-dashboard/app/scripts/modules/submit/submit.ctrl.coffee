@@ -112,6 +112,9 @@ angular.module('flinkApp')
           $scope.error = data.error
           if data.jobid?
             $state.go("single-job.plan.subtasks", {jobid: data.jobid})
+      .catch (err) ->
+        $scope.state['submit-button'] = "Submit"
+        $scope.error = err
 
   # job plan display related stuff
   $scope.nodeid = null

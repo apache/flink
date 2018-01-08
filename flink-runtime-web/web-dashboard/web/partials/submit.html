@@ -29,6 +29,10 @@ limitations under the License.
   <pre ng-if="address">Yarn's AM proxy doesn't allow file uploads. You can visit&nbsp;<a href="{{address}}/#/submit">here</a>&nbsp;to access this functionality.</pre>
 </div>
 <div id="content-inner" ng-if="!noaccess &amp;&amp; jars &amp;&amp; !yarn">
+  <div ng-if="error">
+    <h3>We're sorry, something went wrong. The server responded with:</h3>
+    <pre>{{error}}</pre>
+  </div>
   <div class="panel panel-default">
     <div class="panel-heading">
       <h3 class="panel-title">Uploaded Jars</h3>
@@ -91,15 +95,6 @@ limitations under the License.
     <tbody>
       <tr>
         <td class="text-center">Job was successfully submitted. To monitor,&nbsp;<a href="{{'#/jobs/' + jid}}">click here.</a></td>
-      </tr>
-    </tbody>
-  </table>
-  <table ng-if="error" class="table table-no-border">
-    <tbody>
-      <tr>
-        <td>
-          <pre>{{error}}</pre>
-        </td>
       </tr>
     </tbody>
   </table>
