@@ -88,9 +88,7 @@ public class OperatorSnapshotResult {
 		try {
 			StateUtil.discardStateFuture(getKeyedStateManagedFuture());
 		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(
-				new Exception("Could not properly cancel managed keyed state future.", e),
-				exception);
+			exception = new Exception("Could not properly cancel managed keyed state future.", e);
 		}
 
 		try {
