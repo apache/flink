@@ -26,7 +26,6 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
 import org.junit.Test
 
-
 class UpdatingPlanCheckerTest {
 
   @Test
@@ -94,9 +93,9 @@ class UpdatingPlanCheckerTest {
     val resultTable = table
       .window(Tumble over 5.milli on 'proctime as 'w)
       .groupBy('w, 'a)
-      .select('a, 'b.count, 'w.start as 'start)
+      .select('a, 'b.count, 'w.proctime as 'p, 'w.start as 's, 'w.end as 'e)
 
-    util.verifyTableUniqueKey(resultTable, Seq("a", "start"))
+    util.verifyTableUniqueKey(resultTable, Seq("a", "s", "e"))
   }
 
   @Test
@@ -217,7 +216,7 @@ class UpdatePlanCheckerUtil extends StreamTableTestUtil {
     val actual = UpdatingPlanChecker.getUniqueKeyFields(optimized)
 
     if (actual.isDefined) {
-      assertEquals(expected.sorted, actual.get.toList.sorted)
+      assertEquals(expected.sorted, actual.get.toSeq.sorted)
     } else {
       assertEquals(expected.sorted, Nil)
     }

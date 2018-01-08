@@ -53,8 +53,8 @@ class DataStreamJoin(
     schema: RowSchema,
     ruleDescription: String)
   extends BiRel(cluster, traitSet, leftNode, rightNode)
-          with CommonJoin
-          with DataStreamRel {
+  with CommonJoin
+  with DataStreamRel {
 
   override def deriveRowType(): RelDataType = schema.relDataType
 
@@ -123,8 +123,8 @@ class DataStreamJoin(
       } else {
         throw TableException(
           "Equality join predicate on incompatible types.\n" +
-            s"\tLeft: ${left},\n" +
-            s"\tRight: ${right},\n" +
+            s"\tLeft: $left,\n" +
+            s"\tRight: $right,\n" +
             s"\tCondition: (${joinConditionToString(schema.relDataType,
               joinCondition, getExpressionString)})"
         )
@@ -138,8 +138,9 @@ class DataStreamJoin(
 
     val (connectOperator, nullCheck) = joinType match {
       case JoinRelType.INNER => (leftDataStream.connect(rightDataStream), false)
-      case _ => throw TableException(s"An Unsupported JoinType [ $joinType ]. Currently only " +
-                  s"non-window inner joins with at least one equality predicate are supported")
+      case _ =>
+        throw TableException(s"Unsupported join type '$joinType'. Currently only " +
+          s"non-window inner joins with at least one equality predicate are supported")
     }
 
     val generator = new FunctionCodeGenerator(

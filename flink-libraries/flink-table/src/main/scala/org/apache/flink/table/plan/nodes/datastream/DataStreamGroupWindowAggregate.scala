@@ -70,8 +70,6 @@ class DataStreamGroupWindowAggregate(
 
   def getWindowProperties: Seq[NamedWindowProperty] = namedProperties
 
-  def getWindowAlias: String = window.aliasAttribute.toString
-
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new DataStreamGroupWindowAggregate(
       window,

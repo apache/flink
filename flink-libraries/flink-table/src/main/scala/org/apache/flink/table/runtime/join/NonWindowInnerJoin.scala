@@ -22,17 +22,19 @@ package org.apache.flink.table.runtime.join
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.{StreamQueryConfig, Types}
+import org.apache.flink.table.codegen.Compiler
 import org.apache.flink.table.runtime.CRowWrappingMultiOutputCollector
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.typeutils.TypeCheckUtils
+import org.apache.flink.table.typeutils.TypeCheckUtils.validateEqualsHashCode
+import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.util.Logging
 
 
 /**
@@ -53,8 +55,12 @@ class NonWindowInnerJoin(
     genJoinFuncCode: String,
     queryConfig: StreamQueryConfig)
   extends CoProcessFunction[CRow, CRow, CRow]
-          with Compiler[FlatJoinFunction[Row, Row, Row]]
-          with Logging {
+  with Compiler[FlatJoinFunction[Row, Row, Row]]
+  with Logging {
+
+  // check if input types implement proper equals/hashCode
+  validateEqualsHashCode("join", leftType)
+  validateEqualsHashCode("join", rightType)
 
   // state to hold left stream element
   private var leftState: MapState[Row, JTuple2[Int, Long]] = _
@@ -116,7 +122,7 @@ class NonWindowInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    processElement(valueC, ctx, out, leftTimer, leftState, rightState, true)
+    processElement(valueC, ctx, out, leftTimer, leftState, rightState, isLeft = true)
   }
 
   /**
@@ -132,7 +138,7 @@ class NonWindowInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
-    processElement(valueC, ctx, out, rightTimer, rightState, leftState, false)
+    processElement(valueC, ctx, out, rightTimer, rightState, leftState, isLeft = false)
   }
 
 
@@ -167,7 +173,6 @@ class NonWindowInnerJoin(
       )
     }
   }
-
 
   def getNewExpiredTime(
       curProcessTime: Long,

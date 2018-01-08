@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.table.runtime.types.CRow
+import org.apache.flink.table.typeutils.TypeCheckUtils.validateEqualsHashCode
 import org.apache.flink.types.Row
 
 /**
@@ -32,6 +33,9 @@ class CRowKeySelector(
     @transient var returnType: TypeInformation[Row])
   extends KeySelector[CRow, Row]
   with ResultTypeQueryable[Row] {
+
+  // check if type implements proper equals/hashCode
+  validateEqualsHashCode("grouping", returnType)
 
   override def getKey(value: CRow): Row = {
     Row.project(value.row, keyFields)
