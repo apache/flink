@@ -148,8 +148,8 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					listener.notifyBuffersAvailable(1);
 				}
 
-				parent.decreaseBuffersInBacklog(current);
-				return new BufferAndBacklog(current, parent.getBuffersInBacklog());
+				int newBacklog = parent.decreaseBuffersInBacklog(current);
+				return new BufferAndBacklog(current, newBacklog);
 			}
 		} // else: spilled
 

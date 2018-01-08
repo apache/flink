@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -244,21 +245,23 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	@VisibleForTesting
 	public int getBuffersInBacklog() {
-		synchronized (buffers) {
-			return buffersInBacklog;
-		}
+		return buffersInBacklog;
 	}
 
 	/**
 	 * Decreases the number of non-event buffers by one after fetching a non-event
-	 * buffer from this subpartition.
+	 * buffer from this subpartition (for access by the subpartition views).
+	 *
+	 * @return backlog after the operator
 	 */
-	public void decreaseBuffersInBacklog(Buffer buffer) {
-		if (buffer != null && buffer.isBuffer()) {
-			synchronized (buffers) {
+	public int decreaseBuffersInBacklog(Buffer buffer) {
+		synchronized (buffers) {
+			if (buffer != null && buffer.isBuffer()) {
 				buffersInBacklog--;
 			}
+			return buffersInBacklog;
 		}
 	}
 

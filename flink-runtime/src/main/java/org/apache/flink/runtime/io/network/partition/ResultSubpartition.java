@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.io.IOException;
@@ -86,7 +87,11 @@ public abstract class ResultSubpartition {
 
 	/**
 	 * Gets the number of non-event buffers in this subpartition.
+	 *
+	 * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent
+	 * access scenarios since it does not make any concurrency guarantees.
 	 */
+	@VisibleForTesting
 	abstract public int getBuffersInBacklog();
 
 	/**
@@ -100,7 +105,7 @@ public abstract class ResultSubpartition {
 
 	/**
 	 * A combination of a {@link Buffer} and the backlog length indicating
-	 * how many non-event buffers available in the subpartition.
+	 * how many non-event buffers are available in the subpartition.
 	 */
 	public static final class BufferAndBacklog {
 

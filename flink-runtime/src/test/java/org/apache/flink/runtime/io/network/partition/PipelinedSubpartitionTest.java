@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestConsumerCallback;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -112,7 +113,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		verify(listener, times(1)).notifyBuffersAvailable(eq(1L));
 
 		// ...and one available result
-		assertNotNull(view.getNextBuffer());
+		BufferAndBacklog read = view.getNextBuffer();
+		assertNotNull(read);
+		assertEquals(0, subpartition.getBuffersInBacklog());
+		assertEquals(subpartition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertNull(view.getNextBuffer());
 		assertEquals(0, subpartition.getBuffersInBacklog());
 

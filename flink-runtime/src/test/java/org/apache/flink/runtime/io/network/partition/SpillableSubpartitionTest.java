@@ -212,22 +212,26 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		BufferAndBacklog read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertEquals(2, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertEquals(1, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycle();
 
 		// End of partition
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertEquals(EndOfPartitionEvent.class, EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
 		read.buffer().recycle();
 	}
@@ -261,6 +265,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		BufferAndBacklog read = reader.getNextBuffer();
 		assertNotNull(read);
+		assertEquals(2, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycle();
 		assertEquals(2, listener.getNumNotifiedBuffers());
 
@@ -277,11 +283,13 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertEquals(1, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycle();
 
 		read = reader.getNextBuffer();
 		assertNotNull(read);
 		assertEquals(0, partition.getBuffersInBacklog());
+		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		read.buffer().recycle();
 
 		// End of partition

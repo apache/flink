@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -177,6 +178,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	@VisibleForTesting
 	public int getBuffersInBacklog() {
 		return buffersInBacklog;
 	}

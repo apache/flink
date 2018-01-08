@@ -34,9 +34,9 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -300,7 +300,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			// the available queue during releasing all resources.
 			if (isReleased.get()) {
 				try {
-					inputGate.returnExclusiveSegments(Arrays.asList(segment));
+					inputGate.returnExclusiveSegments(Collections.singletonList(segment));
 					return;
 				} catch (Throwable t) {
 					ExceptionUtils.rethrow(t);

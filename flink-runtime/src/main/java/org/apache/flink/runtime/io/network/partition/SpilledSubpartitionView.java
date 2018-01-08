@@ -127,9 +127,8 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 		Buffer buffer = bufferPool.requestBufferBlocking();
 		fileReader.readInto(buffer);
 
-		parent.decreaseBuffersInBacklog(buffer);
-
-		return new BufferAndBacklog(buffer, parent.getBuffersInBacklog());
+		int newBacklog = parent.decreaseBuffersInBacklog(buffer);
+		return new BufferAndBacklog(buffer, newBacklog);
 	}
 
 	@Override
