@@ -78,7 +78,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Tests for GET-specific parts of the {@link BlobCacheService}.
  *
- * This includes access of transient BLOBs from the {@link PermanentBlobCache}, permanent BLOBS from
+ * <p>This includes access of transient BLOBs from the {@link PermanentBlobCache}, permanent BLOBS from
  * the {@link TransientBlobCache}, and how failing GET requests behave in the presence of failures
  * when used with a {@link BlobCacheService}.
  *

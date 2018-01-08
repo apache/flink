@@ -119,7 +119,7 @@ public final class BlobClient implements Closeable {
 			}
 
 		}
-		catch(Exception e) {
+		catch (Exception e) {
 			BlobUtils.closeSilently(socket, LOG);
 			throw new IOException("Could not connect to BlobServer at address " + serverAddress, e);
 		}

@@ -77,28 +77,28 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	/** The server socket listening for incoming connections. */
 	private final ServerSocket serverSocket;
 
-	/** The SSL server context if ssl is enabled for the connections */
+	/** The SSL server context if ssl is enabled for the connections. */
 	private final SSLContext serverSSLContext;
 
-	/** Blob Server configuration */
+	/** Blob Server configuration. */
 	private final Configuration blobServiceConfiguration;
 
 	/** Indicates whether a shutdown of server component has been requested. */
 	private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
-	/** Root directory for local file storage */
+	/** Root directory for local file storage. */
 	private final File storageDir;
 
-	/** Blob store for distributed file storage, e.g. in HA */
+	/** Blob store for distributed file storage, e.g. in HA. */
 	private final BlobStore blobStore;
 
-	/** Set of currently running threads */
+	/** Set of currently running threads. */
 	private final Set<BlobServerConnection> activeConnections = new HashSet<>();
 
-	/** The maximum number of concurrent connections */
+	/** The maximum number of concurrent connections. */
 	private final int maxConnections;
 
-	/** Lock guarding concurrent file accesses */
+	/** Lock guarding concurrent file accesses. */
 	private final ReadWriteLock readWriteLock;
 
 	/**
@@ -201,8 +201,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 			}
 		});
 
-		if(socketAttempt == null) {
-			throw new IOException("Unable to allocate socket for blob server in specified port range: "+serverPortRange);
+		if (socketAttempt == null) {
+			throw new IOException("Unable to allocate socket for blob server in specified port range: " + serverPortRange);
 		} else {
 			SSLUtils.setSSLVerAndCipherSuites(socketAttempt, config);
 			this.serverSocket = socketAttempt;
@@ -254,7 +254,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	}
 
 	/**
-	 * Returns the lock used to guard file accesses
+	 * Returns the lock used to guard file accesses.
 	 */
 	ReadWriteLock getReadWriteLock() {
 		return readWriteLock;
@@ -360,7 +360,7 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 				}
 			}
 
-			if(LOG.isInfoEnabled()) {
+			if (LOG.isInfoEnabled()) {
 				LOG.info("Stopped BLOB server at {}:{}", serverSocket.getInetAddress().getHostAddress(), getPort());
 			}
 
@@ -375,8 +375,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 	/**
 	 * Retrieves the local path of a (job-unrelated) file associated with a job and a blob key.
-	 * <p>
-	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 *
+	 * <p>The blob server looks the blob key up in its local storage. If the file exists, it is
 	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
 	 * or a {@link FileNotFoundException} is thrown.
 	 *
@@ -395,8 +395,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 	/**
 	 * Retrieves the local path of a file associated with a job and a blob key.
-	 * <p>
-	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 *
+	 * <p>The blob server looks the blob key up in its local storage. If the file exists, it is
 	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
 	 * or a {@link FileNotFoundException} is thrown.
 	 *
@@ -419,8 +419,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 	/**
 	 * Returns the path to a local copy of the file associated with the provided job ID and blob
 	 * key.
-	 * <p>
-	 * We will first attempt to serve the BLOB from the local storage. If the BLOB is not in
+	 *
+	 * <p>We will first attempt to serve the BLOB from the local storage. If the BLOB is not in
 	 * there, we will try to download it from the HA store.
 	 *
 	 * @param jobId
@@ -443,8 +443,8 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 	/**
 	 * Retrieves the local path of a file associated with a job and a blob key.
-	 * <p>
-	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 *
+	 * <p>The blob server looks the blob key up in its local storage. If the file exists, it is
 	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
 	 * or a {@link FileNotFoundException} is thrown.
 	 *
@@ -474,12 +474,12 @@ public class BlobServer extends Thread implements BlobService, BlobWriter, Perma
 
 	/**
 	 * Helper to retrieve the local path of a file associated with a job and a blob key.
-	 * <p>
-	 * The blob server looks the blob key up in its local storage. If the file exists, it is
+	 *
+	 * <p>The blob server looks the blob key up in its local storage. If the file exists, it is
 	 * returned. If the file does not exist, it is retrieved from the HA blob store (if available)
 	 * or a {@link FileNotFoundException} is thrown.
-	 * <p>
-	 * <strong>Assumes the read lock has already been acquired.</strong>
+	 *
+	 * <p><strong>Assumes the read lock has already been acquired.</strong>
 	 *
 	 * @param jobId
 	 * 		ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)

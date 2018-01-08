@@ -150,8 +150,8 @@ public class BlobUtils {
 		File storageDir;
 
 		// NOTE: although we will be using UUIDs, there may be collisions
-		final int MAX_ATTEMPTS = 10;
-		for(int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+		int maxAttempts = 10;
+		for (int attempt = 0; attempt < maxAttempts; attempt++) {
 			storageDir = new File(baseDir, String.format(
 					"blobStore-%s", UUID.randomUUID().toString()));
 
@@ -251,8 +251,8 @@ public class BlobUtils {
 
 	/**
 	 * Returns the path for the given blob key.
-	 * <p>
-	 * The returned path can be used with the (local or HA) BLOB store file system back-end for
+	 *
+	 * <p>The returned path can be used with the (local or HA) BLOB store file system back-end for
 	 * recovery purposes and follows the same scheme as {@link #getStorageLocation(File, JobID,
 	 * BlobKey)}.
 	 *
@@ -403,12 +403,12 @@ public class BlobUtils {
 		}
 	}
 
-	static void closeSilently(Socket socket, Logger LOG) {
+	static void closeSilently(Socket socket, Logger log) {
 		if (socket != null) {
 			try {
 				socket.close();
 			} catch (Throwable t) {
-				LOG.debug("Exception while closing BLOB server connection socket.", t);
+				log.debug("Exception while closing BLOB server connection socket.", t);
 			}
 		}
 	}
