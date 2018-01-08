@@ -125,11 +125,4 @@ public interface RecordSerializer<T extends IOReadableWritable> {
 	 * @return <tt>true</tt> if some data is present
 	 */
 	boolean hasData();
-
-	/**
-	 * Instantiates all metrics.
-	 *
-	 * @param metrics metric group
-	 */
-	void instantiateMetrics(TaskIOMetricGroup metrics);
 }

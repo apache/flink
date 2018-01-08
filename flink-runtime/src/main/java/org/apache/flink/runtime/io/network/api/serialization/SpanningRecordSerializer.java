@@ -178,8 +178,4 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 		// either data in current target buffer or intermediate buffers
 		return (targetBuffer != null && !targetBuffer.isEmpty()) || lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
 	}
-
-	@Override
-	public void instantiateMetrics(TaskIOMetricGroup metrics) {
-	}
 }
