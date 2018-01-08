@@ -802,7 +802,87 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 
 ### Mapping of Data Types to Table Schema
 
-Flink's DataStream and DataSet APIs support very diverse types, such as Tuples (built-in Scala and Flink Java tuples), POJOs, case classes, and atomic types. In the following we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
+Flink's DataStream and DataSet APIs support very diverse types. Composite types such as Tuples (built-in Scala and Flink Java tuples), POJOs, Scala case classes, and Flink's Row type allow for nested data structures with multiple fields that can be accessed in table expressions. Other types are treated as atomic types. In the following, we describe how the Table API converts these types into an internal row representation and show examples of converting a `DataStream` into a `Table`.
+
+The mapping of a data type to a table schema can happen in two ways: **based on the field positions** or **based on the field names**.
+
+**Position-based Mapping**
+
+Position-based mapping can be used to give fields a more meaningful name while keeping the field order. This mapping is available for composite data types *with a defined field order* as well as atomic types. Composite data types such as tuples, rows, and case classes have such a field order. However, fields of a POJO must be mapped based on the field names (see next section).
+
+When defining a position-based mapping, the specified names must not exist in the input data type, otherwise the API will assume that the mapping should happen based on the field names. If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types. 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+DataStream<Tuple2<Long, Integer>> stream = ...
+// convert DataStream into Table with default field names "f0" and "f1"
+Table table = tableEnv.fromDataStream(stream);
+// convert DataStream into Table with field names "myLong" and "myInt"
+Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val stream: DataStream[(Long, Int)] = ...
+// convert DataStream into Table with default field names "_1" and "_2"
+val table: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with field names "myLong" and "myInt"
+val table: Table = tableEnv.fromDataStream(stream, 'myLong 'myInt)
+{% endhighlight %}
+</div>
+</div>
+
+**Name-based Mapping**
+
+Name-based mapping can be used for any data type including POJOs. It is the most flexible way of defining a table schema mapping. All fields in the mapping are referenced by name and can be possibly renamed using an alias `as`. Fields can be reordered and projected out.
+
+If no field names are specified, the default field names and field order of the composite type are used or `f0` for atomic types.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
+StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
+
+DataStream<Tuple2<Long, Integer>> stream = ...
+// convert DataStream into Table with default field names "f0" and "f1"
+Table table = tableEnv.fromDataStream(stream);
+// convert DataStream into Table with field "f1" only
+Table table = tableEnv.fromDataStream(stream, "f1");
+// convert DataStream into Table with swapped fields
+Table table = tableEnv.fromDataStream(stream, "f1, f0");
+// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
+Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// get a TableEnvironment
+val tableEnv = TableEnvironment.getTableEnvironment(env)
+
+val stream: DataStream[(Long, Int)] = ...
+// convert DataStream into Table with default field names "_1" and "_2"
+val table: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with field "_2" only
+val table: Table = tableEnv.fromDataStream(stream, '_2)
+// convert DataStream into Table with swapped fields
+Table table = tableEnv.fromDataStream(stream, '_2, '_1);
+// convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
+Table table = tableEnv.fromDataStream(stream, '_2 as 'myInt, '_1 as 'myLong);
+{% endhighlight %}
+</div>
+</div>
+
+
 
 #### Atomic Types
 
