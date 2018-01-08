@@ -39,12 +39,6 @@ public class TaskEventHandler {
 		}
 	}
 
-	public void unsubscribe(EventListener<TaskEvent> listener, Class<? extends TaskEvent> eventType) {
-		synchronized (listeners) {
-			listeners.remove(eventType, listener);
-		}
-	}
-
 	/**
 	 * Publishes the task event to all subscribed event listeners.
 	 *

@@ -19,18 +19,14 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.core.io.IOReadableWritable;
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RoundRobinChannelSelector;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.types.LongValue;
 
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 
@@ -86,16 +82,7 @@ public class StreamRecordWriterTest {
 	}
 
 	private static ResultPartitionWriter getMockWriter(int numPartitions) throws Exception {
-		BufferProvider mockProvider = mock(BufferProvider.class);
-		when(mockProvider.requestBufferBlocking()).thenAnswer(new Answer<Buffer>() {
-			@Override
-			public Buffer answer(InvocationOnMock invocation) {
-				return new Buffer(
-						MemorySegmentFactory.allocateUnpooledSegment(4096),
-						FreeingBufferRecycler.INSTANCE);
-			}
-		});
-
+		BufferProvider mockProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, 4096);
 		ResultPartitionWriter mockWriter = mock(ResultPartitionWriter.class);
 		when(mockWriter.getBufferProvider()).thenReturn(mockProvider);
 		when(mockWriter.getNumberOfSubpartitions()).thenReturn(numPartitions);
