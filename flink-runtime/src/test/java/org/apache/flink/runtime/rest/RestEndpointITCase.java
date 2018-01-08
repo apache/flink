@@ -38,6 +38,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -51,6 +52,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nonnull;
 
@@ -69,6 +71,7 @@ import static org.mockito.Mockito.when;
 /**
  * IT cases for {@link RestClient} and {@link RestServerEndpoint}.
  */
+@Category(Flip6.class)
 public class RestEndpointITCase extends TestLogger {
 
 	private static final JobID PATH_JOB_ID = new JobID();
