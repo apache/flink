@@ -516,8 +516,9 @@ case $TEST in
 	(connectors)
 		if [ $EXIT_CODE == 0 ]; then
 			check_shaded_artifacts_s3_fs hadoop
+			EXIT_CODE=$(($EXIT_CODE+$?))
 			check_shaded_artifacts_s3_fs presto
-			EXIT_CODE=$?
+			EXIT_CODE=$(($EXIT_CODE+$?))
 		else
 			echo "=============================================================================="
 			echo "Compilation/test failure detected, skipping shaded dependency check."
