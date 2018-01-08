@@ -552,7 +552,7 @@ public class KinesisDataFetcher<T> {
 		return runtimeContext
 			.getMetricGroup()
 			.addGroup("Kinesis")
-			.addGroup("shard_id", shardState.getStreamShardHandle().getShard().getShardId());
+			.addGroup("shardId", shardState.getStreamShardHandle().getShard().getShardId());
 	}
 
 	// ------------------------------------------------------------------------

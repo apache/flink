@@ -26,7 +26,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -107,7 +107,7 @@ public class UnregisteredMetricsGroup implements MetricGroup {
 
 	@Override
 	public Map<String, String> getAllVariables() {
-		return new HashMap<>();
+		return Collections.emptyMap();
 	}
 
 	@Override

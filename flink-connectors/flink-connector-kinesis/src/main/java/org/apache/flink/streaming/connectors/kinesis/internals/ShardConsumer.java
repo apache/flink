@@ -107,8 +107,8 @@ public class ShardConsumer<T> implements Runnable {
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
 
-		checkNotNull(kinesisMetricGroup)
-			.gauge("millisBehindLatest", () -> millisBehindLatest);
+		checkNotNull(kinesisMetricGroup);
+		kinesisMetricGroup.gauge("millisBehindLatest", () -> millisBehindLatest);
 
 		checkArgument(
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
