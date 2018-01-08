@@ -206,9 +206,9 @@ public class InputGateFairnessTest {
 			channels[i] = channel;
 			
 			for (int p = 0; p < buffersPerChannel; p++) {
-				channel.onBuffer(mockBuffer, p);
+				channel.onBuffer(mockBuffer, p, -1);
 			}
-			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel);
+			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
 
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 		}
@@ -263,7 +263,7 @@ public class InputGateFairnessTest {
 			gate.setInputChannel(new IntermediateResultPartitionID(), channel);
 		}
 
-		channels[11].onBuffer(mockBuffer, 0);
+		channels[11].onBuffer(mockBuffer, 0, -1);
 		channelSequenceNums[11]++;
 
 		// read all the buffers and the EOF event
@@ -325,7 +325,7 @@ public class InputGateFairnessTest {
 		Collections.shuffle(poss);
 
 		for (int i : poss) {
-			partitions[i].onBuffer(buffer, sequenceNumbers[i]++);
+			partitions[i].onBuffer(buffer, sequenceNumbers[i]++, -1);
 		}
 	}
 	
