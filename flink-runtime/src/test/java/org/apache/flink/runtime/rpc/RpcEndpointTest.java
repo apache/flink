@@ -21,12 +21,14 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +41,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the RpcEndpoint and its self gateways.
  */
+@Category(Flip6.class)
 public class RpcEndpointTest extends TestLogger {
 
 	private static final Time TIMEOUT = Time.seconds(10L);

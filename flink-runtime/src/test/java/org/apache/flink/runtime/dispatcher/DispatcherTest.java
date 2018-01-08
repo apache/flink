@@ -50,6 +50,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -58,6 +59,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
@@ -81,6 +83,7 @@ import static org.mockito.Mockito.verify;
 /**
  * Test for the {@link Dispatcher} component.
  */
+@Category(Flip6.class)
 public class DispatcherTest extends TestLogger {
 
 	private static RpcService rpcService;

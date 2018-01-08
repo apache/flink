@@ -19,7 +19,11 @@
 package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.internal.util.reflection.Whitebox;
 
 import java.util.Map;
@@ -35,7 +39,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class TimerServiceTest {
+@Category(Flip6.class)
+public class TimerServiceTest extends TestLogger {
 	/**
 	 * Test all timeouts registered can be unregistered
 	 * @throws Exception

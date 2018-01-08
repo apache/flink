@@ -26,11 +26,13 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -42,6 +44,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests that akka rpc invocation messages are properly serialized and errors reported
  */
+@Category(Flip6.class)
 public class MessageSerializationTest extends TestLogger {
 	private static ActorSystem actorSystem1;
 	private static ActorSystem actorSystem2;
