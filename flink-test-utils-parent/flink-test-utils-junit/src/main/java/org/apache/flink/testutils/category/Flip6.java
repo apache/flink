@@ -15,25 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.runtime.utils
 
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.test.util.AbstractTestBase
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+package org.apache.flink.testutils.category;
 
-class StreamingWithStateTestBase extends AbstractTestBase {
-
-  val _tempFolder = new TemporaryFolder
-
-  @Rule
-  def tempFolder: TemporaryFolder = _tempFolder
-
-  def getStateBackend: RocksDBStateBackend = {
-    val dbPath = tempFolder.newFolder().getAbsolutePath
-    val checkpointPath = tempFolder.newFolder().toURI.toString
-    val backend = new RocksDBStateBackend(checkpointPath)
-    backend.setDbStoragePath(dbPath)
-    backend
-  }
+/**
+ * Category marker interface for Flip-6 tests.
+ */
+public interface Flip6 {
 }

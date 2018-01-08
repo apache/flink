@@ -42,10 +42,10 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.test.streaming.runtime.util.EvenOddOutputSelector;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.ReceiveCheckNoOpSink;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
 
@@ -66,11 +66,13 @@ import static org.junit.Assert.fail;
  * Tests for streaming iterations.
  */
 @SuppressWarnings({ "unchecked", "unused", "serial" })
-public class IterateITCase extends StreamingMultipleProgramsTestBase {
+public class IterateITCase extends AbstractTestBase {
 
 	private static final Logger LOG = LoggerFactory.getLogger(IterateITCase.class);
 
 	private static boolean[] iterated;
+
+	private int parallelism = miniClusterResource.getNumberSlots();
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testIncorrectParallelism() throws Exception {
@@ -109,7 +111,7 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 
 		IterativeStream<Integer> iter1 = source.iterate();
 
-		iter1.closeWith(iter1.map(noOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2));
+		iter1.closeWith(iter1.map(noOpIntMap).setParallelism(parallelism / 2));
 
 	}
 
@@ -124,7 +126,7 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 		ConnectedIterativeStreams<Integer, Integer> coIter = source.iterate().withFeedbackType(
 				Integer.class);
 
-		coIter.closeWith(coIter.map(noOpIntCoMap).setParallelism(DEFAULT_PARALLELISM / 2));
+		coIter.closeWith(coIter.map(noOpIntCoMap).setParallelism(parallelism / 2));
 
 	}
 
@@ -213,9 +215,9 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 
 		IterativeStream<Integer> iter1 = source1.union(source2).iterate();
 
-		DataStream<Integer> head1 = iter1.map(noOpIntMap).name("IterRebalanceMap").setParallelism(DEFAULT_PARALLELISM / 2);
+		DataStream<Integer> head1 = iter1.map(noOpIntMap).name("IterRebalanceMap").setParallelism(parallelism / 2);
 		DataStream<Integer> head2 = iter1.map(noOpIntMap).name("IterForwardMap");
-		DataStreamSink<Integer> head3 = iter1.map(noOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2).addSink(new ReceiveCheckNoOpSink<Integer>());
+		DataStreamSink<Integer> head3 = iter1.map(noOpIntMap).setParallelism(parallelism / 2).addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(noOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
 		SplitStream<Integer> source3 = env.fromElements(1, 2, 3, 4, 5)
@@ -296,9 +298,9 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 
 		DataStream<Integer> head1 = iter1.map(noOpIntMap).name("map1");
 		DataStream<Integer> head2 = iter1.map(noOpIntMap)
-				.setParallelism(DEFAULT_PARALLELISM / 2)
+				.setParallelism(parallelism / 2)
 				.name("shuffle").rebalance();
-		DataStreamSink<Integer> head3 = iter1.map(noOpIntMap).setParallelism(DEFAULT_PARALLELISM / 2)
+		DataStreamSink<Integer> head3 = iter1.map(noOpIntMap).setParallelism(parallelism / 2)
 				.addSink(new ReceiveCheckNoOpSink<Integer>());
 		DataStreamSink<Integer> head4 = iter1.map(noOpIntMap).addSink(new ReceiveCheckNoOpSink<Integer>());
 
@@ -376,9 +378,9 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 		for (int numRetry = 0; numRetry < numRetries; numRetry++) {
 			try {
 				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-				iterated = new boolean[DEFAULT_PARALLELISM];
+				iterated = new boolean[parallelism];
 
-				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
+				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
 						.map(noOpBoolMap).name("ParallelizeMap");
 
 				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);
@@ -517,7 +519,7 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 		for (int numRetry = 0; numRetry < numRetries; numRetry++) {
 			try {
 				StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-				env.setParallelism(DEFAULT_PARALLELISM - 1);
+				env.setParallelism(parallelism - 1);
 				env.getConfig().setMaxParallelism(env.getParallelism());
 
 				KeySelector<Integer, Integer> key = new KeySelector<Integer, Integer>() {
@@ -586,7 +588,7 @@ public class IterateITCase extends StreamingMultipleProgramsTestBase {
 
 				env.enableCheckpointing();
 
-				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(DEFAULT_PARALLELISM * 2, false))
+				DataStream<Boolean> source = env.fromCollection(Collections.nCopies(parallelism * 2, false))
 						.map(noOpBoolMap).name("ParallelizeMap");
 
 				IterativeStream<Boolean> iteration = source.iterate(3000 * timeoutScale);

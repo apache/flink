@@ -15,25 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.runtime.utils
 
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
-import org.apache.flink.test.util.AbstractTestBase
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+package org.apache.flink.runtime.minicluster;
 
-class StreamingWithStateTestBase extends AbstractTestBase {
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
-  val _tempFolder = new TemporaryFolder
+/**
+ * Interface for {@link JobGraph} executors.
+ */
+public interface JobExecutor {
 
-  @Rule
-  def tempFolder: TemporaryFolder = _tempFolder
-
-  def getStateBackend: RocksDBStateBackend = {
-    val dbPath = tempFolder.newFolder().getAbsolutePath
-    val checkpointPath = tempFolder.newFolder().toURI.toString
-    val backend = new RocksDBStateBackend(checkpointPath)
-    backend.setDbStoragePath(dbPath)
-    backend
-  }
+	/**
+	 * Run the given job and block until its execution result can be returned.
+	 *
+	 * @param jobGraph to execute
+	 * @return Execution result of the executed job
+	 * @throws JobExecutionException if the job failed to execute
+	 */
+	JobExecutionResult executeJobBlocking(final JobGraph jobGraph) throws JobExecutionException, InterruptedException;
 }

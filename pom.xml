@@ -126,6 +126,9 @@ under the License.
 		<powermock.version>1.6.5</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<japicmp.skip>false</japicmp.skip>
+		<!-- run all groups except flip6 by default -->
+		<test.groups></test.groups>
+		<test.excludedGroups>org.apache.flink.testutils.category.Flip6</test.excludedGroups>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -582,10 +585,27 @@ under the License.
 				<version>0.9.10</version>
 				<scope>test</scope>
 			</dependency>
+
+			<!-- Testing dependency which should be included by all projects because of the Category definitions -->
+			<dependency>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-test-utils-junit</artifactId>
+				<version>${project.version}</version>
+				<scope>test</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<profiles>
+
+		<profile>
+			<id>flip6</id>
+			<properties>
+				<test.groups>org.apache.flink.testutils.category.Flip6, org.apache.flink.testutils.category.OldAndFlip6</test.groups>
+				<!-- clear the excluded groups list -->
+				<test.excludedGroups></test.excludedGroups>
+			</properties>
+		</profile>
 
 		<profile>
 			<id>spotbugs</id>
@@ -1104,6 +1124,8 @@ under the License.
 				<!-- Do NOT use a version >=2.19.X, as test cases may get stuck before execution. See SUREFIRE-1255 -->
 				<version>2.18.1</version>
 				<configuration>
+					<groups>${test.groups}</groups>
+					<excludedGroups>${test.excludedGroups}</excludedGroups>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>

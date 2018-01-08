@@ -18,12 +18,9 @@
 
 package org.apache.flink.streaming.util;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Test;
-
-import static org.junit.Assert.fail;
 
 /**
  * Base class for unit tests that run a single test.
@@ -31,24 +28,6 @@ import static org.junit.Assert.fail;
  * <p>To write a unit test against this test base, simply extend it and implement the {@link #testProgram()} method.
  */
 public abstract class StreamingProgramTestBase extends AbstractTestBase {
-
-	protected static final int DEFAULT_PARALLELISM = 4;
-
-	private int parallelism;
-
-	public StreamingProgramTestBase() {
-		super(new Configuration());
-		setParallelism(DEFAULT_PARALLELISM);
-	}
-
-	public void setParallelism(int parallelism) {
-		this.parallelism = parallelism;
-		setTaskManagerNumSlots(parallelism);
-	}
-
-	public int getParallelism() {
-		return parallelism;
-	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Methods to create the test program and for pre- and post- test work
@@ -66,47 +45,13 @@ public abstract class StreamingProgramTestBase extends AbstractTestBase {
 
 	@Test
 	public void testJob() throws Exception {
-		try {
-			// pre-submit
-			try {
-				preSubmit();
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				fail("Pre-submit work caused an error: " + e.getMessage());
-			}
+		// pre-submit
+		preSubmit();
 
-			// prepare the test environment
-			startCluster();
+		// call the test program
+		testProgram();
 
-			TestStreamEnvironment.setAsContext(this.executor, getParallelism());
-
-			// call the test program
-			try {
-				testProgram();
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				fail("Error while calling the test program: " + e.getMessage());
-			}
-			finally {
-				TestStreamEnvironment.unsetAsContext();
-			}
-
-			// post-submit
-			try {
-				postSubmit();
-			}
-			catch (Exception e) {
-				System.err.println(e.getMessage());
-				e.printStackTrace();
-				fail("Post-submit work caused an error: " + e.getMessage());
-			}
-		}
-		finally {
-			stopCluster();
-		}
+		// post-submit
+		postSubmit();
 	}
 }

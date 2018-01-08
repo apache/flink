@@ -70,6 +70,7 @@ import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringStartsWith;
 import org.junit.Assert;
@@ -90,7 +91,7 @@ import static org.junit.Assert.fail;
  * Tests for {@link DataStream}.
  */
 @SuppressWarnings("serial")
-public class DataStreamTest {
+public class DataStreamTest extends TestLogger {
 
 	/**
 	 * Tests union functionality. This ensures that self-unions and unions of streams

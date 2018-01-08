@@ -459,7 +459,7 @@ public class TestBaseUtils extends TestLogger {
 				throw new IllegalArgumentException("This path does not denote a local file.");
 			}
 		} catch (URISyntaxException | NullPointerException e) {
-			throw new IllegalArgumentException("This path does not describe a valid local file URI.");
+			throw new IllegalArgumentException("This path does not describe a valid local file URI.", e);
 		}
 	}
 

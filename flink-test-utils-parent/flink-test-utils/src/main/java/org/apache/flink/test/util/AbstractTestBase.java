@@ -19,8 +19,6 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.ClassRule;
@@ -28,72 +26,48 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
- * A base class for tests that run test programs in a Flink mini cluster.
+ * Base class for unit tests that run multiple tests and want to reuse the same
+ * Flink cluster. This saves a significant amount of time, since the startup and
+ * shutdown of the Flink clusters (including actor systems, etc) usually dominates
+ * the execution of the actual tests.
+ *
+ * <p>To write a unit test against this test base, simply extend it and add
+ * one or more regular test methods and retrieve the StreamExecutionEnvironment from
+ * the context:
+ *
+ * <pre>
+ *   {@literal @}Test
+ *   public void someTest() {
+ *       ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+ *       // test code
+ *       env.execute();
+ *   }
+ *
+ *   {@literal @}Test
+ *   public void anotherTest() {
+ *       StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+ *       // test code
+ *       env.execute();
+ *   }
+ *
+ * </pre>
  */
 public abstract class AbstractTestBase extends TestBaseUtils {
 
-	/** Configuration to start the testing cluster with. */
-	protected final Configuration config;
+	private static final int DEFAULT_PARALLELISM = 4;
 
-	private final FiniteDuration timeout;
-
-	protected int taskManagerNumSlots = 1;
-
-	protected int numTaskManagers = 1;
+	@ClassRule
+	public static MiniClusterResource miniClusterResource = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			1,
+			DEFAULT_PARALLELISM));
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
-	/** The mini cluster that runs the test programs. */
-	protected LocalFlinkMiniCluster executor;
-
-	public AbstractTestBase(Configuration config) {
-		this.config = Objects.requireNonNull(config);
-
-		timeout = AkkaUtils.getTimeout(config);
-	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Local Test Cluster Life Cycle
-	// --------------------------------------------------------------------------------------------
-
-	public void startCluster() throws Exception {
-		this.executor = startCluster(
-			numTaskManagers,
-			taskManagerNumSlots,
-			false,
-			false,
-			true);
-	}
-
-	public void stopCluster() throws Exception {
-		stopCluster(executor, timeout);
-	}
-
-	//------------------
-	// Accessors
-	//------------------
-
-	public int getTaskManagerNumSlots() {
-		return taskManagerNumSlots;
-	}
-
-	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
-		this.taskManagerNumSlots = taskManagerNumSlots;
-	}
-
-	public int getNumTaskManagers() {
-		return numTaskManagers;
-	}
-
-	public void setNumTaskManagers(int numTaskManagers) {
-		this.numTaskManagers = numTaskManagers;
-	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Temporary File Utilities

@@ -20,13 +20,13 @@ package org.apache.flink.table.api.stream
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
+import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert.assertEquals
 import org.junit._
 
-class ExplainTest extends StreamingMultipleProgramsTestBase {
+class ExplainTest extends AbstractTestBase {
 
   private val testFilePath = this.getClass.getResource("/").getFile
 

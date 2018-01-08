@@ -64,7 +64,8 @@ abstract class FlinkMiniCluster(
     val userConfiguration: Configuration,
     val highAvailabilityServices: HighAvailabilityServices,
     val useSingleActorSystem: Boolean)
-  extends LeaderRetrievalListener {
+  extends LeaderRetrievalListener
+  with JobExecutor {
 
   protected val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
 
@@ -700,5 +701,16 @@ abstract class FlinkMiniCluster(
     }
 
     FlinkUserCodeClassLoaders.parentFirst(urls, parentClassLoader)
+  }
+
+  /**
+    * Run the given job and block until its execution result can be returned.
+    *
+    * @param jobGraph to execute
+    * @return Execution result of the executed job
+    * @throws JobExecutionException if the job failed to execute
+    */
+  override def executeJobBlocking(jobGraph: JobGraph) = {
+    submitJobAndWait(jobGraph, false)
   }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
@@ -30,6 +31,7 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.JobExecutor;
 import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.util.Preconditions;
 
@@ -44,7 +46,7 @@ import java.util.Collections;
  */
 public class TestEnvironment extends ExecutionEnvironment {
 
-	private final LocalFlinkMiniCluster miniCluster;
+	private final JobExecutor jobExecutor;
 
 	private final Collection<Path> jarFiles;
 
@@ -53,12 +55,12 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private TestEnvironment lastEnv;
 
 	public TestEnvironment(
-			LocalFlinkMiniCluster miniCluster,
+			JobExecutor jobExecutor,
 			int parallelism,
 			boolean isObjectReuseEnabled,
 			Collection<Path> jarFiles,
 			Collection<URL> classPaths) {
-		this.miniCluster = Preconditions.checkNotNull(miniCluster);
+		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
 		this.jarFiles = Preconditions.checkNotNull(jarFiles);
 		this.classPaths = Preconditions.checkNotNull(classPaths);
 
@@ -77,15 +79,15 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	public TestEnvironment(
-			LocalFlinkMiniCluster executor,
+			JobExecutor executor,
 			int parallelism,
 			boolean isObjectReuseEnabled) {
 		this(
 			executor,
 			parallelism,
 			isObjectReuseEnabled,
-			Collections.<Path>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 	}
 
 	@Override
@@ -115,7 +117,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		jobGraph.setClasspaths(new ArrayList<>(classPaths));
 
-		this.lastJobExecutionResult = miniCluster.submitJobAndWait(jobGraph, false);
+		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
 		return this.lastJobExecutionResult;
 	}
 
@@ -130,7 +132,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private OptimizedPlan compileProgram(String jobName) {
 		Plan p = createProgramPlan(jobName);
 
-		Optimizer pc = new Optimizer(new DataStatistics(), this.miniCluster.configuration());
+		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
 		return pc.compile(p);
 	}
 
@@ -138,7 +140,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new TestEnvironment(miniCluster, getParallelism(), getConfig().isObjectReuseEnabled());
+				lastEnv = new TestEnvironment(jobExecutor, getParallelism(), getConfig().isObjectReuseEnabled());
 				return lastEnv;
 			}
 		};
@@ -153,13 +155,13 @@ public class TestEnvironment extends ExecutionEnvironment {
 	 * environment executes the given jobs on a Flink mini cluster with the given default
 	 * parallelism and the additional jar files and class paths.
 	 *
-	 * @param miniCluster The mini cluster on which to execute the jobs
+	 * @param jobExecutor The executor to run the jobs on
 	 * @param parallelism The default parallelism
 	 * @param jarFiles Additional jar files to execute the job with
 	 * @param classPaths Additional class paths to execute the job with
 	 */
 	public static void setAsContext(
-		final LocalFlinkMiniCluster miniCluster,
+		final JobExecutor jobExecutor,
 		final int parallelism,
 		final Collection<Path> jarFiles,
 		final Collection<URL> classPaths) {
@@ -168,9 +170,10 @@ public class TestEnvironment extends ExecutionEnvironment {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
 				return new TestEnvironment(
-					miniCluster,
+					jobExecutor,
 					parallelism,
-					false, jarFiles,
+					false,
+					jarFiles,
 					classPaths
 				);
 			}
@@ -184,15 +187,15 @@ public class TestEnvironment extends ExecutionEnvironment {
 	 * environment executes the given jobs on a Flink mini cluster with the given default
 	 * parallelism and the additional jar files and class paths.
 	 *
-	 * @param miniCluster The mini cluster on which to execute the jobs
+	 * @param jobExecutor The executor to run the jobs on
 	 * @param parallelism The default parallelism
 	 */
-	public static void setAsContext(final LocalFlinkMiniCluster miniCluster, final int parallelism) {
+	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
 		setAsContext(
-			miniCluster,
+			jobExecutor,
 			parallelism,
-			Collections.<Path>emptyList(),
-			Collections.<URL>emptyList());
+			Collections.emptyList(),
+			Collections.emptyList());
 	}
 
 	public static void unsetAsContext() {

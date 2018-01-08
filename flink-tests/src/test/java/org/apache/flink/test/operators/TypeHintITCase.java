@@ -31,7 +31,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
@@ -40,10 +39,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -54,10 +51,10 @@ public class TypeHintITCase extends JavaProgramTestBase {
 
 	private static final int NUM_PROGRAMS = 9;
 
-	private int curProgId = config.getInteger("ProgramId", -1);
+	private final int curProgId;
 
-	public TypeHintITCase(Configuration config) {
-		super(config);
+	public TypeHintITCase(int curProgId) {
+		this.curProgId = curProgId;
 	}
 
 	@Override
@@ -66,17 +63,15 @@ public class TypeHintITCase extends JavaProgramTestBase {
 	}
 
 	@Parameters
-	public static Collection<Object[]> getConfigurations() throws FileNotFoundException, IOException {
+	public static Collection<Object[]> getConfigurations() {
 
-		LinkedList<Configuration> tConfigs = new LinkedList<Configuration>();
+		Collection<Object[]> parameters = new ArrayList<>(NUM_PROGRAMS);
 
 		for (int i = 1; i <= NUM_PROGRAMS; i++) {
-			Configuration config = new Configuration();
-			config.setInteger("ProgramId", i);
-			tConfigs.add(config);
+			parameters.add(new Object[]{i});
 		}
 
-		return toParameterList(tConfigs);
+		return parameters;
 	}
 
 	private static class TypeHintProgs {

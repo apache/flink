@@ -48,10 +48,6 @@ public class DependencyConnectedComponentsITCase extends JavaProgramTestBase {
 	private String resultPath;
 	private String expectedResult;
 
-	public DependencyConnectedComponentsITCase(){
-		setTaskManagerNumSlots(parallelism);
-	}
-
 	@Override
 	protected void preSubmit() throws Exception {
 		verticesInput.clear();

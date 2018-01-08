@@ -25,15 +25,18 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 
 /**
  * Integration test cases for the {@link MiniCluster}.
  */
+@Category(Flip6.class)
 public class MiniClusterITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -96,7 +99,7 @@ public class MiniClusterITCase extends TestLogger {
 
 	private static void executeJob(MiniCluster miniCluster) throws Exception {
 		JobGraph job = getSimpleJob();
-		miniCluster.runJobBlocking(job);
+		miniCluster.executeJobBlocking(job);
 	}
 
 	private static JobGraph getSimpleJob() throws IOException {

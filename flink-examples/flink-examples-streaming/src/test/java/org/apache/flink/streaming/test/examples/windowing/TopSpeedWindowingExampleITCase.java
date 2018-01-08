@@ -17,34 +17,47 @@
 
 package org.apache.flink.streaming.test.examples.windowing;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExampleData;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
+import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.TestLogger;
+
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+
+import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 
 /**
  * Tests for {@link TopSpeedWindowing}.
  */
-public class TopSpeedWindowingExampleITCase extends StreamingProgramTestBase {
+public class TopSpeedWindowingExampleITCase extends TestLogger {
 
-	protected String textPath;
-	protected String resultPath;
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Override
-	protected void preSubmit() throws Exception {
-		setParallelism(1); //needed to ensure total ordering for windows
-		textPath = createTempFile("text.txt", TopSpeedWindowingExampleData.CAR_DATA);
-		resultPath = getTempDirPath("result");
-	}
+	@ClassRule
+	public static MiniClusterResource miniClusterResource = new MiniClusterResource(
+		new MiniClusterResource.MiniClusterResourceConfiguration(
+			new Configuration(),
+			1,
+			1));
 
-	@Override
-	protected void postSubmit() throws Exception {
+	@Test
+	public void testTopSpeedWindowingExampleITCase() throws Exception {
+		File inputFile = temporaryFolder.newFile();
+		FileUtils.writeFileUtf8(inputFile, TopSpeedWindowingExampleData.CAR_DATA);
+
+		final String resultPath = temporaryFolder.newFolder().toURI().toString();
+
+		TopSpeedWindowing.main(new String[] {
+			"--input", inputFile.getAbsolutePath(),
+			"--output", resultPath});
+
 		compareResultsByLinesInMemory(TopSpeedWindowingExampleData.TOP_SPEEDS, resultPath);
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
-		TopSpeedWindowing.main(new String[]{
-				"--input", textPath,
-				"--output", resultPath});
 	}
 }
