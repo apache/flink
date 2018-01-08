@@ -107,7 +107,7 @@ public class Flip6LocalStreamEnvironment extends StreamExecutionEnvironment {
 
 		try {
 			miniCluster.start();
-			return miniCluster.runJobBlocking(jobGraph);
+			return miniCluster.executeJobBlocking(jobGraph);
 		}
 		finally {
 			transformations.clear();
