@@ -276,7 +276,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				// Early return for empty buffers. Otherwise Netty's readBytes() throws an
 				// IndexOutOfBoundsException.
 				if (bufferOrEvent.getSize() == 0) {
-					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber);
+					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, -1);
 					return true;
 				}
 
@@ -295,7 +295,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 						buffer.setSize(bufferOrEvent.getSize());
 						bufferOrEvent.getNettyBuffer().readBytes(buffer.getNioBuffer());
 
-						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber);
+						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
 						return true;
 					}
@@ -318,7 +318,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 				Buffer buffer = new Buffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
 
-				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber);
+				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
 				return true;
 			}
@@ -328,6 +328,13 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				bufferOrEvent.releaseBuffer();
 			}
 		}
+	}
+
+	/**
+	 * This class would be replaced by CreditBasedClientHandler in the final,
+	 * so we only implement this method in CreditBasedClientHandler.
+	 */
+	void notifyCreditAvailable(RemoteInputChannel inputChannel) {
 	}
 
 	private class AsyncErrorNotificationTask implements Runnable {
@@ -450,7 +457,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				RemoteInputChannel inputChannel = inputChannels.get(stagedBufferResponse.receiverId);
 
 				if (inputChannel != null) {
-					inputChannel.onBuffer(buffer, stagedBufferResponse.sequenceNumber);
+					inputChannel.onBuffer(buffer, stagedBufferResponse.sequenceNumber, -1);
 
 					success = true;
 				}
