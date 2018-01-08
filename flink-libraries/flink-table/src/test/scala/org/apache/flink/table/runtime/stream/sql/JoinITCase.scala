@@ -30,6 +30,7 @@ import org.apache.flink.table.api.{TableEnvironment, Types}
 import org.apache.flink.table.expressions.Null
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+import org.junit.Assert._
 import org.junit._
 
 import scala.collection.mutable
@@ -461,6 +462,60 @@ class JoinITCase extends StreamingWithStateTestBase {
     StreamITCase.compareWithList(expected)
   }
 
+  /** test non-window inner join **/
+  @Test
+  def testNonWindowInnerJoin(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env)
+    env.setStateBackend(getStateBackend)
+    StreamITCase.clear
+
+    val data1 = new mutable.MutableList[(Int, Long, String)]
+    data1.+=((1, 1L, "Hi1"))
+    data1.+=((1, 2L, "Hi2"))
+    data1.+=((1, 2L, "Hi2"))
+    data1.+=((1, 5L, "Hi3"))
+    data1.+=((2, 7L, "Hi5"))
+    data1.+=((1, 9L, "Hi6"))
+    data1.+=((1, 8L, "Hi8"))
+    data1.+=((3, 8L, "Hi9"))
+
+    val data2 = new mutable.MutableList[(Int, Long, String)]
+    data2.+=((1, 1L, "HiHi"))
+    data2.+=((2, 2L, "HeHe"))
+    data2.+=((3, 2L, "HeHe"))
+
+    val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c)
+      .select(('a === 3) ? (Null(Types.INT), 'a) as 'a, 'b, 'c)
+    val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c)
+      .select(('a === 3) ? (Null(Types.INT), 'a) as 'a, 'b, 'c)
+
+    tEnv.registerTable("T1", t1)
+    tEnv.registerTable("T2", t2)
+
+    val sqlQuery =
+      """
+        |SELECT t2.a, t2.c, t1.c
+        |FROM T1 as t1 JOIN T2 as t2 ON
+        |  t1.a = t2.a AND
+        |  t1.b > t2.b
+        |""".stripMargin
+
+    val result = tEnv.sql(sqlQuery).toAppendStream[Row]
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,HiHi,Hi2",
+      "1,HiHi,Hi2",
+      "1,HiHi,Hi3",
+      "1,HiHi,Hi6",
+      "1,HiHi,Hi8",
+      "2,HeHe,Hi5",
+      "null,HeHe,Hi9")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
 }
 
 private class Row4WatermarkExtractor

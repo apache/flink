@@ -165,7 +165,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
     env.execute()
     val results = RowCollector.getAndClearValues
 
-    val retracted = restractResults(results).sorted
+    val retracted = RowCollector.retractResults(results).sorted
     val expected = List(
       "2,1,1",
       "5,1,2",
@@ -201,7 +201,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       "Received retraction messages for append only table",
       results.exists(!_.f0))
 
-    val retracted = restractResults(results).sorted
+    val retracted = RowCollector.retractResults(results).sorted
     val expected = List(
       "1970-01-01 00:00:00.005,4,8",
       "1970-01-01 00:00:00.01,5,18",
@@ -239,7 +239,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       results.exists(_.f0 == false)
     )
 
-    val retracted = upsertResults(results, Array(0, 2)).sorted
+    val retracted = RowCollector.upsertResults(results, Array(0, 2)).sorted
     val expected = List(
       "1,5,true",
       "7,1,true",
@@ -271,7 +271,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       "Received retraction messages for append only table",
       results.exists(!_.f0))
 
-    val retracted = upsertResults(results, Array(0, 1, 2)).sorted
+    val retracted = RowCollector.upsertResults(results, Array(0, 1, 2)).sorted
     val expected = List(
       "1,1970-01-01 00:00:00.005,1",
       "2,1970-01-01 00:00:00.005,2",
@@ -309,7 +309,7 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
       "Received retraction messages for append only table",
       results.exists(!_.f0))
 
-    val retracted = upsertResults(results, Array(0, 1, 2)).sorted
+    val retracted = RowCollector.upsertResults(results, Array(0, 1, 2)).sorted
     val expected = List(
       "1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,1,1",
       "1970-01-01 00:00:00.0,1970-01-01 00:00:00.005,2,2",
@@ -532,45 +532,6 @@ class TableSinkITCase extends StreamingMultipleProgramsTestBase {
 
     r.toRetractStream[Row]
   }
-
-  /** Converts a list of retraction messages into a list of final results. */
-  private def restractResults(results: List[JTuple2[JBool, Row]]): List[String] = {
-
-    val retracted = results
-      .foldLeft(Map[String, Int]()){ (m: Map[String, Int], v: JTuple2[JBool, Row]) =>
-        val cnt = m.getOrElse(v.f1.toString, 0)
-        if (v.f0) {
-          m + (v.f1.toString -> (cnt + 1))
-        } else {
-          m + (v.f1.toString -> (cnt - 1))
-        }
-      }.filter{ case (_, c: Int) => c != 0 }
-
-    assertFalse(
-      "Received retracted rows which have not been accumulated.",
-      retracted.exists{ case (_, c: Int) => c < 0})
-
-    retracted.flatMap { case (r: String, c: Int) => (0 until c).map(_ => r) }.toList
-  }
-
-  /** Converts a list of upsert messages into a list of final results. */
-  private def upsertResults(results: List[JTuple2[JBool, Row]], keys: Array[Int]): List[String] = {
-
-    def getKeys(r: Row): List[String] =
-      keys.foldLeft(List[String]())((k, i) => r.getField(i).toString :: k)
-
-    val upserted = results.foldLeft(Map[String, String]()){ (o: Map[String, String], r) =>
-      val key = getKeys(r.f1).mkString("")
-      if (r.f0) {
-        o + (key -> r.f1.toString)
-      } else {
-        o - key
-      }
-    }
-
-    upserted.values.toList
-  }
-
 }
 
 private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
@@ -692,5 +653,43 @@ object RowCollector {
     val out = sink.toList
     sink.clear()
     out
+  }
+
+  /** Converts a list of retraction messages into a list of final results. */
+  def retractResults(results: List[JTuple2[JBool, Row]]): List[String] = {
+
+    val retracted = results
+      .foldLeft(Map[String, Int]()){ (m: Map[String, Int], v: JTuple2[JBool, Row]) =>
+        val cnt = m.getOrElse(v.f1.toString, 0)
+        if (v.f0) {
+          m + (v.f1.toString -> (cnt + 1))
+        } else {
+          m + (v.f1.toString -> (cnt - 1))
+        }
+      }.filter{ case (_, c: Int) => c != 0 }
+
+    assertFalse(
+      "Received retracted rows which have not been accumulated.",
+      retracted.exists{ case (_, c: Int) => c < 0})
+
+    retracted.flatMap { case (r: String, c: Int) => (0 until c).map(_ => r) }.toList
+  }
+
+  /** Converts a list of upsert messages into a list of final results. */
+  def upsertResults(results: List[JTuple2[JBool, Row]], keys: Array[Int]): List[String] = {
+
+    def getKeys(r: Row): List[String] =
+      keys.foldLeft(List[String]())((k, i) => r.getField(i).toString :: k)
+
+    val upserted = results.foldLeft(Map[String, String]()){ (o: Map[String, String], r) =>
+      val key = getKeys(r.f1).mkString("")
+      if (r.f0) {
+        o + (key -> r.f1.toString)
+      } else {
+        o - key
+      }
+    }
+
+    upserted.values.toList
   }
 }
