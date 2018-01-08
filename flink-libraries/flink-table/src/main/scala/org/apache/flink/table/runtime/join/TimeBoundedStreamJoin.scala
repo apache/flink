@@ -23,13 +23,14 @@ import java.util.{List => JList}
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.state._
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.ListTypeInfo
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.operators.join.JoinType
+import org.apache.flink.api.java.typeutils.{ListTypeInfo, TupleTypeInfo}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.codegen.Compiler
-import org.apache.flink.table.runtime.CRowWrappingCollector
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.util.Logging
 import org.apache.flink.types.Row
@@ -41,6 +42,7 @@ import org.apache.flink.util.Collector
   * "L.time between R.time + X and R.time + Y" or "R.time between L.time - Y and L.time - X" where
   * X and Y might be negative or positive and X <= Y.
   *
+  * @param joinType        the join type (inner or left/right/full outer)
   * @param leftLowerBound  the lower bound for the left stream (X in the criteria)
   * @param leftUpperBound  the upper bound for the left stream (Y in the criteria)
   * @param allowedLateness the lateness allowed for the two streams
@@ -50,7 +52,8 @@ import org.apache.flink.util.Collector
   * @param genJoinFuncCode the code of function to evaluate the non-window join conditions
   *
   */
-abstract class TimeBoundedStreamInnerJoin(
+abstract class TimeBoundedStreamJoin(
+    private val joinType: JoinType,
     private val leftLowerBound: Long,
     private val leftUpperBound: Long,
     private val allowedLateness: Long,
@@ -62,15 +65,19 @@ abstract class TimeBoundedStreamInnerJoin(
   with Compiler[FlatJoinFunction[Row, Row, Row]]
   with Logging {
 
-  private var cRowWrapper: CRowWrappingCollector = _
+  private val leftArity = leftType.getArity
+  private val rightArity = rightType.getArity
+  private var paddingUtil: OuterJoinPaddingUtil = _
+
+  private var joinCollector: EmitAwareCollector = _
 
   // the join function for other conditions
   private var joinFunction: FlatJoinFunction[Row, Row, Row] = _
 
   // cache to store rows from the left stream
-  private var leftCache: MapState[Long, JList[Row]] = _
+  private var leftCache: MapState[Long, JList[JTuple2[Row, Boolean]]] = _
   // cache to store rows from the right stream
-  private var rightCache: MapState[Long, JList[Row]] = _
+  private var rightCache: MapState[Long, JList[JTuple2[Row, Boolean]]] = _
 
   // state to record the timer on the left stream. 0 means no timer set
   private var leftTimerState: ValueState[Long] = _
@@ -105,33 +112,40 @@ abstract class TimeBoundedStreamInnerJoin(
     LOG.debug("Instantiating JoinFunction.")
     joinFunction = clazz.newInstance()
 
-    cRowWrapper = new CRowWrappingCollector()
-    cRowWrapper.setChange(true)
+    paddingUtil = new OuterJoinPaddingUtil(leftArity, rightArity)
+    joinCollector = new EmitAwareCollector()
+    joinCollector.setCRowChange(true)
 
     // Initialize the data caches.
-    val leftListTypeInfo: TypeInformation[JList[Row]] = new ListTypeInfo[Row](leftType)
-    val leftStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]](
-        "InnerJoinLeftCache",
+    val leftListTypeInfo: TypeInformation[JList[JTuple2[Row, Boolean]]] =
+      new ListTypeInfo[JTuple2[Row, Boolean]] (
+        new TupleTypeInfo(leftType, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+          .asInstanceOf[TypeInformation[JTuple2[Row, Boolean]]])
+    val leftStateDescriptor: MapStateDescriptor[Long, JList[JTuple2[Row, Boolean]]] =
+      new MapStateDescriptor[Long, JList[JTuple2[Row, Boolean]]](
+        "WindowJoinLeftCache",
         Types.LONG.asInstanceOf[TypeInformation[Long]],
         leftListTypeInfo)
     leftCache = getRuntimeContext.getMapState(leftStateDescriptor)
 
-    val rightListTypeInfo: TypeInformation[JList[Row]] = new ListTypeInfo[Row](rightType)
-    val rightStateDescriptor: MapStateDescriptor[Long, JList[Row]] =
-      new MapStateDescriptor[Long, JList[Row]](
-        "InnerJoinRightCache",
+    val rightListTypeInfo: TypeInformation[JList[JTuple2[Row, Boolean]]] =
+      new ListTypeInfo[JTuple2[Row, Boolean]] (
+        new TupleTypeInfo(rightType, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+          .asInstanceOf[TypeInformation[JTuple2[Row, Boolean]]])
+    val rightStateDescriptor: MapStateDescriptor[Long, JList[JTuple2[Row, Boolean]]] =
+      new MapStateDescriptor[Long, JList[JTuple2[Row, Boolean]]](
+        "WindowJoinRightCache",
         Types.LONG.asInstanceOf[TypeInformation[Long]],
         rightListTypeInfo)
     rightCache = getRuntimeContext.getMapState(rightStateDescriptor)
 
     // Initialize the timer states.
     val leftTimerStateDesc: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("InnerJoinLeftTimerState", classOf[Long])
+      new ValueStateDescriptor[Long]("WindowJoinLeftTimerState", classOf[Long])
     leftTimerState = getRuntimeContext.getState(leftTimerStateDesc)
 
     val rightTimerStateDesc: ValueStateDescriptor[Long] =
-      new ValueStateDescriptor[Long]("InnerJoinRightTimerState", classOf[Long])
+      new ValueStateDescriptor[Long]("WindowJoinRightTimerState", classOf[Long])
     rightTimerState = getRuntimeContext.getState(rightTimerStateDesc)
   }
 
@@ -143,29 +157,14 @@ abstract class TimeBoundedStreamInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
+    joinCollector.innerCollector = out
     updateOperatorTime(ctx)
     val leftRow = cRowValue.row
     val timeForLeftRow: Long = getTimeForLeftStream(ctx, leftRow)
     val rightQualifiedLowerBound: Long = timeForLeftRow - rightRelativeSize
     val rightQualifiedUpperBound: Long = timeForLeftRow + leftRelativeSize
-    cRowWrapper.out = out
+    var emitted: Boolean = false
 
-    // Check if we need to cache the current row.
-    if (rightOperatorTime < rightQualifiedUpperBound) {
-      // Operator time of right stream has not exceeded the upper window bound of the current
-      // row. Put it into the left cache, since later coming records from the right stream are
-      // expected to be joined with it.
-      var leftRowList = leftCache.get(timeForLeftRow)
-      if (null == leftRowList) {
-        leftRowList = new util.ArrayList[Row](1)
-      }
-      leftRowList.add(leftRow)
-      leftCache.put(timeForLeftRow, leftRowList)
-      if (rightTimerState.value == 0) {
-        // Register a timer on the RIGHT stream to remove rows.
-        registerCleanUpTimer(ctx, timeForLeftRow, leftRow = true)
-      }
-    }
     // Check if we need to join the current row against cached rows of the right input.
     // The condition here should be rightMinimumTime < rightQualifiedUpperBound.
     // We use rightExpirationTime as an approximation of the rightMinimumTime here,
@@ -182,16 +181,65 @@ abstract class TimeBoundedStreamInnerJoin(
         if (rightTime >= rightQualifiedLowerBound && rightTime <= rightQualifiedUpperBound) {
           val rightRows = rightEntry.getValue
           var i = 0
+          var entryUpdated = false
           while (i < rightRows.size) {
-            joinFunction.join(leftRow, rightRows.get(i), cRowWrapper)
+            joinCollector.reset()
+            val tuple = rightRows.get(i)
+            joinFunction.join(leftRow, tuple.f0, joinCollector)
+            emitted ||= joinCollector.emitted
+            if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
+              if (!tuple.f1 && joinCollector.emitted) {
+                // Mark the right row as being successfully joined and emitted.
+                tuple.f1 = true
+                entryUpdated = true
+              }
+            }
             i += 1
+          }
+          if (entryUpdated) {
+            // Write back the edited entry (mark emitted) for the right cache.
+            rightEntry.setValue(rightRows)
           }
         }
 
         if (rightTime <= rightExpirationTime) {
+          if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
+            val rightRows = rightEntry.getValue
+            var i = 0
+            while (i < rightRows.size) {
+              val tuple = rightRows.get(i)
+              if (!tuple.f1) {
+                // Emit a null padding result if the right row has never been successfully joined.
+                joinCollector.collect(paddingUtil.padRight(tuple.f0))
+              }
+              i += 1
+            }
+          }
           // eager remove
           rightIterator.remove()
-        }// We could do the short-cutting optimization here once we get a state with ordered keys.
+        } // We could do the short-cutting optimization here once we get a state with ordered keys.
+      }
+    }
+
+    // Check if we need to cache the current row.
+    if (rightOperatorTime < rightQualifiedUpperBound) {
+      // Operator time of right stream has not exceeded the upper window bound of the current
+      // row. Put it into the left cache, since later coming records from the right stream are
+      // expected to be joined with it.
+      var leftRowList = leftCache.get(timeForLeftRow)
+      if (null == leftRowList) {
+        leftRowList = new util.ArrayList[JTuple2[Row, Boolean]](1)
+      }
+      leftRowList.add(JTuple2.of(leftRow, emitted))
+      leftCache.put(timeForLeftRow, leftRowList)
+      if (rightTimerState.value == 0) {
+        // Register a timer on the RIGHT stream to remove rows.
+        registerCleanUpTimer(ctx, timeForLeftRow, leftRow = true)
+      }
+    } else if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
+      if (!emitted) {
+        // Emit a null padding result if the left row is not cached and successfully joined.
+        joinCollector.collect(paddingUtil.padLeft(leftRow))
       }
     }
   }
@@ -204,29 +252,14 @@ abstract class TimeBoundedStreamInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       out: Collector[CRow]): Unit = {
 
+    joinCollector.innerCollector = out
     updateOperatorTime(ctx)
     val rightRow = cRowValue.row
     val timeForRightRow: Long = getTimeForRightStream(ctx, rightRow)
     val leftQualifiedLowerBound: Long = timeForRightRow - leftRelativeSize
     val leftQualifiedUpperBound: Long =  timeForRightRow + rightRelativeSize
-    cRowWrapper.out = out
+    var emitted: Boolean = false
 
-    // Check if we need to cache the current row.
-    if (leftOperatorTime < leftQualifiedUpperBound) {
-      // Operator time of left stream has not exceeded the upper window bound of the current
-      // row. Put it into the right cache, since later coming records from the left stream are
-      // expected to be joined with it.
-      var rightRowList = rightCache.get(timeForRightRow)
-      if (null == rightRowList) {
-        rightRowList = new util.ArrayList[Row](1)
-      }
-      rightRowList.add(rightRow)
-      rightCache.put(timeForRightRow, rightRowList)
-      if (leftTimerState.value == 0) {
-        // Register a timer on the LEFT stream to remove rows.
-        registerCleanUpTimer(ctx, timeForRightRow, leftRow = false)
-      }
-    }
     // Check if we need to join the current row against cached rows of the left input.
     // The condition here should be leftMinimumTime < leftQualifiedUpperBound.
     // We use leftExpirationTime as an approximation of the leftMinimumTime here,
@@ -241,15 +274,65 @@ abstract class TimeBoundedStreamInnerJoin(
         if (leftTime >= leftQualifiedLowerBound && leftTime <= leftQualifiedUpperBound) {
           val leftRows = leftEntry.getValue
           var i = 0
+          var entryUpdated = false
           while (i < leftRows.size) {
-            joinFunction.join(leftRows.get(i), rightRow, cRowWrapper)
+            joinCollector.reset()
+            val tuple = leftRows.get(i)
+            joinFunction.join(tuple.f0, rightRow, joinCollector)
+            emitted ||= joinCollector.emitted
+            if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
+              if (!tuple.f1 && joinCollector.emitted) {
+                // Mark the left row as being successfully joined and emitted.
+                tuple.f1 = true
+                entryUpdated = true
+              }
+            }
             i += 1
+          }
+          if (entryUpdated) {
+            // Write back the edited entry (mark emitted) for the right cache.
+            leftEntry.setValue(leftRows)
           }
         }
         if (leftTime <= leftExpirationTime) {
+          if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
+            val leftRows = leftEntry.getValue
+            var i = 0
+            while (i < leftRows.size) {
+              val tuple = leftRows.get(i)
+              if (!tuple.f1) {
+                // Emit a null padding result if the left row has never been successfully joined.
+                joinCollector.collect(paddingUtil.padLeft(tuple.f0))
+                println(s"Emitting a null padding result for left row ${tuple.f0}")
+              }
+              i += 1
+            }
+          }
           // eager remove
           leftIterator.remove()
         } // We could do the short-cutting optimization here once we get a state with ordered keys.
+      }
+    }
+
+    // Check if we need to cache the current row.
+    if (leftOperatorTime < leftQualifiedUpperBound) {
+      // Operator time of left stream has not exceeded the upper window bound of the current
+      // row. Put it into the right cache, since later coming records from the left stream are
+      // expected to be joined with it.
+      var rightRowList = rightCache.get(timeForRightRow)
+      if (null == rightRowList) {
+        rightRowList = new util.ArrayList[JTuple2[Row, Boolean]](1)
+      }
+      rightRowList.add(new JTuple2(rightRow, emitted))
+      rightCache.put(timeForRightRow, rightRowList)
+      if (leftTimerState.value == 0) {
+        // Register a timer on the LEFT stream to remove rows.
+        registerCleanUpTimer(ctx, timeForRightRow, leftRow = false)
+      }
+    } else if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
+      if (!emitted) {
+        // Emit a null padding result if the right row is not cached and successfully joined.
+        joinCollector.collect(paddingUtil.padRight(rightRow))
       }
     }
   }
@@ -268,6 +351,7 @@ abstract class TimeBoundedStreamInnerJoin(
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
       out: Collector[CRow]): Unit = {
 
+    joinCollector.innerCollector = out
     updateOperatorTime(ctx)
     // In the future, we should separate the left and right watermarks. Otherwise, the
     // registered timer of the faster stream will be delayed, even if the watermarks have
@@ -275,6 +359,7 @@ abstract class TimeBoundedStreamInnerJoin(
     if (leftTimerState.value == timestamp) {
       rightExpirationTime = calExpirationTime(leftOperatorTime, rightRelativeSize)
       removeExpiredRows(
+        joinCollector,
         rightExpirationTime,
         rightCache,
         leftTimerState,
@@ -286,6 +371,7 @@ abstract class TimeBoundedStreamInnerJoin(
     if (rightTimerState.value == timestamp) {
       leftExpirationTime = calExpirationTime(rightOperatorTime, leftRelativeSize)
       removeExpiredRows(
+        joinCollector,
         leftExpirationTime,
         leftCache,
         rightTimerState,
@@ -337,6 +423,7 @@ abstract class TimeBoundedStreamInnerJoin(
     * Remove the expired rows. Register a new timer if the cache still holds valid rows
     * after the cleaning up.
     *
+    * @param collector      the collector to emit results
     * @param expirationTime the expiration time for this cache
     * @param rowCache       the row cache
     * @param timerState     timer state for the opposite stream
@@ -344,23 +431,49 @@ abstract class TimeBoundedStreamInnerJoin(
     * @param removeLeft     whether to remove the left rows
     */
   private def removeExpiredRows(
+      collector: Collector[Row],
       expirationTime: Long,
-      rowCache: MapState[Long, JList[Row]],
+      rowCache: MapState[Long, JList[JTuple2[Row, Boolean]]],
       timerState: ValueState[Long],
       ctx: CoProcessFunction[CRow, CRow, CRow]#OnTimerContext,
       removeLeft: Boolean): Unit = {
 
-    val keysIterator = rowCache.keys().iterator()
+    val iterator = rowCache.iterator()
 
     var earliestTimestamp: Long = -1L
-    var rowTime: Long = 0L
 
     // We remove all expired keys and do not leave the loop early.
     // Hence, we do a full pass over the state.
-    while (keysIterator.hasNext) {
-      rowTime = keysIterator.next
+    while (iterator.hasNext) {
+      val entry = iterator.next
+      val rowTime = entry.getKey
       if (rowTime <= expirationTime) {
-        keysIterator.remove()
+        if (removeLeft &&
+          (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER)) {
+          val rows = entry.getValue
+          var i = 0
+          while (i < rows.size) {
+            val tuple = rows.get(i)
+            if (!tuple.f1) {
+              // Emit a null padding result if the row has never been successfully joined.
+              collector.collect(paddingUtil.padLeft(tuple.f0))
+            }
+            i += 1
+          }
+        } else if (!removeLeft &&
+          (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER)) {
+          val rows = entry.getValue
+          var i = 0
+          while (i < rows.size) {
+            val tuple = rows.get(i)
+            if (!tuple.f1) {
+              // Emit a null padding result if the row has never been successfully joined.
+              collector.collect(paddingUtil.padRight(tuple.f0))
+            }
+            i += 1
+          }
+        }
+        iterator.remove()
       } else {
         // We find the earliest timestamp that is still valid.
         if (rowTime < earliestTimestamp || earliestTimestamp < 0) {

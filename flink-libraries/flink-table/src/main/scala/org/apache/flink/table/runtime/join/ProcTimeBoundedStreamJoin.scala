@@ -19,64 +19,52 @@
 package org.apache.flink.table.runtime.join
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.java.operators.join.JoinType
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
 /**
-  * The function to execute row(event) time bounded stream inner-join.
+  * The function to execute processing time bounded stream inner-join.
   */
-final class RowTimeBoundedStreamInnerJoin(
+final class ProcTimeBoundedStreamJoin(
+    joinType: JoinType,
     leftLowerBound: Long,
     leftUpperBound: Long,
-    allowedLateness: Long,
     leftType: TypeInformation[Row],
     rightType: TypeInformation[Row],
     genJoinFuncName: String,
-    genJoinFuncCode: String,
-    leftTimeIdx: Int,
-    rightTimeIdx: Int)
-  extends TimeBoundedStreamInnerJoin(
+    genJoinFuncCode: String)
+  extends TimeBoundedStreamJoin(
+    joinType,
     leftLowerBound,
     leftUpperBound,
-    allowedLateness,
+    allowedLateness = 0L,
     leftType,
     rightType,
     genJoinFuncName,
     genJoinFuncCode) {
 
-  /**
-    * Get the maximum interval between receiving a row and emitting it (as part of a joined result).
-    * This is the time interval by which watermarks need to be held back.
-    *
-    * @return the maximum delay for the outputs
-    */
-  def getMaxOutputDelay: Long = Math.max(leftRelativeSize, rightRelativeSize) + allowedLateness
-
   override def updateOperatorTime(ctx: CoProcessFunction[CRow, CRow, CRow]#Context): Unit = {
-    leftOperatorTime =
-      if (ctx.timerService().currentWatermark() > 0) ctx.timerService().currentWatermark()
-      else 0L
-    // We may set different operator times in the future.
+    leftOperatorTime = ctx.timerService().currentProcessingTime()
     rightOperatorTime = leftOperatorTime
   }
 
   override def getTimeForLeftStream(
       context: CoProcessFunction[CRow, CRow, CRow]#Context,
       row: Row): Long = {
-    row.getField(leftTimeIdx).asInstanceOf[Long]
+    leftOperatorTime
   }
 
   override def getTimeForRightStream(
       context: CoProcessFunction[CRow, CRow, CRow]#Context,
       row: Row): Long = {
-    row.getField(rightTimeIdx).asInstanceOf[Long]
+    rightOperatorTime
   }
 
   override def registerTimer(
       ctx: CoProcessFunction[CRow, CRow, CRow]#Context,
       cleanupTime: Long): Unit = {
-    // Maybe we can register timers for different streams in the future.
-    ctx.timerService.registerEventTimeTimer(cleanupTime)
+    ctx.timerService.registerProcessingTimeTimer(cleanupTime)
   }
 }
