@@ -38,7 +38,7 @@ public interface ConnectionManager {
 	PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) throws IOException, InterruptedException;
 
 	/**
-	 * Closes opened ChannelConnections in case of a resource release
+	 * Closes opened ChannelConnections in case of a resource release.
 	 */
 	void closeOpenChannelConnections(ConnectionID connectionId);
 

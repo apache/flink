@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -128,8 +130,9 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 		}
 	}
 
+	@Nullable
 	@Override
-	public Buffer getNextBuffer() throws IOException, InterruptedException {
+	public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
 		synchronized (buffers) {
 			if (isReleased.get()) {
 				return null;
@@ -141,7 +144,8 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 					listener.notifyBuffersAvailable(1);
 				}
 
-				return current;
+				int newBacklog = parent.decreaseBuffersInBacklog(current);
+				return new BufferAndBacklog(current, newBacklog);
 			}
 		} // else: spilled
 
@@ -164,6 +168,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 			SpilledSubpartitionView spilled = spilledView;
 			if (spilled != null) {
 				spilled.releaseAllResources();
+			}
+			// we are never giving this buffer out in getNextBuffer(), so we need to clean it up
+			synchronized (buffers) {
+				if (nextBuffer != null) {
+					nextBuffer.recycle();
+					nextBuffer = null;
+				}
 			}
 		}
 	}

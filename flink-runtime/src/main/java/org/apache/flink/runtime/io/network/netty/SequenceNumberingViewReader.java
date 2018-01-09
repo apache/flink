@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
@@ -86,13 +86,13 @@ class SequenceNumberingViewReader implements BufferAvailabilityListener {
 	}
 
 	public BufferAndAvailability getNextBuffer() throws IOException, InterruptedException {
-		Buffer next = subpartitionView.getNextBuffer();
+		BufferAndBacklog next = subpartitionView.getNextBuffer();
 		if (next != null) {
 			long remaining = numBuffersAvailable.decrementAndGet();
 			sequenceNumber++;
 
 			if (remaining >= 0) {
-				return new BufferAndAvailability(next, remaining > 0);
+				return new BufferAndAvailability(next.buffer(), remaining > 0, next.buffersInBacklog());
 			} else {
 				throw new IllegalStateException("no buffer available");
 			}

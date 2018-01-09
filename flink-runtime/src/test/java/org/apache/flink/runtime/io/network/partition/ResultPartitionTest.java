@@ -192,8 +192,6 @@ public class ResultPartitionTest {
 
 		partition.writeBufferToAllSubpartitions(buffer);
 
-		// Verify added to all queues, i.e. two buffers in total
-		assertEquals(2, partition.getTotalNumberOfBuffers());
 		// release the buffers in the partition
 		partition.release();
 

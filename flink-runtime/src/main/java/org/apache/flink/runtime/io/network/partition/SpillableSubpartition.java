@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 
@@ -57,6 +59,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MIN}, and
  * {@link TaskManagerOptions#NETWORK_BUFFERS_MEMORY_MAX}, most spillable partitions
  * will be spilled for real-world data sets.
+ *
+ * <p>Note on thread safety. Synchronizing on {@code buffers} is used to synchronize
+ * writes and reads. Synchronizing on {@code this} is used against concurrent
+ * {@link #add(Buffer)} and clean ups {@link #release()} / {@link #finish()} which
+ * also are touching {@code spillWriter}. Since we do not want to block reads during
+ * spilling, we need those two synchronization. Probably this model could be simplified.
  */
 class SpillableSubpartition extends ResultSubpartition {
 
@@ -77,6 +85,10 @@ class SpillableSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
+	/** The number of non-event buffers currently in this subpartition */
+	@GuardedBy("buffers")
+	private int buffersInBacklog;
+
 	/** The read view to consume this subpartition. */
 	private ResultSubpartitionView readView;
 
@@ -87,7 +99,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public boolean add(Buffer buffer) throws IOException {
+	public synchronized boolean add(Buffer buffer) throws IOException {
 		checkNotNull(buffer);
 
 		synchronized (buffers) {
@@ -102,6 +114,7 @@ class SpillableSubpartition extends ResultSubpartition {
 				// the read views. If you ever remove this line here,
 				// make sure to still count the number of buffers.
 				updateStatistics(buffer);
+				increaseBuffersInBacklog(buffer);
 
 				return true;
 			}
@@ -114,6 +127,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			synchronized (buffers) {
 				// See the note above, but only do this if the buffer was correctly added!
 				updateStatistics(buffer);
+				increaseBuffersInBacklog(buffer);
 			}
 		} finally {
 			buffer.recycle();
@@ -123,7 +137,7 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void finish() throws IOException {
+	public synchronized void finish() throws IOException {
 		synchronized (buffers) {
 			if (add(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE))) {
 				isFinished = true;
@@ -137,7 +151,8 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
-	public void release() throws IOException {
+	public synchronized void release() throws IOException {
+		// view reference accessible outside the lock, but assigned inside the locked scope
 		final ResultSubpartitionView view;
 
 		synchronized (buffers) {
@@ -145,16 +160,18 @@ class SpillableSubpartition extends ResultSubpartition {
 				return;
 			}
 
+			// Release all available buffers
+			for (Buffer buffer : buffers) {
+				buffer.recycle();
+			}
+			buffers.clear();
+
 			view = readView;
 
 			// No consumer yet, we are responsible to clean everything up. If
 			// one is available, the view is responsible is to clean up (see
 			// below).
 			if (view == null) {
-				for (Buffer buffer : buffers) {
-					buffer.recycle();
-				}
-				buffers.clear();
 
 				// TODO This can block until all buffers are written out to
 				// disk if a spill is in-progress before deleting the file.
@@ -247,6 +264,39 @@ class SpillableSubpartition extends ResultSubpartition {
 	}
 
 	@Override
+	@VisibleForTesting
+	public int getBuffersInBacklog() {
+		return buffersInBacklog;
+	}
+
+	/**
+	 * Decreases the number of non-event buffers by one after fetching a non-event
+	 * buffer from this subpartition (for access by the subpartition views).
+	 *
+	 * @return backlog after the operation
+	 */
+	public int decreaseBuffersInBacklog(Buffer buffer) {
+		synchronized (buffers) {
+			if (buffer != null && buffer.isBuffer()) {
+				buffersInBacklog--;
+			}
+			return buffersInBacklog;
+		}
+	}
+
+	/**
+	 * Increases the number of non-event buffers by one after adding a non-event
+	 * buffer into this subpartition.
+	 */
+	private void increaseBuffersInBacklog(Buffer buffer) {
+		assert Thread.holdsLock(buffers);
+
+		if (buffer != null && buffer.isBuffer()) {
+			buffersInBacklog++;
+		}
+	}
+
+	@Override
 	public int unsynchronizedGetNumberOfQueuedBuffers() {
 		// since we do not synchronize, the size may actually be lower than 0!
 		return Math.max(buffers.size(), 0);
@@ -255,9 +305,9 @@ class SpillableSubpartition extends ResultSubpartition {
 	@Override
 	public String toString() {
 		return String.format("SpillableSubpartition [%d number of buffers (%d bytes)," +
-						"finished? %s, read view? %s, spilled? %s]",
-				getTotalNumberOfBuffers(), getTotalNumberOfBytes(), isFinished, readView != null,
-				spillWriter != null);
+				"%d number of buffers in backlog, finished? %s, read view? %s, spilled? %s]",
+			getTotalNumberOfBuffers(), getTotalNumberOfBytes(),
+			buffersInBacklog, isFinished, readView != null, spillWriter != null);
 	}
 
 }
