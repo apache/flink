@@ -137,12 +137,9 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 	/**
 	 * Tests that we can wait for the termination of the rpc service
-	 *
-	 * @throws ExecutionException
-	 * @throws InterruptedException
 	 */
 	@Test(timeout = 60000)
-	public void testTerminationFuture() throws ExecutionException, InterruptedException {
+	public void testTerminationFuture() throws Exception {
 		final ActorSystem actorSystem = AkkaUtils.createDefaultActorSystem();
 		final AkkaRpcService rpcService = new AkkaRpcService(actorSystem, Time.milliseconds(1000));
 
@@ -150,7 +147,7 @@ public class AkkaRpcServiceTest extends TestLogger {
 
 		assertFalse(terminationFuture.isDone());
 
-		CompletableFuture.runAsync(() -> rpcService.stopService(), actorSystem.dispatcher());
+		CompletableFuture.runAsync(rpcService::stopService, actorSystem.dispatcher());
 
 		terminationFuture.get();
 	}
