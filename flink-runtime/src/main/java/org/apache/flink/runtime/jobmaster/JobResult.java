@@ -85,6 +85,9 @@ public class JobResult implements Serializable {
 		return Optional.ofNullable(serializedThrowable);
 	}
 
+	/**
+	 * Builder for {@link JobResult}.
+	 */
 	public static class Builder {
 
 		private JobID jobId;
