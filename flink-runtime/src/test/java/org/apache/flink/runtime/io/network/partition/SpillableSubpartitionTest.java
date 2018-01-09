@@ -194,8 +194,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		SpillableSubpartition partition = createSubpartition();
 
 		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
-		buffer.retain();
-		buffer.retain();
+		buffer.retainBuffer();
+		buffer.retainBuffer();
 
 		partition.add(buffer);
 		partition.add(buffer);
@@ -243,7 +243,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertNotSame(buffer, read);
 		assertFalse(read.buffer().isRecycled());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
 
 		read = reader.getNextBuffer();
@@ -252,7 +252,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertNotSame(buffer, read);
 		assertFalse(read.buffer().isRecycled());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
 
 		read = reader.getNextBuffer();
@@ -261,7 +261,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertNotSame(buffer, read);
 		assertFalse(read.buffer().isRecycled());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
 
 		// End of partition
@@ -272,7 +272,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(EndOfPartitionEvent.class,
 			EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
 		assertFalse(read.buffer().isRecycled());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
 
 		// finally check that the buffer has been freed after a successful (or failed) write
@@ -292,8 +292,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		SpillableSubpartition partition = createSubpartition();
 
 		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
-		buffer.retain();
-		buffer.retain();
+		buffer.retainBuffer();
+		buffer.retainBuffer();
 
 		partition.add(buffer);
 		partition.add(buffer);
@@ -318,7 +318,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertSame(buffer, read.buffer());
 		assertEquals(2, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertEquals(2, listener.getNumNotifiedBuffers());
 		assertFalse(buffer.isRecycled());
 
@@ -338,7 +338,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(1, partition.getBuffersInBacklog());
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertSame(buffer, read.buffer());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		// now the buffer may be freed, depending on the timing of the write operation
 		// -> let's do this check at the end of the test (to save some time)
 
@@ -348,7 +348,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(partition.getBuffersInBacklog(), read.buffersInBacklog());
 		assertNotSame(buffer, read.buffer());
 		assertFalse(read.buffer().isRecycled());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
 
 		// End of partition
@@ -359,7 +359,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(EndOfPartitionEvent.class,
 			EventSerializer.fromBuffer(read.buffer(), ClassLoader.getSystemClassLoader()).getClass());
 		assertFalse(read.buffer().isRecycled());
-		read.buffer().recycle();
+		read.buffer().recycleBuffer();
 		assertTrue(read.buffer().isRecycled());
 
 		// finally check that the buffer has been freed after a successful (or failed) write
@@ -408,7 +408,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			partition.add(buffer);
 		} finally {
 			if (!buffer.isRecycled()) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 				Assert.fail("buffer not recycled");
 			}
 		}
@@ -454,7 +454,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		} finally {
 			bufferRecycled = buffer.isRecycled();
 			if (!bufferRecycled) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 		}
 		if (!bufferRecycled) {
@@ -483,7 +483,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			ioManager.shutdown();
 			bufferRecycled = buffer.isRecycled();
 			if (!bufferRecycled) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 		}
 		if (bufferRecycled) {
@@ -546,10 +546,10 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		} finally {
 			ioManager.shutdown();
 			if (!buffer1.isRecycled()) {
-				buffer1.recycle();
+				buffer1.recycleBuffer();
 			}
 			if (!buffer2.isRecycled()) {
-				buffer2.recycle();
+				buffer2.recycleBuffer();
 			}
 		}
 		// note: a view requires a finished partition which has an additional EndOfPartitionEvent
@@ -577,7 +577,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			ioManager.shutdown();
 			bufferRecycled = buffer.isRecycled();
 			if (!bufferRecycled) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 		}
 		if (!bufferRecycled) {
@@ -666,11 +666,11 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		} finally {
 			buffer1Recycled = buffer1.isRecycled();
 			if (!buffer1Recycled) {
-				buffer1.recycle();
+				buffer1.recycleBuffer();
 			}
 			buffer2Recycled = buffer2.isRecycled();
 			if (!buffer2Recycled) {
-				buffer2.recycle();
+				buffer2.recycleBuffer();
 			}
 		}
 		if (!buffer1Recycled) {

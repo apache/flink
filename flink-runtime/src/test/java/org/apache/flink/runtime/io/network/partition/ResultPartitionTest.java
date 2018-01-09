@@ -128,7 +128,7 @@ public class ResultPartitionTest {
 		} finally {
 			if (!buffer.isRecycled()) {
 				Assert.fail("buffer not recycled");
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
@@ -162,7 +162,7 @@ public class ResultPartitionTest {
 		} finally {
 			if (!buffer.isRecycled()) {
 				Assert.fail("buffer not recycled");
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			// should not have notified either
 			verify(notifier, never()).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
@@ -224,7 +224,7 @@ public class ResultPartitionTest {
 			assertFalse("buffer should not be recycled (still in the queue)", buffer.isRecycled());
 		} finally {
 			if (!buffer.isRecycled()) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			// should have been notified for pipelined partitions
 			if (pipelined.isPipelined()) {

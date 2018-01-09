@@ -74,7 +74,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 				if (result.isBufferConsumed()) {
 					final Buffer currentBuffer = currentRecordDeserializer.getCurrentBuffer();
 
-					currentBuffer.recycle();
+					currentBuffer.recycleBuffer();
 					currentRecordDeserializer = null;
 				}
 
@@ -118,7 +118,7 @@ abstract class AbstractRecordReader<T extends IOReadableWritable> extends Abstra
 		for (RecordDeserializer<?> deserializer : recordDeserializers) {
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			deserializer.clear();
 		}

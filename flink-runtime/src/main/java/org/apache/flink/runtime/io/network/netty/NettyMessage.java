@@ -305,7 +305,7 @@ public abstract class NettyMessage {
 				throw new IOException(t);
 			}
 			finally {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 		}
 

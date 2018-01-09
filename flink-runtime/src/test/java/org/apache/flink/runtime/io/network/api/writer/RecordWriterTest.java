@@ -193,7 +193,7 @@ public class RecordWriterTest {
 				@Override
 				public Void answer(InvocationOnMock invocation) throws Throwable {
 					Buffer buffer = (Buffer) invocation.getArguments()[0];
-					buffer.recycle();
+					buffer.recycleBuffer();
 
 					throw new ExpectedTestException();
 				}
@@ -478,7 +478,7 @@ public class RecordWriterTest {
 				} else {
 					// is event:
 					AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-					buffer.recycle(); // the buffer is not needed anymore
+					buffer.recycleBuffer(); // the buffer is not needed anymore
 					Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
 					queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
 				}
@@ -530,7 +530,7 @@ public class RecordWriterTest {
 		doAnswer(new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Throwable {
-				((Buffer) invocation.getArguments()[0]).recycle();
+				((Buffer) invocation.getArguments()[0]).recycleBuffer();
 
 				return null;
 			}

@@ -155,14 +155,14 @@ public class RecordWriter<T extends IOReadableWritable> {
 					}
 
 					// retain the buffer so that it can be recycled by each channel of targetPartition
-					eventBuffer.retain();
+					eventBuffer.retainBuffer();
 					targetPartition.writeBuffer(eventBuffer, targetChannel);
 				}
 			}
 		} finally {
 			// we do not need to further retain the eventBuffer
 			// (it will be recycled after the last channel stops using it)
-			eventBuffer.recycle();
+			eventBuffer.recycleBuffer();
 		}
 	}
 
@@ -192,7 +192,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					Buffer buffer = serializer.getCurrentBuffer();
 
 					if (buffer != null) {
-						buffer.recycle();
+						buffer.recycleBuffer();
 					}
 				}
 				finally {

@@ -104,7 +104,7 @@ class SpillableSubpartition extends ResultSubpartition {
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 				return false;
 			}
 
@@ -123,14 +123,14 @@ class SpillableSubpartition extends ResultSubpartition {
 		// Didn't return early => go to disk
 		try {
 			// retain buffer for updateStatistics() below
-			spillWriter.writeBlock(buffer.retain());
+			spillWriter.writeBlock(buffer.retainBuffer());
 			synchronized (buffers) {
 				// See the note above, but only do this if the buffer was correctly added!
 				updateStatistics(buffer);
 				increaseBuffersInBacklog(buffer);
 			}
 		} finally {
-			buffer.recycle();
+			buffer.recycleBuffer();
 		}
 
 		return true;
@@ -162,7 +162,7 @@ class SpillableSubpartition extends ResultSubpartition {
 
 			// Release all available buffers
 			for (Buffer buffer : buffers) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			buffers.clear();
 
