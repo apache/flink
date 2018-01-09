@@ -25,6 +25,7 @@ import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -38,7 +39,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>This is used by the {@link JobMaster} to send the results to the {@link Dispatcher}.
  */
-public class JobResult {
+public class JobResult implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	private final JobID jobId;
 
