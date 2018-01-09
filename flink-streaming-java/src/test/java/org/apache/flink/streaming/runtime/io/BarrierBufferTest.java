@@ -1411,7 +1411,7 @@ public class BarrierBufferTest {
 		buf.setSize(size);
 
 		// retain an additional time so it does not get disposed after being read by the input gate
-		buf.retain();
+		buf.retainBuffer();
 
 		return new BufferOrEvent(buf, channel);
 	}

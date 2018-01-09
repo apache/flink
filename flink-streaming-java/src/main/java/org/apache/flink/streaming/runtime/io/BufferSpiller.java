@@ -151,7 +151,7 @@ public class BufferSpiller {
 		}
 		finally {
 			if (boe.isBuffer()) {
-				boe.getBuffer().recycle();
+				boe.getBuffer().recycleBuffer();
 			}
 		}
 	}

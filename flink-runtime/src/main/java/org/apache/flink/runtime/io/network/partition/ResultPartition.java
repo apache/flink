@@ -248,13 +248,13 @@ public class ResultPartition implements ResultPartitionWriter, BufferPoolOwner {
 			final ResultSubpartition subpartition = subpartitions[subpartitionIndex];
 
 			// retain for buffer use after add() but also to have a simple path for recycle()
-			buffer.retain();
+			buffer.retainBuffer();
 			success = subpartition.add(buffer);
 		} finally {
 			if (success) {
 				notifyPipelinedConsumers();
 			}
-			buffer.recycle();
+			buffer.recycleBuffer();
 		}
 	}
 

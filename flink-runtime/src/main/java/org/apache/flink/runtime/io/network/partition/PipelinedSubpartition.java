@@ -74,7 +74,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 				return false;
 			}
 
@@ -133,7 +133,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 			// Release all available buffers
 			Buffer buffer;
 			while ((buffer = buffers.poll()) != null) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 
 			view = readView;

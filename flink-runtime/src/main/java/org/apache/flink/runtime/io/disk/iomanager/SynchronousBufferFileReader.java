@@ -47,7 +47,7 @@ public class SynchronousBufferFileReader extends SynchronousFileIOChannel implem
 			hasReachedEndOfFile = reader.readBufferFromFileChannel(buffer);
 		}
 		else {
-			buffer.recycle();
+			buffer.recycleBuffer();
 		}
 	}
 

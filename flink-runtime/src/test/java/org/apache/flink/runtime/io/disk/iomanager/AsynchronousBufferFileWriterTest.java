@@ -90,7 +90,7 @@ public class AsynchronousBufferFileWriterTest {
 			writer.writeBlock(buffer);
 		} finally {
 			if (!buffer.isRecycled()) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 				Assert.fail("buffer not recycled");
 			}
 			assertEquals("Shouln't increment number of outstanding requests.", 0, writer.getNumberOfOutstandingRequests());

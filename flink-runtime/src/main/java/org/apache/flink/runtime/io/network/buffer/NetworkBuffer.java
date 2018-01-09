@@ -137,7 +137,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
-	public void recycle() {
+	public void recycleBuffer() {
 		release();
 	}
 
@@ -147,7 +147,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
-	public NetworkBuffer retain() {
+	public NetworkBuffer retainBuffer() {
 		return (NetworkBuffer) super.retain();
 	}
 
@@ -414,11 +414,7 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 		return checkNotNull(allocator);
 	}
 
-	/**
-	 * Sets the buffer allocator for use in netty.
-	 *
-	 * @param allocator netty buffer allocator
-	 */
+	@Override
 	public void setAllocator(ByteBufAllocator allocator) {
 		this.allocator = allocator;
 	}

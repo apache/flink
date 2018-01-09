@@ -109,7 +109,7 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
 
 						callback.onEvent(event);
 
-						bufferAndBacklog.buffer().recycle();
+						bufferAndBacklog.buffer().recycleBuffer();
 
 						if (event.getClass() == EndOfPartitionEvent.class) {
 							subpartitionView.notifySubpartitionConsumed();

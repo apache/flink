@@ -67,7 +67,7 @@ public class NettyMessageSerializationTest {
 			NettyMessage.BufferResponse actual = encodeAndDecode(expected);
 
 			// Verify recycle has been called on buffer instance
-			verify(buffer, times(1)).recycle();
+			verify(buffer, times(1)).recycleBuffer();
 
 			final ByteBuf retainedSlice = actual.getNettyBuffer();
 

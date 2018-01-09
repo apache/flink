@@ -246,7 +246,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 					if (buffer.getRecycler() == this) {
 						exclusiveRecyclingSegments.add(buffer.getMemorySegment());
 					} else {
-						buffer.recycle();
+						buffer.recycleBuffer();
 					}
 				}
 			}
@@ -350,7 +350,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		// Check the isReleased state outside synchronized block first to avoid
 		// deadlock with releaseAllResources running in parallel.
 		if (isReleased.get()) {
-			buffer.recycle();
+			buffer.recycleBuffer();
 			return false;
 		}
 
@@ -361,7 +361,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			// Important: double check the isReleased state inside synchronized block, so there is no
 			// race condition when notifyBufferAvailable and releaseAllResources running in parallel.
 			if (isReleased.get() || bufferQueue.getAvailableBufferSize() >= numRequiredBuffers) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 				return false;
 			}
 
@@ -517,7 +517,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			}
 		} finally {
 			if (!success) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 		}
 	}
@@ -599,7 +599,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 			exclusiveBuffers.add(buffer);
 			if (getAvailableBufferSize() > numRequiredBuffers) {
 				Buffer floatingBuffer = floatingBuffers.poll();
-				floatingBuffer.recycle();
+				floatingBuffer.recycleBuffer();
 				return 0;
 			} else {
 				return 1;
@@ -635,7 +635,7 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		void releaseAll(List<MemorySegment> exclusiveSegments) {
 			Buffer buffer;
 			while ((buffer = floatingBuffers.poll()) != null) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			while ((buffer = exclusiveBuffers.poll()) != null) {
 				exclusiveSegments.add(buffer.getMemorySegment());

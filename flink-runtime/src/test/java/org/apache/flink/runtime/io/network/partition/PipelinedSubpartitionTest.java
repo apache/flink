@@ -237,7 +237,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 				numberOfBuffers++;
 
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 
 			@Override
@@ -311,11 +311,11 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 		} finally {
 			buffer1Recycled = buffer1.isRecycled();
 			if (!buffer1Recycled) {
-				buffer1.recycle();
+				buffer1.recycleBuffer();
 			}
 			buffer2Recycled = buffer2.isRecycled();
 			if (!buffer2Recycled) {
-				buffer2.recycle();
+				buffer2.recycleBuffer();
 			}
 		}
 		if (!buffer1Recycled) {

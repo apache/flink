@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -74,9 +76,9 @@ public interface Buffer {
 	 * Releases this buffer once, i.e. reduces the reference count and recycles the buffer if the
 	 * reference count reaches <tt>0</tt>.
 	 *
-	 * @see #retain()
+	 * @see #retainBuffer()
 	 */
-	void recycle();
+	void recycleBuffer();
 
 	/**
 	 * Returns whether this buffer has been recycled or not.
@@ -90,9 +92,9 @@ public interface Buffer {
 	 *
 	 * @return <tt>this</tt> instance (for chained calls)
 	 *
-	 * @see #recycle()
+	 * @see #recycleBuffer()
 	 */
-	Buffer retain();
+	Buffer retainBuffer();
 
 	/**
 	 * Returns the maximum size of the buffer, i.e. the capacity of the underlying {@link MemorySegment}.
@@ -149,6 +151,12 @@ public interface Buffer {
 	void setSize(int writerIndex);
 
 	/**
+	 * Returns the number of readable bytes (same as <tt>{@link #getSize()} -
+	 * {@link #getReaderIndex()}</tt>).
+	 */
+	int readableBytes();
+
+	/**
 	 * Gets a new {@link ByteBuffer} instance wrapping this buffer's readable bytes, i.e. between
 	 * {@link #getReaderIndex()} and {@link #getSize()}.
 	 *
@@ -171,4 +179,11 @@ public interface Buffer {
 	 * @see #getNioBufferReadable()
 	 */
 	ByteBuffer getNioBuffer(int index, int length) throws IndexOutOfBoundsException;
+
+	/**
+	 * Sets the buffer allocator for use in netty.
+	 *
+	 * @param allocator netty buffer allocator
+	 */
+	void setAllocator(ByteBufAllocator allocator);
 }

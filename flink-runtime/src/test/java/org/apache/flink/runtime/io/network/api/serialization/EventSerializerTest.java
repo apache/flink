@@ -104,7 +104,7 @@ public class EventSerializerTest {
 				.fromBuffer(serializedEvent, cl);
 			assertEquals(EndOfPartitionEvent.INSTANCE, event);
 		} finally {
-			serializedEvent.recycle();
+			serializedEvent.recycleBuffer();
 		}
 	}
 
@@ -156,7 +156,7 @@ public class EventSerializerTest {
 			final ClassLoader cl = getClass().getClassLoader();
 			return EventSerializer.isEvent(serializedEvent, eventClass, cl);
 		} finally {
-			serializedEvent.recycle();
+			serializedEvent.recycleBuffer();
 		}
 	}
 }

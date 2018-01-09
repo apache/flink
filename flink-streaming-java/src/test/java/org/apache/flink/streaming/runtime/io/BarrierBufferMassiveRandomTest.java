@@ -67,7 +67,7 @@ public class BarrierBufferMassiveRandomTest {
 			for (int i = 0; i < 2000000; i++) {
 				BufferOrEvent boe = barrierBuffer.getNextNonBlocked();
 				if (boe.isBuffer()) {
-					boe.getBuffer().recycle();
+					boe.getBuffer().recycleBuffer();
 				}
 			}
 		}
