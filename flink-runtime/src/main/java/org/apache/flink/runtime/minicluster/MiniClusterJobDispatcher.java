@@ -20,10 +20,10 @@ package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.client.JobExecutionException;
-import org.apache.flink.runtime.client.SerializedJobExecutionResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -404,8 +404,6 @@ public class MiniClusterJobDispatcher {
 
 		private final CountDownLatch jobMastersToWaitFor;
 
-		private volatile Throwable jobException;
-
 		private volatile Throwable runnerException;
 
 		private volatile JobResult result;
@@ -425,10 +423,7 @@ public class MiniClusterJobDispatcher {
 		public void jobFailed(JobResult result) {
 			checkArgument(result.getSerializedThrowable().isPresent());
 
-			jobException = result
-				.getSerializedThrowable()
-				.get()
-				.deserializeError(ClassLoader.getSystemClassLoader());
+			this.result = result;
 			jobMastersToWaitFor.countDown();
 		}
 
@@ -447,7 +442,6 @@ public class MiniClusterJobDispatcher {
 		public JobExecutionResult getResult() throws JobExecutionException, InterruptedException {
 			jobMastersToWaitFor.await();
 
-			final Throwable jobFailureCause = this.jobException;
 			final Throwable runnerException = this.runnerException;
 			final JobResult result = this.result;
 
@@ -457,7 +451,11 @@ public class MiniClusterJobDispatcher {
 			//     completed successfully in that case, if multiple JobMasters were running
 			//     and other took over. only if all encounter a fatal error, the job cannot finish
 
-			if (jobFailureCause != null) {
+			if (result != null && !result.isSuccess()) {
+				checkState(result.getSerializedThrowable().isPresent());
+				final Throwable jobFailureCause = result.getSerializedThrowable()
+					.get()
+					.deserializeError(ClassLoader.getSystemClassLoader());
 				if (jobFailureCause instanceof JobExecutionException) {
 					throw (JobExecutionException) jobFailureCause;
 				}
@@ -467,10 +465,12 @@ public class MiniClusterJobDispatcher {
 			}
 			else if (result != null) {
 				try {
-					return new SerializedJobExecutionResult(
+					return new JobExecutionResult(
 						jobId,
 						result.getNetRuntime(),
-						result.getAccumulatorResults()).toJobExecutionResult(ClassLoader.getSystemClassLoader());
+						AccumulatorHelper.deserializeAccumulators(
+							result.getAccumulatorResults(),
+							ClassLoader.getSystemClassLoader()));
 				} catch (final IOException | ClassNotFoundException e) {
 					throw new JobExecutionException(result.getJobId(), e);
 				}
