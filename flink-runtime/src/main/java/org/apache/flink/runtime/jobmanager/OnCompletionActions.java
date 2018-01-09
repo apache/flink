@@ -20,11 +20,28 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobExecutionResult;
 
+/**
+ * Interface for completion actions once a Flink job has reached
+ * a terminal state.
+ */
 public interface OnCompletionActions {
 
+	/**
+	 * Job finished successfully.
+	 *
+	 * @param result of the job execution
+	 */
 	void jobFinished(JobExecutionResult result);
 
+	/**
+	 * Job failed with the given exception.
+	 *
+	 * @param cause of the job failure
+	 */
 	void jobFailed(Throwable cause);
 
+	/**
+	 * Job was finished by another JobMaster.
+	 */
 	void jobFinishedByOther();
 }
