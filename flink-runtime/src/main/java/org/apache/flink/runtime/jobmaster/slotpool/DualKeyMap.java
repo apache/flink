@@ -24,6 +24,7 @@ import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  * Map which stores values under two different indices.
@@ -123,6 +124,14 @@ public class DualKeyMap<A, B, V> {
 		}
 
 		return vs;
+	}
+
+	public Set<A> keySetA() {
+		return aMap.keySet();
+	}
+
+	public Set<B> keySetB() {
+		return bMap.keySet();
 	}
 
 	public void clear() {
