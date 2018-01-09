@@ -55,7 +55,7 @@ class PipelinedSubpartition extends ResultSubpartition {
 	/** Flag indicating whether the subpartition has been released. */
 	private volatile boolean isReleased;
 
-	/** The number of non-event buffers currently in this subpartition */
+	/** The number of non-event buffers currently in this subpartition. */
 	@GuardedBy("buffers")
 	private int buffersInBacklog;
 
