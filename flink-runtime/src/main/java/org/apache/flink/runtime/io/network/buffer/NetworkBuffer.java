@@ -152,6 +152,16 @@ public class NetworkBuffer extends AbstractReferenceCountedByteBuf implements Bu
 	}
 
 	@Override
+	public ReadOnlySlicedNetworkBuffer readOnlySlice() {
+		return readOnlySlice(readerIndex(), readableBytes());
+	}
+
+	@Override
+	public ReadOnlySlicedNetworkBuffer readOnlySlice(int index, int length) {
+		return new ReadOnlySlicedNetworkBuffer(this, index, length);
+	}
+
+	@Override
 	protected void deallocate() {
 		recycler.recycle(memorySegment);
 	}
