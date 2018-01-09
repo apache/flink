@@ -687,6 +687,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 	@Override
 	public void disconnectJobManager(JobID jobId, Exception cause) {
 		closeJobManagerConnection(jobId, cause);
+		jobLeaderService.reconnect(jobId);
 	}
 
 	@Override
@@ -1079,16 +1080,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		Preconditions.checkNotNull(allocationId);
 
 		try {
-			int freedSlotIndex = taskSlotTable.freeSlot(allocationId, cause);
+			TaskSlot taskSlot = taskSlotTable.freeSlot(allocationId, cause);
 
-			if (freedSlotIndex != -1 && isConnectedToResourceManager()) {
+			if (taskSlot != null && isConnectedToResourceManager()) {
 				// the slot was freed. Tell the RM about it
 				ResourceManagerGateway resourceManagerGateway = resourceManagerConnection.getTargetGateway();
 
 				resourceManagerGateway.notifySlotAvailable(
 					resourceManagerConnection.getRegistrationId(),
-					new SlotID(getResourceID(), freedSlotIndex),
+					new SlotID(getResourceID(), taskSlot.getIndex()),
 					allocationId);
+
+				// check whether we still have allocated slots for the same job
+				final JobID jobId = taskSlot.getJobId();
+				final Iterator<Task> tasks = taskSlotTable.getTasks(jobId);
+
+				if (!tasks.hasNext()) {
+					// we can remove the job from the job leader service
+					try {
+						jobLeaderService.removeJob(jobId);
+					} catch (Exception e) {
+						log.info("Could not remove job {} from JobLeaderService.", jobId, e);
+					}
+
+					closeJobManagerConnection(
+						jobId,
+						new FlinkException("TaskExecutor " + getAddress() +
+							" has no more allocated slots for job " + jobId + '.'));
+				}
 			}
 		} catch (SlotNotFoundException e) {
 			log.debug("Could not free slot for allocation id {}.", allocationId, e);
@@ -1295,6 +1314,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 						closeJobManagerConnection(
 							jobManagerConnection.getJobID(),
 							new TimeoutException("The heartbeat of JobManager with id " + resourceID + " timed out."));
+
+						jobLeaderService.reconnect(jobManagerConnection.getJobID());
 					}
 				}
 			});
