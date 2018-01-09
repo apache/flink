@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
@@ -31,13 +31,13 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Caches {@link JobExecutionResult}s.
+ * Caches {@link JobResult}s.
  */
 class JobExecutionResultCache {
 
 	private static final int MAX_RESULT_CACHE_DURATION_SECONDS = 300;
 
-	private final Cache<JobID, JobExecutionResult>
+	private final Cache<JobID, JobResult>
 		jobExecutionResultCache =
 		CacheBuilder.newBuilder()
 			.softValues()
@@ -45,20 +45,20 @@ class JobExecutionResultCache {
 			.build();
 
 	/**
-	 * Adds a {@link JobExecutionResult} to the cache.
+	 * Adds a {@link JobResult} to the cache.
 
 	 * @param result The entry to be added to the cache.
 	 */
-	public void put(final JobExecutionResult result) {
+	public void put(final JobResult result) {
 		assertJobExecutionResultNotCached(result.getJobId());
 		jobExecutionResultCache.put(result.getJobId(), result);
 	}
 
 	/**
-	 * Returns {@code true} if the cache contains a {@link JobExecutionResult} for the specified
+	 * Returns {@code true} if the cache contains a {@link JobResult} for the specified
 	 * {@link JobID}.
 	 *
-	 * @param jobId The job id for which the presence of the {@link JobExecutionResult}
+	 * @param jobId The job id for which the presence of the {@link JobResult}
 	 * should be tested.
 	 *
 	 * @return {@code true} if the cache contains an entry, {@code false} otherwise
@@ -68,21 +68,21 @@ class JobExecutionResultCache {
 	}
 
 	/**
-	 * Returns the cached {@link JobExecutionResult} for the specified {@link JobID}.
+	 * Returns the cached {@link JobResult} for the specified {@link JobID}.
 	 *
-	 * @param jobId The job id of the {@link JobExecutionResult}.
-	 * @return The {@link JobExecutionResult} for the specified job id, or {@code null} if the entry
+	 * @param jobId The job id of the {@link JobResult}.
+	 * @return The {@link JobResult} for the specified job id, or {@code null} if the entry
 	 * cannot be found in the cache.
 	 */
 	@Nullable
-	public JobExecutionResult get(final JobID jobId) {
-		final JobExecutionResult jobExecutionResult = jobExecutionResultCache.getIfPresent(jobId);
+	public JobResult get(final JobID jobId) {
+		final JobResult jobResult = jobExecutionResultCache.getIfPresent(jobId);
 		jobExecutionResultCache.invalidate(jobId);
-		return jobExecutionResult;
+		return jobResult;
 	}
 
 	private void assertJobExecutionResultNotCached(final JobID jobId) {
-		final JobExecutionResult executionResult = jobExecutionResultCache.getIfPresent(jobId);
+		final JobResult executionResult = jobExecutionResultCache.getIfPresent(jobId);
 		checkState(
 			executionResult == null,
 			"jobExecutionResultCache already contained entry for job %s", jobId);

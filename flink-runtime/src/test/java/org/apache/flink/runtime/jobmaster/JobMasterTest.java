@@ -265,12 +265,12 @@ public class JobMasterTest extends TestLogger {
 	private static final class NoOpOnCompletionActions implements OnCompletionActions {
 
 		@Override
-		public void jobFinished(final JobExecutionResult result) {
+		public void jobFinished(final JobResult result) {
 
 		}
 
 		@Override
-		public void jobFailed(final JobExecutionResult result) {
+		public void jobFailed(final JobResult result) {
 
 		}
 

@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -253,7 +253,7 @@ public class DispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Test that {@link JobExecutionResult} is cached when the job finishes.
+	 * Test that {@link JobResult} is cached when the job finishes.
 	 */
 	@Test
 	public void testCacheJobExecutionResult() throws Exception {
@@ -266,7 +266,7 @@ public class DispatcherTest extends TestLogger {
 		final JobID failedJobId = new JobID();
 		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(failedJobId);
 
-		onCompletionActions.jobFailed(new JobExecutionResult.Builder()
+		onCompletionActions.jobFailed(new JobResult.Builder()
 			.jobId(failedJobId)
 			.serializedThrowable(new SerializedThrowable(new RuntimeException("expected")))
 			.netRuntime(Long.MAX_VALUE)
@@ -284,7 +284,7 @@ public class DispatcherTest extends TestLogger {
 		final JobID successJobId = new JobID();
 		onCompletionActions = dispatcher.new DispatcherOnCompleteActions(successJobId);
 
-		onCompletionActions.jobFinished(new JobExecutionResult.Builder()
+		onCompletionActions.jobFinished(new JobResult.Builder()
 			.jobId(successJobId)
 			.netRuntime(Long.MAX_VALUE)
 			.build());

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 
 /**
  * Interface for completion actions once a Flink job has reached
@@ -31,14 +31,14 @@ public interface OnCompletionActions {
 	 *
 	 * @param result of the job execution
 	 */
-	void jobFinished(JobExecutionResult result);
+	void jobFinished(JobResult result);
 
 	/**
-	 * Job failed with the given exception.
+	 * Job failed with an exception.
 	 *
-	 * @param result of the job failure
+	 * @param result The result of the job carrying the failure cause.
 	 */
-	void jobFailed(JobExecutionResult result);
+	void jobFailed(JobResult result);
 
 	/**
 	 * Job was finished by another JobMaster.

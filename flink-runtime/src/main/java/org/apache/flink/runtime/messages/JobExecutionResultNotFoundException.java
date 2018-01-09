@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.messages;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FlinkException;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * Exception indicating that we could not find a
- * {@link org.apache.flink.runtime.jobmaster.JobExecutionResult} under the given {@link JobID}.
+ * Exception indicating that we could not find a {@link JobResult} under the given {@link JobID}.
  */
 public class JobExecutionResultNotFoundException extends FlinkException {
 

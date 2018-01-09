@@ -970,7 +970,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		final JobID jobID = executionGraph.getJobID();
 		final String jobName = executionGraph.getJobName();
-		final JobExecutionResult.Builder builder = new JobExecutionResult.Builder()
+		final JobResult.Builder builder = new JobResult.Builder()
 			.jobId(jobID)
 			.netRuntime(0);
 

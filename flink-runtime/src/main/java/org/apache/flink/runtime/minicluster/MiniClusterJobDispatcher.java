@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -360,12 +361,12 @@ public class MiniClusterJobDispatcher {
 		}
 
 		@Override
-		public void jobFinished(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			decrementCheckAndCleanup();
 		}
 
 		@Override
-		public void jobFailed(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
+		public void jobFailed(JobResult result) {
 			decrementCheckAndCleanup();
 		}
 
@@ -407,7 +408,7 @@ public class MiniClusterJobDispatcher {
 
 		private volatile Throwable runnerException;
 
-		private volatile org.apache.flink.runtime.jobmaster.JobExecutionResult result;
+		private volatile JobResult result;
 		
 		BlockingJobSync(JobID jobId, int numJobMastersToWaitFor) {
 			this.jobId = jobId;
@@ -415,13 +416,13 @@ public class MiniClusterJobDispatcher {
 		}
 
 		@Override
-		public void jobFinished(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			this.result = result;
 			jobMastersToWaitFor.countDown();
 		}
 
 		@Override
-		public void jobFailed(org.apache.flink.runtime.jobmaster.JobExecutionResult result) {
+		public void jobFailed(JobResult result) {
 			checkArgument(result.getSerializedThrowable().isPresent());
 
 			jobException = result
@@ -448,7 +449,7 @@ public class MiniClusterJobDispatcher {
 
 			final Throwable jobFailureCause = this.jobException;
 			final Throwable runnerException = this.runnerException;
-			final org.apache.flink.runtime.jobmaster.JobExecutionResult result = this.result;
+			final JobResult result = this.result;
 
 			// (1) we check if the job terminated with an exception
 			// (2) we check whether the job completed successfully

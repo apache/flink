@@ -23,7 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -106,14 +106,14 @@ public interface RestfulGateway extends RpcGateway {
 	 * the future will be completed exceptionally with
 	 * {@link org.apache.flink.runtime.messages.JobExecutionResultNotFoundException}
 	 */
-	default CompletableFuture<JobExecutionResult> getJobExecutionResult(
+	default CompletableFuture<JobResult> getJobExecutionResult(
 			JobID jobId,
 			@RpcTimeout Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 
 	/**
-	 * Tests if the {@link JobExecutionResult} is present.
+	 * Tests if the {@link JobResult} is present.
 	 *
 	 * @param jobId ID of the job that we are interested in.
 	 * @param timeout Timeout for the asynchronous operation.
@@ -121,7 +121,7 @@ public interface RestfulGateway extends RpcGateway {
 	 * @see #getJobExecutionResult(JobID, Time)
 	 *
 	 * @return {@link CompletableFuture} containing {@code true} when then the
-	 * {@link JobExecutionResult} is present. The future is completed exceptionally with
+	 * {@link JobResult} is present. The future is completed exceptionally with
 	 * {@link FlinkJobNotFoundException} if there is no job running with the specified ID, or if the
 	 * result has expired.
 	 */

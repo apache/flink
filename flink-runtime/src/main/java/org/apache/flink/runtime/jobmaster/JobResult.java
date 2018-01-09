@@ -38,7 +38,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>This is used by the {@link JobMaster} to send the results to the {@link Dispatcher}.
  */
-public class JobExecutionResult {
+public class JobResult {
 
 	private final JobID jobId;
 
@@ -48,7 +48,7 @@ public class JobExecutionResult {
 
 	private final SerializedThrowable serializedThrowable;
 
-	private JobExecutionResult(
+	private JobResult(
 			final JobID jobId,
 			final Map<String, SerializedValue<Object>> accumulatorResults,
 			final long netRuntime,
@@ -112,8 +112,8 @@ public class JobExecutionResult {
 			return this;
 		}
 
-		public JobExecutionResult build() {
-			return new JobExecutionResult(
+		public JobResult build() {
+			return new JobResult(
 				jobId,
 				accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
 				netRuntime,

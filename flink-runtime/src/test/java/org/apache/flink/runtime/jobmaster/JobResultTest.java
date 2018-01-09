@@ -29,14 +29,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for {@link JobExecutionResult}.
+ * Tests for {@link JobResult}.
  */
-public class JobExecutionResultTest extends TestLogger {
+public class JobResultTest extends TestLogger {
 
 	@Test
 	public void testNetRuntimeMandatory() {
 		try {
-			new JobExecutionResult.Builder()
+			new JobResult.Builder()
 				.jobId(new JobID())
 				.build();
 			fail("Expected exception not thrown");
@@ -47,23 +47,23 @@ public class JobExecutionResultTest extends TestLogger {
 
 	@Test
 	public void testIsNotSuccess() throws Exception {
-		final JobExecutionResult jobExecutionResult = new JobExecutionResult.Builder()
+		final JobResult jobResult = new JobResult.Builder()
 			.jobId(new JobID())
 			.serializedThrowable(new SerializedThrowable(new RuntimeException()))
 			.netRuntime(Long.MAX_VALUE)
 			.build();
 
-		assertThat(jobExecutionResult.isSuccess(), equalTo(false));
+		assertThat(jobResult.isSuccess(), equalTo(false));
 	}
 
 	@Test
 	public void testIsSuccess() throws Exception {
-		final JobExecutionResult jobExecutionResult = new JobExecutionResult.Builder()
+		final JobResult jobResult = new JobResult.Builder()
 			.jobId(new JobID())
 			.netRuntime(Long.MAX_VALUE)
 			.build();
 
-		assertThat(jobExecutionResult.isSuccess(), equalTo(true));
+		assertThat(jobResult.isSuccess(), equalTo(true));
 	}
 
 }

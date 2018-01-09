@@ -176,7 +176,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is finished
-		runner.jobFinished(mock(JobExecutionResult.class));
+		runner.jobFinished(mock(JobResult.class));
 
 		assertTrue(jobCompletion.isJobFinished());
 		assertFalse(jobCompletion.isJobFinishedByOther());
@@ -196,7 +196,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is failed
-		runner.jobFailed(new JobExecutionResult.Builder()
+		runner.jobFailed(new JobResult.Builder()
 			.jobId(new JobID())
 			.serializedThrowable(new SerializedThrowable(new Exception("failed manually")))
 			.build());
@@ -243,14 +243,14 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 	private static class TestingOnCompletionActions implements OnCompletionActions, FatalErrorHandler {
 
-		private volatile JobExecutionResult result;
+		private volatile JobResult result;
 
 		private volatile Throwable failedCause;
 
 		private volatile boolean finishedByOther;
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			checkArgument(!isJobFinished(), "job finished already");
 			checkArgument(!isJobFailed(), "job failed already");
 
@@ -258,7 +258,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		}
 
 		@Override
-		public void jobFailed(JobExecutionResult result) {
+		public void jobFailed(JobResult result) {
 			checkArgument(!isJobFinished(), "job finished already");
 			checkArgument(!isJobFailed(), "job failed already");
 

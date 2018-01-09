@@ -251,7 +251,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
-	public void jobFinished(JobExecutionResult result) {
+	public void jobFinished(JobResult result) {
 		try {
 			unregisterJobFromHighAvailability();
 			shutdownInternally();
@@ -267,7 +267,7 @@ public class JobManagerRunner implements LeaderContender, OnCompletionActions, F
 	 * Job completion notification triggered by JobManager.
 	 */
 	@Override
-	public void jobFailed(JobExecutionResult result) {
+	public void jobFailed(JobResult result) {
 		try {
 			unregisterJobFromHighAvailability();
 			shutdownInternally();

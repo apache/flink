@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -361,15 +361,15 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	@Override
-	public CompletableFuture<JobExecutionResult> getJobExecutionResult(
+	public CompletableFuture<JobResult> getJobExecutionResult(
 			final JobID jobId,
 			final Time timeout) {
 
-		final JobExecutionResult jobExecutionResult = jobExecutionResultCache.get(jobId);
-		if (jobExecutionResult == null) {
+		final JobResult jobResult = jobExecutionResultCache.get(jobId);
+		if (jobResult == null) {
 			return FutureUtils.completedExceptionally(new JobExecutionResultNotFoundException(jobId));
 		} else {
-			return CompletableFuture.completedFuture(jobExecutionResult);
+			return CompletableFuture.completedFuture(jobResult);
 		}
 	}
 
@@ -587,7 +587,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			log.info("Job {} finished.", jobId);
 
 			runAsync(() -> {
@@ -601,7 +601,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 
 		@Override
-		public void jobFailed(JobExecutionResult result) {
+		public void jobFailed(JobResult result) {
 			log.info("Job {} failed.", jobId);
 
 			runAsync(() -> {

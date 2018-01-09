@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -46,7 +46,7 @@ public class JobExecutionResultCacheTest extends TestLogger {
 	@Test
 	public void testCacheResultUntilRetrieved() {
 		final JobID jobId = new JobID();
-		final JobExecutionResult build = new JobExecutionResult.Builder()
+		final JobResult build = new JobResult.Builder()
 			.jobId(jobId)
 			.netRuntime(Long.MAX_VALUE)
 			.build();
@@ -60,7 +60,7 @@ public class JobExecutionResultCacheTest extends TestLogger {
 	@Test
 	public void testThrowExceptionIfEntryAlreadyExists() {
 		final JobID jobId = new JobID();
-		final JobExecutionResult build = new JobExecutionResult.Builder()
+		final JobResult build = new JobResult.Builder()
 			.jobId(jobId)
 			.netRuntime(Long.MAX_VALUE)
 			.build();

@@ -28,7 +28,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.JobExecutionResult;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -289,14 +289,14 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		}
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			LOG.info("Job({}) finished.", jobId);
 
 			shutDownAndTerminate(true);
 		}
 
 		@Override
-		public void jobFailed(JobExecutionResult result) {
+		public void jobFailed(JobResult result) {
 			checkArgument(result.getSerializedThrowable().isPresent());
 
 			LOG.info("Job({}) failed.", jobId, result.getSerializedThrowable().get().getMessage());
