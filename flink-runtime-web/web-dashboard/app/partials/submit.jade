@@ -35,6 +35,10 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
     | &nbsp;to access this functionality.
 
 #content-inner(ng-if="!noaccess && jars && !yarn")
+  div(ng-if="error")
+    h3 We're sorry, something went wrong. The server responded with:
+    pre
+      | {{error}}
   .panel.panel-default
     .panel-heading
       h3.panel-title
@@ -92,6 +96,7 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
           label.checkbox-inline
             input.checkbox-inline(type="checkbox", ng-model="state['allowNonRestoredState']")
             | Allow Non Restored State
+            
 
   table.table.table-no-border(ng-if="jid")
     tbody
@@ -100,13 +105,6 @@ nav.navbar.navbar-default.navbar-fixed-top.navbar-main
           | Job was successfully submitted. To monitor,&nbsp;
           a(href="{{'#/jobs/' + jid}}")
             | click here.
-
-  table.table.table-no-border(ng-if="error")
-    tbody
-      tr
-        td
-          pre
-            | {{error}}
 
   .canvas-wrapper(ng-if="plan")
     div.main-canvas(job-plan, plan="plan", jobid="{{plan.jid}}", set-node="changeNode(nodeid)")
