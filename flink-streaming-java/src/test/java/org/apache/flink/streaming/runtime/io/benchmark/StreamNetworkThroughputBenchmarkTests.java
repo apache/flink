@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.benchmark;
+package org.apache.flink.streaming.runtime.io.benchmark;
 
 import org.junit.Test;
 
 /**
- * Tests for various network benchmarks based on {@link NetworkThroughputBenchmark}.
+ * Tests for various network benchmarks based on {@link StreamNetworkThroughputBenchmark}.
  */
-public class NetworkThroughputBenchmarkTests {
+public class StreamNetworkThroughputBenchmarkTests {
 	@Test
 	public void pointToPointBenchmark() throws Exception {
-		NetworkThroughputBenchmark benchmark = new NetworkThroughputBenchmark();
-		benchmark.setUp(1, 1);
+		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		benchmark.setUp(1, 1, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
 		}
@@ -38,8 +38,8 @@ public class NetworkThroughputBenchmarkTests {
 
 	@Test
 	public void pointToMultiPointBenchmark() throws Exception {
-		NetworkThroughputBenchmark benchmark = new NetworkThroughputBenchmark();
-		benchmark.setUp(1, 100);
+		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		benchmark.setUp(1, 100, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
 		}
@@ -50,8 +50,8 @@ public class NetworkThroughputBenchmarkTests {
 
 	@Test
 	public void multiPointToPointBenchmark() throws Exception {
-		NetworkThroughputBenchmark benchmark = new NetworkThroughputBenchmark();
-		benchmark.setUp(4, 1);
+		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		benchmark.setUp(4, 1, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
 		}
@@ -62,8 +62,8 @@ public class NetworkThroughputBenchmarkTests {
 
 	@Test
 	public void multiPointToMultiPointBenchmark() throws Exception {
-		NetworkThroughputBenchmark benchmark = new NetworkThroughputBenchmark();
-		benchmark.setUp(4, 100);
+		StreamNetworkThroughputBenchmark benchmark = new StreamNetworkThroughputBenchmark();
+		benchmark.setUp(4, 100, 100);
 		try {
 			benchmark.executeBenchmark(1_000);
 		}
