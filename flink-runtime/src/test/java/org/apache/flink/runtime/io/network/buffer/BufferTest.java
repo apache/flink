@@ -166,13 +166,13 @@ public class BufferTest extends AbstractByteBufTest {
 	}
 
 	/**
-	 * Tests that {@link NetworkBuffer#recycle()} and {@link NetworkBuffer#isRecycled()} are coupled
-	 * and are also consistent with {@link NetworkBuffer#refCnt()}.
+	 * Tests that {@link NetworkBuffer#recycleBuffer()} and {@link NetworkBuffer#isRecycled()} are
+	 * coupled and are also consistent with {@link NetworkBuffer#refCnt()}.
 	 */
 	private static void testRecycleBuffer(boolean isBuffer) {
 		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
 		assertFalse(buffer.isRecycled());
-		buffer.recycle();
+		buffer.recycleBuffer();
 		assertTrue(buffer.isRecycled());
 		assertEquals(0, buffer.refCnt());
 	}
@@ -188,15 +188,71 @@ public class BufferTest extends AbstractByteBufTest {
 	}
 
 	/**
-	 * Tests that {@link NetworkBuffer#retain()} and {@link NetworkBuffer#isRecycled()} are coupled
-	 * and are also consistent with {@link NetworkBuffer#refCnt()}.
+	 * Tests that {@link NetworkBuffer#retainBuffer()} and {@link NetworkBuffer#isRecycled()} are
+	 * coupled and are also consistent with {@link NetworkBuffer#refCnt()}.
 	 */
 	private static void testRetainBuffer(boolean isBuffer) {
 		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
 		assertFalse(buffer.isRecycled());
-		buffer.retain();
+		buffer.retainBuffer();
 		assertFalse(buffer.isRecycled());
 		assertEquals(2, buffer.refCnt());
+	}
+
+	@Test
+	public void testDataBufferCreateSlice1() {
+		testCreateSlice1(true);
+	}
+
+	@Test
+	public void testEventBufferCreateSlice1() {
+		testCreateSlice1(false);
+	}
+
+	private static void testCreateSlice1(boolean isBuffer) {
+		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
+		buffer.setSize(10); // fake some data
+		ReadOnlySlicedNetworkBuffer slice = buffer.readOnlySlice();
+
+		assertEquals(0, slice.getReaderIndex());
+		assertEquals(10, slice.getSize());
+		assertEquals(10, slice.getSizeUnsafe());
+		assertSame(buffer, slice.unwrap());
+
+		// slice indices should be independent:
+		buffer.setSize(8);
+		buffer.setReaderIndex(2);
+		assertEquals(0, slice.getReaderIndex());
+		assertEquals(10, slice.getSize());
+		assertEquals(10, slice.getSizeUnsafe());
+	}
+
+	@Test
+	public void testDataBufferCreateSlice2() {
+		testCreateSlice2(true);
+	}
+
+	@Test
+	public void testEventBufferCreateSlice2() {
+		testCreateSlice2(false);
+	}
+
+	private static void testCreateSlice2(boolean isBuffer) {
+		NetworkBuffer buffer = newBuffer(1024, 1024, isBuffer);
+		buffer.setSize(2); // fake some data
+		ReadOnlySlicedNetworkBuffer slice = buffer.readOnlySlice(1, 10);
+
+		assertEquals(0, slice.getReaderIndex());
+		assertEquals(10, slice.getSize());
+		assertEquals(10, slice.getSizeUnsafe());
+		assertSame(buffer, slice.unwrap());
+
+		// slice indices should be independent:
+		buffer.setSize(8);
+		buffer.setReaderIndex(2);
+		assertEquals(0, slice.getReaderIndex());
+		assertEquals(10, slice.getSize());
+		assertEquals(10, slice.getSizeUnsafe());
 	}
 
 	@Test
@@ -330,7 +386,10 @@ public class BufferTest extends AbstractByteBufTest {
 	@Test
 	public void testGetNioBufferReadableThreadSafe() {
 		NetworkBuffer buffer = newBuffer(1024, 1024);
+		testGetNioBufferReadableThreadSafe(buffer);
+	}
 
+	static void testGetNioBufferReadableThreadSafe(Buffer buffer) {
 		ByteBuffer buf1 = buffer.getNioBufferReadable();
 		ByteBuffer buf2 = buffer.getNioBufferReadable();
 
@@ -381,9 +440,12 @@ public class BufferTest extends AbstractByteBufTest {
 	@Test
 	public void testGetNioBufferThreadSafe() {
 		NetworkBuffer buffer = newBuffer(1024, 1024);
+		testGetNioBufferThreadSafe(buffer, 10);
+	}
 
-		ByteBuffer buf1 = buffer.getNioBuffer(0, 10);
-		ByteBuffer buf2 = buffer.getNioBuffer(0, 10);
+	static void testGetNioBufferThreadSafe(Buffer buffer, int length) {
+		ByteBuffer buf1 = buffer.getNioBuffer(0, length);
+		ByteBuffer buf2 = buffer.getNioBuffer(0, length);
 
 		assertNotNull(buf1);
 		assertNotNull(buf2);

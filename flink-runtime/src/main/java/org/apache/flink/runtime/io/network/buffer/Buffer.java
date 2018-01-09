@@ -97,6 +97,30 @@ public interface Buffer {
 	Buffer retainBuffer();
 
 	/**
+	 * Returns a read-only slice of this buffer's readable bytes, i.e. between
+	 * {@link #getReaderIndex()} and {@link #getSize()}.
+	 *
+	 * <p>Reader and writer indices as well as markers are not shared. Reference counters are
+	 * shared but the slice is not {@link #retainBuffer() retained} automatically.
+	 *
+	 * @return a read-only sliced buffer
+	 */
+	Buffer readOnlySlice();
+
+	/**
+	 * Returns a read-only slice of this buffer.
+	 *
+	 * <p>Reader and writer indices as well as markers are not shared. Reference counters are
+	 * shared but the slice is not {@link #retainBuffer() retained} automatically.
+	 *
+	 * @param index the index to start from
+	 * @param length the length of the slice
+	 *
+	 * @return a read-only sliced buffer
+	 */
+	Buffer readOnlySlice(int index, int length);
+
+	/**
 	 * Returns the maximum size of the buffer, i.e. the capacity of the underlying {@link MemorySegment}.
 	 *
 	 * @return size of the buffer
