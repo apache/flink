@@ -205,6 +205,23 @@ public class JobLeaderService {
 	}
 
 	/**
+	 * Triggers reconnection to the last known leader of the given job.
+	 *
+	 * @param jobId specifying the job for which to trigger reconnection
+	 */
+	public void reconnect(final JobID jobId) {
+		Preconditions.checkNotNull(jobId, "JobID must not be null.");
+
+		final Tuple2<LeaderRetrievalService, JobManagerLeaderListener> jobLeaderService = jobLeaderServices.get(jobId);
+
+		if (jobLeaderService != null) {
+			jobLeaderService.f1.reconnect();
+		} else {
+			LOG.info("Cannot reconnect to job {} because it is not registered.", jobId);
+		}
+	}
+
+	/**
 	 * Leader listener which tries to establish a connection to a newly detected job leader.
 	 */
 	private final class JobManagerLeaderListener implements LeaderRetrievalListener {
@@ -213,7 +230,7 @@ public class JobLeaderService {
 		private final JobID jobId;
 
 		/** Rpc connection to the job leader. */
-		private RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> rpcConnection;
+		private volatile RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> rpcConnection;
 
 		/** State of the listener. */
 		private volatile boolean stopped;
@@ -234,6 +251,32 @@ public class JobLeaderService {
 
 			if (rpcConnection != null) {
 				rpcConnection.close();
+			}
+		}
+
+		public void reconnect() {
+			if (stopped) {
+				LOG.debug("Cannot reconnect because the JobManagerLeaderListener has already been stopped.");
+			} else {
+				final RegisteredRpcConnection<JobMasterId, JobMasterGateway, JMTMRegistrationSuccess> currentRpcConnection = rpcConnection;
+
+				if (currentRpcConnection != null) {
+					if (currentRpcConnection.isConnected()) {
+
+						if (currentRpcConnection.tryReconnect()) {
+							// double check for concurrent stop operation
+							if (stopped) {
+								currentRpcConnection.close();
+							}
+						} else {
+							LOG.debug("Could not reconnect to the JobMaster {}.", currentRpcConnection.getTargetAddress());
+						}
+					} else {
+						LOG.debug("Ongoing registration to JobMaster {}.", currentRpcConnection.getTargetAddress());
+					}
+				} else {
+					LOG.debug("Cannot reconnect to an unknown JobMaster.");
+				}
 			}
 		}
 
