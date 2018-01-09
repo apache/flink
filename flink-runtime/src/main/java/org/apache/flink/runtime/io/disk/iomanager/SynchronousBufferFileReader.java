@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * A synchronous {@link BufferFileReader} implementation.
  *
@@ -54,13 +56,13 @@ public class SynchronousBufferFileReader extends SynchronousFileIOChannel implem
 			final boolean isBuffer = header.getInt() == 1;
 			final int size = header.getInt();
 
-			if (size > buffer.getMemorySegment().size()) {
-				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMemorySegment().size() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
+			if (size > buffer.getMaxCapacity()) {
+				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMaxCapacity() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
 			}
+			checkArgument(buffer.getSize() == 0, "Buffer not empty");
 
+			fileChannel.read(buffer.getNioBuffer(0, size));
 			buffer.setSize(size);
-
-			fileChannel.read(buffer.getNioBuffer());
 
 			if (!isBuffer) {
 				buffer.tagAsEvent();

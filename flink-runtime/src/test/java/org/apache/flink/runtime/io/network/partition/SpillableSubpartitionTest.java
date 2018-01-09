@@ -193,7 +193,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	public void testConsumeSpilledPartition() throws Exception {
 		SpillableSubpartition partition = createSubpartition();
 
-		Buffer buffer = TestBufferFactory.createBuffer(4096);
+		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
 		buffer.retain();
 		buffer.retain();
 
@@ -291,7 +291,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	public void testConsumeSpillablePartitionSpilledDuringConsume() throws Exception {
 		SpillableSubpartition partition = createSubpartition();
 
-		Buffer buffer = TestBufferFactory.createBuffer(4096);
+		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
 		buffer.retain();
 		buffer.retain();
 
@@ -403,7 +403,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		assertEquals(1, partition.getTotalNumberOfBuffers());
 		assertEquals(4, partition.getTotalNumberOfBytes());
 
-		Buffer buffer = TestBufferFactory.createBuffer(4096);
+		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
 		try {
 			partition.add(buffer);
 		} finally {
@@ -447,7 +447,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 			assertEquals(0, partition.releaseMemory());
 		}
 
-		Buffer buffer = TestBufferFactory.createBuffer(4096);
+		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
 		boolean bufferRecycled;
 		try {
 			partition.add(buffer);
@@ -475,7 +475,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		SpillableSubpartition partition = createSubpartition(ioManager);
 		assertEquals(0, partition.releaseMemory());
 
-		Buffer buffer = TestBufferFactory.createBuffer(4096);
+		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
 		boolean bufferRecycled;
 		try {
 			partition.add(buffer);
@@ -521,8 +521,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 		IOManager ioManager = new IOManagerAsyncWithNoOpBufferFileWriter();
 		SpillableSubpartition partition = createSubpartition(ioManager);
 
-		Buffer buffer1 = TestBufferFactory.createBuffer(4096);
-		Buffer buffer2 = TestBufferFactory.createBuffer(4096);
+		Buffer buffer1 = TestBufferFactory.createBuffer(4096, 4096);
+		Buffer buffer2 = TestBufferFactory.createBuffer(4096, 4096);
 		try {
 			// we need two buffers because the view will use one of them and not release it
 			partition.add(buffer1);
@@ -569,7 +569,7 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 
 		exception.expect(IOException.class);
 
-		Buffer buffer = TestBufferFactory.createBuffer(4096);
+		Buffer buffer = TestBufferFactory.createBuffer(4096, 4096);
 		boolean bufferRecycled;
 		try {
 			partition.add(buffer);
@@ -635,8 +635,8 @@ public class SpillableSubpartitionTest extends SubpartitionTestBase {
 	private void testCleanupReleasedPartition(boolean spilled, boolean createView) throws Exception {
 		SpillableSubpartition partition = createSubpartition();
 
-		Buffer buffer1 = TestBufferFactory.createBuffer(4096);
-		Buffer buffer2 = TestBufferFactory.createBuffer(4096);
+		Buffer buffer1 = TestBufferFactory.createBuffer(4096, 4096);
+		Buffer buffer2 = TestBufferFactory.createBuffer(4096, 4096);
 		boolean buffer1Recycled;
 		boolean buffer2Recycled;
 		try {

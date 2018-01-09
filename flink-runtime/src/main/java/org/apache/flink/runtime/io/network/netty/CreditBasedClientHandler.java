@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.netty.exception.LocalTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
@@ -291,20 +292,20 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 
 	private void decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
 		try {
+			int size = bufferOrEvent.getSize();
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
 
 				// Early return for empty buffers. Otherwise Netty's readBytes() throws an
 				// IndexOutOfBoundsException.
-				if (bufferOrEvent.getSize() == 0) {
+				if (size == 0) {
 					inputChannel.onEmptyBuffer(bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 					return;
 				}
 
-				Buffer buffer = inputChannel.requestBuffer();
+				NetworkBuffer buffer = (NetworkBuffer) inputChannel.requestBuffer();
 				if (buffer != null) {
-					buffer.setSize(bufferOrEvent.getSize());
-					bufferOrEvent.getNettyBuffer().readBytes(buffer.getNioBuffer());
+					bufferOrEvent.getNettyBuffer().readBytes(buffer, size);
 
 					inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 				} else if (inputChannel.isReleased()) {
@@ -315,11 +316,11 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 			} else {
 				// ---- Event -------------------------------------------------
 				// TODO We can just keep the serialized data in the Netty buffer and release it later at the reader
-				byte[] byteArray = new byte[bufferOrEvent.getSize()];
+				byte[] byteArray = new byte[size];
 				bufferOrEvent.getNettyBuffer().readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new Buffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 			}

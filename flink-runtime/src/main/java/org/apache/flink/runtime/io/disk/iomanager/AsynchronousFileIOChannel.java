@@ -28,6 +28,7 @@ import java.nio.channels.FileChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -367,14 +368,16 @@ final class BufferWriteRequest implements WriteRequest {
 
 	@Override
 	public void write() throws IOException {
+		ByteBuffer nioBufferReadable = buffer.getNioBufferReadable();
+
 		final ByteBuffer header = ByteBuffer.allocateDirect(8);
 
 		header.putInt(buffer.isBuffer() ? 1 : 0);
-		header.putInt(buffer.getSize());
+		header.putInt(nioBufferReadable.remaining());
 		header.flip();
 
 		channel.fileChannel.write(header);
-		channel.fileChannel.write(buffer.getNioBuffer());
+		channel.fileChannel.write(nioBufferReadable);
 	}
 
 	@Override
@@ -411,13 +414,13 @@ final class BufferReadRequest implements ReadRequest {
 			final boolean isBuffer = header.getInt() == 1;
 			final int size = header.getInt();
 
-			if (size > buffer.getMemorySegment().size()) {
-				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMemorySegment().size() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
+			if (size > buffer.getMaxCapacity()) {
+				throw new IllegalStateException("Buffer is too small for data: " + buffer.getMaxCapacity() + " bytes available, but " + size + " needed. This is most likely due to an serialized event, which is larger than the buffer size.");
 			}
+			checkArgument(buffer.getSize() == 0, "Buffer not empty");
 
+			fileChannel.read(buffer.getNioBuffer(0, size));
 			buffer.setSize(size);
-
-			fileChannel.read(buffer.getNioBuffer());
 
 			if (!isBuffer) {
 				buffer.tagAsEvent();

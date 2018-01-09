@@ -26,9 +26,9 @@ import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
-import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -51,6 +51,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -64,7 +65,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.hamcrest.Matchers.instanceOf;
 
 public class PartitionRequestClientHandlerTest {
 
@@ -93,7 +93,7 @@ public class PartitionRequestClientHandlerTest {
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
 		final BufferResponse receivedBuffer = createBufferResponse(
-				TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), 2);
+				TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel.getInputChannelId(), 2);
 
 		final PartitionRequestClientHandler client = new PartitionRequestClientHandler();
 		client.addInputChannel(inputChannel);
@@ -110,15 +110,14 @@ public class PartitionRequestClientHandlerTest {
 	public void testReceiveEmptyBuffer() throws Exception {
 		// Minimal mock of a remote input channel
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer());
+		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer(0));
 
 		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
 		when(inputChannel.getBufferProvider()).thenReturn(bufferProvider);
 
 		// An empty buffer of size 0
-		final Buffer emptyBuffer = TestBufferFactory.createBuffer();
-		emptyBuffer.setSize(0);
+		final Buffer emptyBuffer = TestBufferFactory.createBuffer(0);
 
 		final int backlog = 2;
 		final BufferResponse receivedBuffer = createBufferResponse(
@@ -186,7 +185,7 @@ public class PartitionRequestClientHandlerTest {
 			0, inputChannel.getNumberOfAvailableBuffers());
 
 		final BufferResponse bufferResponse = createBufferResponse(
-			TestBufferFactory.createBuffer(), 0, inputChannel.getInputChannelId(), 2);
+			TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE), 0, inputChannel.getInputChannelId(), 2);
 		handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
 		verify(inputChannel, times(1)).onError(any(IllegalStateException.class));
@@ -200,7 +199,7 @@ public class PartitionRequestClientHandlerTest {
 	public void testReceivePartitionNotFoundException() throws Exception {
 		// Minimal mock of a remote input channel
 		final BufferProvider bufferProvider = mock(BufferProvider.class);
-		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer());
+		when(bufferProvider.requestBuffer()).thenReturn(TestBufferFactory.createBuffer(0));
 
 		final RemoteInputChannel inputChannel = mock(RemoteInputChannel.class);
 		when(inputChannel.getInputChannelId()).thenReturn(new InputChannelID());
