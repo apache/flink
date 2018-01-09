@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, Typ
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.sql.DateTimeSqlFunction
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.flink.table.functions.sql.{DateTimeSqlFunction, ScalarSqlFunctions}
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
 
@@ -414,6 +415,11 @@ object FunctionGenerator {
     DOUBLE_TYPE_INFO,
     BuiltInMethods.LOG_WITH_BASE)
 
+  addSqlFunction(
+    ScalarSqlFunctions.E,
+    Seq(),
+    new ConstantCallGen(DOUBLE_TYPE_INFO, Math.E.toString))
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
@@ -502,6 +508,12 @@ object FunctionGenerator {
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
     new DateFormatCallGen
   )
+
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.BIN,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.BIN)
 
   // ----------------------------------------------------------------------------------------------
 

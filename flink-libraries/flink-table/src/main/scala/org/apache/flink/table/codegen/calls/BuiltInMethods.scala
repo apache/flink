@@ -96,4 +96,5 @@ object BuiltInMethods {
     Types.lookupMethod(
       classOf[ScalarFunctions], "concat_ws", classOf[String], classOf[Array[String]])
 
+  val BIN = Types.lookupMethod(classOf[JLong], "toBinaryString", classOf[Long])
 }
