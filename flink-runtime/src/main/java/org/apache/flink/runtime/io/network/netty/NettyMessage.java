@@ -255,7 +255,7 @@ public abstract class NettyMessage {
 			this.buffer = checkNotNull(buffer);
 			this.retainedSlice = null;
 			this.isBuffer = buffer.isBuffer();
-			this.size = buffer.getSize();
+			this.size = buffer.getMaxCapacity();
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
@@ -288,18 +288,20 @@ public abstract class NettyMessage {
 		ByteBuf write(ByteBufAllocator allocator) throws IOException {
 			checkNotNull(buffer, "No buffer instance to serialize.");
 
-			int length = 16 + 4 + 4 + 1 + 4 + buffer.getSize();
 
 			ByteBuf result = null;
 			try {
+				ByteBuffer nioBufferReadable = buffer.getNioBufferReadable();
+				int length = 16 + 4 + 4 + 1 + 4 + nioBufferReadable.remaining();
+
 				result = allocateBuffer(allocator, ID, length);
 
 				receiverId.writeTo(result);
 				result.writeInt(sequenceNumber);
 				result.writeInt(backlog);
 				result.writeBoolean(buffer.isBuffer());
-				result.writeInt(buffer.getSize());
-				result.writeBytes(buffer.getNioBuffer());
+				result.writeInt(nioBufferReadable.remaining());
+				result.writeBytes(nioBufferReadable);
 
 				return result;
 			}

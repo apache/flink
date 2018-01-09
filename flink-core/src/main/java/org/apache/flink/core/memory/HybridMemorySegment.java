@@ -110,14 +110,6 @@ public final class HybridMemorySegment extends MemorySegment {
 	//  MemorySegment operations
 	// -------------------------------------------------------------------------
 
-	public byte[] getArray() {
-		if (heapMemory != null) {
-			return heapMemory;
-		} else {
-			throw new IllegalStateException("Memory segment does not represent heap memory");
-		}
-	}
-
 	/**
 	 * Gets the buffer that owns the memory of this memory segment.
 	 *

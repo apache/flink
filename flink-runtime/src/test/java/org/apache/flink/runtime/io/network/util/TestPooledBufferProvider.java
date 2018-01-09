@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 
@@ -124,7 +125,7 @@ public class TestPooledBufferProvider implements BufferProvider {
 		@Override
 		public void recycle(MemorySegment segment) {
 			synchronized (listenerRegistrationLock) {
-				final Buffer buffer = new Buffer(segment, this);
+				final Buffer buffer = new NetworkBuffer(segment, this);
 
 				BufferListener listener = registeredListeners.poll();
 

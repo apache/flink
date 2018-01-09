@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -57,7 +56,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			assertEquals(0, subpartition.getBuffersInBacklog());
 			assertEquals(4, subpartition.getTotalNumberOfBytes());
 
-			Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
+			Buffer buffer = createBuffer(4096, 4096);
 
 			assertFalse(subpartition.add(buffer));
 			assertEquals(1, subpartition.getTotalNumberOfBuffers());
@@ -83,7 +82,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 			assertEquals(0, subpartition.getBuffersInBacklog());
 			assertEquals(0, subpartition.getTotalNumberOfBytes());
 
-			Buffer buffer = new Buffer(MemorySegmentFactory.allocateUnpooledSegment(4096), FreeingBufferRecycler.INSTANCE);
+			Buffer buffer = createBuffer(4096, 4096);
 
 			assertFalse(subpartition.add(buffer));
 			assertEquals(0, subpartition.getTotalNumberOfBuffers());
@@ -112,7 +111,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
 	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
 		// Add a buffer
-		Buffer buffer = TestBufferFactory.createBuffer();
+		Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 		partition.add(buffer);
 		partition.finish();
 

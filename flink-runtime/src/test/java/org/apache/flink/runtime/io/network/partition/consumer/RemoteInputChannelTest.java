@@ -69,7 +69,7 @@ public class RemoteInputChannelTest {
 		// Setup
 		final SingleInputGate inputGate = mock(SingleInputGate.class);
 		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
-		final Buffer buffer = TestBufferFactory.createBuffer();
+		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 
 		// The test
 		inputChannel.onBuffer(buffer.retain(), 0, -1);
@@ -103,7 +103,7 @@ public class RemoteInputChannelTest {
 
 		// Setup
 		final ExecutorService executor = Executors.newFixedThreadPool(2);
-		final Buffer buffer = TestBufferFactory.createBuffer();
+		final Buffer buffer = TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE);
 
 		try {
 			// Test

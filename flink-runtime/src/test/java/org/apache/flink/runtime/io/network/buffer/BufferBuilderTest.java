@@ -105,7 +105,7 @@ public class BufferBuilderTest {
 	}
 
 	private static void assertBufferContent(Buffer actualBuffer, int... expected) {
-		assertEquals(toByteBuffer(expected), actualBuffer.getNioBuffer());
+		assertEquals(toByteBuffer(expected), actualBuffer.getNioBufferReadable());
 	}
 
 	private static BufferBuilder createBufferBuilder() {

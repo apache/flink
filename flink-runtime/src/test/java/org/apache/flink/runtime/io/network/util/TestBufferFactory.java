@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -56,7 +57,7 @@ public class TestBufferFactory {
 		}
 
 		numberOfCreatedBuffers++;
-		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), bufferRecycler);
+		return new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), bufferRecycler);
 	}
 
 	public synchronized int getNumberOfCreatedBuffers() {
@@ -71,13 +72,31 @@ public class TestBufferFactory {
 	// Static test helpers
 	// ------------------------------------------------------------------------
 
-	public static Buffer createBuffer() {
-		return createBuffer(BUFFER_SIZE);
+	/**
+	 * Creates a (network) buffer with default size, i.e. {@link #BUFFER_SIZE}, and unspecified data
+	 * of the given size.
+	 *
+	 * @param dataSize
+	 * 		size of the data in the buffer, i.e. the new writer index
+	 *
+	 * @return a new buffer instance
+	 */
+	public static Buffer createBuffer(int dataSize) {
+		return createBuffer(BUFFER_SIZE, dataSize);
 	}
 
-	public static Buffer createBuffer(int bufferSize) {
-		checkArgument(bufferSize > 0);
-
-		return new Buffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), RECYCLER);
+	/**
+	 * Creates a (network) buffer with unspecified data of the given size.
+	 *
+	 * @param bufferSize
+	 * 		size of the buffer
+	 * @param dataSize
+	 * 		size of the data in the buffer, i.e. the new writer index
+	 *
+	 * @return a new buffer instance
+	 */
+	public static Buffer createBuffer(int bufferSize, int dataSize) {
+		return new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
+				RECYCLER, true, dataSize);
 	}
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.disk.iomanager.BufferFileWriter;
 import org.apache.flink.runtime.io.disk.iomanager.SynchronousBufferFileReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -193,7 +194,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 
 			synchronized (buffers) {
 				for (int i = 0; i < numberOfBuffers; i++) {
-					buffers.add(new Buffer(MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize), this));
+					buffers.add(new NetworkBuffer(MemorySegmentFactory.allocateUnpooledSegment(memorySegmentSize), this));
 				}
 			}
 		}
@@ -204,7 +205,7 @@ class SpilledSubpartitionView implements ResultSubpartitionView, NotificationLis
 				if (isDestroyed) {
 					memorySegment.free();
 				} else {
-					buffers.add(new Buffer(memorySegment, this));
+					buffers.add(new NetworkBuffer(memorySegment, this));
 					buffers.notifyAll();
 				}
 			}

@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 
 import org.junit.After;
@@ -374,7 +375,7 @@ public class BufferSpillerTest {
 			seg.put(i, (byte) i);
 		}
 
-		Buffer buf = new Buffer(seg, FreeingBufferRecycler.INSTANCE);
+		Buffer buf = new NetworkBuffer(seg, FreeingBufferRecycler.INSTANCE);
 		buf.setSize(size);
 		return new BufferOrEvent(buf, channelIndex);
 	}

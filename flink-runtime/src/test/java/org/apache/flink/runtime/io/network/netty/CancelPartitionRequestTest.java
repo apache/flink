@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
@@ -37,6 +38,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -189,7 +191,9 @@ public class CancelPartitionRequestTest {
 		@Nullable
 		@Override
 		public BufferAndBacklog getNextBuffer() throws IOException, InterruptedException {
-			return new BufferAndBacklog(bufferProvider.requestBufferBlocking(), 0);
+			Buffer buffer = bufferProvider.requestBufferBlocking();
+			buffer.setSize(buffer.getMaxCapacity()); // fake some data
+			return new BufferAndBacklog(buffer, 0);
 		}
 
 		@Override

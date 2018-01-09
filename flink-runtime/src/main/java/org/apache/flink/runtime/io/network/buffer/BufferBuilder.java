@@ -69,7 +69,7 @@ public class BufferBuilder {
 	public Buffer build() {
 		checkState(!built);
 		built = true;
-		return new Buffer(memorySegment, recycler, true, position);
+		return new NetworkBuffer(memorySegment, recycler, true, position);
 	}
 
 	public boolean isEmpty() {

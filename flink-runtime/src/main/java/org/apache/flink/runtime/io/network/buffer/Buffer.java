@@ -22,141 +22,153 @@ import org.apache.flink.core.memory.MemorySegment;
 
 import java.nio.ByteBuffer;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
- * Wrapper for pooled {@link MemorySegment} instances.
+ * Wrapper for pooled {@link MemorySegment} instances with reference counting.
+ *
+ * <p>This is similar to Netty's <tt>ByteBuf</tt> with some extensions and restricted to the methods
+ * our use cases outside Netty handling use. In particular, we use two different indexes for read
+ * and write operations, i.e. the <tt>reader</tt> and <tt>writer</tt> index (size of written data),
+ * which specify three regions inside the memory segment:
+ * <pre>
+ *     +-------------------+----------------+----------------+
+ *     | discardable bytes | readable bytes | writable bytes |
+ *     +-------------------+----------------+----------------+
+ *     |                   |                |                |
+ *     0      <=      readerIndex  <=  writerIndex   <=  max capacity
+ * </pre>
+ *
+ * <p>Our non-Netty usages of this <tt>Buffer</tt> class either rely on the underlying {@link
+ * #getMemorySegment()} directly, or on {@link ByteBuffer} wrappers of this buffer which do not
+ * modify either index, so the indices need to be updated manually via {@link #setReaderIndex(int)}
+ * and {@link #setSize(int)}.
  */
-public class Buffer {
-
-	/** The backing {@link MemorySegment} instance */
-	private final MemorySegment memorySegment;
-
-	private final Object recycleLock = new Object();
-
-	/** The recycler for the backing {@link MemorySegment} */
-	private final BufferRecycler recycler;
-
-	private boolean isBuffer;
-
-	/** The current number of references to this buffer */
-	private int referenceCount = 1;
+public interface Buffer {
 
 	/**
-	 * The current size of the buffer in the range from 0 (inclusive) to the
-	 * size of the backing {@link MemorySegment} (inclusive).
-	 */
-	private int currentSize;
-
-	public Buffer(MemorySegment memorySegment, BufferRecycler recycler) {
-		this(memorySegment, recycler, true);
-	}
-
-	public Buffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer) {
-		this(memorySegment, recycler, isBuffer, memorySegment.size());
-	}
-
-	public Buffer(MemorySegment memorySegment, BufferRecycler recycler, boolean isBuffer, int size) {
-		this.memorySegment = checkNotNull(memorySegment);
-		this.recycler = checkNotNull(recycler);
-		this.isBuffer = isBuffer;
-		this.currentSize = size;
-	}
-
-	public boolean isBuffer() {
-		return isBuffer;
-	}
-
-	public void tagAsEvent() {
-		synchronized (recycleLock) {
-			ensureNotRecycled();
-		}
-
-		isBuffer = false;
-	}
-
-	public MemorySegment getMemorySegment() {
-		synchronized (recycleLock) {
-			ensureNotRecycled();
-
-			return memorySegment;
-		}
-	}
-
-	public ByteBuffer getNioBuffer() {
-		synchronized (recycleLock) {
-			ensureNotRecycled();
-			// the memory segment returns a distinct buffer every time
-			return memorySegment.wrap(0, currentSize);
-		}
-	}
-	
-	public BufferRecycler getRecycler(){
-		return recycler;
-	}
-
-	/**
-	 * Returns the size of this buffer without synchronization.
+	 * Returns whether this buffer represents a buffer or an event.
 	 *
-	 * @return size of this buffer
+	 * @return <tt>true</tt> if this is a real buffer, <tt>false</tt> if this is an event
 	 */
-	public int getSizeUnsafe() {
-		return currentSize;
-	}
+	boolean isBuffer();
 
-	public int getSize() {
-		synchronized (recycleLock) {
-			return currentSize;
-		}
-	}
+	/**
+	 * Tags this buffer to represent an event.
+	 */
+	void tagAsEvent();
 
-	public void setSize(int newSize) {
-		synchronized (recycleLock) {
-			ensureNotRecycled();
+	/**
+	 * Returns the underlying memory segment.
+	 *
+	 * @return the memory segment backing this buffer
+	 */
+	MemorySegment getMemorySegment();
 
-			if (newSize < 0 || newSize > memorySegment.size()) {
-				throw new IllegalArgumentException("Size of buffer must be >= 0 and <= " +
-													memorySegment.size() + ", but was " + newSize + ".");
-			}
+	/**
+	 * Gets the buffer's recycler.
+	 *
+	 * @return buffer recycler
+	 */
+	BufferRecycler getRecycler();
 
-			currentSize = newSize;
-		}
-	}
+	/**
+	 * Releases this buffer once, i.e. reduces the reference count and recycles the buffer if the
+	 * reference count reaches <tt>0</tt>.
+	 *
+	 * @see #retain()
+	 */
+	void recycle();
 
-	public void recycle() {
-		synchronized (recycleLock) {
-			if (--referenceCount == 0) {
-				recycler.recycle(memorySegment);
-			}
-		}
-	}
+	/**
+	 * Returns whether this buffer has been recycled or not.
+	 *
+	 * @return <tt>true</tt> if already recycled, <tt>false</tt> otherwise
+	 */
+	boolean isRecycled();
 
-	public Buffer retain() {
-		synchronized (recycleLock) {
-			ensureNotRecycled();
+	/**
+	 * Retains this buffer for further use, increasing the reference counter by <tt>1</tt>.
+	 *
+	 * @return <tt>this</tt> instance (for chained calls)
+	 *
+	 * @see #recycle()
+	 */
+	Buffer retain();
 
-			referenceCount++;
+	/**
+	 * Returns the maximum size of the buffer, i.e. the capacity of the underlying {@link MemorySegment}.
+	 *
+	 * @return size of the buffer
+	 */
+	int getMaxCapacity();
 
-			return this;
-		}
-	}
+	/**
+	 * Returns the <tt>reader index</tt> of this buffer.
+	 *
+	 * <p>This is where readable (unconsumed) bytes start in the backing memory segment.
+	 *
+	 * @return reader index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
+	 * (inclusive))
+	 */
+	int getReaderIndex();
 
-	public boolean isRecycled() {
-		synchronized (recycleLock) {
-			return referenceCount == 0;
-		}
-	}
+	/**
+	 * Sets the <tt>reader index</tt> of this buffer.
+	 *
+	 * @throws IndexOutOfBoundsException
+	 * 		if the index is less than <tt>0</tt> or greater than {@link #getSize()}
+	 */
+	void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException;
 
-	// Must be called from synchronized scope
-	private void ensureNotRecycled() {
-		checkState(referenceCount > 0, "Buffer has already been recycled.");
-	}
+	/**
+	 * Returns the size of the written data, i.e. the <tt>writer index</tt>, of this buffer in an
+	 * non-synchronized fashion.
+	 *
+	 * <p>This is where writable bytes start in the backing memory segment.
+	 *
+	 * @return writer index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
+	 * (inclusive))
+	 */
+	int getSizeUnsafe();
 
-	@Override
-	public String toString() {
-		synchronized (recycleLock) {
-			return String.format("Buffer %s [size: %d, reference count: %d]", hashCode(), currentSize, referenceCount);
-		}
-	}
+	/**
+	 * Returns the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
+	 *
+	 * <p>This is where writable bytes start in the backing memory segment.
+	 *
+	 * @return writer index (from 0 (inclusive) to the size of the backing {@link MemorySegment}
+	 * (inclusive))
+	 */
+	int getSize();
+
+	/**
+	 * Sets the size of the written data, i.e. the <tt>writer index</tt>, of this buffer.
+	 *
+	 * @throws IndexOutOfBoundsException
+	 * 		if the index is less than {@link #getReaderIndex()} or greater than {@link #getMaxCapacity()}
+	 */
+	void setSize(int writerIndex);
+
+	/**
+	 * Gets a new {@link ByteBuffer} instance wrapping this buffer's readable bytes, i.e. between
+	 * {@link #getReaderIndex()} and {@link #getSize()}.
+	 *
+	 * <p>Please note that neither index is updated by the returned buffer.
+	 *
+	 * @return byte buffer sharing the contents of the underlying memory segment
+	 */
+	ByteBuffer getNioBufferReadable();
+
+	/**
+	 * Gets a new {@link ByteBuffer} instance wrapping this buffer's bytes.
+	 *
+	 * <p>Please note that neither <tt>read</tt> nor <tt>write</tt> index are updated by the
+	 * returned buffer.
+	 *
+	 * @return byte buffer sharing the contents of the underlying memory segment
+	 *
+	 * @throws IndexOutOfBoundsException
+	 * 		if the indexes are not without the buffer's bounds
+	 * @see #getNioBufferReadable()
+	 */
+	ByteBuffer getNioBuffer(int index, int length) throws IndexOutOfBoundsException;
 }

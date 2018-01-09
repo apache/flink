@@ -238,6 +238,38 @@ public abstract class MemorySegment {
 	}
 
 	/**
+	 * Returns the byte array of on-heap memory segments.
+	 *
+	 * @return underlying byte array
+	 *
+	 * @throws IllegalStateException
+	 * 		if the memory segment does not represent on-heap memory
+	 */
+	public byte[] getArray() {
+		if (heapMemory != null) {
+			return heapMemory;
+		} else {
+			throw new IllegalStateException("Memory segment does not represent heap memory");
+		}
+	}
+
+	/**
+	 * Returns the memory address of off-heap memory segments.
+	 *
+	 * @return absolute memory address outside the heap
+	 *
+	 * @throws IllegalStateException
+	 * 		if the memory segment does not represent off-heap memory
+	 */
+	public long getAddress() {
+		if (heapMemory == null) {
+			return address;
+		} else {
+			throw new IllegalStateException("Memory segment does not represent off heap memory");
+		}
+	}
+
+	/**
 	 * Wraps the chunk of the underlying memory located between <tt>offset</tt> and
 	 * <tt>length</tt> in a NIO ByteBuffer.
 	 *

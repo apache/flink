@@ -213,7 +213,7 @@ public class SpilledSubpartitionViewTest {
 		final BufferFileWriter writer = IO_MANAGER.createBufferFileWriter(IO_MANAGER.createChannel());
 
 		for (int i = 0; i < numberOfBuffers; i++) {
-			writer.writeBlock(TestBufferFactory.createBuffer());
+			writer.writeBlock(TestBufferFactory.createBuffer(TestBufferFactory.BUFFER_SIZE));
 		}
 
 		writer.writeBlock(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE));
