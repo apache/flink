@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.util.SerializedThrowable;
@@ -67,6 +68,9 @@ public class JobResult implements Serializable {
 		this.serializedThrowable = serializedThrowable;
 	}
 
+	/**
+	 * Returns {@code true} if the job finished successfully.
+	 */
 	public boolean isSuccess() {
 		return serializedThrowable == null;
 	}
@@ -83,6 +87,10 @@ public class JobResult implements Serializable {
 		return netRuntime;
 	}
 
+	/**
+	 * Returns an empty {@code Optional} if the job finished successfully, otherwise the
+	 * {@code Optional} will carry the failure cause.
+	 */
 	public Optional<SerializedThrowable> getSerializedThrowable() {
 		return Optional.ofNullable(serializedThrowable);
 	}
@@ -90,6 +98,7 @@ public class JobResult implements Serializable {
 	/**
 	 * Builder for {@link JobResult}.
 	 */
+	@Internal
 	public static class Builder {
 
 		private JobID jobId;
