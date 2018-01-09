@@ -22,10 +22,8 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 
 import akka.actor.ActorRef;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
- * Interface for Akka based rpc gateways
+ * Interface for Akka based rpc gateways.
  */
 interface AkkaBasedEndpoint extends RpcGateway {
 
@@ -35,11 +33,4 @@ interface AkkaBasedEndpoint extends RpcGateway {
 	 * @return the {@link ActorRef} of the underlying RPC actor
 	 */
 	ActorRef getActorRef();
-
-	/**
-	 * Returns the internal termination future.
-	 *
-	 * @return Internal termination future
-	 */
-	CompletableFuture<Void> getInternalTerminationFuture();
 }
