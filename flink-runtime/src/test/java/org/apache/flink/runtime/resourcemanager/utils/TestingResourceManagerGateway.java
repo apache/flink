@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.utils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -68,6 +69,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	private volatile Consumer<SlotRequest> requestSlotConsumer;
 
+	private volatile Consumer<Tuple4<JobMasterId, ResourceID, String, JobID>> registerJobManagerConsumer;
+
+	private volatile Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer;
+
 	public TestingResourceManagerGateway() {
 		this(
 			ResourceManagerId.generate(),
@@ -105,8 +110,22 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 		this.requestSlotConsumer = slotRequestConsumer;
 	}
 
+	public void setRegisterJobManagerConsumer(Consumer<Tuple4<JobMasterId, ResourceID, String, JobID>> registerJobManagerConsumer) {
+		this.registerJobManagerConsumer = registerJobManagerConsumer;
+	}
+
+	public void setDisconnectJobManagerConsumer(Consumer<Tuple2<JobID, Throwable>> disconnectJobManagerConsumer) {
+		this.disconnectJobManagerConsumer = disconnectJobManagerConsumer;
+	}
+
 	@Override
 	public CompletableFuture<RegistrationResponse> registerJobManager(JobMasterId jobMasterId, ResourceID jobMasterResourceId, String jobMasterAddress, JobID jobId, Time timeout) {
+		final Consumer<Tuple4<JobMasterId, ResourceID, String, JobID>> currentConsumer = registerJobManagerConsumer;
+
+		if (currentConsumer != null) {
+			currentConsumer.accept(Tuple4.of(jobMasterId, jobMasterResourceId, jobMasterAddress, jobId));
+		}
+
 		return CompletableFuture.completedFuture(
 			new JobMasterRegistrationSuccess(
 				heartbeatInterval,
@@ -191,7 +210,11 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
 	@Override
 	public void disconnectJobManager(JobID jobId, Exception cause) {
+		final Consumer<Tuple2<JobID, Throwable>> currentConsumer = disconnectJobManagerConsumer;
 
+		if (currentConsumer != null) {
+			currentConsumer.accept(Tuple2.of(jobId, cause));
+		}
 	}
 
 	@Override
