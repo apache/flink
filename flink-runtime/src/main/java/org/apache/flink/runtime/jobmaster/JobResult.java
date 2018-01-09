@@ -49,6 +49,8 @@ public class JobResult implements Serializable {
 
 	private final long netRuntime;
 
+	/** Stores the cause of the job failure, or {@code null} if the job finished successfully. */
+	@Nullable
 	private final SerializedThrowable serializedThrowable;
 
 	private JobResult(
