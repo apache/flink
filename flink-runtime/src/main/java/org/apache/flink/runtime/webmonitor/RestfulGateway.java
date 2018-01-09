@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
@@ -102,9 +103,13 @@ public interface RestfulGateway extends RpcGateway {
 	 *
 	 * @see #isJobExecutionResultPresent(JobID, Time)
 	 *
-	 * @return CompletableFuture containing the JobExecutionResult. If there is no result,
-	 * the future will be completed exceptionally with
-	 * {@link org.apache.flink.runtime.messages.JobExecutionResultNotFoundException}
+	 * @return CompletableFuture containing the JobExecutionResult. The future is completed
+	 * exceptionally with:
+	 * <ul>
+	 * 	<li>{@link FlinkJobNotFoundException} if there is no result, or if the result has
+	 * 	expired
+	 * 	<li>{@link JobExecutionResultGoneException} if the result was removed due to memory demand.
+	 * </ul>
 	 */
 	default CompletableFuture<JobResult> getJobExecutionResult(
 			JobID jobId,
@@ -121,9 +126,12 @@ public interface RestfulGateway extends RpcGateway {
 	 * @see #getJobExecutionResult(JobID, Time)
 	 *
 	 * @return {@link CompletableFuture} containing {@code true} when then the
-	 * {@link JobResult} is present. The future is completed exceptionally with
-	 * {@link FlinkJobNotFoundException} if there is no job running with the specified ID, or if the
-	 * result has expired.
+	 * {@link JobResult} is present. The future is completed exceptionally with:
+	 * <ul>
+	 * 	<li>{@link FlinkJobNotFoundException} if there is no job running with the specified ID, or
+	 * 	if the result has expired
+	 * 	<li>{@link JobExecutionResultGoneException} if the result was removed due to memory demand.
+	 * </ul>
 	 */
 	default CompletableFuture<Boolean> isJobExecutionResultPresent(
 			JobID jobId, @RpcTimeout Time timeout) {

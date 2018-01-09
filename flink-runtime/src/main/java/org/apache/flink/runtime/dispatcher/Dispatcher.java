@@ -36,14 +36,14 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.JobExecutionResultNotFoundException;
+import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -61,6 +61,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -365,11 +366,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			final JobID jobId,
 			final Time timeout) {
 
-		final JobResult jobResult = jobExecutionResultCache.get(jobId);
-		if (jobResult == null) {
-			return FutureUtils.completedExceptionally(new JobExecutionResultNotFoundException(jobId));
+		final SoftReference<JobResult> jobResultRef = jobExecutionResultCache.get(jobId);
+		if (jobResultRef == null) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
 		} else {
-			return CompletableFuture.completedFuture(jobResult);
+			final JobResult jobResult = jobResultRef.get();
+			if (jobResult == null) {
+				return FutureUtils.completedExceptionally(new JobExecutionResultGoneException(jobId));
+			} else {
+				return CompletableFuture.completedFuture(jobResult);
+			}
 		}
 	}
 

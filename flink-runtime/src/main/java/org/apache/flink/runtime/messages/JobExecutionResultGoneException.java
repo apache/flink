@@ -19,27 +19,18 @@
 package org.apache.flink.runtime.messages;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FlinkException;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * Exception indicating that we could not find a {@link JobResult} under the given {@link JobID}.
+ * Exception indicating that the required {@link org.apache.flink.runtime.jobmaster.JobResult} was
+ * garbage collected.
+ * @see org.apache.flink.runtime.dispatcher.JobExecutionResultCache
  */
-public class JobExecutionResultNotFoundException extends FlinkException {
+public class JobExecutionResultGoneException extends FlinkException {
 
 	private static final long serialVersionUID = 1L;
 
-	private final JobID jobId;
-
-	public JobExecutionResultNotFoundException(JobID jobId) {
-		super("Could not find JobExecutionResult for job (" + jobId + ')');
-		this.jobId = requireNonNull(jobId, "jobId must not be null");
+	public JobExecutionResultGoneException(JobID jobId) {
+		super(String.format("Job execution result for job [%s] is gone.", jobId));
 	}
-
-	public JobID getJobId() {
-		return jobId;
-	}
-
 }

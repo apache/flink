@@ -25,8 +25,12 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.lang.ref.SoftReference;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -46,15 +50,24 @@ public class JobExecutionResultCacheTest extends TestLogger {
 	@Test
 	public void testCacheResultUntilRetrieved() {
 		final JobID jobId = new JobID();
-		final JobResult build = new JobResult.Builder()
+		final JobResult jobResult = new JobResult.Builder()
 			.jobId(jobId)
 			.netRuntime(Long.MAX_VALUE)
 			.build();
-		jobExecutionResultCache.put(build);
+		jobExecutionResultCache.put(jobResult);
 
 		assertThat(jobExecutionResultCache.contains(jobId), equalTo(true));
-		assertThat(jobExecutionResultCache.get(jobId), sameInstance(build));
+
+		SoftReference<JobResult> jobResultRef;
+		jobResultRef = jobExecutionResultCache.get(jobId);
+
+		assertThat(jobResultRef, notNullValue());
+		assertThat(jobResultRef.get(), sameInstance(jobResult));
+
 		assertThat(jobExecutionResultCache.contains(jobId), equalTo(false));
+
+		jobResultRef = jobExecutionResultCache.get(jobId);
+		assertThat(jobResultRef, nullValue());
 	}
 
 	@Test
