@@ -819,8 +819,10 @@ When defining a position-based mapping, the specified names must not exist in th
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 DataStream<Tuple2<Long, Integer>> stream = ...
+
 // convert DataStream into Table with default field names "f0" and "f1"
 Table table = tableEnv.fromDataStream(stream);
+
 // convert DataStream into Table with field names "myLong" and "myInt"
 Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
 {% endhighlight %}
@@ -832,8 +834,10 @@ Table table = tableEnv.fromDataStream(stream, "myLong, myInt");
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 val stream: DataStream[(Long, Int)] = ...
+
 // convert DataStream into Table with default field names "_1" and "_2"
 val table: Table = tableEnv.fromDataStream(stream)
+
 // convert DataStream into Table with field names "myLong" and "myInt"
 val table: Table = tableEnv.fromDataStream(stream, 'myLong 'myInt)
 {% endhighlight %}
@@ -853,12 +857,16 @@ If no field names are specified, the default field names and field order of the 
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 DataStream<Tuple2<Long, Integer>> stream = ...
+
 // convert DataStream into Table with default field names "f0" and "f1"
 Table table = tableEnv.fromDataStream(stream);
+
 // convert DataStream into Table with field "f1" only
 Table table = tableEnv.fromDataStream(stream, "f1");
+
 // convert DataStream into Table with swapped fields
 Table table = tableEnv.fromDataStream(stream, "f1, f0");
+
 // convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
 Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
 {% endhighlight %}
@@ -870,23 +878,25 @@ Table table = tableEnv.fromDataStream(stream, "f1 as myInt, f0 as myLong");
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 val stream: DataStream[(Long, Int)] = ...
+
 // convert DataStream into Table with default field names "_1" and "_2"
 val table: Table = tableEnv.fromDataStream(stream)
+
 // convert DataStream into Table with field "_2" only
 val table: Table = tableEnv.fromDataStream(stream, '_2)
+
 // convert DataStream into Table with swapped fields
-Table table = tableEnv.fromDataStream(stream, '_2, '_1);
+val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+
 // convert DataStream into Table with swapped fields and field names "myInt" and "myLong"
-Table table = tableEnv.fromDataStream(stream, '_2 as 'myInt, '_1 as 'myLong);
+val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myInt, '_1 as 'myLong)
 {% endhighlight %}
 </div>
 </div>
 
-
-
 #### Atomic Types
 
-Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types that cannot be analyzed and decomposed) as atomic types. A `DataStream` or `DataSet` of an atomic type is converted into a `Table` with a single attribute. The type of the attribute is inferred from the atomic type and the name of the attribute must be specified.
+Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types that cannot be analyzed and decomposed) as atomic types. A `DataStream` or `DataSet` of an atomic type is converted into a `Table` with a single attribute. The type of the attribute is inferred from the atomic type and the name of the attribute can be specified.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -895,7 +905,11 @@ Flink treats primitives (`Integer`, `Double`, `String`) or generic types (types 
 StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 DataStream<Long> stream = ...
-// convert DataStream into Table with field "myLong"
+
+// convert DataStream into Table with default field name "f0"
+Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with field name "myLong"
 Table table = tableEnv.fromDataStream(stream, "myLong");
 {% endhighlight %}
 </div>
@@ -906,7 +920,11 @@ Table table = tableEnv.fromDataStream(stream, "myLong");
 val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 val stream: DataStream[Long] = ...
-// convert DataStream into Table with field 'myLong
+
+// convert DataStream into Table with default field name "f0"
+val table: Table = tableEnv.fromDataStream(stream)
+
+// convert DataStream into Table with field name "myLong"
 val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 {% endhighlight %}
 </div>
@@ -914,7 +932,7 @@ val table: Table = tableEnv.fromDataStream(stream, 'myLong)
 
 #### Tuples (Scala and Java) and Case Classes (Scala only)
 
-Flink supports Scala's built-in tuples and provides its own tuple classes for Java. DataStreams and DataSets of both kinds of tuples can be converted into tables. Fields can be renamed by providing names for all fields (mapping based on position). If no field names are specified, the default field names are used.
+Flink supports Scala's built-in tuples and provides its own tuple classes for Java. DataStreams and DataSets of both kinds of tuples can be converted into tables. Fields can be renamed by providing names for all fields (mapping based on position). If no field names are specified, the default field names are used. If the original field names (`f0`, `f1`, ... for Flink Tuples and `_1`, `_2`, ... for Scala Tuples) are referenced, the API assumes that the mapping is name-based instead of position-based. Name-based mapping allows for reordering fields and projection with alias (`as`).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -924,11 +942,20 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 
 DataStream<Tuple2<Long, String>> stream = ...
 
-// convert DataStream into Table with field names "myLong", "myString"
-Table table1 = tableEnv.fromDataStream(stream, "myLong, myString");
-
 // convert DataStream into Table with default field names "f0", "f1"
-Table table2 = tableEnv.fromDataStream(stream);
+Table table = tableEnv.fromDataStream(stream);
+
+// convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
+Table table = tableEnv.fromDataStream(stream, "myLong, myString");
+
+// convert DataStream into Table with reordered fields "f1", "f0" (name-based)
+Table table = tableEnv.fromDataStream(stream, "f1, f0");
+
+// convert DataStream into Table with projected field "f1" (name-based)
+Table table = tableEnv.fromDataStream(stream, "f1");
+
+// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
+Table table = tableEnv.fromDataStream(stream, "f1 as 'myString', f0 as 'myLong'");
 {% endhighlight %}
 </div>
 
@@ -939,21 +966,33 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 
 val stream: DataStream[(Long, String)] = ...
 
-// convert DataStream into Table with field names 'myLong, 'myString
-val table1: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
+// convert DataStream into Table with renamed default field names '_1, '_2
+val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with default field names '_1, '_2
-val table2: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with field names "myLong", "myString" (position-based)
+val table: Table = tableEnv.fromDataStream(stream, 'myLong, 'myString)
+
+// convert DataStream into Table with reordered fields "_2", "_1" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, '_2, '_1)
+
+// convert DataStream into Table with projected field "_2" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, '_2)
+
+// convert DataStream into Table with reordered and aliased fields "myString", "myLong" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, '_2 as 'myString, '_1 as 'myLong)
 
 // define case class
 case class Person(name: String, age: Int)
 val streamCC: DataStream[Person] = ...
 
 // convert DataStream into Table with default field names 'name, 'age
-val tableCC1 = tableEnv.fromDataStream(streamCC)
+val table = tableEnv.fromDataStream(streamCC)
 
-// convert DataStream into Table with field names 'myName, 'myAge
-val tableCC1 = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
+// convert DataStream into Table with field names 'myName, 'myAge (position-based)
+val table = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
+
+// convert DataStream into Table with reordered and aliased fields "myAge", "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
 
 {% endhighlight %}
 </div>
@@ -963,7 +1002,7 @@ val tableCC1 = tableEnv.fromDataStream(streamCC, 'myName, 'myAge)
 
 Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{ site.baseurl }}/dev/api_concepts.html#pojos).
 
-When converting a POJO `DataStream` or `DataSet` into a `Table` without specifying field names, the names of the original POJO fields are used. Renaming the original POJO fields requires the keyword `AS` because POJO fields have no inherent order. The name mapping requires the original names and cannot be done by positions.
+When converting a POJO `DataStream` or `DataSet` into a `Table` without specifying field names, the names of the original POJO fields are used. The name mapping requires the original names and cannot be done by positions. Fields can be renamed using an alias (with the `as` keyword), reordered, and projected.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -974,11 +1013,17 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // Person is a POJO with fields "name" and "age"
 DataStream<Person> stream = ...
 
-// convert DataStream into Table with field names "name", "age"
-Table table1 = tableEnv.fromDataStream(stream);
+// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
+Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field names "myName", "myAge"
-Table table2 = tableEnv.fromDataStream(stream, "name as myName, age as myAge");
+// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
+Table table = tableEnv.fromDataStream(stream, "age as myAge, name as myName");
+
+// convert DataStream into Table with projected field "name" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name");
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name as myName");
 {% endhighlight %}
 </div>
 
@@ -990,18 +1035,24 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // Person is a POJO with field names "name" and "age"
 val stream: DataStream[Person] = ...
 
-// convert DataStream into Table with field names 'name, 'age
-val table1: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with default field names "age", "name" (fields are ordered by name!)
+val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field names 'myName, 'myAge
-val table2: Table = tableEnv.fromDataStream(stream, 'name as 'myName, 'age as 'myAge)
+// convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'age as 'myAge, 'name as 'myName)
+
+// convert DataStream into Table with projected field "name" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name)
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% endhighlight %}
 </div>
 </div>
 
 #### Row
 
-The Row data type supports an arbitrary number of fields and fields with `null` values. Field names can be specified via a `RowTypeInfo` or when converting a `Row` `DataStream` or `DataSet` into a `Table` (based on position).
+The `Row` data type supports an arbitrary number of fields and fields with `null` values. Field names can be specified via a `RowTypeInfo` or when converting a `Row` `DataStream` or `DataSet` into a `Table`. The row type supports mapping of fields by position and by name. Fields can be renamed by providing names for all fields (mapping based on position) or selected individually for projection/ordering/renaming (mapping based on name).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1012,11 +1063,20 @@ StreamTableEnvironment tableEnv = TableEnvironment.getTableEnvironment(env);
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 DataStream<Row> stream = ...
 
-// convert DataStream into Table with field names "name", "age"
-Table table1 = tableEnv.fromDataStream(stream);
+// convert DataStream into Table with default field names "name", "age"
+Table table = tableEnv.fromDataStream(stream);
 
-// convert DataStream into Table with field names "myName", "myAge"
-Table table2 = tableEnv.fromDataStream(stream, "myName, myAge");
+// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+Table table = tableEnv.fromDataStream(stream, "myName, myAge");
+
+// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name as myName, age as myAge");
+
+// convert DataStream into Table with projected field "name" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name");
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+Table table = tableEnv.fromDataStream(stream, "name as myName");
 {% endhighlight %}
 </div>
 
@@ -1028,11 +1088,20 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 val stream: DataStream[Row] = ...
 
-// convert DataStream into Table with field names 'name, 'age
-val table1: Table = tableEnv.fromDataStream(stream)
+// convert DataStream into Table with default field names "name", "age"
+val table: Table = tableEnv.fromDataStream(stream)
 
-// convert DataStream into Table with field names 'myName, 'myAge
-val table2: Table = tableEnv.fromDataStream(stream, 'myName, 'myAge)
+// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+val table: Table = tableEnv.fromDataStream(stream, 'myName, 'myAge)
+
+// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName, 'age as 'myAge)
+
+// convert DataStream into Table with projected field "name" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name)
+
+// convert DataStream into Table with projected and renamed field "myName" (name-based)
+val table: Table = tableEnv.fromDataStream(stream, 'name as 'myName)
 {% endhighlight %}
 </div>
 </div>
