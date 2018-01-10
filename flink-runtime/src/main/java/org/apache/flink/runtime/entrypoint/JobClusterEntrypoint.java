@@ -123,14 +123,14 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 		jobMasterRestEndpoint.start();
 
 		resourceManager = createResourceManager(
-				configuration,
-				ResourceID.generate(),
-				rpcService,
-				highAvailabilityServices,
-				heartbeatServices,
-				metricRegistry,
-				this,
-				jobMasterRestEndpoint.getRestAddress());
+			configuration,
+			ResourceID.generate(),
+			rpcService,
+			highAvailabilityServices,
+			heartbeatServices,
+			metricRegistry,
+			this,
+			jobMasterRestEndpoint.getRestAddress());
 
 		jobManagerRunner = createJobManagerRunner(
 			configuration,
