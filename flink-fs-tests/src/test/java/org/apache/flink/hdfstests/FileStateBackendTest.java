@@ -133,8 +133,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		try {
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(basePath, 15));
 			JobID jobId = new JobID();
+			long checkpointId = 97231523452L;
 
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(jobId, "test_op");
+			CheckpointStreamFactory streamFactory = backend
+					.createCheckpointStorage(jobId)
+					.initializeLocationForCheckpoint(checkpointId);
 
 			// we know how FsCheckpointStreamFactory is implemented so we know where it
 			// will store checkpoints
@@ -150,8 +153,6 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			rnd.nextBytes(state2);
 			rnd.nextBytes(state3);
 			rnd.nextBytes(state4);
-
-			long checkpointId = 97231523452L;
 
 			CheckpointStreamFactory.CheckpointStateOutputStream stream1 =
 					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());

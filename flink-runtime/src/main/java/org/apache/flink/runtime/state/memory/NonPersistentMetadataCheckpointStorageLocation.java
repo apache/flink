@@ -20,8 +20,6 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
 
 import java.io.IOException;
 
@@ -29,13 +27,19 @@ import java.io.IOException;
  * A checkpoint storage location for the {@link MemoryStateBackend} in case no durable persistence
  * for metadata has been configured.
  */
-public class NonPersistentMetadataCheckpointStorageLocation implements CheckpointStorageLocation {
+public class NonPersistentMetadataCheckpointStorageLocation
+		extends MemCheckpointStreamFactory
+		implements CheckpointStorageLocation {
 
 	/** The external pointer returned for checkpoints that are not externally addressable. */
 	public static final String EXTERNAL_POINTER = "<checkpoint-not-externally-addressable>";
 
 	/** The maximum serialized state size for the checkpoint metadata. */
 	private static final int MAX_METADATA_STATE_SIZE = Integer.MAX_VALUE;
+
+	public NonPersistentMetadataCheckpointStorageLocation(int maxStateSize) {
+		super(maxStateSize);
+	}
 
 	@Override
 	public CheckpointStateOutputStream createMetadataOutputStream() throws IOException {

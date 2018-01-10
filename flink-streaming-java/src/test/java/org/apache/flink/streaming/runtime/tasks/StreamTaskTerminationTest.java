@@ -60,6 +60,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
@@ -74,8 +75,6 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
-import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -258,17 +257,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 
 		@Override
 		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId, String operatorIdentifier) throws IOException {
-			return mock(CheckpointStreamFactory.class);
-		}
-
-		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId, String operatorIdentifier, @Nullable String targetLocation) throws IOException {
-			return null;
+			return new MemoryBackendCheckpointStorage(jobId, null, null, Integer.MAX_VALUE);
 		}
 
 		@Override

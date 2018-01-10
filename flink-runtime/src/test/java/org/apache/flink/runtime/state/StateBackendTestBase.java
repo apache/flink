@@ -122,12 +122,21 @@ import static org.mockito.Mockito.verify;
 public abstract class StateBackendTestBase<B extends AbstractStateBackend> extends TestLogger {
 
 	@Rule
-	public ExpectedException expectedException = ExpectedException.none();
+	public final ExpectedException expectedException = ExpectedException.none();
+
+	// lazily initialized stream storage
+	private CheckpointStorageLocation checkpointStorageLocation;
 
 	protected abstract B getStateBackend() throws Exception;
 
 	protected CheckpointStreamFactory createStreamFactory() throws Exception {
-		return getStateBackend().createStreamFactory(new JobID(), "test_op");
+		if (checkpointStorageLocation == null) {
+			checkpointStorageLocation = getStateBackend()
+					.createCheckpointStorage(new JobID())
+					.initializeLocationForCheckpoint(1L);
+		}
+
+		return checkpointStorageLocation;
 	}
 
 	protected <K> AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer) throws Exception {

@@ -82,13 +82,17 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 		try {
 			// the state backend has a very low in-mem state threshold (15 bytes)
 			FsStateBackend backend = CommonTestUtils.createCopySerializable(new FsStateBackend(basePath.toURI(), 15));
-			JobID jobId = new JobID();
+
+			final JobID jobId = new JobID();
+			final long checkpointId = 97231523452L;
 
 			// we know how FsCheckpointStreamFactory is implemented so we know where it
 			// will store checkpoints
 			File checkpointPath = new File(basePath.getAbsolutePath(), jobId.toString());
 
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(jobId, "test_op");
+			CheckpointStreamFactory streamFactory = backend
+					.createCheckpointStorage(jobId)
+					.initializeLocationForCheckpoint(checkpointId);
 
 			byte[] state1 = new byte[1274673];
 			byte[] state2 = new byte[1];
@@ -100,8 +104,6 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 			rnd.nextBytes(state2);
 			rnd.nextBytes(state3);
 			rnd.nextBytes(state4);
-
-			long checkpointId = 97231523452L;
 
 			CheckpointStreamFactory.CheckpointStateOutputStream stream1 =
 					streamFactory.createCheckpointStateOutputStream(checkpointId, System.currentTimeMillis());
