@@ -59,6 +59,27 @@ public class ResourceManagerOptions {
 		.withDeprecatedKeys("yarn.heap-cutoff-min");
 
 	/**
+	 * The timeout for requesting slot to a task manager, in milliseconds.
+	 */
+	public static final ConfigOption<Integer> TASK_MANAGER_REQUEST_TIMEOUT = ConfigOptions
+			.key("slotmanager.taskmanager.request-timeout")
+			.defaultValue(30000);
+
+	/**
+	 * The timeout for a slot request to be discarded, in milliseconds.
+	 */
+	public static final ConfigOption<Integer> SLOT_REQUEST_TIMEOUT = ConfigOptions
+			.key("slotmanager.slot.request-timeout")
+			.defaultValue(600000);
+
+	/**
+	 * The timeout for an idle task manager to be released, in milliseconds.
+	 */
+	public static final ConfigOption<Integer> TASK_MANAGER_TIMEOUT = ConfigOptions
+			.key("slotmanager.taskmanager.timeout")
+			.defaultValue(30000);
+
+	/**
 	 * Prefix for passing custom environment variables to Flink's master process.
 	 * For example for passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
 	 * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
