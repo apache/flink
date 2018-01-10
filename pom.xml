@@ -129,6 +129,7 @@ under the License.
 		<!-- run all groups except flip6 by default -->
 		<test.groups></test.groups>
 		<test.excludedGroups>org.apache.flink.testutils.category.Flip6</test.excludedGroups>
+		<codebase>old</codebase>
 		<!--
 			Keeping the MiniKDC version fixed instead of taking hadoop version dependency
 			to support testing Kafka, ZK etc., modules that does not have Hadoop dependency
@@ -604,6 +605,7 @@ under the License.
 				<test.groups>org.apache.flink.testutils.category.Flip6, org.apache.flink.testutils.category.OldAndFlip6</test.groups>
 				<!-- clear the excluded groups list -->
 				<test.excludedGroups></test.excludedGroups>
+				<codebase>flip6</codebase>
 			</properties>
 		</profile>
 
@@ -1131,6 +1133,7 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
+						<codebase>${codebase}</codebase>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>

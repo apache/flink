@@ -210,7 +210,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
 			e.printStackTrace();
 			Assert.fail("Error while calling the test program: " + e.getMessage());
 		} finally {
-			CollectionTestEnvironment.unsetAsContext();
+			miniClusterResource.getTestEnvironment().setAsContext();
 		}
 
 		Assert.assertNotNull("The test program never triggered an execution.", this.latestExecutionResult);

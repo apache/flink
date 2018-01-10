@@ -121,6 +121,8 @@ public class RollingSinkITCase extends TestLogger {
 				new org.apache.flink.configuration.Configuration(),
 				1,
 				4));
+
+		miniClusterResource.before();
 	}
 
 	@AfterClass

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.minicluster
 
 import java.net.{URL, URLClassLoader}
 import java.util.UUID
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.{CompletableFuture, Executors, TimeUnit}
 
 import akka.pattern.Patterns.gracefulStop
 import akka.pattern.ask
@@ -65,7 +65,7 @@ abstract class FlinkMiniCluster(
     val highAvailabilityServices: HighAvailabilityServices,
     val useSingleActorSystem: Boolean)
   extends LeaderRetrievalListener
-  with JobExecutor {
+  with JobExecutorService {
 
   protected val LOG = LoggerFactory.getLogger(classOf[FlinkMiniCluster])
 
@@ -712,5 +712,15 @@ abstract class FlinkMiniCluster(
     */
   override def executeJobBlocking(jobGraph: JobGraph) = {
     submitJobAndWait(jobGraph, false)
+  }
+
+  override def terminate() = {
+    try {
+      stop()
+      CompletableFuture.completedFuture(null)
+    } catch {
+      case e: Exception =>
+        FutureUtils.completedExceptionally(e)
+    }
   }
 }

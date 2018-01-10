@@ -22,14 +22,22 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.JobExecutorService;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
+
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Starts a Flink mini cluster as a resource and registers the respective
@@ -39,16 +47,31 @@ public class MiniClusterResource extends ExternalResource {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MiniClusterResource.class);
 
+	private static final String CODEBASE_KEY = "codebase";
+
+	private static final String FLIP6_CODEBASE = "flip6";
+
 	private final MiniClusterResourceConfiguration miniClusterResourceConfiguration;
 
-	private LocalFlinkMiniCluster localFlinkMiniCluster;
+	private final MiniClusterType miniClusterType;
+
+	private JobExecutorService jobExecutorService;
 
 	private int numberSlots = -1;
 
 	private TestEnvironment executionEnvironment;
 
 	public MiniClusterResource(final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
+		this(
+			miniClusterResourceConfiguration,
+			Objects.equals(FLIP6_CODEBASE, System.getProperty(CODEBASE_KEY)) ? MiniClusterType.FLIP6 : MiniClusterType.OLD);
+	}
+
+	public MiniClusterResource(
+			final MiniClusterResourceConfiguration miniClusterResourceConfiguration,
+			final MiniClusterType miniClusterType) {
 		this.miniClusterResourceConfiguration = Preconditions.checkNotNull(miniClusterResourceConfiguration);
+		this.miniClusterType = Preconditions.checkNotNull(miniClusterType);
 	}
 
 	public int getNumberSlots() {
@@ -61,37 +84,74 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void before() throws Exception {
-		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
 
-		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
-		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.numberSlotsPerTaskManager);
-
-		localFlinkMiniCluster = TestBaseUtils.startCluster(
-			configuration,
-			true);
+		jobExecutorService = startJobExecutorService(miniClusterType);
 
 		numberSlots = miniClusterResourceConfiguration.getNumberSlotsPerTaskManager() * miniClusterResourceConfiguration.getNumberTaskManagers();
 
-		executionEnvironment = new TestEnvironment(localFlinkMiniCluster, numberSlots, false);
+		executionEnvironment = new TestEnvironment(jobExecutorService, numberSlots, false);
 		executionEnvironment.setAsContext();
-		TestStreamEnvironment.setAsContext(localFlinkMiniCluster, numberSlots);
+		TestStreamEnvironment.setAsContext(jobExecutorService, numberSlots);
 	}
 
 	@Override
 	public void after() {
-		if (localFlinkMiniCluster != null) {
-			try {
-				TestBaseUtils.stopCluster(
-					localFlinkMiniCluster,
-					FutureUtils.toFiniteDuration(miniClusterResourceConfiguration.getShutdownTimeout()));
-			} catch (Exception e) {
-				LOG.warn("Could not properly shut down the Flink mini cluster.", e);
-			}
 
-			TestStreamEnvironment.unsetAsContext();
-			TestEnvironment.unsetAsContext();
-			localFlinkMiniCluster = null;
+		TestStreamEnvironment.unsetAsContext();
+		TestEnvironment.unsetAsContext();
+
+		final CompletableFuture<?> terminationFuture = jobExecutorService.terminate();
+
+		try {
+			terminationFuture.get(
+				miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
+				TimeUnit.MILLISECONDS);
+		} catch (Exception e) {
+			LOG.warn("Could not properly shut down the MiniClusterResource.", e);
 		}
+
+		jobExecutorService = null;
+	}
+
+	private JobExecutorService startJobExecutorService(MiniClusterType miniClusterType) throws Exception {
+		final JobExecutorService jobExecutorService;
+		switch (miniClusterType) {
+			case OLD:
+				jobExecutorService = startOldMiniCluster();
+				break;
+			case FLIP6:
+				jobExecutorService = startFlip6MiniCluster();
+				break;
+			default:
+				throw new FlinkRuntimeException("Unknown MiniClusterType "  + miniClusterType + '.');
+		}
+
+		return jobExecutorService;
+	}
+
+	private JobExecutorService startOldMiniCluster() throws Exception {
+		final Configuration configuration = new Configuration(miniClusterResourceConfiguration.getConfiguration());
+		configuration.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, miniClusterResourceConfiguration.getNumberTaskManagers());
+		configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, miniClusterResourceConfiguration.getNumberSlotsPerTaskManager());
+
+		return TestBaseUtils.startCluster(
+			configuration,
+			true);
+	}
+
+	@Nonnull
+	private JobExecutorService startFlip6MiniCluster() throws Exception {
+		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
+			.setConfiguration(miniClusterResourceConfiguration.getConfiguration())
+			.setNumTaskManagers(miniClusterResourceConfiguration.getNumberTaskManagers())
+			.setNumSlotsPerTaskManager(miniClusterResourceConfiguration.getNumberSlotsPerTaskManager())
+			.build();
+
+		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
+
+		miniCluster.start();
+
+		return miniCluster;
 	}
 
 	/**
@@ -143,5 +203,17 @@ public class MiniClusterResource extends ExternalResource {
 		public Time getShutdownTimeout() {
 			return shutdownTimeout;
 		}
+	}
+
+	// ---------------------------------------------
+	// Enum definitions
+	// ---------------------------------------------
+
+	/**
+	 * Type of the mini cluster to start.
+	 */
+	public enum MiniClusterType {
+		OLD,
+		FLIP6
 	}
 }
