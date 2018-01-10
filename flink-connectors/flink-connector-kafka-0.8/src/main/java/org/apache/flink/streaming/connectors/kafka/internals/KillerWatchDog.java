@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * A watch dog thread that forcibly kills another thread, if that thread does not
  * finish in time.
@@ -26,6 +28,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
  * advisable, this watch dog is only for extreme cases of thread that simply
  * to not terminate otherwise.
  */
+@Internal
 class KillerWatchDog extends Thread {
 
 	private final Thread toKill;

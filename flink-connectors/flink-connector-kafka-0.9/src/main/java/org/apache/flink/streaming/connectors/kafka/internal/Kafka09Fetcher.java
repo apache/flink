@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -52,6 +53,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * @param <T> The type of elements produced by the fetcher.
  */
+@Internal
 public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(Kafka09Fetcher.class);

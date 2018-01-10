@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
@@ -30,6 +31,7 @@ import java.util.Properties;
 /**
  * Kafka 0.9 {@link KafkaTableSink} that serializes data in JSON format.
  */
+@PublicEvolving
 public class Kafka09JsonTableSink extends KafkaJsonTableSink {
 
 	/**

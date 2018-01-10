@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -76,6 +77,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of records produced by this data source
  */
+@Internal
 public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFunction<T> implements
 		CheckpointListener,
 		ResultTypeQueryable<T>,

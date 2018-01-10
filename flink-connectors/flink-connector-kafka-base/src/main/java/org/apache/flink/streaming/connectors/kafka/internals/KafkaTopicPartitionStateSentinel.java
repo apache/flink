@@ -17,12 +17,15 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * Magic values used to represent special offset states before partitions are actually read.
  *
  * <p>The values are all negative. Negative offsets are not used by Kafka (invalid), so we
  * pick a number that is probably (hopefully) not used by Kafka as a magic number for anything else.
  */
+@Internal
 public class KafkaTopicPartitionStateSentinel {
 
 	/** Magic number that defines an unset offset. */

@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,7 @@ import static java.util.Objects.requireNonNull;
  * <p>Note: This class must not change in its structure, because it would change the
  * serialization format and make previous savepoints unreadable.
  */
+@PublicEvolving
 public final class KafkaTopicPartition implements Serializable {
 
 	/** THIS SERIAL VERSION UID MUST NOT CHANGE, BECAUSE IT WOULD BREAK

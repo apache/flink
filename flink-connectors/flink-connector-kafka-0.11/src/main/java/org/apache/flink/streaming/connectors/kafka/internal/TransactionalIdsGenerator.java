@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -34,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </ul>
  * In other words, any particular generated id will always be assigned to one and only one subtask.
  */
+@Internal
 public class TransactionalIdsGenerator {
 	private final String prefix;
 	private final int subtaskIndex;

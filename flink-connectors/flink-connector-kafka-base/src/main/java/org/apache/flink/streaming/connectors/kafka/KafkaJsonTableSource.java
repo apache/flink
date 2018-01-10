@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.util.serialization.JsonRowDeserializationSchema;
@@ -36,6 +37,7 @@ import java.util.Properties;
  *
  * <p>The field names are used to parse the JSON file and so are the types.
  */
+@Internal
 public abstract class KafkaJsonTableSource extends KafkaTableSource implements DefinedFieldMapping {
 
 	private TableSchema jsonSchema;

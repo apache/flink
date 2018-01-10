@@ -65,6 +65,7 @@ import static org.apache.flink.util.PropertiesUtil.getLong;
  * <p>Please refer to Kafka's documentation for the available configuration properties:
  * http://kafka.apache.org/documentation.html#newconsumerconfigs</p>
  */
+@PublicEvolving
 public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
