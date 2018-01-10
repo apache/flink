@@ -21,8 +21,11 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
+import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -31,7 +34,8 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link SubtaskMetricsHeaders}.
  */
-public class SubtaskMetricsHeadersTest {
+@Category(Flip6.class)
+public class SubtaskMetricsHeadersTest extends TestLogger {
 
 	private final SubtaskMetricsHeaders subtaskMetricsHeaders = SubtaskMetricsHeaders.getInstance();
 

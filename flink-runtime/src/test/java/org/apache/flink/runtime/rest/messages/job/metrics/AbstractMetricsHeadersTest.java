@@ -21,12 +21,14 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -34,6 +36,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link AbstractMetricsHeaders}.
  */
+@Category(Flip6.class)
 public class AbstractMetricsHeadersTest extends TestLogger {
 
 	private AbstractMetricsHeaders<EmptyMessageParameters> metricsHandlerHeaders;

@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
+import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -29,7 +32,8 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link TaskManagerMetricsHeaders}.
  */
-public class TaskManagerMetricsHeadersTest {
+@Category(Flip6.class)
+public class TaskManagerMetricsHeadersTest extends TestLogger {
 
 	private final TaskManagerMetricsHeaders taskManagerMetricsHeaders =
 		TaskManagerMetricsHeaders.getInstance();

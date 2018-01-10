@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,6 +33,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test cases for the {@link RestServerEndpoint}.
  */
+@Category(Flip6.class)
 public class RestServerEndpointTest extends TestLogger {
 
 	/**

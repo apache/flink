@@ -35,10 +35,12 @@ import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -59,6 +61,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for {@link AbstractMetricsHandler}.
  */
+@Category(Flip6.class)
 public class AbstractMetricsHandlerTest extends TestLogger {
 
 	private static final String TEST_METRIC_NAME = "test_counter";
