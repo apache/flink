@@ -211,7 +211,7 @@ public class EventSerializer {
 				CheckpointType checkpointType = CheckpointType.values()[checkpointTypeOrdinal];
 
 				if (checkpointType == CheckpointType.CHECKPOINT) {
-					checkpointOptions = CheckpointOptions.forCheckpoint();
+					checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
 				} else if (checkpointType == CheckpointType.SAVEPOINT) {
 					int len = buffer.getInt();
 					byte[] bytes = new byte[len];

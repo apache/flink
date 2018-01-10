@@ -42,7 +42,7 @@ public class EventSerializerTest {
 		long id = Integer.MAX_VALUE + 123123L;
 		long timestamp = Integer.MAX_VALUE + 1228L;
 
-		CheckpointOptions checkpoint = CheckpointOptions.forCheckpoint();
+		CheckpointOptions checkpoint = CheckpointOptions.forCheckpointWithDefaultLocation();
 		testCheckpointBarrierSerialization(id, timestamp, checkpoint);
 
 		CheckpointOptions savepoint = CheckpointOptions.forSavepoint("1289031838919123");
@@ -68,7 +68,7 @@ public class EventSerializerTest {
 		AbstractEvent[] events = {
 				EndOfPartitionEvent.INSTANCE,
 				EndOfSuperstepEvent.INSTANCE,
-				new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpoint()),
+				new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
 				new TestTaskEvent(Math.random(), 12361231273L),
 				new CancelCheckpointMarker(287087987329842L)
 		};
@@ -119,7 +119,7 @@ public class EventSerializerTest {
 		AbstractEvent[] events = {
 			EndOfPartitionEvent.INSTANCE,
 			EndOfSuperstepEvent.INSTANCE,
-			new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpoint()),
+			new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
 			new TestTaskEvent(Math.random(), 12361231273L),
 			new CancelCheckpointMarker(287087987329842L)
 		};

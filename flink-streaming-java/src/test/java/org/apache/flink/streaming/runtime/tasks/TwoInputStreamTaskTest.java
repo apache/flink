@@ -233,7 +233,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
 		// This element should be buffered since we received a checkpoint barrier on
 		// this input
@@ -270,16 +270,16 @@ public class TwoInputStreamTaskTest {
 			expectedOutput,
 			testHarness.getOutput());
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 		testHarness.endInput();
 		testHarness.waitForTaskCompletion();
 
 		// now we should see the barrier and after that the buffered elements
-		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()));
+		expectedOutput.add(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.",
@@ -318,7 +318,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
 
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
 
 		// These elements should be buffered until we receive barriers from
 		// all inputs
@@ -341,15 +341,15 @@ public class TwoInputStreamTaskTest {
 
 		// Now give a later barrier to all inputs, this should unblock the first channel,
 		// thereby allowing the two blocked elements through
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 0, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		expectedOutput.add(new CancelCheckpointMarker(0));
 		expectedOutput.add(new StreamRecord<String>("Hello-0-0", initialTime));
 		expectedOutput.add(new StreamRecord<String>("Ciao-0-0", initialTime));
-		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpoint()));
+		expectedOutput.add(new CheckpointBarrier(1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()));
 
 		testHarness.waitForInputProcessing();
 
@@ -358,9 +358,9 @@ public class TwoInputStreamTaskTest {
 				testHarness.getOutput());
 
 		// Then give the earlier barrier, these should be ignored
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 0, 1);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 0);
-		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpoint()), 1, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 0, 1);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 0);
+		testHarness.processEvent(new CheckpointBarrier(0, 0, CheckpointOptions.forCheckpointWithDefaultLocation()), 1, 1);
 
 		testHarness.waitForInputProcessing();
 

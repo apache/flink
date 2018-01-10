@@ -491,7 +491,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				new CheckpointMetaData(
 					11L,
 					System.currentTimeMillis()),
-				CheckpointOptions.forCheckpoint(),
+				CheckpointOptions.forCheckpointWithDefaultLocation(),
 				new CheckpointMetrics());
 
 			while (isRunning()) {

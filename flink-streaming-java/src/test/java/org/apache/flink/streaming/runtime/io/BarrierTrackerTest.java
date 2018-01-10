@@ -471,7 +471,7 @@ public class BarrierTrackerTest {
 	// ------------------------------------------------------------------------
 
 	private static BufferOrEvent createBarrier(long id, int channel) {
-		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forCheckpoint()), channel);
+		return new BufferOrEvent(new CheckpointBarrier(id, System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()), channel);
 	}
 
 	private static BufferOrEvent createCancellationBarrier(long id, int channel) {

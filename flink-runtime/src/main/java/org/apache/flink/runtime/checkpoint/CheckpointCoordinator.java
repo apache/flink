@@ -604,7 +604,7 @@ public class CheckpointCoordinator {
 
 				CheckpointOptions checkpointOptions;
 				if (!props.isSavepoint()) {
-					checkpointOptions = CheckpointOptions.forCheckpoint();
+					checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
 				} else {
 					checkpointOptions = CheckpointOptions.forSavepoint(checkpointStorageLocation.getLocationAsPointer());
 				}
