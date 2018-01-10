@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType;
 import org.junit.Test;
 
 public class CheckpointOptionsTest {

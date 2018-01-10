@@ -93,17 +93,4 @@ public class CheckpointOptions implements Serializable {
 
 	// ------------------------------------------------------------------------
 
-	/**
-	 *  The type of checkpoint to perform.
-	 */
-	public enum CheckpointType {
-
-		/** A full checkpoint. */
-		CHECKPOINT,
-
-		/** A savepoint. */
-		SAVEPOINT;
-
-	}
-
 }
