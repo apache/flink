@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen.calls
 
 import java.lang.reflect.Method
 
+import org.apache.calcite.avatica.SqlType
 import org.apache.calcite.avatica.util.TimeUnitRange
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -31,6 +32,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 import scala.collection.mutable
 
@@ -428,17 +430,36 @@ object FunctionGenerator {
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  addSqlFunctionMethod(
-    EXTRACT_DATE,
+  addSqlFunction(
+    EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), LONG_TYPE_INFO),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
-    EXTRACT_DATE,
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), TimeIntervalTypeInfo.INTERVAL_MILLIS),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.TIMESTAMP),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.TIME),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
+    Seq(new GenericTypeInfo(classOf[TimeUnitRange]), TimeIntervalTypeInfo.INTERVAL_MONTHS),
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
+
+  addSqlFunction(
+    EXTRACT,
     Seq(new GenericTypeInfo(classOf[TimeUnitRange]), SqlTimeTypeInfo.DATE),
-    LONG_TYPE_INFO,
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(LONG_TYPE_INFO, BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     FLOOR,

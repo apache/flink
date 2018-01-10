@@ -322,7 +322,7 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
 
 object FlinkTypeFactory {
 
-  private def typeInfoToSqlTypeName(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
+  def typeInfoToSqlTypeName(typeInfo: TypeInformation[_]): SqlTypeName = typeInfo match {
       case BOOLEAN_TYPE_INFO => BOOLEAN
       case BYTE_TYPE_INFO => TINYINT
       case SHORT_TYPE_INFO => SMALLINT
