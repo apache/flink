@@ -299,7 +299,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "CAST(w$start) AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT_DATE(FLAG(QUARTER), /INT(Reinterpret(CAST(w$start)), 86400000)), 1))")
+            "=(EXTRACT(FLAG(QUARTER), CAST(w$start)), 1))")
       )
 
     util.verifySql(sql, expected)

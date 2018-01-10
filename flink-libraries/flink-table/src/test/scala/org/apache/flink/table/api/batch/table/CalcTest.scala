@@ -235,6 +235,8 @@ class CalcTest extends TableTestBase {
     util.verifyTable(resultTable, expected)
   }
 
+  // As stated in https://issues.apache.org/jira/browse/CALCITE-1584, Calcite planner doesn't
+  // promise to retain field names.
   @Test
   def testSelectFromGroupedTableWithNonTrivialKey(): Unit = {
     val util = batchTestUtil()
@@ -249,10 +251,10 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", "UPPER(c) AS k")
+            term("select", "a", "c", "UPPER(c) AS $f2")
           ),
-          term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("groupBy", "$f2"),
+          term("select", "$f2", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )
@@ -260,6 +262,8 @@ class CalcTest extends TableTestBase {
     util.verifyTable(resultTable, expected)
   }
 
+  // As stated in https://issues.apache.org/jira/browse/CALCITE-1584, Calcite planner doesn't
+  // promise to retain field names.
   @Test
   def testSelectFromGroupedTableWithFunctionKey(): Unit = {
     val util = batchTestUtil()
@@ -274,10 +278,10 @@ class CalcTest extends TableTestBase {
           unaryNode(
             "DataSetCalc",
             batchTableNode(0),
-            term("select", "a", "c", "MyHashCode$(c) AS k")
+            term("select", "a", "c", "MyHashCode$(c) AS $f2")
           ),
-          term("groupBy", "k"),
-          term("select", "k", "SUM(a) AS TMP_0")
+          term("groupBy", "$f2"),
+          term("select", "$f2", "SUM(a) AS TMP_0")
         ),
         term("select", "TMP_0")
       )
