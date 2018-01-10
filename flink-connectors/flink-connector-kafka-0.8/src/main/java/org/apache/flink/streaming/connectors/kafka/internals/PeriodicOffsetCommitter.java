@@ -20,6 +20,8 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 
 import kafka.common.TopicAndPartition;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.HashMap;
 import java.util.List;
 
@@ -29,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A thread that periodically writes the current Kafka partition offsets to Zookeeper.
  */
+@Internal
 public class PeriodicOffsetCommitter extends Thread {
 
 	/** The ZooKeeper handler. */

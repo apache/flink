@@ -17,11 +17,13 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.FlinkException;
 
 /**
  * Exception used by {@link FlinkKafkaProducer011} and {@link FlinkKafkaConsumer011}.
  */
+@PublicEvolving
 public class FlinkKafka011Exception extends FlinkException {
 
 	private final FlinkKafka011ErrorCode errorCode;

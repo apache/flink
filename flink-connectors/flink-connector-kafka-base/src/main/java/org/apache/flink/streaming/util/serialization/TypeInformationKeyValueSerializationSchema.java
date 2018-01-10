@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,6 +37,7 @@ import java.io.IOException;
  * @param <K> The key type to be serialized.
  * @param <V> The value type to be serialized.
  */
+@Internal
 public class TypeInformationKeyValueSerializationSchema<K, V> implements KeyedDeserializationSchema<Tuple2<K, V>>, KeyedSerializationSchema<Tuple2<K, V>> {
 
 	private static final long serialVersionUID = -5359448468131559102L;

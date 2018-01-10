@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.util.serialization;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.io.Serializable;
 
 /**
@@ -26,6 +28,7 @@ import java.io.Serializable;
  *
  * @param <T> The type to be serialized.
  */
+@PublicEvolving
 public interface KeyedSerializationSchema<T> extends Serializable {
 
 	/**

@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
@@ -27,6 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
  * @param <T> The type of records handled by the watermark generator
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
+@Internal
 public final class KafkaTopicPartitionStateWithPeriodicWatermarks<T, KPH> extends KafkaTopicPartitionState<KPH> {
 
 	/** The timestamp assigner and watermark generator for the partition. */

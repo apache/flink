@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -51,6 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *            the Flink data streams.
  * @param <KPH> The type of topic/partition identifier used by Kafka in the specific version.
  */
+@Internal
 public abstract class AbstractFetcher<T, KPH> {
 
 	protected static final int NO_TIMESTAMPS_WATERMARKS = 0;

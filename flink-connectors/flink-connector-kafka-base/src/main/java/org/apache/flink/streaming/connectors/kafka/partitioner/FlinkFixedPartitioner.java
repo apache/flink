@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.partitioner;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -50,6 +51,7 @@ import org.apache.flink.util.Preconditions;
  * To avoid such an unbalanced partitioning, use a round-robin kafka partitioner (note that this will
  * cause a lot of network connections between all the Flink instances and all the Kafka brokers).
  */
+@PublicEvolving
 public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
 	private int parallelInstanceId;
