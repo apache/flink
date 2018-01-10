@@ -26,9 +26,8 @@ import akka.pattern.{ask, pipe}
 import org.apache.flink.api.common.JobID
 import org.apache.flink.core.fs.FSDataInputStream
 import org.apache.flink.runtime.FlinkActor
-import org.apache.flink.runtime.checkpoint.CheckpointOptions.CheckpointType
 import org.apache.flink.runtime.checkpoint.savepoint.Savepoint
-import org.apache.flink.runtime.checkpoint.{Checkpoints, CompletedCheckpoint}
+import org.apache.flink.runtime.checkpoint.{CheckpointType, Checkpoints, CompletedCheckpoint}
 import org.apache.flink.runtime.execution.ExecutionState
 import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.JobManager
