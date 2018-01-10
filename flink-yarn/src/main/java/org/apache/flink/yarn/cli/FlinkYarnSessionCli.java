@@ -580,8 +580,6 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						yarnCluster,
 						yarnApplicationStatusMonitor,
 						true);
-				} catch (Exception e) {
-					LOG.info("Could not properly close the Yarn application status monitor.", e);
 				} finally {
 					// shut down the scheduled executor service
 					ExecutorUtils.gracefulShutdown(
@@ -656,8 +654,6 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						yarnCluster,
 						yarnApplicationStatusMonitor,
 						acceptInteractiveInput);
-				} catch (Exception e) {
-					LOG.info("Could not properly close the Yarn application status monitor.", e);
 				} finally {
 					// shut down the scheduled executor service
 					ExecutorUtils.gracefulShutdown(
@@ -713,7 +709,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 			boolean continueRepl = true;
 			int numTaskmanagers = 0;
-			long unknownStatusSince = System.currentTimeMillis();
+			boolean isLastStatusUnknown = true;
+			long unknownStatusSince = System.nanoTime();
 
 			while (continueRepl) {
 
@@ -726,11 +723,12 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						continueRepl = false;
 						break;
 					case UNKNOWN:
-						if (unknownStatusSince < 0L) {
-							unknownStatusSince = System.currentTimeMillis();
+						if (!isLastStatusUnknown) {
+							unknownStatusSince = System.nanoTime();
+							isLastStatusUnknown = true;
 						}
 
-						if ((System.currentTimeMillis() - unknownStatusSince) > CLIENT_POLLING_INTERVAL_MS) {
+						if ((System.nanoTime() - unknownStatusSince) > CLIENT_POLLING_INTERVAL_MS) {
 							System.err.println("The Flink Yarn cluster is in an unknown state. Please check the Yarn cluster.");
 							continueRepl = false;
 						} else {
@@ -738,8 +736,8 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 						}
 						break;
 					case SUCCEEDED:
-						if (unknownStatusSince > 0L) {
-							unknownStatusSince = -1L;
+						if (isLastStatusUnknown) {
+							isLastStatusUnknown = false;
 						}
 
 						// ------------------ check if there are updates by the cluster -----------
@@ -768,7 +766,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 
 	private static void printClusterMessages(YarnClusterClient clusterClient) {
 		final List<String> messages = clusterClient.getNewMessages();
-		if (messages != null && messages.size() > 0) {
+		if (!messages.isEmpty()) {
 			System.err.println("New messages from the YARN cluster: ");
 			for (String msg : messages) {
 				System.err.println(msg);

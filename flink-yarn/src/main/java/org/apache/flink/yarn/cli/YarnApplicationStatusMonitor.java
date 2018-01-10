@@ -71,7 +71,7 @@ public class YarnApplicationStatusMonitor implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		applicationStatusUpdateFuture.cancel(false);
 	}
 
