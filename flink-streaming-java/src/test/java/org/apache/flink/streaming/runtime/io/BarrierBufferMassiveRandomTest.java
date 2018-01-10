@@ -164,7 +164,7 @@ public class BarrierBufferMassiveRandomTest {
 
 			if (barrierGens[currentChannel].isNextBarrier()) {
 				return new BufferOrEvent(
-						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis(), CheckpointOptions.forCheckpoint()),
+						new CheckpointBarrier(++currentBarriers[currentChannel], System.currentTimeMillis(), CheckpointOptions.forCheckpointWithDefaultLocation()),
 							currentChannel);
 			} else {
 				Buffer buffer = bufferPools[currentChannel].requestBuffer();

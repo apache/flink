@@ -82,7 +82,7 @@ public class CheckpointOptions implements Serializable {
 
 	private static final CheckpointOptions CHECKPOINT = new CheckpointOptions(CheckpointType.CHECKPOINT, null);
 
-	public static CheckpointOptions forCheckpoint() {
+	public static CheckpointOptions forCheckpointWithDefaultLocation() {
 		return CHECKPOINT;
 	}
 

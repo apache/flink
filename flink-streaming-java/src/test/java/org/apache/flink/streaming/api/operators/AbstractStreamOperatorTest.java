@@ -504,7 +504,7 @@ public class AbstractStreamOperatorTest {
 		when(operator.snapshotState(anyLong(), anyLong(), any(CheckpointOptions.class))).thenCallRealMethod();
 		doReturn(containingTask).when(operator).getContainingTask();
 
-		operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpoint());
+		operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		verify(context).close();
 	}
@@ -537,7 +537,7 @@ public class AbstractStreamOperatorTest {
 		doThrow(failingException).when(operator).snapshotState(eq(context));
 
 		try {
-			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpoint());
+			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpointWithDefaultLocation());
 			fail("Exception expected.");
 		} catch (Exception e) {
 			assertEquals(failingException, e.getCause());
@@ -603,7 +603,7 @@ public class AbstractStreamOperatorTest {
 			eq(checkpointId),
 			eq(timestamp),
 			eq(streamFactory),
-			eq(CheckpointOptions.forCheckpoint()))).thenThrow(failingException);
+			eq(CheckpointOptions.forCheckpointWithDefaultLocation()))).thenThrow(failingException);
 
 		closeableRegistry.registerCloseable(operatorStateBackend);
 		closeableRegistry.registerCloseable(keyedStateBackend);
@@ -613,7 +613,7 @@ public class AbstractStreamOperatorTest {
 		Whitebox.setInternalState(operator, "checkpointStreamFactory", streamFactory);
 
 		try {
-			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpoint());
+			operator.snapshotState(checkpointId, timestamp, CheckpointOptions.forCheckpointWithDefaultLocation());
 			fail("Exception expected.");
 		} catch (Exception e) {
 			assertEquals(failingException, e.getCause());

@@ -68,7 +68,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					// TODO - we need to see how to derive those. We should probably not encode this in the
 					// TODO -   source's trigger message, but do a handshake in this task between the trigger
 					// TODO -   message from the master, and the source's trigger notification
-					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpoint();
+					final CheckpointOptions checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
 					final long timestamp = System.currentTimeMillis();
 
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);

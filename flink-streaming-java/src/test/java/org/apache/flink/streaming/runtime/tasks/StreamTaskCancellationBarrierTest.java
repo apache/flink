@@ -66,7 +66,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		// tell the task to commence a checkpoint
 		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
-			CheckpointOptions.forCheckpoint());
+			CheckpointOptions.forCheckpointWithDefaultLocation());
 		assertFalse("task triggered checkpoint though not ready", result);
 
 		// a cancellation barrier should be downstream

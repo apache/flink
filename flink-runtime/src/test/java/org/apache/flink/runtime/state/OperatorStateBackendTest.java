@@ -235,7 +235,7 @@ public class OperatorStateBackendTest {
 
 		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		// make sure that the copy method has been called
@@ -355,7 +355,7 @@ public class OperatorStateBackendTest {
 				abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
 
 		RunnableFuture<OperatorStateHandle> snapshot =
-				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpoint());
+				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(snapshot);
 		assertNull(stateHandle);
@@ -387,7 +387,7 @@ public class OperatorStateBackendTest {
 
 		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		try {
@@ -470,7 +470,7 @@ public class OperatorStateBackendTest {
 		streamFactory.setBlockerLatch(blockerLatch);
 
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
 
@@ -572,7 +572,7 @@ public class OperatorStateBackendTest {
 		streamFactory.setBlockerLatch(blockerLatch);
 
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
 
@@ -616,7 +616,7 @@ public class OperatorStateBackendTest {
 		streamFactory.setBlockerLatch(blockerLatch);
 
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		ExecutorService executorService = Executors.newFixedThreadPool(1);
 
@@ -667,7 +667,7 @@ public class OperatorStateBackendTest {
 
 		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
 		RunnableFuture<OperatorStateHandle> runnableFuture =
-			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpoint());
+			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
 
 		try {

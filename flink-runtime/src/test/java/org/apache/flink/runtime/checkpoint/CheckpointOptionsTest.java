@@ -27,7 +27,7 @@ public class CheckpointOptionsTest {
 
 	@Test
 	public void testFullCheckpoint() throws Exception {
-		CheckpointOptions options = CheckpointOptions.forCheckpoint();
+		CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
 		assertEquals(CheckpointType.CHECKPOINT, options.getCheckpointType());
 		assertNull(options.getTargetLocation());
 	}

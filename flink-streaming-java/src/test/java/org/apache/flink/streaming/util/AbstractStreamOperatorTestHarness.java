@@ -477,7 +477,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		OperatorSnapshotResult operatorStateResult = operator.snapshotState(
 			checkpointId,
 			timestamp,
-			CheckpointOptions.forCheckpoint());
+			CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		KeyedStateHandle keyedManaged = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateManagedFuture());
 		KeyedStateHandle keyedRaw = FutureUtil.runIfNotDoneAndGet(operatorStateResult.getKeyedStateRawFuture());
