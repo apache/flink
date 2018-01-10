@@ -281,9 +281,9 @@ For example, in China you would have to specify an offset of `Time.hours(-8)`.
 The *session windows* assigner groups elements by sessions of activity. Session windows do not overlap and
 do not have a fixed start and end time, in contrast to *tumbling windows* and *sliding windows*. Instead a
 session window closes when it does not receive elements for a certain period of time, *i.e.*, when a gap of
-inactivity occurred. A session window assigner is configured with the *session gap* which
-defines how long is the required period of inactivity. When this period expires, the current session closes
-and subsequent elements are assigned to a new session window.
+inactivity occurred. A session window assigner can be configured with either a static *session gap* or with a 
+*session gap extractor* function which defines how long the period of inactivity is. When this period expires, 
+the current session closes and subsequent elements are assigned to a new session window.
 
 <img src="{{ site.baseurl }}/fig/session-windows.svg" class="center" style="width: 100%;" />
 
@@ -294,16 +294,32 @@ The following code snippets show how to use session windows.
 {% highlight java %}
 DataStream<T> input = ...;
 
-// event-time session windows
+// event-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
     .<windowed transformation>(<window function>);
+    
+// event-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(EventTimeSessionWindows.withDynamicGap((element) -> {
+        // determine and return session gap
+    }))
+    .<windowed transformation>(<window function>);
 
-// processing-time session windows
+// processing-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>);
+    
+// processing-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(ProcessingTimeSessionWindows.withDynamicGap((element) -> {
+        // determine and return session gap
+    }))
     .<windowed transformation>(<window function>);
 {% endhighlight %}
 </div>
@@ -312,23 +328,46 @@ input
 {% highlight scala %}
 val input: DataStream[T] = ...
 
-// event-time session windows
+// event-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
     .<windowed transformation>(<window function>)
 
-// processing-time session windows
+// event-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(EventTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
+      override def extract(element: String): Long = {
+        // determine and return session gap
+      }
+    }))
+    .<windowed transformation>(<window function>)
+
+// processing-time session windows with static gap
 input
     .keyBy(<key selector>)
     .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .<windowed transformation>(<window function>)
+
+
+// processing-time session windows with dynamic gap
+input
+    .keyBy(<key selector>)
+    .window(DynamicProcessingTimeSessionWindows.withDynamicGap(new SessionWindowTimeGapExtractor[String] {
+      override def extract(element: String): Long = {
+        // determine and return session gap
+      }
+    }))
     .<windowed transformation>(<window function>)
 {% endhighlight %}
 </div>
 </div>
 
-Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
+Static gaps can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
 `Time.minutes(x)`, and so on.
+
+Dynamic gaps are specified by implementing the `SessionWindowTimeGapExtractor` interface.
 
 <span class="label label-danger">Attention</span> Since session windows do not have a fixed start and end,
 they are  evaluated differently than tumbling and sliding windows. Internally, a session window operator

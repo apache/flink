@@ -22,8 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
@@ -31,55 +30,47 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@link WindowAssigner} that windows elements into sessions based on the current processing
- * time. Windows cannot overlap.
+ * A {@link WindowAssigner} that windows elements into sessions based on the timestamp of the
+ * elements. Windows cannot overlap.
  *
- * <p>For example, in order to window into windows of 1 minute, every 10 seconds:
+ * <p>For example, in order to window into windows with a dynamic time gap:
  * <pre> {@code
  * DataStream<Tuple2<String, Integer>> in = ...;
  * KeyedStream<String, Tuple2<String, Integer>> keyed = in.keyBy(...);
  * WindowedStream<Tuple2<String, Integer>, String, TimeWindows> windowed =
- *   keyed.window(ProcessingTimeSessionWindows.withGap(Time.minutes(1)));
+ *   keyed.window(DynamicEventTimeSessionWindows.withDynamicGap({@link SessionWindowTimeGapExtractor }));
  * } </pre>
+ *
+ * @param <T> The type of the input elements
  */
-public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
+@PublicEvolving
+public class DynamicEventTimeSessionWindows<T> extends MergingWindowAssigner<T, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
-	protected long sessionTimeout;
+	protected SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor;
 
-	protected ProcessingTimeSessionWindows(long sessionTimeout) {
+	protected DynamicEventTimeSessionWindows(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
+		this.sessionWindowTimeGapExtractor = sessionWindowTimeGapExtractor;
+	}
+
+	@Override
+	public Collection<TimeWindow> assignWindows(T element, long timestamp, WindowAssignerContext context) {
+		long sessionTimeout = sessionWindowTimeGapExtractor.extract(element);
 		if (sessionTimeout <= 0) {
-			throw new IllegalArgumentException("ProcessingTimeSessionWindows parameters must satisfy 0 < size");
+			throw new IllegalArgumentException("Dynamic session time gap must satisfy 0 < gap");
 		}
-
-		this.sessionTimeout = sessionTimeout;
+		return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
-		long currentProcessingTime = context.getCurrentProcessingTime();
-		return Collections.singletonList(new TimeWindow(currentProcessingTime, currentProcessingTime + sessionTimeout));
-	}
-
-	@Override
-	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-		return ProcessingTimeTrigger.create();
+	public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+		return (Trigger<T, TimeWindow>) EventTimeTrigger.create();
 	}
 
 	@Override
 	public String toString() {
-		return "ProcessingTimeSessionWindows(" + sessionTimeout + ")";
-	}
-
-	/**
-	 * Creates a new {@code SessionWindows} {@link WindowAssigner} that assigns
-	 * elements to sessions based on the element timestamp.
-	 *
-	 * @param size The session timeout, i.e. the time gap between sessions
-	 * @return The policy.
-	 */
-	public static ProcessingTimeSessionWindows withGap(Time size) {
-		return new ProcessingTimeSessionWindows(size.toMilliseconds());
+		return "DynamicEventTimeSessionWindows()";
 	}
 
 	/**
@@ -89,9 +80,8 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	 * @param sessionWindowTimeGapExtractor The extractor to use to extract the time gap from the input elements
 	 * @return The policy.
 	 */
-	@PublicEvolving
-	public static <T> DynamicProcessingTimeSessionWindows<T> withDynamicGap(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
-		return new DynamicProcessingTimeSessionWindows<>(sessionWindowTimeGapExtractor);
+	public static <T> DynamicEventTimeSessionWindows<T> withDynamicGap(SessionWindowTimeGapExtractor<T> sessionWindowTimeGapExtractor) {
+		return new DynamicEventTimeSessionWindows<>(sessionWindowTimeGapExtractor);
 	}
 
 	@Override
@@ -101,7 +91,7 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 
 	@Override
 	public boolean isEventTime() {
-		return false;
+		return true;
 	}
 
 	/**
