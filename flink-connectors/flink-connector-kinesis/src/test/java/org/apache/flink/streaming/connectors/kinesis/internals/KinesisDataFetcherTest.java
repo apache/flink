@@ -18,10 +18,10 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
+import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -31,8 +31,9 @@ import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeseri
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
-import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
+import org.apache.flink.streaming.util.serialization.SimpleStringSchema;
+import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
@@ -58,7 +59,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link KinesisDataFetcher}.
  */
-public class KinesisDataFetcherTest {
+public class KinesisDataFetcherTest extends TestLogger {
 
 	@Test(expected = RuntimeException.class)
 	public void testIfNoShardsAreFoundShouldThrowException() throws Exception {
@@ -73,7 +74,7 @@ public class KinesisDataFetcherTest {
 			new TestableKinesisDataFetcher<>(
 				fakeStreams,
 				new TestSourceContext<>(),
-				TestUtils.getStandardProperties(),
+				getStandardProperties(),
 				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
@@ -106,7 +107,7 @@ public class KinesisDataFetcherTest {
 			new TestableKinesisDataFetcher<>(
 				fakeStreams,
 				new TestSourceContext<>(),
-				TestUtils.getStandardProperties(),
+				getStandardProperties(),
 				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
@@ -116,7 +117,7 @@ public class KinesisDataFetcherTest {
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
 		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
-				TestUtils.getStandardProperties(), fetcher, 1, 0);
+				getStandardProperties(), fetcher, 1, 0);
 
 		CheckedThread consumerThread = new CheckedThread() {
 			@Override
@@ -191,7 +192,7 @@ public class KinesisDataFetcherTest {
 			new TestableKinesisDataFetcher<>(
 				fakeStreams,
 				new TestSourceContext<>(),
-				TestUtils.getStandardProperties(),
+				getStandardProperties(),
 				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
@@ -214,7 +215,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -280,7 +282,7 @@ public class KinesisDataFetcherTest {
 			new TestableKinesisDataFetcher<>(
 				fakeStreams,
 				new TestSourceContext<>(),
-				TestUtils.getStandardProperties(),
+				getStandardProperties(),
 				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
@@ -303,7 +305,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -373,7 +376,7 @@ public class KinesisDataFetcherTest {
 			new TestableKinesisDataFetcher<>(
 				fakeStreams,
 				new TestSourceContext<>(),
-				TestUtils.getStandardProperties(),
+				getStandardProperties(),
 				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
@@ -396,7 +399,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -469,7 +473,7 @@ public class KinesisDataFetcherTest {
 			new TestableKinesisDataFetcher<>(
 				fakeStreams,
 				new TestSourceContext<>(),
-				TestUtils.getStandardProperties(),
+				getStandardProperties(),
 				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
@@ -492,7 +496,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -586,5 +591,14 @@ public class KinesisDataFetcherTest {
 			when(context.getNumberOfParallelSubtasks()).thenReturn(numParallelSubtasks);
 			return context;
 		}
+	}
+
+	private static Properties getStandardProperties() {
+		Properties config = new Properties();
+		config.setProperty(AWSConfigConstants.AWS_REGION, "us-east-1");
+		config.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
+		config.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+
+		return config;
 	}
 }

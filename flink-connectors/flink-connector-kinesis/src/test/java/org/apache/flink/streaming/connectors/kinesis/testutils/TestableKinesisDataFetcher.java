@@ -22,6 +22,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
+import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 
@@ -44,6 +45,8 @@ import static org.mockito.Mockito.when;
 public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 
 	private OneShotLatch runWaiter;
+	private OneShotLatch initialDiscoveryWaiter;
+
 	private volatile boolean running;
 
 	public TestableKinesisDataFetcher(
@@ -70,6 +73,8 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 			fakeKinesis);
 
 		this.runWaiter = new OneShotLatch();
+		this.initialDiscoveryWaiter = new OneShotLatch();
+
 		this.running = true;
 	}
 
@@ -95,6 +100,17 @@ public class TestableKinesisDataFetcher<T> extends KinesisDataFetcher<T> {
 	public void awaitTermination() throws InterruptedException {
 		this.running = false;
 		super.awaitTermination();
+	}
+
+	@Override
+	public List<StreamShardHandle> discoverNewShardsToSubscribe() throws InterruptedException {
+		List<StreamShardHandle> newShards = super.discoverNewShardsToSubscribe();
+		initialDiscoveryWaiter.trigger();
+		return newShards;
+	}
+
+	public void waitUntilInitialDiscovery() throws InterruptedException {
+		initialDiscoveryWaiter.await();
 	}
 
 	private static RuntimeContext getMockedRuntimeContext(final int fakeTotalCountOfSubtasks, final int fakeIndexOfThisSubtask) {
