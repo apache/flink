@@ -2250,6 +2250,17 @@ randInteger(seed integer, bound integer)
       <p>Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value (exclusive) with a initial seed. Two randInteger functions will return identical sequences of numbers if they have same initial seed and same bound.</p>
     </td>
    </tr>
+
+    <tr>
+     <td>
+       {% highlight java %}
+NUMERIC.bin()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a string representation of an integer numeric value in binary format. Returns null if <i>numeric</i> is null. E.g. "4" leads to "100", "12" leads to "1100".</p>
+    </td>
+   </tr>
     
   </tbody>
 </table>
@@ -3682,6 +3693,17 @@ randInteger(seed integer, bound integer)
      </td>
     <td>
       <p>Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value (exclusive) with a initial seed. Two randInteger functions will return identical sequences of numbers if they have same initial seed and same bound.</p>
+    </td>
+   </tr>
+
+    <tr>
+     <td>
+       {% highlight scala %}
+NUMERIC.bin()
+{% endhighlight %}
+     </td>
+    <td>
+      <p>Returns a string representation of an integer numeric value in binary format. Returns null if <i>numeric</i> is null. E.g. "4" leads to "100", "12" leads to "1100".</p>
     </td>
    </tr>
 

@@ -354,14 +354,60 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testBin(): Unit = {
-    testSqlApi("BIN(f2)", "101010")
-    testSqlApi("BIN(f3)", "101011")
-    testSqlApi("BIN(f4)", "101100")
-    testSqlApi("BIN(f7)", "11")
-    testSqlApi("BIN(12)", "1100")
-    testSqlApi("BIN(10)", "1010")
-    testSqlApi("BIN(0)", "0")
-    testSqlApi("BIN(f32)","1111111111111111111111111111111111111111111111111111111111111111")
+
+    testAllApis(
+      Null(Types.BYTE).bin(),
+      "bin(Null(BYTE))",
+      "BIN((CAST(NULL AS TINYINT)))",
+      "null")
+
+    testAllApis(
+      'f2.bin(),
+      "f2.bin()",
+      "BIN(f2)",
+      "101010")
+
+    testAllApis(
+      'f3.bin(),
+      "f3.bin()",
+      "BIN(f3)",
+      "101011")
+
+    testAllApis(
+      'f4.bin(),
+      "f4.bin()",
+      "BIN(f4)",
+      "101100")
+
+    testAllApis(
+      'f7.bin(),
+      "f7.bin()",
+      "BIN(f7)",
+      "11")
+
+    testAllApis(
+      12.bin(),
+      "12.bin()",
+      "BIN(12)",
+      "1100")
+
+    testAllApis(
+      10.bin(),
+      "10.bin()",
+      "BIN(10)",
+      "1010")
+
+    testAllApis(
+      0.bin(),
+      "0.bin()",
+      "BIN(0)",
+      "0")
+
+    testAllApis(
+      'f32.bin(),
+      "f32.bin()",
+      "BIN(f32)",
+      "1111111111111111111111111111111111111111111111111111111111111111")
   }
 
   // ----------------------------------------------------------------------------------------------

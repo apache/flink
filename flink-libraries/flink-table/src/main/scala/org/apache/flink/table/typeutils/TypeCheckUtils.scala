@@ -68,6 +68,9 @@ object TypeCheckUtils {
 
   def isInteger(dataType: TypeInformation[_]): Boolean = dataType == INT_TYPE_INFO
 
+  def isIntegerFamily(dataType: TypeInformation[_]): Boolean =
+    dataType.isInstanceOf[IntegerTypeInfo[_]]
+
   def isLong(dataType: TypeInformation[_]): Boolean = dataType == LONG_TYPE_INFO
 
   def isIntervalMonths(dataType: TypeInformation[_]): Boolean = dataType == INTERVAL_MONTHS
@@ -97,6 +100,16 @@ object TypeCheckUtils {
       ValidationSuccess
     case _ =>
       ValidationFailure(s"$caller requires numeric types, get $dataType here")
+  }
+
+  def assertIntegerFamilyExpr(
+      dataType: TypeInformation[_],
+      caller: String)
+    : ValidationResult = dataType match {
+    case _: IntegerTypeInfo[_] =>
+      ValidationSuccess
+    case _ =>
+      ValidationFailure(s"$caller requires integer types but was '$dataType'.")
   }
 
   def assertOrderableExpr(dataType: TypeInformation[_], caller: String): ValidationResult = {

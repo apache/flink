@@ -1591,6 +1591,17 @@ LOG(x numeric), LOG(base numeric, x numeric)
       <p>Returns the natural logarithm of a specified number of a specified base. If called with one parameter, this function returns the natural logarithm of <code>x</code>. If called with two parameters, this function returns the logarithm of <code>x</code> to the base <code>b</code>. <code>x</code> must be greater than 0. <code>b</code> must be greater than 1.</p>
     </td>
    </tr>
+   
+    <tr>
+      <td>
+{% highlight text %}
+BIN(numeric)
+      {% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a string representation of an integer numeric value in binary format. Returns null if numeric is null. E.g. "4" leads to "100", "12" leads to "1100".</p>
+      </td>
+    </tr>
 
   </tbody>
 </table>
@@ -1744,16 +1755,6 @@ CONCAT_WS(separator, string1, string2,...)
       </td>
       <td>
         <p>Returns the string that results from concatenating the arguments using a separator. The separator is added between the strings to be concatenated. Returns NULL If the separator is NULL. CONCAT_WS() does not skip empty strings. However, it does skip any NULL argument. E.g. <code>CONCAT_WS("~", "AA", "BB", "", "CC")</code> returns <code>AA~BB~~CC</code></p>
-      </td>
-    </tr>
-    <tr>
-      <td>
-{% highlight text %}
-BIN(numeric)
-      {% endhighlight %}
-      </td>
-      <td>
-        <p>Returns a string representation of the binary value of Numeric, Returns NULL if Numeric is NULL.</p>
       </td>
     </tr>
 

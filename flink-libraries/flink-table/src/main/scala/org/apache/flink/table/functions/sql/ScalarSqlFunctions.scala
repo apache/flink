@@ -37,15 +37,15 @@ object ScalarSqlFunctions {
   val BIN = new SqlFunction(
     "BIN",
     SqlKind.OTHER_FUNCTION,
-    ReturnTypes.explicit(SqlTypeName.VARCHAR),
-    null,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+    InferTypes.RETURN_TYPE,
     OperandTypes.family(SqlTypeFamily.INTEGER),
     SqlFunctionCategory.NUMERIC)
 
   val CONCAT = new SqlFunction(
     "CONCAT",
     SqlKind.OTHER_FUNCTION,
-    ReturnTypes.VARCHAR_2000,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
     null,
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)
@@ -53,7 +53,7 @@ object ScalarSqlFunctions {
   val CONCAT_WS = new SqlFunction(
     "CONCAT_WS",
     SqlKind.OTHER_FUNCTION,
-    ReturnTypes.VARCHAR_2000,
+    ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
     null,
     OperandTypes.ONE_OR_MORE,
     SqlFunctionCategory.STRING)

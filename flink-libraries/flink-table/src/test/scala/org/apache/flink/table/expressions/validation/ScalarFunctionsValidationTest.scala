@@ -47,6 +47,21 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     )
   }
 
+  @Test(expected = classOf[ValidationException])
+  def testInvalidBin1(): Unit = {
+    testSqlApi("BIN(f12)", "101010") // float type
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidBin2(): Unit = {
+    testSqlApi("BIN(f15)", "101010") // BigDecimal type
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidBin3(): Unit = {
+    testSqlApi("BIN(f16)", "101010") // Date type
+  }
+
   // ----------------------------------------------------------------------------------------------
   // String functions
   // ----------------------------------------------------------------------------------------------
@@ -111,20 +126,5 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
       "f1.in('Hi','Hello world','Comment#1')",
       "true"
     )
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidBin1(): Unit = {
-    testSqlApi("BIN(f12)", "101010") // float type
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidBin2(): Unit = {
-    testSqlApi("BIN(f15)", "101010") // BigDecimal type
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testInvalidBin3(): Unit = {
-    testSqlApi("BIN(f16)", "101010") // Date type
   }
 }

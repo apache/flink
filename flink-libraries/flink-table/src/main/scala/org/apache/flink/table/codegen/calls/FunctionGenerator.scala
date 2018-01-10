@@ -418,6 +418,12 @@ object FunctionGenerator {
     Seq(),
     new ConstantCallGen(DOUBLE_TYPE_INFO, Math.E.toString))
 
+  addSqlFunctionMethod(
+    ScalarSqlFunctions.BIN,
+    Seq(LONG_TYPE_INFO),
+    STRING_TYPE_INFO,
+    BuiltInMethods.BIN)
+
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
@@ -506,12 +512,6 @@ object FunctionGenerator {
     Seq(SqlTimeTypeInfo.TIMESTAMP, STRING_TYPE_INFO),
     new DateFormatCallGen
   )
-
-  addSqlFunctionMethod(
-    ScalarSqlFunctions.BIN,
-    Seq(LONG_TYPE_INFO),
-    STRING_TYPE_INFO,
-    BuiltInMethods.BIN)
 
   // ----------------------------------------------------------------------------------------------
   // Cryptographic Hash functions

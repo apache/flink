@@ -355,3 +355,16 @@ case class RandInteger(seed: Expression, bound: Expression) extends Expression w
     relBuilder.call(SqlStdOperatorTable.RAND_INTEGER, children.map(_.toRexNode))
   }
 }
+
+case class Bin(child: Expression) extends UnaryExpression {
+  override private[flink] def resultType: TypeInformation[_] = BasicTypeInfo.STRING_TYPE_INFO
+
+  override private[flink] def validateInput(): ValidationResult =
+    TypeCheckUtils.assertIntegerFamilyExpr(child.resultType, "Bin")
+
+  override def toString: String = s"bin($child)"
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    relBuilder.call(ScalarSqlFunctions.BIN, child.toRexNode)
+  }
+}

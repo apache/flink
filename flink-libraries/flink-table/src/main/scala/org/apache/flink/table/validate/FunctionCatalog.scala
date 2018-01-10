@@ -224,6 +224,7 @@ object FunctionCatalog {
     "e" -> classOf[E],
     "rand" -> classOf[Rand],
     "randInteger" -> classOf[RandInteger],
+    "bin" -> classOf[Bin],
 
     // temporal functions
     "extract" -> classOf[Extract],

@@ -380,6 +380,12 @@ trait ImplicitExpressionOperations {
     */
   def round(places: Expression) = Round(expr, places)
 
+  /**
+    * Returns a string representation of an integer numeric value in binary format. Returns null if
+    * numeric is null. E.g. "4" leads to "100", "12" leads to "1100".
+    */
+  def bin() = Bin(expr)
+
   // String operations
 
   /**
