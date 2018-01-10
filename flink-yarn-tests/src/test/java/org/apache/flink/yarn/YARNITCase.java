@@ -54,38 +54,39 @@ public class YARNITCase extends YarnTestBase {
 		Configuration configuration = new Configuration();
 		configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
 		final YarnClient yarnClient = YarnClient.createYarnClient();
-		YarnClusterDescriptorV2 yarnClusterDescriptorV2 = new YarnClusterDescriptorV2(
+
+		try (final YarnClusterDescriptorV2 yarnClusterDescriptorV2 = new YarnClusterDescriptorV2(
 			configuration,
 			System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR),
-			yarnClient);
+			yarnClient)) {
 
-		yarnClusterDescriptorV2.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		yarnClusterDescriptorV2.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+			yarnClusterDescriptorV2.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
+			yarnClusterDescriptorV2.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
-		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(768)
-			.setTaskManagerMemoryMB(1024)
-			.setSlotsPerTaskManager(1)
-			.setNumberTaskManagers(1)
-			.createClusterSpecification();
+			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+				.setMasterMemoryMB(768)
+				.setTaskManagerMemoryMB(1024)
+				.setSlotsPerTaskManager(1)
+				.setNumberTaskManagers(1)
+				.createClusterSpecification();
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(2);
+			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+			env.setParallelism(2);
 
-		env.addSource(new InfiniteSource())
-			.shuffle()
-			.addSink(new DiscardingSink<Integer>());
+			env.addSource(new InfiniteSource())
+				.shuffle()
+				.addSink(new DiscardingSink<Integer>());
 
-		final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+			final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		File testingJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn-tests"));
+			File testingJar = YarnTestBase.findFile("..", new TestingYarnClusterDescriptor.TestJarFinder("flink-yarn-tests"));
 
-		jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
+			jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 
-		YarnClusterClient clusterClient = yarnClusterDescriptorV2.deployJobCluster(clusterSpecification, jobGraph);
+			YarnClusterClient clusterClient = yarnClusterDescriptorV2.deployJobCluster(clusterSpecification, jobGraph);
 
-		clusterClient.shutdown();
-		yarnClusterDescriptorV2.close();
+			clusterClient.shutdown();
+		}
 	}
 
 	private static class InfiniteSource implements ParallelSourceFunction<Integer> {

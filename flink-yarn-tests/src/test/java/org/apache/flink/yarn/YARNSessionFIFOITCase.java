@@ -228,54 +228,55 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		String confDirPath = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
 		Configuration configuration = GlobalConfiguration.loadConfiguration();
 		final YarnClient yarnClient = YarnClient.createYarnClient();
-		AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
+
+		try (final AbstractYarnClusterDescriptor clusterDescriptor = new YarnClusterDescriptor(
 			configuration,
 			confDirPath,
-			yarnClient);
-		Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
-		clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-		clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+			yarnClient)) {
+			Assert.assertNotNull("unable to get yarn client", clusterDescriptor);
+			clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
+			clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
 
-		final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
-			.setMasterMemoryMB(768)
-			.setTaskManagerMemoryMB(1024)
-			.setNumberTaskManagers(1)
-			.setSlotsPerTaskManager(1)
-			.createClusterSpecification();
-		// deploy
-		ClusterClient yarnCluster = null;
-		try {
-			yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
-		} catch (Exception e) {
-			LOG.warn("Failing test", e);
-			Assert.fail("Error while deploying YARN cluster: " + e.getMessage());
-		}
-		GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
-		for (int second = 0; second < waitTime * 2; second++) { // run "forever"
+			final ClusterSpecification clusterSpecification = new ClusterSpecification.ClusterSpecificationBuilder()
+				.setMasterMemoryMB(768)
+				.setTaskManagerMemoryMB(1024)
+				.setNumberTaskManagers(1)
+				.setSlotsPerTaskManager(1)
+				.createClusterSpecification();
+			// deploy
+			ClusterClient yarnCluster = null;
 			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				LOG.warn("Interrupted", e);
+				yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
+			} catch (Exception e) {
+				LOG.warn("Failing test", e);
+				Assert.fail("Error while deploying YARN cluster: " + e.getMessage());
 			}
-			GetClusterStatusResponse status = yarnCluster.getClusterStatus();
-			if (status != null && status.equals(expectedStatus)) {
-				LOG.info("ClusterClient reached status " + status);
-				break; // all good, cluster started
+			GetClusterStatusResponse expectedStatus = new GetClusterStatusResponse(1, 1);
+			for (int second = 0; second < waitTime * 2; second++) { // run "forever"
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					LOG.warn("Interrupted", e);
+				}
+				GetClusterStatusResponse status = yarnCluster.getClusterStatus();
+				if (status != null && status.equals(expectedStatus)) {
+					LOG.info("ClusterClient reached status " + status);
+					break; // all good, cluster started
+				}
+				if (second > waitTime) {
+					// we waited for 15 seconds. cluster didn't come up correctly
+					Assert.fail("The custer didn't start after " + waitTime + " seconds");
+				}
 			}
-			if (second > waitTime) {
-				// we waited for 15 seconds. cluster didn't come up correctly
-				Assert.fail("The custer didn't start after " + waitTime + " seconds");
-			}
+
+			// use the cluster
+			Assert.assertNotNull(yarnCluster.getJobManagerAddress());
+			Assert.assertNotNull(yarnCluster.getWebInterfaceURL());
+
+			LOG.info("Shutting down cluster. All tests passed");
+			// shutdown cluster
+			yarnCluster.shutdown();
 		}
-
-		// use the cluster
-		Assert.assertNotNull(yarnCluster.getJobManagerAddress());
-		Assert.assertNotNull(yarnCluster.getWebInterfaceURL());
-
-		LOG.info("Shutting down cluster. All tests passed");
-		// shutdown cluster
-		yarnCluster.shutdown();
-		clusterDescriptor.close();
 		LOG.info("Finished testJavaAPI()");
 	}
 }
