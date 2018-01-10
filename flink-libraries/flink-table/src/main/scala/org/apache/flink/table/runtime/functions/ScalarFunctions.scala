@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.functions
 import scala.annotation.varargs
 import java.math.{BigDecimal => JBigDecimal}
 import java.lang.StringBuilder
+import java.{lang => jl}
 
 /**
   * Built-in scalar runtime functions.
@@ -109,4 +110,45 @@ object ScalarFunctions {
       Math.log(x) / Math.log(base)
     }
   }
+
+  /**
+    * Returns the Int number after the input number left shift n bits.
+    * @param input the base number to shift.
+    * @param n the number of bits to left shift.
+    * @return input << n.
+    */
+  def shiftLeft(input: Int, n: Int): Int = {
+    input << n
+  }
+
+  /**
+    * Returns the Long number after the input number left shift n bits.
+    * @param input the base number to shift.
+    * @param n the number of bits to left shift.
+    * @return input << n.
+    */
+  def shiftLeft(input: Long, n: Int): Long = {
+    input << n
+  }
+
+  /**
+    * Returns the Int number after the input number right shift n bits.
+    * @param input the base number to shift.
+    * @param n the number of bits of right shift.
+    * @return input >> n.
+    */
+  def shiftRight(input: Int, n: Int): Int = {
+    input >> n
+  }
+
+  /**
+    * Returns the Long number after the input number right shift n bits.
+    * @param input the base number to shift.
+    * @param n the number of bits of right shift.
+    * @return input >> n.
+    */
+  def shiftRight(input: Long, n: Int): Long = {
+    input >> n
+  }
+
 }
