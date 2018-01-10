@@ -37,9 +37,11 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDa
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -84,6 +86,56 @@ public class KinesisDataFetcherTest extends TestLogger {
 				FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
 
 		fetcher.runFetcher(); // this should throw RuntimeException
+	}
+
+	@Test
+	public void testSkipCorruptedRecord() throws Exception {
+		final String stream = "fakeStream";
+		final int numShards = 3;
+
+		final LinkedList<KinesisStreamShardState> testShardStates = new LinkedList<>();
+		final TestSourceContext<String> sourceContext = new TestSourceContext<>();
+
+		final TestableKinesisDataFetcher<String> fetcher = new TestableKinesisDataFetcher<>(
+			Collections.singletonList(stream),
+			sourceContext,
+			TestUtils.getStandardProperties(),
+			new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+			1,
+			0,
+			new AtomicReference<>(),
+			testShardStates,
+			new HashMap<>(),
+			FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(Collections.singletonMap(stream, numShards)));
+
+		// FlinkKinesisConsumer is responsible for setting up the fetcher before it can be run;
+		// run the consumer until it reaches the point where the fetcher starts to run
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
+
+		CheckedThread consumerThread = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				consumer.run(new TestSourceContext<>());
+			}
+		};
+		consumerThread.start();
+
+		fetcher.waitUntilRun();
+		consumer.cancel();
+		consumerThread.sync();
+
+		assertEquals(numShards, testShardStates.size());
+
+		for (int i = 0; i < numShards; i++) {
+			fetcher.emitRecordAndUpdateState("record-" + i, 10L, i, new SequenceNumber("seq-num-1"));
+			assertEquals(new SequenceNumber("seq-num-1"), testShardStates.get(i).getLastProcessedSequenceNum());
+				assertEquals(new StreamRecord<>("record-" + i, 10L), sourceContext.removeLatestOutput());
+		}
+
+		// emitting a null (i.e., a corrupt record) should not produce any output, but still have the shard state updated
+		fetcher.emitRecordAndUpdateState(null, 10L, 1, new SequenceNumber("seq-num-2"));
+			assertEquals(new SequenceNumber("seq-num-2"), testShardStates.get(1).getLastProcessedSequenceNum());
+		assertEquals(null, sourceContext.removeLatestOutput()); // no output should have been collected
 	}
 
 	@Test

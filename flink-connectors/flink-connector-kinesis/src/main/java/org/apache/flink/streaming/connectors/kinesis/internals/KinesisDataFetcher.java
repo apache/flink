@@ -501,7 +501,10 @@ public class KinesisDataFetcher<T> {
 	 */
 	protected final void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
-			sourceContext.collectWithTimestamp(record, recordTimestamp);
+			if (record != null) {
+				sourceContext.collectWithTimestamp(record, recordTimestamp);
+			}
+
 			updateState(shardStateIndex, lastSequenceNumber);
 		}
 	}

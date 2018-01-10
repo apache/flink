@@ -58,6 +58,10 @@ public class TestSourceContext<T> implements SourceFunction.SourceContext<T> {
 	@Override
 	public void close() {}
 
+	public StreamRecord<T> removeLatestOutput() {
+		return collectedOutputs.poll();
+	}
+
 	public ConcurrentLinkedQueue<StreamRecord<T>> getCollectedOutputs() {
 		return collectedOutputs;
 	}
