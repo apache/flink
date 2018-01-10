@@ -84,8 +84,9 @@ public class CliFrontendSavepointTest extends TestLogger {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString() };
-			frontend.savepoint(parameters);
+			int returnCode = frontend.savepoint(parameters);
 
+			assertEquals(0, returnCode);
 			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), isNull(String.class));
 
@@ -138,6 +139,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 			String[] parameters = { "invalid job id" };
 			int returnCode = frontend.savepoint(parameters);
 
+			assertTrue(buffer.toString().contains("not a valid ID"));
 			assertNotEquals(0, returnCode);
 		}
 		finally {
@@ -163,8 +165,9 @@ public class CliFrontendSavepointTest extends TestLogger {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString(), savepointDirectory };
-			frontend.savepoint(parameters);
+			int returnCode = frontend.savepoint(parameters);
 
+			assertEquals(0, returnCode);
 			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), eq(savepointDirectory));
 

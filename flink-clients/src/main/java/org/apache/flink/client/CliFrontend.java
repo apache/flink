@@ -671,7 +671,7 @@ public class CliFrontend {
 				if (cleanedArgs.length >= 1) {
 					String jobIdString = cleanedArgs[0];
 					try {
-						jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+						jobId = JobID.fromHexString(jobIdString);
 					} catch (Exception e) {
 						return handleArgException(new IllegalArgumentException(
 							"Error: The value for the Job ID is not a valid ID."));
@@ -739,7 +739,7 @@ public class CliFrontend {
 
 		logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 
-		CompletableFuture<Acknowledge> disposeFuture = null;
+		final CompletableFuture<Acknowledge> disposeFuture;
 		try {
 			disposeFuture = clusterClient.disposeSavepoint(savepointPath, FutureUtils.toTime(clientTimeout));
 		} catch (Exception e) {
