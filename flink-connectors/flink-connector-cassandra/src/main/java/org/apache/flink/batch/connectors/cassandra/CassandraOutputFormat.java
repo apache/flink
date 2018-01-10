@@ -67,6 +67,26 @@ public class CassandraOutputFormat<OUT extends Tuple> extends RichOutputFormat<O
 	}
 
 	/**
+	 * Callback that is invoked after a record is written to Cassandra successfully.
+	 *
+	 * <p>Subclass can override to provide its own logic.
+	 * @param ignored the result.
+	 */
+	protected void onWriteSuccess(ResultSet ignored) {
+	}
+
+	/**
+	 * Callback that is invoked when failing to write to Cassandra.
+	 * Current implementation will record the exception and fail the job upon next record.
+	 *
+	 * <p>Subclass can override to provide its own failure handling logic.
+	 * @param t the exception
+	 */
+	protected void onWriteFailure(Throwable t) {
+		exception = t;
+	}
+
+	/**
 	 * Opens a Session to Cassandra and initializes the prepared statement.
 	 *
 	 * @param taskNumber The number of the parallel instance.
@@ -80,11 +100,12 @@ public class CassandraOutputFormat<OUT extends Tuple> extends RichOutputFormat<O
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override
 			public void onSuccess(ResultSet ignored) {
+				onWriteSuccess(ignored);
 			}
 
 			@Override
 			public void onFailure(Throwable t) {
-				exception = t;
+				onWriteFailure(t);
 			}
 		};
 	}
