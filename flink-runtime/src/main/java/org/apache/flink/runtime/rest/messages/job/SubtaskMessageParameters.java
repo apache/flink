@@ -16,37 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.metrics;
+package org.apache.flink.runtime.rest.messages.job;
 
-import org.apache.flink.runtime.rest.handler.job.metrics.SubtaskMetricsHandler;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
+import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /**
- * {@link MessageParameters} for {@link SubtaskMetricsHandler}.
+ * Message parameters for subtask REST handlers.
  */
-public class SubtaskMetricsMessageParameters extends SubtaskMessageParameters {
+public class SubtaskMessageParameters extends JobVertexMessageParameters {
 
-	private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
+	protected final SubtaskIndexPathParameter subtaskIndexPathParameter = new SubtaskIndexPathParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			jobPathParameter,
-			jobVertexIdPathParameter,
-			subtaskIndexPathParameter
-		));
+		return Arrays.asList(jobPathParameter, jobVertexIdPathParameter, subtaskIndexPathParameter);
 	}
-
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singletonList(metricsFilterParameter);
-	}
-
 }
