@@ -39,8 +39,13 @@ object UpdatingPlanChecker {
 
   /** Extracts the unique keys of the table produced by the plan. */
   def getUniqueKeyFields(plan: RelNode): Option[Array[String]] = {
+    getUniqueKeyGroups(plan).map(_.map(_._1).toArray)
+  }
+
+  /** Extracts the unique keys and groups of the table produced by the plan. */
+  def getUniqueKeyGroups(plan: RelNode): Option[Seq[(String, String)]] = {
     val keyExtractor = new UniqueKeyExtractor
-    keyExtractor.visit(plan).map(_.map(_._1).toArray)
+    keyExtractor.visit(plan)
   }
 
   private class AppendOnlyValidator extends RelVisitor {
@@ -101,7 +106,7 @@ object UpdatingPlanChecker {
               .filter(io => inputKeys.get.map(e => e._1).contains(io._1))
 
             val inputKeysMap = inputKeys.get.toMap
-            val inOutGroups = inputKeysAndOutput
+            val inOutGroups = inputKeysAndOutput.sorted.reverse
               .map(e => (inputKeysMap(e._1), e._2))
               .toMap
 

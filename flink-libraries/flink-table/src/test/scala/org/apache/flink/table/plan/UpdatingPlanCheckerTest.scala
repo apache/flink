@@ -83,6 +83,9 @@ class UpdatingPlanCheckerTest {
       .select('a as 'a1, 'a as 'a2, 'b.count)
 
     util.verifyTableUniqueKey(resultTable, Seq("a1", "a2"))
+    // both a1 and a2 belong to the same group, i.e., a1. We use the lexicographic smallest
+    // attribute as the common group id
+    util.verifyTableKeyGroups(resultTable, Seq(("a1", "a1"), ("a2", "a1")))
   }
 
   @Test
@@ -210,13 +213,25 @@ class UpdatePlanCheckerUtil extends StreamTableTestUtil {
     verifyTableUniqueKey(tableEnv.sql(query), expected)
   }
 
-  def verifyTableUniqueKey(resultTable: Table, expected: Seq[String]): Unit = {
+  def getKeyGroups(resultTable: Table): Option[Seq[(String, String)]] = {
     val relNode = resultTable.getRelNode
     val optimized = tableEnv.optimize(relNode, updatesAsRetraction = false)
-    val actual = UpdatingPlanChecker.getUniqueKeyFields(optimized)
+    UpdatingPlanChecker.getUniqueKeyGroups(optimized)
+  }
 
+  def verifyTableKeyGroups(resultTable: Table, expected: Seq[(String, String)]): Unit = {
+    val actual = getKeyGroups(resultTable)
     if (actual.isDefined) {
-      assertEquals(expected.sorted, actual.get.toSeq.sorted)
+      assertEquals(expected.sorted, actual.get.sorted)
+    } else {
+      assertEquals(expected.sorted, Nil)
+    }
+  }
+
+  def verifyTableUniqueKey(resultTable: Table, expected: Seq[String]): Unit = {
+    val actual = getKeyGroups(resultTable).map(_.map(_._1))
+    if (actual.isDefined) {
+      assertEquals(expected.sorted, actual.get.sorted)
     } else {
       assertEquals(expected.sorted, Nil)
     }
