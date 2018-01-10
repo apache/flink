@@ -501,7 +501,14 @@ public class KinesisDataFetcher<T> {
 	 */
 	protected final void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
-			sourceContext.collectWithTimestamp(record, recordTimestamp);
+			if (record != null) {
+				sourceContext.collectWithTimestamp(record, recordTimestamp);
+			} else {
+				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
+					lastSequenceNumber,
+					subscribedShardsState.get(shardStateIndex).getStreamShardHandle());
+			}
+
 			updateState(shardStateIndex, lastSequenceNumber);
 		}
 	}
