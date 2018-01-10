@@ -31,6 +31,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.batch.connectors.cassandra.CassandraInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
+import org.apache.flink.batch.connectors.cassandra.CassandraRowOutputFormat;
+import org.apache.flink.batch.connectors.cassandra.CassandraTupleOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -457,8 +459,18 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 	}
 
 	@Test
-	public void testCassandraBatchFormats() throws Exception {
+	public void testCassandraBatchTupleFormat() throws Exception {
 		OutputFormat<Tuple3<String, Integer, Integer>> sink = new CassandraOutputFormat<>(injectTableName(INSERT_DATA_QUERY), builder);
+		sink.configure(new Configuration());
+		sink.open(0, 1);
+
+		for (Tuple3<String, Integer, Integer> value : collection) {
+			sink.writeRecord(value);
+		}
+
+		sink.close();
+
+		sink = new CassandraTupleOutputFormat<>(injectTableName(INSERT_DATA_QUERY), builder);
 		sink.configure(new Configuration());
 		sink.open(0, 1);
 
@@ -480,6 +492,23 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 
 		source.close();
 		Assert.assertEquals(20, result.size());
+	}
+
+	@Test
+	public void testCassandraBatchRowFormat() throws Exception {
+		OutputFormat<Row> sink = new CassandraRowOutputFormat(injectTableName(INSERT_DATA_QUERY), builder);
+		sink.configure(new Configuration());
+		sink.open(0, 1);
+
+		for (Row value : rowCollection) {
+			sink.writeRecord(value);
+		}
+
+		sink.close();
+
+		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+		List<com.datastax.driver.core.Row> rows = rs.all();
+		Assert.assertEquals(rowCollection.size(), rows.size());
 	}
 
 	private String injectTableName(String target) {
