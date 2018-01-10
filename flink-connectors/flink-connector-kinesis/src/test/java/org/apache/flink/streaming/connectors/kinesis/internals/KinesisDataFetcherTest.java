@@ -37,6 +37,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDa
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -58,7 +59,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link KinesisDataFetcher}.
  */
-public class KinesisDataFetcherTest {
+public class KinesisDataFetcherTest extends TestLogger {
 
 	@Test(expected = RuntimeException.class)
 	public void testIfNoShardsAreFoundShouldThrowException() throws Exception {
@@ -214,7 +215,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -303,7 +305,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -396,7 +399,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
@@ -492,7 +496,8 @@ public class KinesisDataFetcherTest {
 			}
 		};
 		runFetcherThread.start();
-		Thread.sleep(1000); // sleep a while before closing
+
+		fetcher.waitUntilInitialDiscovery();
 		fetcher.shutdownFetcher();
 		runFetcherThread.sync();
 
