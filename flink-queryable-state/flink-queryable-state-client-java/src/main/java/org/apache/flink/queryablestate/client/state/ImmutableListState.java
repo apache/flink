@@ -67,4 +67,9 @@ public final class ImmutableListState<V> extends ImmutableState implements ListS
 				stateDescriptor.getElementSerializer());
 		return new ImmutableListState<>(state);
 	}
+
+	@Override
+	public void update(List<V> values) throws Exception {
+		throw MODIFICATION_ATTEMPT_ERROR;
+	}
 }

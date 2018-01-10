@@ -77,13 +77,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1199,15 +1199,18 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		TypeSerializer<String> valueSerializer = kvId.getElementSerializer();
 
 		Joiner joiner = Joiner.on(",");
+
 		// some modifications to the state
 		backend.setCurrentKey(1);
-		assertEquals(null, state.get());
-		assertEquals(null, getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 		state.add("1");
+
 		backend.setCurrentKey(2);
-		assertEquals(null, state.get());
-		assertEquals(null, getSerializedList(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
-		state.add("2");
+		assertNull(state.get());
+		assertNull(getSerializedList(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
+		state.update(Arrays.asList("2"));
+
 		backend.setCurrentKey(1);
 		assertEquals("1", joiner.join(state.get()));
 		assertEquals("1", joiner.join(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
@@ -1218,8 +1221,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		// make some more modifications
 		backend.setCurrentKey(1);
 		state.add("u1");
+
 		backend.setCurrentKey(2);
 		state.add("u2");
+
 		backend.setCurrentKey(3);
 		state.add("u3");
 
@@ -1230,9 +1235,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.setCurrentKey(1);
 		assertEquals("1,u1", joiner.join(state.get()));
 		assertEquals("1,u1", joiner.join(getSerializedList(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
 		backend.setCurrentKey(2);
 		assertEquals("2,u2", joiner.join(state.get()));
 		assertEquals("2,u2", joiner.join(getSerializedList(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
 		backend.setCurrentKey(3);
 		assertEquals("u3", joiner.join(state.get()));
 		assertEquals("u3", joiner.join(getSerializedList(kvState, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
@@ -1249,6 +1256,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.setCurrentKey(1);
 		assertEquals("1", joiner.join(restored1.get()));
 		assertEquals("1", joiner.join(getSerializedList(restoredKvState1, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
 		backend.setCurrentKey(2);
 		assertEquals("2", joiner.join(restored1.get()));
 		assertEquals("2", joiner.join(getSerializedList(restoredKvState1, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
@@ -1265,9 +1273,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.setCurrentKey(1);
 		assertEquals("1,u1", joiner.join(restored2.get()));
 		assertEquals("1,u1", joiner.join(getSerializedList(restoredKvState2, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
 		backend.setCurrentKey(2);
 		assertEquals("2,u2", joiner.join(restored2.get()));
 		assertEquals("2,u2", joiner.join(getSerializedList(restoredKvState2, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
+
 		backend.setCurrentKey(3);
 		assertEquals("u3", joiner.join(restored2.get()));
 		assertEquals("u3", joiner.join(getSerializedList(restoredKvState2, 3, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer)));
@@ -1276,7 +1286,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
-	public void testListStateAddAndGet() throws Exception {
+	public void testListStateAddUpdateAndGet() throws Exception {
 
 		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -1294,18 +1304,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			state.add(17L);
 			state.add(11L);
 			assertThat(state.get(), containsInAnyOrder(17L, 11L));
+			// update(null) should remain the value null
+			state.update(null);
+			assertNull(state.get());
+			// update(emptyList) should remain the value null
+			state.update(Arrays.asList());
+			assertNull(state.get());
+			state.update(Arrays.asList(10L, 16L));
+			assertThat(state.get(), containsInAnyOrder(16L, 10L));
 
 			keyedBackend.setCurrentKey("abc");
 			assertNull(state.get());
 
 			keyedBackend.setCurrentKey("g");
 			assertNull(state.get());
-			state.add(1L);
-			state.add(2L);
+			state.update(Arrays.asList(1L, 2L));
 
 			keyedBackend.setCurrentKey("def");
-			assertThat(state.get(), containsInAnyOrder(11L, 17L));
-
+			assertThat(state.get(), containsInAnyOrder(10L, 16L));
 			state.clear();
 			assertNull(state.get());
 
@@ -1319,7 +1335,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("g");
 			assertThat(state.get(), containsInAnyOrder(1L, 2L, 3L, 2L, 1L));
-
+			state.update(Arrays.asList(5L, 6L));
+			assertThat(state.get(), containsInAnyOrder(5L, 6L));
 			state.clear();
 
 			// make sure all lists / maps are cleared
@@ -1465,11 +1482,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// some modifications to the state
 		backend.setCurrentKey(1);
-		assertEquals(null, state.get());
+		assertNull(state.get());
 		assertNull(getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 		state.add("1");
 		backend.setCurrentKey(2);
-		assertEquals(null, state.get());
+		assertNull(state.get());
 		assertNull(getSerializedValue(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 		state.add("2");
 		backend.setCurrentKey(1);
@@ -2081,12 +2098,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// some modifications to the state
 		backend.setCurrentKey(1);
-		assertEquals(null, state.get());
-		assertEquals(null, getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
+		assertNull(state.get());
+		assertNull(getSerializedValue(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 		state.add(1);
 		backend.setCurrentKey(2);
-		assertEquals(null, state.get());
-		assertEquals(null, getSerializedValue(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
+		assertNull(state.get());
+		assertNull(getSerializedValue(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, valueSerializer));
 		state.add(2);
 		backend.setCurrentKey(1);
 		assertEquals("Fold-Initial:,1", state.get());
@@ -2178,12 +2195,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// some modifications to the state
 		backend.setCurrentKey(1);
-		assertEquals(null, state.get(1));
-		assertEquals(null, getSerializedMap(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+		assertNull(state.get(1));
+		assertNull(getSerializedMap(kvState, 1, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 		state.put(1, "1");
 		backend.setCurrentKey(2);
-		assertEquals(null, state.get(2));
-		assertEquals(null, getSerializedMap(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
+		assertNull(state.get(2));
+		assertNull(getSerializedMap(kvState, 2, keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 		state.put(2, "2");
 		backend.setCurrentKey(1);
 		assertTrue(state.contains(1));
@@ -2225,7 +2242,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		for (Integer key : state.keys()) {
 			keys.add(key);
 		}
-		List<Integer> expectedKeys = new ArrayList<Integer>() {{ add(103); add(1031); add(1032); }};
+		List<Integer> expectedKeys = Arrays.asList(103, 1031, 1032);
 		assertEquals(keys.size(), expectedKeys.size());
 		keys.removeAll(expectedKeys);
 		assertTrue(keys.isEmpty());
@@ -2234,7 +2251,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		for (String value : state.values()) {
 			values.add(value);
 		}
-		List<String> expectedValues = new ArrayList<String>() {{ add("103"); add("1031"); add("1032"); }};
+		List<String> expectedValues = Arrays.asList("103", "1031", "1032");
 		assertEquals(values.size(), expectedValues.size());
 		values.removeAll(expectedValues);
 		assertTrue(values.isEmpty());
@@ -2322,13 +2339,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		ValueState<String> state = backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
 		backend.setCurrentKey(1);
-		assertEquals(null, state.value());
+		assertNull(state.value());
 
 		state.update("Ciao");
 		assertEquals("Ciao", state.value());
 
 		state.clear();
-		assertEquals(null, state.value());
+		assertNull(state.value());
 
 		backend.dispose();
 	}
@@ -2426,8 +2443,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		backend.setCurrentKey(1);
 		assertNull(state.get());
 
-		state.add("Ciao");
-		state.add("Bello");
+		state.update(Arrays.asList("Ciao", "Bello"));
 		assertThat(state.get(), containsInAnyOrder("Ciao", "Bello"));
 
 		state.clear();
@@ -3194,7 +3210,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			// test isolation
 			for (int i = 0; i < 20; ++i) {
 				backend.setCurrentKey(i);
-				Assert.assertEquals(i + 1, (int) valueState.value());
+				assertEquals(i + 1, (int) valueState.value());
 			}
 
 		} finally {
@@ -3204,7 +3220,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			}
 		}
 
-		Assert.assertNotNull(stateHandle);
+		assertNotNull(stateHandle);
 
 		backend = null;
 
@@ -3219,11 +3235,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			for (int i = 0; i < 10; ++i) {
 				backend.setCurrentKey(i);
-				Assert.assertEquals(i, (int) valueState.value());
+				assertEquals(i, (int) valueState.value());
 			}
 
 			backend.setCurrentKey(11);
-			Assert.assertEquals(null, valueState.value());
+			assertNull(valueState.value());
 		} finally {
 			if (null != backend) {
 				IOUtils.closeQuietly(backend);

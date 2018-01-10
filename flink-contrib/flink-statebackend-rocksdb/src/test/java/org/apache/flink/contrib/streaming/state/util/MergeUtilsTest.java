@@ -16,28 +16,40 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.internal;
+package org.apache.flink.contrib.streaming.state.util;
 
-import org.apache.flink.api.common.state.ListState;
+import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.Assert.assertTrue;
+
 /**
- * The peer to the {@link ListState} in the internal state type hierarchy.
- * 
- * <p>See {@link InternalKvState} for a description of the internal state hierarchy.
- * 
- * @param <N> The type of the namespace
- * @param <T> The type of elements in the list
+ * Tests for MergeUtils.
  */
-public interface InternalListState<N, T> extends InternalMergingState<N, T, Iterable<T>>, ListState<T> {
-	/**
-	 * Updates the state of the current key for the given source namespaces into the state of
-	 * the target namespace.
-	 *
-	 * @param values The target namespace where the merged state should be stored.
-	 *
-	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
-	 */
-	void update(List<T> values) throws Exception;
+public class MergeUtilsTest {
+	@Test
+	public void testMerge() {
+		List<byte[]> list = Arrays.asList(
+				new byte[4],
+				new byte[1],
+				new byte[2]);
+
+		byte[] expected = new byte[9];
+		expected[4] = MergeUtils.DELIMITER;
+		expected[6] = MergeUtils.DELIMITER;
+
+		assertTrue(Arrays.equals(expected, MergeUtils.merge(list)));
+
+		// Empty list
+		list = Arrays.asList();
+
+		assertTrue(Arrays.equals(null, MergeUtils.merge(list)));
+
+		// Singleton list
+		list = Arrays.asList(new byte[1]);
+
+		assertTrue(Arrays.equals(new byte[1], MergeUtils.merge(list)));
+	}
 }

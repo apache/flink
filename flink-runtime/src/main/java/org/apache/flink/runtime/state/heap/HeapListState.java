@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Heap-backed partitioned {@link org.apache.flink.api.common.state.ListState} that is snapshotted
@@ -119,5 +120,17 @@ public class HeapListState<K, N, V>
 	protected ArrayList<V> mergeState(ArrayList<V> a, ArrayList<V> b) {
 		a.addAll(b);
 		return a;
+	}
+
+	@Override
+	public void update(List<V> values) throws Exception {
+		clear();
+
+		if (values != null && !values.isEmpty()) {
+			final N namespace = currentNamespace;
+			final StateTable<K, N, ArrayList<V>> map = stateTable;
+
+			map.put(namespace, new ArrayList<>(values));
+		}
 	}
 }

@@ -20,6 +20,8 @@ package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 
+import java.util.List;
+
 /**
  * {@link State} interface for partitioned list state in Operations.
  * The state is accessed and modified by user functions, and checkpointed consistently
@@ -33,4 +35,16 @@ import org.apache.flink.annotation.PublicEvolving;
  * @param <T> Type of values that this list state keeps.
  */
 @PublicEvolving
-public interface ListState<T> extends MergingState<T, Iterable<T>> {}
+public interface ListState<T> extends MergingState<T, Iterable<T>> {
+	/**
+	 * Updates the state of the current key for the given source namespaces into the state of
+	 * the target namespace.
+	 *
+	 * If `null` or an empty list is passed in, the state value will be null
+	 *
+	 * @param values The target namespace where the merged state should be stored.
+	 *
+	 * @throws Exception The method may forward exception thrown internally (by I/O or functions).
+	 */
+	void update(List<T> values) throws Exception;
+}
