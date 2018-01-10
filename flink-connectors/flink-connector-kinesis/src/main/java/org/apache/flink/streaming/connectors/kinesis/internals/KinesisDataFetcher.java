@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
@@ -183,7 +184,7 @@ public class KinesisDataFetcher<T> {
 			KinesisProxy.create(configProps));
 	}
 
-	/** This constructor is exposed for testing purposes. */
+	@VisibleForTesting
 	protected KinesisDataFetcher(List<String> streams,
 								SourceFunction.SourceContext<T> sourceContext,
 								Object checkpointLock,
@@ -481,7 +482,7 @@ public class KinesisDataFetcher<T> {
 	 *                        when the shard state was registered.
 	 * @param lastSequenceNumber the last sequence number value to update
 	 */
-	protected void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
+	protected final void emitRecordAndUpdateState(T record, long recordTimestamp, int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
 			sourceContext.collectWithTimestamp(record, recordTimestamp);
 			updateState(shardStateIndex, lastSequenceNumber);
@@ -498,7 +499,7 @@ public class KinesisDataFetcher<T> {
 	 *                        when the shard state was registered.
 	 * @param lastSequenceNumber the last sequence number value to update
 	 */
-	protected void updateState(int shardStateIndex, SequenceNumber lastSequenceNumber) {
+	protected final void updateState(int shardStateIndex, SequenceNumber lastSequenceNumber) {
 		synchronized (checkpointLock) {
 			subscribedShardsState.get(shardStateIndex).setLastProcessedSequenceNum(lastSequenceNumber);
 
@@ -559,7 +560,8 @@ public class KinesisDataFetcher<T> {
 		return (Math.abs(shard.hashCode() % totalNumberOfConsumerSubtasks)) == indexOfThisConsumerSubtask;
 	}
 
-	private static ExecutorService createShardConsumersThreadPool(final String subtaskName) {
+	@VisibleForTesting
+	protected ExecutorService createShardConsumersThreadPool(final String subtaskName) {
 		return Executors.newCachedThreadPool(new ThreadFactory() {
 			@Override
 			public Thread newThread(Runnable runnable) {
