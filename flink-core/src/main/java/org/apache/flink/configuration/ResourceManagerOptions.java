@@ -21,7 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * The set of configuration options relating to the ResourceManager
+ * The set of configuration options relating to the ResourceManager.
  */
 @PublicEvolving
 public class ResourceManagerOptions {
@@ -57,6 +57,22 @@ public class ResourceManagerOptions {
 		.key("containerized.heap-cutoff-min")
 		.defaultValue(600)
 		.withDeprecatedKeys("yarn.heap-cutoff-min");
+
+	/**
+	 * The timeout for a slot request to be discarded, in milliseconds.
+	 */
+	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT = ConfigOptions
+		.key("slotmanager.request-timeout")
+		.defaultValue(600000L)
+		.withDescription("The timeout for a slot request to be discarded.");
+
+	/**
+	 * The timeout for an idle task manager to be released, in milliseconds.
+	 */
+	public static final ConfigOption<Long> TASK_MANAGER_TIMEOUT = ConfigOptions
+		.key("slotmanager.taskmanager-timeout")
+		.defaultValue(30000L)
+		.withDescription("The timeout for an idle task manager to be released.");
 
 	/**
 	 * Prefix for passing custom environment variables to Flink's master process.

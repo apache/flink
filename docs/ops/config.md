@@ -448,7 +448,6 @@ The configuration keys in this section are independent of the used resource mana
 - `resourcemanager.rpc.port`: The config parameter defining the network port to connect to for communication with the resource manager. By default, the port
 of the JobManager, because the same ActorSystem is used. Its not possible to use this configuration key to define port ranges.
 
-
 ### YARN
 
 - `containerized.heap-cutoff-ratio`: (Default 0.25) Percentage of heap space to remove from containers started by YARN. When a user requests a certain amount of memory for each TaskManager container (for example 4 GB), we can not pass this amount as the maximum heap space for the JVM (`-Xmx` argument) because the JVM is also allocating memory outside the heap. YARN is very strict with killing containers which are using more memory than requested. Therefore, we remove this fraction of the memory from the requested heap as a safety margin and add it to the memory used off-heap.
@@ -648,6 +647,14 @@ You have to configure `jobmanager.archive.fs.dir` in order to archive terminated
 - `historyserver.web.port`: Port of the HistoryServers's web interface (DEFAULT: `8082`).
 
 - `historyserver.web.ssl.enabled`: Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true (DEFAULT: `false`).
+
+### Slot Manager (Flip-6)
+
+The configuration keys in this section are relevant for the SlotManager running in the Flip-6 ResourceManager
+
+- `slotmanager.request-timeout`: Timeout after which a slot request will be discarded by the SlotManager. The value is specified in milli seconds (DEFAULT: `300000`).
+
+- `slotmanager.taskmanager-timeout`: Timeout after which an idling task manager's container is released (DEFAULT: `30000`).
 
 ## Background
 
