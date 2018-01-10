@@ -274,7 +274,7 @@ public class KinesisDataFetcher<T> {
 						seededStateIndex,
 						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
-						buildMetricGroupForShard(subscribedShardsState.get(seededStateIndex))));
+						registerMetricGroupForShard(subscribedShardsState.get(seededStateIndex))));
 			}
 		}
 
@@ -321,7 +321,7 @@ public class KinesisDataFetcher<T> {
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum(),
-						buildMetricGroupForShard(newShardState)));
+						registerMetricGroupForShard(newShardState)));
 			}
 
 			// we also check if we are running here so that we won't start the discovery sleep
@@ -548,7 +548,7 @@ public class KinesisDataFetcher<T> {
 	/**
 	 * Registers a metric group associated with the shard id of the provided {@link KinesisStreamShardState shardState}.
 	 */
-	private MetricGroup buildMetricGroupForShard(KinesisStreamShardState shardState) {
+	private MetricGroup registerMetricGroupForShard(KinesisStreamShardState shardState) {
 		return runtimeContext
 			.getMetricGroup()
 			.addGroup("Kinesis")
