@@ -20,6 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
@@ -89,7 +90,7 @@ public class CliFrontendStopTest extends TestLogger {
 		fail("Should have failed.");
 	}
 
-	@Test
+	@Test(expected = TestException.class)
 	public void testUnknownJobId() throws Exception {
 		// test unknown job Id
 		JobID jid = new JobID();
@@ -97,21 +98,23 @@ public class CliFrontendStopTest extends TestLogger {
 		String[] parameters = { jid.toString() };
 		StopTestCliFrontend testFrontend = new StopTestCliFrontend(true);
 
-		try {
-			testFrontend.stop(parameters);
-			fail("Should have failed.");
-		} catch (IllegalArgumentException ignored) {
-			// expected
-		}
+		testFrontend.stop(parameters);
+		fail("Should have failed.");
+	}
 
-		Mockito.verify(testFrontend.client, times(1)).stop(any(JobID.class));
+	private static final class TestException extends FlinkException {
+		private static final long serialVersionUID = -2650760898729937583L;
+
+		TestException(String message) {
+			super(message);
+		}
 	}
 
 	private static final class StopTestCliFrontend extends MockedCliFrontend {
 
 		StopTestCliFrontend(boolean reject) throws Exception {
 			if (reject) {
-				doThrow(new IllegalArgumentException("Test exception")).when(client).stop(any(JobID.class));
+				doThrow(new TestException("Test Exception")).when(client).stop(any(JobID.class));
 			}
 		}
 	}

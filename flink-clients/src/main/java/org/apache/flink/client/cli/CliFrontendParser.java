@@ -448,17 +448,6 @@ public class CliFrontendParser {
 		}
 	}
 
-	public static ListOptions parseListCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(LIST_OPTIONS, args, false);
-			return new ListOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
-
 	public static CancelOptions parseCancelCommand(String[] args) throws CliArgsException {
 		try {
 			DefaultParser parser = new DefaultParser();
@@ -485,17 +474,6 @@ public class CliFrontendParser {
 			DefaultParser parser = new DefaultParser();
 			CommandLine line = parser.parse(SAVEPOINT_OPTIONS, args, false);
 			return new SavepointOptions(line);
-		}
-		catch (ParseException e) {
-			throw new CliArgsException(e.getMessage());
-		}
-	}
-
-	public static InfoOptions parseInfoCommand(String[] args) throws CliArgsException {
-		try {
-			DefaultParser parser = new DefaultParser();
-			CommandLine line = parser.parse(INFO_OPTIONS, args, true);
-			return new InfoOptions(line);
 		}
 		catch (ParseException e) {
 			throw new CliArgsException(e.getMessage());

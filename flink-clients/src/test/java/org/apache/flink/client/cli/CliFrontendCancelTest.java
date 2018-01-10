@@ -57,7 +57,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			CancelTestCliFrontend testFrontend = new CancelTestCliFrontend(false);
 
 			int retCode = testFrontend.cancel(parameters);
-			assertTrue(retCode == 0);
+			assertEquals(0,retCode);
 
 			Mockito.verify(testFrontend.client, times(1)).cancel(any(JobID.class));
 		}

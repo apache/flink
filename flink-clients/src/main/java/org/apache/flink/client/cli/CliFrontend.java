@@ -54,7 +54,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -228,10 +227,12 @@ public class CliFrontend {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
-		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
-		ClusterClient client = createClient(customCommandLine, commandLine, program);
+		ClusterClient client = null;
 
 		try {
+			final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+			client = createClient(customCommandLine, commandLine, program);
+
 			client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
 			client.setDetached(runOptions.getDetachedMode());
 			LOG.debug("Client slots is set to {}", client.getMaxSlots());
@@ -254,10 +255,12 @@ public class CliFrontend {
 		finally {
 			program.deleteExtractedLibraries();
 
-			try {
-				client.shutdown();
-			} catch (Exception e) {
-				LOG.info("Could not properly shut down the client.", e);
+			if (client != null) {
+				try {
+					client.shutdown();
+				} catch (Exception e) {
+					LOG.info("Could not properly shut down the client.", e);
+				}
 			}
 		}
 	}
@@ -464,7 +467,7 @@ public class CliFrontend {
 
 		if (stopArgs.length > 0) {
 			String jobIdString = stopArgs[0];
-			jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
+			jobId = parseJobId(jobIdString);
 		}
 		else {
 			throw new CliArgsException("Missing JobID");
@@ -523,20 +526,14 @@ public class CliFrontend {
 		// - cancel -s <targetDir> <jobID> => custom target dir (parsed correctly)
 		if (cleanedArgs.length > 0) {
 			String jobIdString = cleanedArgs[0];
-			try {
-				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
-			} catch (Exception e) {
-				throw new CliArgsException("The value for the JobID is not a valid ID: " + e.getMessage());
-			}
+
+			jobId = parseJobId(jobIdString);
 		} else if (targetDirectory != null)  {
 			// Try this for case: cancel -s <jobID> (default savepoint target dir)
 			String jobIdString = targetDirectory;
-			try {
-				jobId = new JobID(StringUtils.hexStringToByte(jobIdString));
-				targetDirectory = null;
-			} catch (Exception e) {
-				throw new CliArgsException("Missing JobID in the command line arguments: " + e.getMessage());
-			}
+			targetDirectory = null;
+
+			jobId = parseJobId(jobIdString);
 		} else {
 			throw new CliArgsException("Missing JobID in the command line arguments.");
 		}
@@ -574,7 +571,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the cancel action.
 	 */
-	protected int savepoint(String[] args) throws CliArgsException {
+	protected int savepoint(String[] args) throws Exception {
 		LOG.info("Running 'savepoint' command.");
 
 		SavepointOptions options = CliFrontendParser.parseSavepointCommand(args);
@@ -600,11 +597,8 @@ public class CliFrontend {
 
 				if (cleanedArgs.length >= 1) {
 					String jobIdString = cleanedArgs[0];
-					try {
-						jobId = JobID.fromHexString(jobIdString);
-					} catch (Exception ignored) {
-						throw new CliArgsException("Error: The value for the Job ID is not a valid ID.");
-					}
+
+					jobId = parseJobId(jobIdString);
 				} else {
 					throw new CliArgsException("Error: The value for the Job ID is not a valid ID. " +
 						"Specify a Job ID to trigger a savepoint.");
@@ -622,8 +616,6 @@ public class CliFrontend {
 
 				return triggerSavepoint(clusterClient, jobId, savepointDirectory);
 			}
-		} catch (Exception e) {
-			return handleError(e);
 		} finally {
 			try {
 				clusterClient.shutdown();
@@ -902,6 +894,20 @@ public class CliFrontend {
 	private static void logAndSysout(String message) {
 		LOG.info(message);
 		System.out.println(message);
+	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Internal methods
+	// --------------------------------------------------------------------------------------------
+
+	private JobID parseJobId(String jobIdString) throws CliArgsException {
+		JobID jobId;
+		try {
+			jobId = JobID.fromHexString(jobIdString);
+		} catch (IllegalArgumentException e) {
+			throw new CliArgsException(e.getMessage());
+		}
+		return jobId;
 	}
 
 	// --------------------------------------------------------------------------------------------
