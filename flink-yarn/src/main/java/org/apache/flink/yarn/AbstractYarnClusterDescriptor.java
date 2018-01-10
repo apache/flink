@@ -147,7 +147,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		// for unit tests only
 		if (System.getenv("IN_TESTS") != null) {
 			try {
-				yarnConfiguration.addResource(new File(System.getenv("YARN_CONF_DIR") + "/yarn-site.xml").toURI().toURL());
+				yarnConfiguration.addResource(new File(System.getenv("YARN_CONF_DIR"), "yarn-site.xml").toURI().toURL());
 			} catch (Throwable t) {
 				throw new RuntimeException("Error", t);
 			}
