@@ -30,7 +30,6 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
@@ -101,19 +100,7 @@ public class StateBackendITCase extends AbstractTestBase {
 
 		@Override
 		public CheckpointStorage createCheckpointStorage(JobID jobId) throws IOException {
-			return new MemoryBackendCheckpointStorage(jobId);
-		}
-
-		@Override
-		public CheckpointStreamFactory createStreamFactory(JobID jobId,
-				String operatorIdentifier) throws IOException {
-			throw new SuccessException();
-		}
-
-		@Override
-		public CheckpointStreamFactory createSavepointStreamFactory(JobID jobId,
-			String operatorIdentifier, String targetLocation) throws IOException {
-			throw new SuccessException();
+			return new MemoryBackendCheckpointStorage(jobId, null, null, 1_000_000);
 		}
 
 		@Override

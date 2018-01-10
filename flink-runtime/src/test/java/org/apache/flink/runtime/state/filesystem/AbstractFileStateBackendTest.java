@@ -257,7 +257,7 @@ public class AbstractFileStateBackendTest {
 
 		final String customLocation = customDir == null ? null : customDir.toString();
 
-		final FsCheckpointStorageLocation savepointLocation =
+		final FsCheckpointStorageLocation savepointLocation = (FsCheckpointStorageLocation)
 				storage.initializeLocationForSavepoint(52452L, customLocation);
 
 		// all state types should be in the expected location

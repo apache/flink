@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -26,33 +25,47 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.FileUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.UUID;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
- * {@link org.apache.flink.runtime.state.CheckpointStreamFactory} that produces streams that
- * write to a {@link FileSystem}.
+ * A {@link CheckpointStreamFactory} that produces streams that write to a {@link FileSystem}.
+ * The streams from the factory put their data into files with a random name, within the
+ * given directory.
  *
- * <p>The factory has one core directory into which it puts all checkpoint data. Inside that
- * directory, it creates a directory per job, inside which each checkpoint gets a directory, with
- * files for each state, for example:
+ * <p>If the state written to the stream is fewer bytes than a configurable threshold, then no
+ * files are written, but the state is returned inline in the state handle instead. This reduces
+ * the problem of many small files that have only few bytes.
  *
- * {@code hdfs://namenode:port/flink-checkpoints/<job-id>/chk-17/6ba7b810-9dad-11d1-80b4-00c04fd430c8 }
+ * <h2>Note on directory creation</h2>
+ *
+ * <p>The given target directory must already exist, this factory does not ensure that the
+ * directory gets created. That is important, because if this factory checked for directory
+ * existence, there would be many checks per checkpoint (from each TaskManager and operator)
+ * and such floods of directory existence checks can be prohibitive on larger scale setups
+ * for some file systems.
+ *
+ * <p>For example many S3 file systems (like Hadoop's s3a) use HTTP HEAD requests to check
+ * for the existence of a directory. S3 sometimes limits the number of HTTP HEAD requests to
+ * a few hundred per second only. Those numbers are easily reached by moderately large setups.
+ * Surprisingly (and fortunately), the actual state writing (POST) have much higher quotas.
  */
 public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FsCheckpointStreamFactory.class);
 
 	/** Maximum size of state that is stored with the metadata, rather than in files */
-	private static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
+	public static final int MAX_FILE_STATE_THRESHOLD = 1024 * 1024;
 
 	/** Default size for the write buffer */
-	private static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
+	public static final int DEFAULT_WRITE_BUFFER_SIZE = 4096;
 
 	/** State below this size will be stored as part of the metadata, rather than in files */
 	private final int fileStateThreshold;
@@ -60,31 +73,26 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	/** The directory (job specific) into this initialized instance of the backend stores its data */
 	private final Path checkpointDirectory;
 
-	/** Cached handle to the file system for file operations */
+	/** Cached handle to the file system for file operations. */
 	private final FileSystem filesystem;
 
 	/**
-	 * Creates a new state backend that stores its checkpoint data in the file system and location
-	 * defined by the given URI.
+	 * Creates a new stream factory that stores its checkpoint data in the file system and location
+	 * defined by the given Path.
 	 *
-	 * <p>A file system for the file system scheme in the URI (e.g., 'file://', 'hdfs://', or 'S3://')
-	 * must be accessible via {@link FileSystem#get(URI)}.
+	 * <p><b>Important:</b> The given checkpoint directory must already exist. Refer to the class-level
+	 * JavaDocs for an explanation why this factory must not try and create the checkpoints.
 	 *
-	 * <p>For a state backend targeting HDFS, this means that the URI must either specify the authority
-	 * (host and port), or that the Hadoop configuration that describes that information must be in the
-	 * classpath.
-	 *
-	 * @param checkpointDataUri The URI describing the filesystem (scheme and optionally authority),
-	 *                          and the path to the checkpoint data directory.
+	 * @param fileSystem The filesystem to write to.
+	 * @param checkpointDirectory The URI describing the filesystem (scheme and optionally authority),
+	 *                            and the path to the checkpoint data directory.
 	 * @param fileStateSizeThreshold State up to this size will be stored as part of the metadata,
 	 *                             rather than in files
-	 *
-	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	public FsCheckpointStreamFactory(
-			Path checkpointDataUri,
-			JobID jobId,
-			int fileStateSizeThreshold) throws IOException {
+			FileSystem fileSystem,
+			Path checkpointDirectory,
+			int fileStateSizeThreshold) {
 
 		if (fileStateSizeThreshold < 0) {
 			throw new IllegalArgumentException("The threshold for file state size must be zero or larger.");
@@ -93,51 +101,32 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 			throw new IllegalArgumentException("The threshold for file state size cannot be larger than " +
 				MAX_FILE_STATE_THRESHOLD);
 		}
+
+		this.filesystem = checkNotNull(fileSystem);
+		this.checkpointDirectory = checkNotNull(checkpointDirectory);
 		this.fileStateThreshold = fileStateSizeThreshold;
-
-		Path basePath = checkpointDataUri;
-		filesystem = basePath.getFileSystem();
-
-		checkpointDirectory = createBasePath(filesystem, basePath, jobId);
-
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Initialed file stream factory to URI {}.", checkpointDirectory);
-		}
 	}
+
+	// ------------------------------------------------------------------------
 
 	@Override
 	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointID, long timestamp) throws Exception {
-		checkFileSystemInitialized();
-
-		Path checkpointDir = createCheckpointDirPath(checkpointDirectory, checkpointID);
 		int bufferSize = Math.max(DEFAULT_WRITE_BUFFER_SIZE, fileStateThreshold);
-		return new FsCheckpointStateOutputStream(checkpointDir, filesystem, bufferSize, fileStateThreshold);
+		return new FsCheckpointStateOutputStream(checkpointDirectory, filesystem, bufferSize, fileStateThreshold);
 	}
 
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private void checkFileSystemInitialized() throws IllegalStateException {
-		if (filesystem == null || checkpointDirectory == null) {
-			throw new IllegalStateException("filesystem has not been re-initialized after deserialization");
-		}
-	}
-
-	protected Path createBasePath(FileSystem fs, Path checkpointDirectory, JobID jobID) throws IOException {
-		Path dir = new Path(checkpointDirectory, jobID.toString());
-		fs.mkdirs(dir);
-		return dir;
-	}
-
-	protected Path createCheckpointDirPath(Path checkpointDirectory, long checkpointID) {
-		return new Path(checkpointDirectory, "chk-" + checkpointID);
-	}
-
 	@Override
 	public String toString() {
 		return "File Stream Factory @ " + checkpointDirectory;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Checkpoint stream implementation
+	// ------------------------------------------------------------------------
 
 	/**
 	 * A {@link CheckpointStreamFactory.CheckpointStateOutputStream} that writes into a file and
@@ -349,9 +338,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 		}
 
 		private void createStream() throws IOException {
-			// make sure the directory for that specific checkpoint exists
-			fs.mkdirs(basePath);
-
 			Exception latestException = null;
 			for (int attempt = 0; attempt < 10; attempt++) {
 				try {

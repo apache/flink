@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.CompatibilityResult;
@@ -34,6 +33,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend.PartitionableListState;
+import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.util.FutureUtil;
@@ -233,7 +233,7 @@ public class OperatorStateBackendTest {
 
 		listState.add(42);
 
-		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 		RunnableFuture<OperatorStateHandle> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		FutureUtil.runIfNotDoneAndGet(runnableFuture);
@@ -351,8 +351,7 @@ public class OperatorStateBackendTest {
 		final OperatorStateBackend operatorStateBackend =
 				abstractStateBackend.createOperatorStateBackend(createMockEnvironment(), "testOperator");
 
-		CheckpointStreamFactory streamFactory =
-				abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 
 		RunnableFuture<OperatorStateHandle> snapshot =
 				operatorStateBackend.snapshot(0L, 0L, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
@@ -385,7 +384,7 @@ public class OperatorStateBackendTest {
 		listState3.add(19);
 		listState3.add(20);
 
-		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 		RunnableFuture<OperatorStateHandle> runnableFuture =
 				operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
@@ -665,7 +664,7 @@ public class OperatorStateBackendTest {
 		listState3.add(19);
 		listState3.add(20);
 
-		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 		RunnableFuture<OperatorStateHandle> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);

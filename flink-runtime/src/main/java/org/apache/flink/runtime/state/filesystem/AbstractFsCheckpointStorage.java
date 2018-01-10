@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.FileUtils;
@@ -124,7 +125,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 	 * @throws IOException Thrown if the target directory could not be created.
 	 */
 	@Override
-	public FsCheckpointStorageLocation initializeLocationForSavepoint(
+	public CheckpointStorageLocation initializeLocationForSavepoint(
 			@SuppressWarnings("unused") long checkpointId,
 			@Nullable String externalLocationPointer) throws IOException {
 
@@ -155,9 +156,7 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 					// we make the path qualified, to make it independent of default schemes and authorities
 					final Path qp = path.makeQualified(fs);
 
-					final CheckpointStorageLocationReference reference = encodePathAsReference(qp);
-
-					return new FsCheckpointStorageLocation(fs, qp, qp, qp, reference);
+					return createSavepointLocation(fs, qp);
 				}
 			} catch (Exception e) {
 				latestException = e;
@@ -166,6 +165,8 @@ public abstract class AbstractFsCheckpointStorage implements CheckpointStorage {
 
 		throw new IOException("Failed to create savepoint directory at " + savepointBasePath, latestException);
 	}
+
+	protected abstract CheckpointStorageLocation createSavepointLocation(FileSystem fs, Path location) throws IOException;
 
 	// ------------------------------------------------------------------------
 	//  Creating and resolving paths

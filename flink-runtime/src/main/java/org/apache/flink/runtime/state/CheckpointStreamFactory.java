@@ -23,6 +23,12 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+/**
+ * A factory for checkpoint output streams, which are used to persist data for checkpoints.
+ *
+ * <p>Stream factories can be created from the {@link CheckpointStorage} through
+ * {@link CheckpointStorage#resolveCheckpointStorageLocation(long, CheckpointStorageLocationReference)}.
+ */
 public interface CheckpointStreamFactory {
 
 	/**

@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-
 import java.io.IOException;
 
 /**
- * A storage location for one particular checkpoint. This location is typically
- * created and initialized via {@link CheckpointStorage#initializeLocationForCheckpoint(long)} or
+ * A storage location for one particular checkpoint, offering data persistent, metadata persistence,
+ * and lifecycle/cleanup methods.
+ *
+ * <p>CheckpointStorageLocations are typically created and initialized via
+ * {@link CheckpointStorage#initializeLocationForCheckpoint(long)} or
  * {@link CheckpointStorage#initializeLocationForSavepoint(long, String)}.
  */
-public interface CheckpointStorageLocation {
+public interface CheckpointStorageLocation extends CheckpointStreamFactory {
 
 	/**
 	 * Creates the output stream to persist the checkpoint metadata to.
@@ -49,6 +50,8 @@ public interface CheckpointStorageLocation {
 
 	/**
 	 * Disposes the checkpoint location in case the checkpoint has failed.
+	 * This method disposes all the data at that location, not just the data written
+	 * by the particular node or process that calls this method.
 	 */
 	void disposeOnFailure() throws IOException;
 

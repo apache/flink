@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.IOUtils;
@@ -55,11 +56,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -379,13 +376,9 @@ public class RocksDBStateBackendConfigTest {
 
 	@Test
 	public void testCallsForwardedToNonPartitionedBackend() throws Exception {
-		AbstractStateBackend nonPartBackend = mock(AbstractStateBackend.class);
-		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(nonPartBackend);
-
-		Environment env = getMockEnvironment();
-		rocksDbBackend.createStreamFactory(env.getJobID(), "foobar");
-
-		verify(nonPartBackend, times(1)).createStreamFactory(any(JobID.class), anyString());
+		AbstractStateBackend storageBackend = new MemoryStateBackend();
+		RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(storageBackend);
+		assertEquals(storageBackend, rocksDbBackend.getCheckpointBackend());
 	}
 
 	// ------------------------------------------------------------------------

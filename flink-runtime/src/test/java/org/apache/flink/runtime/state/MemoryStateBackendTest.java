@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -30,9 +29,10 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.FutureUtil;
-import org.apache.flink.util.TernaryBoolean;
+
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -94,8 +94,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Test
 	public void testOversizedState() {
 		try {
-			MemoryStateBackend backend = new MemoryStateBackend(null, null, 10, TernaryBoolean.TRUE);
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
+			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);
 
 			HashMap<String, Integer> state = new HashMap<>();
 			state.put("hey there", 2);
@@ -127,8 +126,8 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Test
 	public void testStateStream() {
 		try {
-			MemoryStateBackend backend = new MemoryStateBackend();
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
+//			MemoryStateBackend backend = new MemoryStateBackend();
+			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
 
 			HashMap<String, Integer> state = new HashMap<>();
 			state.put("hey there", 2);
@@ -156,8 +155,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 	@Test
 	public void testOversizedStateStream() {
 		try {
-			MemoryStateBackend backend = new MemoryStateBackend(10);
-			CheckpointStreamFactory streamFactory = backend.createStreamFactory(new JobID(), "test_op");
+			CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);
 
 			HashMap<String, Integer> state = new HashMap<>();
 			state.put("hey there", 2);
@@ -216,7 +214,8 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 		listState3.add(19);
 		listState3.add(20);
 
-		CheckpointStreamFactory streamFactory = abstractStateBackend.createStreamFactory(new JobID(), "testOperator");
+		CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
+
 		RunnableFuture<OperatorStateHandle> runnableFuture =
 			operatorStateBackend.snapshot(1, 1, streamFactory, CheckpointOptions.forCheckpointWithDefaultLocation());
 		OperatorStateHandle stateHandle = FutureUtil.runIfNotDoneAndGet(runnableFuture);
