@@ -98,8 +98,7 @@ public class Kafka09Fetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		this.deserializer = deserializer;
 		this.handover = new Handover();
 
-		final MetricGroup kafkaMetricGroup = metricGroup.addGroup("KafkaConsumer");
-		addOffsetStateGauge(kafkaMetricGroup);
+		final MetricGroup kafkaMetricGroup = registerOffsetMetrics(metricGroup);
 
 		this.consumerThread = new KafkaConsumerThread(
 				LOG,
