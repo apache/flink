@@ -19,22 +19,19 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingCluster;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -50,12 +47,14 @@ import java.io.File;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * IT case for externalized checkpoints with {@link org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore}
- * and {@link org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore}.
+ * IT case for resuming from checkpoints manually via their external pointer, rather than automatic
+ * failover through the checkpoint coordinator. This test checks that this works properly with the
+ * common state backends and checkpoint stores, in combination with asynchronous and incremental
+ * snapshots.
  *
  * <p>This tests considers full and incremental checkpoints and was introduced to guard against problems like FLINK-6964.
  */
-public class ExternalizedCheckpointITCase extends TestLogger {
+public class ResumeCheckpointManuallyITCase extends TestLogger {
 
 	private static final int PARALLELISM = 2;
 	private static final int NUM_TASK_MANAGERS = 2;
@@ -140,7 +139,7 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 	private void testExternalizedCheckpoints(
 		File checkpointDir,
 		String zooKeeperQuorum,
-		AbstractStateBackend backend) throws Exception {
+		StateBackend backend) throws Exception {
 
 		final Configuration config = new Configuration();
 
@@ -173,8 +172,6 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 				final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 				env.setStateBackend(backend);
-				env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
-
 				env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 				env.setParallelism(PARALLELISM);
 
@@ -184,24 +181,8 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 				env.addSource(new NotifyingInfiniteTupleSource(10_000))
 					.keyBy(0)
 					.timeWindow(Time.seconds(3))
-					.reduce(new ReduceFunction<Tuple2<String, Integer>>() {
-						private static final long serialVersionUID = 1L;
-
-						@Override
-						public Tuple2<String, Integer> reduce(
-							Tuple2<String, Integer> value1,
-							Tuple2<String, Integer> value2) throws Exception {
-							return Tuple2.of(value1.f0, value1.f1 + value2.f1);
-						}
-					})
-					.filter(new FilterFunction<Tuple2<String, Integer>>() {
-						private static final long serialVersionUID = 1L;
-
-						@Override
-						public boolean filter(Tuple2<String, Integer> value) throws Exception {
-							return value.f0.startsWith("Tuple 0");
-						}
-					});
+					.reduce((value1, value2) -> Tuple2.of(value1.f0, value1.f1 + value2.f1))
+					.filter(value -> value.f0.startsWith("Tuple 0"));
 
 				StreamGraph streamGraph = env.getStreamGraph();
 				streamGraph.setJobName("Test");
@@ -219,8 +200,9 @@ public class ExternalizedCheckpointITCase extends TestLogger {
 				// wait until all sources have been started
 				NotifyingInfiniteTupleSource.countDownLatch.await();
 
-				externalCheckpoint =
-					cluster.requestCheckpoint(submissionResult.getJobID(), CheckpointOptions.forCheckpoint());
+				externalCheckpoint = cluster.requestCheckpoint(
+						submissionResult.getJobID(),
+						CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
 
 				cluster.cancelJob(submissionResult.getJobID());
 			}

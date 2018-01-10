@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
@@ -342,7 +341,7 @@ public class CheckpointCoordinator {
 	}
 
 	// --------------------------------------------------------------------------------------------
-	//  Handling checkpoints and messages
+	//  Triggering Checkpoints and Savepoints
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -391,38 +390,8 @@ public class CheckpointCoordinator {
 		return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic).isSuccess();
 	}
 
-	/**
-	 * Test method to trigger a checkpoint/savepoint.
-	 *
-	 * @param timestamp The timestamp for the checkpoint.
-	 * @param options The checkpoint options.
-	 * @return A future to the completed checkpoint
-	 */
 	@VisibleForTesting
-	@Internal
-	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(long timestamp, CheckpointOptions options) throws Exception {
-		switch (options.getCheckpointType()) {
-			case SAVEPOINT:
-				return triggerSavepoint(timestamp, options.getTargetLocation());
-
-			case CHECKPOINT:
-				CheckpointTriggerResult triggerResult =
-					triggerCheckpoint(timestamp, checkpointProperties, null, false);
-
-				if (triggerResult.isSuccess()) {
-					return triggerResult.getPendingCheckpoint().getCompletionFuture();
-				} else {
-					Throwable cause = new Exception("Failed to trigger checkpoint: " + triggerResult.getFailureReason().message());
-					return FutureUtils.completedExceptionally(cause);
-				}
-
-			default:
-				throw new IllegalArgumentException("Unknown checkpoint type: " + options.getCheckpointType());
-		}
-	}
-
-	@VisibleForTesting
-	CheckpointTriggerResult triggerCheckpoint(
+	public CheckpointTriggerResult triggerCheckpoint(
 			long timestamp,
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
@@ -674,6 +643,10 @@ public class CheckpointCoordinator {
 
 		} // end trigger lock
 	}
+
+	// --------------------------------------------------------------------------------------------
+	//  Handling checkpoints and messages
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Receives a {@link DeclineCheckpoint} message for a pending checkpoint.
