@@ -28,11 +28,13 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.testutils.category.Flip6;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.util.Collections;
 import java.util.Objects;
@@ -49,6 +51,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test cases for the {@link SlotSharingManager}.
  */
+@Category(Flip6.class)
 public class SlotSharingManagerTest extends TestLogger {
 
 	private static final SlotSharingGroupId SLOT_SHARING_GROUP_ID = new SlotSharingGroupId();
