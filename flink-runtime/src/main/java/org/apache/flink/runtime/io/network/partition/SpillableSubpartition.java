@@ -92,23 +92,32 @@ class SpillableSubpartition extends ResultSubpartition {
 
 		synchronized (buffers) {
 			if (isFinished || isReleased) {
+				buffer.recycle();
 				return false;
 			}
 
-			// The number of buffers are needed later when creating
-			// the read views. If you ever remove this line here,
-			// make sure to still count the number of buffers.
-			updateStatistics(buffer);
-
 			if (spillWriter == null) {
 				buffers.add(buffer);
+				// The number of buffers are needed later when creating
+				// the read views. If you ever remove this line here,
+				// make sure to still count the number of buffers.
+				updateStatistics(buffer);
 
 				return true;
 			}
 		}
 
 		// Didn't return early => go to disk
-		spillWriter.writeBlock(buffer);
+		try {
+			// retain buffer for updateStatistics() below
+			spillWriter.writeBlock(buffer.retain());
+			synchronized (buffers) {
+				// See the note above, but only do this if the buffer was correctly added!
+				updateStatistics(buffer);
+			}
+		} finally {
+			buffer.recycle();
+		}
 
 		return true;
 	}
@@ -204,7 +213,7 @@ class SpillableSubpartition extends ResultSubpartition {
 			ResultSubpartitionView view = readView;
 
 			if (view != null && view.getClass() == SpillableSubpartitionView.class) {
-				// If there is a spilalble view, it's the responsibility of the
+				// If there is a spillable view, it's the responsibility of the
 				// view to release memory.
 				SpillableSubpartitionView spillableView = (SpillableSubpartitionView) view;
 				return spillableView.releaseMemory();

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.disk.iomanager;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
+import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 
@@ -31,9 +32,26 @@ public class AsynchronousBufferFileWriter extends AsynchronousFileIOChannel<Buff
 		super(channelID, requestQueue, CALLBACK, true);
 	}
 
+	/**
+	 * Writes the given block asynchronously.
+	 *
+	 * @param buffer
+	 * 		the buffer to be written (will be recycled when done)
+	 *
+	 * @throws IOException
+	 * 		thrown if adding the write operation fails
+	 */
 	@Override
 	public void writeBlock(Buffer buffer) throws IOException {
-		addRequest(new BufferWriteRequest(this, buffer));
+		try {
+			// if successfully added, the buffer will be recycled after the write operation
+			addRequest(new BufferWriteRequest(this, buffer));
+		} catch (Throwable e) {
+			// if not added, we need to recycle here
+			buffer.recycle();
+			ExceptionUtils.rethrowIOException(e);
+		}
+
 	}
 
 	@Override

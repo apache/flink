@@ -20,20 +20,36 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.taskmanager.TaskActions;
+
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import static org.junit.Assert.assertFalse;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Tests for {@link ResultPartition}.
+ */
 public class ResultPartitionTest {
+
+	/** Asynchronous I/O manager. */
+	private static final IOManager ioManager = new IOManagerAsync();
+
+	@AfterClass
+	public static void shutdown() {
+		ioManager.shutdown();
+	}
 
 	/**
 	 * Tests the schedule or update consumers message sending behaviour depending on the relevant flags.
@@ -45,7 +61,11 @@ public class ResultPartitionTest {
 			ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
 			ResultPartition partition = createPartition(notifier, ResultPartitionType.PIPELINED, true);
 			partition.add(TestBufferFactory.createBuffer(), 0);
-			verify(notifier, times(1)).notifyPartitionConsumable(any(JobID.class), any(ResultPartitionID.class), any(TaskActions.class));
+			verify(notifier, times(1))
+				.notifyPartitionConsumable(
+					eq(partition.getJobId()),
+					eq(partition.getPartitionId()),
+					any(TaskActions.class));
 		}
 
 		{
@@ -145,6 +165,45 @@ public class ResultPartitionTest {
 		}
 	}
 
+	@Test
+	public void testAddOnPipelinedPartition() throws Exception {
+		testAddOnPartition(ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testAddOnBlockingPartition() throws Exception {
+		testAddOnPartition(ResultPartitionType.BLOCKING);
+	}
+
+	/**
+	 * Tests {@link ResultPartition#add(Buffer, int)} on a working partition.
+	 *
+	 * @param pipelined the result partition type to set up
+	 */
+	protected void testAddOnPartition(final ResultPartitionType pipelined)
+		throws Exception {
+		ResultPartitionConsumableNotifier notifier = mock(ResultPartitionConsumableNotifier.class);
+		ResultPartition partition = createPartition(notifier, pipelined, true);
+		Buffer buffer = TestBufferFactory.createBuffer();
+		try {
+			// partition.add() adds the buffer without recycling it (if not spilling)
+			partition.add(buffer, 0);
+			assertFalse("buffer should not be recycled (still in the queue)", buffer.isRecycled());
+		} finally {
+			if (!buffer.isRecycled()) {
+				buffer.recycle();
+			}
+			// should have been notified for pipelined partitions
+			if (pipelined.isPipelined()) {
+				verify(notifier, times(1))
+					.notifyPartitionConsumable(
+						eq(partition.getJobId()),
+						eq(partition.getPartitionId()),
+						any(TaskActions.class));
+			}
+		}
+	}
+
 	// ------------------------------------------------------------------------
 
 	private static ResultPartition createPartition(
@@ -161,7 +220,7 @@ public class ResultPartitionTest {
 			1,
 			mock(ResultPartitionManager.class),
 			notifier,
-			mock(IOManager.class),
+			ioManager,
 			sendScheduleOrUpdateConsumersMessage);
 	}
 }
