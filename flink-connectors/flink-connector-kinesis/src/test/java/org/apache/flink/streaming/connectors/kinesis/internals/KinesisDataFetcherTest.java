@@ -18,27 +18,26 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardMetadata;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
+import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
+import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
 
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -51,6 +50,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -58,8 +58,6 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link KinesisDataFetcher}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(TestableKinesisDataFetcher.class)
 public class KinesisDataFetcherTest {
 
 	@Test(expected = RuntimeException.class)
@@ -71,14 +69,16 @@ public class KinesisDataFetcherTest {
 		HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
 
-		TestableKinesisDataFetcher fetcher =
-			new TestableKinesisDataFetcher(
+		TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
 				fakeStreams,
-				new Properties(),
+				new TestSourceContext<>(),
+				TestUtils.getStandardProperties(),
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
-				new AtomicReference<Throwable>(),
-				new LinkedList<KinesisStreamShardState>(),
+				new AtomicReference<>(),
+				new LinkedList<>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
 
@@ -102,52 +102,44 @@ public class KinesisDataFetcherTest {
 			streamToShardCount.put(fakeStream, rand.nextInt(5) + 1);
 		}
 
-		final TestableKinesisDataFetcher fetcher =
-			new TestableKinesisDataFetcher(
+		final TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
 				fakeStreams,
-				new Properties(),
+				new TestSourceContext<>(),
+				TestUtils.getStandardProperties(),
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
-				new AtomicReference<Throwable>(),
-				new LinkedList<KinesisStreamShardState>(),
+				new AtomicReference<>(),
+				new LinkedList<>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
-		Properties testConfig = new Properties();
-		testConfig.setProperty(ConsumerConfigConstants.AWS_REGION, "us-east-1");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_CREDENTIALS_PROVIDER, "BASIC");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_ACCESS_KEY_ID, "accessKeyId");
-		testConfig.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, "secretKey");
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
+				TestUtils.getStandardProperties(), fetcher, 1, 0);
 
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(testConfig, fetcher);
-
-		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
-		Thread consumerThread = new Thread(new Runnable() {
+		CheckedThread consumerThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					consumer.run(mock(SourceFunction.SourceContext.class));
-				} catch (Exception e) {
-					//
-				}
+			public void go() throws Exception {
+				consumer.run(new TestSourceContext<>());
 			}
-		});
+		};
 		consumerThread.start();
 
 		fetcher.waitUntilRun();
 		consumer.cancel();
-		consumerThread.join();
+		consumerThread.sync();
 
 		// assert that the streams tracked in the state are identical to the subscribed streams
 		Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-		assertTrue(streamsInState.size() == fakeStreams.size());
+		assertEquals(fakeStreams.size(), streamsInState.size());
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
 		for (Map.Entry<String, String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
-			assertTrue(
-				streamToLastSeenShard.getValue().equals(
-					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1)));
+			assertEquals(
+				KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1),
+				streamToLastSeenShard.getValue());
 		}
 	}
 
@@ -195,14 +187,16 @@ public class KinesisDataFetcherTest {
 		HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
 
-		final TestableKinesisDataFetcher fetcher =
-			new TestableKinesisDataFetcher(
+		final TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
 				fakeStreams,
-				new Properties(),
+				new TestSourceContext<>(),
+				TestUtils.getStandardProperties(),
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
-				new AtomicReference<Throwable>(),
-				new LinkedList<KinesisStreamShardState>(),
+				new AtomicReference<>(),
+				new LinkedList<>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
@@ -213,31 +207,27 @@ public class KinesisDataFetcherTest {
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
-		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
-		Thread runFetcherThread = new Thread(new Runnable() {
+		CheckedThread runFetcherThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					fetcher.runFetcher();
-				} catch (Exception e) {
-					//
-				}
+			public void go() throws Exception {
+				fetcher.runFetcher();
 			}
-		});
+		};
 		runFetcherThread.start();
 		Thread.sleep(1000); // sleep a while before closing
 		fetcher.shutdownFetcher();
+		runFetcherThread.sync();
 
 		// assert that the streams tracked in the state are identical to the subscribed streams
 		Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-		assertTrue(streamsInState.size() == fakeStreams.size());
+		assertEquals(fakeStreams.size(), streamsInState.size());
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
 		for (Map.Entry<String, String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
-			assertTrue(
-				streamToLastSeenShard.getValue().equals(
-					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1)));
+			assertEquals(
+				KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1),
+				streamToLastSeenShard.getValue());
 		}
 	}
 
@@ -286,14 +276,16 @@ public class KinesisDataFetcherTest {
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
 
 		// using a non-resharded streams kinesis behaviour to represent that Kinesis is not resharded AFTER the restore
-		final TestableKinesisDataFetcher fetcher =
-			new TestableKinesisDataFetcher(
+		final TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
 				fakeStreams,
-				new Properties(),
+				new TestSourceContext<>(),
+				TestUtils.getStandardProperties(),
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
-				new AtomicReference<Throwable>(),
-				new LinkedList<KinesisStreamShardState>(),
+				new AtomicReference<>(),
+				new LinkedList<>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
@@ -304,31 +296,27 @@ public class KinesisDataFetcherTest {
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
-		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
-		Thread runFetcherThread = new Thread(new Runnable() {
+		CheckedThread runFetcherThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					fetcher.runFetcher();
-				} catch (Exception e) {
-					//
-				}
+			public void go() throws Exception {
+				fetcher.runFetcher();
 			}
-		});
+		};
 		runFetcherThread.start();
 		Thread.sleep(1000); // sleep a while before closing
 		fetcher.shutdownFetcher();
+		runFetcherThread.sync();
 
 		// assert that the streams tracked in the state are identical to the subscribed streams
 		Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-		assertTrue(streamsInState.size() == fakeStreams.size());
+		assertEquals(fakeStreams.size(), streamsInState.size());
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
 		for (Map.Entry<String, String> streamToLastSeenShard : subscribedStreamsToLastSeenShardIdsUnderTest.entrySet()) {
-			assertTrue(
-				streamToLastSeenShard.getValue().equals(
-					KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1)));
+			assertEquals(
+				KinesisShardIdGenerator.generateFromShardOrder(streamToShardCount.get(streamToLastSeenShard.getKey()) - 1),
+				streamToLastSeenShard.getValue());
 		}
 	}
 
@@ -381,14 +369,16 @@ public class KinesisDataFetcherTest {
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
 
 		// using a non-resharded streams kinesis behaviour to represent that Kinesis is not resharded AFTER the restore
-		final TestableKinesisDataFetcher fetcher =
-			new TestableKinesisDataFetcher(
+		final TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
 				fakeStreams,
-				new Properties(),
+				new TestSourceContext<>(),
+				TestUtils.getStandardProperties(),
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
-				new AtomicReference<Throwable>(),
-				new LinkedList<KinesisStreamShardState>(),
+				new AtomicReference<>(),
+				new LinkedList<>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
@@ -399,33 +389,31 @@ public class KinesisDataFetcherTest {
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
-		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
-		Thread runFetcherThread = new Thread(new Runnable() {
+		CheckedThread runFetcherThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					fetcher.runFetcher();
-				} catch (Exception e) {
-					//
-				}
+			public void go() throws Exception {
+				fetcher.runFetcher();
 			}
-		});
+		};
 		runFetcherThread.start();
 		Thread.sleep(1000); // sleep a while before closing
 		fetcher.shutdownFetcher();
+		runFetcherThread.sync();
 
 		// assert that the streams tracked in the state are identical to the subscribed streams
 		Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-		assertTrue(streamsInState.size() == fakeStreams.size());
+		assertEquals(fakeStreams.size(), streamsInState.size());
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1").equals(
-			KinesisShardIdGenerator.generateFromShardOrder(2)));
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2").equals(
-			KinesisShardIdGenerator.generateFromShardOrder(1)));
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3") == null);
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4") == null);
+		assertEquals(
+			KinesisShardIdGenerator.generateFromShardOrder(2),
+			subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1"));
+		assertEquals(
+			KinesisShardIdGenerator.generateFromShardOrder(1),
+			subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2"));
+		assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3"));
+		assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4"));
 	}
 
 	@Test
@@ -477,14 +465,16 @@ public class KinesisDataFetcherTest {
 			KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(fakeStreams);
 
 		// using a non-resharded streams kinesis behaviour to represent that Kinesis is not resharded AFTER the restore
-		final TestableKinesisDataFetcher fetcher =
-			new TestableKinesisDataFetcher(
+		final TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
 				fakeStreams,
-				new Properties(),
+				new TestSourceContext<>(),
+				TestUtils.getStandardProperties(),
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
 				10,
 				2,
-				new AtomicReference<Throwable>(),
-				new LinkedList<KinesisStreamShardState>(),
+				new AtomicReference<>(),
+				new LinkedList<>(),
 				subscribedStreamsToLastSeenShardIdsUnderTest,
 				FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(streamToShardCount));
 
@@ -495,33 +485,31 @@ public class KinesisDataFetcherTest {
 					restoredState.getKey(), new SequenceNumber(restoredState.getValue())));
 		}
 
-		PowerMockito.whenNew(ShardConsumer.class).withAnyArguments().thenReturn(Mockito.mock(ShardConsumer.class));
-		Thread runFetcherThread = new Thread(new Runnable() {
+		CheckedThread runFetcherThread = new CheckedThread() {
 			@Override
-			public void run() {
-				try {
-					fetcher.runFetcher();
-				} catch (Exception e) {
-					//
-				}
+			public void go() throws Exception {
+				fetcher.runFetcher();
 			}
-		});
+		};
 		runFetcherThread.start();
 		Thread.sleep(1000); // sleep a while before closing
 		fetcher.shutdownFetcher();
+		runFetcherThread.sync();
 
 		// assert that the streams tracked in the state are identical to the subscribed streams
 		Set<String> streamsInState = subscribedStreamsToLastSeenShardIdsUnderTest.keySet();
-		assertTrue(streamsInState.size() == fakeStreams.size());
+		assertEquals(fakeStreams.size(), streamsInState.size());
 		assertTrue(streamsInState.containsAll(fakeStreams));
 
 		// assert that the last seen shards in state is correctly set
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1").equals(
-			KinesisShardIdGenerator.generateFromShardOrder(3)));
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2").equals(
-			KinesisShardIdGenerator.generateFromShardOrder(4)));
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3") == null);
-		assertTrue(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4") == null);
+		assertEquals(
+			KinesisShardIdGenerator.generateFromShardOrder(3),
+			subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream1"));
+		assertEquals(
+			KinesisShardIdGenerator.generateFromShardOrder(4),
+			subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream2"));
+		assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream3"));
+		assertNull(subscribedStreamsToLastSeenShardIdsUnderTest.get("fakeStream4"));
 	}
 
 	@Test
@@ -564,12 +552,21 @@ public class KinesisDataFetcherTest {
 	private static class DummyFlinkKafkaConsumer<T> extends FlinkKinesisConsumer<T> {
 		private static final long serialVersionUID = 1L;
 
-		private KinesisDataFetcher<T> fetcher;
+		private final KinesisDataFetcher<T> fetcher;
+
+		private final int numParallelSubtasks;
+		private final int subtaskIndex;
 
 		@SuppressWarnings("unchecked")
-		DummyFlinkKafkaConsumer(Properties properties, KinesisDataFetcher<T> fetcher) {
+		DummyFlinkKafkaConsumer(
+				Properties properties,
+				KinesisDataFetcher<T> fetcher,
+				int numParallelSubtasks,
+				int subtaskIndex) {
 			super("test", mock(KinesisDeserializationSchema.class), properties);
 			this.fetcher = fetcher;
+			this.numParallelSubtasks = numParallelSubtasks;
+			this.subtaskIndex = subtaskIndex;
 		}
 
 		@Override
@@ -585,8 +582,8 @@ public class KinesisDataFetcherTest {
 		@Override
 		public RuntimeContext getRuntimeContext() {
 			RuntimeContext context = mock(RuntimeContext.class);
-			when(context.getIndexOfThisSubtask()).thenReturn(0);
-			when(context.getNumberOfParallelSubtasks()).thenReturn(1);
+			when(context.getIndexOfThisSubtask()).thenReturn(subtaskIndex);
+			when(context.getNumberOfParallelSubtasks()).thenReturn(numParallelSubtasks);
 			return context;
 		}
 	}
