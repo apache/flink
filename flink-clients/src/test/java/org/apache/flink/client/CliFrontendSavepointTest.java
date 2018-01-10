@@ -190,12 +190,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		String savepointPath = "expectedSavepointPath";
 
-		final CompletableFuture<Acknowledge> disposeCallFuture = new CompletableFuture<>();
-
-		ClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> {
-			disposeCallFuture.complete(Acknowledge.get());
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		});
+		ClusterClient clusterClient = new DisposeSavepointClusterClient(
+			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()));
 
 		try {
 
@@ -203,8 +199,6 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 			String[] parameters = { "-d", savepointPath };
 			frontend.savepoint(parameters);
-
-			disposeCallFuture.get();
 
 			String outMsg = buffer.toString();
 			assertTrue(outMsg.contains(savepointPath));
