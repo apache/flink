@@ -79,11 +79,12 @@ public abstract class CassandraOutputFormatBase<OUT> extends RichOutputFormat<OU
 		this.callback = new FutureCallback<ResultSet>() {
 			@Override
 			public void onSuccess(ResultSet ignored) {
+				onWriteSuccess(ignored);
 			}
 
 			@Override
 			public void onFailure(Throwable t) {
-				exception = t;
+				onWriteFailure(t);
 			}
 		};
 	}
@@ -100,6 +101,26 @@ public abstract class CassandraOutputFormatBase<OUT> extends RichOutputFormat<OU
 	}
 
 	protected abstract Object[] extractFields(OUT record);
+
+	/**
+	 * Callback that is invoked after a record is written to Cassandra successfully.
+	 *
+	 * <p>Subclass can override to provide its own logic.
+	 * @param ignored the result.
+	 */
+	protected void onWriteSuccess(ResultSet ignored) {
+	}
+
+	/**
+	 * Callback that is invoked when failing to write to Cassandra.
+	 * Current implementation will record the exception and fail the job upon next record.
+	 *
+	 * <p>Subclass can override to provide its own failure handling logic.
+	 * @param t the exception
+	 */
+	protected void onWriteFailure(Throwable t) {
+		exception = t;
+	}
 
  	/**
 	 * Closes all resources used.
