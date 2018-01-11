@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -281,7 +280,7 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 	}
 
 	@Override
-	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(Collection<KafkaTopicPartition> partitions, Date timestamp) {
+	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(Collection<KafkaTopicPartition> partitions, long timestamp) {
 		// this should not be reached, since we do not expose the timestamp-based startup feature in version 0.9.
 		throw new UnsupportedOperationException(
 			"Fetching partition offsets using timestamps is only supported in Kafka versions 0.10 and above.");

@@ -41,7 +41,6 @@ import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -226,7 +225,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(Date startupOffsetsTimestamp) {
+	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(long startupOffsetsTimestamp) {
 		// the purpose of this override is just to publicly expose the method for Kafka 0.10+;
 		// the base class doesn't publicly expose it since not all Kafka versions support the functionality
 		return super.setStartFromTimestamp(startupOffsetsTimestamp);
@@ -235,13 +234,13 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 	@Override
 	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
 			Collection<KafkaTopicPartition> partitions,
-			Date timestamp) {
+			long timestamp) {
 
 		Map<TopicPartition, Long> partitionOffsetsRequest = new HashMap<>(partitions.size());
 		for (KafkaTopicPartition partition : partitions) {
 			partitionOffsetsRequest.put(
 				new TopicPartition(partition.getTopic(), partition.getPartition()),
-				timestamp.getTime());
+				timestamp);
 		}
 
 		// use a short-lived consumer to fetch the offsets;

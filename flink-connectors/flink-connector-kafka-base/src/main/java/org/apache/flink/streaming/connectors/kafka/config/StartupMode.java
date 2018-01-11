@@ -40,7 +40,7 @@ public enum StartupMode {
 	 * Since this mode will have specific offsets to start with, we do not need a sentinel value;
 	 * using Long.MIN_VALUE as a placeholder.
 	 */
-	SPECIFIC_TIMESTAMP(Long.MIN_VALUE),
+	TIMESTAMP(Long.MIN_VALUE),
 
 	/**
 	 * Start from user-supplied specific offsets for each partition.

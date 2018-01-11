@@ -22,7 +22,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeInfoParser;
 import org.apache.flink.core.memory.DataInputView;
@@ -35,8 +34,6 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
@@ -49,8 +46,6 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Date;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -169,8 +164,8 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
-	public void testStartFromSpecificDate() throws Exception {
-		runStartFromSpecificDate();
+	public void testStartFromTimestamp() throws Exception {
+		runStartFromTimestamp();
 	}
 
 	// --- offset committing ---
