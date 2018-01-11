@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -39,10 +38,12 @@ import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerServices;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.messages.JobExecutionResultGoneException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -60,6 +61,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -96,6 +98,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final Map<JobID, JobManagerRunner> jobManagerRunners;
 
 	private final LeaderElectionService leaderElectionService;
+
+	private final JobExecutionResultCache jobExecutionResultCache = new JobExecutionResultCache();
 
 	@Nullable
 	protected final String restAddress;
@@ -357,6 +361,36 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return CompletableFuture.completedFuture(jobManagerServices.blobServer.getPort());
 	}
 
+	@Override
+	public CompletableFuture<JobResult> getJobExecutionResult(
+			final JobID jobId,
+			final Time timeout) {
+
+		final SoftReference<JobResult> jobResultRef = jobExecutionResultCache.get(jobId);
+		if (jobResultRef == null) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		} else {
+			final JobResult jobResult = jobResultRef.get();
+			if (jobResult == null) {
+				return FutureUtils.completedExceptionally(new JobExecutionResultGoneException(jobId));
+			} else {
+				return CompletableFuture.completedFuture(jobResult);
+			}
+		}
+	}
+
+	@Override
+	public CompletableFuture<Boolean> isJobExecutionResultPresent(
+			final JobID jobId,
+			final Time timeout) {
+
+		final boolean jobExecutionResultPresent = jobExecutionResultCache.contains(jobId);
+		if (!jobManagerRunners.containsKey(jobId) && !jobExecutionResultPresent) {
+			return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
+		}
+		return CompletableFuture.completedFuture(jobExecutionResultPresent);
+	}
+
 	/**
 	 * Cleans up the job related data from the dispatcher. If cleanupHA is true, then
 	 * the data will also be removed from HA.
@@ -549,38 +583,41 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	// Utility classes
 	//------------------------------------------------------
 
-	private class DispatcherOnCompleteActions implements OnCompletionActions {
+	@VisibleForTesting
+	class DispatcherOnCompleteActions implements OnCompletionActions {
 
 		private final JobID jobId;
 
-		private DispatcherOnCompleteActions(JobID jobId) {
+		DispatcherOnCompleteActions(JobID jobId) {
 			this.jobId = Preconditions.checkNotNull(jobId);
 		}
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			log.info("Job {} finished.", jobId);
 
 			runAsync(() -> {
-					try {
-						removeJob(jobId, true);
-					} catch (Exception e) {
-						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
-					}
-				});
+				jobExecutionResultCache.put(result);
+				try {
+					removeJob(jobId, true);
+				} catch (Exception e) {
+					log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
+				}
+			});
 		}
 
 		@Override
-		public void jobFailed(Throwable cause) {
+		public void jobFailed(JobResult result) {
 			log.info("Job {} failed.", jobId);
 
 			runAsync(() -> {
-					try {
-						removeJob(jobId, true);
-					} catch (Exception e) {
-						log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
-					}
-				});
+				jobExecutionResultCache.put(result);
+				try {
+					removeJob(jobId, true);
+				} catch (Exception e) {
+					log.warn("Could not properly remove job {} from the dispatcher.", jobId, e);
+				}
+			});
 		}
 
 		@Override

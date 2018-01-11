@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -33,12 +32,14 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
-import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.testutils.category.Flip6;
+import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -101,7 +102,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		SubmittedJobGraphStore submittedJobGraphStore = mock(SubmittedJobGraphStore.class);
 
 		blobStore = mock(BlobStore.class);
-		
+
 		HighAvailabilityServices haServices = mock(HighAvailabilityServices.class);
 		when(haServices.getJobManagerLeaderElectionService(any(JobID.class))).thenReturn(leaderElectionService);
 		when(haServices.getSubmittedJobGraphStore()).thenReturn(submittedJobGraphStore);
@@ -138,7 +139,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFailed());
 
 		verify(jobManager).start(any(JobMasterId.class), any(Time.class));
-		
+
 		runner.shutdown();
 		verify(leaderElectionService).stop();
 		verify(jobManager).shutDown();
@@ -175,7 +176,7 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is finished
-		runner.jobFinished(mock(JobExecutionResult.class));
+		runner.jobFinished(mock(JobResult.class));
 
 		assertTrue(jobCompletion.isJobFinished());
 		assertFalse(jobCompletion.isJobFinishedByOther());
@@ -195,7 +196,10 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		assertTrue(!jobCompletion.isJobFinished());
 
 		// runner been told by JobManager that job is failed
-		runner.jobFailed(new Exception("failed manually"));
+		runner.jobFailed(new JobResult.Builder()
+			.jobId(new JobID())
+			.serializedThrowable(new SerializedThrowable(new Exception("failed manually")))
+			.build());
 
 		assertTrue(jobCompletion.isJobFailed());
 		verify(leaderElectionService).stop();
@@ -239,14 +243,14 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 	private static class TestingOnCompletionActions implements OnCompletionActions, FatalErrorHandler {
 
-		private volatile JobExecutionResult result;
+		private volatile JobResult result;
 
 		private volatile Throwable failedCause;
 
 		private volatile boolean finishedByOther;
 
 		@Override
-		public void jobFinished(JobExecutionResult result) {
+		public void jobFinished(JobResult result) {
 			checkArgument(!isJobFinished(), "job finished already");
 			checkArgument(!isJobFailed(), "job failed already");
 
@@ -254,11 +258,11 @@ public class JobManagerRunnerMockTest extends TestLogger {
 		}
 
 		@Override
-		public void jobFailed(Throwable cause) {
+		public void jobFailed(JobResult result) {
 			checkArgument(!isJobFinished(), "job finished already");
 			checkArgument(!isJobFailed(), "job failed already");
 
-			this.failedCause = cause;
+			this.failedCause = result.getSerializedThrowable().get();
 		}
 
 		@Override
@@ -271,7 +275,10 @@ public class JobManagerRunnerMockTest extends TestLogger {
 
 		@Override
 		public void onFatalError(Throwable exception) {
-			jobFailed(exception);
+			checkArgument(!isJobFinished(), "job finished already");
+			checkArgument(!isJobFailed(), "job failed already");
+
+			this.failedCause = exception;
 		}
 
 		boolean isJobFinished() {

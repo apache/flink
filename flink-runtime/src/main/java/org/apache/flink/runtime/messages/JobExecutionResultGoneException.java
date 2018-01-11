@@ -16,32 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.messages;
 
-import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Interface for completion actions once a Flink job has reached
- * a terminal state.
+ * Exception indicating that the required {@link org.apache.flink.runtime.jobmaster.JobResult} was
+ * garbage collected.
+ * @see org.apache.flink.runtime.dispatcher.JobExecutionResultCache
  */
-public interface OnCompletionActions {
+public class JobExecutionResultGoneException extends FlinkException {
 
-	/**
-	 * Job finished successfully.
-	 *
-	 * @param result of the job execution
-	 */
-	void jobFinished(JobResult result);
+	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Job failed with an exception.
-	 *
-	 * @param result The result of the job carrying the failure cause.
-	 */
-	void jobFailed(JobResult result);
-
-	/**
-	 * Job was finished by another JobMaster.
-	 */
-	void jobFinishedByOther();
+	public JobExecutionResultGoneException(JobID jobId) {
+		super(String.format("Job execution result for job [%s] is gone.", jobId));
+	}
 }
