@@ -25,6 +25,8 @@ import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.Set;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Utility class for dealing with user-defined Throwable types that are serialized (for
  * example during RPC/Actor communication), but cannot be resolved with the default
@@ -47,12 +49,11 @@ public class SerializedThrowable extends Exception implements Serializable {
 	/** The original stack trace, to be printed */
 	private final String fullStringifiedStackTrace;
 
-	/** The original exception, not transported via serialization, 
+	/** The original exception, not transported via serialization,
 	 * because the class may not be part of the system class loader.
 	 * In addition, we make sure our cached references to not prevent
 	 * unloading the exception class. */
 	private transient WeakReference<Throwable> cachedException;
-
 
 	/**
 	 * Create a new SerializedThrowable.
@@ -61,6 +62,18 @@ public class SerializedThrowable extends Exception implements Serializable {
 	 */
 	public SerializedThrowable(Throwable exception) {
 		this(exception, new HashSet<Throwable>());
+	}
+
+	/**
+	 * Creates a new SerializedThrowable from a serialized exception provided as a byte array.
+	 */
+	public SerializedThrowable(
+			final byte[] serializedException,
+			final String originalErrorClassName,
+			final String fullStringifiedStackTrace) {
+		this.serializedException = requireNonNull(serializedException);
+		this.originalErrorClassName = requireNonNull(originalErrorClassName);
+		this.fullStringifiedStackTrace = requireNonNull(fullStringifiedStackTrace);
 	}
 
 	private SerializedThrowable(Throwable exception, Set<Throwable> alreadySeen) {
@@ -134,6 +147,14 @@ public class SerializedThrowable extends Exception implements Serializable {
 
 	public String getOriginalErrorClassName() {
 		return originalErrorClassName;
+	}
+
+	public byte[] getSerializedException() {
+		return serializedException;
+	}
+
+	public String getFullStringifiedStackTrace() {
+		return fullStringifiedStackTrace;
 	}
 
 	// ------------------------------------------------------------------------
