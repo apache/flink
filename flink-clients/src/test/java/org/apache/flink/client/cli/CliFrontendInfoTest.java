@@ -16,12 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.cli;
+
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.Collections;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -29,52 +33,51 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the "info" command.
  */
-public class CliFrontendInfoTest {
+public class CliFrontendInfoTest extends TestLogger {
 
 	private static PrintStream stdOut;
 	private static PrintStream capture;
 	private static ByteArrayOutputStream buffer;
 
-	@Test
-	public void testErrorCases() {
-		try {
-			// test unrecognized option
-			{
-				String[] parameters = {"-v", "-l"};
-				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-				int retCode = testFrontend.cancel(parameters);
-				assertTrue(retCode != 0);
-			}
+	@Test(expected = CliArgsException.class)
+	public void testMissingOption() throws Exception {
+		String[] parameters = {};
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
+		testFrontend.cancel(parameters);
 
-			// test missing options
-			{
-				String[] parameters = {};
-				CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-				int retCode = testFrontend.cancel(parameters);
-				assertTrue(retCode != 0);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Program caused an exception: " + e.getMessage());
-		}
+		fail("Should have failed with CliArgsException");
+	}
+
+	@Test(expected = CliArgsException.class)
+	public void testUnrecognizedOption() throws Exception {
+		String[] parameters = {"-v", "-l"};
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
+		testFrontend.cancel(parameters);
+
+		fail("Should have failed with CliArgsException");
 	}
 
 	@Test
-	public void testShowExecutionPlan() {
+	public void testShowExecutionPlan() throws Exception {
 		replaceStdOut();
 		try {
 
-			String[] parameters = new String[] { CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
+			CliFrontend testFrontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
 		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail("Program caused an exception: " + e.getMessage());
-		} finally {
+		finally {
 			restoreStdOut();
 		}
 	}
@@ -84,7 +87,10 @@ public class CliFrontendInfoTest {
 		replaceStdOut();
 		try {
 			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend testFrontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));

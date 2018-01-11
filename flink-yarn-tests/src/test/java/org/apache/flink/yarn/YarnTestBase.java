@@ -18,11 +18,12 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.CliFrontend;
-import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -31,6 +32,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
 import akka.actor.Identify;
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -656,7 +658,7 @@ public abstract class YarnTestBase extends TestLogger {
 			throw new RuntimeException("Runner failed", runner.getRunnerError());
 		}
 		Assert.assertTrue("During the timeout period of " + startTimeoutSeconds + " seconds the " +
-				"expected string did not show up", expectedStringSeen);
+				"expected string \"" + terminateAfterString + "\" did not show up.", expectedStringSeen);
 
 		LOG.info("Test was successful");
 	}
@@ -807,12 +809,17 @@ public abstract class YarnTestBase extends TestLogger {
 		private ClusterClient originalClusterClient;
 		private ClusterClient spiedClusterClient;
 
-		public TestingCLI() throws Exception {}
+		public TestingCLI() throws Exception {
+			super(
+				GlobalConfiguration.loadConfiguration(CliFrontend.getConfigurationDirectoryFromEnv()),
+				CliFrontend.loadCustomCommandLines(),
+				CliFrontend.getConfigurationDirectoryFromEnv());
+		}
 
 		@Override
-		protected ClusterClient createClient(CommandLineOptions options, PackagedProgram program) throws Exception {
+		protected ClusterClient createClient(CustomCommandLine<?> customCommandLine, CommandLine commandLine, PackagedProgram program) throws Exception {
 			// mock the returned ClusterClient to disable shutdown and verify shutdown behavior later on
-			originalClusterClient = super.createClient(options, program);
+			originalClusterClient = super.createClient(customCommandLine, commandLine, program);
 			spiedClusterClient = Mockito.spy(originalClusterClient);
 			Mockito.doNothing().when(spiedClusterClient).shutdown();
 			return spiedClusterClient;

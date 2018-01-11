@@ -22,11 +22,12 @@ import java.io._
 import java.util.Collections
 
 import org.apache.commons.cli.CommandLine
-import org.apache.flink.client.cli.CliFrontendParser
+import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
+import org.apache.flink.client.deployment.ClusterDescriptor
+import org.apache.flink.client.deployment.ClusterSpecification.ClusterSpecificationBuilder
 import org.apache.flink.client.program.ClusterClient
-import org.apache.flink.client.CliFrontend
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
-import org.apache.flink.configuration.{ConfigConstants, GlobalConfiguration, JobManagerOptions}
+import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.{FlinkMiniCluster, LocalFlinkMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
@@ -140,6 +141,7 @@ object FlinkShell {
   }
 
   def fetchConnectionInfo(
+    configuration: Configuration,
     config: Config
   ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient]]) = {
     config.executionMode match {
@@ -162,9 +164,15 @@ object FlinkShell {
       case ExecutionMode.YARN => // YARN mode
         config.yarnConfig match {
           case Some(yarnConfig) => // if there is information for new cluster
-            deployNewYarnCluster(yarnConfig)
+            deployNewYarnCluster(
+              configuration,
+              config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv),
+              yarnConfig)
           case None => // there is no information for new cluster. Then we use yarn properties.
-            fetchDeployedYarnClusterInfo()
+            fetchDeployedYarnClusterInfo(
+              configuration,
+              config.configDir.getOrElse(CliFrontend.getConfigurationDirectoryFromEnv)
+            )
         }
 
       case ExecutionMode.UNDEFINED => // Wrong input
@@ -183,10 +191,10 @@ object FlinkShell {
     }
 
     val configDirectory = new File(confDirPath)
-    GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
+    val configuration = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath)
 
     val (repl, cluster) = try {
-      val (host, port, cluster) = fetchConnectionInfo(config)
+      val (host, port, cluster) = fetchConnectionInfo(configuration, config)
       val conf = cluster match {
         case Some(Left(miniCluster)) => miniCluster.getConfiguration
         case Some(Right(yarnCluster)) => yarnCluster.getFlinkConfiguration
@@ -227,7 +235,10 @@ object FlinkShell {
     println(" good bye ..")
   }
 
-  def deployNewYarnCluster(yarnConfig: YarnConfig) = {
+  def deployNewYarnCluster(
+      configuration: Configuration,
+      configurationDirectory: String,
+      yarnConfig: YarnConfig) = {
 
     val args = ArrayBuffer[String](
       "-m", "yarn-cluster"
@@ -247,9 +258,11 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-
     val options = CliFrontendParser.parseRunCommand(args.toArray)
-    val frontend = new CliFrontend()
+    val frontend = new CliFrontend(
+      configuration,
+      CliFrontend.loadCustomCommandLines(),
+      configurationDirectory)
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
@@ -266,7 +279,9 @@ object FlinkShell {
     (address, port, Some(Right(cluster)))
   }
 
-  def fetchDeployedYarnClusterInfo() = {
+  def fetchDeployedYarnClusterInfo(
+      configuration: Configuration,
+      configurationDirectory: String) = {
 
 
     val args = ArrayBuffer[String](
@@ -274,7 +289,10 @@ object FlinkShell {
     )
 
     val options = CliFrontendParser.parseRunCommand(args.toArray)
-    val frontend = new CliFrontend()
+    val frontend = new CliFrontend(
+      configuration,
+      CliFrontend.loadCustomCommandLines(),
+      configurationDirectory)
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
