@@ -24,7 +24,6 @@ import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010Fetcher;
 import org.apache.flink.streaming.connectors.kafka.internal.Kafka010PartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
@@ -36,15 +35,18 @@ import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchemaW
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.TopicPartition;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
@@ -67,8 +69,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 
 	private static final long serialVersionUID = 2324564345203409112L;
-
-	private Date specificStartupDate = null;
 
 	// ------------------------------------------------------------------------
 
@@ -178,30 +178,6 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 		super(subscriptionPattern, deserializer, props);
 	}
 
-
-	/**
-	 * Specifies the consumer to start reading partitions from specific date. The specified date must before current timestamp.
-	 * This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
-	 *
-	 * <p>The consumer will look up the earliest offset whose timestamp is greater than or equal to the specific date from Kafka.
-	 * If there's no such offset, the consumer will use the latest offset to read data from kafka.
-	 *
-	 * <p>This method does not effect where partitions are read from when the consumer is restored
-	 * from a checkpoint or savepoint. When the consumer is restored from a checkpoint or
-	 * savepoint, only the offsets in the restored state will be used.
-	 *
-	 * @return The consumer object, to allow function chaining.
-	 */
-	public FlinkKafkaConsumer010<T> setStartFromSpecificDate(Date date) {
-		Date now = new Date();
-		checkArgument(null != date && date.getTime() <= now.getTime(),
-			"Startup time[" + date + "] must be before current time[" + now + "].");
-		this.startupMode = StartupMode.SPECIFIC_TIMESTAMP;
-		this.specificStartupDate = date;
-		this.specificStartupOffsets = null;
-		return this;
-	}
-
 	@Override
 	protected AbstractFetcher<T, ?> createFetcher(
 			SourceContext<T> sourceContext,
@@ -233,8 +209,7 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 				pollTimeout,
 				runtimeContext.getMetricGroup(),
 				consumerMetricGroup,
-				useMetrics,
-				specificStartupDate);
+				useMetrics);
 	}
 
 	@Override
@@ -244,5 +219,45 @@ public class FlinkKafkaConsumer010<T> extends FlinkKafkaConsumer09<T> {
 			int numParallelSubtasks) {
 
 		return new Kafka010PartitionDiscoverer(topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
+	}
+
+	// ------------------------------------------------------------------------
+	//  Timestamp-based startup
+	// ------------------------------------------------------------------------
+
+	@Override
+	public FlinkKafkaConsumerBase<T> setStartFromTimestamp(Date startupOffsetsTimestamp) {
+		// the purpose of this override is just to publicly expose the method for Kafka 0.10+;
+		// the base class doesn't publicly expose it since not all Kafka versions support the functionality
+		return super.setStartFromTimestamp(startupOffsetsTimestamp);
+	}
+
+	@Override
+	protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
+			Collection<KafkaTopicPartition> partitions,
+			Date timestamp) {
+
+		Map<TopicPartition, Long> partitionOffsetsRequest = new HashMap<>(partitions.size());
+		for (KafkaTopicPartition partition : partitions) {
+			partitionOffsetsRequest.put(
+				new TopicPartition(partition.getTopic(), partition.getPartition()),
+				timestamp.getTime());
+		}
+
+		// use a short-lived consumer to fetch the offsets;
+		// this is ok because this is a one-time operation that happens only on startup
+		KafkaConsumer<?, ?> consumer = new KafkaConsumer(properties);
+
+		Map<KafkaTopicPartition, Long> result = new HashMap<>(partitions.size());
+		for (Map.Entry<TopicPartition, OffsetAndTimestamp> partitionToOffset :
+				consumer.offsetsForTimes(partitionOffsetsRequest).entrySet()) {
+
+			result.put(
+				new KafkaTopicPartition(partitionToOffset.getKey().topic(), partitionToOffset.getKey().partition()),
+				(partitionToOffset.getValue() == null) ? null : partitionToOffset.getValue().offset());
+		}
+
+		consumer.close();
+		return result;
 	}
 }

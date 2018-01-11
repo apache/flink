@@ -32,7 +32,6 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 
-import java.util.Date;
 import java.util.Map;
 import java.util.Properties;
 
@@ -61,8 +60,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 			long pollTimeout,
 			MetricGroup subtaskMetricGroup,
 			MetricGroup consumerMetricGroup,
-			boolean useMetrics,
-			Date startupDate) throws Exception {
+			boolean useMetrics) throws Exception {
 		super(
 				sourceContext,
 				assignedPartitionsWithInitialOffsets,
@@ -77,8 +75,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 				pollTimeout,
 				subtaskMetricGroup,
 				consumerMetricGroup,
-				useMetrics,
-				startupDate);
+				useMetrics);
 	}
 
 	@Override
@@ -98,7 +95,7 @@ public class Kafka010Fetcher<T> extends Kafka09Fetcher<T> {
 	 */
 	@Override
 	protected KafkaConsumerCallBridge010 createCallBridge() {
-		return new KafkaConsumerCallBridge010(startupDate);
+		return new KafkaConsumerCallBridge010();
 	}
 
 	@Override

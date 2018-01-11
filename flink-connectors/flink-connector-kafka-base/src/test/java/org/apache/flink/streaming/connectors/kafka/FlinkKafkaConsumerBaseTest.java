@@ -67,7 +67,9 @@ import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -674,7 +676,14 @@ public class FlinkKafkaConsumerBaseTest {
 
 		@Override
 		protected boolean getIsAutoCommitEnabled() {
-			return this.isAutoCommitEnabled;
+			return isAutoCommitEnabled;
+		}
+
+		@Override
+		protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
+				Collection<KafkaTopicPartition> partitions,
+				Date timestamp) {
+			throw new UnsupportedOperationException();
 		}
 	}
 

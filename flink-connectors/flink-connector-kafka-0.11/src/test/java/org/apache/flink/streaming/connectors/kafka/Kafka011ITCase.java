@@ -274,30 +274,6 @@ public class Kafka011ITCase extends KafkaConsumerTestBase {
 		deleteTestTopic(topic);
 	}
 
-	@Override
-	protected void setKafkaConsumerOffset(final StartupMode startupMode,
-										final FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer,
-										final Map<KafkaTopicPartition, Long> specificStartupOffsets,
-										final Date specificStartupDate) {
-		switch (startupMode) {
-			case EARLIEST:
-				consumer.setStartFromEarliest();
-				break;
-			case LATEST:
-				consumer.setStartFromLatest();
-				break;
-			case SPECIFIC_OFFSETS:
-				consumer.setStartFromSpecificOffsets(specificStartupOffsets);
-				break;
-			case GROUP_OFFSETS:
-				consumer.setStartFromGroupOffsets();
-				break;
-			case SPECIFIC_TIMESTAMP:
-				((FlinkKafkaConsumer011<Tuple2<Integer, Integer>>) consumer).setStartFromSpecificDate(specificStartupDate);
-				break;
-		}
-	}
-
 	private static class TimestampValidatingOperator extends StreamSink<Long> {
 
 		private static final long serialVersionUID = 1353168781235526806L;

@@ -634,7 +634,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	 * <p>When configured to start from first start date, each partition should start from offset 0 and read 100 records.
 	 * And when configured to start from second start date, each partition should start from 50 and read 50 records.
 	 */
-	protected void runStartFromSpecificDate() throws Exception {
+	public void runStartFromSpecificDate() throws Exception {
 		// 4 partitions with 50 records each
 		final int parallelism = 4;
 		final int recordsInEachPartition = 50;
@@ -1861,7 +1861,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 				consumer.setStartFromGroupOffsets();
 				break;
 			case SPECIFIC_TIMESTAMP:
-				throw new RuntimeException("Only support to start from specific start up date for version 0.10 and later");
+				consumer.setStartFromTimestamp(specificStartupDate);
+				break;
 		}
 	}
 

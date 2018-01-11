@@ -21,14 +21,10 @@ package org.apache.flink.streaming.connectors.kafka.internal;
 import org.apache.flink.annotation.Internal;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * The ConsumerCallBridge simply calls the {@link KafkaConsumer#assign(java.util.Collection)} method.
@@ -40,13 +36,6 @@ import java.util.Map;
  */
 @Internal
 public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
-
-	private Date startupDate;
-
-	public KafkaConsumerCallBridge010(Date startupDate) {
-		super();
-		this.startupDate = startupDate;
-	}
 
 	@Override
 	public void assignPartitions(KafkaConsumer<?, ?> consumer, List<TopicPartition> topicPartitions) throws Exception {
@@ -61,19 +50,5 @@ public class KafkaConsumerCallBridge010 extends KafkaConsumerCallBridge {
 	@Override
 	public void seekPartitionToEnd(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
 		consumer.seekToEnd(Collections.singletonList(partition));
-	}
-
-	@Override
-	public void seekPartitionToDate(KafkaConsumer<?, ?> consumer, TopicPartition partition) {
-		Map<TopicPartition, Long> partitionTimestampMap = new HashMap<>(1);
-		partitionTimestampMap.put(partition, startupDate.getTime());
-
-		Map<TopicPartition, OffsetAndTimestamp> topicPartitionOffsetMap = consumer.offsetsForTimes(partitionTimestampMap);
-		OffsetAndTimestamp offsetAndTimestamp = null == topicPartitionOffsetMap ? null : topicPartitionOffsetMap.get(partition);
-		if (null == offsetAndTimestamp) {
-			seekPartitionToEnd(consumer, partition);
-		} else {
-			consumer.seek(partition, offsetAndTimestamp.offset());
-		}
 	}
 }
