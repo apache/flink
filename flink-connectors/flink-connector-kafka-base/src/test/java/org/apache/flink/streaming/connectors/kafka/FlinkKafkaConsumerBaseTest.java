@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -26,12 +29,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
@@ -764,25 +771,127 @@ public class FlinkKafkaConsumerBaseTest {
 			int subtaskIndex,
 			int totalNumSubtasks) throws Exception {
 
-		final StreamingRuntimeContext runtimeContext = Mockito.mock(StreamingRuntimeContext.class);
-		when(runtimeContext.isCheckpointingEnabled()).thenReturn(isCheckpointingEnabled);
-		when(runtimeContext.getIndexOfThisSubtask()).thenReturn(subtaskIndex);
-		when(runtimeContext.getNumberOfParallelSubtasks()).thenReturn(totalNumSubtasks);
-		when(runtimeContext.getMetricGroup()).thenReturn(mock(MetricGroup.class));
-
-		final OperatorStateStore operatorStateStore = mock(OperatorStateStore.class);
-		when(operatorStateStore.getUnionListState((ListStateDescriptor<S>) Matchers.any(ListStateDescriptor.class)))
-			.thenReturn(restoredListState);
-		// also mock the legacy 1.2 Kafka consumer state (return empty state)
-		when(operatorStateStore.getSerializableListState(Matchers.anyString())).thenReturn(new TestingListState<>());
-
-		final FunctionInitializationContext initializationContext = Mockito.mock(FunctionInitializationContext.class);
-		when(initializationContext.isRestored()).thenReturn(isRestored);
-		when(initializationContext.getOperatorStateStore()).thenReturn(operatorStateStore);
-
 		// run setup procedure in operator life cycle
-		consumer.setRuntimeContext(runtimeContext);
-		consumer.initializeState(initializationContext);
+		consumer.setRuntimeContext(new MockRuntimeContext(isCheckpointingEnabled, totalNumSubtasks, subtaskIndex));
+		consumer.initializeState(new MockFunctionInitializationContext(isRestored, new MockOperatorStateStore(restoredListState)));
 		consumer.open(new Configuration());
+	}
+
+	private static class MockRuntimeContext extends StreamingRuntimeContext {
+
+		private final boolean isCheckpointingEnabled;
+
+		private final int numParallelSubtasks;
+		private final int subtaskIndex;
+
+		private MockRuntimeContext(
+				boolean isCheckpointingEnabled,
+				int numParallelSubtasks,
+				int subtaskIndex) {
+
+			super(
+				new MockStreamOperator(),
+				new MockEnvironment("mockTask", 4 * MemoryManager.DEFAULT_PAGE_SIZE, null, 16),
+				Collections.<String, Accumulator<?, ?>>emptyMap());
+
+			this.isCheckpointingEnabled = isCheckpointingEnabled;
+			this.numParallelSubtasks = numParallelSubtasks;
+			this.subtaskIndex = subtaskIndex;
+		}
+
+		@Override
+		public MetricGroup getMetricGroup() {
+			return new UnregisteredMetricsGroup();
+		}
+
+		@Override
+		public boolean isCheckpointingEnabled() {
+			return isCheckpointingEnabled;
+		}
+
+		@Override
+		public int getIndexOfThisSubtask() {
+			return subtaskIndex;
+		}
+
+		@Override
+		public int getNumberOfParallelSubtasks() {
+			return numParallelSubtasks;
+		}
+
+		// ------------------------------------------------------------------------
+
+		private static class MockStreamOperator extends AbstractStreamOperator<Integer> {
+			private static final long serialVersionUID = -1153976702711944427L;
+
+			@Override
+			public ExecutionConfig getExecutionConfig() {
+				return new ExecutionConfig();
+			}
+		}
+	}
+
+	private static class MockOperatorStateStore implements OperatorStateStore {
+
+		private final ListState<?> mockRestoredUnionListState;
+
+		private MockOperatorStateStore(ListState<?> restoredUnionListState) {
+			this.mockRestoredUnionListState = restoredUnionListState;
+		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public <S> ListState<S> getUnionListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+			return (ListState<S>) mockRestoredUnionListState;
+		}
+
+		@Override
+		public <T extends Serializable> ListState<T> getSerializableListState(String stateName) throws Exception {
+			// return empty state for the legacy 1.2 Kafka consumer state
+			return new TestingListState<>();
+		}
+
+		// ------------------------------------------------------------------------
+
+		@Override
+		public <S> ListState<S> getOperatorState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public <S> ListState<S> getListState(ListStateDescriptor<S> stateDescriptor) throws Exception {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Set<String> getRegisteredStateNames() {
+			throw new UnsupportedOperationException();
+		}
+	}
+
+	private static class MockFunctionInitializationContext implements FunctionInitializationContext {
+
+		private final boolean isRestored;
+		private final OperatorStateStore operatorStateStore;
+
+		private MockFunctionInitializationContext(boolean isRestored, OperatorStateStore operatorStateStore) {
+			this.isRestored = isRestored;
+			this.operatorStateStore = operatorStateStore;
+		}
+
+		@Override
+		public boolean isRestored() {
+			return isRestored;
+		}
+
+		@Override
+		public OperatorStateStore getOperatorStateStore() {
+			return operatorStateStore;
+		}
+
+		@Override
+		public KeyedStateStore getKeyedStateStore() {
+			throw new UnsupportedOperationException();
+		}
 	}
 }
