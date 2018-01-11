@@ -66,7 +66,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		final Configuration configuration = new Configuration();
 		frontend = new CliFrontend(
 			configuration,
-		  	Collections.singletonList(new DefaultCLI(configuration)));
+			Collections.singletonList(new DefaultCLI(configuration)));
 	}
 
 	@Test
@@ -179,7 +179,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		assertEquals(arguments[4], options.getJarFilePath());
 		assertArrayEquals(classpath, options.getClasspaths().toArray());
 		assertArrayEquals(reducedArguments, options.getProgramArgs());
-		
+
 		try {
 			frontend.buildProgram(options);
 			fail("Should fail with an exception");
