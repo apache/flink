@@ -728,7 +728,7 @@ public class FlinkYarnSessionCli implements CustomCommandLine<YarnClusterClient>
 							isLastStatusUnknown = true;
 						}
 
-						if ((System.nanoTime() - unknownStatusSince) > CLIENT_POLLING_INTERVAL_MS) {
+						if ((System.nanoTime() - unknownStatusSince) > 5L * CLIENT_POLLING_INTERVAL_MS * 1_000_000L) {
 							System.err.println("The Flink Yarn cluster is in an unknown state. Please check the Yarn cluster.");
 							continueRepl = false;
 						} else {
