@@ -131,8 +131,7 @@ public class Kafka09FetcherTest {
 				0L,
 				new UnregisteredMetricsGroup(),
 				new UnregisteredMetricsGroup(),
-				false,
-				null);
+				false);
 
 		// ----- run the fetcher -----
 
@@ -268,8 +267,7 @@ public class Kafka09FetcherTest {
 				0L,
 				new UnregisteredMetricsGroup(),
 				new UnregisteredMetricsGroup(),
-				false,
-				null);
+				false);
 
 		// ----- run the fetcher -----
 
@@ -384,8 +382,7 @@ public class Kafka09FetcherTest {
 				0L,
 				new UnregisteredMetricsGroup(),
 				new UnregisteredMetricsGroup(),
-				false,
-				null);
+				false);
 
 		// ----- run the fetcher -----
 

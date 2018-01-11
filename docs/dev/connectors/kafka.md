@@ -191,6 +191,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 FlinkKafkaConsumer08<String> myConsumer = new FlinkKafkaConsumer08<>(...);
 myConsumer.setStartFromEarliest();     // start from the earliest record possible
 myConsumer.setStartFromLatest();       // start from the latest record
+myConsumer.setStartFromTimestamp(...); // start from specified epoch timestamp (milliseconds)
 myConsumer.setStartFromGroupOffsets(); // the default behaviour
 
 DataStream<String> stream = env.addSource(myConsumer);
@@ -204,6 +205,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val myConsumer = new FlinkKafkaConsumer08[String](...)
 myConsumer.setStartFromEarliest()      // start from the earliest record possible
 myConsumer.setStartFromLatest()        // start from the latest record
+myConsumer.setStartFromTimestamp(...)  // start from specified epoch timestamp (milliseconds)
 myConsumer.setStartFromGroupOffsets()  // the default behaviour
 
 val stream = env.addSource(myConsumer)
@@ -221,6 +223,11 @@ All versions of the Flink Kafka Consumer have the above explicit configuration m
  * `setStartFromEarliest()` / `setStartFromLatest()`: Start from the earliest / latest
  record. Under these modes, committed offsets in Kafka will be ignored and
  not used as starting positions.
+ * `setStartFromTimestamp(long)`: Start from the specified timestamp. For each partition, the record
+ whose timestamp is larger than or equal to the specified timestamp will be used as the start position.
+ If a partition's latest record is earlier than the timestamp, the partition will simply be read
+ from the latest record. Under this mode, committed offsets in Kafka will be ignored and not used as
+ starting positions.
  
 You can also specify the exact offsets the consumer should start from for each partition:
 
