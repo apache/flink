@@ -90,12 +90,12 @@ matrix:
       env:
         - TEST="core"
         - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_CO
+        - CACHE_NAME=JDK8_H280_F6_CO
     - jdk: "oraclejdk8"
       env:
         - TEST="tests"
         - PROFILE="-Dhadoop.version=2.8.0 -Pflip6"
-        - CACHE_NAME=JDK8_H280_T
+        - CACHE_NAME=JDK8_H280_F6_T
 
 git:
   depth: 100
