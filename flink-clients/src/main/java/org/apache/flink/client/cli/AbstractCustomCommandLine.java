@@ -22,6 +22,9 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -47,6 +50,16 @@ public abstract class AbstractCustomCommandLine<C extends ClusterClient> impleme
 		"Address of the JobManager (master) to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
 
+	protected final Configuration configuration;
+
+	protected AbstractCustomCommandLine(Configuration configuration) {
+		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+	}
+
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
 	@Override
 	public void addRunOptions(Options baseOptions) {
 		// nothing to add here
@@ -61,11 +74,10 @@ public abstract class AbstractCustomCommandLine<C extends ClusterClient> impleme
 	/**
 	 * Override configuration settings by specified command line options.
 	 *
-	 * @param configuration to use as the base configuration
 	 * @param commandLine containing the overriding values
 	 * @return Effective configuration with the overriden configuration settings
 	 */
-	protected Configuration applyCommandLineOptionsToConfiguration(Configuration configuration, CommandLine commandLine) {
+	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		final Configuration resultingConfiguration = new Configuration(configuration);
 
 		if (commandLine.hasOption(addressOption.getOpt())) {

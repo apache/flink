@@ -693,6 +693,8 @@ public abstract class YarnTestBase extends TestLogger {
 				switch (type) {
 					case YARN_SESSION:
 						yCli = new FlinkYarnSessionCli(
+							configuration,
+							configurationDirectory,
 							"",
 							"",
 							false);
@@ -702,8 +704,7 @@ public abstract class YarnTestBase extends TestLogger {
 						try {
 							CliFrontend cli = new CliFrontend(
 								configuration,
-								CliFrontend.loadCustomCommandLines(),
-								configurationDirectory);
+								CliFrontend.loadCustomCommandLines(configuration, configurationDirectory));
 							returnValue = cli.parseParameters(args);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
