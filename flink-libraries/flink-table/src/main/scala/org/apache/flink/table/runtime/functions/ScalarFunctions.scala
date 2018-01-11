@@ -113,7 +113,7 @@ object ScalarFunctions {
     * If str is longer than len, the return value is shortened to len characters.
     */
   def lpad(base: String, len: Integer, pad: String): String = {
-    if (base == null || len == null || pad == null || len < 0) {
+    if (len < 0) {
       return null
     }
     var data = "".toCharArray
@@ -153,7 +153,7 @@ object ScalarFunctions {
     * If str is longer than len, the return value is shortened to len characters.
     */
   def rpad(base: String, len: Integer, pad: String): String = {
-    if (base == null || len == null || pad == null || len < 0) {
+    if (len < 0) {
       return null
     }
     var data = "".toCharArray

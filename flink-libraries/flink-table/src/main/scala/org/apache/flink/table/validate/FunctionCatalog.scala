@@ -27,6 +27,7 @@ import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 import org.apache.flink.table.functions.utils.{AggSqlFunction, ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.mutable
 import _root_.scala.util.{Failure, Success, Try}

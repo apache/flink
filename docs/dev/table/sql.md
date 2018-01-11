@@ -1735,6 +1735,7 @@ INITCAP(string)
         <p>Returns string with the first letter of each word converter to upper case and the rest to lower case. Words are sequences of alphanumeric characters separated by non-alphanumeric characters.</p>
       </td>
     </tr>
+
     <tr>
       <td>
         {% highlight text %}
@@ -1764,19 +1765,17 @@ LPAD(text string, len integer, pad string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the string text, left-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters.</p>
+        <p>Returns the string text, left-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>LPAD('hi',4,'??')</code> returns <code>??hi</code> <code>LPAD('hi',1,'??')</code> returns <code>h</code></p>
       </td>
     </tr>
-
-
-        <tr>
+    <tr>
       <td>
         {% highlight text %}
 RPAD(text string, len integer, pad string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the string text, right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters.</p>
+        <p>Returns the string text, right-padded with the string pad to a length of len characters. If text is longer than len, the return value is shortened to len characters. E.g. <code>RPAD('hi',4,'??')</code> returns <code>hi??</code> <code>RPAD('hi',1,'??')</code> returns <code>h</code></p>
       </td>
     </tr>
 
