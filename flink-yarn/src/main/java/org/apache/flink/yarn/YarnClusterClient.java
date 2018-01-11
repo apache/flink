@@ -40,11 +40,9 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,12 +66,7 @@ public class YarnClusterClient extends ClusterClient {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClient.class);
 
-	private static final int POLLING_THREAD_INTERVAL_MS = 1000;
-
-	private YarnClient yarnClient;
-
 	private Thread clientShutdownHook = new ClientShutdownHook();
-	private PollingThread pollingRunner;
 
 	//---------- Class internal fields -------------------
 
@@ -97,7 +90,6 @@ public class YarnClusterClient extends ClusterClient {
 	 * @param clusterDescriptor The descriptor used at cluster creation
 	 * @param numberTaskManagers The number of task managers, -1 if unknown
 	 * @param slotsPerTaskManager Slots per task manager, -1 if unknown
-	 * @param yarnClient Client to talk to YARN
 	 * @param appReport the YARN application ID
 	 * @param flinkConfig Flink configuration
 	 * @param newlyCreatedCluster Indicator whether this cluster has just been created
@@ -108,7 +100,6 @@ public class YarnClusterClient extends ClusterClient {
 		final AbstractYarnClusterDescriptor clusterDescriptor,
 		final int numberTaskManagers,
 		final int slotsPerTaskManager,
-		final YarnClient yarnClient,
 		final ApplicationReport appReport,
 		Configuration flinkConfig,
 		boolean newlyCreatedCluster) throws Exception {
@@ -119,7 +110,6 @@ public class YarnClusterClient extends ClusterClient {
 		this.clusterDescriptor = clusterDescriptor;
 		this.numberTaskManagers = numberTaskManagers;
 		this.slotsPerTaskManager = slotsPerTaskManager;
-		this.yarnClient = yarnClient;
 		this.appReport = appReport;
 		this.appId = appReport.getApplicationId();
 		this.trackingURL = appReport.getTrackingUrl();
@@ -129,10 +119,6 @@ public class YarnClusterClient extends ClusterClient {
 			flinkConfig,
 			actorSystemLoader,
 			highAvailabilityServices);
-
-		this.pollingRunner = new PollingThread(yarnClient, appId);
-		this.pollingRunner.setDaemon(true);
-		this.pollingRunner.start();
 
 		Runtime.getRuntime().addShutdownHook(clientShutdownHook);
 	}
@@ -156,14 +142,6 @@ public class YarnClusterClient extends ClusterClient {
 			Runtime.getRuntime().removeShutdownHook(clientShutdownHook);
 		} catch (IllegalStateException e) {
 			// we are already in the shutdown hook
-		}
-
-		try {
-			pollingRunner.stopRunner();
-			pollingRunner.join(1000);
-		} catch (InterruptedException e) {
-			LOG.warn("Shutdown of the polling runner was interrupted", e);
-			Thread.currentThread().interrupt();
 		}
 
 		isConnected = false;
@@ -251,34 +229,6 @@ public class YarnClusterClient extends ClusterClient {
 			return (GetClusterStatusResponse) Await.result(clusterStatusOption, akkaDuration);
 		} catch (Exception e) {
 			throw new RuntimeException("Unable to get ClusterClient status from Application Client", e);
-		}
-	}
-
-	public ApplicationStatus getApplicationStatus() {
-		if (!isConnected) {
-			throw new IllegalStateException("The cluster has been connected to the ApplicationMaster.");
-		}
-		ApplicationReport lastReport = null;
-		if (pollingRunner == null) {
-			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on an uninitialized cluster." +
-					"The system might be in an erroneous state");
-		} else {
-			lastReport = pollingRunner.getLastReport();
-		}
-		if (lastReport == null) {
-			LOG.warn("YarnClusterClient.getApplicationStatus() has been called on a cluster that didn't receive a status so far." +
-					"The system might be in an erroneous state");
-			return ApplicationStatus.UNKNOWN;
-		} else {
-			YarnApplicationState appState = lastReport.getYarnApplicationState();
-			ApplicationStatus status =
-				(appState == YarnApplicationState.FAILED || appState == YarnApplicationState.KILLED) ?
-					ApplicationStatus.FAILED : ApplicationStatus.SUCCEEDED;
-			if (status != ApplicationStatus.SUCCEEDED) {
-				LOG.warn("YARN reported application state {}", appState);
-				LOG.warn("Diagnostics: {}", lastReport.getDiagnostics());
-			}
-			return status;
 		}
 	}
 
@@ -371,8 +321,8 @@ public class YarnClusterClient extends ClusterClient {
 		try {
 			Future<Object> response =
 				Patterns.ask(applicationClient.get(),
-					new YarnMessages.LocalStopYarnSession(getApplicationStatus(),
-							"Flink YARN Client requested shutdown"),
+					new YarnMessages.LocalStopYarnSession(ApplicationStatus.CANCELED,
+						"Flink YARN Client requested shutdown"),
 					new Timeout(akkaDuration));
 			Await.ready(response, akkaDuration);
 		} catch (Exception e) {
@@ -393,15 +343,7 @@ public class YarnClusterClient extends ClusterClient {
 		}
 
 		try {
-			pollingRunner.stopRunner();
-			pollingRunner.join(1000);
-		} catch (InterruptedException e) {
-			LOG.warn("Shutdown of the polling runner was interrupted", e);
-			Thread.currentThread().interrupt();
-		}
-
-		try {
-			ApplicationReport appReport = yarnClient.getApplicationReport(appId);
+			ApplicationReport appReport = clusterDescriptor.getYarnClient().getApplicationReport(appId);
 
 			LOG.info("Application " + appId + " finished with state " + appReport
 				.getYarnApplicationState() + " and final state " + appReport
@@ -420,10 +362,6 @@ public class YarnClusterClient extends ClusterClient {
 		} catch (Exception e) {
 			LOG.warn("Couldn't get final report", e);
 		}
-
-		LOG.info("YARN Client is shutting down");
-		yarnClient.stop(); // actorRunner is using the yarnClient.
-		yarnClient = null; // set null to clearly see if somebody wants to access it afterwards.
 	}
 
 	public boolean hasBeenShutdown() {
@@ -439,62 +377,6 @@ public class YarnClusterClient extends ClusterClient {
 				shutdown();
 			} catch (Throwable t) {
 				LOG.warn("Could not properly shut down the yarn cluster client.", t);
-			}
-		}
-	}
-
-	// -------------------------- Polling ------------------------
-
-	private static class PollingThread extends Thread {
-
-		AtomicBoolean running = new AtomicBoolean(true);
-		private YarnClient yarnClient;
-		private ApplicationId appId;
-
-		// ------- status information stored in the polling thread
-		private final Object lock = new Object();
-		private ApplicationReport lastReport;
-
-		public PollingThread(YarnClient yarnClient, ApplicationId appId) {
-			this.yarnClient = yarnClient;
-			this.appId = appId;
-		}
-
-		public void stopRunner() {
-			if (!running.get()) {
-				LOG.warn("Polling thread was already stopped");
-			}
-			running.set(false);
-		}
-
-		public ApplicationReport getLastReport() {
-			synchronized (lock) {
-				return lastReport;
-			}
-		}
-
-		@Override
-		public void run() {
-			while (running.get() && yarnClient.isInState(Service.STATE.STARTED)) {
-				try {
-					ApplicationReport report = yarnClient.getApplicationReport(appId);
-					synchronized (lock) {
-						lastReport = report;
-					}
-				} catch (Exception e) {
-					LOG.warn("Error while getting application report", e);
-				}
-				try {
-					Thread.sleep(YarnClusterClient.POLLING_THREAD_INTERVAL_MS);
-				} catch (InterruptedException e) {
-					LOG.error("Polling thread got interrupted", e);
-					Thread.currentThread().interrupt(); // pass interrupt.
-					stopRunner();
-				}
-			}
-			if (running.get() && !yarnClient.isInState(Service.STATE.STARTED)) {
-				// == if the polling thread is still running but the yarn client is stopped.
-				LOG.warn("YARN client is unexpected in state " + yarnClient.getServiceState());
 			}
 		}
 	}

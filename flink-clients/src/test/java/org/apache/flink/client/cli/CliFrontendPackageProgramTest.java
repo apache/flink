@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.cli;
 
-import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.ProgramOptions;
-import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -37,11 +34,11 @@ import org.junit.Test;
 import java.io.FileNotFoundException;
 import java.net.URL;
 
-import static org.apache.flink.client.CliFrontendTestUtils.TEST_JAR_CLASSLOADERTEST_CLASS;
-import static org.apache.flink.client.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
-import static org.apache.flink.client.CliFrontendTestUtils.getNonJarFilePath;
-import static org.apache.flink.client.CliFrontendTestUtils.getTestJarPath;
-import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOADERTEST_CLASS;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getNonJarFilePath;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -190,16 +187,12 @@ public class CliFrontendPackageProgramTest {
 		}
 	}
 
-	@Test
-	public void testNoJarNoArgumentsAtAll() {
-		try {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-			assertTrue(frontend.run(new String[0]) != 0);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+	@Test(expected = CliArgsException.class)
+	public void testNoJarNoArgumentsAtAll() throws Exception {
+		CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		assertTrue(frontend.run(new String[0]) != 0);
+
+		fail("Should have failed.");
 	}
 
 	@Test
@@ -267,9 +260,9 @@ public class CliFrontendPackageProgramTest {
 	 *		at org.apache.flink.client.program.PackagedProgram.invokeInteractiveModeForExecution(PackagedProgram.java:301)
 	 *		at org.apache.flink.client.program.Client.getOptimizedPlan(Client.java:140)
 	 *		at org.apache.flink.client.program.Client.getOptimizedPlanAsJson(Client.java:125)
-	 *		at org.apache.flink.client.CliFrontend.info(CliFrontend.java:439)
-	 *		at org.apache.flink.client.CliFrontend.parseParameters(CliFrontend.java:931)
-	 *		at org.apache.flink.client.CliFrontend.main(CliFrontend.java:951)
+	 *		at org.apache.flink.client.cli.CliFrontend.info(CliFrontend.java:439)
+	 *		at org.apache.flink.client.cli.CliFrontend.parseParameters(CliFrontend.java:931)
+	 *		at org.apache.flink.client.cli.CliFrontend.main(CliFrontend.java:951)
 	 *	Caused by: java.io.IOException: java.lang.RuntimeException: java.lang.ClassNotFoundException: org.apache.hadoop.hive.ql.io.RCFileInputFormat
 	 *		at org.apache.hcatalog.mapreduce.HCatInputFormat.setInput(HCatInputFormat.java:102)
 	 *		at org.apache.hcatalog.mapreduce.HCatInputFormat.setInput(HCatInputFormat.java:54)

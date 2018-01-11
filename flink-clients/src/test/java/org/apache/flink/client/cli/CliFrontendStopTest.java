@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.Flip6DefaultCLI;
-import org.apache.flink.client.cli.StopOptions;
-import org.apache.flink.client.util.MockedCliFrontend;
+import org.apache.flink.client.cli.util.MockedCliFrontend;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import static org.apache.flink.client.CliFrontendTestUtils.pipeSystemOutToNull;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
@@ -48,22 +47,6 @@ public class CliFrontendStopTest extends TestLogger {
 
 	@Test
 	public void testStop() throws Exception {
-		// test unrecognized option
-		{
-			String[] parameters = { "-v", "-l" };
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-			int retCode = testFrontend.stop(parameters);
-			assertTrue(retCode != 0);
-		}
-
-		// test missing job id
-		{
-			String[] parameters = {};
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-			int retCode = testFrontend.stop(parameters);
-			assertTrue(retCode != 0);
-		}
-
 		// test stop properly
 		{
 			JobID jid = new JobID();
@@ -78,18 +61,6 @@ public class CliFrontendStopTest extends TestLogger {
 			Mockito.verify(testFrontend.client, times(1)).stop(any(JobID.class));
 		}
 
-		// test unknown job Id
-		{
-			JobID jid = new JobID();
-
-			String[] parameters = { jid.toString() };
-			StopTestCliFrontend testFrontend = new StopTestCliFrontend(true);
-
-			assertTrue(testFrontend.stop(parameters) != 0);
-
-			Mockito.verify(testFrontend.client, times(1)).stop(any(JobID.class));
-		}
-
 		// test flip6 switch
 		{
 			String[] parameters =
@@ -99,11 +70,51 @@ public class CliFrontendStopTest extends TestLogger {
 		}
 	}
 
+	@Test(expected = CliArgsException.class)
+	public void testUnrecognizedOption() throws Exception {
+		// test unrecognized option
+		String[] parameters = { "-v", "-l" };
+		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		testFrontend.stop(parameters);
+
+		fail("Should have failed.");
+	}
+
+	@Test(expected = CliArgsException.class)
+	public void testMissingJobId() throws Exception {
+		// test missing job id
+		String[] parameters = {};
+		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		testFrontend.stop(parameters);
+
+		fail("Should have failed.");
+	}
+
+	@Test(expected = TestException.class)
+	public void testUnknownJobId() throws Exception {
+		// test unknown job Id
+		JobID jid = new JobID();
+
+		String[] parameters = { jid.toString() };
+		StopTestCliFrontend testFrontend = new StopTestCliFrontend(true);
+
+		testFrontend.stop(parameters);
+		fail("Should have failed.");
+	}
+
+	private static final class TestException extends FlinkException {
+		private static final long serialVersionUID = -2650760898729937583L;
+
+		TestException(String message) {
+			super(message);
+		}
+	}
+
 	private static final class StopTestCliFrontend extends MockedCliFrontend {
 
 		StopTestCliFrontend(boolean reject) throws Exception {
 			if (reject) {
-				doThrow(new IllegalArgumentException("Test exception")).when(client).stop(any(JobID.class));
+				doThrow(new TestException("Test Exception")).when(client).stop(any(JobID.class));
 			}
 		}
 	}

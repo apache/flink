@@ -24,7 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 /**
  * A descriptor to deploy a cluster (e.g. Yarn or Mesos) and return a Client for Cluster communication.
  */
-public interface ClusterDescriptor<ClientType extends ClusterClient> {
+public interface ClusterDescriptor<ClientType extends ClusterClient> extends AutoCloseable {
 
 	/**
 	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...).

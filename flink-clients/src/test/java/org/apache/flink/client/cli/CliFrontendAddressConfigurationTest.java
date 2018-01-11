@@ -16,10 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.cli;
 
-import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.RunOptions;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -31,7 +29,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.net.InetSocketAddress;
 
-import static org.apache.flink.client.CliFrontendTestUtils.checkJobManagerAddress;
+import static org.apache.flink.client.cli.CliFrontendTestUtils.checkJobManagerAddress;
 import static org.junit.Assert.fail;
 
 /**

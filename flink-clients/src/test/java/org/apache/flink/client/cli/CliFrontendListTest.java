@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.cli;
 
-import org.apache.flink.client.util.MockedCliFrontend;
+import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -44,14 +45,6 @@ public class CliFrontendListTest extends TestLogger {
 
 	@Test
 	public void testList() throws Exception {
-		// test unrecognized option
-		{
-			String[] parameters = {"-v", "-k"};
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
-			int retCode = testFrontend.list(parameters);
-			assertTrue(retCode != 0);
-		}
-
 		// test list properly
 		{
 			String[] parameters = {"-r", "-s"};
@@ -61,6 +54,15 @@ public class CliFrontendListTest extends TestLogger {
 			Mockito.verify(testFrontend.client, times(1))
 				.listJobs();
 		}
+	}
+
+	@Test(expected = CliArgsException.class)
+	public void testUnrecognizedOption() throws Exception {
+		String[] parameters = {"-v", "-k"};
+		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		testFrontend.list(parameters);
+
+		fail("Should have failed with an CliArgsException.");
 	}
 
 	private static final class ListTestCliFrontend extends MockedCliFrontend {
