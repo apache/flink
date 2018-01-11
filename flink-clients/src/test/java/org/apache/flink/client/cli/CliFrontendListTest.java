@@ -49,7 +49,7 @@ public class CliFrontendListTest extends TestLogger {
 		// test list properly
 		{
 			String[] parameters = {"-r", "-s"};
-			ClusterClient clusterClient = createClusterClient();
+			ClusterClient<String> clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			testFrontend.list(parameters);
 			Mockito.verify(clusterClient, times(1))
@@ -67,8 +67,8 @@ public class CliFrontendListTest extends TestLogger {
 		testFrontend.list(parameters);
 	}
 
-	private static ClusterClient createClusterClient() throws Exception {
-		final ClusterClient clusterClient = mock(ClusterClient.class);
+	private static ClusterClient<String> createClusterClient() throws Exception {
+		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
 		when(clusterClient.listJobs()).thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
 

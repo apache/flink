@@ -52,7 +52,7 @@ public class CliFrontendCancelTest extends TestLogger {
 		JobID jid = new JobID();
 
 		String[] parameters = { jid.toString() };
-		final ClusterClient clusterClient = createClusterClient();
+		final ClusterClient<String> clusterClient = createClusterClient();
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
 		testFrontend.cancel(parameters);
@@ -90,7 +90,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			JobID jid = new JobID();
 
 			String[] parameters = { "-s", jid.toString() };
-			final ClusterClient clusterClient = createClusterClient();
+			final ClusterClient<String> clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			testFrontend.cancel(parameters);
 
@@ -103,7 +103,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			JobID jid = new JobID();
 
 			String[] parameters = { "-s", "targetDirectory", jid.toString() };
-			final ClusterClient clusterClient = createClusterClient();
+			final ClusterClient<String> clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			testFrontend.cancel(parameters);
 
@@ -134,8 +134,8 @@ public class CliFrontendCancelTest extends TestLogger {
 		testFrontend.cancel(parameters);
 	}
 
-	private static ClusterClient createClusterClient() throws Exception {
-		final ClusterClient clusterClient = mock(ClusterClient.class);
+	private static ClusterClient<String> createClusterClient() throws Exception {
+		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
 		return clusterClient;
 	}

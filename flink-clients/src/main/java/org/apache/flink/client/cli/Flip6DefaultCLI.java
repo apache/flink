@@ -18,9 +18,9 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.Flip6StandaloneClusterDescriptor;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 
@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class Flip6DefaultCLI extends AbstractCustomCommandLine {
+public class Flip6DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
 
 	public static final Option FLIP_6 = new Option("flip6", "Switches the client to Flip-6 mode.");
 
@@ -62,7 +62,7 @@ public class Flip6DefaultCLI extends AbstractCustomCommandLine {
 	}
 
 	@Override
-	public ClusterDescriptor createClusterDescriptor(
+	public Flip6StandaloneClusterDescriptor createClusterDescriptor(
 			CommandLine commandLine) throws FlinkException {
 		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
@@ -71,8 +71,8 @@ public class Flip6DefaultCLI extends AbstractCustomCommandLine {
 
 	@Override
 	@Nullable
-	public String getClusterId(CommandLine commandLine) {
-		return "flip6Standalone";
+	public StandaloneClusterId getClusterId(CommandLine commandLine) {
+		return StandaloneClusterId.getInstance();
 	}
 
 	@Override

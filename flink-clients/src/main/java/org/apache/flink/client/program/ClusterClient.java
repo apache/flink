@@ -93,8 +93,10 @@ import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
+ *
+ * @param <T> type of the cluster id
  */
-public abstract class ClusterClient {
+public abstract class ClusterClient<T> {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -937,9 +939,11 @@ public abstract class ClusterClient {
 	public abstract List<String> getNewMessages();
 
 	/**
-	 * Returns a string representation of the cluster.
+	 * Returns the cluster id identifying the cluster to which the client is connected.
+	 *
+	 * @return cluster id of the connected cluster
 	 */
-	public abstract String getClusterIdentifier();
+	public abstract T getClusterId();
 
 	/**
 	 * Set the mode of this client (detached or blocking job execution).

@@ -246,7 +246,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
 			// deploy
-			ClusterClient yarnCluster = null;
+			ClusterClient<ApplicationId> yarnCluster = null;
 			try {
 				yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
 			} catch (Exception e) {

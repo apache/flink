@@ -41,7 +41,6 @@ import akka.util.Timeout;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +57,7 @@ import scala.concurrent.duration.FiniteDuration;
 /**
  * Java representation of a running Flink cluster within YARN.
  */
-public class YarnClusterClient extends ClusterClient {
+public class YarnClusterClient extends ClusterClient<ApplicationId> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterClient.class);
 
@@ -170,11 +169,6 @@ public class YarnClusterClient extends ClusterClient {
 		}
 	}
 
-	@Override
-	public String getClusterIdentifier() {
-		return ConverterUtils.toString(appReport.getApplicationId());
-	}
-
 	/**
 	 * This method is only available if the cluster hasn't been started in detached mode.
 	 */
@@ -231,6 +225,11 @@ public class YarnClusterClient extends ClusterClient {
 			}
 		}
 		return ret;
+	}
+
+	@Override
+	public ApplicationId getClusterId() {
+		return appId;
 	}
 
 	@Override
