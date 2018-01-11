@@ -25,6 +25,7 @@ import org.apache.flink.runtime.rest.messages.json.JobResultSerializer;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -38,6 +39,7 @@ import static java.util.Objects.requireNonNull;
  *
  * @see org.apache.flink.runtime.rest.handler.job.JobExecutionResultHandler
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class JobExecutionResultResponseBody implements ResponseBody {
 
 	@JsonProperty(value = "status", required = true)
