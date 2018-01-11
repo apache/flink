@@ -419,6 +419,13 @@ public class FlinkKafkaConsumerBaseMigrationTest {
 		protected boolean getIsAutoCommitEnabled() {
 			return false;
 		}
+
+		@Override
+		protected Map<KafkaTopicPartition, Long> fetchOffsetsWithTimestamp(
+				Collection<KafkaTopicPartition> partitions,
+				long timestamp) {
+			throw new UnsupportedOperationException();
+		}
 	}
 
 	private abstract static class DummySourceContext

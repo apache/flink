@@ -35,8 +35,12 @@ public enum StartupMode {
 	/** Start from the latest offset. */
 	LATEST(KafkaTopicPartitionStateSentinel.LATEST_OFFSET),
 
-	/** Start from specific timestamp. */
-	SPECIFIC_TIMESTAMP(KafkaTopicPartitionStateSentinel.TIMESTAMP),
+	/**
+	 * Start from user-supplied timestamp for each partition.
+	 * Since this mode will have specific offsets to start with, we do not need a sentinel value;
+	 * using Long.MIN_VALUE as a placeholder.
+	 */
+	TIMESTAMP(Long.MIN_VALUE),
 
 	/**
 	 * Start from user-supplied specific offsets for each partition.
