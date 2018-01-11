@@ -154,6 +154,7 @@ under the License.
 								<includes>
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
+									<include>org.apache.httpcomponents:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -165,6 +166,10 @@ under the License.
 								<relocation>
 									<pattern>com.amazonaws</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.com.amazonaws</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
 								</relocation>
 							</relocations>
 						</configuration>
