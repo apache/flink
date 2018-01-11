@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -31,7 +32,7 @@ import java.util.Objects;
  */
 public class CheckpointCoordinatorConfiguration implements Serializable {
 
-	private static final long serialVersionUID = -647384516034982626L;
+	private static final long serialVersionUID = 2L;
 
 	private final long checkpointInterval;
 
@@ -41,8 +42,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
 	private final int maxConcurrentCheckpoints;
 
-	/** Settings for externalized checkpoints. */
-	private final ExternalizedCheckpointSettings externalizedCheckpointSettings;
+	/** Settings for what to do with checkpoints when a job finishes. */
+	private final CheckpointRetentionPolicy checkpointRetentionPolicy;
 
 	/**
 	 * Flag indicating whether exactly once checkpoint mode has been configured.
@@ -58,7 +59,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			long checkpointTimeout,
 			long minPauseBetweenCheckpoints,
 			int maxConcurrentCheckpoints,
-			ExternalizedCheckpointSettings externalizedCheckpointSettings,
+			CheckpointRetentionPolicy checkpointRetentionPolicy,
 			boolean isExactlyOnce) {
 
 		// sanity checks
@@ -71,7 +72,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		this.checkpointTimeout = checkpointTimeout;
 		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
 		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
-		this.externalizedCheckpointSettings = Preconditions.checkNotNull(externalizedCheckpointSettings);
+		this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
 		this.isExactlyOnce = isExactlyOnce;
 	}
 
@@ -91,8 +92,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 		return maxConcurrentCheckpoints;
 	}
 
-	public ExternalizedCheckpointSettings getExternalizedCheckpointSettings() {
-		return externalizedCheckpointSettings;
+	public CheckpointRetentionPolicy getCheckpointRetentionPolicy() {
+		return checkpointRetentionPolicy;
 	}
 
 	public boolean isExactlyOnce() {
@@ -113,12 +114,18 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			minPauseBetweenCheckpoints == that.minPauseBetweenCheckpoints &&
 			maxConcurrentCheckpoints == that.maxConcurrentCheckpoints &&
 			isExactlyOnce == that.isExactlyOnce &&
-			Objects.equals(externalizedCheckpointSettings, that.externalizedCheckpointSettings);
+			checkpointRetentionPolicy == that.checkpointRetentionPolicy;
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints, maxConcurrentCheckpoints, externalizedCheckpointSettings, isExactlyOnce);
+		return Objects.hash(
+				checkpointInterval,
+				checkpointTimeout,
+				minPauseBetweenCheckpoints,
+				maxConcurrentCheckpoints,
+				checkpointRetentionPolicy,
+				isExactlyOnce);
 	}
 
 	@Override
@@ -128,7 +135,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			", checkpointTimeout=" + checkpointTimeout +
 			", minPauseBetweenCheckpoints=" + minPauseBetweenCheckpoints +
 			", maxConcurrentCheckpoints=" + maxConcurrentCheckpoints +
-			", externalizedCheckpointSettings=" + externalizedCheckpointSettings +
+			", checkpointRetentionPolicy=" + checkpointRetentionPolicy +
 			'}';
 	}
 }

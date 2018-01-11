@@ -38,9 +38,9 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+
 import org.junit.Test;
 
 public class CheckpointStatsTrackerTest {
@@ -63,7 +63,7 @@ public class CheckpointStatsTrackerTest {
 				19191992L,
 				191929L,
 				123,
-				ExternalizedCheckpointSettings.none(),
+				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 				false
 			),
 			null);
@@ -98,7 +98,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats pending = tracker.reportPendingCheckpoint(
 			0,
 			1,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
 		pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(1));
@@ -147,7 +147,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats completed1 = tracker.reportPendingCheckpoint(
 			0,
 			1,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		completed1.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
 		completed1.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(1));
@@ -159,7 +159,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats failed = tracker.reportPendingCheckpoint(
 			1,
 			1,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		failed.reportFailedCheckpoint(12, null);
 
@@ -167,7 +167,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats savepoint = tracker.reportPendingCheckpoint(
 			2,
 			1,
-			CheckpointProperties.forStandardSavepoint());
+			CheckpointProperties.forSavepoint());
 
 		savepoint.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
 		savepoint.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(1));
@@ -179,9 +179,9 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats inProgress = tracker.reportPendingCheckpoint(
 			3,
 			1,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
-		RestoredCheckpointStats restored = new RestoredCheckpointStats(81, CheckpointProperties.forStandardCheckpoint(), 123, null);
+		RestoredCheckpointStats restored = new RestoredCheckpointStats(81, CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION), 123, null);
 		tracker.reportRestoredCheckpoint(restored);
 
 		CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
@@ -254,7 +254,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats pending = tracker.reportPendingCheckpoint(
 			0,
 			1,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
 
@@ -270,7 +270,7 @@ public class CheckpointStatsTrackerTest {
 		assertNotEquals(snapshot2, snapshot3);
 
 		// Restore operation => new snapshot
-		tracker.reportRestoredCheckpoint(new RestoredCheckpointStats(12, CheckpointProperties.forStandardCheckpoint(), 12, null));
+		tracker.reportRestoredCheckpoint(new RestoredCheckpointStats(12, CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION), 12, null));
 
 		CheckpointStatsSnapshot snapshot4 = tracker.createSnapshot();
 		assertNotEquals(snapshot3, snapshot4);
@@ -373,7 +373,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats pending = stats.reportPendingCheckpoint(
 			0,
 			0,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		// Check counts
 		assertEquals(Long.valueOf(1), numCheckpoints.getValue());
@@ -415,7 +415,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats nextPending = stats.reportPendingCheckpoint(
 			1,
 			11,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		long failureTimestamp = 1230123L;
 		nextPending.reportFailedCheckpoint(failureTimestamp, null);
@@ -430,7 +430,7 @@ public class CheckpointStatsTrackerTest {
 		long restoreTimestamp = 183419283L;
 		RestoredCheckpointStats restored = new RestoredCheckpointStats(
 			1,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			restoreTimestamp,
 			null);
 		stats.reportRestoredCheckpoint(restored);
@@ -446,7 +446,7 @@ public class CheckpointStatsTrackerTest {
 		PendingCheckpointStats thirdPending = stats.reportPendingCheckpoint(
 			2,
 			5000,
-			CheckpointProperties.forStandardCheckpoint());
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
 
 		thirdPending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats);
 		thirdPending.reportCompletedCheckpoint(null);

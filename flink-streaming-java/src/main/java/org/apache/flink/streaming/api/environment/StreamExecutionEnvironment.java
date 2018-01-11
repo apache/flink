@@ -30,7 +30,6 @@ import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -51,6 +50,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -135,7 +135,7 @@ public abstract class StreamExecutionEnvironment {
 	protected boolean isChainingEnabled = true;
 
 	/** The state backend used for storing k/v state and state snapshots. */
-	private AbstractStateBackend defaultStateBackend;
+	private StateBackend defaultStateBackend;
 
 	/** The time characteristic used by the data streams. */
 	private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
@@ -431,12 +431,14 @@ public abstract class StreamExecutionEnvironment {
 	}
 
 	/**
-	 * Sets the state backend that describes how to store and checkpoint operator state. It defines in
-	 * what form the key/value state ({@link ValueState}, accessible
-	 * from operations on {@link org.apache.flink.streaming.api.datastream.KeyedStream}) is maintained
-	 * (heap, managed memory, externally), and where state snapshots/checkpoints are stored, both for
-	 * the key/value state, and for checkpointed functions (implementing the interface
-	 * {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}).
+	 * Sets the state backend that describes how to store and checkpoint operator state. It defines
+	 * both which data structures hold state during execution (for example hash tables, RockDB,
+	 * or other data stores) as well as where checkpointed data will be persisted.
+	 *
+	 * <p>State managed by the state backend includes both keyed state that is accessible on
+	 * {@link org.apache.flink.streaming.api.datastream.KeyedStream keyed streams}, as well as
+	 * state maintained directly by the user code that implements
+	 * {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction}.
 	 *
 	 * <p>The {@link org.apache.flink.runtime.state.memory.MemoryStateBackend} for example
 	 * maintains the state in heap memory, as objects. It is lightweight without extra dependencies,
@@ -453,19 +455,28 @@ public abstract class StreamExecutionEnvironment {
 	 * @see #getStateBackend()
 	 */
 	@PublicEvolving
+	public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
+		this.defaultStateBackend = Preconditions.checkNotNull(backend);
+		return this;
+	}
+
+	/**
+	 * @deprecated Use {@link #setStateBackend(StateBackend)} instead.
+	 */
+	@Deprecated
+	@PublicEvolving
 	public StreamExecutionEnvironment setStateBackend(AbstractStateBackend backend) {
 		this.defaultStateBackend = Preconditions.checkNotNull(backend);
 		return this;
 	}
 
 	/**
-	 * Returns the state backend that defines how to store and checkpoint state.
-	 * @return The state backend that defines how to store and checkpoint state.
+	 * Gets the state backend that defines how to store and checkpoint state.
 	 *
-	 * @see #setStateBackend(AbstractStateBackend)
+	 * @see #setStateBackend(StateBackend)
 	 */
 	@PublicEvolving
-	public AbstractStateBackend getStateBackend() {
+	public StateBackend getStateBackend() {
 		return defaultStateBackend;
 	}
 

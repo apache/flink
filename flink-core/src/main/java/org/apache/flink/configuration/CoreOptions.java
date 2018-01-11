@@ -105,30 +105,6 @@ public class CoreOptions {
 		.defaultValue(-1);
 
 	// ------------------------------------------------------------------------
-	//  checkpoints / fault tolerance
-	// ------------------------------------------------------------------------
-
-	public static final ConfigOption<String> STATE_BACKEND = ConfigOptions
-		.key("state.backend")
-		.noDefaultValue();
-
-	/** The maximum number of completed checkpoint instances to retain.*/
-	public static final ConfigOption<Integer> MAX_RETAINED_CHECKPOINTS = ConfigOptions
-		.key("state.checkpoints.num-retained")
-		.defaultValue(1);
-
-	/** The default directory for savepoints. */
-	public static final ConfigOption<String> SAVEPOINT_DIRECTORY = ConfigOptions
-		.key("state.savepoints.dir")
-		.noDefaultValue()
-		.withDeprecatedKeys("savepoints.state.backend.fs.dir");
-
-	/** The default directory used for persistent checkpoints. */
-	public static final ConfigOption<String> CHECKPOINTS_DIRECTORY = ConfigOptions
-		.key("state.checkpoints.dir")
-		.noDefaultValue();
-
-	// ------------------------------------------------------------------------
 	//  file systems
 	// ------------------------------------------------------------------------
 

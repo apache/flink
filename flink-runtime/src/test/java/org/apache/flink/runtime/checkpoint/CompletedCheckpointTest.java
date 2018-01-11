@@ -25,11 +25,12 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 
 import java.io.File;
 import java.util.Collections;
@@ -63,7 +64,7 @@ public class CompletedCheckpointTest {
 				new JobID(), 0, 0, 1,
 				taskStates,
 				Collections.<MasterState>emptyList(),
-				CheckpointProperties.forStandardCheckpoint(),
+				CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 				new FileStateHandle(new Path(file.toURI()), file.length()),
 				file.getAbsolutePath());
 
@@ -81,16 +82,18 @@ public class CompletedCheckpointTest {
 		Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
 		operatorStates.put(new OperatorID(), state);
 
+		StreamStateHandle metadataHandle = mock(StreamStateHandle.class);
+
 		boolean discardSubsumed = true;
-		CheckpointProperties props = new CheckpointProperties(false, false, false, discardSubsumed, true, true, true, true);
+		CheckpointProperties props = new CheckpointProperties(false, false, discardSubsumed, true, true, true, true);
 		
 		CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 				new JobID(), 0, 0, 1,
 				operatorStates,
 				Collections.<MasterState>emptyList(),
 				props,
-				null,
-				null);
+				metadataHandle,
+				"some/mock/pointer");
 
 		SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 		checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
@@ -100,6 +103,7 @@ public class CompletedCheckpointTest {
 		checkpoint.discardOnSubsume();
 
 		verify(state, times(1)).discardState();
+		verify(metadataHandle).discardState();
 	}
 
 	/**
@@ -107,49 +111,48 @@ public class CompletedCheckpointTest {
 	 */
 	@Test
 	public void testCleanUpOnShutdown() throws Exception {
-		File file = tmpFolder.newFile();
-		String externalPath = file.getAbsolutePath();
-
 		JobStatus[] terminalStates = new JobStatus[] {
 				JobStatus.FINISHED, JobStatus.CANCELED, JobStatus.FAILED, JobStatus.SUSPENDED
 		};
 
-		OperatorState state = mock(OperatorState.class);
-		Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
-		operatorStates.put(new OperatorID(), state);
-
 		for (JobStatus status : terminalStates) {
-			Mockito.reset(state);
+
+			OperatorState state = mock(OperatorState.class);
+			Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
+			operatorStates.put(new OperatorID(), state);
+
+			StreamStateHandle metadataHandle = mock(StreamStateHandle.class);
 
 			// Keep
-			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false, false);
+			CheckpointProperties props = new CheckpointProperties(false, true, false, false, false, false, false);
 			CompletedCheckpoint checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1,
 					new HashMap<>(operatorStates),
 					Collections.<MasterState>emptyList(),
 					props,
-					new FileStateHandle(new Path(file.toURI()), file.length()),
-					externalPath);
+					metadataHandle,
+					"mock://some/pointer");
 
 			SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 			checkpoint.registerSharedStatesAfterRestored(sharedStateRegistry);
 
 			checkpoint.discardOnShutdown(status);
 			verify(state, times(0)).discardState();
-			assertEquals(true, file.exists());
+			verify(metadataHandle, times(0)).discardState();
 
 			// Discard
-			props = new CheckpointProperties(false, false, false, true, true, true, true, true);
+			props = new CheckpointProperties(false, false, true, true, true, true, true);
 			checkpoint = new CompletedCheckpoint(
 					new JobID(), 0, 0, 1,
 					new HashMap<>(operatorStates),
 					Collections.<MasterState>emptyList(),
 					props,
-					null,
-					null);
+					metadataHandle,
+					"pointer");
 
 			checkpoint.discardOnShutdown(status);
 			verify(state, times(1)).discardState();
+			verify(metadataHandle, times(1)).discardState();
 		}
 	}
 
@@ -169,9 +172,9 @@ public class CompletedCheckpointTest {
 			1,
 			new HashMap<>(operatorStates),
 			Collections.<MasterState>emptyList(),
-			CheckpointProperties.forStandardCheckpoint(),
-			null,
-			null);
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+			mock(StreamStateHandle.class),
+			"pointer");
 
 		CompletedCheckpointStats.DiscardCallback callback = mock(CompletedCheckpointStats.DiscardCallback.class);
 		completed.setDiscardCallback(callback);
@@ -192,7 +195,7 @@ public class CompletedCheckpointTest {
 		CompletedCheckpointStats completed = new CompletedCheckpointStats(
 			123123123L,
 			10123L,
-			CheckpointProperties.forStandardCheckpoint(),
+			CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
 			1337,
 			taskStats,
 			1337,

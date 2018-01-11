@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
@@ -196,7 +197,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 		SharedStateRegistry sharedStateRegistry) throws IOException {
 
 		int numberOfStates = 4;
-		CheckpointProperties props = CheckpointProperties.forStandardCheckpoint();
+		CheckpointProperties props = CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION);
 
 		OperatorID operatorID = new OperatorID();
 
@@ -256,7 +257,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 			long timestamp,
 			Map<OperatorID, OperatorState> operatorGroupState,
 			CheckpointProperties props) {
-			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props, null, null);
+			super(jobId, checkpointId, timestamp, Long.MAX_VALUE, operatorGroupState, null, props,
+					new EmptyStreamStateHandle(), "<pointer");
 		}
 
 		@Override

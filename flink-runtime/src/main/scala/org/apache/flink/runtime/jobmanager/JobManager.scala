@@ -39,7 +39,6 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot
 import org.apache.flink.runtime.akka.{AkkaUtils, ListeningBehaviour}
 import org.apache.flink.runtime.blob.{BlobServer, BlobStore}
 import org.apache.flink.runtime.checkpoint._
-import org.apache.flink.runtime.checkpoint.savepoint.SavepointStore
 import org.apache.flink.runtime.client._
 import org.apache.flink.runtime.clusterframework.{BootstrapTools, FlinkResourceManager}
 import org.apache.flink.runtime.clusterframework.messages._
@@ -156,7 +155,8 @@ class JobManager(
   var futuresToComplete: Option[Seq[Future[Unit]]] = None
 
   /** The default directory for savepoints. */
-  val defaultSavepointDir: String = flinkConfiguration.getString(CoreOptions.SAVEPOINT_DIRECTORY)
+  val defaultSavepointDir: String = 
+    flinkConfiguration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY)
 
   /** The resource manager actor responsible for allocating and managing task manager resources. */
   var currentResourceManager: Option[ActorRef] = None
@@ -551,31 +551,31 @@ class JobManager(
 
     case CancelJobWithSavepoint(jobId, savepointDirectory) =>
       try {
-        val targetDirectory = if (savepointDirectory != null) {
-          savepointDirectory
-        } else {
-          defaultSavepointDir
-        }
+        log.info(s"Trying to cancel job $jobId with savepoint to $savepointDirectory")
 
-        if (targetDirectory == null) {
-          log.info(s"Trying to cancel job $jobId with savepoint, but no " +
-            "savepoint directory configured.")
+        currentJobs.get(jobId) match {
+          case Some((executionGraph, _)) =>
+            val coord = executionGraph.getCheckpointCoordinator
 
-          sender ! decorateMessage(CancellationFailure(jobId, new IllegalStateException(
-            "No savepoint directory configured. You can either specify a directory " +
-              "while cancelling via -s :targetDirectory or configure a cluster-wide " +
-              "default via key '" + CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.")))
-        } else {
-          log.info(s"Trying to cancel job $jobId with savepoint to $targetDirectory")
+            if (coord == null) {
+              sender ! decorateMessage(CancellationFailure(jobId, new IllegalStateException(
+                s"Job $jobId is not a streaming job.")))
+            }
+            else if (savepointDirectory == null &&
+                  !coord.getCheckpointStorage.hasDefaultSavepointLocation) {
+              log.info(s"Trying to cancel job $jobId with savepoint, but no " +
+                "savepoint directory configured.")
 
-          currentJobs.get(jobId) match {
-            case Some((executionGraph, _)) =>
+              sender ! decorateMessage(CancellationFailure(jobId, new IllegalStateException(
+                "No savepoint directory configured. You can either specify a directory " +
+                  "while cancelling via -s :targetDirectory or configure a cluster-wide " +
+                  "default via key '" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'.")))
+            } else {
               // We don't want any checkpoint between the savepoint and cancellation
-              val coord = executionGraph.getCheckpointCoordinator
               coord.stopCheckpointScheduler()
 
               // Trigger the savepoint
-              val future = coord.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+              val future = coord.triggerSavepoint(System.currentTimeMillis(), savepointDirectory)
 
               val senderRef = sender()
               future.handleAsync[Void](
@@ -607,15 +607,15 @@ class JobManager(
                   }
                 },
                 context.dispatcher)
+            }
 
-            case None =>
-              log.info(s"No job found with ID $jobId.")
-              sender ! decorateMessage(
-                CancellationFailure(
-                  jobId,
-                  new IllegalArgumentException(s"No job found with ID $jobId."))
-              )
-          }
+          case None =>
+            log.info(s"No job found with ID $jobId.")
+            sender ! decorateMessage(
+              CancellationFailure(
+                jobId,
+                new IllegalArgumentException(s"No job found with ID $jobId."))
+            )
         }
       } catch {
         case t: Throwable =>
@@ -745,25 +745,28 @@ class JobManager(
         case Some((graph, _)) =>
           val checkpointCoordinator = graph.getCheckpointCoordinator()
 
-          if (checkpointCoordinator != null) {
+          if (checkpointCoordinator == null) {
+            sender ! decorateMessage(TriggerSavepointFailure(jobId, new IllegalStateException(
+              s"Job $jobId is not a streaming job.")))
+          }
+          else if (savepointDirectory.isEmpty &&
+                !checkpointCoordinator.getCheckpointStorage.hasDefaultSavepointLocation) {
+            log.info(s"Trying to trigger a savepoint, but no savepoint directory configured.")
+
+            sender ! decorateMessage(TriggerSavepointFailure(jobId, new IllegalStateException(
+              "No savepoint directory configured. You can either specify a directory " +
+                "when triggering the savepoint via -s :targetDirectory or configure a " +
+                "cluster-/application-wide default via key '" +
+                CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "'.")))
+          } else {
             // Immutable copy for the future
             val senderRef = sender()
             try {
-              val targetDirectory : String = savepointDirectory.getOrElse(
-                flinkConfiguration.getString(CoreOptions.SAVEPOINT_DIRECTORY))
-
-              if (targetDirectory == null) {
-                throw new IllegalStateException("No savepoint directory configured. " +
-                  "You can either specify a directory when triggering this savepoint or " +
-                  "configure a cluster-wide default via key '" +
-                  CoreOptions.SAVEPOINT_DIRECTORY.key() + "'.")
-              }
-
               // Do this async, because checkpoint coordinator operations can
               // contain blocking calls to the state backend or ZooKeeper.
               val savepointFuture = checkpointCoordinator.triggerSavepoint(
                 System.currentTimeMillis(),
-                targetDirectory)
+                savepointDirectory.orNull)
 
               savepointFuture.handleAsync[Void](
                 new BiFunction[CompletedCheckpoint, Throwable, Void] {
@@ -793,10 +796,6 @@ class JobManager(
                 senderRef ! TriggerSavepointFailure(jobId, new Exception(
                   "Failed to trigger savepoint", e))
             }
-          } else {
-            sender() ! TriggerSavepointFailure(jobId, new IllegalStateException(
-              "Checkpointing disabled. You can enable it via the execution environment of " +
-                "your job."))
           }
 
         case None =>
@@ -808,19 +807,13 @@ class JobManager(
       future {
         try {
           log.info(s"Disposing savepoint at '$savepointPath'.")
-          //TODO user code class loader ?
-          // (has not been used so far and new savepoints can simply be deleted by file)
-          val savepoint = SavepointStore.loadSavepoint(
-            savepointPath,
-            Thread.currentThread().getContextClassLoader)
 
-          log.debug(s"$savepoint")
+          // there is a corner case issue with Flink 1.1 savepoints, which may contain
+          // user-defined state handles. however, it should work for all the standard cases,
+          // where the mem/fs/rocks state backends were used
+          val classLoader = Thread.currentThread().getContextClassLoader
 
-          // Dispose checkpoint state
-          savepoint.dispose()
-
-          // Remove the header file
-          SavepointStore.removeSavepointFile(savepointPath)
+          Checkpoints.disposeSavepoint(savepointPath, flinkConfiguration, classLoader, log.logger)
 
           senderRef ! DisposeSavepointSuccess
         } catch {

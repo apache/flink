@@ -23,14 +23,15 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -50,7 +51,6 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
-import org.apache.flink.runtime.jobgraph.tasks.ExternalizedCheckpointSettings;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.jobmanager.slots.ActorTaskManagerGateway;
@@ -479,7 +479,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
 
-		assertEquals(CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
+		assertEquals(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
 				eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 	}
 
@@ -488,7 +488,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final int maxNumberOfCheckpointsToRetain = 10;
 		final Configuration jobManagerConfig = new Configuration();
-		jobManagerConfig.setInteger(CoreOptions.MAX_RETAINED_CHECKPOINTS,
+		jobManagerConfig.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS,
 			maxNumberOfCheckpointsToRetain);
 
 		final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
@@ -554,7 +554,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		final int negativeMaxNumberOfCheckpointsToRetain = -10;
 
 		final Configuration jobManagerConfig = new Configuration();
-		jobManagerConfig.setInteger(CoreOptions.MAX_RETAINED_CHECKPOINTS,
+		jobManagerConfig.setInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS,
 			negativeMaxNumberOfCheckpointsToRetain);
 
 		final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
@@ -562,7 +562,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		assertNotEquals(negativeMaxNumberOfCheckpointsToRetain,
 			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 
-		assertEquals(CoreOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
+		assertEquals(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue().intValue(),
 			eg.getCheckpointCoordinator().getCheckpointStore().getMaxNumberOfRetainedCheckpoints());
 	}
 
@@ -690,7 +690,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 					10 * 60 * 1000,
 					0,
 					1,
-					ExternalizedCheckpointSettings.none(),
+					CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 					false),
 				null));
 

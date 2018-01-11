@@ -257,7 +257,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	// ------------------------------------------------------------------------
 	private static class TestDeclinedCheckpointResponder implements CheckpointResponder {
 
-		OneShotLatch declinedLatch = new OneShotLatch();
+		final OneShotLatch declinedLatch = new OneShotLatch();
 
 		@Override
 		public void acknowledgeCheckpoint(
@@ -291,6 +291,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 	private static class SyncFailureInducingStateBackend extends MemoryStateBackend {
 
+		private static final long serialVersionUID = -1915780414440060539L;
+
 		@Override
 		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
 			return new DefaultOperatorStateBackend(
@@ -308,9 +310,17 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				}
 			};
 		}
+
+		@Override
+		public SyncFailureInducingStateBackend configure(Configuration config) {
+			// retain this instance, no re-configuration!
+			return this;
+		}
 	}
 
 	private static class AsyncFailureInducingStateBackend extends MemoryStateBackend {
+
+		private static final long serialVersionUID = -7613628662587098470L;
 
 		@Override
 		public OperatorStateBackend createOperatorStateBackend(Environment env, String operatorIdentifier) throws Exception {
@@ -334,6 +344,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				}
 			};
 		}
+
+		@Override
+		public AsyncFailureInducingStateBackend configure(Configuration config) {
+			// retain this instance, no re-configuration!
+			return this;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -356,6 +372,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 				new ExecutionConfig(),
 				true);
 		}
+
+		@Override
+		public LockingStreamStateBackend configure(Configuration config) {
+			// retain this instance, no re-configuration!
+			return this;
+		}
 	}
 
 	private static final class LockingOutputStreamFactory implements CheckpointStreamFactory {
@@ -373,7 +395,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 		@Override
 		public StreamStateHandle closeAndGetHandle() throws IOException {
-			return null;
+			throw new UnsupportedOperationException();
 		}
 
 		@Override

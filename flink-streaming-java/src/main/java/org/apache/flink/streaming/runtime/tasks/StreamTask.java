@@ -36,13 +36,13 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -734,19 +734,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	// ------------------------------------------------------------------------
 
 	private StateBackend createStateBackend() throws Exception {
-		final StateBackend fromJob = configuration.getStateBackend(getUserCodeClassLoader());
+		final StateBackend fromApplication = configuration.getStateBackend(getUserCodeClassLoader());
 
-		if (fromJob != null) {
-			// backend has been configured on the environment
-			LOG.info("Using user-defined state backend: {}.", fromJob);
-			return fromJob;
-		}
-		else {
-			return AbstractStateBackend.loadStateBackendFromConfigOrCreateDefault(
-					getEnvironment().getTaskManagerInfo().getConfiguration(),
-					getUserCodeClassLoader(),
-					LOG);
-		}
+		return StateBackendLoader.fromApplicationOrConfigOrDefault(
+				fromApplication,
+				getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getUserCodeClassLoader(),
+				LOG);
 	}
 
 	public OperatorStateBackend createOperatorStateBackend(

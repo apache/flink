@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.connectors.fs;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -216,7 +216,7 @@ public class RollingSinkSecuredITCase extends RollingSinkITCase {
 			result.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, false);
 			result.setInteger(ConfigConstants.LOCAL_NUMBER_JOB_MANAGER, 3);
 			result.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-			result.setString(CoreOptions.STATE_BACKEND, "filesystem");
+			result.setString(CheckpointingOptions.STATE_BACKEND, "filesystem");
 			result.setString(HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINTS_PATH, hdfsURI + "/flink/checkpoints");
 			result.setString(HighAvailabilityOptions.HA_STORAGE_PATH, hdfsURI + "/flink/recovery");
 			result.setString("state.backend.fs.checkpointdir", hdfsURI + "/flink/checkpoints");
