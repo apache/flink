@@ -96,30 +96,26 @@ public class FlinkKafkaConsumerBaseTest {
 	@SuppressWarnings("unchecked")
 	public void testEitherWatermarkExtractor() {
 		try {
-			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false)
-				.assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<String>) null);
+			new DummyFlinkKafkaConsumer<String>().assignTimestampsAndWatermarks((AssignerWithPeriodicWatermarks<String>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		try {
-			new DummyFlinkKafkaConsumer<String>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false)
-				.assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<String>) null);
+			new DummyFlinkKafkaConsumer<String>().assignTimestampsAndWatermarks((AssignerWithPunctuatedWatermarks<String>) null);
 			fail();
 		} catch (NullPointerException ignored) {}
 
 		final AssignerWithPeriodicWatermarks<String> periodicAssigner = mock(AssignerWithPeriodicWatermarks.class);
 		final AssignerWithPunctuatedWatermarks<String> punctuatedAssigner = mock(AssignerWithPunctuatedWatermarks.class);
 
-		DummyFlinkKafkaConsumer<String> c1 =
-			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false);
+		DummyFlinkKafkaConsumer<String> c1 = new DummyFlinkKafkaConsumer<>();
 		c1.assignTimestampsAndWatermarks(periodicAssigner);
 		try {
 			c1.assignTimestampsAndWatermarks(punctuatedAssigner);
 			fail();
 		} catch (IllegalStateException ignored) {}
 
-		DummyFlinkKafkaConsumer<String> c2 =
-			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false);
+		DummyFlinkKafkaConsumer<String> c2 = new DummyFlinkKafkaConsumer<>();
 		c2.assignTimestampsAndWatermarks(punctuatedAssigner);
 		try {
 			c2.assignTimestampsAndWatermarks(periodicAssigner);
@@ -133,8 +129,7 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void ignoreCheckpointWhenNotRunning() throws Exception {
 		@SuppressWarnings("unchecked")
-		final FlinkKafkaConsumerBase<String> consumer =
-			new DummyFlinkKafkaConsumer<>(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), false);
+		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>();
 
 		final TestingListState<Tuple2<KafkaTopicPartition, Long>> listState = new TestingListState<>();
 		setupConsumer(consumer, false, listState, true, 0, 1);
@@ -153,10 +148,7 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void checkRestoredCheckpointWhenFetcherNotReady() throws Exception {
 		@SuppressWarnings("unchecked")
-		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>(
-				mock(AbstractFetcher.class),
-				mock(AbstractPartitionDiscoverer.class),
-				false);
+		final FlinkKafkaConsumerBase<String> consumer = new DummyFlinkKafkaConsumer<>();
 
 		final TestingListState<Tuple2<KafkaTopicPartition, Long>> restoredListState = new TestingListState<>();
 		setupConsumer(consumer, true, restoredListState, true, 0, 1);
@@ -187,10 +179,8 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void testConfigureOnCheckpointsCommitMode() throws Exception {
 		@SuppressWarnings("unchecked")
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
-				mock(AbstractFetcher.class),
-				mock(AbstractPartitionDiscoverer.class),
-				true); // auto-commit enabled; this should be ignored in this case
+		// auto-commit enabled; this should be ignored in this case
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(true);
 
 		setupConsumer(
 			consumer,
@@ -206,10 +196,7 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void testConfigureAutoCommitMode() throws Exception {
 		@SuppressWarnings("unchecked")
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
-				mock(AbstractFetcher.class),
-				mock(AbstractPartitionDiscoverer.class),
-				true);
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(true);
 
 		setupConsumer(
 			consumer,
@@ -225,10 +212,8 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void testConfigureDisableOffsetCommitWithCheckpointing() throws Exception {
 		@SuppressWarnings("unchecked")
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
-				mock(AbstractFetcher.class),
-				mock(AbstractPartitionDiscoverer.class),
-				true); // auto-commit enabled; this should be ignored in this case
+		// auto-commit enabled; this should be ignored in this case
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(true);
 		consumer.setCommitOffsetsOnCheckpoints(false); // disabling offset committing should override everything
 
 		setupConsumer(
@@ -245,10 +230,7 @@ public class FlinkKafkaConsumerBaseTest {
 	@Test
 	public void testConfigureDisableOffsetCommitWithoutCheckpointing() throws Exception {
 		@SuppressWarnings("unchecked")
-		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(
-				mock(AbstractFetcher.class),
-				mock(AbstractPartitionDiscoverer.class),
-				false);
+		final DummyFlinkKafkaConsumer<String> consumer = new DummyFlinkKafkaConsumer<>(false);
 
 		setupConsumer(
 			consumer,
@@ -668,6 +650,16 @@ public class FlinkKafkaConsumerBaseTest {
 		private AbstractFetcher<T, ?> testFetcher;
 		private AbstractPartitionDiscoverer testPartitionDiscoverer;
 		private boolean isAutoCommitEnabled;
+
+		@SuppressWarnings("unchecked")
+		DummyFlinkKafkaConsumer() {
+			this(false);
+		}
+
+		@SuppressWarnings("unchecked")
+		DummyFlinkKafkaConsumer(boolean isAutoCommitEnabled) {
+			this(mock(AbstractFetcher.class), mock(AbstractPartitionDiscoverer.class), isAutoCommitEnabled);
+		}
 
 		@SuppressWarnings("unchecked")
 		DummyFlinkKafkaConsumer(
