@@ -105,8 +105,4 @@ public class StandaloneClusterClient extends ClusterClient {
 			return super.run(jobGraph, classLoader);
 		}
 	}
-
-	@Override
-	protected void finalizeCluster() {}
-
 }

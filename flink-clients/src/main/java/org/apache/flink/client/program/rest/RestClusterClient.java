@@ -329,12 +329,7 @@ public class RestClusterClient extends ClusterClient {
 	}
 
 	@Override
-	protected List<String> getNewMessages() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	protected void finalizeCluster() {
+	public List<String> getNewMessages() {
 		throw new UnsupportedOperationException();
 	}
 
