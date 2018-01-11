@@ -16,25 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
-
-import java.util.Collection;
-import java.util.Collections;
+package org.apache.flink.client.program.rest.retry;
 
 /**
- * Message parameters which require a job path parameter.
+ * Operations that are polling for a result to arrive require a waiting time between consecutive
+ * polls. A {@code WaitStrategy} determines this waiting time.
  */
-public class JobMessageParameters extends MessageParameters {
+@FunctionalInterface
+public interface WaitStrategy {
 
-	public final JobIDPathParameter jobPathParameter = new JobIDPathParameter();
+	/**
+	 * Returns the time to wait until the next attempt. Attempts start at {@code 0}.
+	 * @param attempt The number of the last attempt.
+	 * @return Waiting time in ms.
+	 */
+	long sleepTime(long attempt);
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobPathParameter);
-	}
-
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
-	}
 }
