@@ -179,9 +179,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {}, true);
 
-		final String clusterId = flinkYarnSessionCli.getClusterId(commandLine);
+		final ApplicationId clusterId = flinkYarnSessionCli.getClusterId(commandLine);
 
-		assertEquals(TEST_YARN_APPLICATION_ID.toString(), clusterId);
+		assertEquals(TEST_YARN_APPLICATION_ID, clusterId);
 	}
 
 	/**
@@ -214,9 +214,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()}, true);
 
-		final String clusterId = flinkYarnSessionCli.getClusterId(commandLine);
+		final ApplicationId clusterId = flinkYarnSessionCli.getClusterId(commandLine);
 
-		assertEquals(TEST_YARN_APPLICATION_ID.toString(), clusterId);
+		assertEquals(TEST_YARN_APPLICATION_ID, clusterId);
 	}
 
 	@Test
@@ -272,8 +272,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 			"y",
 			"yarn");
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID_2.toString() }, true);
-		final String clusterId = flinkYarnSessionCli.getClusterId(commandLine);
-		assertEquals(TEST_YARN_APPLICATION_ID_2.toString(), clusterId);
+		final ApplicationId clusterId = flinkYarnSessionCli.getClusterId(commandLine);
+		assertEquals(TEST_YARN_APPLICATION_ID_2, clusterId);
 	}
 
 	///////////

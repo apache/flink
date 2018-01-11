@@ -27,7 +27,7 @@ import org.apache.flink.util.FlinkException;
 /**
  * A deployment descriptor for an existing cluster.
  */
-public class StandaloneClusterDescriptor implements ClusterDescriptor {
+public class StandaloneClusterDescriptor implements ClusterDescriptor<StandaloneClusterId> {
 
 	private final Configuration config;
 
@@ -43,16 +43,16 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor {
 	}
 
 	@Override
-	public StandaloneClusterClient retrieve(String applicationID) {
+	public StandaloneClusterClient retrieve(StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
 		try {
 			return new StandaloneClusterClient(config);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve standalone cluster", e);
+			throw new ClusterRetrieveException("Couldn't retrieve standalone cluster", e);
 		}
 	}
 
 	@Override
-	public StandaloneClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
+	public StandaloneClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) {
 		throw new UnsupportedOperationException("Can't deploy a standalone cluster.");
 	}
 
@@ -62,8 +62,8 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor {
 	}
 
 	@Override
-	public void terminateCluster(String clusterId) throws FlinkException {
-		throw new UnsupportedOperationException("Cannot terminate a standalone cluster.");
+	public void terminateCluster(StandaloneClusterId clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate standalone clusters.");
 	}
 
 	@Override

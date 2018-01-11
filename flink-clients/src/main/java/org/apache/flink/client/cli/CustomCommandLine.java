@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
 /**
  * Custom command-line interface to load hooks for the command-line interface.
  */
-public interface CustomCommandLine {
+public interface CustomCommandLine<T> {
 
 	/**
 	 * Signals whether the custom command-line wants to execute or not.
@@ -66,7 +66,7 @@ public interface CustomCommandLine {
 	 * @return ClusterDescriptor
 	 * @throws FlinkException if the ClusterDescriptor could not be created
 	 */
-	ClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException;
+	ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) throws FlinkException;
 
 	/**
 	 * Returns the cluster id if a cluster id was specified on the command line, otherwise it
@@ -79,7 +79,7 @@ public interface CustomCommandLine {
 	 * @return Cluster id identifying the cluster to deploy jobs to or null
 	 */
 	@Nullable
-	String getClusterId(CommandLine commandLine);
+	T getClusterId(CommandLine commandLine);
 
 	/**
 	 * Returns the {@link ClusterSpecification} specified by the configuration and the command

@@ -28,7 +28,7 @@ import org.apache.flink.util.Preconditions;
 /**
  * A deployment descriptor for an existing cluster.
  */
-public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor {
+public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<StandaloneClusterId> {
 
 	private final Configuration config;
 
@@ -44,27 +44,27 @@ public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor {
 	}
 
 	@Override
-	public RestClusterClient retrieve(String applicationID) {
+	public RestClusterClient<StandaloneClusterId> retrieve(StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
 		try {
-			return new RestClusterClient(config);
+			return new RestClusterClient<>(config, standaloneClusterId);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve FLIP-6 standalone cluster", e);
+			throw new ClusterRetrieveException("Couldn't retrieve FLIP-6 standalone cluster", e);
 		}
 	}
 
 	@Override
-	public RestClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
+	public RestClusterClient<StandaloneClusterId> deploySessionCluster(ClusterSpecification clusterSpecification) {
 		throw new UnsupportedOperationException("Can't deploy a FLIP-6 standalone cluster.");
 	}
 
 	@Override
-	public RestClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public RestClusterClient<StandaloneClusterId> deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		throw new UnsupportedOperationException("Can't deploy a standalone FLIP-6 per-job cluster.");
 	}
 
 	@Override
-	public void terminateCluster(String clusterId) throws FlinkException {
-		throw new UnsupportedOperationException("Cannot terminate a standalone Flip-6 cluster.");
+	public void terminateCluster(StandaloneClusterId clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate a Flip-6 standalone cluster.");
 	}
 
 	@Override

@@ -16,19 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
-
-import java.util.concurrent.CompletableFuture;
+package org.apache.flink.client.deployment;
 
 /**
- * Interface for self gateways.
+ * Identifier for standalone clusters.
  */
-public interface RpcServer extends StartStoppable, MainThreadExecutable, RpcGateway {
+public class StandaloneClusterId {
+	private static final StandaloneClusterId INSTANCE = new StandaloneClusterId();
 
-	/**
-	 * Return a future which is completed when the rpc endpoint has been terminated.
-	 *
-	 * @return Future indicating when the rpc endpoint has been terminated
-	 */
-	CompletableFuture<Boolean> getTerminationFuture();
+	private StandaloneClusterId() {}
+
+	public static StandaloneClusterId getInstance() {
+		return INSTANCE;
+	}
 }

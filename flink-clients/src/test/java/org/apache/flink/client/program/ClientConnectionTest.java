@@ -101,7 +101,7 @@ public class ClientConnectionTest extends TestLogger {
 		config.setString(JobManagerOptions.ADDRESS, unreachableEndpoint.getHostName());
 		config.setInteger(JobManagerOptions.PORT, unreachableEndpoint.getPort());
 
-		ClusterClient client = new StandaloneClusterClient(config);
+		StandaloneClusterClient client = new StandaloneClusterClient(config);
 
 		try {
 			// we have to query the cluster status to start the connection attempts
@@ -140,7 +140,7 @@ public class ClientConnectionTest extends TestLogger {
 
 			highAvailabilityServices.setJobMasterLeaderRetriever(HighAvailabilityServices.DEFAULT_JOB_ID, testingLeaderRetrievalService);
 
-			ClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices);
+			StandaloneClusterClient client = new StandaloneClusterClient(configuration, highAvailabilityServices);
 
 			ActorGateway gateway = client.getJobManagerGateway();
 

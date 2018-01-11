@@ -86,7 +86,7 @@ import static org.apache.flink.configuration.HighAvailabilityOptions.HA_CLUSTER_
 /**
  * Class handling the command line interface to the YARN session.
  */
-public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
+public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId> {
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkYarnSessionCli.class);
 
 	//------------------------------------ Constants   -------------------------
@@ -152,7 +152,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	private final Properties yarnPropertiesFile;
 
-	private final String yarnApplicationIdFromYarnProperties;
+	private final ApplicationId yarnApplicationIdFromYarnProperties;
 
 	private final String yarnPropertiesFileLocation;
 
@@ -235,20 +235,20 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 					". Please delete the file at " + yarnPropertiesLocation.getAbsolutePath() + '.', ioe);
 			}
 
-			yarnApplicationIdFromYarnProperties = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
+			final String yarnApplicationIdString = yarnPropertiesFile.getProperty(YARN_APPLICATION_ID_KEY);
 
-			if (yarnApplicationIdFromYarnProperties == null) {
+			if (yarnApplicationIdString == null) {
 				throw new FlinkException("Yarn properties file found but doesn't contain a " +
 					"Yarn application id. Please delete the file at " + yarnPropertiesLocation.getAbsolutePath());
 			}
 
 			try {
 				// try converting id to ApplicationId
-				ConverterUtils.toApplicationId(yarnApplicationIdFromYarnProperties);
+				yarnApplicationIdFromYarnProperties = ConverterUtils.toApplicationId(yarnApplicationIdString);
 			}
 			catch (Exception e) {
 				throw new FlinkException("YARN properties contains an invalid entry for " +
-					"application id: " + yarnApplicationIdFromYarnProperties + ". Please delete the file at " +
+					"application id: " + yarnApplicationIdString + ". Please delete the file at " +
 					yarnPropertiesLocation.getAbsolutePath(), e);
 			}
 		} else {
@@ -458,9 +458,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 
 	@Override
 	@Nullable
-	public String getClusterId(CommandLine commandLine) {
+	public ApplicationId getClusterId(CommandLine commandLine) {
 		if (commandLine.hasOption(applicationId.getOpt())) {
-			return commandLine.getOptionValue(applicationId.getOpt());
+			return ConverterUtils.toApplicationId(commandLine.getOptionValue(applicationId.getOpt()));
 		} else if (isYarnPropertiesFileMode(commandLine)) {
 			return yarnApplicationIdFromYarnProperties;
 		} else {
@@ -485,14 +485,14 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 			effectiveConfiguration.setString(HA_CLUSTER_ID, zkNamespace);
 		}
 
-		final String applicationId = getClusterId(commandLine);
+		final ApplicationId applicationId = getClusterId(commandLine);
 
 		if (applicationId != null) {
 			final String zooKeeperNamespace;
 			if (commandLine.hasOption(zookeeperNamespace.getOpt())){
 				zooKeeperNamespace = commandLine.getOptionValue(zookeeperNamespace.getOpt());
 			} else {
-				zooKeeperNamespace = effectiveConfiguration.getString(HA_CLUSTER_ID, applicationId);
+				zooKeeperNamespace = effectiveConfiguration.getString(HA_CLUSTER_ID, applicationId.toString());
 			}
 
 			effectiveConfiguration.setString(HA_CLUSTER_ID, zooKeeperNamespace);
@@ -581,20 +581,20 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 				System.out.println(description);
 				return 0;
 			} else {
-				final ClusterClient clusterClient;
+				final ClusterClient<ApplicationId> clusterClient;
 				final ApplicationId yarnApplicationId;
 
 				if (cmd.hasOption(applicationId.getOpt())) {
 					yarnApplicationId = ConverterUtils.toApplicationId(cmd.getOptionValue(applicationId.getOpt()));
 
-					clusterClient = yarnClusterDescriptor.retrieve(cmd.getOptionValue(applicationId.getOpt()));
+					clusterClient = yarnClusterDescriptor.retrieve(yarnApplicationId);
 				} else {
 					final ClusterSpecification clusterSpecification = getClusterSpecification(cmd);
 
 					clusterClient = yarnClusterDescriptor.deploySessionCluster(clusterSpecification);
 
 					//------------------ ClusterClient deployed, handle connection details
-					yarnApplicationId = ConverterUtils.toApplicationId(clusterClient.getClusterIdentifier());
+					yarnApplicationId = clusterClient.getClusterId();
 
 					String jobManagerAddress =
 						clusterClient.getJobManagerAddress().getAddress().getHostName() +
@@ -790,7 +790,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	}
 
 	private static void runInteractiveCli(
-			ClusterClient clusterClient,
+			ClusterClient<?> clusterClient,
 			YarnApplicationStatusMonitor yarnApplicationStatusMonitor,
 			boolean readConsoleInput) {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {

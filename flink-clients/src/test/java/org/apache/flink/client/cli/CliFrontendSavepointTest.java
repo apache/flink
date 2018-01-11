@@ -82,7 +82,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		String savepointPath = "expectedSavepointPath";
 
-		final ClusterClient clusterClient = createClusterClient(savepointPath);
+		final ClusterClient<String> clusterClient = createClusterClient(savepointPath);
 
 		try {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -110,7 +110,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 		String expectedTestException = "expectedTestException";
 		Exception testException = new Exception(expectedTestException);
 
-		final ClusterClient clusterClient = createFailingClusterClient(testException);
+		final ClusterClient<String> clusterClient = createFailingClusterClient(testException);
 
 		try {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -165,7 +165,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		String savepointDirectory = "customTargetDirectory";
 
-		final ClusterClient clusterClient = createClusterClient(savepointDirectory);
+		final ClusterClient<String> clusterClient = createClusterClient(savepointDirectory);
 
 		try {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -224,7 +224,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		final CompletableFuture<String> disposeSavepointFuture = new CompletableFuture<>();
 
-		final ClusterClient clusterClient = new DisposeSavepointClusterClient(
+		final DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient(
 			(String savepointPath, Time timeout) -> {
 				disposeSavepointFuture.complete(savepointPath);
 				return CompletableFuture.completedFuture(Acknowledge.get());
@@ -260,7 +260,7 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 		Exception testException = new Exception("expectedTestException");
 
-		ClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException));
+		DisposeSavepointClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException));
 
 		try {
 			CliFrontend frontend = new MockedCliFrontend(clusterClient);
@@ -313,8 +313,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 		System.setErr(stdErr);
 	}
 
-	private static ClusterClient createClusterClient(String expectedResponse) throws Exception {
-		final ClusterClient clusterClient = mock(ClusterClient.class);
+	private static ClusterClient<String> createClusterClient(String expectedResponse) throws Exception {
+		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
 		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
 			.thenReturn(CompletableFuture.completedFuture(expectedResponse));
@@ -322,8 +322,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 		return clusterClient;
 	}
 
-	private static ClusterClient createFailingClusterClient(Exception expectedException) throws Exception {
-		final ClusterClient clusterClient = mock(ClusterClient.class);
+	private static ClusterClient<String> createFailingClusterClient(Exception expectedException) throws Exception {
+		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
 		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
 			.thenReturn(FutureUtils.completedExceptionally(expectedException));

@@ -21,6 +21,7 @@ package org.apache.flink.api.scala
 import java.io._
 
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser, RunOptions}
+import org.apache.flink.client.deployment.{ClusterDescriptor, StandaloneClusterId}
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
@@ -138,7 +139,7 @@ object FlinkShell {
   def fetchConnectionInfo(
     configuration: Configuration,
     config: Config
-  ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient]]) = {
+  ): (String, Int, Option[Either[StandaloneMiniCluster, ClusterClient[_]]]) = {
     config.executionMode match {
       case ExecutionMode.LOCAL => // Local mode
         val config = GlobalConfiguration.loadConfiguration()
@@ -294,7 +295,9 @@ object FlinkShell {
       CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
+    val clusterDescriptor = customCLI
+      .createClusterDescriptor(commandLine)
+      .asInstanceOf[ClusterDescriptor[Any]]
 
     val clusterId = customCLI.getClusterId(commandLine)
 

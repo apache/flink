@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rpc;
+package org.apache.flink.client.deployment;
 
-import java.util.concurrent.CompletableFuture;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Interface for self gateways.
+ * Exception which indicates that a cluster could not be retrieved.
  */
-public interface RpcServer extends StartStoppable, MainThreadExecutable, RpcGateway {
+public class ClusterRetrieveException extends FlinkException {
 
-	/**
-	 * Return a future which is completed when the rpc endpoint has been terminated.
-	 *
-	 * @return Future indicating when the rpc endpoint has been terminated
-	 */
-	CompletableFuture<Boolean> getTerminationFuture();
+	private static final long serialVersionUID = 7718062507419172318L;
+
+	public ClusterRetrieveException(String message) {
+		super(message);
+	}
+
+	public ClusterRetrieveException(Throwable cause) {
+		super(cause);
+	}
+
+	public ClusterRetrieveException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -62,9 +62,9 @@ public class DefaultCLITest extends TestLogger {
 
 		final InetSocketAddress expectedAddress = new InetSocketAddress(localhost, port);
 
-		final ClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
 
-		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
 		Assert.assertEquals(expectedAddress, clusterClient.getJobManagerAddress());
 	}
@@ -89,9 +89,9 @@ public class DefaultCLITest extends TestLogger {
 
 		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
-		final ClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+		final StandaloneClusterDescriptor clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
 
-		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
+		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
 		final InetSocketAddress expectedAddress = new InetSocketAddress(manualHostname, manualPort);
 

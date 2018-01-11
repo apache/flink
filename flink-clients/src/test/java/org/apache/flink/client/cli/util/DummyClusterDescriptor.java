@@ -28,11 +28,11 @@ import org.apache.flink.util.Preconditions;
 /**
  * Dummy {@link ClusterDescriptor} implementation for testing purposes.
  */
-public class DummyClusterDescriptor implements ClusterDescriptor {
+public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
 
-	private final ClusterClient clusterClient;
+	private final ClusterClient<T> clusterClient;
 
-	public DummyClusterDescriptor(ClusterClient clusterClient) {
+	public DummyClusterDescriptor(ClusterClient<T> clusterClient) {
 		this.clusterClient = Preconditions.checkNotNull(clusterClient);
 	}
 
@@ -42,23 +42,23 @@ public class DummyClusterDescriptor implements ClusterDescriptor {
 	}
 
 	@Override
-	public ClusterClient retrieve(String applicationID) throws UnsupportedOperationException {
+	public ClusterClient<T> retrieve(T clusterId) {
 		return clusterClient;
 	}
 
 	@Override
-	public ClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
+	public ClusterClient<T> deploySessionCluster(ClusterSpecification clusterSpecification) {
 		return clusterClient;
 	}
 
 	@Override
-	public ClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public ClusterClient<T> deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		return clusterClient;
 	}
 
 	@Override
-	public void terminateCluster(String clusterId) throws FlinkException {
-		throw new UnsupportedOperationException("DummyClusterDescriptor does not support cluster termination.");
+	public void terminateCluster(T clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate a dummy cluster.");
 	}
 
 	@Override
