@@ -28,6 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonToken;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.type.TypeFactory;
 
@@ -96,16 +97,23 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
 					serializedThrowable = serializedThrowableDeserializer.deserialize(p, ctxt);
 					break;
 				default:
-					throw new IllegalStateException();
+					// ignore unknown fields
 			}
 		}
 
-		return new JobResult.Builder()
-			.jobId(jobId)
-			.netRuntime(netRuntime)
-			.accumulatorResults(accumulatorResults)
-			.serializedThrowable(serializedThrowable)
-			.build();
+		try {
+			return new JobResult.Builder()
+				.jobId(jobId)
+				.netRuntime(netRuntime)
+				.accumulatorResults(accumulatorResults)
+				.serializedThrowable(serializedThrowable)
+				.build();
+		} catch (final RuntimeException e) {
+			throw new JsonMappingException(
+				null,
+				"Could not deserialize " + JobResult.class.getSimpleName(),
+				e);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
@@ -144,10 +152,9 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
 	private static void assertNextToken(
 			final JsonParser p,
 			final JsonToken requiredJsonToken) throws IOException {
-		final JsonToken nextToken = p.nextToken();
-		checkState(nextToken == requiredJsonToken, "Expected token %s (was %s) at %s",
-			requiredJsonToken,
-			nextToken,
-			p.getCurrentLocation());
+		final JsonToken jsonToken = p.nextToken();
+		if (jsonToken != requiredJsonToken) {
+			throw new JsonMappingException(p, String.format("Expected token %s (was %s)", requiredJsonToken, jsonToken));
+		}
 	}
 }
