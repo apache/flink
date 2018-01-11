@@ -258,12 +258,9 @@ object FlinkShell {
       args.toArray,
       true)
 
-    val options = new RunOptions(commandLine)
-
     val frontend = new CliFrontend(
       configuration,
       CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
-    val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
     val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
@@ -292,12 +289,9 @@ object FlinkShell {
       args.toArray,
       true)
 
-    val options = new RunOptions(commandLine)
-
     val frontend = new CliFrontend(
       configuration,
       CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
-    val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
     val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
