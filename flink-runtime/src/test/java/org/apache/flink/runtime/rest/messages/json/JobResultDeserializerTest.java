@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonMappingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,7 +36,7 @@ import static org.junit.Assert.assertThat;
 /**
  * Tests for {@link JobResultDeserializer}.
  */
-public class JobResultDeserializerTest {
+public class JobResultDeserializerTest extends TestLogger {
 
 	private ObjectMapper objectMapper;
 
