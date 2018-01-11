@@ -163,8 +163,6 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testNoJarNoArgumentsAtAll() throws Exception {
 		frontend.run(new String[0]);
-
-		fail("Should have failed.");
 	}
 
 	@Test

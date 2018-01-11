@@ -211,7 +211,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<YarnClusterCl
 		yarnPropertiesFile = new Properties();
 
 		if (yarnPropertiesLocation.exists()) {
-			LOG.info("Found Yarn properties file under " + yarnPropertiesLocation.getAbsolutePath() + '.');
+			LOG.info("Found Yarn properties file under {}.", yarnPropertiesLocation.getAbsolutePath());
 
 			try (InputStream is = new FileInputStream(yarnPropertiesLocation)) {
 				yarnPropertiesFile.load(is);
