@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -292,7 +293,8 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 
 	private void decodeBufferOrEvent(RemoteInputChannel inputChannel, NettyMessage.BufferResponse bufferOrEvent) throws Throwable {
 		try {
-			int size = bufferOrEvent.getSize();
+			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
+			final int size = nettyBuffer.readableBytes();
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
 
@@ -305,7 +307,7 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 
 				NetworkBuffer buffer = (NetworkBuffer) inputChannel.requestBuffer();
 				if (buffer != null) {
-					bufferOrEvent.getNettyBuffer().readBytes(buffer, size);
+					nettyBuffer.readBytes(buffer, size);
 
 					inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 				} else if (inputChannel.isReleased()) {
@@ -317,7 +319,7 @@ class CreditBasedClientHandler extends ChannelInboundHandlerAdapter {
 				// ---- Event -------------------------------------------------
 				// TODO We can just keep the serialized data in the Netty buffer and release it later at the reader
 				byte[] byteArray = new byte[size];
-				bufferOrEvent.getNettyBuffer().readBytes(byteArray);
+				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);

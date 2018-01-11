@@ -33,6 +33,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -271,7 +272,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 		boolean releaseNettyBuffer = true;
 
 		try {
-			final int receivedSize = bufferOrEvent.getSize();
+			ByteBuf nettyBuffer = bufferOrEvent.getNettyBuffer();
+			final int receivedSize = nettyBuffer.readableBytes();
 
 			if (bufferOrEvent.isBuffer()) {
 				// ---- Buffer ------------------------------------------------
@@ -295,7 +297,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					NetworkBuffer buffer = (NetworkBuffer) bufferProvider.requestBuffer();
 
 					if (buffer != null) {
-						bufferOrEvent.getNettyBuffer().readBytes(buffer, receivedSize);
+						nettyBuffer.readBytes(buffer, receivedSize);
 
 						inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, -1);
 
@@ -315,7 +317,7 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 				// ---- Event -------------------------------------------------
 				// TODO We can just keep the serialized data in the Netty buffer and release it later at the reader
 				byte[] byteArray = new byte[receivedSize];
-				bufferOrEvent.getNettyBuffer().readBytes(byteArray);
+				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
@@ -452,7 +454,8 @@ class PartitionRequestClientHandler extends ChannelInboundHandlerAdapter {
 					throw new IllegalStateException("Running buffer availability task w/o a buffer.");
 				}
 
-				stagedBufferResponse.getNettyBuffer().readBytes(buffer, stagedBufferResponse.getSize());
+				ByteBuf nettyBuffer = stagedBufferResponse.getNettyBuffer();
+				nettyBuffer.readBytes(buffer, nettyBuffer.readableBytes());
 				stagedBufferResponse.releaseBuffer();
 
 				RemoteInputChannel inputChannel = inputChannels.get(stagedBufferResponse.receiverId);
