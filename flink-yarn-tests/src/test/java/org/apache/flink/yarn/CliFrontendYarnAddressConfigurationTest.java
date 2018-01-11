@@ -76,6 +76,8 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	private static final PrintStream OUT = System.out;
 	private static final PrintStream ERR = System.err;
 
+	private static FlinkYarnSessionCli cli;
+
 	@BeforeClass
 	public static void disableStdOutErr() {
 		class NullPrint extends OutputStream {
@@ -91,6 +93,8 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 		Map<String, String> map = new HashMap<>(System.getenv());
 		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
 		TestBaseUtils.setEnv(map);
+
+		cli = new FlinkYarnSessionCli("y", "yarn");
 	}
 
 	@AfterClass
@@ -129,8 +133,6 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 		// start CLI Frontend
 		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
-
-		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("y", "yarn");
 
 		Options options = CliFrontendParser.getRunCommandOptions();
 		cli.addGeneralOptions(options);
@@ -217,8 +219,6 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 		// start CLI Frontend
 		TestCLI frontend = new CustomYarnTestCLI(new Configuration(), directoryPath.getAbsolutePath());
 
-		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("y", "yarn");
-
 		Options options = CliFrontendParser.getRunCommandOptions();
 		cli.addGeneralOptions(options);
 		cli.addRunOptions(options);
@@ -242,8 +242,6 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 		// start CLI Frontend
 		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
 		String overrideZkNamespace = "my_cluster";
-
-		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("y", "yarn");
 
 		Options options = CliFrontendParser.getRunCommandOptions();
 		cli.addGeneralOptions(options);
@@ -308,8 +306,6 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 		// start CLI Frontend
 		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
-
-		FlinkYarnSessionCli cli = new FlinkYarnSessionCli("y", "yarn");
 
 		Options options = CliFrontendParser.getRunCommandOptions();
 		cli.addGeneralOptions(options);
@@ -436,7 +432,7 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 			}
 
 			/**
-			 * Replace the YarnClient for this test.
+			 * Replace the YarnClusterClient for this test.
 			 */
 			private class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 

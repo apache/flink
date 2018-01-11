@@ -27,6 +27,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 
 /**
@@ -364,9 +366,9 @@ public class CliFrontendParser {
 	 * @param runOptions True if the run options should be printed, False to print only general options
 	 */
 	private static void printCustomCliOptions(
-		Collection<CustomCommandLine<?>> customCommandLines,
-		HelpFormatter formatter,
-		boolean runOptions) {
+			Collection<CustomCommandLine<?>> customCommandLines,
+			HelpFormatter formatter,
+			boolean runOptions) {
 		// prints options from all available command-line classes
 		for (CustomCommandLine cli: customCommandLines) {
 			if (cli.getId() != null) {
@@ -407,7 +409,14 @@ public class CliFrontendParser {
 		}
 	}
 
-	static Options mergeOptions(Options optionsA, Options optionsB) {
+	/**
+	 * Merges the given {@link Options} into a new Options object.
+	 *
+	 * @param optionsA options to merge, can be null if none
+	 * @param optionsB options to merge, can be null if none
+	 * @return
+	 */
+	static Options mergeOptions(@Nullable Options optionsA, @Nullable Options optionsB) {
 		final Options resultOptions = new Options();
 		if (optionsA != null) {
 			for (Option option : optionsA.getOptions()) {

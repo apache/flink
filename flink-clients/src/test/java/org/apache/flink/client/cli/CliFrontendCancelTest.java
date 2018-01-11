@@ -33,12 +33,10 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
 
 /**
  * Tests for the CANCEL command.
@@ -56,7 +54,7 @@ public class CliFrontendCancelTest extends TestLogger {
 		JobID jid = new JobID();
 
 		String[] parameters = { jid.toString() };
-		final ClusterClient clusterClient = createClusterClient(false);
+		final ClusterClient clusterClient = createClusterClient();
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
 		int retCode = testFrontend.cancel(parameters);
@@ -99,7 +97,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			JobID jid = new JobID();
 
 			String[] parameters = { "-s", jid.toString() };
-			final ClusterClient clusterClient = createClusterClient(false);
+			final ClusterClient clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			assertEquals(0, testFrontend.cancel(parameters));
 
@@ -112,7 +110,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			JobID jid = new JobID();
 
 			String[] parameters = { "-s", "targetDirectory", jid.toString() };
-			final ClusterClient clusterClient = createClusterClient(false);
+			final ClusterClient clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			assertEquals(0, testFrontend.cancel(parameters));
 
@@ -147,13 +145,8 @@ public class CliFrontendCancelTest extends TestLogger {
 		fail("Should have failed.");
 	}
 
-	private static ClusterClient createClusterClient(boolean reject) throws Exception {
+	private static ClusterClient createClusterClient() throws Exception {
 		final ClusterClient clusterClient = mock(ClusterClient.class);
-
-		if (reject) {
-			doThrow(new IllegalArgumentException("Test exception")).when(clusterClient).cancel(any(JobID.class));
-			doThrow(new IllegalArgumentException("Test exception")).when(clusterClient).cancelWithSavepoint(any(JobID.class), anyString());
-		}
 
 		return clusterClient;
 	}

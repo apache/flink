@@ -32,7 +32,6 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.checkJobManagerAddress;
-import static org.junit.Assert.fail;
 
 /**
  * Tests that verify that the CLI client picks up the correct address for the JobManager
@@ -66,26 +65,20 @@ public class CliFrontendAddressConfigurationTest extends TestLogger {
 	}
 
 	@Test
-	public void testManualOptionsOverridesConfig() {
-		try {
-			CliFrontend frontend = new CliFrontend(
-				new Configuration(),
-				Collections.singletonList(new DefaultCLI()),
-				CliFrontendTestUtils.getConfigDir());
+	public void testManualOptionsOverridesConfig() throws Exception {
+		CliFrontend frontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 
-			RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "203.0.113.22:7788"});
+		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "203.0.113.22:7788"});
 
-			ClusterClient client = frontend.retrieveClient(options);
-			Configuration config = client.getFlinkConfiguration();
+		ClusterClient client = frontend.retrieveClient(options);
+		Configuration config = client.getFlinkConfiguration();
 
-			InetSocketAddress expectedAddress = new InetSocketAddress("203.0.113.22", 7788);
+		InetSocketAddress expectedAddress = new InetSocketAddress("203.0.113.22", 7788);
 
-			checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		checkJobManagerAddress(config, expectedAddress.getHostName(), expectedAddress.getPort());
 	}
 
 }
