@@ -21,6 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -330,7 +332,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	// -------------------------------------------------------------
 
 	@Override
-	public YarnClusterClient retrieve(String applicationID) {
+	public ClusterClient retrieve(String applicationID) {
 
 		try {
 			// check if required Hadoop environment variables are set. If not, warn user
@@ -390,6 +392,23 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				jobGraph);
 		} catch (Exception e) {
 			throw new RuntimeException("Could not deploy Yarn job cluster.", e);
+		}
+	}
+
+	@Override
+	public void terminateCluster(String clusterId) throws FlinkException {
+		try {
+			yarnClient.killApplication(ConverterUtils.toApplicationId(clusterId));
+		} catch (IOException | YarnException e) {
+			throw new FlinkException("Could not terminate cluster with id " + clusterId + '.', e);
+		}
+	}
+
+	public void terminateCluster(ApplicationId applicationId) throws FlinkException {
+		try {
+			yarnClient.killApplication(applicationId);
+		} catch (YarnException | IOException e) {
+			throw new FlinkException("Could not kill the Yarn Flink cluster with id " + applicationId + '.', e);
 		}
 	}
 

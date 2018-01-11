@@ -262,11 +262,7 @@ public abstract class ClusterClient {
 	 */
 	public void shutdown() throws Exception {
 		synchronized (this) {
-			try {
-				finalizeCluster();
-			} finally {
-				actorSystemLoader.shutdown();
-			}
+			actorSystemLoader.shutdown();
 
 			if (highAvailabilityServices != null) {
 				highAvailabilityServices.close();
@@ -938,17 +934,12 @@ public abstract class ClusterClient {
 	 * May return new messages from the cluster.
 	 * Messages can be for example about failed containers or container launch requests.
 	 */
-	protected abstract List<String> getNewMessages();
+	public abstract List<String> getNewMessages();
 
 	/**
 	 * Returns a string representation of the cluster.
 	 */
 	public abstract String getClusterIdentifier();
-
-	/**
-	 * Request the cluster to shut down or disconnect.
-	 */
-	protected abstract void finalizeCluster();
 
 	/**
 	 * Set the mode of this client (detached or blocking job execution).

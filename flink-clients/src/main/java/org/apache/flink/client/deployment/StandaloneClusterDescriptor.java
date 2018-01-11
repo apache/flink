@@ -22,6 +22,7 @@ import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
  * A deployment descriptor for an existing cluster.
@@ -58,6 +59,11 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor {
 	@Override
 	public StandaloneClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		throw new UnsupportedOperationException("Can't deploy a standalone per-job cluster.");
+	}
+
+	@Override
+	public void terminateCluster(String clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate a standalone cluster.");
 	}
 
 	@Override
