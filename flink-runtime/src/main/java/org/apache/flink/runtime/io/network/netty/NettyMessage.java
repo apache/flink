@@ -230,8 +230,6 @@ public abstract class NettyMessage {
 
 		final boolean isBuffer;
 
-		final int size;
-
 		@Nullable
 		ByteBuf retainedSlice;
 
@@ -244,7 +242,6 @@ public abstract class NettyMessage {
 			// retainedSlice is set in this case.
 			this.buffer = null;
 			this.retainedSlice = checkNotNull(retainedSlice);
-			this.size = retainedSlice.writerIndex();
 			this.isBuffer = isBuffer;
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
@@ -255,7 +252,6 @@ public abstract class NettyMessage {
 			this.buffer = checkNotNull(buffer);
 			this.retainedSlice = null;
 			this.isBuffer = buffer.isBuffer();
-			this.size = buffer.getMaxCapacity();
 			this.sequenceNumber = sequenceNumber;
 			this.receiverId = checkNotNull(receiverId);
 			this.backlog = backlog;
@@ -263,10 +259,6 @@ public abstract class NettyMessage {
 
 		boolean isBuffer() {
 			return isBuffer;
-		}
-
-		int getSize() {
-			return size;
 		}
 
 		ByteBuf getNettyBuffer() {
