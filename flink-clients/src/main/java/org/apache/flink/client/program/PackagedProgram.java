@@ -25,6 +25,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.util.JobWithJars;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.BufferedInputStream;
