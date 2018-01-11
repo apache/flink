@@ -232,6 +232,15 @@ public class CliFrontend {
 
 				executeProgram(program, client, userParallelism);
 			} finally {
+				if (clusterId == null && !client.isDetached()) {
+					// terminate the cluster only if we have started it before and if it's not detached
+					try {
+						clusterDescriptor.terminateCluster(client.getClusterIdentifier());
+					} catch (FlinkException e) {
+						LOG.info("Could not properly terminate the Flink cluster.", e);
+					}
+				}
+
 				try {
 					client.shutdown();
 				} catch (Exception e) {

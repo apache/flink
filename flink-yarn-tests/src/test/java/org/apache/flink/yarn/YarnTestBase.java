@@ -61,6 +61,9 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -86,6 +89,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected static final PrintStream ORIGINAL_STDOUT = System.out;
 	protected static final PrintStream ORIGINAL_STDERR = System.err;
+	private static final InputStream ORIGINAL_STDIN = System.in;
 
 	protected static final String TEST_CLUSTER_NAME_KEY = "flink-yarn-minicluster-name";
 
@@ -510,13 +514,18 @@ public abstract class YarnTestBase extends TestLogger {
 	/**
 	 * This method returns once the "startedAfterString" has been seen.
 	 */
-	protected Runner startWithArgs(String[] args, String startedAfterString, RunTypes type) {
+	protected Runner startWithArgs(String[] args, String startedAfterString, RunTypes type) throws IOException {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
 		errContent = new ByteArrayOutputStream();
+		PipedOutputStream out = new PipedOutputStream();
+		PipedInputStream in = new PipedInputStream(out);
+		PrintStream stdinPrintStream = new PrintStream(out);
+
 		System.setOut(new PrintStream(outContent));
 		System.setErr(new PrintStream(errContent));
+		System.setIn(in);
 
 		final int startTimeoutSeconds = 60;
 
@@ -525,7 +534,8 @@ public abstract class YarnTestBase extends TestLogger {
 			flinkConfiguration,
 			CliFrontend.getConfigurationDirectoryFromEnv(),
 			type,
-			0);
+			0,
+			stdinPrintStream);
 		runner.setName("Frontend (CLI/YARN Client) runner thread (startWithArgs()).");
 		runner.start();
 
@@ -539,7 +549,7 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 			// check if thread died
 			if (!runner.isAlive()) {
-				sendOutput();
+				resetStreamsAndSendOutput();
 				if (runner.getRunnerError() != null) {
 					throw new RuntimeException("Runner failed with exception.", runner.getRunnerError());
 				}
@@ -547,13 +557,13 @@ public abstract class YarnTestBase extends TestLogger {
 			}
 		}
 
-		sendOutput();
+		resetStreamsAndSendOutput();
 		Assert.fail("During the timeout period of " + startTimeoutSeconds + " seconds the " +
 				"expected string did not show up");
 		return null;
 	}
 
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnStrings, RunTypes type, int returnCode) throws IOException {
 		runWithArgs(args, terminateAfterString, failOnStrings, type, returnCode, false);
 	}
 
@@ -566,13 +576,17 @@ public abstract class YarnTestBase extends TestLogger {
 	 * @param expectedReturnValue Expected return code from the runner.
 	 * @param checkLogForTerminateString  If true, the runner checks also the log4j logger for the terminate string
 	 */
-	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, boolean checkLogForTerminateString) {
+	protected void runWithArgs(String[] args, String terminateAfterString, String[] failOnPatterns, RunTypes type, int expectedReturnValue, boolean checkLogForTerminateString) throws IOException {
 		LOG.info("Running with args {}", Arrays.toString(args));
 
 		outContent = new ByteArrayOutputStream();
 		errContent = new ByteArrayOutputStream();
+		PipedOutputStream out = new PipedOutputStream();
+		PipedInputStream in = new PipedInputStream(out);
+		PrintStream stdinPrintStream = new PrintStream(out);
 		System.setOut(new PrintStream(outContent));
 		System.setErr(new PrintStream(errContent));
+		System.setIn(in);
 
 		// we wait for at most three minutes
 		final int startTimeoutSeconds = 180;
@@ -583,11 +597,13 @@ public abstract class YarnTestBase extends TestLogger {
 			flinkConfiguration,
 			CliFrontend.getConfigurationDirectoryFromEnv(),
 			type,
-			expectedReturnValue);
+			expectedReturnValue,
+			stdinPrintStream);
 		runner.start();
 
 		boolean expectedStringSeen = false;
 		boolean testPassedFromLog4j = false;
+		long shutdownTimeout = 30000L;
 		do {
 			sleep(1000);
 			String outContentString = outContent.toString();
@@ -597,9 +613,15 @@ public abstract class YarnTestBase extends TestLogger {
 					Pattern pattern = Pattern.compile(failOnString);
 					if (pattern.matcher(outContentString).find() || pattern.matcher(errContentString).find()) {
 						LOG.warn("Failing test. Output contained illegal string '" + failOnString + "'");
-						sendOutput();
+						resetStreamsAndSendOutput();
 						// stopping runner.
 						runner.sendStop();
+						// wait for the thread to stop
+						try {
+							runner.join(shutdownTimeout);
+						} catch (InterruptedException e) {
+							LOG.warn("Interrupted while stopping runner", e);
+						}
 						Assert.fail("Output contained illegal string '" + failOnString + "'");
 					}
 				}
@@ -622,7 +644,7 @@ public abstract class YarnTestBase extends TestLogger {
 				runner.sendStop();
 				// wait for the thread to stop
 				try {
-					runner.join(30000);
+					runner.join(shutdownTimeout);
 				}
 				catch (InterruptedException e) {
 					LOG.warn("Interrupted while stopping runner", e);
@@ -639,7 +661,7 @@ public abstract class YarnTestBase extends TestLogger {
 		}
 		while (runner.getRunnerError() == null && !expectedStringSeen && System.currentTimeMillis() < deadline);
 
-		sendOutput();
+		resetStreamsAndSendOutput();
 
 		if (runner.getRunnerError() != null) {
 			// this lets the test fail.
@@ -651,9 +673,10 @@ public abstract class YarnTestBase extends TestLogger {
 		LOG.info("Test was successful");
 	}
 
-	protected static void sendOutput() {
+	protected static void resetStreamsAndSendOutput() {
 		System.setOut(ORIGINAL_STDOUT);
 		System.setErr(ORIGINAL_STDERR);
+		System.setIn(ORIGINAL_STDIN);
 
 		LOG.info("Sending stdout content through logger: \n\n{}\n\n", outContent.toString());
 		LOG.info("Sending stderr content through logger: \n\n{}\n\n", errContent.toString());
@@ -668,6 +691,8 @@ public abstract class YarnTestBase extends TestLogger {
 		private final String configurationDirectory;
 		private final int expectedReturnValue;
 
+		private final PrintStream stdinPrintStream;
+
 		private RunTypes type;
 		private FlinkYarnSessionCli yCli;
 		private Throwable runnerError;
@@ -677,13 +702,15 @@ public abstract class YarnTestBase extends TestLogger {
 				org.apache.flink.configuration.Configuration configuration,
 				String configurationDirectory,
 				RunTypes type,
-				int expectedReturnValue) {
+				int expectedReturnValue,
+				PrintStream stdinPrintStream) {
 
 			this.args = args;
 			this.configuration = Preconditions.checkNotNull(configuration);
 			this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 			this.type = type;
 			this.expectedReturnValue = expectedReturnValue;
+			this.stdinPrintStream = Preconditions.checkNotNull(stdinPrintStream);
 		}
 
 		@Override
@@ -697,8 +724,8 @@ public abstract class YarnTestBase extends TestLogger {
 							configurationDirectory,
 							"",
 							"",
-							false);
-						returnValue = yCli.run(args, configuration, configurationDirectory);
+							true);
+						returnValue = yCli.run(args);
 						break;
 					case CLI_FRONTEND:
 						try {
@@ -727,9 +754,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 		/** Stops the Yarn session. */
 		public void sendStop() {
-			if (yCli != null) {
-				yCli.stop();
-			}
+			stdinPrintStream.println("stop");
 		}
 
 		public Throwable getRunnerError() {
