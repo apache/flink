@@ -308,7 +308,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * Gets a Hadoop Yarn client.
 	 * @return Returns a YarnClient which has to be shutdown manually
 	 */
-	protected YarnClient getYarnClient() {
+	public YarnClient getYarnClient() {
 		YarnClient yarnClient = YarnClient.createYarnClient();
 		yarnClient.init(conf);
 		yarnClient.start();
