@@ -27,7 +27,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValida
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisEventsGeneratorProducerThread;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * This test first starts a data generator, producing data into kinesis.
+ * This test first starts a data generator, producing data into Kinesis.
  * Then, it starts a consuming topology, ensuring that all records up to a certain
  * point have been seen.
  *
@@ -45,7 +45,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * --region eu-central-1 --accessKey X --secretKey X
  */
 public class ManualExactlyOnceTest {
-
 	private static final Logger LOG = LoggerFactory.getLogger(ManualExactlyOnceTest.class);
 
 	static final int TOTAL_EVENT_COUNT = 1000; // the producer writes one per 10 ms, so it runs for 10k ms = 10 seconds
@@ -63,7 +62,7 @@ public class ManualExactlyOnceTest {
 		configProps.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, accessKey);
 		configProps.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey);
 		configProps.setProperty(AWSConfigConstants.AWS_REGION, region);
-		AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+		AmazonKinesis client = AWSUtil.createKinesisClient(configProps);
 
 		// create a stream for the test:
 		client.createStream(streamName, 1);

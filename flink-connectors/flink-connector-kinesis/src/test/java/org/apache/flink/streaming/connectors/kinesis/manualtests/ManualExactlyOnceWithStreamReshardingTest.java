@@ -27,7 +27,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.ExactlyOnceValida
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
@@ -74,7 +74,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 		configProps.setProperty(ConsumerConfigConstants.AWS_SECRET_ACCESS_KEY, secretKey);
 		configProps.setProperty(ConsumerConfigConstants.AWS_REGION, region);
 		configProps.setProperty(ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, "0");
-		final AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+		final AmazonKinesis client = AWSUtil.createKinesisClient(configProps);
 
 		// the stream is first created with 1 shard
 		client.createStream(streamName, 1);
@@ -107,7 +107,7 @@ public class ManualExactlyOnceWithStreamReshardingTest {
 			Runnable manualGenerate = new Runnable() {
 				@Override
 				public void run() {
-					AmazonKinesisClient client = AWSUtil.createKinesisClient(configProps);
+					AmazonKinesis client = AWSUtil.createKinesisClient(configProps);
 					int count = 0;
 					final int batchSize = 30;
 					while (true) {
