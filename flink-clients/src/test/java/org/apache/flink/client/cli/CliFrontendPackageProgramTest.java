@@ -63,14 +63,14 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 	@Before
 	public void setup() throws Exception {
+		final Configuration configuration = new Configuration();
 		frontend = new CliFrontend(
-			new Configuration(),
-		  Collections.singletonList(new DefaultCLI()));
+			configuration,
+		  	Collections.singletonList(new DefaultCLI(configuration)));
 	}
 
 	@Test
-	public void testNonExistingJarFile() {
-		try {
+	public void testNonExistingJarFile() throws Exception {
 		ProgramOptions options = mock(ProgramOptions.class);
 		when(options.getJarFilePath()).thenReturn("/some/none/existing/path");
 
