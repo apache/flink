@@ -63,20 +63,20 @@ public class CliFrontendCancelTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testMissingJobId() throws Exception {
 		String[] parameters = {};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-l"};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
@@ -116,10 +116,10 @@ public class CliFrontendCancelTest extends TestLogger {
 	public void testCancelWithSavepointWithoutJobId() throws Exception {
 		// Cancel with savepoint (with target directory), but no job ID
 		String[] parameters = { "-s", "targetDirectory" };
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.cancel(parameters);
 	}
 
@@ -127,10 +127,10 @@ public class CliFrontendCancelTest extends TestLogger {
 	public void testCancelWithSavepointWithoutParameters() throws Exception {
 		// Cancel with savepoint (no target directory) and no job ID
 		String[] parameters = { "-s" };
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.cancel(parameters);
 	}
 

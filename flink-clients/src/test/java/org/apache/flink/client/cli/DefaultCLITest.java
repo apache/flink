@@ -46,30 +46,25 @@ public class DefaultCLITest extends TestLogger {
 	 */
 	@Test
 	public void testConfigurationPassing() throws Exception {
-		final DefaultCLI defaultCLI = new DefaultCLI();
-
-		final String configurationDirectory = temporaryFolder.newFolder().getAbsolutePath();
-		final String[] args = {};
-
-		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+		final Configuration configuration = new Configuration();
 
 		final String localhost = "localhost";
 		final int port = 1234;
-		final Configuration configuration = new Configuration();
 
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
+		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
+
+		final String[] args = {};
+
+		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+
 		final InetSocketAddress expectedAddress = new InetSocketAddress(localhost, port);
 
-		final ClusterDescriptor<?> clusterDescriptor = defaultCLI.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final ClusterDescriptor<?> clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
 
-		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(
-			configuration,
-			commandLine));
+		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
 		Assert.assertEquals(expectedAddress, clusterClient.getJobManagerAddress());
 	}
@@ -79,15 +74,6 @@ public class DefaultCLITest extends TestLogger {
 	 */
 	@Test
 	public void testManualConfigurationOverride() throws Exception {
-		final DefaultCLI defaultCLI = new DefaultCLI();
-
-		final String manualHostname = "123.123.123.123";
-		final int manualPort = 4321;
-		final String configurationDirectory = temporaryFolder.newFolder().getAbsolutePath();
-		final String[] args = {"-m", manualHostname + ':' + manualPort};
-
-		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
-
 		final String localhost = "localhost";
 		final int port = 1234;
 		final Configuration configuration = new Configuration();
@@ -95,14 +81,17 @@ public class DefaultCLITest extends TestLogger {
 		configuration.setString(JobManagerOptions.ADDRESS, localhost);
 		configuration.setInteger(JobManagerOptions.PORT, port);
 
-		final ClusterDescriptor<?> clusterDescriptor = defaultCLI.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final DefaultCLI defaultCLI = new DefaultCLI(configuration);
 
-		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(
-			configuration,
-			commandLine));
+		final String manualHostname = "123.123.123.123";
+		final int manualPort = 4321;
+		final String[] args = {"-m", manualHostname + ':' + manualPort};
+
+		CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
+
+		final ClusterDescriptor<?> clusterDescriptor = defaultCLI.createClusterDescriptor(commandLine);
+
+		final ClusterClient clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
 		final InetSocketAddress expectedAddress = new InetSocketAddress(manualHostname, manualPort);
 
