@@ -19,32 +19,29 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.cli.CommandLineOptions;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.client.util.MockedCliFrontend;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.messages.JobManagerMessages;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 
-import akka.dispatch.Futures;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.zip.ZipOutputStream;
 
-import scala.concurrent.Future;
-import scala.concurrent.Promise;
-import scala.concurrent.duration.FiniteDuration;
-
-import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepoint;
-import static org.apache.flink.runtime.messages.JobManagerMessages.DisposeSavepointFailure;
-import static org.apache.flink.runtime.messages.JobManagerMessages.getDisposeSavepointSuccess;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -60,7 +57,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the SAVEPOINT command.
  */
-public class CliFrontendSavepointTest {
+public class CliFrontendSavepointTest extends TestLogger {
 
 	private static PrintStream stdOut;
 	private static PrintStream stdErr;
@@ -77,23 +74,26 @@ public class CliFrontendSavepointTest {
 	public void testTriggerSavepointSuccess() throws Exception {
 		replaceStdOutAndStdErr();
 
+		JobID jobId = new JobID();
+
+		String savepointPath = "expectedSavepointPath";
+
+		final ClusterClient clusterClient = createClusterClient(savepointPath);
+
 		try {
-			JobID jobId = new JobID();
-
-			String savepointPath = "expectedSavepointPath";
-
-			MockedCliFrontend frontend = new SavepointTestCliFrontend(savepointPath);
+			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString() };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertEquals(0, returnCode);
-			verify(frontend.client, times(1))
+			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), isNull(String.class));
 
 			assertTrue(buffer.toString().contains(savepointPath));
 		}
 		finally {
+			clusterClient.shutdown();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -102,23 +102,27 @@ public class CliFrontendSavepointTest {
 	public void testTriggerSavepointFailure() throws Exception {
 		replaceStdOutAndStdErr();
 
+		JobID jobId = new JobID();
+
+		String expectedTestException = "expectedTestException";
+		Exception testException = new Exception(expectedTestException);
+
+		final ClusterClient clusterClient = createFailingClusterClient(testException);
+
 		try {
-			JobID jobId = new JobID();
-
-			Exception testException = new Exception("expectedTestException");
-
-			MockedCliFrontend frontend = new SavepointTestCliFrontend(testException);
+			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString() };
+
 			int returnCode = frontend.savepoint(parameters);
 
 			assertNotEquals(0, returnCode);
-			verify(frontend.client, times(1))
-				.triggerSavepoint(eq(jobId), isNull(String.class));
 
-			assertTrue(buffer.toString().contains("expectedTestException"));
+			assertTrue(buffer.toString().contains(expectedTestException));
 		}
 		finally {
+
+			clusterClient.shutdown();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -128,13 +132,15 @@ public class CliFrontendSavepointTest {
 		replaceStdOutAndStdErr();
 
 		try {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new MockedCliFrontend(new StandaloneClusterClient(
+				new Configuration(),
+				new TestingHighAvailabilityServices()));
 
 			String[] parameters = { "invalid job id" };
 			int returnCode = frontend.savepoint(parameters);
 
-			assertTrue(returnCode != 0);
 			assertTrue(buffer.toString().contains("not a valid ID"));
+			assertNotEquals(0, returnCode);
 		}
 		finally {
 			restoreStdOutAndStdErr();
@@ -149,23 +155,27 @@ public class CliFrontendSavepointTest {
 	public void testTriggerSavepointCustomTarget() throws Exception {
 		replaceStdOutAndStdErr();
 
+		JobID jobId = new JobID();
+
+		String savepointDirectory = "customTargetDirectory";
+
+		final ClusterClient clusterClient = createClusterClient(savepointDirectory);
+
 		try {
-			JobID jobId = new JobID();
-
-			String savepointDirectory = "customTargetDirectory";
-
-			MockedCliFrontend frontend = new SavepointTestCliFrontend(savepointDirectory);
+			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString(), savepointDirectory };
 			int returnCode = frontend.savepoint(parameters);
 
 			assertEquals(0, returnCode);
-			verify(frontend.client, times(1))
+			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), eq(savepointDirectory));
 
 			assertTrue(buffer.toString().contains(savepointDirectory));
 		}
 		finally {
+			clusterClient.shutdown();
+
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -178,65 +188,24 @@ public class CliFrontendSavepointTest {
 	public void testDisposeSavepointSuccess() throws Exception {
 		replaceStdOutAndStdErr();
 
+		String savepointPath = "expectedSavepointPath";
+
+		ClusterClient clusterClient = new DisposeSavepointClusterClient(
+			(String path, Time timeout) -> CompletableFuture.completedFuture(Acknowledge.get()));
+
 		try {
-			String savepointPath = "expectedSavepointPath";
-			ActorGateway jobManager = mock(ActorGateway.class);
 
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
-
-			when(jobManager.ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath)),
-					any(FiniteDuration.class))).thenReturn(triggerResponse.future());
-
-			triggerResponse.success(getDisposeSavepointSuccess());
-
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
+			CliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { "-d", savepointPath };
-			int returnCode = frontend.savepoint(parameters);
-
-			assertEquals(0, returnCode);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath)),
-					any(FiniteDuration.class));
+			frontend.savepoint(parameters);
 
 			String outMsg = buffer.toString();
 			assertTrue(outMsg.contains(savepointPath));
 			assertTrue(outMsg.contains("disposed"));
 		}
 		finally {
-			restoreStdOutAndStdErr();
-		}
-	}
-
-	/**
-	 * Tests that a disposal failure due a  ClassNotFoundException triggers a
-	 * note about the JAR option.
-	 */
-	@Test
-	public void testDisposeClassNotFoundException() throws Exception {
-		replaceStdOutAndStdErr();
-
-		try {
-			Future<Object> classNotFoundFailure = Futures
-					.<Object>successful(new DisposeSavepointFailure(new ClassNotFoundException("Test exception")));
-
-			ActorGateway jobManager = mock(ActorGateway.class);
-			when(jobManager.ask(any(DisposeSavepoint.class), any(FiniteDuration.class)))
-					.thenReturn(classNotFoundFailure);
-
-			CliFrontend frontend = new MockCliFrontend(CliFrontendTestUtils.getConfigDir(), jobManager);
-
-			String[] parameters = { "-d", "any-path" };
-
-			int returnCode = frontend.savepoint(parameters);
-			assertTrue(returnCode != 0);
-
-			String out = buffer.toString();
-			assertTrue(out.contains("Please provide the program jar with which you have created " +
-					"the savepoint via -j <JAR> for disposal"));
-		} finally {
+			clusterClient.shutdown();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -248,23 +217,32 @@ public class CliFrontendSavepointTest {
 	public void testDisposeWithJar() throws Exception {
 		replaceStdOutAndStdErr();
 
-		try {
-			ActorGateway jobManager = mock(ActorGateway.class);
-			when(jobManager.ask(any(DisposeSavepoint.class), any(FiniteDuration.class)))
-					.thenReturn(Futures.successful(JobManagerMessages.getDisposeSavepointSuccess()));
+		final CompletableFuture<String> disposeSavepointFuture = new CompletableFuture<>();
 
-			CliFrontend frontend = new MockCliFrontend(CliFrontendTestUtils.getConfigDir(), jobManager);
+		final ClusterClient clusterClient = new DisposeSavepointClusterClient(
+			(String savepointPath, Time timeout) -> {
+				disposeSavepointFuture.complete(savepointPath);
+				return CompletableFuture.completedFuture(Acknowledge.get());
+			});
+
+		try {
+			CliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			// Fake JAR file
 			File f = tmp.newFile();
 			ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
 			out.close();
 
-			String[] parameters = { "-d", "any-path", "-j", f.getAbsolutePath() };
+			final String disposePath = "any-path";
+			String[] parameters = { "-d", disposePath, "-j", f.getAbsolutePath() };
 
-			int returnCode = frontend.savepoint(parameters);
-			assertEquals(0, returnCode);
+			frontend.savepoint(parameters);
+
+			final String actualSavepointPath = disposeSavepointFuture.get();
+
+			assertEquals(disposePath, actualSavepointPath);
 		} finally {
+			clusterClient.shutdown();
 			restoreStdOutAndStdErr();
 		}
 	}
@@ -273,92 +251,44 @@ public class CliFrontendSavepointTest {
 	public void testDisposeSavepointFailure() throws Exception {
 		replaceStdOutAndStdErr();
 
-		try {
-			String savepointPath = "expectedSavepointPath";
-			ActorGateway jobManager = mock(ActorGateway.class);
+		String savepointPath = "expectedSavepointPath";
 
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
+		Exception testException = new Exception("expectedTestException");
 
-			when(jobManager.ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath)),
-					any(FiniteDuration.class)))
-					.thenReturn(triggerResponse.future());
-
-			Exception testException = new Exception("expectedTestException");
-
-			triggerResponse.success(new DisposeSavepointFailure(testException));
-
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
-
-			String[] parameters = { "-d", savepointPath };
-			int returnCode = frontend.savepoint(parameters);
-
-			assertTrue(returnCode != 0);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath)),
-					any(FiniteDuration.class));
-
-			assertTrue(buffer.toString().contains("expectedTestException"));
-		}
-		finally {
-			restoreStdOutAndStdErr();
-		}
-	}
-
-	@Test
-	public void testDisposeSavepointFailureUnknownResponse() throws Exception {
-		replaceStdOutAndStdErr();
+		ClusterClient clusterClient = new DisposeSavepointClusterClient((String path, Time timeout) -> FutureUtils.completedExceptionally(testException));
 
 		try {
-			String savepointPath = "expectedSavepointPath";
-			ActorGateway jobManager = mock(ActorGateway.class);
-
-			Promise<Object> triggerResponse = new scala.concurrent.impl.Promise.DefaultPromise<>();
-
-			when(jobManager.ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath)),
-					any(FiniteDuration.class)))
-					.thenReturn(triggerResponse.future());
-
-			triggerResponse.success("UNKNOWN RESPONSE");
-
-			CliFrontend frontend = new MockCliFrontend(
-					CliFrontendTestUtils.getConfigDir(), jobManager);
+			CliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { "-d", savepointPath };
+
 			int returnCode = frontend.savepoint(parameters);
 
-			assertTrue(returnCode != 0);
-			verify(jobManager, times(1)).ask(
-					Mockito.eq(new DisposeSavepoint(savepointPath)),
-					any(FiniteDuration.class));
+			assertNotEquals(0, returnCode);
 
-			String errMsg = buffer.toString();
-			assertTrue(errMsg.contains("IllegalStateException"));
-			assertTrue(errMsg.contains("Unknown JobManager response"));
+			assertTrue(buffer.toString().contains(testException.getMessage()));
 		}
 		finally {
+			clusterClient.shutdown();
 			restoreStdOutAndStdErr();
 		}
-
-		replaceStdOutAndStdErr();
 	}
 
 	// ------------------------------------------------------------------------
 
-	private static class MockCliFrontend extends CliFrontend {
+	private static final class DisposeSavepointClusterClient extends StandaloneClusterClient {
 
-		private final ActorGateway mockJobManager;
+		final BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		public MockCliFrontend(String configDir, ActorGateway mockJobManager) throws Exception {
-			super(configDir);
-			this.mockJobManager = mockJobManager;
+		public DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction) throws Exception {
+			super(new Configuration(), new TestingHighAvailabilityServices());
+
+			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
 		}
 
 		@Override
-		protected ActorGateway getJobManagerGateway(CommandLineOptions options) throws Exception {
-			return mockJobManager;
+		public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) {
+			return disposeSavepointFunction.apply(savepointPath, timeout);
 		}
 	}
 
@@ -376,16 +306,21 @@ public class CliFrontendSavepointTest {
 		System.setErr(stdErr);
 	}
 
-	private static final class SavepointTestCliFrontend extends MockedCliFrontend {
+	private static ClusterClient createClusterClient(String expectedResponse) throws Exception {
+		final ClusterClient clusterClient = mock(ClusterClient.class);
 
-		SavepointTestCliFrontend(String expectedResponse) throws Exception {
-			when(client.triggerSavepoint(any(JobID.class), anyString()))
-				.thenReturn(CompletableFuture.completedFuture(expectedResponse));
-		}
+		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
+			.thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
-		SavepointTestCliFrontend(Exception expectedException) throws Exception {
-			when(client.triggerSavepoint(any(JobID.class), anyString()))
-				.thenReturn(FutureUtils.completedExceptionally(expectedException));
-		}
+		return clusterClient;
+	}
+
+	private static ClusterClient createFailingClusterClient(Exception expectedException) throws Exception {
+		final ClusterClient clusterClient = mock(ClusterClient.class);
+
+		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
+			.thenReturn(FutureUtils.completedExceptionally(expectedException));
+
+		return clusterClient;
 	}
 }
