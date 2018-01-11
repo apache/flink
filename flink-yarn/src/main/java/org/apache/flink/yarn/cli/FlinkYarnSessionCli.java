@@ -76,7 +76,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -613,7 +614,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 						"Flink on YARN, use the following command or a YARN web interface to stop it:\n" +
 						"yarn application -kill " + applicationId.getOpt());
 				} else {
-					ScheduledThreadPoolExecutor scheduledExecutorService = new ScheduledThreadPoolExecutor(1);
+					ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
 					final YarnApplicationStatusMonitor yarnApplicationStatusMonitor = new YarnApplicationStatusMonitor(
 						yarnClusterDescriptor.getYarnClient(),
@@ -676,23 +677,19 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	}
 
 	private void logFinalApplicationReport(ApplicationReport appReport) {
-		try {
-			LOG.info("Application " + appReport.getApplicationId() + " finished with state " + appReport
-				.getYarnApplicationState() + " and final state " + appReport
-				.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
+		LOG.info("Application " + appReport.getApplicationId() + " finished with state " + appReport
+			.getYarnApplicationState() + " and final state " + appReport
+			.getFinalApplicationStatus() + " at " + appReport.getFinishTime());
 
-			if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED || appReport.getYarnApplicationState()
-				== YarnApplicationState.KILLED) {
-				LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
-				LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
-					+ "the full application log using this command:"
-					+ System.lineSeparator()
-					+ "\tyarn logs -applicationId " + appReport.getApplicationId()
-					+ System.lineSeparator()
-					+ "(It sometimes takes a few seconds until the logs are aggregated)");
-			}
-		} catch (Exception e) {
-			LOG.warn("Couldn't get final report", e);
+		if (appReport.getYarnApplicationState() == YarnApplicationState.FAILED || appReport.getYarnApplicationState()
+			== YarnApplicationState.KILLED) {
+			LOG.warn("Application failed. Diagnostics " + appReport.getDiagnostics());
+			LOG.warn("If log aggregation is activated in the Hadoop cluster, we recommend to retrieve "
+				+ "the full application log using this command:"
+				+ System.lineSeparator()
+				+ "\tyarn logs -applicationId " + appReport.getApplicationId()
+				+ System.lineSeparator()
+				+ "(It sometimes takes a few seconds until the logs are aggregated)");
 		}
 	}
 
@@ -793,9 +790,9 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine {
 	}
 
 	private static void runInteractiveCli(
-		ClusterClient clusterClient,
-		YarnApplicationStatusMonitor yarnApplicationStatusMonitor,
-		boolean readConsoleInput) {
+			ClusterClient clusterClient,
+			YarnApplicationStatusMonitor yarnApplicationStatusMonitor,
+			boolean readConsoleInput) {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 			boolean continueRepl = true;
 			int numTaskmanagers = 0;
