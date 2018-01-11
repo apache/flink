@@ -174,7 +174,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		private static class JarAgnosticClusterDescriptor extends YarnClusterDescriptor {
 			public JarAgnosticClusterDescriptor(Configuration flinkConfiguration, String configurationDirectory) {
-				super(flinkConfiguration, configurationDirectory);
+				super(
+					flinkConfiguration,
+					configurationDirectory,
+					YarnClient.createYarnClient());
 			}
 
 			@Override
@@ -202,7 +205,6 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 			super(descriptor,
 				numberTaskManagers,
 				slotsPerTaskManager,
-				Mockito.mock(YarnClient.class),
 				Mockito.mock(ApplicationReport.class),
 				config,
 				false);
