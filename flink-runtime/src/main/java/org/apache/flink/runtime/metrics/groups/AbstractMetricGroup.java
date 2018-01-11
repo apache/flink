@@ -352,7 +352,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 		// add the metric only if the group is still open
 		synchronized (this) {
 			if (!closed) {
-				// immediately put without a 'contains' check to optimize the common case (no collition)
+				// immediately put without a 'contains' check to optimize the common case (no collision)
 				// collisions are resolved later
 				Metric prior = metrics.put(name, metric);
 
