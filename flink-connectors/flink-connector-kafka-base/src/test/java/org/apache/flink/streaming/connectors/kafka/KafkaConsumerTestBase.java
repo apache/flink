@@ -628,17 +628,26 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 	}
 
 	/**
-	 * This test ensures that the consumer correctly uses user-supplied specific date when explicitly configured to
-	 * start from specific date.
+	 * This test ensures that the consumer correctly uses user-supplied timestamp when explicitly configured to
+	 * start from timestamp.
 	 *
-	 * <p>When configured to start from first start date, each partition should start from offset 0 and read 100 records.
-	 * And when configured to start from second start date, each partition should start from 50 and read 50 records.
+	 * <p>The validated Kafka data is written in 2 steps: first, an initial 50 records is written to each partition.
+	 * After that, another 30 records is appended to each partition. Before each step, a timestamp is recorded.
+	 * For the validation, when the read job is configured to start from the first timestamp, each partition should start
+	 * from offset 0 and read a total of 80 records. When configured to start from the second timestamp,
+	 * each partition should start from offset 50 and read on the remaining 30 appended records.
 	 */
 	public void runStartFromTimestamp() throws Exception {
 		// 4 partitions with 50 records each
 		final int parallelism = 4;
-		final int recordsInEachPartition = 50;
-		TopicWithStartDate topicWithStartDate = writeAppendSequence("runStartFromTimestamp", recordsInEachPartition, parallelism, 1);
+		final int initialRecordsInEachPartition = 50;
+		final int appendRecordsInEachPartition = 30;
+
+		long firstTimestamp = System.currentTimeMillis();
+		String topic = writeSequence("runStartFromTimestamp", initialRecordsInEachPartition, parallelism, 1);
+
+		long secondTimestamp = System.currentTimeMillis();
+		writeAppendSequence(topic, initialRecordsInEachPartition, appendRecordsInEachPartition, parallelism);
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.getConfig().disableSysoutLogging();
@@ -647,12 +656,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		Properties readProps = new Properties();
 		readProps.putAll(standardProps);
 
-		readSequence(env, StartupMode.TIMESTAMP, null, topicWithStartDate.getFirstStartDate().getTime(),
-			readProps, parallelism, topicWithStartDate.getTopicName(), recordsInEachPartition * 2, 0);
-		readSequence(env, StartupMode.TIMESTAMP, null, topicWithStartDate.getSecondStartDate().getTime(),
-			readProps, parallelism, topicWithStartDate.getTopicName(), recordsInEachPartition, recordsInEachPartition);
+		readSequence(env, StartupMode.TIMESTAMP, null, firstTimestamp,
+			readProps, parallelism, topic, initialRecordsInEachPartition + appendRecordsInEachPartition, 0);
+		readSequence(env, StartupMode.TIMESTAMP, null, secondTimestamp,
+			readProps, parallelism, topic, appendRecordsInEachPartition, initialRecordsInEachPartition);
 
-		deleteTestTopic(topicWithStartDate.getTopicName());
+		deleteTestTopic(topic);
 	}
 
 	/**
@@ -1892,7 +1901,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			final String topicName = baseTopicName + '-' + attempt;
 
-			LOG.info("Writing attempt #1");
+			LOG.info("Writing attempt #" + attempt);
 
 			// -------- Write the Sequence --------
 
@@ -1950,76 +1959,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 
 			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 
-			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-			readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			readEnv.getConfig().disableSysoutLogging();
-			readEnv.setParallelism(parallelism);
-
-			Properties readProps = (Properties) standardProps.clone();
-			readProps.setProperty("group.id", "flink-tests-validator");
-			readProps.putAll(secureProps);
-			FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deserSchema, readProps);
-
-			readEnv
-					.addSource(consumer)
-					.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
-
-						private final int totalCount = parallelism * numElements;
-						private int count = 0;
-
-						@Override
-						public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-							if (++count == totalCount) {
-								throw new SuccessException();
-							} else {
-								return value;
-							}
-						}
-					}).setParallelism(1)
-					.addSink(new DiscardingSink<Tuple2<Integer, Integer>>()).setParallelism(1);
-
-			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-			Thread runner = new Thread() {
-				@Override
-				public void run() {
-					try {
-						tryExecute(readEnv, "sequence validation");
-					} catch (Throwable t) {
-						errorRef.set(t);
-					}
-				}
-			};
-			runner.start();
-
-			final long deadline = System.nanoTime() + 10_000_000_000L;
-			long delay;
-			while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
-				runner.join(delay / 1_000_000L);
-			}
-
-			boolean success;
-
-			if (runner.isAlive()) {
-				// did not finish in time, maybe the producer dropped one or more records and
-				// the validation did not reach the exit point
-				success = false;
-				JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
-			}
-			else {
-				Throwable error = errorRef.get();
-				if (error != null) {
-					success = false;
-					LOG.info("Attempt " + attempt + " failed with exception", error);
-				}
-				else {
-					success = true;
-				}
-			}
-
-			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-
-			if (success) {
+			if (validateSequence(topicName, parallelism, deserSchema, numElements)) {
 				// everything is good!
 				return topicName;
 			}
@@ -2032,13 +1972,14 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 		throw new Exception("Could not write a valid sequence to Kafka after " + maxNumAttempts + " attempts");
 	}
 
-	protected TopicWithStartDate writeAppendSequence(
-		String baseTopicName,
-		final int numElements,
-		final int parallelism,
-		final int replicationFactor) throws Exception {
+	protected void writeAppendSequence(
+			String topicName,
+			final int originalNumElements,
+			final int numElementsToAppend,
+			final int parallelism) throws Exception {
+
 		LOG.info("\n===================================\n" +
-			"== Writing sequence of " + numElements + " into " + baseTopicName + " with p=" + parallelism + "\n" +
+			"== Appending sequence of " + numElementsToAppend + " into " + topicName +
 			"===================================");
 
 		final TypeInformation<Tuple2<Integer, Integer>> resultType =
@@ -2052,224 +1993,137 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBase {
 			new KeyedDeserializationSchemaWrapper<>(
 				new TypeInformationSerializationSchema<>(resultType, new ExecutionConfig()));
 
-		final int maxNumAttempts = 10;
+		// -------- Write the append sequence --------
 
-		final List<Tuple2<Integer, Integer>> kafkaTupleList = new ArrayList<>();
-		for (int attempt = 1; attempt <= maxNumAttempts; attempt++) {
+		StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		writeEnv.getConfig().disableSysoutLogging();
 
-			final String topicName = baseTopicName + '-' + attempt;
+		DataStream<Tuple2<Integer, Integer>> stream = writeEnv.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
 
-			LOG.info("Writing attempt #1");
+			private boolean running = true;
 
-			// -------- Write the Sequence --------
+			@Override
+			public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
+				int cnt = originalNumElements;
+				int partition = getRuntimeContext().getIndexOfThisSubtask();
 
-			createTestTopic(topicName, parallelism, replicationFactor);
-
-			Date firstStartDate = new Date();
-			StreamExecutionEnvironment writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-			writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			writeEnv.getConfig().disableSysoutLogging();
-
-			DataStream<Tuple2<Integer, Integer>> stream = writeEnv.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
-
-				private boolean running = true;
-
-				@Override
-				public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-					int cnt = 0;
-					int partition = getRuntimeContext().getIndexOfThisSubtask();
-
-					while (running && cnt < numElements) {
-						ctx.collect(new Tuple2<>(partition, cnt));
-						cnt++;
-					}
-				}
-
-				@Override
-				public void cancel() {
-					running = false;
-				}
-			}).setParallelism(parallelism);
-
-			// the producer must not produce duplicates
-			Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
-			producerProperties.setProperty("retries", "0");
-			producerProperties.putAll(secureProps);
-
-			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
-				.setParallelism(parallelism);
-
-			try {
-				writeEnv.execute("Write sequence");
-			}
-			catch (Exception e) {
-				LOG.error("Write attempt failed, trying again", e);
-				deleteTestTopic(topicName);
-				JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-				continue;
-			}
-
-			Thread.sleep(10);
-			Date secondStartDate = new Date();
-			writeEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-			writeEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			writeEnv.getConfig().disableSysoutLogging();
-
-			stream = writeEnv.addSource(new RichParallelSourceFunction<Tuple2<Integer, Integer>>() {
-
-				private boolean running = true;
-
-				@Override
-				public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-					int cnt = numElements;
-					int partition = getRuntimeContext().getIndexOfThisSubtask();
-
-					while (running && cnt < numElements + numElements) {
-						ctx.collect(new Tuple2<>(partition, cnt));
-						cnt++;
-					}
-				}
-
-				@Override
-				public void cancel() {
-					running = false;
-				}
-			}).setParallelism(parallelism);
-
-			// the producer must not produce duplicates
-			producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
-			producerProperties.setProperty("retries", "0");
-			producerProperties.putAll(secureProps);
-
-			kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
-				.setParallelism(parallelism);
-
-			try {
-				writeEnv.execute("Write sequence");
-			}
-			catch (Exception e) {
-				LOG.error("Write attempt failed, trying again", e);
-				deleteTestTopic(topicName);
-				JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-				continue;
-			}
-
-			LOG.info("Finished writing sequence");
-
-			// -------- Validate the Sequence --------
-
-			// we need to validate the sequence, because kafka's producers are not exactly once
-			LOG.info("Validating sequence");
-
-			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
-
-			final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-			readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-			readEnv.getConfig().disableSysoutLogging();
-			readEnv.setParallelism(parallelism);
-
-			Properties readProps = (Properties) standardProps.clone();
-			readProps.setProperty("group.id", "flink-tests-validator");
-			readProps.putAll(secureProps);
-			FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topicName, deserSchema, readProps);
-
-			readEnv
-				.addSource(consumer)
-				.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
-
-					private final int totalCount = parallelism * (numElements + 1);
-					private int count = 0;
-
-					@Override
-					public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
-						if (++count == totalCount) {
-							throw new SuccessException();
-						} else {
-							return value;
-						}
-					}
-				}).setParallelism(1)
-				.addSink(new DiscardingSink<Tuple2<Integer, Integer>>()).setParallelism(1);
-
-			final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-			Thread runner = new Thread() {
-				@Override
-				public void run() {
-					try {
-						tryExecute(readEnv, "sequence validation");
-					} catch (Throwable t) {
-						errorRef.set(t);
-					}
-				}
-			};
-			runner.start();
-
-			final long deadline = System.nanoTime() + 10_000_000_000L;
-			long delay;
-			while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
-				runner.join(delay / 1_000_000L);
-			}
-
-			boolean success;
-
-			if (runner.isAlive()) {
-				// did not finish in time, maybe the producer dropped one or more records and
-				// the validation did not reach the exit point
-				success = false;
-				JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
-			}
-			else {
-				Throwable error = errorRef.get();
-				if (error != null) {
-					success = false;
-					LOG.info("Attempt " + attempt + " failed with exception", error);
-				}
-				else {
-					success = true;
+				while (running && cnt < numElementsToAppend + originalNumElements) {
+					ctx.collect(new Tuple2<>(partition, cnt));
+					cnt++;
 				}
 			}
 
-			JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+			@Override
+			public void cancel() {
+				running = false;
+			}
+		}).setParallelism(parallelism);
 
-			if (success) {
-				// everything is good!
-				return new TopicWithStartDate(topicName, firstStartDate, secondStartDate);
-			}
-			else {
-				deleteTestTopic(topicName);
-				// fall through the loop
-			}
+		// the producer must not produce duplicates
+		Properties producerProperties = FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+		producerProperties.setProperty("retries", "0");
+		producerProperties.putAll(secureProps);
+
+		kafkaServer.produceIntoKafka(stream, topicName, serSchema, producerProperties, new Tuple2FlinkPartitioner(parallelism))
+			.setParallelism(parallelism);
+
+		try {
+			writeEnv.execute("Write sequence");
+		}
+		catch (Exception e) {
+			throw new Exception("Failed to append sequence to Kafka; append job failed.", e);
 		}
 
-		throw new Exception("Could not write a valid sequence to Kafka after " + maxNumAttempts + " attempts");
+		LOG.info("Finished writing append sequence");
+
+		// we need to validate the sequence, because kafka's producers are not exactly once
+		LOG.info("Validating sequence");
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
+
+		if (!validateSequence(topicName, parallelism, deserSchema, originalNumElements + numElementsToAppend)) {
+			throw new Exception("Could not append a valid sequence to Kafka.");
+		}
 	}
 
-	/**
-	 * Pojo class for consumer with date.
-	 */
-	public static class TopicWithStartDate {
-		private final String topicName;
-		private final Date firstStartDate;
-		private final Date secondStartDate;
+	private boolean validateSequence(
+			final String topic,
+			final int parallelism,
+			KeyedDeserializationSchema<Tuple2<Integer, Integer>> deserSchema,
+			final int totalNumElements) throws Exception {
 
-		public TopicWithStartDate(String topicName, Date firstStartDate, Date secondStartDate) {
-			this.topicName = topicName;
-			this.firstStartDate = firstStartDate;
-			this.secondStartDate = secondStartDate;
+		final StreamExecutionEnvironment readEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		readEnv.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+		readEnv.getConfig().disableSysoutLogging();
+		readEnv.setParallelism(parallelism);
+
+		Properties readProps = (Properties) standardProps.clone();
+		readProps.setProperty("group.id", "flink-tests-validator");
+		readProps.putAll(secureProps);
+		FlinkKafkaConsumerBase<Tuple2<Integer, Integer>> consumer = kafkaServer.getConsumer(topic, deserSchema, readProps);
+		consumer.setStartFromEarliest();
+
+		readEnv
+			.addSource(consumer)
+			.map(new RichMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>() {
+
+				private final int totalCount = parallelism * totalNumElements;
+				private int count = 0;
+
+				@Override
+				public Tuple2<Integer, Integer> map(Tuple2<Integer, Integer> value) throws Exception {
+					System.out.println(count);
+					if (++count == totalCount) {
+						throw new SuccessException();
+					} else {
+						return value;
+					}
+				}
+			}).setParallelism(1)
+			.addSink(new DiscardingSink<>()).setParallelism(1);
+
+		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+
+		Thread runner = new Thread() {
+			@Override
+			public void run() {
+				try {
+					tryExecute(readEnv, "sequence validation");
+				} catch (Throwable t) {
+					errorRef.set(t);
+				}
+			}
+		};
+		runner.start();
+
+		final long deadline = System.nanoTime() + 10_000_000_000L;
+		long delay;
+		while (runner.isAlive() && (delay = deadline - System.nanoTime()) > 0) {
+			runner.join(delay / 1_000_000L);
 		}
 
-		public String getTopicName() {
-			return topicName;
+		boolean success;
+
+		if (runner.isAlive()) {
+			// did not finish in time, maybe the producer dropped one or more records and
+			// the validation did not reach the exit point
+			success = false;
+			JobManagerCommunicationUtils.cancelCurrentJob(flink.getLeaderGateway(timeout));
+		}
+		else {
+			Throwable error = errorRef.get();
+			if (error != null) {
+				success = false;
+				LOG.info("Sequence validation job failed with exception", error);
+			}
+			else {
+				success = true;
+			}
 		}
 
-		public Date getFirstStartDate() {
-			return firstStartDate;
-		}
+		JobManagerCommunicationUtils.waitUntilNoJobIsRunning(flink.getLeaderGateway(timeout));
 
-		public Date getSecondStartDate() {
-			return secondStartDate;
-		}
+		return success;
 	}
 
 	// ------------------------------------------------------------------------
