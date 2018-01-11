@@ -20,6 +20,8 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -27,11 +29,13 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.util.Collections;
+
 import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 
@@ -53,20 +57,13 @@ public class CliFrontendStopTest extends TestLogger {
 			String jidString = jid.toString();
 
 			String[] parameters = { jidString };
-			StopTestCliFrontend testFrontend = new StopTestCliFrontend(false);
+			final ClusterClient clusterClient = createClusterClient(false);
+			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
 			int retCode = testFrontend.stop(parameters);
 			assertEquals(0, retCode);
 
-			Mockito.verify(testFrontend.client, times(1)).stop(any(JobID.class));
-		}
-
-		// test flip6 switch
-		{
-			String[] parameters =
-				{"-flip6", String.valueOf(new JobID())};
-			StopOptions options = CliFrontendParser.parseStopCommand(parameters);
-			assertTrue(options.getCommandLine().hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
+			Mockito.verify(clusterClient, times(1)).stop(any(JobID.class));
 		}
 	}
 
@@ -74,7 +71,10 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = { "-v", "-l" };
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.stop(parameters);
 
 		fail("Should have failed.");
@@ -84,7 +84,10 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testMissingJobId() throws Exception {
 		// test missing job id
 		String[] parameters = {};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.stop(parameters);
 
 		fail("Should have failed.");
@@ -96,7 +99,8 @@ public class CliFrontendStopTest extends TestLogger {
 		JobID jid = new JobID();
 
 		String[] parameters = { jid.toString() };
-		StopTestCliFrontend testFrontend = new StopTestCliFrontend(true);
+		final ClusterClient clusterClient = createClusterClient(true);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
 		testFrontend.stop(parameters);
 		fail("Should have failed.");
@@ -110,12 +114,13 @@ public class CliFrontendStopTest extends TestLogger {
 		}
 	}
 
-	private static final class StopTestCliFrontend extends MockedCliFrontend {
+	private static ClusterClient createClusterClient(boolean reject) throws Exception {
+		final ClusterClient clusterClient = mock(ClusterClient.class);
 
-		StopTestCliFrontend(boolean reject) throws Exception {
-			if (reject) {
-				doThrow(new TestException("Test Exception")).when(client).stop(any(JobID.class));
-			}
+		if (reject) {
+				doThrow(new TestException("Test Exception")).when(clusterClient).stop(any(JobID.class));
 		}
+
+		return clusterClient;
 	}
 }

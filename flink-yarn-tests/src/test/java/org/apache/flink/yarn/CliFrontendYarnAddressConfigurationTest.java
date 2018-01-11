@@ -33,8 +33,10 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
@@ -74,6 +76,8 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	private static final PrintStream OUT = System.out;
 	private static final PrintStream ERR = System.err;
 
+	private static FlinkYarnSessionCli cli;
+
 	@BeforeClass
 	public static void disableStdOutErr() {
 		class NullPrint extends OutputStream {
@@ -89,6 +93,8 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 		Map<String, String> map = new HashMap<>(System.getenv());
 		map.remove(ConfigConstants.ENV_FLINK_CONF_DIR);
 		TestBaseUtils.setEnv(map);
+
+		cli = new FlinkYarnSessionCli("y", "yarn");
 	}
 
 	@AfterClass
@@ -122,12 +128,21 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
 
-		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
+		Options options = CliFrontendParser.getRunCommandOptions();
+		cli.addGeneralOptions(options);
+		cli.addRunOptions(options);
 
-		frontend.retrieveClient(options);
+		final CommandLine commandLine = CliFrontendParser.parse(options, new String[] {}, true);
+
+		RunOptions runOptions = new RunOptions(commandLine);
+
+		frontend.retrieveClient(runOptions);
 		checkJobManagerAddress(
 			frontend.getConfiguration(),
 			TEST_YARN_JOB_MANAGER_ADDRESS,
@@ -140,8 +155,11 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
 
 		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
 
@@ -157,7 +175,10 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 
 		File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
 
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
 
 		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {});
 
@@ -174,8 +195,11 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	public void testResumeFromYarnID() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
 
 		RunOptions options =
 			CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
@@ -191,13 +215,19 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	@Test
 	public void testResumeFromYarnIDZookeeperNamespace() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		TestCLI frontend = new CustomYarnTestCLI(new Configuration(), directoryPath.getAbsolutePath());
 
-		RunOptions options =
-				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+		Options options = CliFrontendParser.getRunCommandOptions();
+		cli.addGeneralOptions(options);
+		cli.addRunOptions(options);
 
-		frontend.retrieveClient(options);
+		final CommandLine commandLine = CliFrontendParser.parse(options, new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()}, true);
+
+		RunOptions runOptions = new RunOptions(commandLine);
+
+		frontend.retrieveClient(runOptions);
 		String zkNs = frontend.getConfiguration().getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 		Assert.assertTrue(zkNs.matches("application_\\d+_0042"));
 	}
@@ -205,13 +235,23 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	@Test
 	public void testResumeFromYarnIDZookeeperNamespaceOverride() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
-		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
-		String overrideZkNamespace = "my_cluster";
-		RunOptions options =
-				CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace});
 
-		frontend.retrieveClient(options);
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
+		// start CLI Frontend
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
+		String overrideZkNamespace = "my_cluster";
+
+		Options options = CliFrontendParser.getRunCommandOptions();
+		cli.addGeneralOptions(options);
+		cli.addRunOptions(options);
+
+		final CommandLine commandLine = CliFrontendParser.parse(options, new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace}, true);
+
+		RunOptions runOptions = new RunOptions(commandLine);
+
+		frontend.retrieveClient(runOptions);
 		String zkNs = frontend.getConfiguration().getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 		Assert.assertEquals(overrideZkNamespace, zkNs);
 	}
@@ -220,8 +260,11 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	public void testResumeFromInvalidYarnID() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
 
 		RunOptions options =
 			CliFrontendParser.parseRunCommand(new String[] {"-yid", ApplicationId.newInstance(0, 666).toString()});
@@ -237,8 +280,11 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	public void testResumeFromYarnIDWithFinishedApplication() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(validPropertiesFile);
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath(), FinalApplicationStatus.SUCCEEDED);
 
 		RunOptions options =
 			CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
@@ -255,13 +301,21 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	public void testYarnIDOverridesPropertiesFile() throws Exception {
 		File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
 
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
+
 		// start CLI Frontend
-		TestCLI frontend = new CustomYarnTestCLI(directoryPath.getAbsolutePath());
+		TestCLI frontend = new CustomYarnTestCLI(configuration, directoryPath.getAbsolutePath());
 
-		RunOptions options =
-			CliFrontendParser.parseRunCommand(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()});
+		Options options = CliFrontendParser.getRunCommandOptions();
+		cli.addGeneralOptions(options);
+		cli.addRunOptions(options);
 
-		frontend.retrieveClient(options);
+		final CommandLine commandLine = CliFrontendParser.parse(options, new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()}, true);
+
+		RunOptions runOptions = new RunOptions(commandLine);
+
+		frontend.retrieveClient(runOptions);
 
 		checkJobManagerAddress(
 			frontend.getConfiguration(),
@@ -276,7 +330,10 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 		File testConfFile = new File(emptyFolder.getAbsolutePath(), "flink-conf.yaml");
 		Files.createFile(testConfFile.toPath());
 
-		TestCLI frontend = new TestCLI(emptyFolder.getAbsolutePath());
+		final Configuration configuration = new Configuration();
+		configuration.setString(YarnConfigOptions.PROPERTIES_FILE_LOCATION, testConfFile.getAbsolutePath());
+
+		TestCLI frontend = new TestCLI(configuration, emptyFolder.getAbsolutePath());
 
 		RunOptions options = CliFrontendParser.parseRunCommand(new String[] {"-m", "10.221.130.22:7788"});
 
@@ -311,8 +368,11 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 	}
 
 	private static class TestCLI extends CliFrontend {
-		TestCLI(String configDir) throws Exception {
-			super(configDir);
+		TestCLI(Configuration configuration, String configDir) throws Exception {
+			super(
+				configuration,
+				CliFrontend.loadCustomCommandLines(),
+				configDir);
 		}
 
 		@Override
@@ -336,12 +396,15 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 		// the default application status for yarn applications to be retrieved
 		private final FinalApplicationStatus finalApplicationStatus;
 
-		CustomYarnTestCLI(String configDir) throws Exception {
-			this(configDir, FinalApplicationStatus.UNDEFINED);
+		CustomYarnTestCLI(Configuration configuration, String configDir) throws Exception {
+			this(configuration, configDir, FinalApplicationStatus.UNDEFINED);
 		}
 
-		CustomYarnTestCLI(String configDir, FinalApplicationStatus finalApplicationStatus) throws Exception {
-			super(configDir);
+		CustomYarnTestCLI(
+				Configuration configuration,
+				String configDir,
+				FinalApplicationStatus finalApplicationStatus) throws Exception {
+			super(configuration, configDir);
 			this.finalApplicationStatus = finalApplicationStatus;
 		}
 
@@ -369,7 +432,7 @@ public class CliFrontendYarnAddressConfigurationTest extends TestLogger {
 			}
 
 			/**
-			 * Replace the YarnClient for this test.
+			 * Replace the YarnClusterClient for this test.
 			 */
 			private class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 

@@ -71,7 +71,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -98,67 +97,47 @@ public class CliFrontend {
 	private static final String ACTION_STOP = "stop";
 	private static final String ACTION_SAVEPOINT = "savepoint";
 
-	// config dir parameters
+	// configuration dir parameters
 	private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
 	private static final String CONFIG_DIRECTORY_FALLBACK_2 = "conf";
 
 	// --------------------------------------------------------------------------------------------
 
-	private static final List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(3);
+	private final Configuration configuration;
 
-	static {
-		//	Command line interface of the YARN session, with a special initialization here
-		//	to prefix all options with y/yarn.
-		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
-		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
-		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
-		try {
-			customCommandLines.add(loadCustomCommandLine(flinkYarnSessionCLI, "y", "yarn"));
-		} catch (Exception e) {
-			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
-		}
-
-		customCommandLines.add(new Flip6DefaultCLI());
-		customCommandLines.add(new DefaultCLI());
-	}
-
-	// --------------------------------------------------------------------------------------------
-
-	private final Configuration config;
+	private final List<CustomCommandLine<?>> customCommandLines;
 
 	private final String configurationDirectory;
+
+	private final Options customCommandLineOptions;
 
 	private final FiniteDuration clientTimeout;
 
 	private final int defaultParallelism;
 
-	/**
-	 *
-	 * @throws Exception Thrown if the configuration directory was not found, the configuration could not be loaded
-	 */
-	public CliFrontend() throws Exception {
-		this(getConfigurationDirectoryFromEnv());
-	}
-
-	public CliFrontend(String configDir) throws Exception {
-		configurationDirectory = Preconditions.checkNotNull(configDir);
-
-		// configure the config directory
-		File configDirectory = new File(configDir);
-		LOG.info("Using configuration directory " + configDirectory.getAbsolutePath());
-
-		// load the configuration
-		LOG.info("Trying to load configuration file");
-		this.config = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
+	public CliFrontend(
+			Configuration configuration,
+			List<CustomCommandLine<?>> customCommandLines,
+			String configurationDirectory) throws Exception {
+		this.configuration = Preconditions.checkNotNull(configuration);
+		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
+		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 
 		try {
-			FileSystem.initialize(config);
+			FileSystem.initialize(this.configuration);
 		} catch (IOException e) {
 			throw new Exception("Error while setting the default " +
 				"filesystem scheme from configuration.", e);
 		}
 
-		this.clientTimeout = AkkaUtils.getClientTimeout(config);
+		this.customCommandLineOptions = new Options();
+
+		for (CustomCommandLine<?> customCommandLine : customCommandLines) {
+			customCommandLine.addGeneralOptions(customCommandLineOptions);
+			customCommandLine.addRunOptions(customCommandLineOptions);
+		}
+
+		this.clientTimeout = AkkaUtils.getClientTimeout(this.configuration);
 		this.defaultParallelism = GlobalConfiguration.loadConfiguration().getInteger(
 														ConfigConstants.DEFAULT_PARALLELISM_KEY,
 														ConfigConstants.DEFAULT_PARALLELISM);
@@ -176,7 +155,7 @@ public class CliFrontend {
 	public Configuration getConfiguration() {
 		Configuration copiedConfiguration = new Configuration();
 
-		copiedConfiguration.addAll(config);
+		copiedConfiguration.addAll(configuration);
 
 		return copiedConfiguration;
 	}
@@ -204,13 +183,15 @@ public class CliFrontend {
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
 
-		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, true);
 
 		final RunOptions runOptions = new RunOptions(commandLine);
 
 		// evaluate help flag
 		if (runOptions.isPrintHelp()) {
-			CliFrontendParser.printHelpForRun();
+			CliFrontendParser.printHelpForRun(customCommandLines);
 			return 0;
 		}
 
@@ -277,32 +258,32 @@ public class CliFrontend {
 
 		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, true);
 
-		InfoOptions options = new InfoOptions(commandLine);
+		InfoOptions infoOptions = new InfoOptions(commandLine);
 
 		// evaluate help flag
-		if (options.isPrintHelp()) {
+		if (infoOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForInfo();
 			return 0;
 		}
 
-		if (options.getJarFilePath() == null) {
+		if (infoOptions.getJarFilePath() == null) {
 			return handleArgException(new CliArgsException("The program JAR file was not specified."));
 		}
 
 		// -------- build the packaged program -------------
 
 		LOG.info("Building program from JAR file");
-		final PackagedProgram program = buildProgram(options);
+		final PackagedProgram program = buildProgram(infoOptions);
 
 		try {
-			int parallelism = options.getParallelism();
+			int parallelism = infoOptions.getParallelism();
 			if (ExecutionConfig.PARALLELISM_DEFAULT == parallelism) {
 				parallelism = defaultParallelism;
 			}
 
 			LOG.info("Creating program plan dump");
 
-			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+			Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
 			FlinkPlan flinkPlan = ClusterClient.getOptimizedPlan(compiler, program, parallelism);
 
 			String jsonPlan = null;
@@ -347,18 +328,20 @@ public class CliFrontend {
 
 		final Options commandOptions = CliFrontendParser.getListCommandOptions();
 
-		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, false);
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
 
-		ListOptions options = new ListOptions(commandLine);
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+
+		ListOptions listOptions = new ListOptions(commandLine);
 
 		// evaluate help flag
-		if (options.isPrintHelp()) {
-			CliFrontendParser.printHelpForList();
+		if (listOptions.isPrintHelp()) {
+			CliFrontendParser.printHelpForList(customCommandLines);
 			return 0;
 		}
 
-		boolean running = options.getRunning();
-		boolean scheduled = options.getScheduled();
+		boolean running = listOptions.getRunning();
+		boolean scheduled = listOptions.getScheduled();
 
 		// print running and scheduled jobs if not option supplied
 		if (!running && !scheduled) {
@@ -367,7 +350,7 @@ public class CliFrontend {
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, config, configurationDirectory);
+		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
 
 		try {
 			Collection<JobStatusMessage> jobDetails;
@@ -452,17 +435,19 @@ public class CliFrontend {
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
 
-		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, false);
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
 
-		StopOptions options = new StopOptions(commandLine);
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+
+		StopOptions stopOptions = new StopOptions(commandLine);
 
 		// evaluate help flag
-		if (options.isPrintHelp()) {
-			CliFrontendParser.printHelpForStop();
+		if (stopOptions.isPrintHelp()) {
+			CliFrontendParser.printHelpForStop(customCommandLines);
 			return 0;
 		}
 
-		String[] stopArgs = options.getArgs();
+		String[] stopArgs = stopOptions.getArgs();
 		JobID jobId;
 
 		if (stopArgs.length > 0) {
@@ -475,7 +460,7 @@ public class CliFrontend {
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, config, configurationDirectory);
+		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
 
 		try {
 			logAndSysout("Stopping job " + jobId + '.');
@@ -502,13 +487,15 @@ public class CliFrontend {
 
 		final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
 
-		final CommandLine commandLine = CliFrontendParser.parse(commandOptions, args, false);
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
 
 		CancelOptions cancelOptions = new CancelOptions(commandLine);
 
 		// evaluate help flag
 		if (cancelOptions.isPrintHelp()) {
-			CliFrontendParser.printHelpForCancel();
+			CliFrontendParser.printHelpForCancel(customCommandLines);
 			return 0;
 		}
 
@@ -539,7 +526,7 @@ public class CliFrontend {
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, config, configurationDirectory);
+		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
 
 		try {
 			if (withSavepoint) {
@@ -574,25 +561,34 @@ public class CliFrontend {
 	protected int savepoint(String[] args) throws Exception {
 		LOG.info("Running 'savepoint' command.");
 
-		SavepointOptions options = CliFrontendParser.parseSavepointCommand(args);
+		final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
+
+		final Options commandLineOptions = CliFrontendParser.mergeOptions(commandOptions, customCommandLineOptions);
+
+		final CommandLine commandLine = CliFrontendParser.parse(commandLineOptions, args, false);
+
+		final SavepointOptions savepointOptions = new SavepointOptions(commandLine);
 
 		// evaluate help flag
-		if (options.isPrintHelp()) {
-			CliFrontendParser.printHelpForSavepoint();
+		if (savepointOptions.isPrintHelp()) {
+			CliFrontendParser.printHelpForSavepoint(customCommandLines);
 			return 0;
 		}
 
-		CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(options.getCommandLine());
+		CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
 
-		ClusterClient clusterClient = customCommandLine.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+		ClusterClient clusterClient = customCommandLine.retrieveCluster(
+			commandLine,
+			configuration,
+			configurationDirectory);
 
 		try {
-			if (options.isDispose()) {
+			if (savepointOptions.isDispose()) {
 				// Discard
-				return disposeSavepoint(clusterClient, options.getSavepointPath());
+				return disposeSavepoint(clusterClient, savepointOptions.getSavepointPath());
 			} else {
 				// Trigger
-				String[] cleanedArgs = options.getArgs();
+				String[] cleanedArgs = savepointOptions.getArgs();
 				JobID jobId;
 
 				if (cleanedArgs.length >= 1) {
@@ -767,7 +763,7 @@ public class CliFrontend {
 	protected ClusterClient retrieveClient(CommandLineOptions options) {
 		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
 		try {
-			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), config, configurationDirectory);
+			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), configuration, configurationDirectory);
 			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
 			return client;
 		} catch (Exception e) {
@@ -790,7 +786,7 @@ public class CliFrontend {
 
 		ClusterClient client;
 		try {
-			client = customCommandLine.retrieveCluster(commandLine, config, configurationDirectory);
+			client = customCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
 			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
 		} catch (UnsupportedOperationException e) {
 			try {
@@ -798,7 +794,7 @@ public class CliFrontend {
 				client = customCommandLine.createCluster(
 					applicationName,
 					commandLine,
-					config,
+					configuration,
 					configurationDirectory,
 					program.getAllLibraries());
 				logAndSysout("Cluster started: " + client.getClusterIdentifier());
@@ -924,7 +920,7 @@ public class CliFrontend {
 
 		// check for action
 		if (args.length < 1) {
-			CliFrontendParser.printHelp();
+			CliFrontendParser.printHelp(customCommandLines);
 			System.out.println("Please specify an action.");
 			return 1;
 		}
@@ -952,7 +948,7 @@ public class CliFrontend {
 					return savepoint(params);
 				case "-h":
 				case "--help":
-					CliFrontendParser.printHelp();
+					CliFrontendParser.printHelp(customCommandLines);
 					return 0;
 				case "-v":
 				case "--version":
@@ -988,9 +984,22 @@ public class CliFrontend {
 	public static void main(final String[] args) {
 		EnvironmentInformation.logEnvironmentInfo(LOG, "Command Line Client", args);
 
+		// 1. find the configuration directory
+		final String configurationDirectory = getConfigurationDirectoryFromEnv();
+
+		// 2. load the global configuration
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
+
+		// 3. load the custom command lines
+		final List<CustomCommandLine<?>> customCommandLines = loadCustomCommandLines();
+
 		try {
-			final CliFrontend cli = new CliFrontend();
-			SecurityUtils.install(new SecurityConfiguration(cli.config));
+			final CliFrontend cli = new CliFrontend(
+				configuration,
+				customCommandLines,
+				configurationDirectory);
+
+			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
 					.runSecured(new Callable<Integer>() {
 						@Override
@@ -1019,7 +1028,7 @@ public class CliFrontend {
 				return location;
 			}
 			else {
-				throw new RuntimeException("The config directory '" + location + "', specified in the '" +
+				throw new RuntimeException("The configuration directory '" + location + "', specified in the '" +
 					ConfigConstants.ENV_FLINK_CONF_DIR + "' environment variable, does not exist.");
 			}
 		}
@@ -1041,11 +1050,31 @@ public class CliFrontend {
 	 * Writes the given job manager address to the associated configuration object.
 	 *
 	 * @param address Address to write to the configuration
-	 * @param config The config to write to
+	 * @param config The configuration to write to
 	 */
 	public static void setJobManagerAddressInConfig(Configuration config, InetSocketAddress address) {
 		config.setString(JobManagerOptions.ADDRESS, address.getHostString());
 		config.setInteger(JobManagerOptions.PORT, address.getPort());
+	}
+
+	public static List<CustomCommandLine<?>> loadCustomCommandLines() {
+		List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(2);
+
+		//	Command line interface of the YARN session, with a special initialization here
+		//	to prefix all options with y/yarn.
+		//	Tips: DefaultCLI must be added at last, because getActiveCustomCommandLine(..) will get the
+		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
+		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
+		try {
+			customCommandLines.add(loadCustomCommandLine(flinkYarnSessionCLI, "y", "yarn"));
+		} catch (Exception e) {
+			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
+		}
+
+		customCommandLines.add(new Flip6DefaultCLI());
+		customCommandLines.add(new DefaultCLI());
+
+		return customCommandLines;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1059,19 +1088,11 @@ public class CliFrontend {
 	 */
 	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
 		for (CustomCommandLine cli : customCommandLines) {
-			if (cli.isActive(commandLine, config)) {
+			if (cli.isActive(commandLine, configuration)) {
 				return cli;
 			}
 		}
 		throw new IllegalStateException("No command-line ran.");
-	}
-
-	/**
-	 * Retrieves the loaded custom command-lines.
-	 * @return An unmodifiable list of loaded custom command-lines.
-	 */
-	public static List<CustomCommandLine<?>> getCustomCommandLineList() {
-		return Collections.unmodifiableList(customCommandLines);
 	}
 
 	/**
