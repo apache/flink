@@ -18,26 +18,20 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
 
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.util.List;
-
-import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConfig;
+import javax.annotation.Nullable;
 
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
+public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterClient> {
 
 	@Override
 	public boolean isActive(CommandLine commandLine, Configuration configuration) {
@@ -51,45 +45,23 @@ public class DefaultCLI implements CustomCommandLine<StandaloneClusterClient> {
 	}
 
 	@Override
-	public void addRunOptions(Options baseOptions) {
-	}
-
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-	}
-
-	@Override
-	public StandaloneClusterClient retrieveCluster(
-			CommandLine commandLine,
-			Configuration config,
-			String configurationDirectory) {
-
-		if (commandLine.hasOption(CliFrontendParser.ADDRESS_OPTION.getOpt())) {
-			String addressWithPort = commandLine.getOptionValue(CliFrontendParser.ADDRESS_OPTION.getOpt());
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
-			setJobManagerAddressInConfig(config, jobManagerAddress);
-		}
-
-		if (commandLine.hasOption(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt())) {
-			String zkNamespace = commandLine.getOptionValue(CliFrontendParser.ZOOKEEPER_NAMESPACE_OPTION.getOpt());
-			config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
-		}
-
-		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
-		return descriptor.retrieve(null);
-	}
-
-	@Override
-	public StandaloneClusterClient createCluster(
-			String applicationName,
-			CommandLine commandLine,
-			Configuration config,
+	public ClusterDescriptor<StandaloneClusterClient> createClusterDescriptor(
+			Configuration configuration,
 			String configurationDirectory,
-			List<URL> userJarFiles) throws UnsupportedOperationException {
+			CommandLine commandLine) {
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(configuration, commandLine);
 
-		StandaloneClusterDescriptor descriptor = new StandaloneClusterDescriptor(config);
-		ClusterSpecification clusterSpecification = ClusterSpecification.fromConfiguration(config);
+		return new StandaloneClusterDescriptor(effectiveConfiguration);
+	}
 
-		return descriptor.deploySessionCluster(clusterSpecification);
+	@Override
+	@Nullable
+	public String getClusterId(Configuration configuration, CommandLine commandLine) {
+		return "standalone";
+	}
+
+	@Override
+	public ClusterSpecification getClusterSpecification(Configuration configuration, CommandLine commandLine) {
+		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }

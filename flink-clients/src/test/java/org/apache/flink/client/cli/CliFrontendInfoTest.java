@@ -47,8 +47,6 @@ public class CliFrontendInfoTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
-
-		fail("Should have failed with CliArgsException");
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -59,8 +57,6 @@ public class CliFrontendInfoTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
-
-		fail("Should have failed with CliArgsException");
 	}
 
 	@Test
@@ -73,8 +69,7 @@ public class CliFrontendInfoTest extends TestLogger {
 				new Configuration(),
 				Collections.singletonList(new DefaultCLI()),
 				CliFrontendTestUtils.getConfigDir());
-			int retCode = testFrontend.info(parameters);
-			assertTrue(retCode == 0);
+			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
 		}
 		finally {
@@ -91,8 +86,7 @@ public class CliFrontendInfoTest extends TestLogger {
 				new Configuration(),
 				Collections.singletonList(new DefaultCLI()),
 				CliFrontendTestUtils.getConfigDir());
-			int retCode = testFrontend.info(parameters);
-			assertTrue(retCode == 0);
+			testFrontend.info(parameters);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));
 		}
 		catch (Exception e) {

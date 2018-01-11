@@ -670,9 +670,9 @@ public abstract class ClusterClient {
 	 * @param jobId job id
 	 * @param savepointDirectory directory the savepoint should be written to
 	 * @return path future where the savepoint is located
-	 * @throws Exception if  no connection to the cluster could be established
+	 * @throws FlinkException if no connection to the cluster could be established
 	 */
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Future<Object> response = jobManager.ask(new JobManagerMessages.TriggerSavepoint(jobId, Option.apply(savepointDirectory)),
@@ -693,7 +693,7 @@ public abstract class ClusterClient {
 		});
 	}
 
-	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws Exception {
+	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath, Time timeout) throws FlinkException {
 		final ActorGateway jobManager = getJobManagerGateway();
 
 		Object msg = new JobManagerMessages.DisposeSavepoint(savepointPath);
@@ -887,7 +887,7 @@ public abstract class ClusterClient {
 	 * @return ActorGateway of the current job manager leader
 	 * @throws Exception
 	 */
-	public ActorGateway getJobManagerGateway() throws Exception {
+	public ActorGateway getJobManagerGateway() throws FlinkException {
 		log.debug("Looking up JobManager");
 
 		try {

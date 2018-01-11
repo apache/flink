@@ -193,7 +193,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
 	@Test(expected = CliArgsException.class)
 	public void testNoJarNoArgumentsAtAll() throws Exception {
-		assertTrue(frontend.run(new String[0]) != 0);
+		frontend.run(new String[0]);
 
 		fail("Should have failed.");
 	}

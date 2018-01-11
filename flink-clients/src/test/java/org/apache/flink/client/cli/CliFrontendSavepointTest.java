@@ -28,6 +28,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -45,7 +46,6 @@ import java.util.function.BiFunction;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -88,9 +88,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString() };
-			int returnCode = frontend.savepoint(parameters);
+			frontend.savepoint(parameters);
 
-			assertEquals(0, returnCode);
 			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), isNull(String.class));
 
@@ -120,8 +119,9 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 			try {
 				frontend.savepoint(parameters);
-				fail("This should have failed.");
-			} catch (Exception e) {
+
+				fail("Savepoint should have failed.");
+			} catch (FlinkException e) {
 				assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());
 			}
 		}
@@ -141,7 +141,6 @@ public class CliFrontendSavepointTest extends TestLogger {
 				new TestingHighAvailabilityServices()));
 
 			String[] parameters = { "invalid job id" };
-
 			try {
 				frontend.savepoint(parameters);
 				fail("Should have failed.");
@@ -172,9 +171,8 @@ public class CliFrontendSavepointTest extends TestLogger {
 			MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
 			String[] parameters = { jobId.toString(), savepointDirectory };
-			int returnCode = frontend.savepoint(parameters);
+			frontend.savepoint(parameters);
 
-			assertEquals(0, returnCode);
 			verify(clusterClient, times(1))
 				.triggerSavepoint(eq(jobId), eq(savepointDirectory));
 
@@ -269,11 +267,13 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 			String[] parameters = { "-d", savepointPath };
 
-			int returnCode = frontend.savepoint(parameters);
+			try {
+				frontend.savepoint(parameters);
 
-			assertNotEquals(0, returnCode);
-
-			assertTrue(buffer.toString().contains(testException.getMessage()));
+				fail("Savepoint should have failed.");
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowableWithMessage(e, testException.getMessage()).isPresent());
+			}
 		}
 		finally {
 			clusterClient.shutdown();

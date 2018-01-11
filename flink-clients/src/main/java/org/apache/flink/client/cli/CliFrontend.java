@@ -24,6 +24,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
@@ -32,7 +34,6 @@ import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.optimizer.DataStatistics;
@@ -178,7 +179,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the run action.
 	 */
-	protected int run(String[] args) throws Exception {
+	protected void run(String[] args) throws Exception {
 		LOG.info("Running 'run' command.");
 
 		final Options commandOptions = CliFrontendParser.getRunCommandOptions();
@@ -192,7 +193,7 @@ public class CliFrontend {
 		// evaluate help flag
 		if (runOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForRun(customCommandLines);
-			return 0;
+			return;
 		}
 
 		if (runOptions.getJarFilePath() == null) {
@@ -208,40 +209,58 @@ public class CliFrontend {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
-		ClusterClient client = null;
+		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+
+		final ClusterDescriptor<?> clusterDescriptor = customCommandLine.createClusterDescriptor(
+			configuration,
+			configurationDirectory,
+			commandLine);
 
 		try {
-			final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
-			client = createClient(customCommandLine, commandLine, program);
+			final String clusterId = customCommandLine.getClusterId(configuration, commandLine);
 
-			client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
-			client.setDetached(runOptions.getDetachedMode());
-			LOG.debug("Client slots is set to {}", client.getMaxSlots());
+			final ClusterClient client;
 
-			LOG.debug(runOptions.getSavepointRestoreSettings().toString());
-
-			int userParallelism = runOptions.getParallelism();
-			LOG.debug("User parallelism is set to {}", userParallelism);
-			if (client.getMaxSlots() != -1 && userParallelism == -1) {
-				logAndSysout("Using the parallelism provided by the remote cluster ("
-					+ client.getMaxSlots() + "). "
-					+ "To use another parallelism, set it at the ./bin/flink client.");
-				userParallelism = client.getMaxSlots();
-			} else if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
-				userParallelism = defaultParallelism;
+			if (clusterId != null) {
+				client = clusterDescriptor.retrieve(clusterId);
+			} else {
+				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(configuration, commandLine);
+				client = clusterDescriptor.deploySessionCluster(clusterSpecification);
 			}
 
-			return executeProgram(program, client, userParallelism);
-		}
-		finally {
-			program.deleteExtractedLibraries();
+			try {
+				client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
+				client.setDetached(runOptions.getDetachedMode());
+				LOG.debug("Client slots is set to {}", client.getMaxSlots());
 
-			if (client != null) {
+				LOG.debug(runOptions.getSavepointRestoreSettings().toString());
+
+				int userParallelism = runOptions.getParallelism();
+				LOG.debug("User parallelism is set to {}", userParallelism);
+				if (client.getMaxSlots() != -1 && userParallelism == -1) {
+					logAndSysout("Using the parallelism provided by the remote cluster ("
+						+ client.getMaxSlots() + "). "
+						+ "To use another parallelism, set it at the ./bin/flink client.");
+					userParallelism = client.getMaxSlots();
+				} else if (ExecutionConfig.PARALLELISM_DEFAULT == userParallelism) {
+					userParallelism = defaultParallelism;
+				}
+
+				executeProgram(program, client, userParallelism);
+			} finally {
 				try {
 					client.shutdown();
 				} catch (Exception e) {
 					LOG.info("Could not properly shut down the client.", e);
 				}
+			}
+		} finally {
+			program.deleteExtractedLibraries();
+
+			try {
+				clusterDescriptor.close();
+			} catch (Exception e) {
+				LOG.info("Could not properly close the cluster descriptor.", e);
 			}
 		}
 	}
@@ -251,7 +270,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the info action.
 	 */
-	protected int info(String[] args) throws CliArgsException, FileNotFoundException, ProgramInvocationException {
+	protected void info(String[] args) throws CliArgsException, FileNotFoundException, ProgramInvocationException {
 		LOG.info("Running 'info' command.");
 
 		final Options commandOptions = CliFrontendParser.getInfoCommandOptions();
@@ -263,11 +282,11 @@ public class CliFrontend {
 		// evaluate help flag
 		if (infoOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForInfo();
-			return 0;
+			return;
 		}
 
 		if (infoOptions.getJarFilePath() == null) {
-			return handleArgException(new CliArgsException("The program JAR file was not specified."));
+			throw new CliArgsException("The program JAR file was not specified.");
 		}
 
 		// -------- build the packaged program -------------
@@ -311,7 +330,6 @@ public class CliFrontend {
 				System.out.println();
 				System.out.println("No description provided.");
 			}
-			return 0;
 		}
 		finally {
 			program.deleteExtractedLibraries();
@@ -323,7 +341,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the list action.
 	 */
-	protected int list(String[] args) throws Exception {
+	protected void list(String[] args) throws Exception {
 		LOG.info("Running 'list' command.");
 
 		final Options commandOptions = CliFrontendParser.getListCommandOptions();
@@ -337,7 +355,7 @@ public class CliFrontend {
 		// evaluate help flag
 		if (listOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForList(customCommandLines);
-			return 0;
+			return;
 		}
 
 		boolean running = listOptions.getRunning();
@@ -350,7 +368,21 @@ public class CliFrontend {
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
+		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(
+			configuration,
+			configurationDirectory,
+			commandLine);
+
+		final String clusterId = activeCommandLine.getClusterId(
+			configuration,
+			commandLine);
+
+		if (clusterId == null) {
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
+				"you would like to connect.");
+		}
+
+		final ClusterClient client = clusterDescriptor.retrieve(clusterId);
 
 		try {
 			Collection<JobStatusMessage> jobDetails;
@@ -414,13 +446,17 @@ public class CliFrontend {
 					System.out.println("--------------------------------------------------------------");
 				}
 			}
-
-			return 0;
 		} finally {
 			try {
 				client.shutdown();
 			} catch (Exception e) {
 				LOG.info("Could not properly shut down the client.", e);
+			}
+
+			try {
+				clusterDescriptor.close();
+			} catch (Exception e) {
+				LOG.info("Could not properly close the cluster descriptor.", e);
 			}
 		}
 	}
@@ -430,7 +466,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the stop action.
 	 */
-	protected int stop(String[] args) throws Exception {
+	protected void stop(String[] args) throws Exception {
 		LOG.info("Running 'stop' command.");
 
 		final Options commandOptions = CliFrontendParser.getStopCommandOptions();
@@ -444,7 +480,7 @@ public class CliFrontend {
 		// evaluate help flag
 		if (stopOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForStop(customCommandLines);
-			return 0;
+			return;
 		}
 
 		String[] stopArgs = stopOptions.getArgs();
@@ -460,19 +496,35 @@ public class CliFrontend {
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
+		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(
+			configuration,
+			configurationDirectory,
+			commandLine);
+
+		final String clusterId = activeCommandLine.getClusterId(configuration, commandLine);
+
+		if (clusterId == null) {
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
+				"you would like to connect.");
+		}
+
+		final ClusterClient client = clusterDescriptor.retrieve(clusterId);
 
 		try {
 			logAndSysout("Stopping job " + jobId + '.');
 			client.stop(jobId);
 			logAndSysout("Stopped job " + jobId + '.');
-
-			return 0;
 		} finally {
 			try {
 				client.shutdown();
 			} catch (Exception e) {
 				LOG.info("Could not properly shut down the client.", e);
+			}
+
+			try {
+				clusterDescriptor.close();
+			} catch (Exception e) {
+				LOG.info("Could not properly close the cluster descriptor.", e);
 			}
 		}
 	}
@@ -482,7 +534,7 @@ public class CliFrontend {
 	 *
 	 * @param args Command line arguments for the cancel action.
 	 */
-	protected int cancel(String[] args) throws Exception {
+	protected void cancel(String[] args) throws Exception {
 		LOG.info("Running 'cancel' command.");
 
 		final Options commandOptions = CliFrontendParser.getCancelCommandOptions();
@@ -496,7 +548,7 @@ public class CliFrontend {
 		// evaluate help flag
 		if (cancelOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForCancel(customCommandLines);
-			return 0;
+			return;
 		}
 
 		String[] cleanedArgs = cancelOptions.getArgs();
@@ -526,7 +578,20 @@ public class CliFrontend {
 		}
 
 		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-		final ClusterClient client = activeCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
+
+		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(
+			configuration,
+			configurationDirectory,
+			commandLine);
+
+		final String clusterId = activeCommandLine.getClusterId(configuration, commandLine);
+
+		if (clusterId == null) {
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
+				"you would like to connect.");
+		}
+
+		final ClusterClient client = clusterDescriptor.retrieve(clusterId);
 
 		try {
 			if (withSavepoint) {
@@ -542,13 +607,17 @@ public class CliFrontend {
 				client.cancel(jobId);
 				logAndSysout("Cancelled job " + jobId + '.');
 			}
-
-			return 0;
 		} finally {
 			try {
 				client.shutdown();
 			} catch (Exception e) {
 				LOG.info("Could not properly shut down the client.", e);
+			}
+
+			try {
+				clusterDescriptor.close();
+			} catch (Exception e) {
+				LOG.info("Could not properly close the cluster descriptor.", e);
 			}
 		}
 	}
@@ -556,9 +625,9 @@ public class CliFrontend {
 	/**
 	 * Executes the SAVEPOINT action.
 	 *
-	 * @param args Command line arguments for the cancel action.
+	 * @param args Command line arguments for the savepoint action.
 	 */
-	protected int savepoint(String[] args) throws Exception {
+	protected void savepoint(String[] args) throws Exception {
 		LOG.info("Running 'savepoint' command.");
 
 		final Options commandOptions = CliFrontendParser.getSavepointCommandOptions();
@@ -572,20 +641,31 @@ public class CliFrontend {
 		// evaluate help flag
 		if (savepointOptions.isPrintHelp()) {
 			CliFrontendParser.printHelpForSavepoint(customCommandLines);
-			return 0;
+			return;
 		}
 
 		CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
 
-		ClusterClient clusterClient = customCommandLine.retrieveCluster(
-			commandLine,
+		final ClusterDescriptor<?> clusterDescriptor = customCommandLine.createClusterDescriptor(
 			configuration,
-			configurationDirectory);
+			configurationDirectory,
+			commandLine);
+
+		final String clusterId = customCommandLine.getClusterId(
+			configuration,
+			commandLine);
+
+		if (clusterId == null) {
+			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
+				"you would like to connect.");
+		}
+
+		final ClusterClient clusterClient = clusterDescriptor.retrieve(clusterId);
 
 		try {
 			if (savepointOptions.isDispose()) {
 				// Discard
-				return disposeSavepoint(clusterClient, savepointOptions.getSavepointPath());
+				disposeSavepoint(clusterClient, savepointOptions.getSavepointPath());
 			} else {
 				// Trigger
 				String[] cleanedArgs = savepointOptions.getArgs();
@@ -610,13 +690,19 @@ public class CliFrontend {
 					logAndSysout("Provided more arguments than required. Ignoring not needed arguments.");
 				}
 
-				return triggerSavepoint(clusterClient, jobId, savepointDirectory);
+				triggerSavepoint(clusterClient, jobId, savepointDirectory);
 			}
 		} finally {
 			try {
 				clusterClient.shutdown();
 			} catch (Exception e) {
 				LOG.info("Could not shutdown the cluster client.", e);
+			}
+
+			try {
+				clusterDescriptor.close();
+			} catch (Exception e) {
+				LOG.info("Could not properly close the cluster descriptor.", e);
 			}
 		}
 	}
@@ -625,78 +711,62 @@ public class CliFrontend {
 	 * Sends a {@link org.apache.flink.runtime.messages.JobManagerMessages.TriggerSavepoint}
 	 * message to the job manager.
 	 */
-	private int triggerSavepoint(ClusterClient clusterClient, JobID jobId, String savepointDirectory) throws Exception {
-		logAndSysout("Triggering savepoint for job " + jobId + ".");
+	private String triggerSavepoint(ClusterClient clusterClient, JobID jobId, String savepointDirectory) throws FlinkException {
+		logAndSysout("Triggering savepoint for job " + jobId + '.');
 		CompletableFuture<String> savepointPathFuture = clusterClient.triggerSavepoint(jobId, savepointDirectory);
 
-		String savepointPath;
+		logAndSysout("Waiting for response...");
+
+		final String savepointPath;
+
 		try {
-			logAndSysout("Waiting for response...");
 			savepointPath = savepointPathFuture.get();
 		}
-		catch (ExecutionException ee) {
-			Throwable cause = ExceptionUtils.stripExecutionException(ee);
+		catch (Exception e) {
+			Throwable cause = ExceptionUtils.stripExecutionException(e);
 			throw new FlinkException("Triggering a savepoint for the job " + jobId + " failed.", cause);
 		}
 
 		logAndSysout("Savepoint completed. Path: " + savepointPath);
 		logAndSysout("You can resume your program from this savepoint with the run command.");
 
-		return 0;
+		return savepointPath;
 	}
 
 	/**
 	 * Sends a {@link JobManagerMessages.DisposeSavepoint} message to the job manager.
 	 */
-	private int disposeSavepoint(ClusterClient clusterClient, String savepointPath) {
+	private void disposeSavepoint(ClusterClient clusterClient, String savepointPath) throws FlinkException {
 		Preconditions.checkNotNull(savepointPath, "Missing required argument: savepoint path. " +
 			"Usage: bin/flink savepoint -d <savepoint-path>");
 
 		logAndSysout("Disposing savepoint '" + savepointPath + "'.");
 
-		final CompletableFuture<Acknowledge> disposeFuture;
-		try {
-			disposeFuture = clusterClient.disposeSavepoint(savepointPath, FutureUtils.toTime(clientTimeout));
-		} catch (Exception e) {
-			return handleError(new FlinkException("Could not dispose savepoint", e));
-		}
+		final CompletableFuture<Acknowledge> disposeFuture = clusterClient.disposeSavepoint(savepointPath, FutureUtils.toTime(clientTimeout));
 
 		logAndSysout("Waiting for response...");
 
 		try {
 			disposeFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
-			return handleError(e);
+			throw new FlinkException("Disposing the savepoint '" + savepointPath + "' failed.", e);
 		}
 
 		logAndSysout("Savepoint '" + savepointPath + "' disposed.");
-		return 0;
 	}
 
 	// --------------------------------------------------------------------------------------------
 	//  Interaction with programs and JobManager
 	// --------------------------------------------------------------------------------------------
 
-	protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+	protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism) throws ProgramMissingJobException, ProgramInvocationException {
 		logAndSysout("Starting execution of program");
 
-		JobSubmissionResult result;
-		try {
-			result = client.run(program, parallelism);
-		} catch (ProgramParametrizationException e) {
-			return handleParametrizationException(e);
-		} catch (ProgramMissingJobException e) {
-			return handleMissingJobException();
-		} catch (ProgramInvocationException e) {
-			return handleError(e);
-		} finally {
-			program.deleteExtractedLibraries();
-		}
+		final JobSubmissionResult result = client.run(program, parallelism);
 
 		if (null == result) {
-			logAndSysout("No JobSubmissionResult returned, please make sure you called " +
+			throw new ProgramMissingJobException("No JobSubmissionResult returned, please make sure you called " +
 				"ExecutionEnvironment.execute()");
-			return 1;
 		}
 
 		if (result.isJobExecutionResult()) {
@@ -712,8 +782,6 @@ public class CliFrontend {
 		} else {
 			logAndSysout("Job has been submitted with JobID " + result.getJobID());
 		}
-
-		return 0;
 	}
 
 	/**
@@ -755,67 +823,6 @@ public class CliFrontend {
 		return program;
 	}
 
-	/**
-	 * Updates the associated configuration with the given command line options.
-	 *
-	 * @param options Command line options
-	 */
-	protected ClusterClient retrieveClient(CommandLineOptions options) {
-		CustomCommandLine customCLI = getActiveCustomCommandLine(options.getCommandLine());
-		try {
-			ClusterClient client = customCLI.retrieveCluster(options.getCommandLine(), configuration, configurationDirectory);
-			logAndSysout("Using address " + client.getJobManagerAddress() + " to connect to JobManager.");
-			return client;
-		} catch (Exception e) {
-			LOG.error("Couldn't retrieve {} cluster.", customCLI.getId(), e);
-			throw new IllegalConfigurationException("Couldn't retrieve client for cluster", e);
-		}
-	}
-
-	/**
-	 * Creates a {@link ClusterClient} object from the given command line options and other parameters.
-	 * @param customCommandLine custom command line to use to retrieve the client
-	 * @param commandLine command line to use
-	 * @param program The program for which to create the client.
-	 * @throws Exception
-	 */
-	protected ClusterClient createClient(
-			CustomCommandLine<?> customCommandLine,
-			CommandLine commandLine,
-			PackagedProgram program) throws Exception {
-
-		ClusterClient client;
-		try {
-			client = customCommandLine.retrieveCluster(commandLine, configuration, configurationDirectory);
-			logAndSysout("Cluster configuration: " + client.getClusterIdentifier());
-		} catch (UnsupportedOperationException e) {
-			try {
-				String applicationName = "Flink Application: " + program.getMainClassName();
-				client = customCommandLine.createCluster(
-					applicationName,
-					commandLine,
-					configuration,
-					configurationDirectory,
-					program.getAllLibraries());
-				logAndSysout("Cluster started: " + client.getClusterIdentifier());
-			} catch (UnsupportedOperationException e2) {
-				throw new IllegalConfigurationException(
-					"The JobManager address is neither provided at the command-line, " +
-						"nor configured in flink-conf.yaml.");
-			}
-		}
-
-		// Avoid resolving the JobManager Gateway here to prevent blocking until we invoke the user's program.
-		final InetSocketAddress jobManagerAddress = client.getJobManagerAddress();
-		logAndSysout("Using address " + jobManagerAddress.getHostString() + ":" + jobManagerAddress.getPort() + " to connect to JobManager.");
-		try {
-			logAndSysout("JobManager web interface address " + client.getWebInterfaceURL());
-		} catch (UnsupportedOperationException uoe) {
-			logAndSysout("JobManager web interface not active.");
-		}
-		return client;
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//  Logging and Exception Handling
 	// --------------------------------------------------------------------------------------------
@@ -826,7 +833,7 @@ public class CliFrontend {
 	 * @param e The exception to display.
 	 * @return The return code for the process.
 	 */
-	private static int handleArgException(Exception e) {
+	private static int handleArgException(CliArgsException e) {
 		LOG.error("Invalid command line arguments. " + (e.getMessage() == null ? "" : e.getMessage()));
 
 		System.out.println(e.getMessage());
@@ -935,17 +942,23 @@ public class CliFrontend {
 			// do action
 			switch (action) {
 				case ACTION_RUN:
-					return run(params);
+					run(params);
+					return 0;
 				case ACTION_LIST:
-					return list(params);
+					list(params);
+					return 0;
 				case ACTION_INFO:
-					return info(params);
+					info(params);
+					return 0;
 				case ACTION_CANCEL:
-					return cancel(params);
+					cancel(params);
+					return 0;
 				case ACTION_STOP:
-					return stop(params);
+					stop(params);
+					return 0;
 				case ACTION_SAVEPOINT:
-					return savepoint(params);
+					savepoint(params);
+					return 0;
 				case "-h":
 				case "--help":
 					CliFrontendParser.printHelp(customCommandLines);

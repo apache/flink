@@ -25,7 +25,7 @@ import static org.junit.Assert.*;
 /**
  * Tests for the utility methods in {@link ExceptionUtils}.
  */
-public class ExceptionUtilsTest {
+public class ExceptionUtilsTest extends TestLogger {
 
 	@Test
 	public void testStringifyNullException() {

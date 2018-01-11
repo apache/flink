@@ -19,20 +19,13 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
-import akka.actor.Identify;
-import org.apache.commons.cli.CommandLine;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -56,7 +49,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
@@ -78,11 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
-import scala.concurrent.Await;
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * This base class allows to use the MiniYARNCluster.
@@ -711,28 +699,16 @@ public abstract class YarnTestBase extends TestLogger {
 						returnValue = yCli.run(args, configuration, configurationDirectory);
 						break;
 					case CLI_FRONTEND:
-						TestingCLI cli;
 						try {
-							cli = new TestingCLI();
+							CliFrontend cli = new CliFrontend(
+								configuration,
+								CliFrontend.loadCustomCommandLines(),
+								configurationDirectory);
 							returnValue = cli.parseParameters(args);
 						} catch (Exception e) {
 							throw new RuntimeException("Failed to execute the following args with CliFrontend: "
 								+ Arrays.toString(args), e);
 						}
-
-						final ClusterClient client = cli.getClusterClient();
-						try {
-							// check if the JobManager is still alive after running the job
-							final FiniteDuration finiteDuration = new FiniteDuration(10, TimeUnit.SECONDS);
-							ActorGateway jobManagerGateway = client.getJobManagerGateway();
-							Await.ready(jobManagerGateway.ask(new Identify(true), finiteDuration), finiteDuration);
-						} catch (Exception e) {
-							throw new RuntimeException("It seems like the JobManager died although it should still be alive");
-						}
-						// verify we would have shut down anyways and then shutdown
-						Mockito.verify(cli.getSpiedClusterClient()).shutdown();
-						client.shutdown();
-
 						break;
 					default:
 						throw new RuntimeException("Unknown type " + type);
@@ -802,36 +778,5 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static boolean isOnTravis() {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
-	}
-
-	private static class TestingCLI extends CliFrontend {
-
-		private ClusterClient originalClusterClient;
-		private ClusterClient spiedClusterClient;
-
-		public TestingCLI() throws Exception {
-			super(
-				GlobalConfiguration.loadConfiguration(CliFrontend.getConfigurationDirectoryFromEnv()),
-				CliFrontend.loadCustomCommandLines(),
-				CliFrontend.getConfigurationDirectoryFromEnv());
-		}
-
-		@Override
-		protected ClusterClient createClient(CustomCommandLine<?> customCommandLine, CommandLine commandLine, PackagedProgram program) throws Exception {
-			// mock the returned ClusterClient to disable shutdown and verify shutdown behavior later on
-			originalClusterClient = super.createClient(customCommandLine, commandLine, program);
-			spiedClusterClient = Mockito.spy(originalClusterClient);
-			Mockito.doNothing().when(spiedClusterClient).shutdown();
-			return spiedClusterClient;
-		}
-
-		public ClusterClient getClusterClient() {
-			return originalClusterClient;
-		}
-
-		public ClusterClient getSpiedClusterClient() {
-			return spiedClusterClient;
-		}
-
 	}
 }

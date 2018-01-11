@@ -33,7 +33,6 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for the RUN command.
@@ -51,28 +50,28 @@ public class CliFrontendRunTest {
 		{
 			String[] parameters = {"-v", getTestJarPath()};
 			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(1, true, false);
-			assertEquals(0, testFrontend.run(parameters));
+			testFrontend.run(parameters);
 		}
 
 		// test configure parallelism
 		{
 			String[] parameters = {"-v", "-p", "42",  getTestJarPath()};
 			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42, true, false);
-			assertEquals(0, testFrontend.run(parameters));
+			testFrontend.run(parameters);
 		}
 
 		// test configure sysout logging
 		{
 			String[] parameters = {"-p", "2", "-q", getTestJarPath()};
 			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false, false);
-			assertEquals(0, testFrontend.run(parameters));
+			testFrontend.run(parameters);
 		}
 
 		// test detached mode
 		{
 			String[] parameters = {"-p", "2", "-d", getTestJarPath()};
 			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, true, true);
-			assertEquals(0, testFrontend.run(parameters));
+			testFrontend.run(parameters);
 		}
 
 		// test configure savepoint path (no ignore flag)
@@ -98,7 +97,7 @@ public class CliFrontendRunTest {
 		// test jar arguments
 		{
 			String[] parameters =
-				{"-m", "localhost:6123", getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
+				{ getTestJarPath(), "-arg1", "value1", "justavalue", "--arg2", "value2"};
 			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
 			assertEquals("-arg1", options.getProgramArgs()[0]);
 			assertEquals("value1", options.getProgramArgs()[1]);
@@ -117,8 +116,6 @@ public class CliFrontendRunTest {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.run(parameters);
-
-		fail("Should have failed.");
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -130,8 +127,6 @@ public class CliFrontendRunTest {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.run(parameters);
-
-		fail("Should have failed.");
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -143,8 +138,6 @@ public class CliFrontendRunTest {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.run(parameters);
-
-		fail("Should have failed.");
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -166,11 +159,10 @@ public class CliFrontendRunTest {
 		}
 
 		@Override
-		protected int executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
+		protected void executeProgram(PackagedProgram program, ClusterClient client, int parallelism) {
 			assertEquals(isDetached, client.isDetached());
 			assertEquals(sysoutLogging, client.getPrintStatusDuringExecution());
 			assertEquals(expectedParallelism, parallelism);
-			return 0;
 		}
 	}
 }

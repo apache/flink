@@ -19,6 +19,8 @@
 package org.apache.flink.client.cli.util;
 
 import org.apache.flink.client.cli.CustomCommandLine;
+import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
@@ -26,8 +28,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-import java.net.URL;
-import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Dummy implementation of the {@link CustomCommandLine} for testing purposes.
@@ -62,12 +63,21 @@ public class DummyCustomCommandLine<T extends ClusterClient> implements CustomCo
 	}
 
 	@Override
-	public T retrieveCluster(CommandLine commandLine, Configuration config, String configurationDirectory) throws UnsupportedOperationException {
-		return clusterClient;
+	public ClusterDescriptor<T> createClusterDescriptor(
+			Configuration configuration,
+			String configurationDirectory,
+			CommandLine commandLine) {
+		return new DummyClusterDescriptor<>(clusterClient);
 	}
 
 	@Override
-	public T createCluster(String applicationName, CommandLine commandLine, Configuration config, String configurationDirectory, List<URL> userJarFiles) throws Exception {
-		return clusterClient;
+	@Nullable
+	public String getClusterId(Configuration configuration, CommandLine commandLine) {
+		return "dummy";
+	}
+
+	@Override
+	public ClusterSpecification getClusterSpecification(Configuration configuration, CommandLine commandLine) {
+		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }

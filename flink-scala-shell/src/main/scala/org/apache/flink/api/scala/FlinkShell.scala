@@ -19,16 +19,11 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.util.Collections
 
-import org.apache.commons.cli.CommandLine
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
-import org.apache.flink.client.deployment.ClusterDescriptor
-import org.apache.flink.client.deployment.ClusterSpecification.ClusterSpecificationBuilder
 import org.apache.flink.client.program.ClusterClient
+import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
-import org.apache.flink.configuration.{ConfigConstants, Configuration, GlobalConfiguration, JobManagerOptions}
-import org.apache.flink.runtime.minicluster.{FlinkMiniCluster, LocalFlinkMiniCluster}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.Settings
@@ -266,12 +261,17 @@ object FlinkShell {
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val cluster = customCLI.createCluster(
-      "Flink Scala Shell",
-      options.getCommandLine,
+    val clusterDescriptor = customCLI.createClusterDescriptor(
       config,
       frontend.getConfigurationDirectory,
-      Collections.emptyList())
+      options.getCommandLine)
+
+    val clusterSpecification = customCLI.getClusterSpecification(
+      config,
+      options.getCommandLine)
+
+    val cluster = clusterDescriptor.deploySessionCluster(
+      clusterSpecification)
 
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
     val port = cluster.getJobManagerAddress.getPort
@@ -296,10 +296,16 @@ object FlinkShell {
     val config = frontend.getConfiguration
     val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
 
-    val cluster = customCLI.retrieveCluster(
-      options.getCommandLine,
-      config,
-      frontend.getConfigurationDirectory)
+    val clusterDescriptor = customCLI.createClusterDescriptor(
+      configuration,
+      configurationDirectory,
+      options.getCommandLine)
+
+    val clusterId = customCLI.getClusterId(
+      configuration,
+      options.getCommandLine)
+
+    val cluster = clusterDescriptor.retrieve(clusterId)
 
     if (cluster == null) {
       throw new RuntimeException("Yarn Cluster could not be retrieved.")

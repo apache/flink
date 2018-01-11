@@ -153,7 +153,6 @@ public class CliFrontendParser {
 		options.addOption(ARGS_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
@@ -163,7 +162,6 @@ public class CliFrontendParser {
 		options.addOption(PARALLELISM_OPTION);
 		options.addOption(LOGGING_OPTION);
 		options.addOption(DETACHED_OPTION);
-		options.addOption(ZOOKEEPER_NAMESPACE_OPTION);
 		return options;
 	}
 
@@ -171,38 +169,27 @@ public class CliFrontendParser {
 		Options options = buildGeneralOptions(new Options());
 		options = getProgramSpecificOptions(options);
 		options.addOption(SAVEPOINT_PATH_OPTION);
-		options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
-
-		return getJobManagerAddressOption(options);
-	}
-
-	private static Options getJobManagerAddressOption(Options options) {
-		options.addOption(ADDRESS_OPTION);
-		return options;
+		return options.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 	}
 
 	static Options getInfoCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
-		options = getProgramSpecificOptions(options);
-		return getJobManagerAddressOption(options);
+		return getProgramSpecificOptions(options);
 	}
 
 	static Options getListCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
 		options.addOption(RUNNING_OPTION);
-		options.addOption(SCHEDULED_OPTION);
-		return getJobManagerAddressOption(options);
+		return options.addOption(SCHEDULED_OPTION);
 	}
 
 	static Options getCancelCommandOptions() {
 		Options options = buildGeneralOptions(new Options());
-		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
-		return getJobManagerAddressOption(options);
+		return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 	}
 
 	static Options getStopCommandOptions() {
-		Options options = buildGeneralOptions(new Options());
-		return getJobManagerAddressOption(options);
+		return buildGeneralOptions(new Options());
 	}
 
 	static Options getSavepointCommandOptions() {
@@ -218,9 +205,7 @@ public class CliFrontendParser {
 	private static Options getRunOptionsWithoutDeprecatedOptions(Options options) {
 		Options o = getProgramSpecificOptionsWithoutDeprecatedOptions(options);
 		o.addOption(SAVEPOINT_PATH_OPTION);
-		o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
-
-		return getJobManagerAddressOption(o);
+		return o.addOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 	}
 
 	private static Options getInfoOptionsWithoutDeprecatedOptions(Options options) {
@@ -231,24 +216,18 @@ public class CliFrontendParser {
 
 	private static Options getListOptionsWithoutDeprecatedOptions(Options options) {
 		options.addOption(RUNNING_OPTION);
-		options.addOption(SCHEDULED_OPTION);
-		options = getJobManagerAddressOption(options);
-		return options;
+		return options.addOption(SCHEDULED_OPTION);
 	}
 
 	private static Options getCancelOptionsWithoutDeprecatedOptions(Options options) {
-		options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
-		options = getJobManagerAddressOption(options);
-		return options;
+		return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
 	}
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
-		options = getJobManagerAddressOption(options);
 		return options;
 	}
 
 	private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
-		options = getJobManagerAddressOption(options);
 		options.addOption(SAVEPOINT_DISPOSE_OPTION);
 		options.addOption(JAR_OPTION);
 		return options;

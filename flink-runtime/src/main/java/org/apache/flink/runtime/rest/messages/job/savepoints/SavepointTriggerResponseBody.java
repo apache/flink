@@ -54,6 +54,18 @@ public class SavepointTriggerResponseBody implements ResponseBody {
 		this.requestId = requestId;
 	}
 
+	public String getStatus() {
+		return status;
+	}
+
+	public String getLocation() {
+		return location;
+	}
+
+	public String getRequestId() {
+		return requestId;
+	}
+
 	@Override
 	public int hashCode() {
 		return 79 * location.hashCode();

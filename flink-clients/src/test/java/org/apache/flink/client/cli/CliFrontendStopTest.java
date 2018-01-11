@@ -32,7 +32,6 @@ import org.mockito.Mockito;
 import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -60,8 +59,7 @@ public class CliFrontendStopTest extends TestLogger {
 			final ClusterClient clusterClient = createClusterClient(false);
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-			int retCode = testFrontend.stop(parameters);
-			assertEquals(0, retCode);
+			testFrontend.stop(parameters);
 
 			Mockito.verify(clusterClient, times(1)).stop(any(JobID.class));
 		}
@@ -76,8 +74,6 @@ public class CliFrontendStopTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.stop(parameters);
-
-		fail("Should have failed.");
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -89,8 +85,6 @@ public class CliFrontendStopTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.stop(parameters);
-
-		fail("Should have failed.");
 	}
 
 	@Test(expected = TestException.class)

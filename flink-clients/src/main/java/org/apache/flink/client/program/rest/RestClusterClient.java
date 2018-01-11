@@ -49,9 +49,11 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerHea
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerResponseBody;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
@@ -182,21 +184,28 @@ public class RestClusterClient extends ClusterClient {
 	}
 
 	@Override
-	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws Exception {
+	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) throws FlinkException {
 		SavepointTriggerHeaders headers = SavepointTriggerHeaders.getInstance();
 		SavepointMessageParameters params = headers.getUnresolvedMessageParameters();
 		params.jobID.resolve(jobId);
+
 		if (savepointDirectory != null) {
 			params.targetDirectory.resolve(Collections.singletonList(savepointDirectory));
 		}
-		CompletableFuture<SavepointTriggerResponseBody> responseFuture = restClient.sendRequest(
-			restClusterClientConfiguration.getRestServerAddress(),
-			restClusterClientConfiguration.getRestServerPort(),
-			headers,
-			params
-		);
-		return responseFuture
-			.thenApply(response -> response.location);
+
+		final CompletableFuture<SavepointTriggerResponseBody> responseFuture;
+
+		try {
+			responseFuture = restClient.sendRequest(
+				restClusterClientConfiguration.getRestServerAddress(),
+				restClusterClientConfiguration.getRestServerPort(),
+				headers,
+				params);
+		} catch (IOException e) {
+			throw new FlinkException("Could not send trigger savepoint request to Flink cluster.", e);
+		}
+
+		return responseFuture.thenApply(SavepointTriggerResponseBody::getLocation);
 	}
 
 	@Override

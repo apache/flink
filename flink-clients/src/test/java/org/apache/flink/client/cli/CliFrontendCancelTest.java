@@ -30,8 +30,6 @@ import org.mockito.Mockito;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.notNull;
@@ -57,8 +55,7 @@ public class CliFrontendCancelTest extends TestLogger {
 		final ClusterClient clusterClient = createClusterClient();
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-		int retCode = testFrontend.cancel(parameters);
-		assertEquals(0, retCode);
+		testFrontend.cancel(parameters);
 
 		Mockito.verify(clusterClient, times(1)).cancel(any(JobID.class));
 	}
@@ -71,8 +68,6 @@ public class CliFrontendCancelTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
-
-		fail("Should have failed.");
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -83,8 +78,6 @@ public class CliFrontendCancelTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
-
-		fail("Should have failed with CliArgsException.");
 	}
 
 	/**
@@ -99,7 +92,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			String[] parameters = { "-s", jid.toString() };
 			final ClusterClient clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			assertEquals(0, testFrontend.cancel(parameters));
+			testFrontend.cancel(parameters);
 
 			Mockito.verify(clusterClient, times(1))
 				.cancelWithSavepoint(any(JobID.class), isNull(String.class));
@@ -112,7 +105,7 @@ public class CliFrontendCancelTest extends TestLogger {
 			String[] parameters = { "-s", "targetDirectory", jid.toString() };
 			final ClusterClient clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			assertEquals(0, testFrontend.cancel(parameters));
+			testFrontend.cancel(parameters);
 
 			Mockito.verify(clusterClient, times(1))
 				.cancelWithSavepoint(any(JobID.class), notNull(String.class));
@@ -128,8 +121,6 @@ public class CliFrontendCancelTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
-
-		fail("Should have failed.");
 	}
 
 	@Test(expected = CliArgsException.class)
@@ -141,8 +132,6 @@ public class CliFrontendCancelTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
-
-		fail("Should have failed.");
 	}
 
 	private static ClusterClient createClusterClient() throws Exception {

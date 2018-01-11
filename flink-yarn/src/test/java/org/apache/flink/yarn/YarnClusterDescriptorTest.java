@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
@@ -30,6 +31,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,6 +39,12 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -372,6 +380,85 @@ public class YarnClusterDescriptorTest extends TestLogger {
 					.getCommands().get(0));
 		} finally {
 			clusterDescriptor.close();
+		}
+	}
+
+	/**
+	 * Tests to ship a lib folder through the {@code YarnClusterDescriptor.addShipFiles}.
+	 */
+	@Test
+	public void testExplicitLibShipping() throws Exception {
+		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+			new Configuration(),
+			temporaryFolder.getRoot().getAbsolutePath(),
+			YarnClient.createYarnClient());
+
+		try {
+			descriptor.setLocalJarPath(new Path("/path/to/flink.jar"));
+
+			File libFile = temporaryFolder.newFile("libFile.jar");
+			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+
+			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
+			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+
+			List<File> shipFiles = new ArrayList<>();
+			shipFiles.add(libFile);
+			shipFiles.add(libFolder);
+
+			descriptor.addShipFiles(shipFiles);
+
+			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
+			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+
+			// only execute part of the deployment to test for shipped files
+			Set<File> effectiveShipFiles = new HashSet<>();
+			descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+
+			Assert.assertEquals(0, effectiveShipFiles.size());
+			Assert.assertEquals(2, descriptor.shipFiles.size());
+			Assert.assertTrue(descriptor.shipFiles.contains(libFile));
+			Assert.assertTrue(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
+		}
+	}
+
+	/**
+	 * Tests to ship a lib folder through the {@code ConfigConstants.ENV_FLINK_LIB_DIR}.
+	 */
+	@Test
+	public void testEnvironmentLibShipping() throws Exception {
+		AbstractYarnClusterDescriptor descriptor = new YarnClusterDescriptor(
+			new Configuration(),
+			temporaryFolder.getRoot().getAbsolutePath(),
+			YarnClient.createYarnClient());
+
+		try {
+			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
+			File libFile = new File(libFolder, "libFile.jar");
+			libFile.createNewFile();
+
+			Set<File> effectiveShipFiles = new HashSet<>();
+
+			final Map<String, String> oldEnv = System.getenv();
+			try {
+				Map<String, String> env = new HashMap<>(1);
+				env.put(ConfigConstants.ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
+				CommonTestUtils.setEnv(env);
+				// only execute part of the deployment to test for shipped files
+				descriptor.addLibFolderToShipFiles(effectiveShipFiles);
+			} finally {
+				CommonTestUtils.setEnv(oldEnv);
+			}
+
+			// only add the ship the folder, not the contents
+			Assert.assertFalse(effectiveShipFiles.contains(libFile));
+			Assert.assertTrue(effectiveShipFiles.contains(libFolder));
+			Assert.assertFalse(descriptor.shipFiles.contains(libFile));
+			Assert.assertFalse(descriptor.shipFiles.contains(libFolder));
+		} finally {
+			descriptor.close();
 		}
 	}
 }

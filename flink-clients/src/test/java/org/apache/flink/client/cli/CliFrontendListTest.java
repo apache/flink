@@ -30,8 +30,6 @@ import org.mockito.Mockito;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -53,8 +51,7 @@ public class CliFrontendListTest extends TestLogger {
 			String[] parameters = {"-r", "-s"};
 			ClusterClient clusterClient = createClusterClient();
 			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-			int retCode = testFrontend.list(parameters);
-			assertTrue(retCode == 0);
+			testFrontend.list(parameters);
 			Mockito.verify(clusterClient, times(1))
 				.listJobs();
 		}
@@ -68,8 +65,6 @@ public class CliFrontendListTest extends TestLogger {
 			Collections.singletonList(new DefaultCLI()),
 			CliFrontendTestUtils.getConfigDir());
 		testFrontend.list(parameters);
-
-		fail("Should have failed with an CliArgsException.");
 	}
 
 	private static ClusterClient createClusterClient() throws Exception {
