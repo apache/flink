@@ -26,6 +26,7 @@ import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -33,6 +34,7 @@ import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.net.URL;
+import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOADERTEST_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
@@ -50,7 +52,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the RUN command with {@link PackagedProgram PackagedPrograms}.
  */
-public class CliFrontendPackageProgramTest {
+public class CliFrontendPackageProgramTest extends TestLogger {
 
 	@BeforeClass
 	public static void init() {
@@ -60,7 +62,10 @@ public class CliFrontendPackageProgramTest {
 	@Test
 	public void testNonExistingJarFile() {
 		try {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 
 			ProgramOptions options = mock(ProgramOptions.class);
 			when(options.getJarFilePath()).thenReturn("/some/none/existing/path");
@@ -82,7 +87,10 @@ public class CliFrontendPackageProgramTest {
 	@Test
 	public void testFileNotJarFile() {
 		try {
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 
 			ProgramOptions options = mock(ProgramOptions.class);
 			when(options.getJarFilePath()).thenReturn(getNonJarFilePath());
@@ -117,7 +125,10 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(classpath, options.getClasspaths().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			PackagedProgram prog = frontend.buildProgram(options);
 
 			Assert.assertArrayEquals(reducedArguments, prog.getArguments());
@@ -145,7 +156,10 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(classpath, options.getClasspaths().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 
 			PackagedProgram prog = frontend.buildProgram(options);
 
@@ -174,7 +188,10 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(classpath, options.getClasspaths().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 
 			PackagedProgram prog = frontend.buildProgram(options);
 
@@ -189,7 +206,10 @@ public class CliFrontendPackageProgramTest {
 
 	@Test(expected = CliArgsException.class)
 	public void testNoJarNoArgumentsAtAll() throws Exception {
-		CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend frontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		assertTrue(frontend.run(new String[0]) != 0);
 
 		fail("Should have failed.");
@@ -211,7 +231,10 @@ public class CliFrontendPackageProgramTest {
 			assertArrayEquals(classpath, options.getClasspaths().toArray());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 
 			try {
 				frontend.buildProgram(options);
@@ -236,7 +259,10 @@ public class CliFrontendPackageProgramTest {
 			assertEquals(arguments[0], options.getJarFilePath());
 			assertArrayEquals(new String[0], options.getProgramArgs());
 
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 
 			try {
 				frontend.buildProgram(options);
@@ -303,7 +329,10 @@ public class CliFrontendPackageProgramTest {
 			assertEquals(TEST_JAR_CLASSLOADERTEST_CLASS, options.getEntryPointClassName());
 			assertArrayEquals(reducedArguments, options.getProgramArgs());
 
-			CliFrontend frontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend frontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			PackagedProgram prog = spy(frontend.buildProgram(options));
 
 			ClassLoader testClassLoader = new ClassLoader(prog.getUserCodeClassLoader()) {

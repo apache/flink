@@ -18,12 +18,14 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.Collections;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -40,7 +42,10 @@ public class CliFrontendInfoTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testMissingOption() throws Exception {
 		String[] parameters = {};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
 
 		fail("Should have failed with CliArgsException");
@@ -49,7 +54,10 @@ public class CliFrontendInfoTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-l"};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.cancel(parameters);
 
 		fail("Should have failed with CliArgsException");
@@ -61,7 +69,10 @@ public class CliFrontendInfoTest extends TestLogger {
 		try {
 
 			String[] parameters = new String[]{CliFrontendTestUtils.getTestJarPath(), "-f", "true"};
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend testFrontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"1\""));
@@ -76,7 +87,10 @@ public class CliFrontendInfoTest extends TestLogger {
 		replaceStdOut();
 		try {
 			String[] parameters = {"-p", "17", CliFrontendTestUtils.getTestJarPath()};
-			CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+			CliFrontend testFrontend = new CliFrontend(
+				new Configuration(),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			int retCode = testFrontend.info(parameters);
 			assertTrue(retCode == 0);
 			assertTrue(buffer.toString().contains("\"parallelism\": \"17\""));

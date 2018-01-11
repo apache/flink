@@ -23,6 +23,7 @@ import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.instance.ActorGateway;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -808,7 +809,12 @@ public abstract class YarnTestBase extends TestLogger {
 		private ClusterClient originalClusterClient;
 		private ClusterClient spiedClusterClient;
 
-		public TestingCLI() throws Exception {}
+		public TestingCLI() throws Exception {
+			super(
+				GlobalConfiguration.loadConfiguration(CliFrontend.getConfigurationDirectoryFromEnv()),
+				CliFrontend.loadCustomCommandLines(),
+				CliFrontend.getConfigurationDirectoryFromEnv());
+		}
 
 		@Override
 		protected ClusterClient createClient(CustomCommandLine<?> customCommandLine, CommandLine commandLine, PackagedProgram program) throws Exception {

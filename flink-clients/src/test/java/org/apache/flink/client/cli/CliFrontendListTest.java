@@ -19,6 +19,8 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.cli.util.MockedCliFrontend;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
@@ -30,8 +32,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the LIST command.
@@ -48,10 +51,11 @@ public class CliFrontendListTest extends TestLogger {
 		// test list properly
 		{
 			String[] parameters = {"-r", "-s"};
-			ListTestCliFrontend testFrontend = new ListTestCliFrontend();
+			ClusterClient clusterClient = createClusterClient();
+			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 			int retCode = testFrontend.list(parameters);
 			assertTrue(retCode == 0);
-			Mockito.verify(testFrontend.client, times(1))
+			Mockito.verify(clusterClient, times(1))
 				.listJobs();
 		}
 	}
@@ -59,16 +63,20 @@ public class CliFrontendListTest extends TestLogger {
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		String[] parameters = {"-v", "-k"};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.list(parameters);
 
 		fail("Should have failed with an CliArgsException.");
 	}
 
-	private static final class ListTestCliFrontend extends MockedCliFrontend {
+	private static ClusterClient createClusterClient() throws Exception {
+		final ClusterClient clusterClient = mock(ClusterClient.class);
 
-		ListTestCliFrontend() throws Exception {
-			when(client.listJobs()).thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
-		}
+		when(clusterClient.listJobs()).thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+
+		return clusterClient;
 	}
 }

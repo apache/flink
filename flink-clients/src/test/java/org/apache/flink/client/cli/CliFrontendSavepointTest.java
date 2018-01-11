@@ -285,9 +285,9 @@ public class CliFrontendSavepointTest extends TestLogger {
 
 	private static final class DisposeSavepointClusterClient extends StandaloneClusterClient {
 
-		final BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction;
+		private final BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		public DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction) throws Exception {
+		DisposeSavepointClusterClient(BiFunction<String, Time, CompletableFuture<Acknowledge>> disposeSavepointFunction) throws Exception {
 			super(new Configuration(), new TestingHighAvailabilityServices());
 
 			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);

@@ -20,10 +20,14 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
 import static org.junit.Assert.assertEquals;
@@ -102,21 +106,16 @@ public class CliFrontendRunTest {
 			assertEquals("--arg2", options.getProgramArgs()[3]);
 			assertEquals("value2", options.getProgramArgs()[4]);
 		}
-
-		// test flip6 switch
-		{
-			String[] parameters =
-				{"-flip6", getTestJarPath()};
-			RunOptions options = CliFrontendParser.parseRunCommand(parameters);
-			assertTrue(options.getCommandLine().hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
-		}
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.run(parameters);
 
 		fail("Should have failed.");
@@ -126,7 +125,10 @@ public class CliFrontendRunTest {
 	public void testInvalidParallelismOption() throws Exception {
 		// test configure parallelism with non integer value
 		String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.run(parameters);
 
 		fail("Should have failed.");
@@ -136,7 +138,10 @@ public class CliFrontendRunTest {
 	public void testParallelismWithOverflow() throws Exception {
 		// test configure parallelism with overflow integer value
 		String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
-		CliFrontend testFrontend = new CliFrontend(CliFrontendTestUtils.getConfigDir());
+		CliFrontend testFrontend = new CliFrontend(
+			new Configuration(),
+			Collections.singletonList(new DefaultCLI()),
+			CliFrontendTestUtils.getConfigDir());
 		testFrontend.run(parameters);
 
 		fail("Should have failed.");
@@ -151,7 +156,10 @@ public class CliFrontendRunTest {
 		private final boolean isDetached;
 
 		public RunTestingCliFrontend(int expectedParallelism, boolean logging, boolean isDetached) throws Exception {
-			super(CliFrontendTestUtils.getConfigDir());
+			super(
+				GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir()),
+				Collections.singletonList(new DefaultCLI()),
+				CliFrontendTestUtils.getConfigDir());
 			this.expectedParallelism = expectedParallelism;
 			this.sysoutLogging = logging;
 			this.isDetached = isDetached;
