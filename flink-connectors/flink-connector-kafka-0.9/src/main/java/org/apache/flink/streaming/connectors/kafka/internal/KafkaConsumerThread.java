@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
@@ -60,6 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Because Kafka is not maintaining binary compatibility, we use a "call bridge" as an indirection
  * to the KafkaConsumer calls that change signature.
  */
+@Internal
 public class KafkaConsumerThread extends Thread {
 
 	/** Logger for this consumer. */

@@ -17,11 +17,13 @@
 
 package org.apache.flink.streaming.connectors.kafka.config;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 
 /**
  * Startup modes for the Kafka Consumer.
  */
+@Internal
 public enum StartupMode {
 
 	/** Start from committed offsets in ZK / Kafka brokers of a specific consumer group (default). */

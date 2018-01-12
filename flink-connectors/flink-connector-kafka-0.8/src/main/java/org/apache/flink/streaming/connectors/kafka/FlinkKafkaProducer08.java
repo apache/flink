@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaDelegatePartitioner;
@@ -36,6 +37,7 @@ import java.util.Properties;
  *
  * @param <IN> Type of the messages to write into Kafka.
  */
+@PublicEvolving
 public class FlinkKafkaProducer08<IN> extends FlinkKafkaProducerBase<IN>  {
 
 	private static final long serialVersionUID = 1L;

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
+import org.apache.flink.annotation.Internal;
+
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
@@ -30,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * A Kafka Topics Descriptor describes how the consumer subscribes to Kafka topics -
  * either a fixed list of topics, or a topic pattern.
  */
+@Internal
 public class KafkaTopicsDescriptor implements Serializable {
 
 	private static final long serialVersionUID = -3807227764764900975L;
