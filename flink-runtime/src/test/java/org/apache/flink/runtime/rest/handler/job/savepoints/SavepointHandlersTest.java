@@ -39,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -69,7 +70,7 @@ import static org.mockito.Mockito.when;
 /**
  * Test for {@link SavepointHandlers}.
  */
-public class SavepointHandlersTest {
+public class SavepointHandlersTest extends TestLogger {
 
 	private static final CompletableFuture<String> LOCAL_REST_ADDRESS =
 		CompletableFuture.completedFuture("localhost:12345");

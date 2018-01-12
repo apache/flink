@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.util.SerializedThrowable;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -27,7 +28,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link SavepointInfo}.
  */
-public class SavepointInfoTest {
+public class SavepointInfoTest extends TestLogger {
 
 	@Test
 	public void testNullRequestId() {
