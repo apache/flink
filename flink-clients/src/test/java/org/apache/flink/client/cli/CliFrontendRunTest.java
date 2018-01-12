@@ -46,31 +46,32 @@ public class CliFrontendRunTest {
 
 	@Test
 	public void testRun() throws Exception {
+		final Configuration configuration = GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir());
 		// test without parallelism
 		{
 			String[] parameters = {"-v", getTestJarPath()};
-			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(1, true, false);
+			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(configuration, 1, true, false);
 			testFrontend.run(parameters);
 		}
 
 		// test configure parallelism
 		{
 			String[] parameters = {"-v", "-p", "42",  getTestJarPath()};
-			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(42, true, false);
+			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(configuration, 42, true, false);
 			testFrontend.run(parameters);
 		}
 
 		// test configure sysout logging
 		{
 			String[] parameters = {"-p", "2", "-q", getTestJarPath()};
-			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, false, false);
+			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(configuration, 2, false, false);
 			testFrontend.run(parameters);
 		}
 
 		// test detached mode
 		{
 			String[] parameters = {"-p", "2", "-d", getTestJarPath()};
-			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(2, true, true);
+			RunTestingCliFrontend testFrontend = new RunTestingCliFrontend(configuration, 2, true, true);
 			testFrontend.run(parameters);
 		}
 
@@ -111,10 +112,10 @@ public class CliFrontendRunTest {
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.run(parameters);
 	}
 
@@ -122,10 +123,10 @@ public class CliFrontendRunTest {
 	public void testInvalidParallelismOption() throws Exception {
 		// test configure parallelism with non integer value
 		String[] parameters = {"-v", "-p", "text",  getTestJarPath()};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.run(parameters);
 	}
 
@@ -133,10 +134,10 @@ public class CliFrontendRunTest {
 	public void testParallelismWithOverflow() throws Exception {
 		// test configure parallelism with overflow integer value
 		String[] parameters = {"-v", "-p", "475871387138",  getTestJarPath()};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.run(parameters);
 	}
 
@@ -148,11 +149,10 @@ public class CliFrontendRunTest {
 		private final boolean sysoutLogging;
 		private final boolean isDetached;
 
-		public RunTestingCliFrontend(int expectedParallelism, boolean logging, boolean isDetached) throws Exception {
+		public RunTestingCliFrontend(Configuration configuration, int expectedParallelism, boolean logging, boolean isDetached) throws Exception {
 			super(
-				GlobalConfiguration.loadConfiguration(CliFrontendTestUtils.getConfigDir()),
-				Collections.singletonList(new DefaultCLI()),
-				CliFrontendTestUtils.getConfigDir());
+				configuration,
+				Collections.singletonList(new DefaultCLI(configuration)));
 			this.expectedParallelism = expectedParallelism;
 			this.sysoutLogging = logging;
 			this.isDetached = isDetached;

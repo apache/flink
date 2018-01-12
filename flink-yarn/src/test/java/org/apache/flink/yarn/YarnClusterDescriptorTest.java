@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -66,7 +67,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	@Test
-	public void testFailIfTaskSlotsHigherThanMaxVcores() {
+	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 
 		final YarnClient yarnClient = YarnClient.createYarnClient();
 
@@ -88,7 +89,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			clusterDescriptor.deploySessionCluster(clusterSpecification);
 
 			fail("The deploy call should have failed.");
-		} catch (RuntimeException e) {
+		} catch (ClusterDeploymentException e) {
 			// we expect the cause to be an IllegalConfigurationException
 			if (!(e.getCause() instanceof IllegalConfigurationException)) {
 				throw e;
@@ -99,7 +100,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	@Test
-	public void testConfigOverwrite() {
+	public void testConfigOverwrite() throws ClusterDeploymentException {
 		Configuration configuration = new Configuration();
 		// overwrite vcores in config
 		configuration.setInteger(YarnConfigOptions.VCORES, Integer.MAX_VALUE);
@@ -125,7 +126,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 			clusterDescriptor.deploySessionCluster(clusterSpecification);
 
 			fail("The deploy call should have failed.");
-		} catch (RuntimeException e) {
+		} catch (ClusterDeploymentException e) {
 			// we expect the cause to be an IllegalConfigurationException
 			if (!(e.getCause() instanceof IllegalConfigurationException)) {
 				throw e;

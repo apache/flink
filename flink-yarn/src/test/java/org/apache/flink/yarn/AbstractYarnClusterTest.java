@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -49,10 +50,9 @@ public class AbstractYarnClusterTest extends TestLogger {
 	/**
 	 * Tests that the cluster retrieval of a finished YARN application fails.
 	 */
-	@Test(expected = RuntimeException.class)
-	public void testClusterClientRetrievalOfFinishedYarnApplication() throws IOException {
+	@Test(expected = ClusterRetrieveException.class)
+	public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
 		final ApplicationId applicationId = ApplicationId.newInstance(System.currentTimeMillis(), 42);
-		final String clusterId = applicationId.toString();
 		final ApplicationReport applicationReport = createApplicationReport(
 			applicationId,
 			YarnApplicationState.FINISHED,
@@ -65,30 +65,7 @@ public class AbstractYarnClusterTest extends TestLogger {
 			temporaryFolder.newFolder().getAbsolutePath(),
 			yarnClient);
 
-		clusterDescriptor.retrieve(clusterId);
-	}
-
-	/**
-	 * Tests that the cluster retrieval fails if an invalid application id is provided.
-	 */
-	@Test(expected = RuntimeException.class)
-	public void testClusterClientRetrievalFromInvalidApplicationId() throws IOException {
-		final ApplicationId applicationId = ApplicationId.newInstance(System.currentTimeMillis(), 42);
-		final String clusterId = "foobar";
-
-		final ApplicationReport applicationReport = createApplicationReport(
-			applicationId,
-			YarnApplicationState.RUNNING,
-			FinalApplicationStatus.UNDEFINED);
-
-		final YarnClient yarnClient = new TestingYarnClient(Collections.singletonMap(applicationId, applicationReport));
-
-		final TestingAbstractYarnClusterDescriptor clusterDescriptor = new TestingAbstractYarnClusterDescriptor(
-			new Configuration(),
-			temporaryFolder.newFolder().getAbsolutePath(),
-			yarnClient);
-
-		clusterDescriptor.retrieve(clusterId);
+		clusterDescriptor.retrieve(applicationId);
 	}
 
 	private ApplicationReport createApplicationReport(

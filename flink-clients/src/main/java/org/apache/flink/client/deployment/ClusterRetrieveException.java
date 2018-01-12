@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.cli;
+package org.apache.flink.client.deployment;
 
-import org.apache.commons.cli.CommandLine;
-
-import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
+import org.apache.flink.util.FlinkException;
 
 /**
- * Base class for all options parsed from the command line.
- * Contains options for printing help and the JobManager address.
+ * Exception which indicates that a cluster could not be retrieved.
  */
-public abstract class CommandLineOptions {
+public class ClusterRetrieveException extends FlinkException {
 
-	private final boolean printHelp;
+	private static final long serialVersionUID = 7718062507419172318L;
 
-	protected CommandLineOptions(CommandLine line) {
-		this.printHelp = line.hasOption(HELP_OPTION.getOpt());
+	public ClusterRetrieveException(String message) {
+		super(message);
 	}
 
-	public boolean isPrintHelp() {
-		return printHelp;
+	public ClusterRetrieveException(Throwable cause) {
+		super(cause);
+	}
+
+	public ClusterRetrieveException(String message, Throwable cause) {
+		super(message, cause);
 	}
 }

@@ -19,9 +19,11 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.ClientUtils;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.UnmodifiableConfiguration;
+import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -35,9 +37,8 @@ import static org.apache.flink.client.cli.CliFrontend.setJobManagerAddressInConf
  * Base class for {@link CustomCommandLine} implementations which specify a JobManager address and
  * a ZooKeeper namespace.
  *
- * @param <C> type of the ClusterClient which is returned
  */
-public abstract class AbstractCustomCommandLine<C extends ClusterClient> implements CustomCommandLine<C> {
+public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<T> {
 
 	protected final Option zookeeperNamespaceOption = new Option("z", "zookeeperNamespace", true,
 		"Namespace to create the Zookeeper sub-paths for high availability mode");
@@ -46,6 +47,16 @@ public abstract class AbstractCustomCommandLine<C extends ClusterClient> impleme
 	protected final Option addressOption = new Option("m", "jobmanager", true,
 		"Address of the JobManager (master) to which to connect. " +
 			"Use this flag to connect to a different JobManager than the one specified in the configuration.");
+
+	protected final Configuration configuration;
+
+	protected AbstractCustomCommandLine(Configuration configuration) {
+		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+	}
+
+	public Configuration getConfiguration() {
+		return configuration;
+	}
 
 	@Override
 	public void addRunOptions(Options baseOptions) {
@@ -61,11 +72,10 @@ public abstract class AbstractCustomCommandLine<C extends ClusterClient> impleme
 	/**
 	 * Override configuration settings by specified command line options.
 	 *
-	 * @param configuration to use as the base configuration
 	 * @param commandLine containing the overriding values
 	 * @return Effective configuration with the overriden configuration settings
 	 */
-	protected Configuration applyCommandLineOptionsToConfiguration(Configuration configuration, CommandLine commandLine) {
+	protected Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) throws FlinkException {
 		final Configuration resultingConfiguration = new Configuration(configuration);
 
 		if (commandLine.hasOption(addressOption.getOpt())) {

@@ -21,6 +21,7 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -115,7 +116,7 @@ public class RestClusterClientTest extends TestLogger {
 
 	private RestServerEndpointConfiguration restServerEndpointConfiguration;
 
-	private RestClusterClient restClusterClient;
+	private RestClusterClient<StandaloneClusterId> restClusterClient;
 
 	@Before
 	public void setUp() throws Exception {
@@ -126,7 +127,7 @@ public class RestClusterClientTest extends TestLogger {
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 		restServerEndpointConfiguration = RestServerEndpointConfiguration.fromConfiguration(config);
 		mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
-		restClusterClient = new RestClusterClient(config, (attempt) -> 0);
+		restClusterClient = new RestClusterClient(config, StandaloneClusterId.getInstance(), (attempt) -> 0);
 	}
 
 	@After
