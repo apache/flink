@@ -45,6 +45,9 @@ import java.util.List;
  *
  * <p>Computer: MacbookPro (Mid 2015), Flash Storage, Processor 2.5GHz Intel Core i7, Memory 16GB 1600MHz DDR3
  * Number of values added | time for add()   |  time for update() | perf improvement of update() over add()
+ * 10						236875 ns			17048 ns			13.90x
+ * 50						312332 ns			14281 ns			21.87x
+ * 100						393791 ns			18360 ns			21.45x
  * 500						978703 ns			55397 ns			17.66x
  * 1000						3044179 ns			89474 ns			34.02x
  * 5000						9247395 ns			305580 ns			30.26x
@@ -83,7 +86,7 @@ public class RocksDBListStatePerformanceTest extends TestLogger {
 		final byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
 
 		// The number of values added to ListState. Can be changed for benchmarking
-		final int num = 1000;
+		final int num = 10;
 
 		try (
 			final Options options = new Options()
@@ -103,7 +106,6 @@ public class RocksDBListStatePerformanceTest extends TestLogger {
 
 			// ----- add() API -----
 			log.info("begin add");
-			System.out.println("begin add");
 
 			final long beginInsert1 = System.nanoTime();
 			for (int i = 0; i < num; i++) {
