@@ -42,7 +42,7 @@ This document shows how to use existing Hadoop MapReduce code with Flink. Please
 
 ### Project Configuration
 
-Support for Haddop input/output formats is part of the `flink-java` and
+Support for Hadoop input/output formats is part of the `flink-java` and
 `flink-scala` Maven modules that are always required when writing Flink jobs.
 The code is located in `org.apache.flink.api.java.hadoop` and
 `org.apache.flink.api.scala.hadoop` in an additional sub-package for the

@@ -490,7 +490,7 @@ env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 LocalStreamEnvironment env = StreamExecutionEnvironment.createLocalEnvironment
 env.setBufferTimeout(timeoutMillis)
 
-env.genereateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
+env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
 {% endhighlight %}
 </div>
 </div>

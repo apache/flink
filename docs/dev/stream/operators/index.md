@@ -271,7 +271,7 @@ windowedStream.fold("start", new FoldFunction<Integer, String>() {
           <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
           <td>
             <p>Aggregates the contents of a window. The difference between min
-	    and minBy is that min returns the minimun value, whereas minBy returns
+	    and minBy is that min returns the minimum value, whereas minBy returns
 	    the element that has the minimum value in this field (same for max and maxBy).</p>
     {% highlight java %}
 windowedStream.sum(0);
@@ -540,7 +540,7 @@ val result: DataStream[String] =
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
-	    and minBy is that min returns the minimun value, whereas minBy returns
+	    and minBy is that min returns the minimum value, whereas minBy returns
 	    the element that has the minimum value in this field (same for max and maxBy).</p>
     {% highlight scala %}
 keyedStream.sum(0)

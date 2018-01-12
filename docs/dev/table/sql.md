@@ -94,7 +94,7 @@ val result2 = tableEnv.sqlQuery(
 // SQL update with a registered table
 // create and register a TableSink
 TableSink csvSink = new CsvTableSink("/path/to/file", ...)
-val fieldNames: Arary[String] = Array("product", "amount")
+val fieldNames: Array[String] = Array("product", "amount")
 val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT)
 tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink)
 // run a SQL update query on the Table and emit the result to the TableSink

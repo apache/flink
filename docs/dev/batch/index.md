@@ -293,7 +293,7 @@ result = input1.join(input2)
         pick the best strategy according to those estimates.
 {% highlight java %}
 // This executes a join by broadcasting the first data set
-// using a hash table for the broadcasted data
+// using a hash table for the broadcast data
 result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                .where(0).equalTo(1);
 {% endhighlight %}
@@ -613,7 +613,7 @@ val result = input1.join(input2).where(0).equalTo(1)
         pick the best strategy according to those estimates.
 {% highlight scala %}
 // This executes a join by broadcasting the first data set
-// using a hash table for the broadcasted data
+// using a hash table for the broadcast data
 val result = input1.join(input2, JoinHint.BROADCAST_HASH_FIRST)
                    .where(0).equalTo(1)
 {% endhighlight %}
@@ -658,7 +658,7 @@ val data1: DataSet[Int] = // [...]
 val data2: DataSet[String] = // [...]
 val result: DataSet[(Int, String)] = data1.cross(data2)
 {% endhighlight %}
-        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is adviced to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
+        <p>Note: Cross is potentially a <b>very</b> compute-intensive operation which can challenge even large compute clusters! It is advised to hint the system with the DataSet sizes by using <i>crossWithTiny()</i> and <i>crossWithHuge()</i>.</p>
       </td>
     </tr>
     <tr>
@@ -994,7 +994,7 @@ Collection-based:
 - `fromParallelCollection(SplittableIterator)` - Creates a data set from an iterator, in
   parallel. The class specifies the data type of the elements returned by the iterator.
 
-- `generateSequence(from, to)` - Generates the squence of numbers in the given interval, in
+- `generateSequence(from, to)` - Generates the sequence of numbers in the given interval, in
   parallel.
 
 Generic:
@@ -1146,7 +1146,7 @@ using an
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
 DataSet:
 
-- `writeAsText()` / `TextOuputFormat` - Writes elements line-wise as Strings. The Strings are
+- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *toString()* method of each element.
 - `writeAsFormattedText()` / `TextOutputFormat` - Write elements line-wise as Strings. The Strings
   are obtained by calling a user-defined *format()* method for each element.
@@ -1972,7 +1972,7 @@ Collection.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// 1. The DataSet to be broadcasted
+// 1. The DataSet to be broadcast
 DataSet<Integer> toBroadcast = env.fromElements(1, 2, 3);
 
 DataSet<String> data = env.fromElements("a", "b");
@@ -1980,7 +1980,7 @@ DataSet<String> data = env.fromElements("a", "b");
 data.map(new RichMapFunction<String, String>() {
     @Override
     public void open(Configuration parameters) throws Exception {
-      // 3. Access the broadcasted DataSet as a Collection
+      // 3. Access the broadcast DataSet as a Collection
       Collection<Integer> broadcastSet = getRuntimeContext().getBroadcastVariable("broadcastSetName");
     }
 
@@ -1993,13 +1993,13 @@ data.map(new RichMapFunction<String, String>() {
 {% endhighlight %}
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
-accessing broadcasted data sets. For a complete example program, have a look at
+accessing broadcast data sets. For a complete example program, have a look at
 {% gh_link /flink-examples/flink-examples-batch/src/main/java/org/apache/flink/examples/java/clustering/KMeans.java "K-Means Algorithm" %}.
 </div>
 <div data-lang="scala" markdown="1">
 
 {% highlight scala %}
-// 1. The DataSet to be broadcasted
+// 1. The DataSet to be broadcast
 val toBroadcast = env.fromElements(1, 2, 3)
 
 val data = env.fromElements("a", "b")
@@ -2008,7 +2008,7 @@ data.map(new RichMapFunction[String, String]() {
     var broadcastSet: Traversable[String] = null
 
     override def open(config: Configuration): Unit = {
-      // 3. Access the broadcasted DataSet as a Collection
+      // 3. Access the broadcast DataSet as a Collection
       broadcastSet = getRuntimeContext().getBroadcastVariable[String]("broadcastSetName").asScala
     }
 
@@ -2019,7 +2019,7 @@ data.map(new RichMapFunction[String, String]() {
 {% endhighlight %}
 
 Make sure that the names (`broadcastSetName` in the previous example) match when registering and
-accessing broadcasted data sets. For a complete example program, have a look at
+accessing broadcast data sets. For a complete example program, have a look at
 {% gh_link /flink-examples/flink-examples-batch/src/main/scala/org/apache/flink/examples/scala/clustering/KMeans.scala "KMeans Algorithm" %}.
 </div>
 </div>

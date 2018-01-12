@@ -54,10 +54,10 @@ Add the following dependency to your `pom.xml` if you want to execute Storm code
 **Please note**: Do not add `storm-core` as a dependency. It is already included via `flink-storm`.
 
 **Please note**: `flink-storm` is not part of the provided binary Flink distribution.
-Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar (also called ueber-jar or fat-jar) that is submitted to Flink's JobManager.
+Thus, you need to include `flink-storm` classes (and their dependencies) in your program jar (also called uber-jar or fat-jar) that is submitted to Flink's JobManager.
 See *WordCount Storm* within `flink-storm-examples/pom.xml` for an example how to package a jar correctly.
 
-If you want to avoid large ueber-jars, you can manually copy `storm-core-0.9.4.jar`, `json-simple-1.1.jar` and `flink-storm-{{site.version}}.jar` into Flink's `lib/` folder of each cluster node (*before* the cluster is started).
+If you want to avoid large uber-jars, you can manually copy `storm-core-0.9.4.jar`, `json-simple-1.1.jar` and `flink-storm-{{site.version}}.jar` into Flink's `lib/` folder of each cluster node (*before* the cluster is started).
 For this case, it is sufficient to include only your own Spout and Bolt classes (and their internal dependencies) into the program jar.
 
 # Execute Storm Topologies

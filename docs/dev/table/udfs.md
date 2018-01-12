@@ -665,7 +665,7 @@ We recommended that user-defined functions should be written by Java instead of 
 Integrating UDFs with the Runtime
 ---------------------------------
 
-Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overriden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
+Sometimes it might be necessary for a user-defined function to get global runtime information or do some setup/clean-up work before the actual work. User-defined functions provide `open()` and `close()` methods that can be overridden and provide similar functionality as the methods in `RichFunction` of DataSet or DataStream API.
 
 The `open()` method is called once before the evaluation method. The `close()` method after the last call to the evaluation method.
 

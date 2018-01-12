@@ -169,7 +169,7 @@ Create/Import your Eclipse project.
 
 If you are using Maven, you also need to change the Java version in your `pom.xml` for the `maven-compiler-plugin`. Otherwise right click the `JRE System Library` section of your project and open the `Properties` window in order to switch to a Java 8 JRE (or above) that supports Lambda Expressions.
 
-The Eclipse JDT compiler needs a special compiler flag in order to store type information in `.class` files. Open the JDT configuration file at `{project directoy}/.settings/org.eclipse.jdt.core.prefs` with your favorite text editor and add the following line:
+The Eclipse JDT compiler needs a special compiler flag in order to store type information in `.class` files. Open the JDT configuration file at `{project directory}/.settings/org.eclipse.jdt.core.prefs` with your favorite text editor and add the following line:
 
 ~~~
 org.eclipse.jdt.core.compiler.codegen.lambda.genericSignature=generate

@@ -460,7 +460,7 @@ The following example shows a key selector function that simply returns the fiel
 // some ordinary POJO
 public class WC {public String word; public int count;}
 DataStream<WC> words = // [...]
-KeyedStream<WC> kyed = words
+KeyedStream<WC> keyed = words
   .keyBy(new KeySelector<WC, String>() {
      public String getKey(WC wc) { return wc.word; }
    });

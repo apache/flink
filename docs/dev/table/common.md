@@ -160,7 +160,7 @@ An input table can be registered from various sources:
 * a `TableSource`, which accesses external data, such as a file, database, or messaging system. 
 * a `DataStream` or `DataSet` from a DataStream or DataSet program. Registering a `DataStream` or `DataSet` is discussed in the [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api) section.
 
-An output table can be registerd using a `TableSink`. 
+An output table can be registered using a `TableSink`.
 
 ### Register a Table
 
@@ -271,7 +271,7 @@ val tableEnv = TableEnvironment.getTableEnvironment(env)
 val csvSink: TableSink = new CsvTableSink("/path/to/file", ...)
 
 // define the field names and types
-val fieldNames: Arary[String] = Array("a", "b", "c")
+val fieldNames: Array[String] = Array("a", "b", "c")
 val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.STRING, Types.LONG)
 
 // register the TableSink as table "CsvSinkTable"

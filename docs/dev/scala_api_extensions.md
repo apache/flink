@@ -61,7 +61,7 @@ data.map {
 {% endhighlight %}
 
 This extension introduces new methods in both the DataSet and DataStream Scala API
-that have a one-to-one correspondance in the extended API. These delegating methods
+that have a one-to-one correspondence in the extended API. These delegating methods
 do support anonymous pattern matching functions.
 
 #### DataSet API

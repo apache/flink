@@ -811,7 +811,7 @@ input
 #### Incremental Window Aggregation with AggregateFunction
 
 The following example shows how an incremental `AggregateFunction` can be combined with
-a `ProcesWindowFunction` to compute the average and also emit the key and window along with
+a `ProcessWindowFunction` to compute the average and also emit the key and window along with
 the average.
 
 <div class="codetabs" markdown="1">

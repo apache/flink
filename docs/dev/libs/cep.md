@@ -150,7 +150,7 @@ it to a looping one by using [Quantifiers](#quantifiers). Each pattern can have 
 
 #### Quantifiers
 
-In FlinkCEP, you can specifiy looping patterns using these methods: `pattern.oneOrMore()`, for patterns that expect one or more occurrences of a given event (e.g. the `b+` mentioned before); and `pattern.times(#ofTimes)`, for patterns that
+In FlinkCEP, you can specify looping patterns using these methods: `pattern.oneOrMore()`, for patterns that expect one or more occurrences of a given event (e.g. the `b+` mentioned before); and `pattern.times(#ofTimes)`, for patterns that
 expect a specific number of occurrences of a given type of event, e.g. 4 `a`'s; and `pattern.times(#fromTimes, #toTimes)`, for patterns that expect a specific minimum number of occurrences and a maximum number of occurrences of a given type of event, e.g. 2-4 `a`s.
 
 You can make looping patterns greedy using the `pattern.greedy()` method, but you cannot yet make group patterns greedy. You can make all patterns, looping or not, optional using the `pattern.optional()` method.
@@ -1089,7 +1089,7 @@ Pattern<Event, ?> notNext = start.notNext("not");
                         if other events occur between the matching (negative) event and the previous matching event
                         (relaxed contiguity):</p>
 {% highlight java %}
-Pattern<Event, ?> notFollowedBy = start.notFllowedBy("not");
+Pattern<Event, ?> notFollowedBy = start.notFollowedBy("not");
 {% endhighlight %}
                     </td>
                 </tr>
@@ -1211,7 +1211,7 @@ val notNext = start.notNext("not")
                                         if other events occur between the matching (negative) event and the previous matching event
                                         (relaxed contiguity):</p>
 {% highlight scala %}
-val notFollowedBy = start.notFllowedBy("not")
+val notFollowedBy = start.notFollowedBy("not")
 {% endhighlight %}
                                     </td>
                                 </tr>
@@ -1448,7 +1448,7 @@ To treat partial patterns, the `select` and `flatSelect` API calls offer an over
 parameters
 
  * `PatternTimeoutFunction`/`PatternFlatTimeoutFunction`
- * [OutputTag]({{ site.baseurl }}/dev/stream/side_output.html) for the side output in which the timeouted matches will be returned
+ * [OutputTag]({{ site.baseurl }}/dev/stream/side_output.html) for the side output in which the timed out matches will be returned
  * and the known `PatternSelectFunction`/`PatternFlatSelectFunction`.
 
 <div class="codetabs" markdown="1">

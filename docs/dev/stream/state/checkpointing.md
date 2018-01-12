@@ -50,7 +50,7 @@ By default, checkpointing is disabled. To enable checkpointing, call `enableChec
 Other parameters for checkpointing include:
 
   - *exactly-once vs. at-least-once*: You can optionally pass a mode to the `enableCheckpointing(n)` method to choose between the two guarantee levels.
-    Exactly-once is preferrable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
+    Exactly-once is preferable for most applications. At-least-once may be relevant for certain super-low-latency (consistently few milliseconds) applications.
 
   - *checkpoint timeout*: The time after which a checkpoint-in-progress is aborted, if it did not complete by then.
 

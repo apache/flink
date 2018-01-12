@@ -633,7 +633,7 @@ the consumers until `transaction1` is committed or aborted. This has two implica
 
  * First of all, during normal working of Flink applications, user can expect a delay in visibility
  of the records produced into Kafka topics, equal to average time between completed checkpoints.
- * Secondly in case of Flink application failure, topics into which this application was writting, 
+ * Secondly in case of Flink application failure, topics into which this application was writing,
  will be blocked for the readers until the application restarts or the configured transaction 
  timeout time will pass. This remark only applies for the cases when there are multiple
  agents/applications writing to the same Kafka topic.

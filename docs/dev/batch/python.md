@@ -560,7 +560,7 @@ class MapperBcv(MapFunction):
         factor = self.context.get_broadcast_variable("bcv")[0][0]
         return value * factor
 
-# 1. The DataSet to be broadcasted
+# 1. The DataSet to be broadcast
 toBroadcast = env.from_elements(1, 2, 3)
 data = env.from_elements("a", "b")
 
@@ -569,7 +569,7 @@ data.map(MapperBcv()).with_broadcast_set("bcv", toBroadcast)
 {% endhighlight %}
 
 Make sure that the names (`bcv` in the previous example) match when registering and
-accessing broadcasted data sets.
+accessing broadcast data sets.
 
 **Note**: As the content of broadcast variables is kept in-memory on each node, it should not become
 too large. For simpler things like scalar values you can simply parameterize the rich function.

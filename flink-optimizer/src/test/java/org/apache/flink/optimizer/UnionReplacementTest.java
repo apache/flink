@@ -424,12 +424,12 @@ public class UnionReplacementTest extends CompilerTestBase {
 
 		DualInputPlanNode join = resolver.getNode("join");
 
-		// check input of join is broadcasted
+		// check input of join is broadcast
 		assertEquals("First join input should be fully replicated.",
 			PartitioningProperty.FULL_REPLICATION, join.getInput1().getGlobalProperties().getPartitioning());
 
 		NAryUnionPlanNode union = (NAryUnionPlanNode)join.getInput1().getSource();
-		// check that all union inputs are broadcasted
+		// check that all union inputs are broadcast
 		for (Channel c : union.getInputs()) {
 			assertEquals("Union input should be fully replicated",
 				PartitioningProperty.FULL_REPLICATION, c.getGlobalProperties().getPartitioning());

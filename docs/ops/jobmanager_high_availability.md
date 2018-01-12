@@ -82,7 +82,7 @@ In order to start an HA-cluster add the following configuration keys to `conf/fl
 
   <pre>high-availability.cluster-id: /default_ns # important: customize per cluster</pre>
 
-  **Important**: You should not set this value manually when runnig a YARN
+  **Important**: You should not set this value manually when running a YARN
   cluster, a per-job YARN session, or on another cluster manager. In those
   cases a cluster-id is automatically being generated based on the application
   id. Manually setting a cluster-id overrides this behaviour in YARN.
