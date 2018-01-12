@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.model;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetcher;
 
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.connectors.kinesis.internals.KinesisDataFetche
  * The value is initially set by {@link FlinkKinesisConsumer} when {@link KinesisDataFetcher}s are created.
  * The KinesisDataFetchers will use this value to determine how to retrieve the starting shard iterator from AWS Kinesis.
  */
+@Internal
 public enum SentinelSequenceNumber {
 
 	/** Flag value for shard's sequence numbers to indicate that the
