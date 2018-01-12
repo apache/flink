@@ -98,12 +98,8 @@ public class SavepointHandlersTest extends TestLogger {
 	public void setUp() throws Exception {
 		MockitoAnnotations.initMocks(this);
 
-		final GatewayRetriever<RestfulGateway> leaderRetriever = new GatewayRetriever<RestfulGateway>() {
-			@Override
-			public CompletableFuture<RestfulGateway> getFuture() {
-				return CompletableFuture.completedFuture(mockRestfulGateway);
-			}
-		};
+		final GatewayRetriever<RestfulGateway> leaderRetriever =
+			() -> CompletableFuture.completedFuture(mockRestfulGateway);
 
 		savepointHandlers = new SavepointHandlers(null);
 		savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
