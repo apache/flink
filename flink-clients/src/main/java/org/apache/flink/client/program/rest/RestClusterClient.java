@@ -331,13 +331,15 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 				throws IOException, InterruptedException, ExecutionException, TimeoutException {
 		A asynchronouslyCreatedResource;
 		long attempt = 0;
-		do {
+		while (true) {
 			final CompletableFuture<A> responseFuture = resourceFutureSupplier.get();
 			asynchronouslyCreatedResource = responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			if (asynchronouslyCreatedResource.queueStatus().getId() == QueueStatus.Id.COMPLETED) {
+				break;
+			}
 			Thread.sleep(waitStrategy.sleepTime(attempt));
 			attempt++;
 		}
-		while (asynchronouslyCreatedResource.queueStatus().getId() != QueueStatus.Id.COMPLETED);
 		return asynchronouslyCreatedResource.resource();
 	}
 
