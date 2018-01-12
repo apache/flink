@@ -1286,7 +1286,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 	}
 
 	@Test
-	public void testListStateAddUpdateAndGet() throws Exception {
+	public void testListStateAPIs() throws Exception {
 
 		AbstractKeyedStateBackend<String> keyedBackend = createKeyedBackend(StringSerializer.INSTANCE);
 
@@ -1318,7 +1318,22 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("g");
 			assertNull(state.get());
+			state.addAll(null);
+			assertNull(state.get());
+			state.addAll(new ArrayList<>());
+			assertNull(state.get());
+			state.addAll(Arrays.asList(3L, 4L));
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			state.addAll(null);
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			state.addAll(new ArrayList<>());
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			state.addAll(new ArrayList<>());
+			assertThat(state.get(), containsInAnyOrder(3L, 4L));
+			state.addAll(Arrays.asList(5L, 6L));
+			assertThat(state.get(), containsInAnyOrder(3L, 4L, 5L, 6L));
 			state.update(Arrays.asList(1L, 2L));
+			assertThat(state.get(), containsInAnyOrder(1L, 2L));
 
 			keyedBackend.setCurrentKey("def");
 			assertThat(state.get(), containsInAnyOrder(10L, 16L));

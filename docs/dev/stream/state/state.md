@@ -94,7 +94,7 @@ for each key that the operation sees). The value can be set using `update(T)` an
 `T value()`.
 
 * `ListState<T>`: This keeps a list of elements. You can append elements and retrieve an `Iterable`
-over all currently stored elements. Elements are added using `add(T)`, the Iterable can
+over all currently stored elements. Elements are added using `add(T)` or `addAll(List<T>)`, the Iterable can
 be retrieved using `Iterable<T> get()`. You can also override the existing list with `update(List<T>)`
 
 * `ReducingState<T>`: This keeps a single value that represents the aggregation of all values

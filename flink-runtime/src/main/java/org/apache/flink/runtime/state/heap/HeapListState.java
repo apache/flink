@@ -133,4 +133,22 @@ public class HeapListState<K, N, V>
 			map.put(namespace, new ArrayList<>(values));
 		}
 	}
+
+	@Override
+	public void addAll(List<V> values) throws Exception {
+		if (values != null && !values.isEmpty()) {
+			final N namespace = currentNamespace;
+			final StateTable<K, N, ArrayList<V>> map = stateTable;
+
+			ArrayList<V> list = map.get(currentNamespace);
+
+			if (list == null) {
+				list = new ArrayList<>();
+			}
+
+			list.addAll(values);
+
+			map.put(namespace, list);
+		}
+	}
 }

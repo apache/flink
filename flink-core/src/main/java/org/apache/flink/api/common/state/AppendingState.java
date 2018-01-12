@@ -64,8 +64,7 @@ public interface AppendingState<IN, OUT> extends State {
 	 * to the list of values. The next time {@link #get()} is called (for the same state
 	 * partition) the returned state will represent the updated list.
 	 * 
-	 * @param value
-	 *            The new value for the state.
+	 * @param value The new value for the state.
 	 *            
 	 * @throws IOException Thrown if the system cannot access the state.
 	 */
