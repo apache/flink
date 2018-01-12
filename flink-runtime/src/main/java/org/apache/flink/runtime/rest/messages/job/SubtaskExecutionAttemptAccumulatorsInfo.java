@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages;
+package org.apache.flink.runtime.rest.messages.job;
 
-import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
-import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
+import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptAccumulatorsHandler;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -29,23 +29,36 @@ import java.util.Collection;
 import java.util.Objects;
 
 /**
- * Response type of the {@link JobVertexAccumulatorsHandler}.
+ * Response type of the {@link SubtaskExecutionAttemptAccumulatorsHandler}.
  */
-public class JobVertexAccumulatorsInfo implements ResponseBody {
+public class SubtaskExecutionAttemptAccumulatorsInfo implements ResponseBody {
 
+	public static final String FIELD_NAME_SUBTASK_INDEX = "subtask";
+	public static final String FIELD_NAME_ATTEMPT_NUM = "attempt";
 	public static final String FIELD_NAME_ID = "id";
 	public static final String FIELD_NAME_USER_ACCUMULATORS = "user-accumulators";
 
+	@JsonProperty(FIELD_NAME_SUBTASK_INDEX)
+	private final int subtaskIndex;
+
+	@JsonProperty(FIELD_NAME_ATTEMPT_NUM)
+	private final int attemptNum;
+
 	@JsonProperty(FIELD_NAME_ID)
-	private String id;
+	private final String id;
 
 	@JsonProperty(FIELD_NAME_USER_ACCUMULATORS)
-	private Collection<UserAccumulator> userAccumulatorList;
+	private final Collection<UserAccumulator> userAccumulatorList;
 
 	@JsonCreator
-	public JobVertexAccumulatorsInfo(
+	public SubtaskExecutionAttemptAccumulatorsInfo(
+			@JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
+			@JsonProperty(FIELD_NAME_ATTEMPT_NUM) int attemptNum,
 			@JsonProperty(FIELD_NAME_ID) String id,
 			@JsonProperty(FIELD_NAME_USER_ACCUMULATORS) Collection<UserAccumulator> userAccumulatorList) {
+
+		this.subtaskIndex = Preconditions.checkNotNull(subtaskIndex);
+		this.attemptNum = Preconditions.checkNotNull(attemptNum);
 		this.id = Preconditions.checkNotNull(id);
 		this.userAccumulatorList = Preconditions.checkNotNull(userAccumulatorList);
 	}
@@ -58,13 +71,15 @@ public class JobVertexAccumulatorsInfo implements ResponseBody {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		JobVertexAccumulatorsInfo that = (JobVertexAccumulatorsInfo) o;
-		return Objects.equals(id, that.id) &&
+		SubtaskExecutionAttemptAccumulatorsInfo that = (SubtaskExecutionAttemptAccumulatorsInfo) o;
+		return subtaskIndex == that.subtaskIndex &&
+			attemptNum == that.attemptNum &&
+			Objects.equals(id, that.id) &&
 			Objects.equals(userAccumulatorList, that.userAccumulatorList);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(id, userAccumulatorList);
+		return Objects.hash(subtaskIndex, attemptNum, id, userAccumulatorList);
 	}
 }

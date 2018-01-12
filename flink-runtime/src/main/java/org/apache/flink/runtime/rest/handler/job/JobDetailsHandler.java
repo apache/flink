@@ -35,6 +35,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
@@ -185,7 +186,7 @@ public class JobDetailsHandler extends AbstractExecutionGraphHandler<JobDetailsI
 				ejv.getJobVertexId().toString());
 		}
 
-		final JobDetailsInfo.JobVertexMetrics jobVertexMetrics = new JobDetailsInfo.JobVertexMetrics(
+		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
 			counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
 			counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
 			counts.getNumBytesOut(),
