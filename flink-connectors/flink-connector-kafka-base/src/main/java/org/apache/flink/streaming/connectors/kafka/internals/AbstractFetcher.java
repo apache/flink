@@ -570,6 +570,12 @@ public abstract class AbstractFetcher<T, KPH> {
 		for (KafkaTopicPartitionState<KPH> ktp : subscribedPartitionStates) {
 			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
 			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+
+			MetricGroup topicPartitionGroup = metricGroup
+				.addGroup("topic", ktp.getTopic())
+				.addGroup("partition", Integer.toString(ktp.getPartition()));
+			topicPartitionGroup.gauge("currentOffsets", new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			topicPartitionGroup.gauge("committedOffsets", new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
 		}
 	}
 
