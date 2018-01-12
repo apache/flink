@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
@@ -58,6 +59,7 @@ import java.io.Serializable;
  *             Please use {@link org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction} instead.
  */
 @Deprecated
+@PublicEvolving
 public interface ElasticsearchSinkFunction<T> extends Serializable, Function {
 	void process(T element, RuntimeContext ctx, RequestIndexer indexer);
 }

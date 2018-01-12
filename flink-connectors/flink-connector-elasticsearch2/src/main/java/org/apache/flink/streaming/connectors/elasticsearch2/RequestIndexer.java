@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch2;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.elasticsearch.action.ActionRequest;
 
 import java.io.Serializable;
@@ -27,6 +29,7 @@ import java.io.Serializable;
  *             Please use {@link org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer} instead.
  */
 @Deprecated
+@PublicEvolving
 public interface RequestIndexer extends Serializable {
 	void add(ActionRequest... actionRequests);
 }

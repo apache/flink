@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 
 import org.elasticsearch.action.ActionRequest;
@@ -62,6 +63,7 @@ import java.util.Map;
  *
  * @param <T> Type of the elements handled by this sink
  */
+@PublicEvolving
 public class ElasticsearchSink<T> extends ElasticsearchSinkBase<T> {
 
 	private static final long serialVersionUID = 1L;

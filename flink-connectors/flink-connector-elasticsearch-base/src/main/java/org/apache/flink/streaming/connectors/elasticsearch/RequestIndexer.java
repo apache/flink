@@ -18,12 +18,15 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.elasticsearch.action.ActionRequest;
 
 /**
  * Users add multiple {@link ActionRequest ActionRequests} to a {@link RequestIndexer} to prepare
  * them for sending to an Elasticsearch cluster.
  */
+@PublicEvolving
 public interface RequestIndexer {
 
 	/**
