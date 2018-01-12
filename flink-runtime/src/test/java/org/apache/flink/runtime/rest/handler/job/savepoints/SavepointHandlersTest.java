@@ -207,6 +207,7 @@ public class SavepointHandlersTest {
 			savepointTriggerHandler.handleRequest(
 				triggerSavepointRequestWithDefaultDirectory(),
 				mockRestfulGateway).get();
+			fail("Expected exception not thrown.");
 		} catch (ExecutionException e) {
 			final Throwable cause = e.getCause();
 			assertThat(cause, instanceOf(RestHandlerException.class));
