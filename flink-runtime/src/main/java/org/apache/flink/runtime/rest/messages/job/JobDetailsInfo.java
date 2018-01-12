@@ -23,6 +23,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
@@ -217,7 +218,7 @@ public class JobDetailsInfo implements ResponseBody {
 		private final Map<ExecutionState, Integer> tasksPerState;
 
 		@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS)
-		private final JobVertexMetrics jobVertexMetrics;
+		private final IOMetricsInfo jobVertexMetrics;
 
 		@JsonCreator
 		public JobVertexDetailsInfo(
@@ -229,7 +230,7 @@ public class JobDetailsInfo implements ResponseBody {
 				@JsonProperty(FIELD_NAME_JOB_VERTEX_END_TIME) long endTime,
 				@JsonProperty(FIELD_NAME_JOB_VERTEX_DURATION) long duration,
 				@JsonProperty(FIELD_NAME_TASKS_PER_STATE) Map<ExecutionState, Integer> tasksPerState,
-				@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS) JobVertexMetrics jobVertexMetrics) {
+				@JsonProperty(FIELD_NAME_JOB_VERTEX_METRICS) IOMetricsInfo jobVertexMetrics) {
 			this.jobVertexID = Preconditions.checkNotNull(jobVertexID);
 			this.name = Preconditions.checkNotNull(name);
 			this.parallelism = parallelism;
@@ -273,7 +274,7 @@ public class JobDetailsInfo implements ResponseBody {
 			return tasksPerState;
 		}
 
-		public JobVertexMetrics getJobVertexMetrics() {
+		public IOMetricsInfo getJobVertexMetrics() {
 			return jobVertexMetrics;
 		}
 
@@ -303,93 +304,4 @@ public class JobDetailsInfo implements ResponseBody {
 		}
 	}
 
-	/**
-	 * Metrics of a job vertex.
-	 */
-	public static final class JobVertexMetrics {
-
-		public static final String FIELD_NAME_BYTES_READ = "read-bytes";
-
-		public static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
-
-		public static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
-
-		public static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
-
-		public static final String FIELD_NAME_RECORDS_READ = "read-records";
-
-		public static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
-
-		public static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
-
-		public static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
-
-		@JsonProperty(FIELD_NAME_BYTES_READ)
-		private final long bytesRead;
-
-		@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE)
-		private final boolean bytesReadComplete;
-
-		@JsonProperty(FIELD_NAME_BYTES_WRITTEN)
-		private final long bytesWritten;
-
-		@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE)
-		private final boolean bytesWrittenComplete;
-
-		@JsonProperty(FIELD_NAME_RECORDS_READ)
-		private final long recordsRead;
-
-		@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE)
-		private final boolean recordsReadComplete;
-
-		@JsonProperty(FIELD_NAME_RECORDS_WRITTEN)
-		private final long recordsWritten;
-
-		@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE)
-		private final boolean recordsWrittenComplete;
-
-		@JsonCreator
-		public JobVertexMetrics(
-				@JsonProperty(FIELD_NAME_BYTES_READ) long bytesRead,
-				@JsonProperty(FIELD_NAME_BYTES_READ_COMPLETE) boolean bytesReadComplete,
-				@JsonProperty(FIELD_NAME_BYTES_WRITTEN) long bytesWritten,
-				@JsonProperty(FIELD_NAME_BYTES_WRITTEN_COMPLETE) boolean bytesWrittenComplete,
-				@JsonProperty(FIELD_NAME_RECORDS_READ) long recordsRead,
-				@JsonProperty(FIELD_NAME_RECORDS_READ_COMPLETE) boolean recordsReadComplete,
-				@JsonProperty(FIELD_NAME_RECORDS_WRITTEN) long recordsWritten,
-				@JsonProperty(FIELD_NAME_RECORDS_WRITTEN_COMPLETE) boolean recordsWrittenComplete) {
-			this.bytesRead = bytesRead;
-			this.bytesReadComplete = bytesReadComplete;
-			this.bytesWritten = bytesWritten;
-			this.bytesWrittenComplete = bytesWrittenComplete;
-			this.recordsRead = recordsRead;
-			this.recordsReadComplete = recordsReadComplete;
-			this.recordsWritten = recordsWritten;
-			this.recordsWrittenComplete = recordsWrittenComplete;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			JobVertexMetrics that = (JobVertexMetrics) o;
-			return bytesRead == that.bytesRead &&
-				bytesReadComplete == that.bytesReadComplete &&
-				bytesWritten == that.bytesWritten &&
-				bytesWrittenComplete == that.bytesWrittenComplete &&
-				recordsRead == that.recordsRead &&
-				recordsReadComplete == that.recordsReadComplete &&
-				recordsWritten == that.recordsWritten &&
-				recordsWrittenComplete == that.recordsWrittenComplete;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(bytesRead, bytesReadComplete, bytesWritten, bytesWrittenComplete, recordsRead, recordsReadComplete, recordsWritten, recordsWrittenComplete);
-		}
-	}
 }
