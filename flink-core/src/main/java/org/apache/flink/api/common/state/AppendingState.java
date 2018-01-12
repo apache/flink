@@ -63,6 +63,8 @@ public interface AppendingState<IN, OUT> extends State {
 	 * Updates the operator state accessible by {@link #get()} by adding the given value
 	 * to the list of values. The next time {@link #get()} is called (for the same state
 	 * partition) the returned state will represent the updated list.
+	 *
+	 * If `null` is passed in, the state value will remain unchanged
 	 * 
 	 * @param value The new value for the state.
 	 *            
