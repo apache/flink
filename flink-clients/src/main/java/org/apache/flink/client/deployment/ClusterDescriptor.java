@@ -20,11 +20,12 @@ package org.apache.flink.client.deployment;
 
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 
 /**
  * A descriptor to deploy a cluster (e.g. Yarn or Mesos) and return a Client for Cluster communication.
  */
-public interface ClusterDescriptor<ClientType extends ClusterClient> extends AutoCloseable {
+public interface ClusterDescriptor extends AutoCloseable {
 
 	/**
 	 * Returns a String containing details about the cluster (NodeManagers, available memory, ...).
@@ -38,7 +39,7 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> extends Aut
 	 * @return Client for the cluster
 	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */
-	ClientType retrieve(String applicationID) throws UnsupportedOperationException;
+	ClusterClient retrieve(String applicationID) throws UnsupportedOperationException;
 
 	/**
 	 * Triggers deployment of a cluster.
@@ -46,7 +47,7 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> extends Aut
 	 * @return Client for the cluster
 	 * @throws UnsupportedOperationException if this cluster descriptor doesn't support the operation
 	 */
-	ClientType deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException;
+	ClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException;
 
 	/**
 	 * Deploys a per-job cluster with the given job on the cluster.
@@ -56,7 +57,15 @@ public interface ClusterDescriptor<ClientType extends ClusterClient> extends Aut
 	 * @return Cluster client to talk to the Flink cluster
 	 * @throws ClusterDeploymentException if the cluster could not be deployed
 	 */
-	ClientType deployJobCluster(
+	ClusterClient deployJobCluster(
 		final ClusterSpecification clusterSpecification,
 		final JobGraph jobGraph);
+
+	/**
+	 * Terminates the cluster with the given cluster id.
+	 *
+	 * @param clusterId identifying the cluster to shut down
+	 * @throws FlinkException if the cluster could not be terminated
+	 */
+	void terminateCluster(String clusterId) throws FlinkException;
 }

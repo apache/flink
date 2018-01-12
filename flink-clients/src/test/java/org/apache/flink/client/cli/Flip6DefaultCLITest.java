@@ -37,7 +37,7 @@ public class Flip6DefaultCLITest extends TestLogger {
 	@Test
 	public void testFlip6Switch() throws CliArgsException {
 		final String[] args = {"-flip6"};
-		final Flip6DefaultCLI flip6DefaultCLI = new Flip6DefaultCLI();
+		final Flip6DefaultCLI flip6DefaultCLI = new Flip6DefaultCLI(new Configuration());
 
 		final Options options = new Options();
 		flip6DefaultCLI.addGeneralOptions(options);
@@ -46,6 +46,6 @@ public class Flip6DefaultCLITest extends TestLogger {
 		final CommandLine commandLine = CliFrontendParser.parse(options, args, false);
 
 		Assert.assertTrue(commandLine.hasOption(Flip6DefaultCLI.FLIP_6.getOpt()));
-		Assert.assertTrue(flip6DefaultCLI.isActive(commandLine, new Configuration()));
+		Assert.assertTrue(flip6DefaultCLI.isActive(commandLine));
 	}
 }

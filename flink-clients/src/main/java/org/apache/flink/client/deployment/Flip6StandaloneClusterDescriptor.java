@@ -22,12 +22,13 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 /**
  * A deployment descriptor for an existing cluster.
  */
-public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<RestClusterClient> {
+public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor {
 
 	private final Configuration config;
 
@@ -59,6 +60,11 @@ public class Flip6StandaloneClusterDescriptor implements ClusterDescriptor<RestC
 	@Override
 	public RestClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		throw new UnsupportedOperationException("Can't deploy a standalone FLIP-6 per-job cluster.");
+	}
+
+	@Override
+	public void terminateCluster(String clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate a standalone Flip-6 cluster.");
 	}
 
 	@Override
