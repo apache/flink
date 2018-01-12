@@ -16,37 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.job.metrics;
+package org.apache.flink.runtime.rest.messages.job;
 
-import org.apache.flink.runtime.rest.handler.job.metrics.SubtaskMetricsHandler;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 
 /**
- * {@link MessageParameters} for {@link SubtaskMetricsHandler}.
+ * The type Subtask attempt message parameters.
  */
-public class SubtaskMetricsMessageParameters extends SubtaskMessageParameters {
+public class SubtaskAttemptMessageParameters extends SubtaskMessageParameters {
 
-	private final MetricsFilterParameter metricsFilterParameter = new MetricsFilterParameter();
+	protected final SubtaskAttemptPathParameter subtaskAttemptPathParameter = new SubtaskAttemptPathParameter();
 
 	@Override
 	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
+		return Arrays.asList(
 			jobPathParameter,
 			jobVertexIdPathParameter,
-			subtaskIndexPathParameter
-		));
+			subtaskIndexPathParameter,
+			subtaskAttemptPathParameter);
 	}
-
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singletonList(metricsFilterParameter);
-	}
-
 }
