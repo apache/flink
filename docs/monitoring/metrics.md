@@ -1271,35 +1271,45 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 18%">Scope</th>
-      <th class="text-left" style="width: 26%">Metrics</th>
-      <th class="text-left" style="width: 48%">Description</th>
-      <th class="text-left" style="width: 8%">Type</th>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 18%">User Variables</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="1">Operator</th>
       <td>commitsSucceeded</td>
-      <td>Kafka offset commit success count if Kafka commit is turned on and checkpointing is enabled.</td>
+      <td>n/a</td>
+      <td>The total number of successful offset commits to Kafka, if offset committing is turned on and checkpointing is enabled.</td>
       <td>Counter</td>
     </tr>
     <tr>
        <th rowspan="1">Operator</th>
        <td>commitsFailed</td>
-       <td>Kafka offset commit failure count if Kafka commit is turned on and checkpointing is enabled.</td>
+       <td>n/a</td>
+       <td>The total number of offset commit failures to Kafka, if offset committing is
+       turned on and checkpointing is enabled. Note that committing offsets back to Kafka
+       is only a means to expose consumer progress, so a commit failure does not affect
+       the integrity of Flink's checkpointed partition offsets.</td>
        <td>Counter</td>
+    </tr>
+    <tr>
+       <th rowspan="1">Operator</th>
+       <td>committedOffsets</td>
+       <td>topic, partition</td>
+       <td>The last successfully committed offsets to Kafka, for each partition.
+       A particular partition's metric can be specified by topic name and partition id.</td>
+       <td>Gauge</td>
     </tr>
     <tr>
       <th rowspan="1">Operator</th>
       <td>currentOffsets</td>
-      <td>Kafka current offset.This metric has two user-scope variables: topic, partition, which can be used to specifiy particular metric by topic name and partition id</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
-      <th rowspan="1">Operator</th>
-      <td>committedOffsets</td>
-      <td>Kafka successfully committed offset if Kafka commit is turned on and checkpointing is enabled. This metric has two user-scope variables: topic, partition, which can be used to specifiy particular metric by topic name and partition id</td>
+      <td>topic, partition</td>
+      <td>The consumer's current read offset, for each partition. A particular
+      partition's metric can be specified by topic name and partition id.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1309,21 +1319,25 @@ Thus, in order to infer the metric identifier:
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left" style="width: 18%">Scope</th>
-      <th class="text-left" style="width: 26%">Metrics</th>
-      <th class="text-left" style="width: 48%">Description</th>
-      <th class="text-left" style="width: 8%">Type</th>
+      <th class="text-left" style="width: 15%">Scope</th>
+      <th class="text-left" style="width: 18%">Metrics</th>
+      <th class="text-left" style="width: 18%">User Variables</th>
+      <th class="text-left" style="width: 39%">Description</th>
+      <th class="text-left" style="width: 10%">Type</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <th rowspan="1">Operator</th>
       <td>millisBehindLatest</td>
-      <td>The number of milliseconds the <a>GetRecords</a> response is from the head of the stream,
-      indicating how far behind current time the consumer is. A value of zero indicates record
-      processing is caught up, and there are no new records to process at this moment.
+      <td>stream, shardId</td>
+      <td>The number of milliseconds the consumer is behind the head of the stream,
+      indicating how far behind current time the consumer is, for each Kinesis shard.
+      A particular shard's metric can be specified by stream name and shard id.
+      A value of 0 indicates record processing is caught up, and there are no new records
+      to process at this moment. A value of -1 indicates that there is no reported value for the metric, yet.
       </td>
-      <td>Counter</td>
+      <td>Gauge</td>
     </tr>
   </tbody>
 </table>
