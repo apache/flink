@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.annotation.Public;
@@ -23,21 +24,21 @@ import java.io.ObjectStreamException;
 
 /**
  * A tuple with 0 fields.
- * 
+ *
  * <p>The Tuple0 is a soft singleton, i.e., there is a "singleton" instance, but it does
  * not prevent creation of additional instances.</p>
- * 
+ *
  * @see Tuple
  */
 @Public
 public class Tuple0 extends Tuple {
 	private static final long serialVersionUID = 1L;
 
-	/** An immutable reusable Tuple0 instance */
+	// an immutable reusable Tuple0 instance
 	public static final Tuple0 INSTANCE = new Tuple0();
 
 	// ------------------------------------------------------------------------
-	
+
 	@Override
 	public int getArity() {
 		return 0;
@@ -68,8 +69,8 @@ public class Tuple0 extends Tuple {
 	// -------------------------------------------------------------------------------------------------
 
 	/**
-	 * Creates a string representation of the tuple in the form "()"
-	 * 
+	 * Creates a string representation of the tuple in the form "()".
+	 *
 	 * @return The string representation of the tuple.
 	 */
 	@Override
@@ -78,8 +79,8 @@ public class Tuple0 extends Tuple {
 	}
 
 	/**
-	 * Deep equality for tuples by calling equals() on the tuple members
-	 * 
+	 * Deep equality for tuples by calling equals() on the tuple members.
+	 *
 	 * @param o
 	 *            the object checked for equality
 	 * @return true if this is equal to o.

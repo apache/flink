@@ -16,12 +16,10 @@
  * limitations under the License.
  */
 
-
 // --------------------------------------------------------------
 //  THIS IS A GENERATED SOURCE FILE. DO NOT EDIT!
 //  GENERATED FROM org.apache.flink.api.java.tuple.TupleGenerator.
 // --------------------------------------------------------------
-
 
 package org.apache.flink.api.java.tuple;
 
@@ -95,7 +93,9 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 	}
 
 	@Override
-	public int getArity() { return 6; }
+	public int getArity() {
+		return 6;
+	}
 
 	@Override
 	@SuppressWarnings("unchecked")
@@ -179,22 +179,38 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 	}
 
 	/**
-	 * Deep equality for tuples by calling equals() on the tuple members
+	 * Deep equality for tuples by calling equals() on the tuple members.
 	 * @param o the object checked for equality
 	 * @return true if this is equal to o.
 	 */
 	@Override
 	public boolean equals(Object o) {
-		if(this == o) { return true; }
-		if (!(o instanceof Tuple6)) { return false; }
+		if (this == o) {
+			return true;
+		}
+		if (!(o instanceof Tuple6)) {
+			return false;
+		}
 		@SuppressWarnings("rawtypes")
 		Tuple6 tuple = (Tuple6) o;
-		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) { return false; }
-		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) { return false; }
-		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) { return false; }
-		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) { return false; }
-		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) { return false; }
-		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) { return false; }
+		if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+			return false;
+		}
+		if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+			return false;
+		}
+		if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) {
+			return false;
+		}
+		if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) {
+			return false;
+		}
+		if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) {
+			return false;
+		}
+		if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) {
+			return false;
+		}
 		return true;
 	}
 
@@ -215,8 +231,8 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 	*/
 	@Override
 	@SuppressWarnings("unchecked")
-	public Tuple6<T0,T1,T2,T3,T4,T5> copy(){ 
-		return new Tuple6<T0,T1,T2,T3,T4,T5>(this.f0,
+	public Tuple6<T0, T1, T2, T3, T4, T5> copy() {
+		return new Tuple6<>(this.f0,
 			this.f1,
 			this.f2,
 			this.f3,
@@ -232,7 +248,12 @@ public class Tuple6<T0, T1, T2, T3, T4, T5> extends Tuple {
 	 * instead of
 	 * {@code new Tuple3<Integer, Double, String>(n, x, s)}
 	 */
-	public static <T0,T1,T2,T3,T4,T5> Tuple6<T0,T1,T2,T3,T4,T5> of(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5) {
-		return new Tuple6<T0,T1,T2,T3,T4,T5>(value0, value1, value2, value3, value4, value5);
+	public static <T0, T1, T2, T3, T4, T5> Tuple6<T0, T1, T2, T3, T4, T5> of(T0 value0, T1 value1, T2 value2, T3 value3, T4 value4, T5 value5) {
+		return new Tuple6<>(value0,
+			value1,
+			value2,
+			value3,
+			value4,
+			value5);
 	}
 }
