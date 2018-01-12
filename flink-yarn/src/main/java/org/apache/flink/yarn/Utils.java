@@ -418,6 +418,7 @@ public final class Utils {
 				homeDirPath,
 				"").f1;
 
+			taskManagerConfigFile.delete();
 			log.info("Prepared local resource for modified yaml: {}", flinkConf);
 		}
 

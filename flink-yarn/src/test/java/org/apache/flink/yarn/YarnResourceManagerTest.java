@@ -54,7 +54,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
-import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -130,7 +129,6 @@ public class YarnResourceManagerTest extends TestLogger {
 		env.put(ENV_FLINK_CLASSPATH, "");
 		env.put(ENV_HADOOP_USER_NAME, "foo");
 		env.put(FLINK_JAR_PATH, root.toURI().toString());
-		env.put(ApplicationConstants.Environment.PWD.key(), home.getAbsolutePath());
 	}
 
 	@After
