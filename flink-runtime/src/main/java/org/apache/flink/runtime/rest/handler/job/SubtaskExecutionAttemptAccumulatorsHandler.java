@@ -20,14 +20,14 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
-import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.JobVertexAccumulatorsInfo;
-import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameters;
+import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsInfo;
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -38,44 +38,48 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Request handler for the job vertex accumulators.
+ * Request handler for the subtask execution attempt accumulators.
  */
-public class JobVertexAccumulatorsHandler extends AbstractJobVertexHandler<JobVertexAccumulatorsInfo, JobVertexMessageParameters> {
-
-	public JobVertexAccumulatorsHandler(
+public class SubtaskExecutionAttemptAccumulatorsHandler extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters> {
+	/**
+	 * Instantiates a new Abstract job vertex handler.
+	 *
+	 * @param localRestAddress    the local rest address
+	 * @param leaderRetriever     the leader retriever
+	 * @param timeout             the timeout
+	 * @param responseHeaders     the response headers
+	 * @param messageHeaders      the message headers
+	 * @param executionGraphCache the execution graph cache
+	 * @param executor            the executor
+	 */
+	public SubtaskExecutionAttemptAccumulatorsHandler(
 			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, JobVertexAccumulatorsInfo, JobVertexMessageParameters> messageHeaders,
+			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptAccumulatorsInfo, SubtaskAttemptMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
-		super(
-			localRestAddress,
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor);
+
+		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 	}
 
 	@Override
-	protected JobVertexAccumulatorsInfo handleRequest(
-			HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
-			AccessExecutionJobVertex jobVertex) throws RestHandlerException {
+	protected SubtaskExecutionAttemptAccumulatorsInfo handleRequest(
+			HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
+			AccessExecution execution) throws RestHandlerException {
 
-		StringifiedAccumulatorResult[] accs = jobVertex.getAggregatedUserAccumulatorsStringified();
-		ArrayList<UserAccumulator> userAccumulatorList = new ArrayList<>(accs.length);
+		final StringifiedAccumulatorResult[] accs = execution.getUserAccumulatorsStringified();
+		final ArrayList<UserAccumulator> userAccumulatorList = new ArrayList<>(accs.length);
 
 		for (StringifiedAccumulatorResult acc : accs) {
-			userAccumulatorList.add(
-				new UserAccumulator(
-					acc.getName(),
-					acc.getType(),
-					acc.getValue()));
+			userAccumulatorList.add(new UserAccumulator(acc.getName(), acc.getType(), acc.getValue()));
 		}
 
-		return new JobVertexAccumulatorsInfo(jobVertex.getJobVertexId().toString(), userAccumulatorList);
+		return new SubtaskExecutionAttemptAccumulatorsInfo(
+			execution.getParallelSubtaskIndex(),
+			execution.getAttemptNumber(),
+			execution.getAttemptId().toString(),
+			userAccumulatorList);
 	}
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,16 +34,16 @@ public class JobVertexAccumulatorsInfoTest extends RestResponseMarshallingTestBa
 
 	@Override
 	protected JobVertexAccumulatorsInfo getTestResponseInstance() throws Exception {
-		List<JobVertexAccumulatorsInfo.UserAccumulator> userAccumulatorList = new ArrayList<>(3);
-		userAccumulatorList.add(new JobVertexAccumulatorsInfo.UserAccumulator(
+		List<UserAccumulator> userAccumulatorList = new ArrayList<>(3);
+		userAccumulatorList.add(new UserAccumulator(
 			"test name1",
 			"test type1",
 			"test value1"));
-		userAccumulatorList.add(new JobVertexAccumulatorsInfo.UserAccumulator(
+		userAccumulatorList.add(new UserAccumulator(
 			"test name2",
 			"test type2",
 			"test value2"));
-		userAccumulatorList.add(new JobVertexAccumulatorsInfo.UserAccumulator(
+		userAccumulatorList.add(new UserAccumulator(
 			"test name3",
 			"test type3",
 			"test value3"));
