@@ -41,6 +41,7 @@ import akka.actor.PoisonPill;
 import akka.testkit.JavaTestKit;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -125,7 +126,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 			"@@" + FsStateBackendFactory.CHECKPOINT_DIRECTORY_URI_CONF_KEY + "=" + fsStateHandlePath + "/checkpoints" +
 			"@@" + HighAvailabilityOptions.HA_STORAGE_PATH.key() + "=" + fsStateHandlePath + "/recovery");
 
-		ClusterClient yarnCluster = null;
+		ClusterClient<ApplicationId> yarnCluster = null;
 
 		final FiniteDuration timeout = new FiniteDuration(2, TimeUnit.MINUTES);
 
@@ -140,8 +141,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 		try {
 			yarnCluster = flinkYarnClient.deploySessionCluster(clusterSpecification);
-
-			final ClusterClient finalYarnCluster = yarnCluster;
 
 			highAvailabilityServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
 				yarnCluster.getFlinkConfiguration(),

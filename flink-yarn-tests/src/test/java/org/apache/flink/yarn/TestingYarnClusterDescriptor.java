@@ -35,7 +35,7 @@ import java.util.List;
  * flink-yarn-tests-X-tests.jar and the flink-runtime-X-tests.jar to the set of files which
  * are shipped to the yarn cluster. This is necessary to load the testing classes.
  */
-public class TestingYarnClusterDescriptor extends AbstractYarnClusterDescriptor {
+public class TestingYarnClusterDescriptor extends YarnClusterDescriptor {
 
 	public TestingYarnClusterDescriptor(Configuration configuration, String configurationDirectory) {
 		super(

@@ -59,7 +59,7 @@ public class YarnApplicationStatusMonitor implements AutoCloseable {
 
 		applicationStatusUpdateFuture = scheduledExecutor.scheduleWithFixedDelay(
 			this::updateApplicationStatus,
-			UPDATE_INTERVAL,
+			0L,
 			UPDATE_INTERVAL,
 			TimeUnit.MILLISECONDS);
 
@@ -83,6 +83,7 @@ public class YarnApplicationStatusMonitor implements AutoCloseable {
 				applicationReport = yarnClient.getApplicationReport(yarnApplicationId);
 			} catch (Exception e) {
 				LOG.info("Could not retrieve the Yarn application report for {}.", yarnApplicationId);
+				applicationStatus = ApplicationStatus.UNKNOWN;
 				return;
 			}
 

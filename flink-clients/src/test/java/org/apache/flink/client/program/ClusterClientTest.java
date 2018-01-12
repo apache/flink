@@ -71,7 +71,7 @@ public class ClusterClientTest extends TestLogger {
 		Configuration config = new Configuration();
 		HighAvailabilityServices highAvailabilityServices = mock(HighAvailabilityServices.class);
 
-		ClusterClient clusterClient = new StandaloneClusterClient(config, highAvailabilityServices);
+		StandaloneClusterClient clusterClient = new StandaloneClusterClient(config, highAvailabilityServices);
 
 		clusterClient.shutdown();
 
@@ -87,7 +87,7 @@ public class ClusterClientTest extends TestLogger {
 
 		JobID jobID = new JobID();
 		TestStopActorGateway gateway = new TestStopActorGateway(jobID);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			clusterClient.stop(jobID);
 			Assert.assertTrue(gateway.messageArrived);
@@ -103,7 +103,7 @@ public class ClusterClientTest extends TestLogger {
 
 		JobID jobID = new JobID();
 		TestCancelActorGateway gateway = new TestCancelActorGateway(jobID);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			clusterClient.cancel(jobID);
 			Assert.assertTrue(gateway.messageArrived);
@@ -121,7 +121,7 @@ public class ClusterClientTest extends TestLogger {
 		String savepointDirectory = "/test/directory";
 		String savepointPath = "/test/path";
 		TestCancelWithSavepointActorGateway gateway = new TestCancelWithSavepointActorGateway(jobID, savepointDirectory, savepointPath);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			String path = clusterClient.cancelWithSavepoint(jobID, savepointDirectory);
 			Assert.assertTrue(gateway.messageArrived);
@@ -140,7 +140,7 @@ public class ClusterClientTest extends TestLogger {
 		String savepointDirectory = "/test/directory";
 		String savepointPath = "/test/path";
 		TestSavepointActorGateway gateway = new TestSavepointActorGateway(jobID, savepointDirectory, savepointPath);
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			CompletableFuture<String> pathFuture = clusterClient.triggerSavepoint(jobID, savepointDirectory);
 			Assert.assertTrue(gateway.messageArrived);
@@ -156,7 +156,7 @@ public class ClusterClientTest extends TestLogger {
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
 
 		TestListActorGateway gateway = new TestListActorGateway();
-		ClusterClient clusterClient = new TestClusterClient(config, gateway);
+		TestClusterClient clusterClient = new TestClusterClient(config, gateway);
 		try {
 			CompletableFuture<Collection<JobStatusMessage>> jobDetailsFuture = clusterClient.listJobs();
 			Collection<JobStatusMessage> jobDetails = jobDetailsFuture.get();
@@ -179,7 +179,7 @@ public class ClusterClientTest extends TestLogger {
 
 		final ActorGateway jobManagerGateway = new TestDisposeWithWrongResponseActorGateway();
 
-		final ClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
+		final TestClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
 
 		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath, timeout);
 
@@ -188,6 +188,8 @@ public class ClusterClientTest extends TestLogger {
 			fail("Dispose operation should have failed.");
 		} catch (ExecutionException e) {
 			assertTrue(ExceptionUtils.findThrowable(e, FlinkRuntimeException.class).isPresent());
+		} finally {
+			clusterClient.shutdown();
 		}
 	}
 
@@ -199,7 +201,7 @@ public class ClusterClientTest extends TestLogger {
 
 		final ActorGateway jobManagerGateway = new TestDisposeWithClassNotFoundExceptionActorGateway();
 
-		final ClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
+		final TestClusterClient clusterClient = new TestClusterClient(configuration, jobManagerGateway);
 
 		CompletableFuture<Acknowledge> acknowledgeCompletableFuture = clusterClient.disposeSavepoint(savepointPath, timeout);
 
@@ -214,6 +216,8 @@ public class ClusterClientTest extends TestLogger {
 				"instance, which cannot be disposed without the user code class " +
 				"loader. Please provide the program jar with which you have created " +
 				"the savepoint via -j <JAR> for disposal.").isPresent());
+		} finally {
+			clusterClient.shutdown();
 		}
 	}
 

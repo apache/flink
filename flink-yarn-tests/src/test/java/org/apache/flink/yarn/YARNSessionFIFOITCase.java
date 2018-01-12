@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -44,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -79,7 +81,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * Test regular operation, including command line parameter parsing.
 	 */
 	@Test(timeout = 60000) // timeout after a minute.
-	public void testDetachedMode() throws InterruptedException {
+	public void testDetachedMode() throws InterruptedException, IOException {
 		LOG.info("Starting testDetachedMode()");
 		addTestAppender(FlinkYarnSessionCli.class, Level.INFO);
 		Runner runner =
@@ -134,10 +136,10 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
 			// load the configuration
 			LOG.info("testDetachedPerJobYarnClusterInternal: Trying to load configuration file");
-			GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
+			Configuration configuration = GlobalConfiguration.loadConfiguration(configDirectory.getAbsolutePath());
 
 			try {
-				File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(GlobalConfiguration.loadConfiguration());
+				File yarnPropertiesFile = FlinkYarnSessionCli.getYarnPropertiesLocation(configuration.getString(YarnConfigOptions.PROPERTIES_FILE_LOCATION));
 				if (yarnPropertiesFile.exists()) {
 					LOG.info("testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}", yarnPropertiesFile.getAbsolutePath());
 					yarnPropertiesFile.delete();
@@ -157,7 +159,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 * <p>This test validates through 666*2 cores in the "cluster".
 	 */
 	@Test
-	public void testQueryCluster() {
+	public void testQueryCluster() throws IOException {
 		LOG.info("Starting testQueryCluster()");
 		runWithArgs(new String[] {"-q"}, "Summary: totalMemory 8192 totalCores 1332", null, RunTypes.YARN_SESSION, 0); // we have 666*2 cores.
 		LOG.info("Finished testQueryCluster()");
@@ -177,8 +179,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Ignore("The test is too resource consuming (8.5 GB of memory)")
 	@Test
-	public void testResourceComputation() {
-		addTestAppender(YarnClusterDescriptor.class, Level.WARN);
+	public void testResourceComputation() throws IOException {
+		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
 		LOG.info("Starting testResourceComputation()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "5",
@@ -205,8 +207,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	 */
 	@Ignore("The test is too resource consuming (8 GB of memory)")
 	@Test
-	public void testfullAlloc() {
-		addTestAppender(YarnClusterDescriptor.class, Level.WARN);
+	public void testfullAlloc() throws IOException {
+		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
 		LOG.info("Starting testfullAlloc()");
 		runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(), "-t", flinkLibFolder.getAbsolutePath(),
 				"-n", "2",
@@ -244,7 +246,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				.setSlotsPerTaskManager(1)
 				.createClusterSpecification();
 			// deploy
-			ClusterClient yarnCluster = null;
+			ClusterClient<ApplicationId> yarnCluster = null;
 			try {
 				yarnCluster = clusterDescriptor.deploySessionCluster(clusterSpecification);
 			} catch (Exception e) {
