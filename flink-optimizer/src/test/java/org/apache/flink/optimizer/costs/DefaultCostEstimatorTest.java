@@ -19,10 +19,11 @@
 
 package org.apache.flink.optimizer.costs;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.optimizer.dag.EstimateProvider;
+
 import org.junit.Test;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the cost formulas in the {@link DefaultCostEstimator}. Most of the tests establish relative
