@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -31,8 +32,8 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
-import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
@@ -42,32 +43,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Handler of specific sub task execution attempt.
+ * Request handler providing details about a single task execution attempt.
  */
-public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemptHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> {
+public class SubtaskCurrentAttemptDetailsHandler extends AbstractSubtaskHandler<SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> {
 
 	private final MetricFetcher<?> metricFetcher;
 
-	/**
-	 * Instantiates a new Abstract job vertex handler.
-	 *
-	 * @param localRestAddress    the local rest address
-	 * @param leaderRetriever     the leader retriever
-	 * @param timeout             the timeout
-	 * @param responseHeaders     the response headers
-	 * @param messageHeaders      the message headers
-	 * @param executionGraphCache the execution graph cache
-	 * @param executor            the executor
-	 */
-	public SubtaskExecutionAttemptDetailsHandler(
-			CompletableFuture<String> localRestAddress,
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor,
-			MetricFetcher<?> metricFetcher) {
+	public SubtaskCurrentAttemptDetailsHandler(
+		CompletableFuture<String> localRestAddress,
+		GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+		Time timeout,
+		Map<String, String> responseHeaders,
+		MessageHeaders<EmptyRequestBody, SubtaskExecutionAttemptDetailsInfo, SubtaskMessageParameters> messageHeaders,
+		ExecutionGraphCache executionGraphCache,
+		Executor executor,
+		MetricFetcher<?> metricFetcher) {
 
 		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 
@@ -76,8 +66,10 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 
 	@Override
 	protected SubtaskExecutionAttemptDetailsInfo handleRequest(
-			HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request,
-			AccessExecution execution) throws RestHandlerException {
+			HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request,
+			AccessExecutionVertex executionVertex) throws RestHandlerException {
+
+		final AccessExecution execution = executionVertex.getCurrentExecutionAttempt();
 
 		final MutableIOMetrics ioMetrics = new MutableIOMetrics();
 

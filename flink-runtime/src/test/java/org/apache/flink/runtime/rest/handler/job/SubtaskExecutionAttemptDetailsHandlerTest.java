@@ -66,6 +66,7 @@ import static org.mockito.Mockito.when;
  */
 public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testHandleRequest() throws Exception {
 
@@ -95,7 +96,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 		final ExecutionState expectedState = ExecutionState.SCHEDULED;
 
 		// Change some fields so we can make it different from other sub tasks.
-		Execution execution = executionGraph.getJobVertex(jobVertex.getID()).getTaskVertices()[subtaskIndex].getCurrentExecutionAttempt();
+		final Execution execution = executionGraph.getJobVertex(jobVertex.getID()).getTaskVertices()[subtaskIndex].getCurrentExecutionAttempt();
 		Whitebox.setInternalState(execution, "state", expectedState);
 
 		// Mock the metric fetcher.

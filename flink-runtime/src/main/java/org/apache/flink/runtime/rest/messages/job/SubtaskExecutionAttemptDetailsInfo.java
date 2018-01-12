@@ -19,8 +19,11 @@
 package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
+import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -118,5 +121,41 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 	@Override
 	public int hashCode() {
 		return Objects.hash(subtaskIndex, status, attempt, host, startTime, endTime, duration, ioMetricsInfo);
+	}
+
+	public static SubtaskExecutionAttemptDetailsInfo create(AccessExecution execution, MutableIOMetrics ioMetrics) {
+		final ExecutionState status = execution.getState();
+		final long now = System.currentTimeMillis();
+
+		final TaskManagerLocation location = execution.getAssignedResourceLocation();
+		final String locationString = location == null ? "(unassigned)" : location.getHostname();
+
+		long startTime = execution.getStateTimestamp(ExecutionState.DEPLOYING);
+		if (startTime == 0) {
+			startTime = -1;
+		}
+		final long endTime = status.isTerminal() ? execution.getStateTimestamp(status) : -1;
+		final long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
+
+		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
+			ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote(),
+			ioMetrics.isNumBytesInLocalComplete() && ioMetrics.isNumBytesInRemoteComplete(),
+			ioMetrics.getNumBytesOut(),
+			ioMetrics.isNumBytesOutComplete(),
+			ioMetrics.getNumRecordsIn(),
+			ioMetrics.isNumRecordsInComplete(),
+			ioMetrics.getNumRecordsOut(),
+			ioMetrics.isNumRecordsOutComplete());
+
+		return new SubtaskExecutionAttemptDetailsInfo(
+			execution.getParallelSubtaskIndex(),
+			status,
+			execution.getAttemptNumber(),
+			locationString,
+			startTime,
+			endTime,
+			duration,
+			ioMetricsInfo
+		);
 	}
 }
