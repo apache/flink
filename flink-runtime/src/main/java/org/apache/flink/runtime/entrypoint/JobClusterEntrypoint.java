@@ -92,16 +92,6 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 			HeartbeatServices heartbeatServices,
 			MetricRegistry metricRegistry) throws Exception {
 
-		resourceManager = createResourceManager(
-			configuration,
-			ResourceID.generate(),
-			rpcService,
-			highAvailabilityServices,
-			heartbeatServices,
-			metricRegistry,
-			this,
-			null);
-
 		jobManagerServices = JobManagerServices.fromConfiguration(configuration, blobServer);
 
 		resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();
@@ -133,6 +123,16 @@ public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
 		LOG.debug("Starting JobMaster REST endpoint.");
 		jobMasterRestEndpoint.start();
+
+		resourceManager = createResourceManager(
+			configuration,
+			ResourceID.generate(),
+			rpcService,
+			highAvailabilityServices,
+			heartbeatServices,
+			metricRegistry,
+			this,
+			jobMasterRestEndpoint.getRestAddress());
 
 		jobManagerRunner = createJobManagerRunner(
 			configuration,
