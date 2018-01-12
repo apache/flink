@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.util.Preconditions;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Objects;
 
