@@ -1288,6 +1288,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 			keyedBackend.setCurrentKey("abc");
 			assertNull(state.get());
+			state.add(null);
+			assertNull(state.get());
 
 			keyedBackend.setCurrentKey("def");
 			assertNull(state.get());
@@ -1312,6 +1314,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 			keyedBackend.setCurrentKey("g");
 			state.add(3L);
 			state.add(2L);
+			state.add(null);
 			state.add(1L);
 
 			keyedBackend.setCurrentKey("def");
