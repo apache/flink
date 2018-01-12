@@ -705,6 +705,11 @@ public class FlinkKafkaConsumerBaseTest {
 		public void update(List<T> values) throws Exception {
 			clear();
 
+			addAll(values);
+		}
+
+		@Override
+		public void addAll(List<T> values) throws Exception {
 			if (values != null && !values.isEmpty()) {
 				list.addAll(values);
 			}

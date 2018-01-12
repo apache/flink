@@ -60,4 +60,9 @@ class UserFacingListState<T> implements ListState<T> {
 	public void update(List<T> values) throws Exception {
 		originalState.update(values);
 	}
+
+	@Override
+	public void addAll(List<T> values) throws Exception {
+		originalState.addAll(values);
+	}
 }
