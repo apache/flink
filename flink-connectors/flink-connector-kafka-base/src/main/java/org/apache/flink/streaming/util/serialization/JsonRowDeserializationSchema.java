@@ -41,6 +41,8 @@ import java.io.IOException;
 @PublicEvolving
 public class JsonRowDeserializationSchema implements DeserializationSchema<Row> {
 
+	private static final long serialVersionUID = -228294330688809195L;
+
 	/** Type information describing the result type. */
 	private final TypeInformation<Row> typeInfo;
 

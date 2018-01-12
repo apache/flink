@@ -40,6 +40,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Obje
  */
 @PublicEvolving
 public class JsonRowSerializationSchema implements SerializationSchema<Row> {
+
+	private static final long serialVersionUID = -2885556750743978636L;
+
 	/** Fields names in the input Row object. */
 	private final String[] fieldNames;
 	/** Object mapper that is used to create output JSON objects. */

@@ -32,6 +32,9 @@ import java.io.IOException;
  */
 @PublicEvolving
 public class JSONDeserializationSchema extends AbstractDeserializationSchema<ObjectNode> {
+
+	private static final long serialVersionUID = -1699854177598621044L;
+
 	private ObjectMapper mapper;
 
 	@Override

@@ -40,6 +40,9 @@ import static org.apache.flink.api.java.typeutils.TypeExtractor.getForClass;
  */
 @PublicEvolving
 public class JSONKeyValueDeserializationSchema implements KeyedDeserializationSchema<ObjectNode> {
+
+	private static final long serialVersionUID = 1509391548173891955L;
+
 	private final boolean includeMetadata;
 	private ObjectMapper mapper;
 

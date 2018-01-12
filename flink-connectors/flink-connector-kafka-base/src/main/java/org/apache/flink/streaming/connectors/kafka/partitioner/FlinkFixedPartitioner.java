@@ -54,6 +54,8 @@ import org.apache.flink.util.Preconditions;
 @PublicEvolving
 public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
+	private static final long serialVersionUID = -3785320239953858777L;
+
 	private int parallelInstanceId;
 
 	@Override

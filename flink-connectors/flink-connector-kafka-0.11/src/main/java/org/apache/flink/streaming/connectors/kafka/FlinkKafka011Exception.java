@@ -26,6 +26,8 @@ import org.apache.flink.util.FlinkException;
 @PublicEvolving
 public class FlinkKafka011Exception extends FlinkException {
 
+	private static final long serialVersionUID = 920269130311214200L;
+
 	private final FlinkKafka011ErrorCode errorCode;
 
 	public FlinkKafka011Exception(FlinkKafka011ErrorCode errorCode, String message) {
