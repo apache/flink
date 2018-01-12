@@ -109,7 +109,7 @@ import org.apache.flink.api.scala.createTypeInformation
 {% endhighlight %}
 
 The reason is that Flink analyzes the types that are used in a program and generates serializers
-and comparaters for them. By having either of those imports you enable an implicit conversion
+and comparators for them. By having either of those imports you enable an implicit conversion
 that creates the type information for Flink operations.
 
 If you would rather use SBT, see [here]({{ site.baseurl }}/quickstart/scala_api_quickstart.html#sbt).

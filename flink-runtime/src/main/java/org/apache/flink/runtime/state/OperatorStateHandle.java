@@ -37,7 +37,7 @@ public class OperatorStateHandle implements StreamStateHandle {
 	 */
 	public enum Mode {
 		SPLIT_DISTRIBUTE, // The operator state partitions in the state handle are split and distributed to one task each.
-		BROADCAST // The operator state partitions are broadcasted to all task.
+		BROADCAST // The operator state partitions are broadcast to all task.
 	}
 
 	private static final long serialVersionUID = 35876522969227335L;

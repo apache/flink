@@ -142,7 +142,7 @@ class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
     implicit lazy val executor: ExecutionContext = ExecutionContext.fromExecutor(Executors.directExecutor())
 
 
-    override def asyncInvoke(str: String, resultFutre: ResultFuture[(String, String)]): Unit = {
+    override def asyncInvoke(str: String, resultFuture: ResultFuture[(String, String)]): Unit = {
 
         // issue the asynchronous request, receive a future for the result
         val resultFuture: Future[String] = client.query(str)
@@ -193,7 +193,7 @@ To control in which order the resulting records are emitted, Flink offers two mo
 
   - **Ordered**: In that case, the stream order is preserved. Result records are emitted in the same order as the asynchronous
     requests are triggered (the order of the operators input records). To achieve that, the operator buffers a result record
-    until all its preceeding records are emitted (or timed out).
+    until all its preceding records are emitted (or timed out).
     This usually introduces some amount of extra latency and some overhead in checkpointing, because records or results are maintained
     in the checkpointed state for a longer time, compared to the unordered mode.
     Use `AsyncDataStream.orderedWait(...)` for this mode.
@@ -227,10 +227,10 @@ asynchronous requests in checkpoints and restores/re-triggers the requests when 
 
 ### Implementation Tips
 
-For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggets to use a `DirectExecutor`, because the
+For implementations with *Futures* that have an *Executor* (or *ExecutionContext* in Scala) for callbacks, we suggests to use a `DirectExecutor`, because the
 callback typically does minimal work, and a `DirectExecutor` avoids an additional thread-to-thread handover overhead. The callback typically only hands
 the result to the `ResultFuture`, which adds it to the output buffer. From there, the heavy logic that includes record emission and interaction
-with the checkpoint bookkeepting happens in a dedicated thread-pool anyways.
+with the checkpoint bookkeeping happens in a dedicated thread-pool anyways.
 
 A `DirectExecutor` can be obtained via `org.apache.flink.runtime.concurrent.Executors.directExecutor()` or
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()`.
@@ -249,6 +249,6 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
 
   - Using a database client whose lookup/query method call blocks until the result has been received back
 
-  - Blocking/waiting on the future-type objects returned by an aynchronous client inside the `asyncInvoke(...)` method
+  - Blocking/waiting on the future-type objects returned by an asynchronous client inside the `asyncInvoke(...)` method
 
 {% top %}
