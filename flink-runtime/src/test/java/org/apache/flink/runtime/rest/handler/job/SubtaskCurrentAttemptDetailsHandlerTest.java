@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
@@ -36,11 +35,10 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
-import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
-import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameters;
-import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.TestLogger;
@@ -54,22 +52,20 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests of {@link SubtaskExecutionAttemptDetailsHandler}.
+ * Tests of {@link SubtaskCurrentAttemptDetailsHandler}.
  */
-public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
+public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
 
 	@Test
 	public void testHandleRequest() throws Exception {
 
+		// Prepare the execution graph.
 		final JobID jobID = new JobID();
-		final JobVertexID jobVertexId = new JobVertexID();
+		final JobVertexID jobVertexID = new JobVertexID();
 
 		// The testing subtask.
-		final int subtaskIndex = 1;
-		final ExecutionState expectedState = ExecutionState.FINISHED;
-		final int attempt = 0;
-
-		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
+		final long deployingTs = System.currentTimeMillis() - 1024;
+		final long finishedTs = System.currentTimeMillis();
 
 		final long bytesInLocal = 1L;
 		final long bytesInRemote = 2L;
@@ -89,45 +85,46 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			0.0,
 			0.0);
 
-		final ArchivedExecutionJobVertex archivedExecutionJobVertex = new ArchivedExecutionJobVertex(
-			new ArchivedExecutionVertex[]{
-				null, // the first subtask won't be queried
-				new ArchivedExecutionVertex(
-					subtaskIndex,
-					"test task",
-					new ArchivedExecution(
-						emptyAccumulators,
-						ioMetrics,
-						new ExecutionAttemptID(),
-						attempt,
-						expectedState,
-						null,
-						null,
-						subtaskIndex,
-						new long[ExecutionState.values().length]),
-					new EvictingBoundedList<>(0)
-				)
-			},
-			jobVertexId,
-			"test",
-			1,
-			1,
-			emptyAccumulators);
+		final long[] timestamps = new long[ExecutionState.values().length];
+		timestamps[ExecutionState.DEPLOYING.ordinal()] = deployingTs;
+		final ExecutionState expectedState = ExecutionState.FINISHED;
 
-		// Change some fields so we can make it different from other sub tasks.
+		timestamps[expectedState.ordinal()] = finishedTs;
+
+		final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
+
+		final int subtaskIndex = 1;
+		final int attempt = 2;
+		final ArchivedExecution execution = new ArchivedExecution(
+			new StringifiedAccumulatorResult[0],
+			ioMetrics,
+			new ExecutionAttemptID(),
+			attempt,
+			expectedState,
+			null,
+			assignedResourceLocation,
+			subtaskIndex,
+			timestamps);
+
+		final ArchivedExecutionVertex executionVertex = new ArchivedExecutionVertex(
+			subtaskIndex,
+			"Test archived execution vertex",
+			execution,
+			new EvictingBoundedList<>(0));
+
+		// Instance the handler.
+		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
+
 		final MetricFetcher<?> metricFetcher = new MetricFetcher<>(
 			() -> null,
 			path -> null,
 			TestingUtils.defaultExecutor(),
 			Time.milliseconds(1000L));
 
-		// Instance the handler.
-		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
-
-		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
+		final SubtaskCurrentAttemptDetailsHandler handler = new SubtaskCurrentAttemptDetailsHandler(
 			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
-			Time.milliseconds(100L),
+			Time.milliseconds(100),
 			restHandlerConfiguration.getResponseHeaders(),
 			null,
 			new ExecutionGraphCache(
@@ -136,23 +133,18 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			TestingUtils.defaultExecutor(),
 			metricFetcher);
 
-		final HashMap<String, String> receivedPathParameters = new HashMap<>(4);
+		final HashMap<String, String> receivedPathParameters = new HashMap<>(2);
 		receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
-		receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexId.toString());
-		receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
-		receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
+		receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexID.toString());
 
-		final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request = new HandlerRequest<>(
+		final HandlerRequest<EmptyRequestBody, SubtaskMessageParameters> request = new HandlerRequest<>(
 			EmptyRequestBody.getInstance(),
-			new SubtaskAttemptMessageParameters(),
+			new SubtaskMessageParameters(),
 			receivedPathParameters,
-			Collections.emptyMap()
-		);
+			Collections.emptyMap());
 
 		// Handle request.
-		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(
-			request,
-			archivedExecutionJobVertex);
+		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(request, executionVertex);
 
 		// Verify
 		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
@@ -170,10 +162,10 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			subtaskIndex,
 			expectedState,
 			attempt,
-			"(unassigned)",
-			-1L,
-			0L,
-			-1L,
+			assignedResourceLocation.getHostname(),
+			deployingTs,
+			finishedTs,
+			finishedTs - deployingTs,
 			ioMetricsInfo
 		);
 
