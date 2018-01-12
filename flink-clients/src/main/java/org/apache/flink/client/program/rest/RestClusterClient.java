@@ -225,7 +225,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 			Thread.sleep(waitStrategy.sleepTime(attempt));
 			attempt++;
 		}
-		while (asynchronouslyCreatedResource.queueStatus().getStatusId() != QueueStatus.StatusId.COMPLETED);
+		while (asynchronouslyCreatedResource.queueStatus().getId() != QueueStatus.Id.COMPLETED);
 		return asynchronouslyCreatedResource.resource();
 	}
 

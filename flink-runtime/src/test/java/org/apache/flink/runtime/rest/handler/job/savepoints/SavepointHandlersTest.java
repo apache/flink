@@ -147,8 +147,8 @@ public class SavepointHandlersTest {
 			mockRestfulGateway).get();
 
 		assertThat(
-			savepointResponseBody.getStatus().getStatusId(),
-			equalTo(QueueStatus.StatusId.IN_PROGRESS));
+			savepointResponseBody.getStatus().getId(),
+			equalTo(QueueStatus.Id.IN_PROGRESS));
 
 		checkpointCompletableFuture.complete(completedCheckpoint);
 		savepointResponseBody = savepointStatusHandler.handleRequest(
@@ -156,8 +156,8 @@ public class SavepointHandlersTest {
 			mockRestfulGateway).get();
 
 		assertThat(
-			savepointResponseBody.getStatus().getStatusId(),
-			equalTo(QueueStatus.StatusId.COMPLETED));
+			savepointResponseBody.getStatus().getId(),
+			equalTo(QueueStatus.Id.COMPLETED));
 		assertThat(savepointResponseBody.getSavepoint(), notNullValue());
 		assertThat(
 			savepointResponseBody.getSavepoint().getLocation(),
@@ -232,7 +232,7 @@ public class SavepointHandlersTest {
 			savepointStatusRequest(savepointTriggerId),
 			mockRestfulGateway).get();
 
-		assertThat(savepointResponseBody.getStatus().getStatusId(), equalTo(QueueStatus.StatusId.COMPLETED));
+		assertThat(savepointResponseBody.getStatus().getId(), equalTo(QueueStatus.Id.COMPLETED));
 		assertThat(savepointResponseBody.getSavepoint(), notNullValue());
 		assertThat(savepointResponseBody.getSavepoint().getFailureCause(), notNullValue());
 		final Throwable savepointError = savepointResponseBody.getSavepoint()

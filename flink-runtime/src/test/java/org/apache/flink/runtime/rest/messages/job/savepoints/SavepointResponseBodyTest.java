@@ -71,7 +71,7 @@ public class SavepointResponseBodyTest extends RestResponseMarshallingTestBase<S
 	protected void assertOriginalEqualsToUnmarshalled(
 			final SavepointResponseBody expected,
 			final SavepointResponseBody actual) {
-		assertEquals(expected.getStatus().getStatusId(), actual.getStatus().getStatusId());
+		assertEquals(expected.getStatus().getId(), actual.getStatus().getId());
 		if (expected.getSavepoint() != null) {
 			assertNotNull(actual.getSavepoint());
 			assertEquals(expected.getSavepoint().getRequestId(), actual.getSavepoint().getRequestId());
