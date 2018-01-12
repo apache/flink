@@ -1293,6 +1293,29 @@ Thus, in order to infer the metric identifier:
   </tbody>
 </table>
 
+#### Kinesis Connectors
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>millisBehindLatest</td>
+      <td>The number of milliseconds the <a>GetRecords</a> response is from the head of the stream,
+      indicating how far behind current time the consumer is. A value of zero indicates record
+      processing is caught up, and there are no new records to process at this moment.
+      </td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+</table>
+
 ## Latency tracking
 
 Flink allows to track the latency of records traveling through the system. To enable the latency tracking
