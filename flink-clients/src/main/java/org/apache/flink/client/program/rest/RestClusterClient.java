@@ -214,21 +214,6 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		}
 	}
 
-	private <R, T extends AsynchronouslyCreatedResource<R>> R waitForResource(
-			final SupplierWithException<CompletableFuture<T>, IOException> resourceFutureSupplier)
-				throws IOException, InterruptedException, ExecutionException, TimeoutException {
-		T asynchronouslyCreatedResource;
-		long attempt = 0;
-		do {
-			final CompletableFuture<T> responseFuture = resourceFutureSupplier.get();
-			asynchronouslyCreatedResource = responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-			Thread.sleep(waitStrategy.sleepTime(attempt));
-			attempt++;
-		}
-		while (asynchronouslyCreatedResource.queueStatus().getId() != QueueStatus.Id.COMPLETED);
-		return asynchronouslyCreatedResource.resource();
-	}
-
 	@Override
 	public void stop(JobID jobID) throws Exception {
 		JobTerminationMessageParameters params = new JobTerminationMessageParameters();
@@ -339,6 +324,21 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	@Override
 	public T getClusterId() {
 		return clusterId;
+	}
+
+	private <R, A extends AsynchronouslyCreatedResource<R>> R waitForResource(
+			final SupplierWithException<CompletableFuture<A>, IOException> resourceFutureSupplier)
+				throws IOException, InterruptedException, ExecutionException, TimeoutException {
+		A asynchronouslyCreatedResource;
+		long attempt = 0;
+		do {
+			final CompletableFuture<A> responseFuture = resourceFutureSupplier.get();
+			asynchronouslyCreatedResource = responseFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+			Thread.sleep(waitStrategy.sleepTime(attempt));
+			attempt++;
+		}
+		while (asynchronouslyCreatedResource.queueStatus().getId() != QueueStatus.Id.COMPLETED);
+		return asynchronouslyCreatedResource.resource();
 	}
 
 	// ======================================
