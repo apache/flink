@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
@@ -67,11 +67,11 @@ public class ShardConsumer<T> implements Runnable {
 	private final int maxNumberOfRecordsPerFetch;
 	private final long fetchIntervalMillis;
 
+	private final ShardMetricsReporter shardMetricsReporter;
+
 	private SequenceNumber lastSequenceNum;
 
 	private Date initTimestamp;
-
-	private long millisBehindLatest;
 
 	/**
 	 * Creates a shard consumer.
@@ -80,19 +80,19 @@ public class ShardConsumer<T> implements Runnable {
 	 * @param subscribedShardStateIndex the state index of the shard this consumer is subscribed to
 	 * @param subscribedShard the shard this consumer is subscribed to
 	 * @param lastSequenceNum the sequence number in the shard to start consuming
-	 * @param kinesisMetricGroup the metric group to report to
+	 * @param shardMetricsReporter the reporter to report metrics to
 	 */
 	public ShardConsumer(KinesisDataFetcher<T> fetcherRef,
 						Integer subscribedShardStateIndex,
 						StreamShardHandle subscribedShard,
 						SequenceNumber lastSequenceNum,
-						MetricGroup kinesisMetricGroup) {
+						ShardMetricsReporter shardMetricsReporter) {
 		this(fetcherRef,
 			subscribedShardStateIndex,
 			subscribedShard,
 			lastSequenceNum,
 			KinesisProxy.create(fetcherRef.getConsumerConfiguration()),
-			kinesisMetricGroup);
+			shardMetricsReporter);
 	}
 
 	/** This constructor is exposed for testing purposes. */
@@ -101,14 +101,13 @@ public class ShardConsumer<T> implements Runnable {
 							StreamShardHandle subscribedShard,
 							SequenceNumber lastSequenceNum,
 							KinesisProxyInterface kinesis,
-							MetricGroup kinesisMetricGroup) {
+							ShardMetricsReporter shardMetricsReporter) {
 		this.fetcherRef = checkNotNull(fetcherRef);
 		this.subscribedShardStateIndex = checkNotNull(subscribedShardStateIndex);
 		this.subscribedShard = checkNotNull(subscribedShard);
 		this.lastSequenceNum = checkNotNull(lastSequenceNum);
 
-		checkNotNull(kinesisMetricGroup);
-		kinesisMetricGroup.gauge("millisBehindLatest", () -> millisBehindLatest);
+		this.shardMetricsReporter = checkNotNull(shardMetricsReporter);
 
 		checkArgument(
 			!lastSequenceNum.equals(SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get()),
@@ -304,7 +303,7 @@ public class ShardConsumer<T> implements Runnable {
 				getRecordsResult = kinesis.getRecords(shardItr, maxNumberOfRecords);
 
 				// Update millis behind latest so it gets reported by the millisBehindLatest gauge
-				millisBehindLatest = getRecordsResult.getMillisBehindLatest();
+				shardMetricsReporter.setMillisBehindLatest(getRecordsResult.getMillisBehindLatest());
 			} catch (ExpiredIteratorException eiEx) {
 				LOG.warn("Encountered an unexpected expired iterator {} for shard {};" +
 					" refreshing the iterator ...", shardItr, subscribedShard);

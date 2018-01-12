@@ -21,6 +21,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
+import org.apache.flink.streaming.connectors.kinesis.metrics.ShardMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -90,6 +92,13 @@ public class KinesisDataFetcher<T> {
 	 * clone a copy using {@link KinesisDataFetcher#getClonedDeserializationSchema()}.
 	 */
 	private final KinesisDeserializationSchema<T> deserializationSchema;
+
+	// ------------------------------------------------------------------------
+	//  Consumer metrics
+	// ------------------------------------------------------------------------
+
+	/** The metric group that all metrics should be registered to. */
+	private final MetricGroup consumerMetricGroup;
 
 	// ------------------------------------------------------------------------
 	//  Subtask-specific settings
@@ -205,6 +214,9 @@ public class KinesisDataFetcher<T> {
 		this.deserializationSchema = checkNotNull(deserializationSchema);
 		this.kinesis = checkNotNull(kinesis);
 
+		this.consumerMetricGroup = runtimeContext.getMetricGroup()
+			.addGroup(KinesisConsumerMetricConstants.KINESIS_CONSUMER_METRICS_GROUP);
+
 		this.error = checkNotNull(error);
 		this.subscribedShardsState = checkNotNull(subscribedShardsState);
 		this.subscribedStreamsToLastDiscoveredShardIds = checkNotNull(subscribedStreamsToLastDiscoveredShardIds);
@@ -274,7 +286,7 @@ public class KinesisDataFetcher<T> {
 						seededStateIndex,
 						subscribedShardsState.get(seededStateIndex).getStreamShardHandle(),
 						subscribedShardsState.get(seededStateIndex).getLastProcessedSequenceNum(),
-						registerMetricGroupForShard(subscribedShardsState.get(seededStateIndex))));
+						registerShardMetrics(consumerMetricGroup, subscribedShardsState.get(seededStateIndex))));
 			}
 		}
 
@@ -321,7 +333,7 @@ public class KinesisDataFetcher<T> {
 						newStateIndex,
 						newShardState.getStreamShardHandle(),
 						newShardState.getLastProcessedSequenceNum(),
-						registerMetricGroupForShard(newShardState)));
+						registerShardMetrics(consumerMetricGroup, newShardState)));
 			}
 
 			// we also check if we are running here so that we won't start the discovery sleep
@@ -547,13 +559,23 @@ public class KinesisDataFetcher<T> {
 
 	/**
 	 * Registers a metric group associated with the shard id of the provided {@link KinesisStreamShardState shardState}.
+	 *
+	 * @return a {@link ShardMetricsReporter} that can be used to update metric values
 	 */
-	private MetricGroup registerMetricGroupForShard(KinesisStreamShardState shardState) {
-		return runtimeContext
-			.getMetricGroup()
-			.addGroup("Kinesis")
-			.addGroup("stream", shardState.getStreamShardHandle().getStreamName())
-			.addGroup("shardId", shardState.getStreamShardHandle().getShard().getShardId());
+	private static ShardMetricsReporter registerShardMetrics(MetricGroup metricGroup, KinesisStreamShardState shardState) {
+		ShardMetricsReporter shardMetrics = new ShardMetricsReporter();
+
+		MetricGroup streamShardMetricGroup = metricGroup
+			.addGroup(
+				KinesisConsumerMetricConstants.STREAM_METRICS_GROUP,
+				shardState.getStreamShardHandle().getStreamName())
+			.addGroup(
+				KinesisConsumerMetricConstants.SHARD_METRICS_GROUP,
+				shardState.getStreamShardHandle().getShard().getShardId());
+
+		streamShardMetricGroup.gauge(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE, shardMetrics::getMillisBehindLatest);
+
+		return shardMetrics;
 	}
 
 	// ------------------------------------------------------------------------
