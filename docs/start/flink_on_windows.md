@@ -56,7 +56,7 @@ Starting jobmanager.
 
 ## Installing Flink from Git
 
-If you are installing Flink from the git repository and you are using the Windows git shell, Cygwin can produce a failure similiar to this one:
+If you are installing Flink from the git repository and you are using the Windows git shell, Cygwin can produce a failure similar to this one:
 
 ~~~bash
 c:/flink/bin/start-local.sh: line 30: $'\r': command not found

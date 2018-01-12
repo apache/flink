@@ -58,7 +58,7 @@ The two numbers that are of particular interest when scaling up checkpoints are:
 
   - The amount of data buffered during alignments. For exactly-once semantics, Flink *aligns* the streams at
     operators that receive multiple input streams, buffering some data for that alignment.
-    The buffered data volume is ideally low - higher amounts means that checkpoint barriers are reveived at
+    The buffered data volume is ideally low - higher amounts means that checkpoint barriers are received at
     very different times from the different input streams.
 
 Note that when the here indicated numbers can be occasionally high in the presence of transient backpressure, data skew,

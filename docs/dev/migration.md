@@ -165,7 +165,7 @@ public class BufferingSink implements SinkFunction<Tuple2<String, Integer>>,
 {% endhighlight %}
 
 
-The `CountMapper` is a `RichFlatMapFuction` which assumes a grouped-by-key input stream of the form
+The `CountMapper` is a `RichFlatMapFunction` which assumes a grouped-by-key input stream of the form
 `(word, 1)`. The function keeps a counter for each incoming key (`ValueState<Integer> counter`) and if
 the number of occurrences of a certain word surpasses the user-provided threshold, a tuple is emitted
 containing the word itself and the number of occurrences.

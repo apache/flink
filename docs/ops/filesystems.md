@@ -46,7 +46,7 @@ including any NFS or SAN that is mounted into that local file system.
   - **S3**: Flink directly provides file systems to talk to Amazon S3, registered under the scheme *"s3://"*.
 There are two alternative implementations, `flink-s3-fs-presto` and `flink-s3-fs-hadoop`, based on code from the [Presto project](https://prestodb.io/)
 and the [Hadoop Project](https://hadoop.apache.org/). Both implementations are self-contained with no dependency footprint.
-To use those when using Flink as a library, add the resective maven dependency (`org.apache.flink:flink-s3-fs-presto:{{ site.version }}` or `org.apache.flink:flink-s3-fs-hadoop:{{ site.version }}`).
+To use those when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-s3-fs-presto:{{ site.version }}` or `org.apache.flink:flink-s3-fs-hadoop:{{ site.version }}`).
 When starting a Flink application from the Flink binaries, copy or move the respective jar file from the `opt` folder to the `lib` folder.
 See [AWS setup](deployment/aws.html) for details.
 
@@ -57,7 +57,7 @@ See [AWS setup](deployment/aws.html) for details.
 For a scheme where Flink does not implemented a file system itself, Flink will try to use Hadoop to instantiate a file system for the respective scheme.
 All Hadoop file systems are automatically available once `flink-runtime` and the relevant Hadoop libraries are in classpath.
 
-That way, Flink seamslessly supports all of Hadoop file systems, and all Hadoop-compatible file systems (HCFS), for example:
+That way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-compatible file systems (HCFS), for example:
 
   - **hdfs**
   - **ftp**
@@ -104,7 +104,7 @@ the total number of concurrent streams (`fs.<scheme>.limit.total`). If the file 
 If the opening of the stream takes longer than `fs.<scheme>.limit.timeout`, the stream opening will fail.
 
 To prevent inactive streams from taking up the complete pool (preventing new connections to be opened), you can add an inactivity timeout for streams:
-`fs.<scheme>.limit.stream-timeout`. If a stream does not read/write any bytes for at least that amout of time, it is forcibly closed.
+`fs.<scheme>.limit.stream-timeout`. If a stream does not read/write any bytes for at least that amount of time, it is forcibly closed.
 
 These limits are enforced per TaskManager, so each TaskManager in a Flink application or cluster will open up to that number of connections.
 In addition, the The limit are also enforced only per FileSystem instance. Because File Systems are created per scheme and authority, different
