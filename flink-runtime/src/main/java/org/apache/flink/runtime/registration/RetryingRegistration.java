@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
 
@@ -263,7 +264,7 @@ public abstract class RetryingRegistration<F extends Serializable, G extends Rpc
 			registrationAcceptFuture.whenCompleteAsync(
 				(Void v, Throwable failure) -> {
 					if (failure != null && !isCanceled()) {
-						if (failure instanceof TimeoutException) {
+						if (ExceptionUtils.stripCompletionException(failure) instanceof TimeoutException) {
 							// we simply have not received a response in time. maybe the timeout was
 							// very low (initial fast registration attempts), maybe the target endpoint is
 							// currently down.
