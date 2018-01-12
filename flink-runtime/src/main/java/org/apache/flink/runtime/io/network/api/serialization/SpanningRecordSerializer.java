@@ -138,13 +138,12 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	private SerializationResult getSerializationResult() {
-		if (!dataBuffer.hasRemaining() && !lengthBuffer.hasRemaining()) {
-			return !targetBuffer.isFull()
-					? SerializationResult.FULL_RECORD
-					: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
+		if (dataBuffer.hasRemaining() || lengthBuffer.hasRemaining()) {
+			return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
 		}
-
-		return SerializationResult.PARTIAL_RECORD_MEMORY_SEGMENT_FULL;
+		return !targetBuffer.isFull()
+				? SerializationResult.FULL_RECORD
+				: SerializationResult.FULL_RECORD_MEMORY_SEGMENT_FULL;
 	}
 
 	@Override
