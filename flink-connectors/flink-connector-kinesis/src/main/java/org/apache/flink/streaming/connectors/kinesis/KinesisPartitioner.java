@@ -29,6 +29,8 @@ import java.io.Serializable;
 @PublicEvolving
 public abstract class KinesisPartitioner<T> implements Serializable {
 
+	private static final long serialVersionUID = -7467294664702189780L;
+
 	/**
 	 * Return a partition id based on the input.
 	 * @param element Element to partition
