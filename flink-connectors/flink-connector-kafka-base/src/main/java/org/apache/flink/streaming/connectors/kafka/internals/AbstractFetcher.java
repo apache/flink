@@ -38,6 +38,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITTED_OFFSETS_METRICS_GAUGE;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.CURRENT_OFFSETS_METRICS_GAUGE;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.LEGACY_COMMITTED_OFFSETS_METRICS_GROUP;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.LEGACY_CURRENT_OFFSETS_METRICS_GROUP;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.OFFSETS_BY_PARTITION_METRICS_GROUP;
+import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.OFFSETS_BY_TOPIC_METRICS_GROUP;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -564,19 +570,23 @@ public abstract class AbstractFetcher<T, KPH> {
 	 * @param metricGroup The metric group to use
 	 */
 	protected void addOffsetStateGauge(MetricGroup metricGroup) {
-		// add current offsets to gage
-		MetricGroup currentOffsets = metricGroup.addGroup("current-offsets");
-		MetricGroup committedOffsets = metricGroup.addGroup("committed-offsets");
-		for (KafkaTopicPartitionState<KPH> ktp : subscribedPartitionStates) {
-			currentOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
-			committedOffsets.gauge(ktp.getTopic() + "-" + ktp.getPartition(), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+		MetricGroup legacyCurrentOffsetsGroup = metricGroup.addGroup(LEGACY_CURRENT_OFFSETS_METRICS_GROUP);
+		MetricGroup legacyCommittedOffsetsGroup = metricGroup.addGroup(LEGACY_COMMITTED_OFFSETS_METRICS_GROUP);
 
+		for (KafkaTopicPartitionState<KPH> ktp : subscribedPartitionStates) {
 			MetricGroup topicPartitionGroup = metricGroup
-				.addGroup("topic", ktp.getTopic())
-				.addGroup("partition", Integer.toString(ktp.getPartition()));
-			topicPartitionGroup.gauge("currentOffsets", new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
-			topicPartitionGroup.gauge("committedOffsets", new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+				.addGroup(OFFSETS_BY_TOPIC_METRICS_GROUP, ktp.getTopic())
+				.addGroup(OFFSETS_BY_PARTITION_METRICS_GROUP, Integer.toString(ktp.getPartition()));
+			topicPartitionGroup.gauge(CURRENT_OFFSETS_METRICS_GAUGE, new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			topicPartitionGroup.gauge(COMMITTED_OFFSETS_METRICS_GAUGE, new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
+
+			legacyCurrentOffsetsGroup.gauge(getLegacyOffsetsMetricsGaugeName(ktp), new OffsetGauge(ktp, OffsetGaugeType.CURRENT_OFFSET));
+			legacyCommittedOffsetsGroup.gauge(getLegacyOffsetsMetricsGaugeName(ktp), new OffsetGauge(ktp, OffsetGaugeType.COMMITTED_OFFSET));
 		}
+	}
+
+	private static String getLegacyOffsetsMetricsGaugeName(KafkaTopicPartitionState<?> ktp) {
+		return ktp.getTopic() + "-" + ktp.getPartition();
 	}
 
 	/**
