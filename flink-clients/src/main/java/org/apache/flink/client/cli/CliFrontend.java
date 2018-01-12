@@ -106,9 +106,7 @@ public class CliFrontend {
 
 	private final Configuration configuration;
 
-	private final List<CustomCommandLine<?>> customCommandLines;
-
-	private final String configurationDirectory;
+	private final List<CustomCommandLine> customCommandLines;
 
 	private final Options customCommandLineOptions;
 
@@ -118,11 +116,9 @@ public class CliFrontend {
 
 	public CliFrontend(
 			Configuration configuration,
-			List<CustomCommandLine<?>> customCommandLines,
-			String configurationDirectory) throws Exception {
+			List<CustomCommandLine> customCommandLines) throws Exception {
 		this.configuration = Preconditions.checkNotNull(configuration);
 		this.customCommandLines = Preconditions.checkNotNull(customCommandLines);
-		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
 
 		try {
 			FileSystem.initialize(this.configuration);
@@ -133,15 +129,15 @@ public class CliFrontend {
 
 		this.customCommandLineOptions = new Options();
 
-		for (CustomCommandLine<?> customCommandLine : customCommandLines) {
+		for (CustomCommandLine customCommandLine : customCommandLines) {
 			customCommandLine.addGeneralOptions(customCommandLineOptions);
 			customCommandLine.addRunOptions(customCommandLineOptions);
 		}
 
 		this.clientTimeout = AkkaUtils.getClientTimeout(this.configuration);
-		this.defaultParallelism = GlobalConfiguration.loadConfiguration().getInteger(
-														ConfigConstants.DEFAULT_PARALLELISM_KEY,
-														ConfigConstants.DEFAULT_PARALLELISM);
+		this.defaultParallelism = configuration.getInteger(
+			ConfigConstants.DEFAULT_PARALLELISM_KEY,
+			ConfigConstants.DEFAULT_PARALLELISM);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -159,15 +155,6 @@ public class CliFrontend {
 		copiedConfiguration.addAll(configuration);
 
 		return copiedConfiguration;
-	}
-
-	/**
-	 * Returns the configuration directory for the CLI frontend.
-	 *
-	 * @return Configuration directory
-	 */
-	public String getConfigurationDirectory() {
-		return configurationDirectory;
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -209,22 +196,19 @@ public class CliFrontend {
 			throw new CliArgsException("Could not build the program from JAR file.", e);
 		}
 
-		final CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine customCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = customCommandLine.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final ClusterDescriptor clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
 
 		try {
-			final String clusterId = customCommandLine.getClusterId(configuration, commandLine);
+			final String clusterId = customCommandLine.getClusterId(commandLine);
 
 			final ClusterClient client;
 
 			if (clusterId != null) {
 				client = clusterDescriptor.retrieve(clusterId);
 			} else {
-				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(configuration, commandLine);
+				final ClusterSpecification clusterSpecification = customCommandLine.getClusterSpecification(commandLine);
 				client = clusterDescriptor.deploySessionCluster(clusterSpecification);
 			}
 
@@ -367,15 +351,10 @@ public class CliFrontend {
 			scheduled = true;
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
-		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final ClusterDescriptor clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
 
-		final String clusterId = activeCommandLine.getClusterId(
-			configuration,
-			commandLine);
+		final String clusterId = activeCommandLine.getClusterId(commandLine);
 
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
@@ -494,14 +473,11 @@ public class CliFrontend {
 			throw new CliArgsException("Missing JobID");
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final ClusterDescriptor clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
 
-		final String clusterId = activeCommandLine.getClusterId(configuration, commandLine);
+		final String clusterId = activeCommandLine.getClusterId(commandLine);
 
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
@@ -577,14 +553,11 @@ public class CliFrontend {
 			throw new CliArgsException("Missing JobID in the command line arguments.");
 		}
 
-		final CustomCommandLine<?> activeCommandLine = getActiveCustomCommandLine(commandLine);
+		final CustomCommandLine activeCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = activeCommandLine.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final ClusterDescriptor clusterDescriptor = activeCommandLine.createClusterDescriptor(commandLine);
 
-		final String clusterId = activeCommandLine.getClusterId(configuration, commandLine);
+		final String clusterId = activeCommandLine.getClusterId(commandLine);
 
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
@@ -644,16 +617,11 @@ public class CliFrontend {
 			return;
 		}
 
-		CustomCommandLine<?> customCommandLine = getActiveCustomCommandLine(commandLine);
+		CustomCommandLine customCommandLine = getActiveCustomCommandLine(commandLine);
 
-		final ClusterDescriptor<?> clusterDescriptor = customCommandLine.createClusterDescriptor(
-			configuration,
-			configurationDirectory,
-			commandLine);
+		final ClusterDescriptor clusterDescriptor = customCommandLine.createClusterDescriptor(commandLine);
 
-		final String clusterId = customCommandLine.getClusterId(
-			configuration,
-			commandLine);
+		final String clusterId = customCommandLine.getClusterId(commandLine);
 
 		if (clusterId == null) {
 			throw new FlinkException("No cluster id was specified. Please specify a cluster to which " +
@@ -1004,13 +972,14 @@ public class CliFrontend {
 		final Configuration configuration = GlobalConfiguration.loadConfiguration(configurationDirectory);
 
 		// 3. load the custom command lines
-		final List<CustomCommandLine<?>> customCommandLines = loadCustomCommandLines();
+		final List<CustomCommandLine> customCommandLines = loadCustomCommandLines(
+			configuration,
+			configurationDirectory);
 
 		try {
 			final CliFrontend cli = new CliFrontend(
 				configuration,
-				customCommandLines,
-				configurationDirectory);
+				customCommandLines);
 
 			SecurityUtils.install(new SecurityConfiguration(cli.configuration));
 			int retCode = SecurityUtils.getInstalledContext()
@@ -1070,8 +1039,8 @@ public class CliFrontend {
 		config.setInteger(JobManagerOptions.PORT, address.getPort());
 	}
 
-	public static List<CustomCommandLine<?>> loadCustomCommandLines() {
-		List<CustomCommandLine<?>> customCommandLines = new ArrayList<>(2);
+	public static List<CustomCommandLine> loadCustomCommandLines(Configuration configuration, String configurationDirectory) {
+		List<CustomCommandLine> customCommandLines = new ArrayList<>(2);
 
 		//	Command line interface of the YARN session, with a special initialization here
 		//	to prefix all options with y/yarn.
@@ -1079,13 +1048,18 @@ public class CliFrontend {
 		//	      active CustomCommandLine in order and DefaultCLI isActive always return true.
 		final String flinkYarnSessionCLI = "org.apache.flink.yarn.cli.FlinkYarnSessionCli";
 		try {
-			customCommandLines.add(loadCustomCommandLine(flinkYarnSessionCLI, "y", "yarn"));
+			customCommandLines.add(
+				loadCustomCommandLine(flinkYarnSessionCLI,
+					configuration,
+					configurationDirectory,
+					"y",
+					"yarn"));
 		} catch (Exception e) {
 			LOG.warn("Could not load CLI class {}.", flinkYarnSessionCLI, e);
 		}
 
-		customCommandLines.add(new Flip6DefaultCLI());
-		customCommandLines.add(new DefaultCLI());
+		customCommandLines.add(new Flip6DefaultCLI(configuration));
+		customCommandLines.add(new DefaultCLI(configuration));
 
 		return customCommandLines;
 	}
@@ -1101,7 +1075,7 @@ public class CliFrontend {
 	 */
 	public CustomCommandLine getActiveCustomCommandLine(CommandLine commandLine) {
 		for (CustomCommandLine cli : customCommandLines) {
-			if (cli.isActive(commandLine, configuration)) {
+			if (cli.isActive(commandLine)) {
 				return cli;
 			}
 		}
@@ -1113,7 +1087,7 @@ public class CliFrontend {
 	 * @param className The fully-qualified class name to load.
 	 * @param params The constructor parameters
 	 */
-	private static CustomCommandLine<?> loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
+	private static CustomCommandLine loadCustomCommandLine(String className, Object... params) throws IllegalAccessException, InvocationTargetException, InstantiationException, ClassNotFoundException, NoSuchMethodException {
 
 		Class<? extends CustomCommandLine> customCliClass =
 			Class.forName(className).asSubclass(CustomCommandLine.class);

@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 
 import java.io._
 
-import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
+import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser, RunOptions}
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
 import org.apache.flink.runtime.minicluster.StandaloneMiniCluster
@@ -253,25 +253,21 @@ object FlinkShell {
     yarnConfig.queue.foreach((queue) => args ++= Seq("-yqu", queue.toString))
     yarnConfig.slots.foreach((slots) => args ++= Seq("-ys", slots.toString))
 
-    val options = CliFrontendParser.parseRunCommand(args.toArray)
+    val commandLine = CliFrontendParser.parse(
+      CliFrontendParser.getRunCommandOptions,
+      args.toArray,
+      true)
+
     val frontend = new CliFrontend(
       configuration,
-      CliFrontend.loadCustomCommandLines(),
-      configurationDirectory)
-    val config = frontend.getConfiguration
-    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
+    val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(
-      config,
-      frontend.getConfigurationDirectory,
-      options.getCommandLine)
+    val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
 
-    val clusterSpecification = customCLI.getClusterSpecification(
-      config,
-      options.getCommandLine)
+    val clusterSpecification = customCLI.getClusterSpecification(commandLine)
 
-    val cluster = clusterDescriptor.deploySessionCluster(
-      clusterSpecification)
+    val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
     val address = cluster.getJobManagerAddress.getAddress.getHostAddress
     val port = cluster.getJobManagerAddress.getPort
@@ -288,22 +284,19 @@ object FlinkShell {
       "-m", "yarn-cluster"
     )
 
-    val options = CliFrontendParser.parseRunCommand(args.toArray)
+    val commandLine = CliFrontendParser.parse(
+      CliFrontendParser.getRunCommandOptions,
+      args.toArray,
+      true)
+
     val frontend = new CliFrontend(
       configuration,
-      CliFrontend.loadCustomCommandLines(),
-      configurationDirectory)
-    val config = frontend.getConfiguration
-    val customCLI = frontend.getActiveCustomCommandLine(options.getCommandLine)
+      CliFrontend.loadCustomCommandLines(configuration, configurationDirectory))
+    val customCLI = frontend.getActiveCustomCommandLine(commandLine)
 
-    val clusterDescriptor = customCLI.createClusterDescriptor(
-      configuration,
-      configurationDirectory,
-      options.getCommandLine)
+    val clusterDescriptor = customCLI.createClusterDescriptor(commandLine)
 
-    val clusterId = customCLI.getClusterId(
-      configuration,
-      options.getCommandLine)
+    val clusterId = customCLI.getClusterId(commandLine)
 
     val cluster = clusterDescriptor.retrieve(clusterId)
 

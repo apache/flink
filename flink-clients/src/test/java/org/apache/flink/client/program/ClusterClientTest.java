@@ -188,6 +188,8 @@ public class ClusterClientTest extends TestLogger {
 			fail("Dispose operation should have failed.");
 		} catch (ExecutionException e) {
 			assertTrue(ExceptionUtils.findThrowable(e, FlinkRuntimeException.class).isPresent());
+		} finally {
+			clusterClient.shutdown();
 		}
 	}
 
@@ -214,6 +216,8 @@ public class ClusterClientTest extends TestLogger {
 				"instance, which cannot be disposed without the user code class " +
 				"loader. Please provide the program jar with which you have created " +
 				"the savepoint via -j <JAR> for disposal.").isPresent());
+		} finally {
+			clusterClient.shutdown();
 		}
 	}
 

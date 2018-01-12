@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli.util;
 
 import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 
@@ -35,7 +34,6 @@ public class MockedCliFrontend extends CliFrontend {
 	public MockedCliFrontend(ClusterClient clusterClient) throws Exception {
 		super(
 			new Configuration(),
-			Collections.singletonList(new DummyCustomCommandLine<>(clusterClient)),
-			CliFrontendTestUtils.getConfigDir());
+			Collections.singletonList(new DummyCustomCommandLine(clusterClient)));
 	}
 }

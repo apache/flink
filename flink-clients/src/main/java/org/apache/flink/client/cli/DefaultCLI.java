@@ -21,8 +21,8 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
-import org.apache.flink.client.program.StandaloneClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 
@@ -31,10 +31,14 @@ import javax.annotation.Nullable;
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterClient> {
+public class DefaultCLI extends AbstractCustomCommandLine {
+
+	public DefaultCLI(Configuration configuration) {
+		super(configuration);
+	}
 
 	@Override
-	public boolean isActive(CommandLine commandLine, Configuration configuration) {
+	public boolean isActive(CommandLine commandLine) {
 		// always active because we can try to read a JobManager address from the config
 		return true;
 	}
@@ -45,23 +49,21 @@ public class DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterClien
 	}
 
 	@Override
-	public ClusterDescriptor<StandaloneClusterClient> createClusterDescriptor(
-			Configuration configuration,
-			String configurationDirectory,
-			CommandLine commandLine) {
-		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(configuration, commandLine);
+	public ClusterDescriptor createClusterDescriptor(
+			CommandLine commandLine) throws FlinkException {
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
 		return new StandaloneClusterDescriptor(effectiveConfiguration);
 	}
 
 	@Override
 	@Nullable
-	public String getClusterId(Configuration configuration, CommandLine commandLine) {
+	public String getClusterId(CommandLine commandLine) {
 		return "standalone";
 	}
 
 	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration, CommandLine commandLine) {
+	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
 		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }
