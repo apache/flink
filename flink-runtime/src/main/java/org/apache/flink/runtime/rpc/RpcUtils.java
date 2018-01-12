@@ -36,7 +36,7 @@ public class RpcUtils {
 	 * higher or an {@link IllegalArgumentException} will be thrown during an RPC. Check the private
 	 * method {@code checkMaxDelay()} in {@link akka.actor.LightArrayRevolverScheduler}.
 	 */
-	public static final Time INF_TIMEOUT = Time.milliseconds(TimeUnit.SECONDS.toMillis(21474835));
+	public static final Time INF_TIMEOUT = Time.seconds(21474835);
 
 	/**
 	 * Extracts all {@link RpcGateway} interfaces implemented by the given clazz.
