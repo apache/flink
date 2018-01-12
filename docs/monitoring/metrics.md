@@ -69,7 +69,7 @@ public class MyMapper extends RichMapFunction<String, String> {
 {% highlight scala %}
 
 class MyMapper extends RichMapFunction[String,String] {
-  @transient private var counter: Counter
+  @transient private var counter: Counter = _
 
   override def open(parameters: Configuration): Unit = {
     counter = getRuntimeContext()
@@ -119,7 +119,7 @@ public class MyMapper extends RichMapFunction<String, String> {
 {% highlight scala %}
 
 class MyMapper extends RichMapFunction[String,String] {
-  @transient private var counter: Counter
+  @transient private var counter: Counter = _
 
   override def open(parameters: Configuration): Unit = {
     counter = getRuntimeContext()
@@ -229,7 +229,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 {% highlight scala %}
 
 class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var histogram: Histogram
+  @transient private var histogram: Histogram = _
 
   override def open(parameters: Configuration): Unit = {
     histogram = getRuntimeContext()
@@ -289,7 +289,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 {% highlight scala %}
 
 class MyMapper extends RichMapFunction[Long, Long] {
-  @transient private var histogram: Histogram
+  @transient private var histogram: Histogram = _
 
   override def open(config: Configuration): Unit = {
     com.codahale.metrics.Histogram dropwizardHistogram =
@@ -342,7 +342,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 {% highlight scala %}
 
 class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var meter: Meter
+  @transient private var meter: Meter = _
 
   override def open(config: Configuration): Unit = {
     meter = getRuntimeContext()
@@ -401,7 +401,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
 {% highlight scala %}
 
 class MyMapper extends RichMapFunction[Long,Long] {
-  @transient private var meter: Meter
+  @transient private var meter: Meter = _
 
   override def open(config: Configuration): Unit = {
     com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter()
@@ -865,8 +865,8 @@ Thus, in order to infer the metric identifier:
   <tbody>
     <tr>
       <th rowspan="1"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="1">Status.JVM.ClassLoader</td>
-      <td>Threads.Count</td>
+      <td rowspan="1">Status.JVM.Threads</td>
+      <td>Count</td>
       <td>The total number of live threads.</td>
       <td>Gauge</td>
     </tr>

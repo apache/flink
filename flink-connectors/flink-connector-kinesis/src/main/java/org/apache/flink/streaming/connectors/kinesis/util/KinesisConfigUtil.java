@@ -191,6 +191,7 @@ public class KinesisConfigUtil {
 		}
 
 		KinesisProducerConfiguration kpc = KinesisProducerConfiguration.fromProperties(config);
+		kpc.setRegion(config.getProperty(AWSConfigConstants.AWS_REGION));
 
 		kpc.setCredentialsProvider(AWSUtil.getCredentialsProvider(config));
 

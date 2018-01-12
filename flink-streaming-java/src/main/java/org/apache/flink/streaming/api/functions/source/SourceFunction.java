@@ -34,22 +34,26 @@ import java.io.Serializable;
  * The run method can run for as long as necessary. The source must, however, react to an
  * invocation of {@link #cancel()} by breaking out of its main loop.
  *
- * <h3>Checkpointed Sources</h3>
+ * <h3>CheckpointedFunction Sources</h3>
  *
- * <p>Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
+ * <p>Sources that also implement the {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}
  * interface must ensure that state checkpointing, updating of internal state and emission of
  * elements are not done concurrently. This is achieved by using the provided checkpointing lock
  * object to protect update of state and emission of elements in a synchronized block.
  *
- * <p>This is the basic pattern one should follow when implementing a (checkpointed) source:
+ * <p>This is the basic pattern one should follow when implementing a checkpointed source:
  *
  * <pre>{@code
- *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
+ *  public class ExampleCountSource implements SourceFunction<Long>, CheckpointedFunction {
  *      private long count = 0L;
  *      private volatile boolean isRunning = true;
  *
+ *      private transient ListState<Long> checkpointedCount;
+ *
  *      public void run(SourceContext<T> ctx) {
  *          while (isRunning && count < 1000) {
+ *              // this synchronized block ensures that state checkpointing,
+ *              // internal state updates and emission of elements are an atomic operation
  *              synchronized (ctx.getCheckpointLock()) {
  *                  ctx.collect(count);
  *                  count++;
@@ -61,9 +65,22 @@ import java.io.Serializable;
  *          isRunning = false;
  *      }
  *
- *      public Long snapshotState(long checkpointId, long checkpointTimestamp) { return count; }
+ *      public void initializeState(FunctionInitializationContext context) {
+ *          this.checkpointedCount = context
+ *              .getOperatorStateStore()
+ *              .getListState(new ListStateDescriptor<>("count", Long.class));
  *
- *      public void restoreState(Long state) { this.count = state; }
+ *          if (context.isRestored()) {
+ *              for (Long count : this.checkpointedCount.get()) {
+ *                  this.count = count;
+ *              }
+ *          }
+ *      }
+ *
+ *      public void snapshotState(FunctionSnapshotContext context) {
+ *          this.checkpointedCount.clear();
+ *          this.checkpointedCount.add(count);
+ *      }
  * }
  * }</pre>
  *
@@ -96,17 +113,21 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 * Starts the source. Implementations can use the {@link SourceContext} emit
 	 * elements.
 	 *
-	 * <p>Sources that implement {@link org.apache.flink.streaming.api.checkpoint.Checkpointed}
+	 * <p>Sources that implement {@link org.apache.flink.streaming.api.checkpoint.CheckpointedFunction}
 	 * must lock on the checkpoint lock (using a synchronized block) before updating internal
 	 * state and emitting elements, to make both an atomic operation:
 	 *
 	 * <pre>{@code
-	 *  public class ExampleSource<T> implements SourceFunction<T>, Checkpointed<Long> {
+	 *  public class ExampleCountSource implements SourceFunction<Long>, CheckpointedFunction {
 	 *      private long count = 0L;
 	 *      private volatile boolean isRunning = true;
 	 *
+	 *      private transient ListState<Long> checkpointedCount;
+	 *
 	 *      public void run(SourceContext<T> ctx) {
 	 *          while (isRunning && count < 1000) {
+	 *              // this synchronized block ensures that state checkpointing,
+	 *              // internal state updates and emission of elements are an atomic operation
 	 *              synchronized (ctx.getCheckpointLock()) {
 	 *                  ctx.collect(count);
 	 *                  count++;
@@ -118,9 +139,22 @@ public interface SourceFunction<T> extends Function, Serializable {
 	 *          isRunning = false;
 	 *      }
 	 *
-	 *      public Long snapshotState(long checkpointId, long checkpointTimestamp) { return count; }
+	 *      public void initializeState(FunctionInitializationContext context) {
+	 *          this.checkpointedCount = context
+	 *              .getOperatorStateStore()
+	 *              .getListState(new ListStateDescriptor<>("count", Long.class));
 	 *
-	 *      public void restoreState(Long state) { this.count = state; }
+	 *          if (context.isRestored()) {
+	 *              for (Long count : this.checkpointedCount.get()) {
+	 *                  this.count = count;
+	 *              }
+	 *          }
+	 *      }
+	 *
+	 *      public void snapshotState(FunctionSnapshotContext context) {
+	 *          this.checkpointedCount.clear();
+	 *          this.checkpointedCount.add(count);
+	 *      }
 	 * }
 	 * }</pre>
 	 *

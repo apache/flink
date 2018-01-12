@@ -27,9 +27,10 @@ import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.typeutils.{RowIntervalTypeInfo, TimeIntervalTypeInfo}
-
 import java.sql.{Date, Time, Timestamp}
 import java.util.{Calendar, TimeZone}
+
+import org.apache.commons.lang3.StringEscapeUtils
 
 object Literal {
   private[flink] val UTC = TimeZone.getTimeZone("UTC")
@@ -102,6 +103,11 @@ case class Literal(value: Any, resultType: TypeInformation[_]) extends LeafExpre
           TimeUnit.SECOND,
           SqlParserPos.ZERO)
         relBuilder.getRexBuilder.makeIntervalLiteral(interval, intervalQualifier)
+
+      case BasicTypeInfo.STRING_TYPE_INFO =>
+        relBuilder.getRexBuilder.makeLiteral(
+          StringEscapeUtils.escapeJava(value.asInstanceOf[String])
+        )
 
       case _ => relBuilder.literal(value)
     }

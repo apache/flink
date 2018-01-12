@@ -131,6 +131,16 @@ public class KinesisConfigUtilTest {
 		assertEquals("2", replacedConfig.getProperty(KinesisConfigUtil.COLLECTION_MAX_COUNT));
 	}
 
+	@Test
+	public void testCorrectlySetRegionInProducerConfiguration() {
+		String region = "us-east-1";
+		Properties testConfig = new Properties();
+		testConfig.setProperty(AWSConfigConstants.AWS_REGION, region);
+		KinesisProducerConfiguration kpc = KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
+
+		assertEquals("incorrect region", region, kpc.getRegion());
+	}
+
 	// ----------------------------------------------------------------------
 	// validateAwsConfiguration() tests
 	// ----------------------------------------------------------------------

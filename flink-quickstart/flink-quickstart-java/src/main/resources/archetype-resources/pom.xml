@@ -156,8 +156,8 @@ under the License.
 			<build>
 				<plugins>
 					<!-- We use the maven-shade plugin to create a fat jar that contains all dependencies
-                    	except flink and its transitive dependencies. The resulting fat-jar can be executed
-                    	on a cluster. Change the value of Program-Class if your program entry point changes. -->
+						except flink and its transitive dependencies. The resulting fat-jar can be executed
+						on a cluster. Change the value of Program-Class if your program entry point changes. -->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-shade-plugin</artifactId>
@@ -173,8 +173,8 @@ under the License.
 									<artifactSet>
 										<excludes>
 											<exclude>org.apache.flink:force-shading</exclude>
-											<exclude>com.google.code.findbgs:jsr305</exclude>
-											<exclude>org.slf4j:slf4j-api</exclude>
+											<exclude>com.google.code.findbugs:jsr305</exclude>
+											<exclude>org.slf4j:*</exclude>
 										</excludes>
 									</artifactSet>
 									<filters>
@@ -190,14 +190,14 @@ under the License.
 										</filter>
 									</filters>
 									<!-- If you want to use ./bin/flink run <quickstart jar> uncomment the following lines.
-                             			This will add a Main-Class entry to the manifest file -->
+										This will add a Main-Class entry to the manifest file -->
 									<!--
-                             		<transformers>
-                             			<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                             			<mainClass>${package}.StreamingJob</mainClass>
-                             			</transformer>
-                            		</transformers>
-                             		-->
+									<transformers>
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+										<mainClass>${package}.StreamingJob</mainClass>
+										</transformer>
+									</transformers>
+									-->
 								</configuration>
 							</execution>
 						</executions>

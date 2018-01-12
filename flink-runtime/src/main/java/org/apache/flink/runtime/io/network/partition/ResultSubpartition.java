@@ -70,6 +70,18 @@ public abstract class ResultSubpartition {
 		return parent.getFailureCause();
 	}
 
+	/**
+	 * Adds the given buffer.
+	 *
+	 * <p>The request may be executed synchronously, or asynchronously, depending on the
+	 * implementation.
+	 *
+	 * @param buffer
+	 * 		the buffer to add (transferring ownership to this writer)
+	 *
+	 * @throws IOException
+	 * 		thrown in case of errors while adding the buffer
+	 */
 	abstract public boolean add(Buffer buffer) throws IOException;
 
 	abstract public void finish() throws IOException;

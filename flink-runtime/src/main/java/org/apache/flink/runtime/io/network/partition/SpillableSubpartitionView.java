@@ -108,11 +108,7 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 				for (int i = 0; i < numBuffers; i++) {
 					Buffer buffer = buffers.remove();
 					spilledBytes += buffer.getSize();
-					try {
-						spillWriter.writeBlock(buffer);
-					} finally {
-						buffer.recycle();
-					}
+					spillWriter.writeBlock(buffer);
 				}
 
 				spilledView = new SpilledSubpartitionView(
@@ -168,6 +164,13 @@ class SpillableSubpartitionView implements ResultSubpartitionView {
 			SpilledSubpartitionView spilled = spilledView;
 			if (spilled != null) {
 				spilled.releaseAllResources();
+			}
+			// we are never giving this buffer out in getNextBuffer(), so we need to clean it up
+			synchronized (buffers) {
+				if (nextBuffer != null) {
+					nextBuffer.recycle();
+					nextBuffer = null;
+				}
 			}
 		}
 	}

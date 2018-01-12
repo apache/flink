@@ -397,7 +397,7 @@ class BufferingSink(threshold: Int = 0)
     with CheckpointedRestoring[List[(String, Int)]] {
 
   @transient
-  private var checkpointedState: ListState[(String, Int)] = null
+  private var checkpointedState: ListState[(String, Int)] = _
 
   private val bufferedElements = ListBuffer[(String, Int)]()
 

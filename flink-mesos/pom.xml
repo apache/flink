@@ -267,6 +267,9 @@ under the License.
 									<include>com.google.protobuf:protobuf-java</include>
 									<include>org.apache.mesos:mesos</include>
 									<include>com.netflix.fenzo:fenzo-core</include>
+									<include>com.fasterxml.jackson.core:jackson-core</include>
+									<include>com.fasterxml.jackson.core:jackson-annotations</include>
+									<include>com.fasterxml.jackson.core:jackson-databind</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
