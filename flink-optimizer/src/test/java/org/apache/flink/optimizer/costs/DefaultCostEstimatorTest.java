@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.costs;
 
 import org.apache.flink.optimizer.dag.EstimateProvider;
@@ -267,7 +266,6 @@ public class DefaultCostEstimatorTest {
 		costEstimator.addLocalSortCost(BIG_ESTIMATES, mergeBothLarge);
 		costEstimator.addLocalMergeCost(BIG_ESTIMATES, BIG_ESTIMATES, mergeBothLarge, 1);
 
-
 		assertTrue(mergeBothSmall.compareTo(mergeSmallFirst) < 0);
 		assertTrue(mergeBothSmall.compareTo(mergeSmallSecond) < 0);
 		assertTrue(mergeSmallFirst.compareTo(mergeSmallSecond) == 0);
@@ -386,13 +384,19 @@ public class DefaultCostEstimatorTest {
 	private static final class UnknownEstimates implements EstimateProvider {
 
 		@Override
-		public long getEstimatedOutputSize() { return -1; }
+		public long getEstimatedOutputSize() {
+			return -1;
+		}
 
 		@Override
-		public long getEstimatedNumRecords() { return -1; }
+		public long getEstimatedNumRecords() {
+			return -1;
+		}
 
 		@Override
-		public float getEstimatedAvgWidthPerOutputRecord() { return -1.0f; }
+		public float getEstimatedAvgWidthPerOutputRecord() {
+			return -1.0f;
+		}
 	}
 
 	private static final class Estimates implements EstimateProvider {

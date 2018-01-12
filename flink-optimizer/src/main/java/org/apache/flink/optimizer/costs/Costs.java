@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.costs;
 
 /**
  * Simple class to represent the costs of an operation. The costs are currently tracking, network, I/O and CPU costs.
  *
- * Costs are composed of two parts of cost contributors:
+ * <p>Costs are composed of two parts of cost contributors:
  * <ol>
  *   <li>Quantifiable costs. Those costs are used when estimates are available and track a quantifiable
  *       measure, such as the number of bytes for network or I/O</li>
@@ -30,8 +29,8 @@ package org.apache.flink.optimizer.costs;
  *       an operator used a special operation which is heuristically considered more expensive than another
  *       operation.</li>
  * </ol>
- * <p>
- * The quantifiable costs may frequently be unknown, which is represented by a {@code -1} as a value for the unknown
+ *
+ * <p>The quantifiable costs may frequently be unknown, which is represented by a {@code -1} as a value for the unknown
  * components of the cost. In that case, all operations' costs are unknown and hence it is not decidable which
  * operation to favor during pruning. In that case, the heuristic costs should contain a value to make sure that
  * operators with different strategies are comparable, even in the absence of estimates. The heuristic
