@@ -36,10 +36,11 @@ public class SubtaskExecutionAttemptDetailsHeaders implements MessageHeaders<Emp
 	private static final SubtaskExecutionAttemptDetailsHeaders INSTANCE = new SubtaskExecutionAttemptDetailsHeaders();
 
 	public static final String URL = String.format(
-		"/jobs/:%s/vertices/:%s/subtasks/:%s",
+		"/jobs/:%s/vertices/:%s/subtasks/:%s/attempts/%s",
 		JobIDPathParameter.KEY,
 		JobVertexIdPathParameter.KEY,
-		SubtaskIndexPathParameter.KEY);
+		SubtaskIndexPathParameter.KEY,
+		SubtaskAttemptPathParameter.KEY);
 
 	@Override
 	public HttpMethodWrapper getHttpMethod() {
