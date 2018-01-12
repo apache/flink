@@ -16,25 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.cli;
-
-import org.apache.commons.cli.CommandLine;
-
-import static org.apache.flink.client.cli.CliFrontendParser.HELP_OPTION;
+package org.apache.flink.client.deployment;
 
 /**
- * Base class for all options parsed from the command line.
- * Contains options for printing help and the JobManager address.
+ * Identifier for standalone clusters.
  */
-public abstract class CommandLineOptions {
+public class StandaloneClusterId {
+	private static final StandaloneClusterId INSTANCE = new StandaloneClusterId();
 
-	private final boolean printHelp;
+	private StandaloneClusterId() {}
 
-	protected CommandLineOptions(CommandLine line) {
-		this.printHelp = line.hasOption(HELP_OPTION.getOpt());
-	}
-
-	public boolean isPrintHelp() {
-		return printHelp;
+	public static StandaloneClusterId getInstance() {
+		return INSTANCE;
 	}
 }

@@ -22,18 +22,17 @@ import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 /**
  * Dummy {@link ClusterDescriptor} implementation for testing purposes.
- *
- * @param <C> type of the returned {@link ClusterClient}
  */
-public class DummyClusterDescriptor<C extends ClusterClient> implements ClusterDescriptor<C> {
+public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
 
-	private final C clusterClient;
+	private final ClusterClient<T> clusterClient;
 
-	public DummyClusterDescriptor(C clusterClient) {
+	public DummyClusterDescriptor(ClusterClient<T> clusterClient) {
 		this.clusterClient = Preconditions.checkNotNull(clusterClient);
 	}
 
@@ -43,18 +42,23 @@ public class DummyClusterDescriptor<C extends ClusterClient> implements ClusterD
 	}
 
 	@Override
-	public C retrieve(String applicationID) throws UnsupportedOperationException {
+	public ClusterClient<T> retrieve(T clusterId) {
 		return clusterClient;
 	}
 
 	@Override
-	public C deploySessionCluster(ClusterSpecification clusterSpecification) throws UnsupportedOperationException {
+	public ClusterClient<T> deploySessionCluster(ClusterSpecification clusterSpecification) {
 		return clusterClient;
 	}
 
 	@Override
-	public C deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public ClusterClient<T> deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
 		return clusterClient;
+	}
+
+	@Override
+	public void terminateCluster(T clusterId) throws FlinkException {
+		throw new UnsupportedOperationException("Cannot terminate a dummy cluster.");
 	}
 
 	@Override

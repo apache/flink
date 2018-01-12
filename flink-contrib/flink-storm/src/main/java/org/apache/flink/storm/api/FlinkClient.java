@@ -20,7 +20,6 @@ package org.apache.flink.storm.api;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StandaloneClusterClient;
@@ -205,7 +204,7 @@ public class FlinkClient {
 		configuration.setString(JobManagerOptions.ADDRESS, jobManagerHost);
 		configuration.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
-		final ClusterClient client;
+		final StandaloneClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
 		} catch (final Exception e) {
@@ -245,7 +244,7 @@ public class FlinkClient {
 		configuration.setString(JobManagerOptions.ADDRESS, this.jobManagerHost);
 		configuration.setInteger(JobManagerOptions.PORT, this.jobManagerPort);
 
-		final ClusterClient client;
+		final StandaloneClusterClient client;
 		try {
 			client = new StandaloneClusterClient(configuration);
 		} catch (final Exception e) {

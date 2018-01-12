@@ -20,8 +20,7 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -31,15 +30,14 @@ import javax.annotation.Nullable;
 /**
  * Custom command-line interface to load hooks for the command-line interface.
  */
-public interface CustomCommandLine<ClusterType extends ClusterClient> {
+public interface CustomCommandLine<T> {
 
 	/**
 	 * Signals whether the custom command-line wants to execute or not.
 	 * @param commandLine The command-line options
-	 * @param configuration The Flink configuration
 	 * @return True if the command-line wants to run, False otherwise
 	 */
-	boolean isActive(CommandLine commandLine, Configuration configuration);
+	boolean isActive(CommandLine commandLine);
 
 	/**
 	 * Gets the unique identifier of this CustomCommandLine.
@@ -55,6 +53,7 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 
 	/**
 	 * Adds custom options to the existing general options.
+	 *
 	 * @param baseOptions The existing options.
 	 */
 	void addGeneralOptions(Options baseOptions);
@@ -63,15 +62,11 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	 * Create a {@link ClusterDescriptor} from the given configuration, configuration directory
 	 * and the command line.
 	 *
-	 * @param configuration to create the ClusterDescriptor with
-	 * @param configurationDirectory where the configuration was loaded from
 	 * @param commandLine containing command line options relevant for the ClusterDescriptor
 	 * @return ClusterDescriptor
+	 * @throws FlinkException if the ClusterDescriptor could not be created
 	 */
-	ClusterDescriptor<ClusterType> createClusterDescriptor(
-		Configuration configuration,
-		String configurationDirectory,
-		CommandLine commandLine);
+	ClusterDescriptor<T> createClusterDescriptor(CommandLine commandLine) throws FlinkException;
 
 	/**
 	 * Returns the cluster id if a cluster id was specified on the command line, otherwise it
@@ -80,24 +75,21 @@ public interface CustomCommandLine<ClusterType extends ClusterClient> {
 	 * <p>A cluster id identifies a running cluster, e.g. the Yarn application id for a Flink
 	 * cluster running on Yarn.
 	 *
-	 * @param configuration to be used for the cluster id retrieval
 	 * @param commandLine containing command line options relevant for the cluster id retrieval
 	 * @return Cluster id identifying the cluster to deploy jobs to or null
 	 */
 	@Nullable
-	String getClusterId(Configuration configuration, CommandLine commandLine);
+	T getClusterId(CommandLine commandLine);
 
 	/**
 	 * Returns the {@link ClusterSpecification} specified by the configuration and the command
 	 * line options. This specification can be used to deploy a new Flink cluster.
 	 *
-	 * @param configuration to be used for the ClusterSpecification values
 	 * @param commandLine containing command line options relevant for the ClusterSpecification
 	 * @return ClusterSpecification for a new Flink cluster
+	 * @throws FlinkException if the ClusterSpecification could not be created
 	 */
-	ClusterSpecification getClusterSpecification(
-		Configuration configuration,
-		CommandLine commandLine);
+	ClusterSpecification getClusterSpecification(CommandLine commandLine) throws FlinkException;
 
 	default CommandLine parseCommandLineOptions(String[] args, boolean stopAtNonOptions) throws CliArgsException {
 		final Options options = new Options();

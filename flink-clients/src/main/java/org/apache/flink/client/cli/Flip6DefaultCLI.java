@@ -18,11 +18,11 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.Flip6StandaloneClusterDescriptor;
-import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 /**
  * The default CLI which is used for interaction with standalone clusters.
  */
-public class Flip6DefaultCLI extends AbstractCustomCommandLine<RestClusterClient> {
+public class Flip6DefaultCLI extends AbstractCustomCommandLine<StandaloneClusterId> {
 
 	public static final Option FLIP_6 = new Option("flip6", "Switches the client to Flip-6 mode.");
 
@@ -41,8 +41,12 @@ public class Flip6DefaultCLI extends AbstractCustomCommandLine<RestClusterClient
 		FLIP_6.setRequired(false);
 	}
 
+	public Flip6DefaultCLI(Configuration configuration) {
+		super(configuration);
+	}
+
 	@Override
-	public boolean isActive(CommandLine commandLine, Configuration configuration) {
+	public boolean isActive(CommandLine commandLine) {
 		return commandLine.hasOption(FLIP_6.getOpt());
 	}
 
@@ -58,23 +62,21 @@ public class Flip6DefaultCLI extends AbstractCustomCommandLine<RestClusterClient
 	}
 
 	@Override
-	public ClusterDescriptor<RestClusterClient> createClusterDescriptor(
-			Configuration configuration,
-			String configurationDirectory,
-			CommandLine commandLine) {
-		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(configuration, commandLine);
+	public Flip6StandaloneClusterDescriptor createClusterDescriptor(
+			CommandLine commandLine) throws FlinkException {
+		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
 		return new Flip6StandaloneClusterDescriptor(effectiveConfiguration);
 	}
 
 	@Override
 	@Nullable
-	public String getClusterId(Configuration configuration, CommandLine commandLine) {
-		return "flip6Standalone";
+	public StandaloneClusterId getClusterId(CommandLine commandLine) {
+		return StandaloneClusterId.getInstance();
 	}
 
 	@Override
-	public ClusterSpecification getClusterSpecification(Configuration configuration, CommandLine commandLine) {
+	public ClusterSpecification getClusterSpecification(CommandLine commandLine) {
 		return new ClusterSpecification.ClusterSpecificationBuilder().createClusterSpecification();
 	}
 }

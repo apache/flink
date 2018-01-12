@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
@@ -29,9 +30,12 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.pipeSystemOutToNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -51,28 +55,26 @@ public class CliFrontendStopTest extends TestLogger {
 	@Test
 	public void testStop() throws Exception {
 		// test stop properly
-		{
-			JobID jid = new JobID();
-			String jidString = jid.toString();
+		JobID jid = new JobID();
+		String jidString = jid.toString();
 
-			String[] parameters = { jidString };
-			final ClusterClient clusterClient = createClusterClient(false);
-			MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+		String[] parameters = { jidString };
+		final ClusterClient<String> clusterClient = createClusterClient(null);
+		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-			testFrontend.stop(parameters);
+		testFrontend.stop(parameters);
 
-			Mockito.verify(clusterClient, times(1)).stop(any(JobID.class));
-		}
+		Mockito.verify(clusterClient, times(1)).stop(any(JobID.class));
 	}
 
 	@Test(expected = CliArgsException.class)
 	public void testUnrecognizedOption() throws Exception {
 		// test unrecognized option
 		String[] parameters = { "-v", "-l" };
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.stop(parameters);
 	}
 
@@ -80,39 +82,37 @@ public class CliFrontendStopTest extends TestLogger {
 	public void testMissingJobId() throws Exception {
 		// test missing job id
 		String[] parameters = {};
+		Configuration configuration = new Configuration();
 		CliFrontend testFrontend = new CliFrontend(
-			new Configuration(),
-			Collections.singletonList(new DefaultCLI()),
-			CliFrontendTestUtils.getConfigDir());
+			configuration,
+			Collections.singletonList(new DefaultCLI(configuration)));
 		testFrontend.stop(parameters);
 	}
 
-	@Test(expected = TestException.class)
+	@Test
 	public void testUnknownJobId() throws Exception {
 		// test unknown job Id
 		JobID jid = new JobID();
 
 		String[] parameters = { jid.toString() };
-		final ClusterClient clusterClient = createClusterClient(true);
+		String expectedMessage = "Test exception";
+		FlinkException testException = new FlinkException(expectedMessage);
+		final ClusterClient<String> clusterClient = createClusterClient(testException);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-		testFrontend.stop(parameters);
-		fail("Should have failed.");
-	}
-
-	private static final class TestException extends FlinkException {
-		private static final long serialVersionUID = -2650760898729937583L;
-
-		TestException(String message) {
-			super(message);
+		try {
+			testFrontend.stop(parameters);
+			fail("Should have failed.");
+		} catch (FlinkException e) {
+			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedMessage).isPresent());
 		}
 	}
 
-	private static ClusterClient createClusterClient(boolean reject) throws Exception {
-		final ClusterClient clusterClient = mock(ClusterClient.class);
+	private static ClusterClient<String> createClusterClient(@Nullable Exception exception) throws Exception {
+		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-		if (reject) {
-				doThrow(new TestException("Test Exception")).when(clusterClient).stop(any(JobID.class));
+		if (exception != null) {
+			doThrow(exception).when(clusterClient).stop(any(JobID.class));
 		}
 
 		return clusterClient;

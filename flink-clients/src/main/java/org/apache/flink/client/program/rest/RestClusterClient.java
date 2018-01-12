@@ -59,6 +59,7 @@ import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 
 import javax.annotation.Nullable;
@@ -83,23 +84,31 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
-public class RestClusterClient extends ClusterClient {
+public class RestClusterClient<T> extends ClusterClient<T> {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
+
 	private final RestClient restClient;
+
 	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("Flink-RestClusterClient-IO"));
 	private final WaitStrategy waitStrategy;
 
-	public RestClusterClient(Configuration config) throws Exception {
-		this(config, new ExponentialWaitStrategy(10, 2000));
+	private final T clusterId;
+
+	public RestClusterClient(Configuration config, T clusterId) throws Exception {
+		this(
+			config,
+			clusterId,
+			new ExponentialWaitStrategy(10L, 2000L));
 	}
 
 	@VisibleForTesting
-	RestClusterClient(Configuration configuration, WaitStrategy waitStrategy) throws Exception {
+	RestClusterClient(Configuration configuration, T clusterId, WaitStrategy waitStrategy) throws Exception {
 		super(configuration);
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 		this.restClient = new RestClient(restClusterClientConfiguration.getRestClientConfiguration(), executorService);
 		this.waitStrategy = requireNonNull(waitStrategy);
+		this.clusterId = Preconditions.checkNotNull(clusterId);
 	}
 
 	@Override
@@ -295,14 +304,14 @@ public class RestClusterClient extends ClusterClient {
 			});
 	}
 
+	@Override
+	public T getClusterId() {
+		return clusterId;
+	}
+
 	// ======================================
 	// Legacy stuff we actually implement
 	// ======================================
-
-	@Override
-	public String getClusterIdentifier() {
-		return "Flip-6 Standalone cluster with dispatcher at " + restClusterClientConfiguration.getRestServerAddress() + '.';
-	}
 
 	@Override
 	public boolean hasUserJarsInClassPath(List<URL> userJarFiles) {
@@ -329,12 +338,7 @@ public class RestClusterClient extends ClusterClient {
 	}
 
 	@Override
-	protected List<String> getNewMessages() {
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	protected void finalizeCluster() {
+	public List<String> getNewMessages() {
 		throw new UnsupportedOperationException();
 	}
 

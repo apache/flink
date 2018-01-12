@@ -19,7 +19,9 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
+import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -59,7 +62,6 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
-import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,8 +101,8 @@ import static org.apache.flink.yarn.cli.FlinkYarnSessionCli.getDynamicProperties
 /**
  * The descriptor with deployment information for spawning or resuming a {@link YarnClusterClient}.
  */
-public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<YarnClusterClient> {
-	private static final Logger LOG = LoggerFactory.getLogger(YarnClusterDescriptor.class);
+public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractYarnClusterDescriptor.class);
 
 	/**
 	 * Minimum memory requirements, checked by the Client.
@@ -330,7 +332,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	// -------------------------------------------------------------
 
 	@Override
-	public YarnClusterClient retrieve(String applicationID) {
+	public YarnClusterClient retrieve(ApplicationId applicationId) throws ClusterRetrieveException {
 
 		try {
 			// check if required Hadoop environment variables are set. If not, warn user
@@ -341,18 +343,17 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					"configuration for accessing YARN.");
 			}
 
-			final ApplicationId yarnAppId = ConverterUtils.toApplicationId(applicationID);
-			final ApplicationReport appReport = yarnClient.getApplicationReport(yarnAppId);
+			final ApplicationReport appReport = yarnClient.getApplicationReport(applicationId);
 
 			if (appReport.getFinalApplicationStatus() != FinalApplicationStatus.UNDEFINED) {
 				// Flink cluster is not running anymore
 				LOG.error("The application {} doesn't run anymore. It has previously completed with final status: {}",
-					applicationID, appReport.getFinalApplicationStatus());
-				throw new RuntimeException("The Yarn application " + applicationID + " doesn't run anymore.");
+					applicationId, appReport.getFinalApplicationStatus());
+				throw new RuntimeException("The Yarn application " + applicationId + " doesn't run anymore.");
 			}
 
 			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
-				appReport.getHost(), appReport.getRpcPort(), applicationID);
+				appReport.getHost(), appReport.getRpcPort(), applicationId);
 
 			flinkConfiguration.setString(JobManagerOptions.ADDRESS, appReport.getHost());
 			flinkConfiguration.setInteger(JobManagerOptions.PORT, appReport.getRpcPort());
@@ -365,31 +366,40 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				flinkConfiguration,
 				false);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't retrieve Yarn cluster", e);
+			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
 		}
 	}
 
 	@Override
-	public YarnClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) {
+	public YarnClusterClient deploySessionCluster(ClusterSpecification clusterSpecification) throws ClusterDeploymentException {
 		try {
 			return deployInternal(
 				clusterSpecification,
 				getYarnSessionClusterEntrypoint(),
 				null);
 		} catch (Exception e) {
-			throw new RuntimeException("Couldn't deploy Yarn session cluster", e);
+			throw new ClusterDeploymentException("Couldn't deploy Yarn session cluster", e);
 		}
 	}
 
 	@Override
-	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) {
+	public YarnClusterClient deployJobCluster(ClusterSpecification clusterSpecification, JobGraph jobGraph) throws ClusterDeploymentException {
 		try {
 			return deployInternal(
 				clusterSpecification,
 				getYarnJobClusterEntrypoint(),
 				jobGraph);
 		} catch (Exception e) {
-			throw new RuntimeException("Could not deploy Yarn job cluster.", e);
+			throw new ClusterDeploymentException("Could not deploy Yarn job cluster.", e);
+		}
+	}
+
+	@Override
+	public void terminateCluster(ApplicationId applicationId) throws FlinkException {
+		try {
+			yarnClient.killApplication(applicationId);
+		} catch (YarnException | IOException e) {
+			throw new FlinkException("Could not kill the Yarn Flink cluster with id " + applicationId + '.', e);
 		}
 	}
 
