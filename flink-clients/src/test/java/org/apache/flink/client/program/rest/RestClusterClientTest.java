@@ -308,6 +308,9 @@ public class RestClusterClientTest extends TestLogger {
 	@Test
 	public void testTriggerSavepoint() throws Exception {
 		final String targetSavepointDirectory = "/tmp";
+		final String savepointLocationDefaultDir = "/other/savepoint-0d2fb9-8d5e0106041a";
+		final String savepointLocationRequestedDir = targetSavepointDirectory + "/savepoint-0d2fb9-8d5e0106041a";
+
 		final TestSavepointHandlers testSavepointHandlers = new TestSavepointHandlers();
 		final TestSavepointHandlers.TestSavepointTriggerHandler triggerHandler =
 			testSavepointHandlers.new TestSavepointTriggerHandler(
@@ -316,11 +319,11 @@ public class RestClusterClientTest extends TestLogger {
 			testSavepointHandlers.new TestSavepointHandler(Arrays.asList(
 				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
 					testSavepointHandlers.testSavepointTriggerId,
-					"/other/savepoint-0d2fb9-8d5e0106041a",
+					savepointLocationDefaultDir,
 					null)),
 				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
 					testSavepointHandlers.testSavepointTriggerId,
-					"/tmp/savepoint-0d2fb9-8d5e0106041a",
+					savepointLocationRequestedDir,
 					null)),
 				new SavepointResponseBody(QueueStatus.completed(), new SavepointInfo(
 					testSavepointHandlers.testSavepointTriggerId,
@@ -334,13 +337,13 @@ public class RestClusterClientTest extends TestLogger {
 			{
 				CompletableFuture<String> savepointPathFuture = restClusterClient.triggerSavepoint(id, null);
 				String savepointPath = savepointPathFuture.get();
-				assertEquals("/other/savepoint-0d2fb9-8d5e0106041a", savepointPath);
+				assertEquals(savepointLocationDefaultDir, savepointPath);
 			}
 
 			{
 				CompletableFuture<String> savepointPathFuture = restClusterClient.triggerSavepoint(id, targetSavepointDirectory);
 				String savepointPath = savepointPathFuture.get();
-				assertEquals("/tmp/savepoint-0d2fb9-8d5e0106041a", savepointPath);
+				assertEquals(savepointLocationRequestedDir, savepointPath);
 			}
 
 			{
