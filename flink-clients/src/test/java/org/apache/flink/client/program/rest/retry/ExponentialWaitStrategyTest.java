@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.program.rest.retry;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.containsString;
@@ -28,7 +30,7 @@ import static org.junit.Assert.fail;
 /**
  * Tests for {@link ExponentialWaitStrategy}.
  */
-public class ExponentialWaitStrategyTest {
+public class ExponentialWaitStrategyTest extends TestLogger {
 
 	@Test
 	public void testNegativeInitialWait() {
