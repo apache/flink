@@ -3034,7 +3034,18 @@ STRING.sha1()
       </td>
     </tr>
 
-        <tr>
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha224()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-224 hash of the string argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
       <td>
         {% highlight java %}
 STRING.sha256()
@@ -3042,6 +3053,28 @@ STRING.sha256()
       </td>
       <td>
         <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha384()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-384 hash of the string argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight java %}
+STRING.sha512()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
 
@@ -4456,7 +4489,18 @@ STRING.sha1()
       </td>
     </tr>
 
-        <tr>
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha224()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-224 hash of the string argument as a string of 56 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>
+
+    <tr>
       <td>
         {% highlight scala %}
 STRING.sha256()
@@ -4466,7 +4510,28 @@ STRING.sha256()
         <p>Returns the SHA-256 hash of the string argument as a string of 64 hexadecimal digits; null if <i>string</i> is null.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha384()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-384 hash of the string argument as a string of 96 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>    
 
+    <tr>
+      <td>
+        {% highlight scala %}
+STRING.sha512()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the SHA-512 hash of the string argument as a string of 128 hexadecimal digits; null if <i>string</i> is null.</p>
+      </td>
+    </tr>  
     </tbody>
 </table>
 
