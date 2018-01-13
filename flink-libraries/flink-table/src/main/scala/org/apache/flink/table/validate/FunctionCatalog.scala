@@ -273,7 +273,10 @@ object FunctionCatalog {
     // crypto hash
     "md5" -> classOf[Md5],
     "sha1" -> classOf[Sha1],
-    "sha256" -> classOf[Sha256]
+    "sha224" -> classOf[Sha224],
+    "sha256" -> classOf[Sha256],
+    "sha384" -> classOf[Sha384],
+    "sha512" -> classOf[Sha512]
   )
 
   /**
@@ -432,8 +435,10 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.RPAD,
     ScalarSqlFunctions.MD5,
     ScalarSqlFunctions.SHA1,
+    ScalarSqlFunctions.SHA224,
     ScalarSqlFunctions.SHA256,
-
+    ScalarSqlFunctions.SHA384,
+    ScalarSqlFunctions.SHA512,
     // EXTENSIONS
     BasicOperatorTable.TUMBLE,
     BasicOperatorTable.HOP,

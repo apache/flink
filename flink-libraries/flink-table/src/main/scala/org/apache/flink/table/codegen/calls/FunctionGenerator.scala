@@ -560,9 +560,27 @@ object FunctionGenerator {
   )
 
   addSqlFunction(
+    ScalarSqlFunctions.SHA224,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-224")
+  )
+
+  addSqlFunction(
     ScalarSqlFunctions.SHA256,
     Seq(STRING_TYPE_INFO),
     new HashCalcCallGen("SHA-256")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA384,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-384")
+  )
+
+  addSqlFunction(
+    ScalarSqlFunctions.SHA512,
+    Seq(STRING_TYPE_INFO),
+    new HashCalcCallGen("SHA-512")
   )
 
   // ----------------------------------------------------------------------------------------------
