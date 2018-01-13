@@ -29,6 +29,9 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.HashBasedTable;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Table;
+
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.PriorityQueue;
@@ -52,12 +55,14 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	 */
 	private final Set<InternalTimer<K, N>>[] processingTimeTimersByKeyGroup;
 	private final PriorityQueue<InternalTimer<K, N>> processingTimeTimersQueue;
+	private final Table<K, N, Integer> processingTimeNumberTimers;
 
 	/**
 	 * Event time timers that are currently in-flight.
 	 */
 	private final Set<InternalTimer<K, N>>[] eventTimeTimersByKeyGroup;
 	private final PriorityQueue<InternalTimer<K, N>> eventTimeTimersQueue;
+	private final Table<K, N, Integer> eventTimeNumberTimers;
 
 	/**
 	 * Information concerning the local key-group range.
@@ -116,11 +121,13 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		// the list of ids of the key-groups this task is responsible for
 		int localKeyGroups = this.localKeyGroupRange.getNumberOfKeyGroups();
 
-		this.eventTimeTimersQueue = new PriorityQueue<>(100);
-		this.eventTimeTimersByKeyGroup = new HashSet[localKeyGroups];
-
 		this.processingTimeTimersQueue = new PriorityQueue<>(100);
 		this.processingTimeTimersByKeyGroup = new HashSet[localKeyGroups];
+		this.processingTimeNumberTimers = HashBasedTable.create();
+
+		this.eventTimeTimersQueue = new PriorityQueue<>(100);
+		this.eventTimeTimersByKeyGroup = new HashSet[localKeyGroups];
+		this.eventTimeNumberTimers = HashBasedTable.create();
 	}
 
 	/**
@@ -188,7 +195,8 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	@Override
 	public void registerProcessingTimeTimer(N namespace, long time) {
-		InternalTimer<K, N> timer = new InternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace);
+		K key = (K) keyContext.getCurrentKey();
+		InternalTimer<K, N> timer = new InternalTimer<>(time, key, namespace);
 
 		// make sure we only put one timer per key into the queue
 		Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
@@ -198,6 +206,7 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 			long nextTriggerTime = oldHead != null ? oldHead.getTimestamp() : Long.MAX_VALUE;
 
 			processingTimeTimersQueue.add(timer);
+			incrementProcessingTimeTimer(key, namespace);
 
 			// check if we need to re-schedule our timer to earlier
 			if (time < nextTriggerTime) {
@@ -211,28 +220,35 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 
 	@Override
 	public void registerEventTimeTimer(N namespace, long time) {
-		InternalTimer<K, N> timer = new InternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace);
+		K key = (K) keyContext.getCurrentKey();
+		InternalTimer<K, N> timer = new InternalTimer<>(time, key, namespace);
+
 		Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 		if (timerSet.add(timer)) {
 			eventTimeTimersQueue.add(timer);
+			incrementEventTimeTimer(key, namespace);
 		}
 	}
 
 	@Override
 	public void deleteProcessingTimeTimer(N namespace, long time) {
-		InternalTimer<K, N> timer = new InternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace);
+		K key = (K) keyContext.getCurrentKey();
+		InternalTimer<K, N> timer = new InternalTimer<>(time, key, namespace);
 		Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
 		if (timerSet.remove(timer)) {
 			processingTimeTimersQueue.remove(timer);
+			decrementProcessingTimeTimer(key, namespace);
 		}
 	}
 
 	@Override
 	public void deleteEventTimeTimer(N namespace, long time) {
-		InternalTimer<K, N> timer = new InternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace);
+		K key = (K) keyContext.getCurrentKey();
+		InternalTimer<K, N> timer = new InternalTimer<>(time, key, namespace);
 		Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 		if (timerSet.remove(timer)) {
 			eventTimeTimersQueue.remove(timer);
+			decrementEventTimeTimer(key, namespace);
 		}
 	}
 
@@ -245,11 +261,10 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		InternalTimer<K, N> timer;
 
 		while ((timer = processingTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-
 			Set<InternalTimer<K, N>> timerSet = getProcessingTimeTimerSetForTimer(timer);
-
 			timerSet.remove(timer);
 			processingTimeTimersQueue.remove();
+			decrementProcessingTimeTimer(timer.getKey(), timer.getNamespace());
 
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onProcessingTime(timer);
@@ -262,16 +277,17 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 		}
 	}
 
+	private int i = 0;
 	public void advanceWatermark(long time) throws Exception {
 		currentWatermark = time;
 
 		InternalTimer<K, N> timer;
 
 		while ((timer = eventTimeTimersQueue.peek()) != null && timer.getTimestamp() <= time) {
-
 			Set<InternalTimer<K, N>> timerSet = getEventTimeTimerSetForTimer(timer);
 			timerSet.remove(timer);
 			eventTimeTimersQueue.remove();
+			decrementEventTimeTimer(timer.getKey(), timer.getNamespace());
 
 			keyContext.setCurrentKey(timer.getKey());
 			triggerTarget.onEventTime(timer);
@@ -442,23 +458,15 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	}
 
 	public int numProcessingTimeTimers(N namespace) {
-		int count = 0;
-		for (InternalTimer<K, N> timer : processingTimeTimersQueue) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
-			}
-		}
-		return count;
+		return processingTimeNumberTimers.column(namespace).keySet().stream()
+				.mapToInt(k -> processingTimeNumberTimers.get(k, namespace))
+				.sum();
 	}
 
 	public int numEventTimeTimers(N namespace) {
-		int count = 0;
-		for (InternalTimer<K, N> timer : eventTimeTimersQueue) {
-			if (timer.getNamespace().equals(namespace)) {
-				count++;
-			}
-		}
-		return count;
+		return eventTimeNumberTimers.column(namespace).keySet().stream()
+				.mapToInt(k -> eventTimeNumberTimers.get(k, namespace))
+				.sum();
 	}
 
 	@VisibleForTesting
@@ -474,5 +482,39 @@ public class HeapInternalTimerService<K, N> implements InternalTimerService<N>, 
 	@VisibleForTesting
 	public Set<InternalTimer<K, N>>[] getProcessingTimeTimersPerKeyGroup() {
 		return this.processingTimeTimersByKeyGroup;
+	}
+
+	private void incrementProcessingTimeTimer(K key, N namespace) {
+		incrementTimeTimer(processingTimeNumberTimers, key, namespace);
+	}
+
+	private void incrementEventTimeTimer(K key, N namespace) {
+		incrementTimeTimer(eventTimeNumberTimers, key, namespace);
+	}
+
+	private void incrementTimeTimer(Table<K, N, Integer> table, K key, N namespace) {
+		if (table.contains(key, namespace)) {
+			table.put(key, namespace, table.get(key, namespace) + 1);
+		} else {
+			table.put(key, namespace, 1);
+		}
+	}
+
+	private void decrementProcessingTimeTimer(K key, N namespace) {
+		decrementTimeTimer(processingTimeNumberTimers, key, namespace);
+	}
+
+	private void decrementEventTimeTimer(K key, N namespace) {
+		decrementTimeTimer(eventTimeNumberTimers, key, namespace);
+	}
+
+	private void decrementTimeTimer(Table<K, N, Integer> table, K key, N namespace) {
+		if (table.contains(key, namespace)) {
+			if (table.get(key, namespace) > 1) {
+				table.put(key, namespace, table.get(key, namespace) - 1);
+			} else {
+				table.remove(key, namespace);
+			}
+		}
 	}
 }

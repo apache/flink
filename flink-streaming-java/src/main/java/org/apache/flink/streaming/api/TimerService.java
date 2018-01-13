@@ -26,10 +26,14 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface TimerService {
 
-	/** Returns the current processing time. */
+	/**
+	 * Returns the current processing time.
+	 */
 	long currentProcessingTime();
 
-	/** Returns the current event-time watermark. */
+	/**
+	 * Returns the current event-time watermark.
+	 */
 	long currentWatermark();
 
 	/**
@@ -51,4 +55,14 @@ public interface TimerService {
 	 * will also be active when you receive the timer notification.
 	 */
 	void registerEventTimeTimer(long time);
+
+	/**
+	 * Returns the number of processing time timers.
+	 */
+	int numProcessingTimeTimers();
+
+	/**
+	 * Returns the number of event time timers.
+	 */
+	int numEventTimeTimers();
 }

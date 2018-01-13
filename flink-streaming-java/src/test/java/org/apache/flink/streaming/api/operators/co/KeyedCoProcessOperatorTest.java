@@ -284,7 +284,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				new KeyedTwoInputStreamOperatorTestHarness<>(
 						operator,
 						new IntToStringKeySelector<>(),
-						new IdentityKeySelector<String>(),
+						new IdentityKeySelector<>(),
 						BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
@@ -303,7 +303,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 		testHarness = new KeyedTwoInputStreamOperatorTestHarness<>(
 				operator,
 				new IntToStringKeySelector<>(),
-				new IdentityKeySelector<String>(),
+				new IdentityKeySelector<>(),
 				BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setup();
@@ -362,6 +362,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
+			assertEquals(0, ctx.timerService().numEventTimeTimers());
+			assertEquals(0, ctx.timerService().numProcessingTimeTimers());
 		}
 	}
 
@@ -369,16 +371,20 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		private static final long serialVersionUID = 1L;
 
+		private static int numEventTimeTimers = 0;
+
 		@Override
 		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			ctx.timerService().registerEventTimeTimer(5);
+			assertEquals(++numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 
 		@Override
 		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			ctx.timerService().registerEventTimeTimer(6);
+			assertEquals(++numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 
 		@Override
@@ -389,12 +395,15 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
 			out.collect("" + 1777);
+			assertEquals(--numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 	}
 
 	private static class EventTimeTriggeringStatefulProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
+
+		private static int numEventTimeTimers = 0;
 
 		private final ValueStateDescriptor<String> state =
 				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE);
@@ -404,6 +413,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			out.collect("INPUT1:" + value);
 			getRuntimeContext().getState(state).update("" + value);
 			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
+			assertEquals(++numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 
 		@Override
@@ -411,6 +421,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			out.collect("INPUT2:" + value);
 			getRuntimeContext().getState(state).update(value);
 			ctx.timerService().registerEventTimeTimer(ctx.timerService().currentWatermark() + 5);
+			assertEquals(++numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 
 		@Override
@@ -420,6 +431,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 			assertEquals(TimeDomain.EVENT_TIME, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
+			assertEquals(--numEventTimeTimers, ctx.timerService().numEventTimeTimers());
+			assertEquals(0, ctx.timerService().numProcessingTimeTimers());
 		}
 	}
 
@@ -427,16 +440,20 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		private static final long serialVersionUID = 1L;
 
+		private static int numProcessingTimeTimers = 0;
+
 		@Override
 		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT1:" + value);
 			ctx.timerService().registerProcessingTimeTimer(5);
+			assertEquals(++numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
 		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			out.collect("INPUT2:" + value);
 			ctx.timerService().registerProcessingTimeTimer(6);
+			assertEquals(++numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
@@ -447,6 +464,8 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 			assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
 			out.collect("" + 1777);
+			assertEquals(--numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
+			assertEquals(0, ctx.timerService().numEventTimeTimers());
 		}
 	}
 
@@ -469,12 +488,16 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				long timestamp,
 				OnTimerContext ctx,
 				Collector<String> out) throws Exception {
+			assertEquals(0, ctx.timerService().numEventTimeTimers());
+			assertEquals(0, ctx.timerService().numProcessingTimeTimers());
 		}
 	}
 
 	private static class ProcessingTimeTriggeringStatefulProcessFunction extends CoProcessFunction<Integer, String, String> {
 
 		private static final long serialVersionUID = 1L;
+
+		private static int numProcessingTimeTimers = 0;
 
 		private final ValueStateDescriptor<String> state =
 				new ValueStateDescriptor<>("seen-element", StringSerializer.INSTANCE);
@@ -484,6 +507,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			out.collect("INPUT1:" + value);
 			getRuntimeContext().getState(state).update("" + value);
 			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
+			assertEquals(++numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
@@ -491,6 +515,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 			out.collect("INPUT2:" + value);
 			getRuntimeContext().getState(state).update(value);
 			ctx.timerService().registerProcessingTimeTimer(ctx.timerService().currentProcessingTime() + 5);
+			assertEquals(++numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
@@ -500,6 +525,7 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 			assertEquals(TimeDomain.PROCESSING_TIME, ctx.timeDomain());
 			out.collect("STATE:" + getRuntimeContext().getState(state).value());
+			assertEquals(--numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 	}
 
@@ -507,14 +533,19 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 
 		private static final long serialVersionUID = 1L;
 
+		private static int numProcessingTimeTimers = 0;
+		private static int numEventTimeTimers = 0;
+
 		@Override
 		public void processElement1(Integer value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerEventTimeTimer(6);
+			assertEquals(++numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 		}
 
 		@Override
 		public void processElement2(String value, Context ctx, Collector<String> out) throws Exception {
 			ctx.timerService().registerProcessingTimeTimer(5);
+			assertEquals(++numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 		}
 
 		@Override
@@ -524,8 +555,10 @@ public class KeyedCoProcessOperatorTest extends TestLogger {
 				Collector<String> out) throws Exception {
 			if (TimeDomain.EVENT_TIME.equals(ctx.timeDomain())) {
 				out.collect("EVENT:1777");
+				assertEquals(--numEventTimeTimers, ctx.timerService().numEventTimeTimers());
 			} else {
 				out.collect("PROC:1777");
+				assertEquals(--numProcessingTimeTimers, ctx.timerService().numProcessingTimeTimers());
 			}
 		}
 	}

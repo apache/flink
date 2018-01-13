@@ -123,6 +123,16 @@ public class ProcessOperator<IN, OUT>
 		}
 
 		@Override
+		public int numProcessingTimeTimers() {
+			throw new UnsupportedOperationException("Getting number of timers is only supported on a KeyedStream.");
+		}
+
+		@Override
+		public int numEventTimeTimers() {
+			throw new UnsupportedOperationException("Getting number of timers is only supported on a KeyedStream.");
+		}
+
+		@Override
 		public TimerService timerService() {
 			return this;
 		}
