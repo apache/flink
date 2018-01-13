@@ -82,20 +82,19 @@ public class SavepointHandlersTest extends TestLogger {
 	@Mock
 	private RestfulGateway mockRestfulGateway;
 
-	private SavepointHandlers savepointHandlers;
-
 	private SavepointHandlers.SavepointTriggerHandler savepointTriggerHandler;
 
 	private SavepointHandlers.SavepointStatusHandler savepointStatusHandler;
+
+	private GatewayRetriever<RestfulGateway> leaderRetriever;
 
 	@Before
 	public void setUp() throws Exception {
 		MockitoAnnotations.initMocks(this);
 
-		final GatewayRetriever<RestfulGateway> leaderRetriever =
-			() -> CompletableFuture.completedFuture(mockRestfulGateway);
+		leaderRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
 
-		savepointHandlers = new SavepointHandlers(null);
+		final SavepointHandlers savepointHandlers = new SavepointHandlers(null);
 		savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
 			LOCAL_REST_ADDRESS,
 			leaderRetriever,
@@ -149,7 +148,12 @@ public class SavepointHandlersTest extends TestLogger {
 		when(mockRestfulGateway.triggerSavepoint(any(JobID.class), targetDirectoryCaptor.capture(), any(Time.class)))
 			.thenReturn(CompletableFuture.completedFuture(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
 		final String defaultSavepointDir = "/other/dir";
-		savepointHandlers.setDefaultSavepointDir(defaultSavepointDir);
+		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
+		final SavepointHandlers.SavepointTriggerHandler savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
+			LOCAL_REST_ADDRESS,
+			leaderRetriever,
+			TIMEOUT,
+			Collections.emptyMap());
 
 		savepointTriggerHandler.handleRequest(
 			triggerSavepointRequestWithDefaultDirectory(),

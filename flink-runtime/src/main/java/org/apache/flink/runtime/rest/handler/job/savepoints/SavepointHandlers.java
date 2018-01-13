@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job.savepoints;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CoreOptions;
@@ -115,7 +114,7 @@ public class SavepointHandlers {
 	private final CompletedSavepointCache completedSavepointCache = new CompletedSavepointCache();
 
 	@Nullable
-	private String defaultSavepointDir;
+	private final String defaultSavepointDir;
 
 	public SavepointHandlers(@Nullable final String defaultSavepointDir) {
 		this.defaultSavepointDir = defaultSavepointDir;
@@ -333,10 +332,5 @@ public class SavepointHandlers {
 		UnknownSavepointKeyException(final SavepointKey savepointKey) {
 			super("No ongoing savepoints for " + savepointKey);
 		}
-	}
-
-	@VisibleForTesting
-	void setDefaultSavepointDir(@Nullable final String defaultSavepointDir) {
-		this.defaultSavepointDir = defaultSavepointDir;
 	}
 }
