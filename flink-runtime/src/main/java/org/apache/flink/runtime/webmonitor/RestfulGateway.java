@@ -142,14 +142,13 @@ public interface RestfulGateway extends RpcGateway {
 	/**
 	 * Triggers a savepoint with the given savepoint directory as a target.
 	 *
+	 * @param jobId           ID of the job for which the savepoint should be triggered.
 	 * @param targetDirectory Target directory for the savepoint.
-	 * @param timeout for the asynchronous operation
-	 * @return A future to the completed checkpoint
-	 * @throws IllegalStateException If no savepoint directory has been
-	 *                               specified and no default savepoint directory has been
-	 *                               configured
+	 * @param timeout         Timeout for the asynchronous operation
+	 * @return A future to the {@link CompletedCheckpoint#getExternalPointer() external pointer} of
+	 * the savepoint.
 	 */
-	default CompletableFuture<CompletedCheckpoint> triggerSavepoint(
+	default CompletableFuture<String> triggerSavepoint(
 			JobID jobId,
 			String targetDirectory,
 			@RpcTimeout Time timeout) {

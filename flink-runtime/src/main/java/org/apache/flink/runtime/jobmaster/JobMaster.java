@@ -854,7 +854,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	@Override
-	public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
+	public CompletableFuture<String> triggerSavepoint(
 			final JobID jobId,
 			final String targetDirectory,
 			final Time timeout) {
@@ -865,7 +865,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			jobId);
 		try {
 			return executionGraph.getCheckpointCoordinator()
-				.triggerSavepoint(System.currentTimeMillis(), targetDirectory);
+				.triggerSavepoint(System.currentTimeMillis(), targetDirectory)
+				.thenApply(CompletedCheckpoint::getExternalPointer);
 		} catch (Exception e) {
 			return FutureUtils.completedExceptionally(e);
 		}

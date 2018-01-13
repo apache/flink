@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -45,6 +44,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
@@ -112,7 +112,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class SavepointHandlers {
 
-	private final CompletedCheckpointCache completedCheckpointCache = new CompletedCheckpointCache();
+	private final CompletedSavepointCache completedSavepointCache = new CompletedSavepointCache();
 
 	@Nullable
 	private String defaultSavepointDir;
@@ -153,12 +153,12 @@ public class SavepointHandlers {
 			}
 
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
-			final CompletableFuture<CompletedCheckpoint> completedCheckpointCompletableFuture =
+			final CompletableFuture<String> savepointLocationFuture =
 				gateway.triggerSavepoint(jobId, targetDirectory, RpcUtils.INF_TIMEOUT);
 			final SavepointTriggerId savepointTriggerId = new SavepointTriggerId();
-			completedCheckpointCache.registerOngoingCheckpoint(
+			completedSavepointCache.registerOngoingSavepoint(
 				SavepointKey.of(savepointTriggerId, jobId),
-				completedCheckpointCompletableFuture);
+				savepointLocationFuture);
 			return CompletableFuture.completedFuture(
 				new SavepointTriggerResponseBody(savepointTriggerId));
 		}
@@ -186,25 +186,24 @@ public class SavepointHandlers {
 			final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 			final SavepointTriggerId savepointTriggerId = request.getPathParameter(
 				SavepointTriggerIdPathParameter.class);
-			final Either<Throwable, CompletedCheckpoint> completedCheckpointOrError;
+			final Either<Throwable, String> savepointLocationOrError;
 			try {
-				completedCheckpointOrError = completedCheckpointCache.get(SavepointKey.of(
+				savepointLocationOrError = completedSavepointCache.get(SavepointKey.of(
 					savepointTriggerId, jobId));
-			} catch (UnknownSavepointTriggerId e) {
+			} catch (UnknownSavepointKeyException e) {
 				return FutureUtils.completedExceptionally(
 					new NotFoundException("Savepoint not found. Savepoint trigger id: " +
 						savepointTriggerId + ", job id: " + jobId));
 			}
 
-			if (completedCheckpointOrError != null) {
-				if (completedCheckpointOrError.isLeft()) {
+			if (savepointLocationOrError != null) {
+				if (savepointLocationOrError.isLeft()) {
 					return CompletableFuture.completedFuture(new SavepointResponseBody(
 						QueueStatus.completed(),
 						new SavepointInfo(savepointTriggerId, null, new SerializedThrowable(
-							completedCheckpointOrError.left()))));
+							savepointLocationOrError.left()))));
 				} else {
-					final CompletedCheckpoint completedCheckpoint = completedCheckpointOrError.right();
-					final String externalPointer = completedCheckpoint.getExternalPointer();
+					final String externalPointer = savepointLocationOrError.right();
 					return CompletableFuture.completedFuture(new SavepointResponseBody(
 						QueueStatus.completed(),
 						new SavepointInfo(savepointTriggerId, externalPointer, null)));
@@ -216,62 +215,64 @@ public class SavepointHandlers {
 	}
 
 	/**
-	 * Cache to manage ongoing checkpoints.
+	 * Cache to manage ongoing savepoints.
 	 *
-	 * <p>The cache allows to register an ongoing checkpoint in the form of a
-	 * {@code CompletableFuture<CompletedCheckpoint>}. Completed checkpoints will be removed from
-	 * the cache automatically after a fixed timeout.
+	 * <p>The cache allows to register ongoing savepoints by calling
+	 * {@link #registerOngoingSavepoint(SavepointKey, CompletableFuture)}, where the
+	 * {@code CompletableFuture} contains the savepoint location. Completed savepoints will be
+	 * removed from the cache automatically after a fixed timeout.
 	 */
 	@ThreadSafe
-	static class CompletedCheckpointCache {
+	static class CompletedSavepointCache {
 
-		private static final long COMPLETED_CHECKPOINTS_CACHE_DURATION_SECONDS = 300;
+		private static final long COMPLETED_SAVEPOINTS_CACHE_DURATION_SECONDS = 300;
 
 		/**
-		 * Stores SavepointKeys of ongoing checkpoints.
-		 * If the checkpoint completes, it will be moved to {@link #completedCheckpoints}.
+		 * Stores SavepointKeys of ongoing savepoint.
+		 * If the savepoint completes, it will be moved to {@link #completedSavepoints}.
 		 */
 		private final Set<SavepointKey> registeredSavepointTriggers = ConcurrentHashMap.newKeySet();
 
-		/** Caches completed checkpoints. */
-		private final Cache<SavepointKey, Either<Throwable, CompletedCheckpoint>> completedCheckpoints =
+		/** Caches the location of completed savepoint. */
+		private final Cache<SavepointKey, Either<Throwable, String>> completedSavepoints =
 			CacheBuilder.newBuilder()
-				.expireAfterWrite(COMPLETED_CHECKPOINTS_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
+				.expireAfterWrite(COMPLETED_SAVEPOINTS_CACHE_DURATION_SECONDS, TimeUnit.SECONDS)
 				.build();
 
 		/**
-		 * Registers an ongoing checkpoint with the cache.
+		 * Registers an ongoing savepoint with the cache.
+		 * @param savepointLocationFuture A future containing the savepoint location.
 		 */
-		void registerOngoingCheckpoint(
-				final SavepointKey savepointTriggerId,
-				final CompletableFuture<CompletedCheckpoint> checkpointFuture) {
-			registeredSavepointTriggers.add(savepointTriggerId);
-			checkpointFuture.whenComplete((completedCheckpoint, error) -> {
+		void registerOngoingSavepoint(
+				final SavepointKey savepointKey,
+				final CompletableFuture<String> savepointLocationFuture) {
+			registeredSavepointTriggers.add(savepointKey);
+			savepointLocationFuture.whenComplete((savepointLocation, error) -> {
 				if (error == null) {
-					completedCheckpoints.put(savepointTriggerId, Either.Right(completedCheckpoint));
+					completedSavepoints.put(savepointKey, Either.Right(savepointLocation));
 				} else {
-					completedCheckpoints.put(savepointTriggerId, Either.Left(error));
+					completedSavepoints.put(savepointKey, Either.Left(error));
 				}
-				registeredSavepointTriggers.remove(savepointTriggerId);
+				registeredSavepointTriggers.remove(savepointKey);
 			});
 		}
 
 		/**
-		 * Returns the CompletedCheckpoint or a Throwable if the CompletableFuture finished,
-		 * otherwise {@code null}.
+		 * Returns the savepoint location or a {@code Throwable} if the {@code CompletableFuture}
+		 * finished, otherwise {@code null}.
 		 *
-		 * @throws UnknownSavepointTriggerId If the savepoint is not found, and there is no ongoing
-		 *                                   checkpoint under the provided key.
+		 * @throws UnknownSavepointKeyException If the savepoint is not found, and there is no ongoing
+		 *                                   savepoint under the provided key.
 		 */
 		@Nullable
-		Either<Throwable, CompletedCheckpoint> get(
-				final SavepointKey savepointTriggerId) throws UnknownSavepointTriggerId {
-			Either<Throwable, CompletedCheckpoint> completedCheckpointOrError = null;
-			if (!registeredSavepointTriggers.contains(savepointTriggerId)
-				&& (completedCheckpointOrError = completedCheckpoints.getIfPresent(savepointTriggerId)) == null) {
-				throw new UnknownSavepointTriggerId();
+		Either<Throwable, String> get(
+				final SavepointKey savepointKey) throws UnknownSavepointKeyException {
+			Either<Throwable, String> savepointLocationOrError = null;
+			if (!registeredSavepointTriggers.contains(savepointKey)
+				&& (savepointLocationOrError = completedSavepoints.getIfPresent(savepointKey)) == null) {
+				throw new UnknownSavepointKeyException(savepointKey);
 			}
-			return completedCheckpointOrError;
+			return savepointLocationOrError;
 		}
 	}
 
@@ -279,7 +280,7 @@ public class SavepointHandlers {
 	 * A pair of {@link JobID} and {@link SavepointTriggerId} used as a key to a hash based
 	 * collection.
 	 *
-	 * @see CompletedCheckpointCache
+	 * @see CompletedSavepointCache
 	 */
 	@Immutable
 	static class SavepointKey {
@@ -323,11 +324,15 @@ public class SavepointHandlers {
 	}
 
 	/**
-	 * Exception that indicates that there is no ongoing or completed checkpoint for a given
+	 * Exception that indicates that there is no ongoing or completed savepoint for a given
 	 * {@link JobID} and {@link SavepointTriggerId} pair.
 	 */
-	static class UnknownSavepointTriggerId extends Exception {
+	static class UnknownSavepointKeyException extends FlinkException {
 		private static final long serialVersionUID = 1L;
+
+		UnknownSavepointKeyException(final SavepointKey savepointKey) {
+			super("No ongoing savepoints for " + savepointKey);
+		}
 	}
 
 	@VisibleForTesting

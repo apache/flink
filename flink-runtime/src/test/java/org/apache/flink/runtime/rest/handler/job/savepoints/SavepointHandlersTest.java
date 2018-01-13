@@ -20,9 +20,6 @@ package org.apache.flink.runtime.rest.handler.job.savepoints;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.checkpoint.CheckpointProperties;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -36,7 +33,6 @@ import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerId;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
-import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.TestLogger;
@@ -79,7 +75,7 @@ public class SavepointHandlersTest extends TestLogger {
 
 	private static final JobID JOB_ID = new JobID();
 
-	private static final String COMPLETED_CHECKPOINT_EXTERNAL_POINTER = "/tmp/savepoint-0d2fb9-8d5e0106041a";
+	private static final String COMPLETED_SAVEPOINT_EXTERNAL_POINTER = "/tmp/savepoint-0d2fb9-8d5e0106041a";
 
 	private static final String DEFAULT_REQUESTED_SAVEPOINT_TARGET_DIRECTORY = "/tmp";
 
@@ -91,8 +87,6 @@ public class SavepointHandlersTest extends TestLogger {
 	private SavepointHandlers.SavepointTriggerHandler savepointTriggerHandler;
 
 	private SavepointHandlers.SavepointStatusHandler savepointStatusHandler;
-
-	private CompletedCheckpoint completedCheckpoint;
 
 	@Before
 	public void setUp() throws Exception {
@@ -113,26 +107,14 @@ public class SavepointHandlersTest extends TestLogger {
 			leaderRetriever,
 			TIMEOUT,
 			Collections.emptyMap());
-
-		completedCheckpoint = new CompletedCheckpoint(
-			new JobID(),
-			0,
-			0,
-			0,
-			Collections.emptyMap(),
-			null,
-			CheckpointProperties.forStandardSavepoint(),
-			new FileStateHandle(new Path("/tmp"), 0),
-			COMPLETED_CHECKPOINT_EXTERNAL_POINTER
-		);
 	}
 
 	@Test
 	public void testSavepointCompletedSuccessfully() throws Exception {
-		final CompletableFuture<CompletedCheckpoint> checkpointCompletableFuture =
+		final CompletableFuture<String> savepointLocationFuture =
 			new CompletableFuture<>();
 		when(mockRestfulGateway.triggerSavepoint(any(JobID.class), anyString(), any(Time.class)))
-			.thenReturn(checkpointCompletableFuture);
+			.thenReturn(savepointLocationFuture);
 
 		final SavepointTriggerId savepointTriggerId = savepointTriggerHandler.handleRequest(
 			triggerSavepointRequest(),
@@ -147,7 +129,7 @@ public class SavepointHandlersTest extends TestLogger {
 			savepointResponseBody.getStatus().getId(),
 			equalTo(QueueStatus.Id.IN_PROGRESS));
 
-		checkpointCompletableFuture.complete(completedCheckpoint);
+		savepointLocationFuture.complete(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
 		savepointResponseBody = savepointStatusHandler.handleRequest(
 			savepointStatusRequest(savepointTriggerId),
 			mockRestfulGateway).get();
@@ -158,14 +140,14 @@ public class SavepointHandlersTest extends TestLogger {
 		assertThat(savepointResponseBody.getSavepoint(), notNullValue());
 		assertThat(
 			savepointResponseBody.getSavepoint().getLocation(),
-			equalTo(COMPLETED_CHECKPOINT_EXTERNAL_POINTER));
+			equalTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
 	}
 
 	@Test
 	public void testTriggerSavepointWithDefaultDirectory() throws Exception {
 		final ArgumentCaptor<String> targetDirectoryCaptor = ArgumentCaptor.forClass(String.class);
 		when(mockRestfulGateway.triggerSavepoint(any(JobID.class), targetDirectoryCaptor.capture(), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(completedCheckpoint));
+			.thenReturn(CompletableFuture.completedFuture(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
 		final String defaultSavepointDir = "/other/dir";
 		savepointHandlers.setDefaultSavepointDir(defaultSavepointDir);
 
@@ -198,7 +180,7 @@ public class SavepointHandlersTest extends TestLogger {
 	@Test
 	public void testTriggerSavepointNoDirectory() throws Exception {
 		when(mockRestfulGateway.triggerSavepoint(any(JobID.class), anyString(), any(Time.class)))
-			.thenReturn(CompletableFuture.completedFuture(completedCheckpoint));
+			.thenReturn(CompletableFuture.completedFuture(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
 
 		try {
 			savepointTriggerHandler.handleRequest(
