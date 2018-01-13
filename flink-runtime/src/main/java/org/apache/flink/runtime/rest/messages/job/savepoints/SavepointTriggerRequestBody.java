@@ -18,29 +18,33 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
-import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.MessageParameters;
-import org.apache.flink.runtime.rest.messages.MessagePathParameter;
-import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.RequestBody;
 
-import java.util.Collection;
-import java.util.Collections;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import javax.annotation.Nullable;
 
 /**
- * The parameters for triggering a savepoint.
+ * {@link RequestBody} to trigger savepoints.
  */
-public class SavepointMessageParameters extends MessageParameters {
+public class SavepointTriggerRequestBody implements RequestBody {
 
-	public JobIDPathParameter jobID = new JobIDPathParameter();
-	public SavepointTargetDirectoryParameter targetDirectory = new SavepointTargetDirectoryParameter();
+	public static final String FIELD_NAME_TARGET_DIRECTORY = "target-directory";
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(jobID);
+	@JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
+	@Nullable
+	private final String targetDirectory;
+
+	@JsonCreator
+	public SavepointTriggerRequestBody(
+			@Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory) {
+		this.targetDirectory = targetDirectory;
 	}
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.singleton(targetDirectory);
+	@Nullable
+	public String getTargetDirectory() {
+		return targetDirectory;
 	}
+
 }

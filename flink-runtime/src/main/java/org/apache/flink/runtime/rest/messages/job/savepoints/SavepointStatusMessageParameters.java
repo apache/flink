@@ -18,24 +18,33 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.MessageParameters;
+import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
+import org.apache.flink.runtime.rest.messages.SavepointTriggerIdPathParameter;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 
 /**
- * The parameter denoting the directory where to which a savepoint should be written to.
+ * The parameters for triggering a savepoint.
  */
-public class SavepointTargetDirectoryParameter extends MessageQueryParameter<String> {
+public class SavepointStatusMessageParameters extends MessageParameters {
 
-	SavepointTargetDirectoryParameter() {
-		super("targetDirectory", MessageParameterRequisiteness.OPTIONAL);
+	public final JobIDPathParameter jobIdPathParameter = new JobIDPathParameter();
+
+	public final SavepointTriggerIdPathParameter savepointTriggerIdPathParameter = new SavepointTriggerIdPathParameter();
+
+	@Override
+	public Collection<MessagePathParameter<?>> getPathParameters() {
+		return Collections.unmodifiableCollection(
+			Arrays.asList(jobIdPathParameter, savepointTriggerIdPathParameter));
 	}
 
 	@Override
-	public String convertValueFromString(String value) {
-		return value;
-	}
-
-	@Override
-	public String convertStringToValue(String value) {
-		return value;
+	public Collection<MessageQueryParameter<?>> getQueryParameters() {
+		return Collections.emptyList();
 	}
 }
