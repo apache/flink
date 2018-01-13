@@ -505,7 +505,7 @@ public class KafkaConsumerThread extends Thread {
 	 * Utility exception that serves as a signal for the main loop to continue through the loop
 	 * if a reassignment attempt was aborted due to an pre-reassignment wakeup call on the consumer.
 	 */
-	private class AbortedReassignmentException extends Exception {
+	private static class AbortedReassignmentException extends Exception {
 		private static final long serialVersionUID = 1L;
 	}
 }
