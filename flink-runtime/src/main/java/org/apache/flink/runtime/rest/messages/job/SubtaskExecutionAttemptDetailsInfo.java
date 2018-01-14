@@ -94,6 +94,38 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		this.ioMetricsInfo = Preconditions.checkNotNull(ioMetricsInfo);
 	}
 
+	public int getSubtaskIndex() {
+		return subtaskIndex;
+	}
+
+	public ExecutionState getStatus() {
+		return status;
+	}
+
+	public int getAttempt() {
+		return attempt;
+	}
+
+	public String getHost() {
+		return host;
+	}
+
+	public long getStartTime() {
+		return startTime;
+	}
+
+	public long getEndTime() {
+		return endTime;
+	}
+
+	public long getDuration() {
+		return duration;
+	}
+
+	public IOMetricsInfo getIoMetricsInfo() {
+		return ioMetricsInfo;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {

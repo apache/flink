@@ -52,7 +52,7 @@ public class SubtaskExecutionAttemptDetailsHandler extends AbstractSubtaskAttemp
 	private final MetricFetcher<?> metricFetcher;
 
 	/**
-	 * Instantiates a new Abstract job vertex handler.
+	 * Instantiates a new subtask execution attempt details handler.
 	 *
 	 * @param localRestAddress    the local rest address
 	 * @param leaderRetriever     the leader retriever

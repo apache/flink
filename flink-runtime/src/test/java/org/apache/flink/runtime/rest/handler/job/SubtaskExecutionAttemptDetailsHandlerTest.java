@@ -18,20 +18,24 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.DummyJobInformation;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.executiongraph.ArchivedExecution;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.dump.MetricDump;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -45,21 +49,19 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptMessageParameter
 import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.internal.util.reflection.Whitebox;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests of {@link SubtaskExecutionAttemptDetailsHandler}.
@@ -69,90 +71,124 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 	@Test
 	public void testHandleRequest() throws Exception {
 
-		// Prepare the execution graph.
 		final JobID jobID = new JobID();
-
-		final ExecutionGraph executionGraph = new ExecutionGraph(
-			new DummyJobInformation(jobID, "job name"),
-			mock(ScheduledExecutorService.class),
-			mock(Executor.class),
-			Time.milliseconds(100),
-			new NoRestartStrategy(),
-			new RestartAllStrategy.Factory(),
-			mock(SlotProvider.class),
-			ExecutionGraph.class.getClassLoader(),
-			VoidBlobWriter.getInstance()
-		);
-
-		final JobVertex jobVertex = new JobVertex("MockVertex");
-		jobVertex.setParallelism(128);
-		jobVertex.setInvokableClass(AbstractInvokable.class);
-
-		executionGraph.attachJobGraph(Collections.singletonList(jobVertex));
+		final JobVertexID jobVertexId = new JobVertexID();
 
 		// The testing subtask.
 		final int subtaskIndex = 1;
 		final ExecutionState expectedState = ExecutionState.SCHEDULED;
+		final int attempt = 0;
+
+		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
+		final ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraph(
+			jobID,
+			"job name",
+			Collections.singletonMap(
+				jobVertexId,
+				new ArchivedExecutionJobVertex(
+					new ArchivedExecutionVertex[]{
+						null, // the first subtask won't be queried
+						new ArchivedExecutionVertex(
+							subtaskIndex,
+							"test task",
+							new ArchivedExecution(
+								emptyAccumulators,
+								null,
+								new ExecutionAttemptID(),
+								attempt,
+								expectedState,
+								null,
+								null,
+								subtaskIndex,
+								new long[ExecutionState.values().length]),
+							new EvictingBoundedList<>(0)
+						)
+					},
+					jobVertexId,
+					"test",
+					1,
+					1,
+					emptyAccumulators)
+			),
+			Collections.emptyList(),
+			new long[0],
+			JobStatus.FINISHED,
+			null,
+			"jsonPlan",
+			emptyAccumulators,
+			Collections.emptyMap(),
+			new ArchivedExecutionConfig(new ExecutionConfig()),
+			false,
+			null,
+			null);
 
 		// Change some fields so we can make it different from other sub tasks.
-		Execution execution = executionGraph.getJobVertex(jobVertex.getID()).getTaskVertices()[subtaskIndex].getCurrentExecutionAttempt();
-		Whitebox.setInternalState(execution, "state", expectedState);
+		final MetricFetcher<?> metricFetcher = new MetricFetcher<>(
+			() -> null,
+			path -> null,
+			TestingUtils.defaultExecutor(),
+			Time.milliseconds(1000L));
+		final MetricStore metricStore = metricFetcher.getMetricStore();
 
-		// Mock the metric fetcher.
-		final MetricFetcher metricFetcher = mock(MetricFetcher.class);
-		final MetricStore metricStore = mock(MetricStore.class);
-		final MetricStore.ComponentMetricStore componentMetricStore = mock(MetricStore.ComponentMetricStore.class);
+		final long bytesInLocal = 1L;
+		final long bytesInRemote = 2L;
+		final long bytesOut = 10L;
+		final long recordsIn = 20L;
+		final long recordsOut = 30L;
 
-		final long bytesInLocal = 1;
-		final long bytesInRemote = 2;
-		final long bytesOut = 10;
-		final long recordsIn = 20;
-		final long recordsOut = 30;
+		Collection<Tuple2<String, Long>> metricValues = Arrays.asList(
+			Tuple2.of(MetricNames.IO_NUM_BYTES_IN_LOCAL, bytesInLocal),
+			Tuple2.of(MetricNames.IO_NUM_BYTES_IN_REMOTE, bytesInRemote),
+			Tuple2.of(MetricNames.IO_NUM_BYTES_OUT, bytesOut),
+			Tuple2.of(MetricNames.IO_NUM_RECORDS_IN, recordsIn),
+			Tuple2.of(MetricNames.IO_NUM_RECORDS_OUT, recordsOut));
 
-		when(componentMetricStore.getMetric(MetricNames.IO_NUM_BYTES_IN_LOCAL)).thenReturn(Long.toString(bytesInLocal));
-		when(componentMetricStore.getMetric(MetricNames.IO_NUM_BYTES_IN_REMOTE)).thenReturn(Long.toString(bytesInRemote));
-		when(componentMetricStore.getMetric(MetricNames.IO_NUM_BYTES_OUT)).thenReturn(Long.toString(bytesOut));
-		when(componentMetricStore.getMetric(MetricNames.IO_NUM_RECORDS_IN)).thenReturn(Long.toString(recordsIn));
-		when(componentMetricStore.getMetric(MetricNames.IO_NUM_RECORDS_OUT)).thenReturn(Long.toString(recordsOut));
+		final QueryScopeInfo.TaskQueryScopeInfo queryScopeInfo = new QueryScopeInfo.TaskQueryScopeInfo(
+			jobID.toString(),
+			jobVertexId.toString(),
+			subtaskIndex);
 
-		when(metricStore.getSubtaskMetricStore(jobID.toString(), jobVertex.getID().toString(), subtaskIndex))
-			.thenReturn(componentMetricStore);
-		when(metricFetcher.getMetricStore()).thenReturn(metricStore);
+		for (Tuple2<String, Long> metricValue : metricValues) {
+			metricStore.add(
+				new MetricDump.CounterDump(
+					queryScopeInfo,
+					metricValue.f0,
+					metricValue.f1));
+		}
 
 		// Instance the handler.
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
 		final SubtaskExecutionAttemptDetailsHandler handler = new SubtaskExecutionAttemptDetailsHandler(
 			CompletableFuture.completedFuture("127.0.0.1:9527"),
-			mock(GatewayRetriever.class),
-			Time.milliseconds(100),
+			() -> null,
+			Time.milliseconds(100L),
 			restHandlerConfiguration.getResponseHeaders(),
 			null,
 			new ExecutionGraphCache(
 				restHandlerConfiguration.getTimeout(),
 				Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
-			mock(Executor.class),
+			TestingUtils.defaultExecutor(),
 			metricFetcher
 		);
 
-		final int attempt = 0;
+		final HashMap<String, String> receivedPathParameters = new HashMap<>(4);
+		receivedPathParameters.put(JobIDPathParameter.KEY, jobID.toString());
+		receivedPathParameters.put(JobVertexIdPathParameter.KEY, jobVertexId.toString());
+		receivedPathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
+		receivedPathParameters.put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
 
 		final HandlerRequest<EmptyRequestBody, SubtaskAttemptMessageParameters> request = new HandlerRequest<>(
 			EmptyRequestBody.getInstance(),
 			new SubtaskAttemptMessageParameters(),
-			new HashMap<String, String>() {{
-				put(JobIDPathParameter.KEY, jobID.toString());
-				put(JobVertexIdPathParameter.KEY, jobVertex.getID().toString());
-				put(SubtaskIndexPathParameter.KEY, Integer.toString(subtaskIndex));
-				put(SubtaskAttemptPathParameter.KEY, Integer.toString(attempt));
-			}},
+			receivedPathParameters,
 			Collections.emptyMap()
 		);
 
 		// Handle request.
 		final SubtaskExecutionAttemptDetailsInfo detailsInfo = handler.handleRequest(
 			request,
-			executionGraph.getJobVertex(jobVertex.getID()));
+			executionGraph.getJobVertex(jobVertexId));
 
 		// Verify
 		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
@@ -171,9 +207,9 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			expectedState,
 			attempt,
 			"(unassigned)",
-			-1,
-			-1,
-			-1,
+			-1L,
+			-1L,
+			-1L,
 			ioMetricsInfo
 		);
 

@@ -28,21 +28,21 @@ import java.util.Objects;
  */
 public final class IOMetricsInfo {
 
-	public static final String FIELD_NAME_BYTES_READ = "read-bytes";
+	private static final String FIELD_NAME_BYTES_READ = "read-bytes";
 
-	public static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
+	private static final String FIELD_NAME_BYTES_READ_COMPLETE = "read-bytes-complete";
 
-	public static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
+	private static final String FIELD_NAME_BYTES_WRITTEN = "write-bytes";
 
-	public static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
+	private static final String FIELD_NAME_BYTES_WRITTEN_COMPLETE = "write-bytes-complete";
 
-	public static final String FIELD_NAME_RECORDS_READ = "read-records";
+	private static final String FIELD_NAME_RECORDS_READ = "read-records";
 
-	public static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
+	private static final String FIELD_NAME_RECORDS_READ_COMPLETE = "read-records-complete";
 
-	public static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
+	private static final String FIELD_NAME_RECORDS_WRITTEN = "write-records";
 
-	public static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
+	private static final String FIELD_NAME_RECORDS_WRITTEN_COMPLETE = "write-records-complete";
 
 	@JsonProperty(FIELD_NAME_BYTES_READ)
 	private final long bytesRead;
@@ -86,6 +86,38 @@ public final class IOMetricsInfo {
 		this.recordsReadComplete = recordsReadComplete;
 		this.recordsWritten = recordsWritten;
 		this.recordsWrittenComplete = recordsWrittenComplete;
+	}
+
+	public long getBytesRead() {
+		return bytesRead;
+	}
+
+	public boolean isBytesReadComplete() {
+		return bytesReadComplete;
+	}
+
+	public long getBytesWritten() {
+		return bytesWritten;
+	}
+
+	public boolean isBytesWrittenComplete() {
+		return bytesWrittenComplete;
+	}
+
+	public long getRecordsRead() {
+		return recordsRead;
+	}
+
+	public boolean isRecordsReadComplete() {
+		return recordsReadComplete;
+	}
+
+	public long getRecordsWritten() {
+		return recordsWritten;
+	}
+
+	public boolean isRecordsWrittenComplete() {
+		return recordsWrittenComplete;
 	}
 
 	@Override
