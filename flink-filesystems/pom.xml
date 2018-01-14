@@ -40,6 +40,7 @@ under the License.
 		<module>flink-mapr-fs</module>
 		<module>flink-s3-fs-hadoop</module>
 		<module>flink-s3-fs-presto</module>
+		<module>flink-swift-fs-hadoop</module>
 	</modules>
 
 	<build>
