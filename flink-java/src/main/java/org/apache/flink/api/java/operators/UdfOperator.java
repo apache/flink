@@ -88,7 +88,7 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 	 * <p>The runtime context itself is available in all UDFs via
 	 * {@link org.apache.flink.api.common.functions.AbstractRichFunction#getRuntimeContext()}.
 	 *
-	 * @param data The data set to be broadcasted.
+	 * @param data The data set to be broadcast.
 	 * @param name The name under which the broadcast data set retrieved.
 	 * @return The operator itself, to allow chaining function calls.
 	 */

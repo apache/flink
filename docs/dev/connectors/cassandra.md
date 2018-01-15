@@ -30,7 +30,7 @@ under the License.
 This connector provides sinks that writes data into a [Apache Cassandra](https://cassandra.apache.org/) database.
 
 <!--
-  TODO: Perhaps worth mentioning current DataStax Java Driver version to match Cassandra versoin on user side.
+  TODO: Perhaps worth mentioning current DataStax Java Driver version to match Cassandra version on user side.
 -->
 
 To use this connector, add the following dependency to your project:

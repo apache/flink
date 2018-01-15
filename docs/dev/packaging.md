@@ -48,7 +48,7 @@ automatically when exporting JAR files.
 
 ### Packaging Programs through Plans
 
-Additionally, we support packaging programs as *Plans*. Instead of defining a progam in the main
+Additionally, we support packaging programs as *Plans*. Instead of defining a program in the main
 method and calling
 `execute()` on the environment, plan packaging returns the *Program Plan*, which is a description of
 the program's data flow. To do that, the program must implement the

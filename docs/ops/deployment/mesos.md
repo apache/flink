@@ -55,7 +55,7 @@ the state before the failure.
 
 The artifact server is responsible for providing resources to the worker
 nodes. The resources can be anything from the Flink binaries to shared secrets
-or configuration files. For instance, in non-containered environments, the
+or configuration files. For instance, in non-containerized environments, the
 artifact server will provide the Flink binaries. What files will be served
 depends on the configuration overlay used.
 

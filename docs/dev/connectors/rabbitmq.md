@@ -66,7 +66,7 @@ RabbitMQ source, the following is required -
  - *Use correlation ids*: Correlation ids are a RabbitMQ application feature.
  You have to set it in the message properties when injecting messages into RabbitMQ.
  The correlation id is used by the source to deduplicate any messages that
- have been reproccessed when restoring from a checkpoint.
+ have been reprocessed when restoring from a checkpoint.
  - *Non-parallel source*: The source must be non-parallel (parallelism set
  to 1) in order to achieve exactly-once. This limitation is mainly due to
  RabbitMQ's approach to dispatching messages from a single queue to multiple
