@@ -85,8 +85,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
@@ -97,6 +95,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 	private final RestClient restClient;
 
 	private final ExecutorService executorService = Executors.newFixedThreadPool(4, new ExecutorThreadFactory("Flink-RestClusterClient-IO"));
+
 	private final WaitStrategy waitStrategy;
 
 	private final T clusterId;
@@ -113,7 +112,7 @@ public class RestClusterClient<T> extends ClusterClient<T> {
 		super(configuration);
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 		this.restClient = new RestClient(restClusterClientConfiguration.getRestClientConfiguration(), executorService);
-		this.waitStrategy = requireNonNull(waitStrategy);
+		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
 		this.clusterId = Preconditions.checkNotNull(clusterId);
 	}
 
