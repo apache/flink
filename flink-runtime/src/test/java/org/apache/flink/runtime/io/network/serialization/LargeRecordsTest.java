@@ -128,7 +128,7 @@ public class LargeRecordsTest {
 			}
 			
 			// might be that the last big records has not yet been fully moved, and a small one is missing
-			assertFalse(serializer.hasData());
+			assertFalse(serializer.hasSerializedData());
 			assertFalse(deserializer.hasUnfinishedData());
 		}
 		catch (Exception e) {
@@ -226,7 +226,7 @@ public class LargeRecordsTest {
 			}
 			
 			// might be that the last big records has not yet been fully moved, and a small one is missing
-			assertFalse(serializer.hasData());
+			assertFalse(serializer.hasSerializedData());
 			assertFalse(deserializer.hasUnfinishedData());
 		}
 		catch (Exception e) {

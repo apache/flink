@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.api.serialization.RecordSerializer.SerializationResult;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A record-oriented runtime result writer.
@@ -115,12 +116,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			SerializationResult result = serializer.addRecord(record);
 
 			while (result.isFullBuffer()) {
-				Buffer buffer = serializer.getCurrentBuffer();
-
-				if (buffer != null) {
-					numBytesOut.inc(buffer.getSizeUnsafe());
-					writeAndClearBuffer(buffer, targetChannel, serializer);
-
+				if (tryWriteAndClearBuffer(targetChannel, serializer)) {
 					// If this was a full record, we are done. Not breaking
 					// out of the loop at this point will lead to another
 					// buffer request before breaking out (that would not be
@@ -135,6 +131,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 					result = serializer.setNextBufferBuilder(bufferBuilder);
 				}
 			}
+			checkState(!serializer.hasSerializedData(), "All data should be written at once");
 		}
 	}
 
@@ -145,14 +142,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 				RecordSerializer<T> serializer = serializers[targetChannel];
 
 				synchronized (serializer) {
-					Buffer buffer = serializer.getCurrentBuffer();
-					if (buffer != null) {
-						numBytesOut.inc(buffer.getSizeUnsafe());
-						writeAndClearBuffer(buffer, targetChannel, serializer);
-					} else if (serializer.hasData()) {
-						// sanity check
-						throw new IllegalStateException("No buffer, but serializer has buffered data.");
-					}
+					tryWriteAndClearBuffer(targetChannel, serializer);
 
 					// retain the buffer so that it can be recycled by each channel of targetPartition
 					targetPartition.writeBuffer(eventBuffer.readOnlySlice().retainBuffer(), targetChannel);
@@ -170,16 +160,7 @@ public class RecordWriter<T extends IOReadableWritable> {
 			RecordSerializer<T> serializer = serializers[targetChannel];
 
 			synchronized (serializer) {
-				try {
-					Buffer buffer = serializer.getCurrentBuffer();
-
-					if (buffer != null) {
-						numBytesOut.inc(buffer.getSizeUnsafe());
-						targetPartition.writeBuffer(buffer, targetChannel);
-					}
-				} finally {
-					serializer.clear();
-				}
+				tryWriteAndClearBuffer(targetChannel, serializer);
 			}
 		}
 	}
@@ -213,18 +194,24 @@ public class RecordWriter<T extends IOReadableWritable> {
 	 * buffer from the serializer state.
 	 *
 	 * <p><b>Needs to be synchronized on the serializer!</b>
+	 *
+	 * @return true if some data were written
 	 */
-	private void writeAndClearBuffer(
-			Buffer buffer,
+	private boolean tryWriteAndClearBuffer(
 			int targetChannel,
 			RecordSerializer<T> serializer) throws IOException {
 
+		Buffer buffer = serializer.getCurrentBuffer();
+		if (buffer == null) {
+			return false;
+		}
+
+		numBytesOut.inc(buffer.getSizeUnsafe());
 		try {
 			targetPartition.writeBuffer(buffer, targetChannel);
-		}
-		finally {
-			serializer.clearCurrentBuffer();
+			return true;
+		} finally {
+			serializer.clear();
 		}
 	}
-
 }

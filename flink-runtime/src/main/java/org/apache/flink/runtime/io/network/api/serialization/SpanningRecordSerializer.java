@@ -157,22 +157,12 @@ public class SpanningRecordSerializer<T extends IOReadableWritable> implements R
 	}
 
 	@Override
-	public void clearCurrentBuffer() {
-		targetBuffer = null;
-	}
-
-	@Override
 	public void clear() {
 		targetBuffer = null;
-
-		// ensure clear state with hasRemaining false (for correct setNextBufferBuilder logic)
-		dataBuffer.position(dataBuffer.limit());
-		lengthBuffer.position(4);
 	}
 
 	@Override
-	public boolean hasData() {
-		// either data in current target buffer or intermediate buffers
-		return (targetBuffer != null && !targetBuffer.isEmpty()) || lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
+	public boolean hasSerializedData() {
+		return lengthBuffer.hasRemaining() || dataBuffer.hasRemaining();
 	}
 }
