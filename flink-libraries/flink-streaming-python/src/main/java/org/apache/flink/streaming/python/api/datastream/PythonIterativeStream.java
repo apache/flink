@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
+
 import org.python.core.PyObject;
 
 /**
@@ -31,27 +33,23 @@ import org.python.core.PyObject;
 @PublicEvolving
 public class PythonIterativeStream extends PythonSingleOutputStreamOperator {
 
-	public PythonIterativeStream(IterativeStream<PyObject> iterativeStream) {
+	PythonIterativeStream(IterativeStream<PyObject> iterativeStream) {
 		super(iterativeStream);
 	}
 
 	/**
 	 * A thin wrapper layer over {@link IterativeStream#closeWith(org.apache.flink.streaming.api.datastream.DataStream)}
 	 *
-	 * Please note that this function works with {@link PythonDataStream} and thus wherever a DataStream is mentioned in
+	 * <p>Please note that this function works with {@link PythonDataStream} and thus wherever a DataStream is mentioned in
 	 * the above {@link IterativeStream#closeWith(org.apache.flink.streaming.api.datastream.DataStream)} description,
 	 * the user may regard it as {@link PythonDataStream} .
 	 *
- *
-	 * @param feedback_stream
-	 *            {@link PythonDataStream} that will be used as input to the iteration
-	 *            head.
-	 *
+	 * @param feedback_stream {@link PythonDataStream} that will be used as input to the iteration
+	 * head.
 	 * @return The feedback stream.
-	 *
 	 */
 	public PythonDataStream close_with(PythonDataStream<? extends DataStream<PyObject>> feedback_stream) {
-		((IterativeStream<PyObject>)this.stream).closeWith(feedback_stream.stream);
+		((IterativeStream<PyObject>) this.stream).closeWith(feedback_stream.stream);
 		return feedback_stream;
 	}
 }

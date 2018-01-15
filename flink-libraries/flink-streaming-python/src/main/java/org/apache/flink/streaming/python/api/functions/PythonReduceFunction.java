@@ -15,12 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
-import java.io.IOException;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.streaming.python.util.AdapterMap;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * The {@code PythonReduceFunction} is a thin wrapper layer over a Python UDF {@code ReduceFunction}.
@@ -33,6 +40,7 @@ import org.python.core.PyObject;
  */
 public class PythonReduceFunction implements ReduceFunction<PyObject> {
 	private static final long serialVersionUID = -9070596504893036458L;
+	private static final Logger LOG = LoggerFactory.getLogger(PythonReduceFunction.class);
 
 	private final byte[] serFun;
 	private transient ReduceFunction<PyObject> fun;
@@ -42,12 +50,14 @@ public class PythonReduceFunction implements ReduceFunction<PyObject> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public PyObject reduce(PyObject value1, PyObject value2) throws Exception {
 		if (fun == null) {
-			fun = (ReduceFunction<PyObject>) SerializationUtils.deserializeObject(serFun);
+			fun = SerializationUtils.deserializeObject(serFun);
 		}
-
-		return UtilityFunctions.adapt(this.fun.reduce(value1, value2));
+		try {
+			return AdapterMap.adapt(this.fun.reduce(value1, value2));
+		} catch (PyException pe) {
+			throw AbstractPythonUDF.createAndLogException(pe, LOG);
+		}
 	}
 }

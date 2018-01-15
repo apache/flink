@@ -26,7 +26,7 @@ under the License.
 
 Analysis streaming programs in Flink are regular programs that implement transformations on
 streaming data sets (e.g., filtering, mapping, joining, grouping). The streaming data sets are initially
-created from certain sources (e.g., by reading from Apache Kafka, or reading files, or from collections).
+created from certain sources (e.g., by reading files, or from collections).
 Results are returned via sinks, which may for example write the data to (distributed) files, or to
 standard output (for example the command line terminal). Flink streaming programs run in a variety
 of contexts, standalone, or embedded in other programs. The execution can happen in a local JVM, or
@@ -62,7 +62,6 @@ in a stream of sentences, on a window size of 50 milliseconds and prints the res
 from org.apache.flink.streaming.api.functions.source import SourceFunction
 from org.apache.flink.api.common.functions import FlatMapFunction, ReduceFunction
 from org.apache.flink.api.java.functions import KeySelector
-from org.apache.flink.python.api.jython import PythonStreamExecutionEnvironment
 from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
 
@@ -98,8 +97,8 @@ class Sum(ReduceFunction):
         count2, word2 = input2
         return (count1 + count2, word1)
 
-def main():
-    env = PythonStreamExecutionEnvironment.get_execution_environment()
+def main(factory):
+    env = factory.get_execution_environment()
     env.create_python_source(Generator(num_iters=1000)) \
         .flat_map(Tokenizer()) \
         .key_by(Selector()) \
@@ -108,15 +107,10 @@ def main():
         .print()
     env.execute()
 
-
-if __name__ == '__main__':
-    main()
 {% endhighlight %}
 
 **Notes:**
 
-- If execution is done on a local cluster, you may replace the last line in the `main()` function
-  with **`env.execute(True)`**
 - Execution on a multi-node cluster requires a shared medium storage, which needs to be configured (.e.g HDFS)
   upfront.
 - The output from of the given script is directed to the standard output. Consequently, the output
@@ -130,8 +124,8 @@ Program Skeleton
 As we already saw in the example, Flink streaming programs look like regular Python programs.
 Each program consists of the same basic parts:
 
-1. A `main()` function definition, without arguments - the program entry point,
-2. Obtain an `Environment`,
+1. A `main(factory)` function definition, with an environment factory argument - the program entry point,
+2. Obtain an `Environment` from the factory,
 3. Load/create the initial data,
 4. Specify transformations on this data,
 5. Specify where to put the results of your computations, and
@@ -140,21 +134,21 @@ Each program consists of the same basic parts:
 We will now give an overview of each of those steps but please refer to the respective sections for
 more details.
 
-The `main()` function is a must and it is used by Flink execution layer to run the
+The `main(factory)` function is a must and it is used by Flink execution layer to run the
 given Python streaming program.
 
 The `Environment` is the basis for all Flink programs. You can
-obtain one using these static methods on class `PythonStreamExecutionEnvironment`:
+obtain one using the factory methods provided by the factory:
 
 {% highlight python %}
-get_execution_environment()
+factory.get_execution_environment()
 {% endhighlight %}
 
 For specifying data sources the streaming execution environment has several methods.
 To just read a text file as a sequence of lines, you can use:
 
 {% highlight python %}
-env = get_execution_environment()
+env = factory.get_execution_environment()
 text = env.read_text_file("file:///path/to/file")
 {% endhighlight %}
 
@@ -186,7 +180,7 @@ of these methods on DataStream:
 {% highlight python %}
 data.write_as_text("<file-path>")
 data.write_as_text("<file-path>", mode=WriteMode.OVERWRITE)
-data.print()
+data.output()
 {% endhighlight %}
 
 The last method is only useful for developing/debugging on a local machine,
@@ -198,8 +192,7 @@ Please refer to [Data Sinks](#data-sinks) for more information on writing to fil
 
 Once you specified the complete program you need to call `execute` on
 the `Environment`. This will either execute on your local machine or submit your program
-for execution on a cluster, depending on how Flink was started. You can force
-a local execution by using `execute(True)`.
+for execution on a cluster, depending on how Flink was started.
 
 {% top %}
 
@@ -209,7 +202,7 @@ Project setup
 Apart from setting up Flink, no additional work is required. Using Jython to execute the Python
 script, means that no external packages are needed and the program is executed as if it was a jar file.
 
-The Python API was tested on Linux/OSX systems.
+The Python API was tested on Windows/Linux/OSX systems.
 
 {% top %}
 
@@ -540,7 +533,7 @@ Collection-based:
 **Examples**
 
 {% highlight python %}
-env  = PythonStreamExecutionEnvironment.get_execution_environment()
+env  = factory.get_execution_environment()
 
 \# read text file from local files system
 localLiens = env.read_text("file:///path/to/my/textfile")
@@ -564,7 +557,7 @@ Data sinks consume DataStreams and are used to store or return them:
 
 - `write_as_text()` - Writes elements line-wise as Strings. The Strings are
   obtained by calling the *str()* method of each element.
-- `print()` - Prints the *str()* value of each element on the
+- `output()` - Prints the *str()* value of each element on the
   standard out.
 - `write_to_socket()` - Writes the DataStream to a socket [host:port] as a byte array.
 
@@ -615,7 +608,7 @@ The default parallelism of an execution environment can be specified by calling 
 execution environment as follows:
 
 {% highlight python %}
-env = PythonStreamExecutionEnvironment.get_execution_environment()
+env = factory.get_execution_environment()
 env.set_parallelism(3)
 
 text.flat_map(Tokenizer()) \

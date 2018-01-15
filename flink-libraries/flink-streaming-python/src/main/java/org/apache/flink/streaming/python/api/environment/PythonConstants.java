@@ -18,22 +18,9 @@
 
 package org.apache.flink.streaming.python.api.environment;
 
-
-public class PythonEnvironmentConfig {
+/**
+ * Collection of constants for the Streaming Python API.
+ */
+public class PythonConstants {
 	public static final String FLINK_PYTHON_DC_ID = "flink";
-
-	public static final String FLINK_PYTHON_PLAN_NAME = "plan.py";
-
-	/**
-	 * Holds the path for the local python files cache. Is is set only on the client side by
-	 * the python streaming plan binder.
-	 */
-	public static String pythonTmpCachePath;
-
-	/**
-	 * Holds the path in the shared storage at which the python script(s) reside. It is set on the client side
-	 * within the execution process.
-	 */
-	public static String FLINK_HDFS_PATH = "hdfs:///tmp/flink"; // "file:/tmp/flink"
-
 }

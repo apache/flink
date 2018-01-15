@@ -15,12 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from org.apache.flink.api.common.functions import ReduceFunction, FlatMapFunction
 from org.apache.flink.api.java.functions import KeySelector
 
 from utils import constants
-from utils.python_test_base import TestBase
 
 
 class Tokenizer(FlatMapFunction):
@@ -41,29 +39,20 @@ class Sum(ReduceFunction):
         return (count1 + count2, val1)
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
+class Main:
+    def run(self, flink):
         elements = [(1, 222 if x % 2 == 0 else 333) for x in range(constants.NUM_ELEMENTS_IN_TEST)]
 
-        env = self._get_execution_environment()
+        env = flink.get_execution_environment()
         env.set_parallelism(2) \
             .from_elements(elements) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        result = env.execute("MyJob", True)
-        print("Job completed, job_id={}".format(str(result.jobID)))
-
-
-def main():
-    Main().run()
+        result = env.execute()
 
 
-if __name__ == '__main__':
-    main()
-    print("Job completed ({})\n".format(sys.argv))
+def main(flink):
+    Main().run(flink)

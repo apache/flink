@@ -25,7 +25,6 @@ from org.apache.flink.streaming.util.serialization import SerializationSchema
 
 from utils import constants
 from utils import utils
-from utils.python_test_base import TestBase
 
 
 class Tokenizer(FlatMapFunction):
@@ -74,19 +73,15 @@ class SocketStringReader(threading.Thread):
         serversocket.close()
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-
-    def run(self):
+class Main:
+    def run(self, flink):
         port = utils.gen_free_port()
         SocketStringReader('', port, constants.NUM_ITERATIONS_IN_TEST).start()
         time.sleep(0.5)
 
         elements = ["aa" if iii % 2 == 0 else "bbb" for iii in range(constants.NUM_ITERATIONS_IN_TEST)]
 
-        env = self._get_execution_environment()
+        env = flink.get_execution_environment()
         env.from_collection(elements) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
@@ -94,13 +89,8 @@ class Main(TestBase):
             .reduce(Sum()) \
             .write_to_socket('localhost', port, ToStringSchema())
 
-        result = env.execute("MyJob", True)
-        print("Job completed, job_id={}".format(result.jobID))
+        env.execute()
 
 
-def main():
-    Main().run()
-
-
-if __name__ == '__main__':
-    main()
+def main(flink):
+    Main().run(flink)

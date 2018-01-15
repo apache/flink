@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
+import org.python.core.PyException;
 
 import java.io.IOException;
 
@@ -33,33 +33,28 @@ import java.io.IOException;
  * <p>This function is used internally by the Python thin wrapper layer over the streaming data
  * functionality</p>
  */
-public class PythonGeneratorFunction extends RichSourceFunction<Object> {
+public class PythonGeneratorFunction extends AbstractPythonUDF<SourceFunction<Object>> implements SourceFunction<Object> {
 	private static final long serialVersionUID = 3854587935845323082L;
 
-	private final byte[] serFun;
-	private transient SourceFunction<Object> fun;
-
 	public PythonGeneratorFunction(SourceFunction<Object> fun) throws IOException {
-		this.serFun = SerializationUtils.serializeObject(fun);
+		super(fun);
 	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration parameters) throws Exception {
-		this.fun = (SourceFunction<Object>) UtilityFunctions.smartFunctionDeserialization(
-			getRuntimeContext(), this.serFun);
-	}
-
-	@Override
-	public void close() throws Exception {}
 
 	public void run(SourceContext<Object> ctx) throws Exception {
-		this.fun.run(ctx);
+		try {
+			this.fun.run(ctx);
+		} catch (PyException pe) {
+			throw createAndLogException(pe);
+		}
 	}
 
 	public void cancel() {
 		if (this.fun != null) {
-			this.fun.cancel();
+			try {
+				this.fun.cancel();
+			} catch (PyException pe) {
+				createAndLogException(pe);
+			}
 		}
 	}
 }

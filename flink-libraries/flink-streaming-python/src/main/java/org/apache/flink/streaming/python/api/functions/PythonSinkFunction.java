@@ -15,14 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -36,37 +34,20 @@ import java.io.IOException;
  * <p>This function is used internally by the Python thin wrapper layer over the streaming data
  * functionality</p>
  */
-public class PythonSinkFunction extends RichSinkFunction<PyObject> {
+public class PythonSinkFunction extends AbstractPythonUDF<SinkFunction<PyObject>> implements SinkFunction<PyObject> {
+
 	private static final long serialVersionUID = -9030596504893036458L;
-	private final byte[] serFun;
-	private transient SinkFunction<PyObject> fun;
-	private transient RuntimeContext context;
 
 	public PythonSinkFunction(SinkFunction<PyObject> fun) throws IOException {
-		this.serFun = SerializationUtils.serializeObject(fun);
+		super(fun);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration parameters) throws Exception {
-		this.fun = (SinkFunction<PyObject>) UtilityFunctions.smartFunctionDeserialization(
-			getRuntimeContext(), this.serFun);
-		if (this.fun instanceof RichFunction) {
-			final RichSinkFunction sinkFunction = (RichSinkFunction)this.fun;
-			sinkFunction.setRuntimeContext(getRuntimeContext());
-			sinkFunction.open(parameters);
+	public void invoke(PyObject value, Context context) throws Exception {
+		try {
+			this.fun.invoke(value, context);
+		} catch (PyException pe) {
+			throw createAndLogException(pe);
 		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (this.fun instanceof RichFunction) {
-			((RichSinkFunction)this.fun).close();
-		}
-	}
-
-	@Override
-	public void invoke(PyObject value) throws Exception {
-		this.fun.invoke(value);
 	}
 }

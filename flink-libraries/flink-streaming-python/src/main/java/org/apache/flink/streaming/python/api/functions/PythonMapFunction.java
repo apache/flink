@@ -15,13 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+import org.apache.flink.streaming.python.util.AdapterMap;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -35,36 +35,19 @@ import java.io.IOException;
  * <p>This function is used internally by the Python thin wrapper layer over the streaming data
  * functionality</p>
  */
-public class PythonMapFunction extends RichMapFunction<PyObject, PyObject> {
+public class PythonMapFunction extends AbstractPythonUDF<MapFunction<PyObject, PyObject>> implements MapFunction<PyObject, PyObject> {
 	private static final long serialVersionUID = 3001212087036451818L;
-	private final byte[] serFun;
-	private transient MapFunction<PyObject, PyObject> fun;
 
 	public PythonMapFunction(MapFunction<PyObject, PyObject> fun) throws IOException {
-		this.serFun = SerializationUtils.serializeObject(fun);
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration config) throws Exception {
-		this.fun = (MapFunction<PyObject, PyObject>) UtilityFunctions.smartFunctionDeserialization(
-			getRuntimeContext(), serFun);
-		if (this.fun instanceof RichFunction) {
-			final RichMapFunction mapFun = (RichMapFunction)this.fun;
-			mapFun.setRuntimeContext(getRuntimeContext());
-			mapFun.open(config);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (this.fun instanceof RichFunction) {
-			((RichMapFunction)this.fun).close();
-		}
+		super(fun);
 	}
 
 	@Override
 	public PyObject map(PyObject value) throws Exception {
-		return UtilityFunctions.adapt(this.fun.map(value));
+		try {
+			return AdapterMap.adapt(fun.map(value));
+		} catch (PyException pe) {
+			throw createAndLogException(pe);
+		}
 	}
 }

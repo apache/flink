@@ -15,10 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from org.apache.flink.api.common.functions import FlatMapFunction, ReduceFunction
 from org.apache.flink.api.java.functions import KeySelector
-from org.apache.flink.streaming.python.api.environment import PythonStreamExecutionEnvironment
 from org.apache.flink.streaming.api.functions.source import SourceFunction
 from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
@@ -57,28 +55,17 @@ class Sum(ReduceFunction):
 
 
 class Main:
-    def __init__(self, local):
-        self._local = local
-
-    def run(self):
-        env = PythonStreamExecutionEnvironment.get_execution_environment()
+    def run(self, flink):
+        env = flink.get_execution_environment()
         env.create_python_source(Generator(num_iters=100)) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(30)) \
             .reduce(Sum()) \
-            .print()
+            .output()
+
+        env.execute()
 
 
-        print("Execution mode: {}".format("LOCAL" if self._local else "REMOTE"))
-        env.execute(self._local)
-
-
-def main():
-    local = False if len(sys.argv) > 1 and sys.argv[1] == "remote" else True
-    Main(local).run()
-
-
-if __name__ == '__main__':
-    main()
-    print("Job completed ({})\n".format(sys.argv))
+def main(flink):
+    Main().run(flink)

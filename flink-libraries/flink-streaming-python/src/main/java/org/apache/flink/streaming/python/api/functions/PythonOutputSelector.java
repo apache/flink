@@ -15,11 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -34,6 +40,7 @@ import java.io.IOException;
  */
 public class PythonOutputSelector implements OutputSelector<PyObject> {
 	private static final long serialVersionUID = 909266346633598177L;
+	private static final Logger LOG = LoggerFactory.getLogger(PythonOutputSelector.class);
 
 	private final byte[] serFun;
 	private transient OutputSelector<PyObject> fun;
@@ -43,20 +50,18 @@ public class PythonOutputSelector implements OutputSelector<PyObject> {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public Iterable<String> select(PyObject value) {
 		if (this.fun == null) {
 			try {
-				this.fun = (OutputSelector<PyObject>) SerializationUtils.deserializeObject(this.serFun);
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				fun = SerializationUtils.deserializeObject(serFun);
+			} catch (Exception e) {
+				throw new FlinkRuntimeException("Failed to deserialize user-defined function.", e);
 			}
 		}
-		if (this.fun == null) {
-			return null;
+		try {
+			return this.fun.select(value);
+		} catch (PyException pe) {
+			throw new FlinkRuntimeException(AbstractPythonUDF.createAndLogException(pe, LOG));
 		}
-		return this.fun.select(value);
 	}
 }

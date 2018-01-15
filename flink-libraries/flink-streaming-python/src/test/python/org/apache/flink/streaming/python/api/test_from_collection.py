@@ -20,7 +20,6 @@ from org.apache.flink.api.java.functions import KeySelector
 from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
 from utils import constants
-from utils.python_test_base import TestBase
 
 
 class Tokenizer(FlatMapFunction):
@@ -40,28 +39,20 @@ class Selector(KeySelector):
         return input[1]
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
+class Main:
+    def run(self, flink):
         elements = ["aa" if iii % 2 == 0 else "bbb" for iii in range(constants.NUM_ELEMENTS_IN_TEST)]
 
-        env = self._get_execution_environment()
+        env = flink.get_execution_environment()
         env.from_collection(elements) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(10)) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        result = env.execute("MyJob", True)
-        print("Job completed, job_id={}".format(result.jobID))
-
-
-def main():
-    Main().run()
+        env.execute()
 
 
-if __name__ == '__main__':
-    main()
+def main(flink):
+    Main().run(flink)

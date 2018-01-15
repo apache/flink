@@ -15,9 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.util.serialization;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -26,34 +28,31 @@ import org.python.core.PyObject;
 import java.io.IOException;
 
 /**
- * A serializer implementation for PyObject class type. Is is used by the Kryo serialization
- * framework. {@see https://github.com/EsotericSoftware/kryo#serializers}
+ * A {@link Serializer} implementation for {@link PyObject} class type.
  */
 public class PyObjectSerializer extends Serializer<PyObject> {
 
-	public void write (Kryo kryo, Output output, PyObject po) {
+	public void write(Kryo kryo, Output output, PyObject po) {
 		try {
 			byte[] serPo = SerializationUtils.serializeObject(po);
 			output.writeInt(serPo.length);
 			output.write(serPo);
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new KryoException("Failed to serialize object.", e);
 		}
 	}
 
-	public PyObject read (Kryo kryo, Input input, Class<PyObject> type) {
+	public PyObject read(Kryo kryo, Input input, Class<PyObject> type) {
 		int len = input.readInt();
-		byte[] serPo = new byte[len];
-		input.read(serPo);
-		PyObject po = null;
+		byte[] serPo = input.readBytes(len);
 		try {
-			po = (PyObject) SerializationUtils.deserializeObject(serPo);
+			return (PyObject) SerializationUtils.deserializeObject(serPo);
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new KryoException("Failed to deserialize object.", e);
 		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
+			// this should only be possible if jython isn't on the class-path
+			throw new KryoException("Failed to deserialize object.", e);
 		}
-		return po;
 	}
 }
 

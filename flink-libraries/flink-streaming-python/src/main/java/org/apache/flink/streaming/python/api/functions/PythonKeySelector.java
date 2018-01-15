@@ -15,11 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -34,6 +39,8 @@ import java.io.IOException;
  */
 public class PythonKeySelector implements KeySelector<PyObject, PyKey> {
 	private static final long serialVersionUID = 7403775239671366607L;
+	private static final Logger LOG = LoggerFactory.getLogger(PythonKeySelector.class);
+
 	private final byte[] serFun;
 	private transient KeySelector<PyObject, Object> fun;
 
@@ -45,9 +52,13 @@ public class PythonKeySelector implements KeySelector<PyObject, PyKey> {
 	@SuppressWarnings("unchecked")
 	public PyKey getKey(PyObject value) throws Exception {
 		if (fun == null) {
-			fun = (KeySelector<PyObject, Object>) SerializationUtils.deserializeObject(serFun);
+			fun = SerializationUtils.deserializeObject(serFun);
 		}
-		Object key = fun.getKey(value);
-		return new PyKey(key);
+		try {
+			Object key = fun.getKey(value);
+			return new PyKey(key);
+		} catch (PyException pe) {
+			throw AbstractPythonUDF.createAndLogException(pe, LOG);
+		}
 	}
 }

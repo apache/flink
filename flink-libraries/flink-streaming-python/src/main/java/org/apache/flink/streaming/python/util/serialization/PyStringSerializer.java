@@ -16,33 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.python.util;
+package org.apache.flink.streaming.python.util.serialization;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.util.Collector;
-
-import org.python.core.PyObject;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import org.python.core.PyString;
 
 /**
- * Collects a {@code PyObject} record and forwards it. It makes sure that the record is converted,
- * if necessary, to a {@code PyObject}.
+ * A {@link Serializer} implementation for {@link PyString} class type.
  */
-@Public
-public class PythonCollector implements Collector<Object> {
-	private Collector<PyObject> collector;
-
-	public void setCollector(Collector<PyObject> collector) {
-		this.collector = collector;
+public class PyStringSerializer extends Serializer<PyString> {
+	@Override
+	public void write(Kryo kryo, Output output, PyString object) {
+		output.writeString(object.asString());
 	}
 
 	@Override
-	public void collect(Object record) {
-		PyObject po = AdapterMap.adapt(record);
-		this.collector.collect(po);
-	}
-
-	@Override
-	public void close() {
-		this.collector.close();
+	public PyString read(Kryo kryo, Input input, Class<PyString> type) {
+		return new PyString(input.readString());
 	}
 }

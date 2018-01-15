@@ -15,14 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from org.apache.flink.api.common.functions import FlatMapFunction, ReduceFunction, FilterFunction
 from org.apache.flink.api.java.functions import KeySelector
 from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
 from utils import constants
 from utils.pygeneratorbase import PyGeneratorBase
-from utils.python_test_base import TestBase
 
 
 class Generator(PyGeneratorBase):
@@ -58,25 +56,19 @@ class Selector(KeySelector):
         return input[1]
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
-        env = self._get_execution_environment()
+class Main:
+    def run(self, flink):
+        env = flink.get_execution_environment()
         env.create_python_source(Generator(num_iters=constants.NUM_ITERATIONS_IN_TEST)) \
             .filter(Filterer()) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(100)) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        env.execute(True)
+        env.execute()
 
-def main():
-    Main().run()
+def main(flink):
+    Main().run(flink)
 
-if __name__ == '__main__':
-    main()
-    print("Job completed ({})\n".format(sys.argv))

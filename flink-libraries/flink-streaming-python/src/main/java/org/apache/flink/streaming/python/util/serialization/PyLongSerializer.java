@@ -16,33 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.python.util;
+package org.apache.flink.streaming.python.util.serialization;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.util.Collector;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+import org.python.core.PyLong;
 
-import org.python.core.PyObject;
+import java.math.BigInteger;
 
 /**
- * Collects a {@code PyObject} record and forwards it. It makes sure that the record is converted,
- * if necessary, to a {@code PyObject}.
+ * A {@link Serializer} implementation for {@link PyLong} class type.
  */
-@Public
-public class PythonCollector implements Collector<Object> {
-	private Collector<PyObject> collector;
-
-	public void setCollector(Collector<PyObject> collector) {
-		this.collector = collector;
+public class PyLongSerializer extends Serializer<PyLong> {
+	@Override
+	public void write(Kryo kryo, Output output, PyLong object) {
+		byte[] data = object.getValue().toByteArray();
+		output.writeShort(data.length);
+		output.writeBytes(data);
 	}
 
 	@Override
-	public void collect(Object record) {
-		PyObject po = AdapterMap.adapt(record);
-		this.collector.collect(po);
-	}
-
-	@Override
-	public void close() {
-		this.collector.close();
+	public PyLong read(Kryo kryo, Input input, Class<PyLong> type) {
+		int length = input.readShort();
+		return new PyLong(new BigInteger(input.readBytes(length)));
 	}
 }

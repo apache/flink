@@ -15,12 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
@@ -35,12 +37,11 @@ import org.apache.flink.streaming.python.api.functions.PythonMapFunction;
 import org.apache.flink.streaming.python.api.functions.PythonOutputSelector;
 import org.apache.flink.streaming.python.api.functions.PythonSinkFunction;
 import org.apache.flink.streaming.python.util.serialization.PythonSerializationSchema;
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-
 
 /**
  * A {@code PythonDataStream} is a thin wrapper layer over {@link DataStream}, which represents a
@@ -67,8 +68,7 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	/**
 	 * A thin wrapper layer over {@link DataStream#union(DataStream[])}.
 	 *
-	 * @param streams
-	 *            The Python DataStreams to union output with.
+	 * @param streams The Python DataStreams to union output with.
 	 * @return The {@link PythonDataStream}.
 	 */
 	@SafeVarargs
@@ -85,8 +85,7 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	/**
 	 * A thin wrapper layer over {@link DataStream#split(OutputSelector)}.
 	 *
-	 * @param output_selector
-	 *            The user defined {@link OutputSelector} for directing the tuples.
+	 * @param output_selector The user defined {@link OutputSelector} for directing the tuples.
 	 * @return The {@link PythonSplitStream}
 	 */
 	public PythonSplitStream split(OutputSelector<PyObject> output_selector) throws IOException {
@@ -96,8 +95,7 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	/**
 	 * A thin wrapper layer over {@link DataStream#filter(FilterFunction)}.
 	 *
-	 * @param filter
-	 *            The FilterFunction that is called for each element of the DataStream.
+	 * @param filter The FilterFunction that is called for each element of the DataStream.
 	 * @return The filtered {@link PythonDataStream}.
 	 */
 	public PythonSingleOutputStreamOperator filter(FilterFunction<PyObject> filter) throws IOException {
@@ -107,35 +105,31 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	/**
 	 * A thin wrapper layer over {@link DataStream#map(MapFunction)}.
 	 *
-	 * @param mapper
-	 *            The MapFunction that is called for each element of the
-	 *            DataStream.
+	 * @param mapper The MapFunction that is called for each element of the
+	 * DataStream.
 	 * @return The transformed {@link PythonDataStream}.
 	 */
 	public PythonDataStream<SingleOutputStreamOperator<PyObject>> map(
 		MapFunction<PyObject, PyObject> mapper) throws IOException {
-		return new PythonDataStream<>(stream.map(new PythonMapFunction(mapper)));
+		return new PythonSingleOutputStreamOperator(stream.map(new PythonMapFunction(mapper)));
 	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#flatMap(FlatMapFunction)}.
 	 *
-	 * @param flat_mapper
-	 *            The FlatMapFunction that is called for each element of the
-	 *            DataStream
-	 *
+	 * @param flat_mapper The FlatMapFunction that is called for each element of the
+	 * DataStream
 	 * @return The transformed {@link PythonDataStream}.
 	 */
 	public PythonDataStream<SingleOutputStreamOperator<PyObject>> flat_map(
-		FlatMapFunction<PyObject, PyObject> flat_mapper) throws IOException {
-		return new PythonDataStream<>(stream.flatMap(new PythonFlatMapFunction(flat_mapper)));
+		FlatMapFunction<PyObject, Object> flat_mapper) throws IOException {
+		return new PythonSingleOutputStreamOperator(stream.flatMap(new PythonFlatMapFunction(flat_mapper)));
 	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#keyBy(KeySelector)}.
 	 *
-	 * @param selector
-	 *            The KeySelector to be used for extracting the key for partitioning
+	 * @param selector The KeySelector to be used for extracting the key for partitioning
 	 * @return The {@link PythonDataStream} with partitioned state (i.e. {@link PythonKeyedStream})
 	 */
 	public PythonKeyedStream key_by(KeySelector<PyObject, PyKey> selector) throws IOException {
@@ -146,15 +140,14 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * A thin wrapper layer over {@link DataStream#print()}.
 	 */
 	@PublicEvolving
-	public void print() {
+	public void output() {
 		stream.print();
 	}
 
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String)}.
 	 *
-	 * @param path
-	 *            The path pointing to the location the text file is written to.
+	 * @param path The path pointing to the location the text file is written to.
 	 */
 	@PublicEvolving
 	public void write_as_text(String path) {
@@ -164,11 +157,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	/**
 	 * A thin wrapper layer over {@link DataStream#writeAsText(java.lang.String, WriteMode)}.
 	 *
-	 * @param path
-	 *            The path pointing to the location the text file is written to
-	 * @param mode
-	 *            Controls the behavior for existing files. Options are
-	 *            NO_OVERWRITE and OVERWRITE.
+	 * @param path The path pointing to the location the text file is written to
+	 * @param mode Controls the behavior for existing files. Options are
+	 * NO_OVERWRITE and OVERWRITE.
 	 */
 	@PublicEvolving
 	public void write_as_text(String path, WriteMode mode) {
@@ -176,14 +167,11 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	}
 
 	/**
-	 * A thin wrapper layer over {@link DataStream#writeToSocket(java.lang.String, int, SerializationSchema)}
+	 * A thin wrapper layer over {@link DataStream#writeToSocket(String, int, org.apache.flink.api.common.serialization.SerializationSchema)}.
 	 *
-	 * @param host
-	 *            host of the socket
-	 * @param port
-	 *            port of the socket
-	 * @param schema
-	 *            schema for serialization
+	 * @param host host of the socket
+	 * @param port port of the socket
+	 * @param schema schema for serialization
 	 */
 	@PublicEvolving
 	public void write_to_socket(String host, Integer port, SerializationSchema<PyObject> schema) throws IOException {
@@ -191,10 +179,9 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	}
 
 	/**
-	 * A thin wrapper layer over {@link DataStream#addSink(SinkFunction)}
+	 * A thin wrapper layer over {@link DataStream#addSink(SinkFunction)}.
 	 *
-	 * @param sink_func
-	 *            The object containing the sink's invoke function.
+	 * @param sink_func The object containing the sink's invoke function.
 	 */
 	@PublicEvolving
 	public void add_sink(SinkFunction<PyObject> sink_func) throws IOException {
@@ -211,16 +198,16 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	 * given to the {@link PythonIterativeStream#close_with(PythonDataStream)} method is
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head. </p>
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 *
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link #split(OutputSelector)} for more information.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
+	 *
+	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
 	 * {@link PythonIterativeStream#close_with(PythonDataStream)} call.
-	 * <p>
-	 * By default a PythonDataStream with iteration will never terminate, but the user
+	 *
+	 * <p>By default a PythonDataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
@@ -235,31 +222,29 @@ public class PythonDataStream<D extends DataStream<PyObject>> {
 	/**
 	 * A thin wrapper layer over {@link DataStream#iterate(long)}.
 	 *
-	 * <p></p>Initiates an iterative part of the program that feeds back data streams.
+	 * <p>Initiates an iterative part of the program that feeds back data streams.
 	 * The iterative part needs to be closed by calling
 	 * {@link PythonIterativeStream#close_with(PythonDataStream)}. The transformation of
 	 * this IterativeStream will be the iteration head. The data stream
 	 * given to the {@link PythonIterativeStream#close_with(PythonDataStream)} method is
 	 * the data stream that will be fed back and used as the input for the
 	 * iteration head.</p>
-	 * <p>
-	 * A common usage pattern for streaming iterations is to use output
+	 *
+	 * <p>A common usage pattern for streaming iterations is to use output
 	 * splitting to send a part of the closing data stream to the head. Refer to
 	 * {@link #split(OutputSelector)} for more information.
-	 * <p>
-	 * The iteration edge will be partitioned the same way as the first input of
+	 *
+	 * <p>The iteration edge will be partitioned the same way as the first input of
 	 * the iteration head unless it is changed in the
 	 * {@link PythonIterativeStream#close_with(PythonDataStream)} call.
-	 * <p>
-	 * By default a PythonDataStream with iteration will never terminate, but the user
+	 *
+	 * <p>By default a PythonDataStream with iteration will never terminate, but the user
 	 * can use the maxWaitTime parameter to set a max waiting time for the
 	 * iteration head. If no data received in the set time, the stream
 	 * terminates.
 	 *
-	 * @param max_wait_time_ms
-	 *          Number of milliseconds to wait between inputs before shutting
-	 *          down
-	 *
+	 * @param max_wait_time_ms Number of milliseconds to wait between inputs before shutting
+	 * down
 	 * @return The iterative data stream created.
 	 */
 	@PublicEvolving
