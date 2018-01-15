@@ -80,7 +80,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	 * @param directMemoryInMB The size of the direct memory, in megabytes.
 	 * @param nativeMemoryInMB The size of the native memory, in megabytes.
 	 * @param networkMemoryInMB The size of the memory for input and output, in megabytes.
-	 * @param extendedResources The extendiable resources such as GPU and FPGA
+	 * @param extendedResources The extended resources such as GPU and FPGA
 	 */
 	public ResourceProfile(
 			double cpuCores,
