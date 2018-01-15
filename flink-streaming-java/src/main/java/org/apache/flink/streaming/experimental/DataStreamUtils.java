@@ -6,7 +6,7 @@
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
- *	http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.contrib.streaming;
+package org.apache.flink.streaming.experimental;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -33,7 +34,11 @@ import java.util.Iterator;
 
 /**
  * A collection of utilities for {@link DataStream DataStreams}.
+ *
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
+ * for more information.
  */
+@PublicEvolving
 public final class DataStreamUtils {
 
 	/**
