@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.runtime.testutils.DiscardingRecycler;
 
 import org.junit.Test;
 
@@ -48,7 +47,7 @@ public class BufferBuilderTest {
 		Buffer buffer = bufferBuilder.build();
 		assertBufferContent(buffer, intsToWrite);
 		assertEquals(5 * Integer.BYTES, buffer.getSize());
-		assertEquals(DiscardingRecycler.INSTANCE, buffer.getRecycler());
+		assertEquals(FreeingBufferRecycler.INSTANCE, buffer.getRecycler());
 	}
 
 	@Test
@@ -106,10 +105,10 @@ public class BufferBuilderTest {
 	}
 
 	private static void assertBufferContent(Buffer actualBuffer, int... expected) {
-		assertEquals(toByteBuffer(expected), actualBuffer.getNioBuffer());
+		assertEquals(toByteBuffer(expected), actualBuffer.getNioBufferReadable());
 	}
 
 	private static BufferBuilder createBufferBuilder() {
-		return new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), DiscardingRecycler.INSTANCE);
+		return new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(BUFFER_SIZE), FreeingBufferRecycler.INSTANCE);
 	}
 }

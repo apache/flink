@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.util.StringUtils;
 
@@ -131,7 +132,7 @@ public class BufferSpiller {
 			ByteBuffer contents;
 			if (boe.isBuffer()) {
 				Buffer buf = boe.getBuffer();
-				contents = buf.getMemorySegment().wrap(0, buf.getSize());
+				contents = buf.getNioBufferReadable();
 			}
 			else {
 				contents = EventSerializer.toSerializedEvent(boe.getEvent());
@@ -150,7 +151,7 @@ public class BufferSpiller {
 		}
 		finally {
 			if (boe.isBuffer()) {
-				boe.getBuffer().recycle();
+				boe.getBuffer().recycleBuffer();
 			}
 		}
 	}
@@ -380,7 +381,7 @@ public class BufferSpiller {
 					}
 				}
 
-				Buffer buf = new Buffer(seg, FreeingBufferRecycler.INSTANCE);
+				Buffer buf = new NetworkBuffer(seg, FreeingBufferRecycler.INSTANCE);
 				buf.setSize(length);
 
 				return new BufferOrEvent(buf, channel);

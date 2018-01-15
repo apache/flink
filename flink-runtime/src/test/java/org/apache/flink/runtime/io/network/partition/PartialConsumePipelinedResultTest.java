@@ -142,7 +142,7 @@ public class PartialConsumePipelinedResultTest extends TestLogger {
 			InputGate gate = getEnvironment().getInputGate(0);
 			Buffer buffer = gate.getNextBufferOrEvent().getBuffer();
 			if (buffer != null) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 		}
 	}

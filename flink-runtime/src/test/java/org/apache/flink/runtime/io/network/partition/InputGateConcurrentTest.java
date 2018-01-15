@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -241,7 +242,7 @@ public class InputGateConcurrentTest {
 
 		@Override
 		public void go() throws Exception {
-			final Buffer buffer = InputChannelTestUtils.createMockBuffer(100);
+			final Buffer buffer = TestBufferFactory.createBuffer(100);
 			int nextYield = numTotal - yieldAfter;
 
 			for (int i = numTotal; i > 0;) {

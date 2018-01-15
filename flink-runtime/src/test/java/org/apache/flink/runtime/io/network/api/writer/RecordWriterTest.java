@@ -35,12 +35,13 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.runtime.testutils.DiscardingRecycler;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -192,7 +193,7 @@ public class RecordWriterTest {
 				@Override
 				public Void answer(InvocationOnMock invocation) throws Throwable {
 					Buffer buffer = (Buffer) invocation.getArguments()[0];
-					buffer.recycle();
+					buffer.recycleBuffer();
 
 					throw new ExpectedTestException();
 				}
@@ -477,7 +478,7 @@ public class RecordWriterTest {
 				} else {
 					// is event:
 					AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
-					buffer.recycle(); // the buffer is not needed anymore
+					buffer.recycleBuffer(); // the buffer is not needed anymore
 					Integer targetChannel = (Integer) invocationOnMock.getArguments()[1];
 					queues[targetChannel].add(new BufferOrEvent(event, targetChannel));
 				}
@@ -497,7 +498,7 @@ public class RecordWriterTest {
 					@Override
 					public Buffer answer(InvocationOnMock invocationOnMock) throws Throwable {
 						MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
-						Buffer buffer = new Buffer(segment, DiscardingRecycler.INSTANCE);
+						Buffer buffer = new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
 						return buffer;
 					}
 				}
@@ -529,7 +530,7 @@ public class RecordWriterTest {
 		doAnswer(new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Throwable {
-				((Buffer) invocation.getArguments()[0]).recycle();
+				((Buffer) invocation.getArguments()[0]).recycleBuffer();
 
 				return null;
 			}

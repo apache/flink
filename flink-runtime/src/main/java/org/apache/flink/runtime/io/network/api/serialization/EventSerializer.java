@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.util.InstantiationUtil;
@@ -275,14 +276,14 @@ public class EventSerializer {
 
 		MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
 		
-		final Buffer buffer = new Buffer(data, FreeingBufferRecycler.INSTANCE, false);
+		final Buffer buffer = new NetworkBuffer(data, FreeingBufferRecycler.INSTANCE, false);
 		buffer.setSize(serializedEvent.remaining());
 
 		return buffer;
 	}
 
 	public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader) throws IOException {
-		return fromSerializedEvent(buffer.getNioBuffer(), classLoader);
+		return fromSerializedEvent(buffer.getNioBufferReadable(), classLoader);
 	}
 
 	/**
@@ -298,6 +299,6 @@ public class EventSerializer {
 		final Class<?> eventClass,
 		final ClassLoader classLoader) throws IOException {
 		return !buffer.isBuffer() &&
-			isEvent(buffer.getNioBuffer(), eventClass, classLoader);
+			isEvent(buffer.getNioBufferReadable(), eventClass, classLoader);
 	}
 }

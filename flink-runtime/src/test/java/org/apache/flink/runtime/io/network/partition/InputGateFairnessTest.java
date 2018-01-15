@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
+import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -46,7 +47,6 @@ import java.util.Collections;
 import java.util.HashSet;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createMockBuffer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -62,7 +62,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		final Buffer mockBuffer = createMockBuffer(42);
+		final Buffer mockBuffer = TestBufferFactory.createBuffer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 
@@ -122,7 +122,7 @@ public class InputGateFairnessTest {
 		final int buffersPerChannel = 27;
 
 		final ResultPartition resultPartition = mock(ResultPartition.class);
-		final Buffer mockBuffer = createMockBuffer(42);
+		final Buffer mockBuffer = TestBufferFactory.createBuffer(42);
 
 		// ----- create some source channels and fill them with one buffer each -----
 
@@ -182,7 +182,7 @@ public class InputGateFairnessTest {
 		final int numChannels = 37;
 		final int buffersPerChannel = 27;
 
-		final Buffer mockBuffer = createMockBuffer(42);
+		final Buffer mockBuffer = TestBufferFactory.createBuffer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 
@@ -237,7 +237,7 @@ public class InputGateFairnessTest {
 		final int numChannels = 37;
 		final int buffersPerChannel = 27;
 
-		final Buffer mockBuffer = createMockBuffer(42);
+		final Buffer mockBuffer = TestBufferFactory.createBuffer(42);
 
 		// ----- create some source channels and fill them with buffers -----
 

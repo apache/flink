@@ -138,7 +138,7 @@ public class BufferPoolFactoryTest {
 			assertNull(bufferPool2.requestBuffer());
 
 			// as soon as one excess buffer of bufferPool1 is recycled, it should be available for bufferPool2
-			buffers.remove(0).recycle();
+			buffers.remove(0).recycleBuffer();
 			// recycle returns the excess buffer to the network buffer pool
 			assertEquals(1, networkBufferPool.getNumberOfAvailableMemorySegments());
 			// verify the number of buffers taken from the pools
@@ -158,7 +158,7 @@ public class BufferPoolFactoryTest {
 				bufferPool2.bestEffortGetNumOfUsedBuffers() + bufferPool2.getNumberOfAvailableMemorySegments());
 		} finally {
 			for (Buffer buffer : buffers) {
-				buffer.recycle();
+				buffer.recycleBuffer();
 			}
 			if (bufferPool1 != null) {
 				bufferPool1.lazyDestroy();

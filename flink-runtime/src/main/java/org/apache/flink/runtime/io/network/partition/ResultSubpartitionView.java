@@ -37,7 +37,7 @@ public interface ResultSubpartitionView {
 	 * than the consumer or a spilled queue needs to read in more data.
 	 *
 	 * <p><strong>Important</strong>: The consumer has to make sure that each
-	 * buffer instance will eventually be recycled with {@link Buffer#recycle()}
+	 * buffer instance will eventually be recycled with {@link Buffer#recycleBuffer()}
 	 * after it has been consumed.
 	 */
 	@Nullable

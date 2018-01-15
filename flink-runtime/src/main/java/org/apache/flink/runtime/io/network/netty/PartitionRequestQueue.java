@@ -213,7 +213,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			}
 		} catch (Throwable t) {
 			if (next != null) {
-				next.buffer().recycle();
+				next.buffer().recycleBuffer();
 			}
 
 			throw new IOException(t.getMessage(), t);
