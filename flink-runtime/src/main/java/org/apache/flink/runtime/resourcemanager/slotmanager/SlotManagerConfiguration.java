@@ -53,11 +53,11 @@ public class SlotManagerConfiguration {
 
 	public static SlotManagerConfiguration fromConfiguration(Configuration configuration) throws ConfigurationException {
 		final Time taskManagerRequestTimeout = Time.milliseconds(
-				configuration.getInteger(ResourceManagerOptions.TASK_MANAGER_REQUEST_TIMEOUT));
+				configuration.getLong(ResourceManagerOptions.TASK_MANAGER_REQUEST_TIMEOUT));
 		final Time slotRequestTimeout = Time.milliseconds(
-				configuration.getInteger(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT));
+				configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT));
 		final Time taskManagerTimeout = Time.milliseconds(
-				configuration.getInteger(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
+				configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
 
 		return new SlotManagerConfiguration(taskManagerRequestTimeout, slotRequestTimeout, taskManagerTimeout);
 	}
