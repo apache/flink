@@ -331,8 +331,7 @@ the basic even-split redistribution list state:
 {% highlight java %}
 public class BufferingSink
         implements SinkFunction<Tuple2<String, Integer>>,
-                   CheckpointedFunction,
-                   CheckpointedRestoring<ArrayList<Tuple2<String, Integer>>> {
+                   CheckpointedFunction {
 
     private final int threshold;
 
@@ -378,12 +377,6 @@ public class BufferingSink
                 bufferedElements.add(element);
             }
         }
-    }
-
-    @Override
-    public void restoreState(ArrayList<Tuple2<String, Integer>> state) throws Exception {
-        // this is from the CheckpointedRestoring interface.
-        this.bufferedElements.addAll(state);
     }
 }
 {% endhighlight %}
