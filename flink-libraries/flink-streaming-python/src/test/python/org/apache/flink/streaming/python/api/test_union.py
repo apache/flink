@@ -21,7 +21,6 @@ from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
 from utils import constants
 from utils.pygeneratorbase import PyGeneratorBase
-from utils.python_test_base import TestBase
 
 
 class Generator(PyGeneratorBase):
@@ -48,12 +47,9 @@ class Selector(KeySelector):
     def getKey(self, input):
         return 1
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
-        env = self._get_execution_environment()
+class Main:
+    def run(self, flink):
+        env = flink.get_execution_environment()
         seq1 = env.create_python_source(Generator(msg='Hello', num_iters=constants.NUM_ITERATIONS_IN_TEST))
         seq2 = env.create_python_source(Generator(msg='World', num_iters=constants.NUM_ITERATIONS_IN_TEST))
         seq3 = env.create_python_source(Generator(msg='Happy', num_iters=constants.NUM_ITERATIONS_IN_TEST))
@@ -63,15 +59,10 @@ class Main(TestBase):
             .key_by(Selector()) \
             .time_window(milliseconds(10)) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        result = env.execute("My python union stream test", True)
-        print("Job completed, job_id={}".format(result.jobID))
-
-
-def main():
-    Main().run()
+        env.execute()
 
 
-if __name__ == '__main__':
-    main()
+def main(flink):
+    Main().run(flink)

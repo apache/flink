@@ -15,182 +15,138 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api;
-import org.apache.commons.io.FilenameUtils;
+
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.filecache.FileCache;
-import org.apache.flink.streaming.python.api.environment.PythonEnvironmentConfig;
-import org.apache.flink.streaming.python.api.functions.UtilityFunctions;
+import org.apache.flink.streaming.python.PythonOptions;
+import org.apache.flink.streaming.python.api.environment.PythonEnvironmentFactory;
+import org.apache.flink.streaming.python.util.InterpreterUtils;
 
-import java.io.BufferedReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.PrintWriter;
 import java.io.IOException;
-
-import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.Random;
+import java.util.UUID;
 
 /**
- * Allows the execution of Flink stream plan that is written in Python
+ * Allows the execution of Flink stream plan that is written in Python.
  */
 public class PythonStreamBinder {
-	private static final Random r = new Random(System.currentTimeMillis());
-	public static final String FLINK_PYTHON_FILE_PATH = System.getProperty("java.io.tmpdir") + File.separator + "flink_streaming_plan_";
+	private static final Logger LOG = LoggerFactory.getLogger(PythonStreamBinder.class);
 
+	private final String localTmpPath;
+	private Path tmpDistributedDir;
 
-	private PythonStreamBinder() {
+	PythonStreamBinder(Configuration globalConfig) {
+		String configuredLocalTmpPath = globalConfig.getString(PythonOptions.PLAN_TMP_DIR);
+		this.localTmpPath = configuredLocalTmpPath != null
+			? configuredLocalTmpPath
+			: System.getProperty("java.io.tmpdir") + File.separator + "flink_streaming_plan_" + UUID.randomUUID();
+
+		this.tmpDistributedDir = new Path(globalConfig.getString(PythonOptions.DC_TMP_DIR));
 	}
 
 	/**
 	 * Entry point for the execution of a python streaming task.
 	 *
-	 * @param args <pathToScript> [<pathToPackage1> .. [<pathToPackageX]] - [parameter1]..[parameterX]
+	 * @param args pathToScript [pathToPackage1 .. [pathToPackageX]] - [parameter1]..[parameterX]
 	 * @throws Exception
 	 */
 	public static void main(String[] args) throws Exception {
-		PythonStreamBinder binder = new PythonStreamBinder();
-		binder.runPlan(args);
+		Configuration globalConfig = GlobalConfiguration.loadConfiguration();
+		PythonStreamBinder binder = new PythonStreamBinder(globalConfig);
+		try {
+			binder.runPlan(args);
+		} catch (Exception e) {
+			System.out.println("Failed to run plan: " + e.getMessage());
+			e.printStackTrace();
+			LOG.error("Failed to run plan.", e);
+		}
 	}
 
-	private void runPlan(String[] args) throws Exception {
-		File script;
+	void runPlan(String[] args) throws Exception {
 		if (args.length < 1) {
-			System.out.println("Usage: prog <pathToScript> [<pathToPackage1> .. [<pathToPackageX]] - [parameter1]..[parameterX]");
+			System.out.println("Usage: prog <pathToScript> [parameter1]..[parameterX] - [<pathToPackage1> .. [<pathToPackageX]]");
 			return;
-		}
-		else {
-			script = new File(args[0]);
-			if ((!script.exists()) || (!script.isFile()))
-			{
-				throw new FileNotFoundException("Could not find file: " + args[0]);
-			}
 		}
 
 		int split = 0;
 		for (int x = 0; x < args.length; x++) {
-			if (args[x].compareTo("-") == 0) {
+			if (args[x].equals("-")) {
 				split = x;
+				break;
 			}
 		}
 
-		GlobalConfiguration.loadConfiguration();
+		try {
+			String planFile = args[0];
+			String[] filesToCopy = Arrays.copyOfRange(args, 1, split == 0 ? args.length : split);
+			String[] planArgumentsArray = Arrays.copyOfRange(args, split == 0 ? args.length : split + 1, args.length);
 
-		String tmpPath = FLINK_PYTHON_FILE_PATH + r.nextLong();
-		prepareFiles(tmpPath, Arrays.copyOfRange(args, 0, split == 0 ? args.length : split));
-
-		if (split != 0) {
-			String[] a = new String[args.length - split];
-			a[0] = args[0];
-			System.arraycopy(args, split + 1, a, 1, args.length - (split +1));
-			args = a;
-		} else if (args.length > 1) {
-			args = new String[]{args[0]};
-		}
-
-		UtilityFunctions.initAndExecPythonScript(new File(
-			tmpPath + File.separator + PythonEnvironmentConfig.FLINK_PYTHON_PLAN_NAME), args);
-	}
-
-	/**
-	 * Prepares a single package from the given python script. This involves in generating a unique main
-	 * python script, which loads the user's provided script for execution. The reason for this is to create
-	 * a different namespace for different script contents. In addition, it copies all relevant files
-	 * to a temporary folder for execution and distribution.
-	 *
-	 * @param tempFilePath The path to copy all the files to
-	 * @param filePaths The user's script and dependent packages/files
-	 * @throws IOException
-	 * @throws URISyntaxException
-	 */
-	private void prepareFiles(String tempFilePath, String... filePaths) throws IOException, URISyntaxException,
-		NoSuchAlgorithmException {
-		PythonEnvironmentConfig.pythonTmpCachePath = tempFilePath;
-
-		Files.createDirectories(Paths.get(tempFilePath));
-
-		String dstMainScriptFullPath = tempFilePath + File.separator + FilenameUtils.getBaseName(filePaths[0]) +
-			calcPythonMd5(filePaths[0]) + ".py";
-
-		generateAndCopyPlanFile(tempFilePath, dstMainScriptFullPath);
-
-		//main script
-		copyFile(filePaths[0], tempFilePath, FilenameUtils.getName(dstMainScriptFullPath));
-
-		String parentDir = new File(filePaths[0]).getParent();
-
-		//additional files/folders(modules)
-		for (int x = 1; x < filePaths.length; x++) {
-			String currentParent = (new File(filePaths[x])).getParent();
-			if (currentParent.startsWith(".")) {
-				filePaths[x] = parentDir + File.separator + filePaths[x];
+			// verify existence of files
+			Path planPath = new Path(planFile);
+			if (!FileSystem.getUnguardedFileSystem(planPath.toUri()).exists(planPath)) {
+				throw new FileNotFoundException("Plan file " + planFile + " does not exist.");
 			}
-			copyFile(filePaths[x], tempFilePath, null);
-		}
-	}
-
-	private void generateAndCopyPlanFile(String dstPath, String mainScriptFullPath) throws IOException {
-		String moduleName = FilenameUtils.getBaseName(mainScriptFullPath);
-
-		FileWriter fileWriter = new FileWriter(dstPath + File.separator + PythonEnvironmentConfig.FLINK_PYTHON_PLAN_NAME);
-		PrintWriter printWriter = new PrintWriter(fileWriter);
-		printWriter.printf("import %s\n\n", moduleName);
-		printWriter.printf("%s.main()\n", moduleName);
-		printWriter.close();
-	}
-
-	private void copyFile(String path, String target, String name) throws IOException, URISyntaxException {
-		if (path.endsWith(File.separator)) {
-			path = path.substring(0, path.length() - 1);
-		}
-		String identifier = name == null ? path.substring(path.lastIndexOf(File.separator)) : name;
-		String tmpFilePath = target + File.separator + identifier;
-		Path p = new Path(path);
-		FileCache.copy(p.makeQualified(FileSystem.get(p.toUri())), new Path(tmpFilePath), true);
-	}
-
-
-	/**
-	 * Naive MD5 calculation from the python content of the given script. Spaces, blank lines and comments
-	 * are ignored.
-	 *
-	 * @param filePath  the full path of the given python script
-	 * @return  the md5 value as a string
-	 * @throws NoSuchAlgorithmException
-	 * @throws IOException
-	 */
-	private String calcPythonMd5(String filePath) throws NoSuchAlgorithmException, IOException {
-		FileReader fileReader = new FileReader(filePath);
-		BufferedReader bufferedReader = new BufferedReader(fileReader);
-
-		String line;
-		MessageDigest md = MessageDigest.getInstance("MD5");
-		while ((line = bufferedReader.readLine()) != null) {
-			line = line.trim();
-			if (line.isEmpty() || line.startsWith("#")) {
-				continue;
+			for (String file : filesToCopy) {
+				Path filePath = new Path(file);
+				if (!FileSystem.getUnguardedFileSystem(filePath.toUri()).exists(filePath)) {
+					throw new FileNotFoundException("Additional file " + file + " does not exist.");
+				}
 			}
-			byte[] bytes = line.getBytes();
-			md.update(bytes, 0, bytes.length);
-		}
-		fileReader.close();
 
-		byte[] mdBytes = md.digest();
+			// setup temporary local directory for flink python library and user files
+			Path targetDir = new Path(localTmpPath);
+			deleteIfExists(targetDir);
+			targetDir.getFileSystem().mkdirs(targetDir);
 
-		//convert the byte to hex format method 1
-		StringBuffer sb = new StringBuffer();
-		for (int i = 0; i < mdBytes.length; i++) {
-			sb.append(Integer.toString((mdBytes[i] & 0xff) + 0x100, 16).substring(1));
+			// copy user files to temporary location
+			Path tmpPlanFilesPath = new Path(localTmpPath);
+			copyFile(planPath, tmpPlanFilesPath, planPath.getName());
+			for (String file : filesToCopy) {
+				Path source = new Path(file);
+				copyFile(source, tmpPlanFilesPath, source.getName());
+			}
+
+			String planNameWithExtension = planPath.getName();
+			String planName = planNameWithExtension.substring(0, planNameWithExtension.indexOf(".py"));
+
+			InterpreterUtils.initAndExecPythonScript(new PythonEnvironmentFactory(localTmpPath, tmpDistributedDir, planName), Paths.get(localTmpPath), planName, planArgumentsArray);
+		} finally {
+			try {
+				// clean up created files
+				FileSystem distributedFS = tmpDistributedDir.getFileSystem();
+				distributedFS.delete(tmpDistributedDir, true);
+
+				FileSystem local = FileSystem.getLocalFileSystem();
+				local.delete(new Path(localTmpPath), true);
+			} catch (IOException ioe) {
+				LOG.error("PythonAPI file cleanup failed. {}", ioe.getMessage());
+			}
 		}
-		return sb.toString();
+	}
+
+	//=====File utils===================================================================================================
+
+	private static void deleteIfExists(Path path) throws IOException {
+		FileSystem fs = path.getFileSystem();
+		if (fs.exists(path)) {
+			fs.delete(path, true);
+		}
+	}
+
+	private static void copyFile(Path source, Path targetDirectory, String name) throws IOException {
+		Path targetFilePath = new Path(targetDirectory, name);
+		deleteIfExists(targetFilePath);
+		FileCache.copy(source, targetFilePath, true);
 	}
 }

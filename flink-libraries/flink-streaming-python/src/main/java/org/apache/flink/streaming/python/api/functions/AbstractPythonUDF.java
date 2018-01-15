@@ -18,37 +18,31 @@
 
 package org.apache.flink.streaming.python.api.functions;
 
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.python.util.InterpreterUtils;
 import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+import org.apache.flink.util.FlinkException;
 
 import org.python.core.PyException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 /**
- * The {@code PythonIteratorFunction} is a thin wrapper layer over a Python UDF {@code Iterator}.
- * It receives an {@code Iterator} as an input and keeps it internally in a serialized form.
- * It is then delivered, as part of the job graph, up to the TaskManager, then it is opened and becomes
- * a sort of mediator to the Python UDF {@code Iterator}.
- *
- * <p>This function is used internally by the Python thin wrapper layer over the streaming data
- * functionality</p>
+ * Generic base-class for wrappers of python functions implenting the {@link Function} interface.
  */
-public class PythonIteratorFunction extends RichSourceFunction<Object> {
-	private static final long serialVersionUID = 6741748297048588334L;
-	private static final Logger LOG = LoggerFactory.getLogger(PythonIteratorFunction.class);
-
+public class AbstractPythonUDF<F extends Function> extends AbstractRichFunction {
+	protected Logger log = LoggerFactory.getLogger(AbstractPythonUDF.class);
 	private final byte[] serFun;
-	private transient Iterator<Object> fun;
-	private transient volatile boolean isRunning;
+	protected transient F fun;
 
-	public PythonIteratorFunction(Iterator<Object> fun) throws IOException {
+	AbstractPythonUDF(F fun) throws IOException {
 		this.serFun = SerializationUtils.serializeObject(fun);
 	}
 
@@ -57,23 +51,12 @@ public class PythonIteratorFunction extends RichSourceFunction<Object> {
 		this.fun = InterpreterUtils.deserializeFunction(getRuntimeContext(), this.serFun);
 		if (this.fun instanceof RichFunction) {
 			try {
-				final RichFunction winFun = (RichFunction) this.fun;
-				winFun.setRuntimeContext(getRuntimeContext());
-				winFun.open(parameters);
+				final RichFunction rf = (RichFunction) this.fun;
+				rf.setRuntimeContext(getRuntimeContext());
+				rf.open(parameters);
 			} catch (PyException pe) {
-				throw AbstractPythonUDF.createAndLogException(pe, LOG);
+				throw createAndLogException(pe);
 			}
-		}
-	}
-
-	@Override
-	public void run(SourceContext<Object> ctx) throws Exception {
-		try {
-			while (isRunning && this.fun.hasNext()) {
-				ctx.collect(this.fun.next());
-			}
-		} catch (PyException pe) {
-			throw AbstractPythonUDF.createAndLogException(pe, LOG);
 		}
 	}
 
@@ -83,13 +66,23 @@ public class PythonIteratorFunction extends RichSourceFunction<Object> {
 			try {
 				((RichFunction) this.fun).close();
 			} catch (PyException pe) {
-				throw AbstractPythonUDF.createAndLogException(pe, LOG);
+				throw createAndLogException(pe);
 			}
 		}
 	}
 
-	@Override
-	public void cancel() {
-		isRunning = false;
+	FlinkException createAndLogException(PyException pe) {
+		return createAndLogException(pe, log);
+	}
+
+	static FlinkException createAndLogException(PyException pe, Logger log) {
+		StringWriter sw = new StringWriter();
+		try (PrintWriter pw = new PrintWriter(sw)) {
+			pe.printStackTrace(pw);
+		}
+		String pythonStackTrace = sw.toString().trim();
+
+		log.error("Python function failed: " + System.lineSeparator() + pythonStackTrace);
+		return new FlinkException("Python function failed: " + pythonStackTrace);
 	}
 }

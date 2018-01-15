@@ -15,17 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.RichFilterFunction;
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
 
 import java.io.IOException;
-
 
 /**
  * The {@code PythonFilterFunction} is a thin wrapper layer over a Python UDF {@code FilterFunction}.
@@ -36,37 +34,19 @@ import java.io.IOException;
  * <p>This function is used internally by the Python thin wrapper layer over the streaming data
  * functionality</p>
  */
-public class PythonFilterFunction extends RichFilterFunction<PyObject> {
+public class PythonFilterFunction extends AbstractPythonUDF<FilterFunction<PyObject>> implements FilterFunction<PyObject> {
 	private static final long serialVersionUID = 775688642701399472L;
 
-	private final byte[] serFun;
-	private transient FilterFunction<PyObject> fun;
-
 	public PythonFilterFunction(FilterFunction<PyObject> fun) throws IOException {
-		this.serFun = SerializationUtils.serializeObject(fun);
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration parameters) throws Exception {
-		this.fun = (FilterFunction<PyObject>) UtilityFunctions.smartFunctionDeserialization(
-			getRuntimeContext(), this.serFun);
-		if (this.fun instanceof RichFunction) {
-			final RichFilterFunction filterFun = (RichFilterFunction)this.fun;
-			filterFun.setRuntimeContext(getRuntimeContext());
-			filterFun.open(parameters);
-		}
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (this.fun instanceof RichFunction) {
-			((RichFilterFunction)this.fun).close();
-		}
+		super(fun);
 	}
 
 	@Override
 	public boolean filter(PyObject value) throws Exception {
-		return this.fun.filter(value);
+		try {
+			return this.fun.filter(value);
+		} catch (PyException pe) {
+			throw createAndLogException(pe);
+		}
 	}
 }

@@ -17,14 +17,12 @@
 ################################################################################
 import os
 import re
-import sys
 import uuid
 from org.apache.flink.api.common.functions import FlatMapFunction, ReduceFunction
 from org.apache.flink.api.java.functions import KeySelector
 from org.apache.flink.streaming.api.windowing.time.Time import milliseconds
 
 from utils import constants
-from utils.python_test_base import TestBase
 
 
 class Tokenizer(FlatMapFunction):
@@ -52,31 +50,23 @@ def generate_tmp_text_file(num_lines=100):
     return tmp_f
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
+class Main:
+    def run(self, flink):
         tmp_f = generate_tmp_text_file(constants.NUM_ELEMENTS_IN_TEST)
         try:
-            env = self._get_execution_environment()
+            env = flink.get_execution_environment()
             env.read_text_file(tmp_f.name) \
                 .flat_map(Tokenizer()) \
                 .key_by(Selector()) \
                 .time_window(milliseconds(100)) \
                 .reduce(Sum()) \
-                .print()
+                .output()
 
-            env.execute(True)
+            env.execute()
         finally:
             tmp_f.close()
             os.unlink(tmp_f.name)
 
 
-def main():
-    Main().run()
-
-
-if __name__ == '__main__':
-    main()
-    print("Job completed ({})\n".format(sys.argv))
+def main(flink):
+    Main().run(flink)

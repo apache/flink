@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.python.util.PythonCollector;
-import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
 import org.apache.flink.util.Collector;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -37,41 +38,28 @@ import java.io.IOException;
  * <p>This function is used internally by the Python thin wrapper layer over the streaming data
  * functionality</p>
  */
-public class PythonApplyFunction<W extends Window> extends RichWindowFunction<PyObject, PyObject, PyKey, W> {
+public class PythonApplyFunction<W extends Window> extends AbstractPythonUDF<WindowFunction<PyObject, Object, Object, W>> implements WindowFunction<PyObject, PyObject, PyKey, W> {
 	private static final long serialVersionUID = 577032239468987781L;
 
-	private final byte[] serFun;
-	private transient WindowFunction<PyObject, PyObject, Object, Window> fun;
 	private transient PythonCollector collector;
 
-	public PythonApplyFunction(WindowFunction<PyObject, PyObject, Object, W> fun) throws IOException {
-		this.serFun = SerializationUtils.serializeObject(fun);
+	public PythonApplyFunction(WindowFunction<PyObject, Object, Object, W> fun) throws IOException {
+		super(fun);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void open(Configuration parameters) throws Exception {
-		this.fun =
-			(WindowFunction<PyObject, PyObject, Object, Window>) UtilityFunctions.smartFunctionDeserialization(
-			getRuntimeContext(), this.serFun);
-		if (this.fun instanceof RichWindowFunction) {
-			final RichWindowFunction winFun = (RichWindowFunction)this.fun;
-			winFun.setRuntimeContext(getRuntimeContext());
-			winFun.open(parameters);
-		}
+	public void open(Configuration config) throws Exception {
+		super.open(config);
 		this.collector = new PythonCollector();
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (this.fun instanceof RichWindowFunction) {
-			((RichWindowFunction)this.fun).close();
-		}
 	}
 
 	@Override
 	public void apply(PyKey key, W window, Iterable<PyObject> values, Collector<PyObject> out) throws Exception {
 		this.collector.setCollector(out);
-		this.fun.apply(key.getData(), window, values, this.collector);
+		try {
+			this.fun.apply(key.getData(), window, values, this.collector);
+		} catch (PyException pe) {
+			throw createAndLogException(pe);
+		}
 	}
 }

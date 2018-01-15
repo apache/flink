@@ -15,16 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.util.serialization;
+
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.util.FlinkRuntimeException;
+
+import org.python.core.PyObject;
 
 import java.io.IOException;
 
-import org.apache.flink.streaming.util.serialization.SerializationSchema;
-import org.python.core.PyObject;
-
 /**
- * A Python serialization schema, which implements {@link SerializationSchema}. It converts
- * a {@code PyObject} into its serialized form.
+ * A {@link SerializationSchema} for {@link PyObject}s.
  */
 public class PythonSerializationSchema implements SerializationSchema<PyObject> {
 	private static final long serialVersionUID = -9170596504893036458L;
@@ -41,11 +43,9 @@ public class PythonSerializationSchema implements SerializationSchema<PyObject> 
 	public byte[] serialize(PyObject element) {
 		if (this.schema == null) {
 			try {
-				this.schema = (SerializationSchema<PyObject>)SerializationUtils.deserializeObject(this.serSchema);
-			} catch (IOException e) {
-				e.printStackTrace();
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				this.schema = SerializationUtils.deserializeObject(this.serSchema);
+			} catch (Exception e) {
+				throw new FlinkRuntimeException("Schema could not be deserialized.", e);
 			}
 		}
 		return this.schema.serialize(element);

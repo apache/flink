@@ -15,9 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from utils import constants
-from utils.python_test_base import TestBase
+
 from utils.pygeneratorbase import PyGeneratorBase
 from org.apache.flink.api.common.functions import FlatMapFunction, ReduceFunction
 from org.apache.flink.api.java.functions import KeySelector
@@ -50,28 +49,19 @@ class Selector(KeySelector):
         return input[1]
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
-        env = self._get_execution_environment()
+class Main:
+    def run(self, flink):
+        env = flink.get_execution_environment()
         env.enable_checkpointing(1000, CheckpointingMode.AT_LEAST_ONCE) \
             .create_python_source(Generator(num_iters=constants.NUM_ITERATIONS_IN_TEST)) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(seconds(1)) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        result = env.execute("MyJob", True)
-        print("Job completed, job_id={}".format(str(result.jobID)))
-
-
-def main():
-    Main().run()
+        env.execute()
 
 
-if __name__ == '__main__':
-    main()
-    print("Job completed ({})\n".format(sys.argv))
+def main(flink):
+    Main().run(flink)

@@ -15,19 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.functions;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.python.util.PythonCollector;
-import org.apache.flink.streaming.python.util.serialization.SerializationUtils;
 import org.apache.flink.util.Collector;
+
+import org.python.core.PyException;
 import org.python.core.PyObject;
 
 import java.io.IOException;
-
 
 /**
  * The {@code PythonFlatMapFunction} is a thin wrapper layer over a Python UDF {@code FlatMapFunction}.
@@ -38,41 +37,28 @@ import java.io.IOException;
  * <p>This function is used internally by the Python thin wrapper layer over the streaming data
  * functionality</p>
  */
-public class PythonFlatMapFunction extends RichFlatMapFunction<PyObject, PyObject> {
+public class PythonFlatMapFunction extends AbstractPythonUDF<FlatMapFunction<PyObject, Object>> implements FlatMapFunction<PyObject, PyObject> {
 	private static final long serialVersionUID = -6098432222172956477L;
 
-	private final byte[] serFun;
-	private transient FlatMapFunction<PyObject, PyObject> fun;
 	private transient PythonCollector collector;
 
-	public PythonFlatMapFunction(FlatMapFunction<PyObject, PyObject> fun) throws IOException {
-		this.serFun = SerializationUtils.serializeObject(fun);
+	public PythonFlatMapFunction(FlatMapFunction<PyObject, Object> fun) throws IOException {
+		super(fun);
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void open(Configuration config) throws Exception {
-		this.fun =
-			(FlatMapFunction<PyObject, PyObject>) UtilityFunctions.smartFunctionDeserialization(
-				getRuntimeContext(), serFun);
-		if (this.fun instanceof RichFunction) {
-			final RichFlatMapFunction flatMapFun = (RichFlatMapFunction)this.fun;
-			flatMapFun.setRuntimeContext(getRuntimeContext());
-			flatMapFun.open(config);
-		}
+		super.open(config);
 		this.collector = new PythonCollector();
-	}
-
-	@Override
-	public void close() throws Exception {
-		if (this.fun instanceof RichFunction) {
-			((RichFlatMapFunction)this.fun).close();
-		}
 	}
 
 	@Override
 	public void flatMap(PyObject value, Collector<PyObject> out) throws Exception {
 		this.collector.setCollector(out);
-		this.fun.flatMap(value, this.collector);
+		try {
+			this.fun.flatMap(value, this.collector);
+		} catch (PyException pe) {
+			throw createAndLogException(pe);
+		}
 	}
 }

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
 import org.apache.flink.annotation.Public;
@@ -25,21 +26,21 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.python.api.functions.PyKey;
 import org.apache.flink.streaming.python.api.functions.PythonReduceFunction;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
-
 
 /**
  * A thin wrapper layer over {@link KeyedStream}.
  *
  * <p>A {@code PythonKeyedStream} represents a {@link PythonDataStream} on which operator state is
- * partitioned by key using a provided {@link org.apache.flink.api.java.functions.KeySelector;}</p>
+ * partitioned by key using a provided {@link org.apache.flink.api.java.functions.KeySelector}.
  */
 @Public
 public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, PyKey>> {
 
-	public PythonKeyedStream(KeyedStream<PyObject, PyKey> stream) {
+	PythonKeyedStream(KeyedStream<PyObject, PyKey> stream) {
 		super(stream);
 	}
 
@@ -55,7 +56,7 @@ public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, Py
 	}
 
 	/**
-	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time)}
+	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time)}.
 	 *
 	 * @param size The size of the window.
 	 * @return The python windowed stream {@link PythonWindowedStream}
@@ -65,7 +66,7 @@ public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, Py
 	}
 
 	/**
-	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time, Time)}
+	 * A thin wrapper layer over {@link KeyedStream#timeWindow(Time, Time)}.
 	 *
 	 * @param size The size of the window.
 	 * @return The python wrapper {@link PythonWindowedStream}
@@ -75,11 +76,10 @@ public class PythonKeyedStream extends PythonDataStream<KeyedStream<PyObject, Py
 	}
 
 	/**
-	 * A thin wrapper layer over {@link KeyedStream#reduce(ReduceFunction)}
+	 * A thin wrapper layer over {@link KeyedStream#reduce(ReduceFunction)}.
 	 *
-	 * @param reducer
-	 *            The {@link ReduceFunction} that will be called for every
-	 *            element of the input values with the same key.
+	 * @param reducer The {@link ReduceFunction} that will be called for every
+	 * element of the input values with the same key.
 	 * @return The transformed data stream @{link PythonSingleOutputStreamOperator}.
 	 */
 	public PythonSingleOutputStreamOperator reduce(ReduceFunction<PyObject> reducer) throws IOException {

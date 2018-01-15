@@ -22,12 +22,11 @@
 #
 
 import random
-import sys
+import argparse
+
 from org.apache.flink.api.common.functions import MapFunction
 from org.apache.flink.streaming.api.collector.selector import OutputSelector
 from org.apache.flink.streaming.api.functions.source import SourceFunction
-from org.apache.flink.api.java.utils import ParameterTool
-from org.apache.flink.streaming.python.api.environment import PythonStreamExecutionEnvironment
 
 TARGET_VAL = 100
 MAX_INT_START = 50
@@ -52,12 +51,12 @@ class Generator(SourceFunction):
         self._running = False
 
 
-class Fib(MapFunction):
+class Step(MapFunction):
     def map(self, value):
         return (value[0], value[1], value[3], value[2] + value[3], value[4] + 1)
 
 
-class InPut(MapFunction):
+class InputMap(MapFunction):
     def map(self, value):
         num1, num2 = value.split(",")
 
@@ -72,38 +71,34 @@ class OutPut(MapFunction):
         return ((value[0], value[1]), value[4])
 
 
-class StreamSelector(OutputSelector):
+class Selector(OutputSelector):
     def select(self, value):
-        return ["iterate"] if value[3] < TARGET_VAL else ["output"]
+        return ["iterate"] if value[2] < TARGET_VAL and value[3] < TARGET_VAL else ["output"]
 
 
 class Main:
-    def __init__(self, args):
-        self._args = args
-
-    def run(self):
-        _params = ParameterTool.fromArgs(self._args)
-
-        env = PythonStreamExecutionEnvironment.get_execution_environment()
+    def run(self, flink, args):
+        env = flink.get_execution_environment()
 
         # create input stream of integer pairs
-        if "--input" in self._args:
-            try:
-                file_path = _params.get("input")
-                input_stream = env.read_text_file(file_path)
-            except Exception as e:
-                print(e)
-                print ("Error in reading input file. Exiting...")
-                sys.exit(5)
+        if args.input:
+            input_stream = env.read_text_file(args.input)
         else:
             input_stream = env.create_python_source(Generator(num_iters=50))
 
         # create an iterative data stream from the input with 5 second timeout
-        it = input_stream.map(InPut()).iterate(5000)
+        it = input_stream\
+            .map(InputMap())\
+            .iterate(5000)
 
         # apply the step function to get the next Fibonacci number
         # increment the counter and split the output with the output selector
-        step = it.map(Fib()).split(StreamSelector())
+        step = it\
+            .map(Step())\
+            .split(Selector())
+
+        # close the iteration by selecting the tuples that were directed to the
+        # 'iterate' channel in the output selector
         it.close_with(step.select("iterate"))
 
         # to produce the final output select the tuples directed to the
@@ -111,24 +106,17 @@ class Main:
         # on a 1 second sliding window
         output = step.select("output")
         parsed_output = output.map(OutPut())
-        if "--output" in self._args:
-            try:
-                file_path = _params.get("output")
-                parsed_output.write_as_text(file_path)
-            except Execption as e:
-                print (e)
-                print ("Error in writing to output file. will print instead.")
-                parsed_output.print()
+        if args.output:
+            parsed_output.write_as_text(args.output)
         else:
-            parsed_output.print()
-        result = env.execute("Fibonacci Example (py)", True if _params.has("local") else False)
+            parsed_output.output()
+        result = env.execute("Fibonacci Example (py)")
         print("Fibonacci job completed, job_id={}".format(result.jobID))
 
 
-def main():
-    argv = sys.argv[1:] if len(sys.argv) > 1 else []
-    Main(argv).run()
-
-
-if __name__ == '__main__':
-    main()
+def main(flink):
+    parser = argparse.ArgumentParser(description='Fibonacci.')
+    parser.add_argument('--input', metavar='IN', help='input file path')
+    parser.add_argument('--output', metavar='OUT', help='output file path')
+    args = parser.parse_args()
+    Main().run(flink, args)

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
 import org.apache.flink.annotation.Public;
@@ -25,6 +26,7 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.python.api.functions.PyKey;
 import org.apache.flink.streaming.python.api.functions.PythonApplyFunction;
 import org.apache.flink.streaming.python.api.functions.PythonReduceFunction;
+
 import org.python.core.PyObject;
 
 import java.io.IOException;
@@ -41,7 +43,7 @@ import java.io.IOException;
 public class PythonWindowedStream<W extends Window> {
 	private final WindowedStream<PyObject, PyKey, W> stream;
 
-	public PythonWindowedStream(WindowedStream<PyObject, PyKey, W> stream) {
+	PythonWindowedStream(WindowedStream<PyObject, PyKey, W> stream) {
 		this.stream = stream;
 	}
 
@@ -63,7 +65,7 @@ public class PythonWindowedStream<W extends Window> {
 	 * @return The data stream that is the result of applying the window function to the window.
 	 */
 	public PythonSingleOutputStreamOperator apply(
-		WindowFunction<PyObject, PyObject, Object, W> fun) throws IOException {
+		WindowFunction<PyObject, Object, Object, W> fun) throws IOException {
 		return new PythonSingleOutputStreamOperator(stream.apply(new PythonApplyFunction<>(fun)));
 	}
 }

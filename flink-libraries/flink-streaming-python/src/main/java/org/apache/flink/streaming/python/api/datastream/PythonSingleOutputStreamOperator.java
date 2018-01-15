@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.api.datastream;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.python.core.PyObject;
 
+import org.python.core.PyObject;
 
 /**
  * A thin wrapper layer over {@link SingleOutputStreamOperator}
@@ -30,8 +31,20 @@ import org.python.core.PyObject;
  */
 @Public
 public class PythonSingleOutputStreamOperator extends PythonDataStream<SingleOutputStreamOperator<PyObject>> {
-	public PythonSingleOutputStreamOperator(SingleOutputStreamOperator<PyObject> stream) {
+
+	PythonSingleOutputStreamOperator(SingleOutputStreamOperator<PyObject> stream) {
 		super(stream);
+	}
+
+	/**
+	 * A thin wrapper layer over {@link SingleOutputStreamOperator#name(String)} .
+	 *
+	 * @param name operator name
+	 * @return The named operator.
+	 */
+	public PythonSingleOutputStreamOperator name(String name) {
+		this.stream.name(name);
+		return this;
 	}
 }
 

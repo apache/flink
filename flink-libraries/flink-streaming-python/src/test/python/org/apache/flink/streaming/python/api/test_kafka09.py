@@ -28,7 +28,7 @@ from org.apache.flink.streaming.util.serialization import SerializationSchema
 
 from utils import constants
 from utils import utils
-from utils.python_test_base import TestBase
+
 
 KAFKA_DEFAULT_BOOTSTRAP_SERVERS = "localhost:9092"
 
@@ -54,7 +54,7 @@ class ToStringSchema(SerializationSchema):
         return str(value)
 
 
-class KafkaStringProducer(threading.Thread, TestBase):
+class KafkaStringProducer(threading.Thread):
     def __init__(self, bootstrap_server, msg, end_msg, num_iters):
         threading.Thread.__init__(self)
         self._bootstrap_server = bootstrap_server
@@ -64,8 +64,8 @@ class KafkaStringProducer(threading.Thread, TestBase):
         # if self._end_msg[-1] != '\n': self._end_msg += '\n'
         self._num_iters = num_iters
 
-    def run(self):
-        env = self._get_execution_environment()
+    def run(self, flink):
+        env = flink.get_execution_environment()
 
         stream = env.create_python_source(StringGenerator(self._msg, self._end_msg, num_iters=100))
 
@@ -75,8 +75,7 @@ class KafkaStringProducer(threading.Thread, TestBase):
 
         stream.add_sink(producer)
 
-        result = env.execute("Kafka09 producer test")
-        print("Kafka09 producer job completed, job_id={}".format(result.jobID))
+        env.execute()
 
 
 class StringDeserializationSchema(DeserializationSchema):
@@ -105,35 +104,31 @@ class Selector(KeySelector):
         return input[1]
 
 
-class KafkaStringConsumer(threading.Thread, TestBase):
+class KafkaStringConsumer(threading.Thread):
     def __init__(self, bootstrap_server):
         threading.Thread.__init__(self)
         self._bootstrap_server = bootstrap_server
 
-    def run(self):
+    def run(self, flink):
         parameterTool = ParameterTool.fromArgs(sys.argv[1:])
         props = parameterTool.getProperties()
         props.setProperty("bootstrap.servers", self._bootstrap_server)
 
         consumer = PythonFlinkKafkaConsumer09("kafka09-test", StringDeserializationSchema(), props)
 
-        env = self._get_execution_environment()
+        env = flink.get_execution_environment()
         env.add_java_source(consumer) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(milliseconds(100)) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        result = env.execute("Python consumer kafka09 test", True)
-        print("Kafka09 consumer job completed, job_id={}".format(result.jobID))
+        env.execute()
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
+class Main:
+    def run(self, flink):
         host, port = KAFKA_DEFAULT_BOOTSTRAP_SERVERS.split(":")
         if not utils.is_reachable(host, int(port)):
             print("Kafka server is not reachable: [{}]".format(KAFKA_DEFAULT_BOOTSTRAP_SERVERS))
@@ -149,9 +144,5 @@ class Main(TestBase):
         kafka_c.join()
 
 
-def main():
-    Main().run()
-
-
-if __name__ == '__main__':
-    main()
+def main(flink):
+    Main().run(flink)

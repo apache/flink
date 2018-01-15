@@ -18,31 +18,36 @@
 
 package org.apache.flink.streaming.python.util;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.functions.MapFunction;
 
+import org.python.core.Py;
 import org.python.core.PyObject;
 
 /**
- * Collects a {@code PyObject} record and forwards it. It makes sure that the record is converted,
- * if necessary, to a {@code PyObject}.
+ * A generic map operator that convert any java type to PyObject. It is mainly used to convert elements
+ * collected from a source functions, to PyObject objects.
+ *
+ * @param <IN> Any given java object
  */
-@Public
-public class PythonCollector implements Collector<Object> {
-	private Collector<PyObject> collector;
+public class AdapterMap<IN> implements MapFunction<IN, PyObject> {
+	private static final long serialVersionUID = 1582769662549499373L;
 
-	public void setCollector(Collector<PyObject> collector) {
-		this.collector = collector;
+	/**
+	 * Convert java object to its corresponding PyObject representation.
+	 *
+	 * @param o Java object
+	 * @return PyObject
+	 */
+	public static PyObject adapt(Object o) {
+		if (o instanceof PyObject) {
+			return (PyObject) o;
+		}
+		return Py.java2py(o);
 	}
 
 	@Override
-	public void collect(Object record) {
-		PyObject po = AdapterMap.adapt(record);
-		this.collector.collect(po);
-	}
-
-	@Override
-	public void close() {
-		this.collector.close();
+	public PyObject map(IN value) throws Exception {
+		PyObject ret = adapt(value);
+		return ret;
 	}
 }

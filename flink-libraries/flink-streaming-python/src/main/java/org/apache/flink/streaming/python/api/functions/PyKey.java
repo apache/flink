@@ -15,8 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.streaming.python.api.functions;
 
+package org.apache.flink.streaming.python.api.functions;
 
 /**
  * A key type used by {@link org.apache.flink.streaming.python.api.functions.PythonKeySelector} to
@@ -29,7 +29,6 @@ public class PyKey {
 	public PyKey(Object data) {
 		this.data = data;
 	}
-
 
 	public Object getData() {
 		return data;

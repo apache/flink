@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.python.util.serialization;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 
@@ -29,7 +31,7 @@ import java.io.IOException;
  */
 public class PythonDeserializationSchema implements DeserializationSchema<Object> {
 	private static final long serialVersionUID = -9180596504893036458L;
-	private final TypeInformation<Object> resultType = TypeInformation.of(new TypeHint<Object>(){});
+	private final TypeInformation<Object> resultType = TypeInformation.of(new TypeHint<Object>() {});
 
 	private final byte[] serSchema;
 	private transient DeserializationSchema<Object> schema;
@@ -42,9 +44,9 @@ public class PythonDeserializationSchema implements DeserializationSchema<Object
 	public Object deserialize(byte[] message) throws IOException {
 		if (this.schema == null) {
 			try {
-				this.schema = (DeserializationSchema<Object>) SerializationUtils.deserializeObject(this.serSchema);
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
+				this.schema = SerializationUtils.deserializeObject(this.serSchema);
+			} catch (Exception e) {
+				throw new FlinkRuntimeException("Schema could not be deserialized.", e);
 			}
 		}
 		return this.schema.deserialize(message);

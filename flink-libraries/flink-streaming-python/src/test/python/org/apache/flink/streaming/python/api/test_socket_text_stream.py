@@ -16,16 +16,13 @@
 # limitations under the License.
 ################################################################################
 import socket
-import sys
 import threading
 import time
 from org.apache.flink.api.common.functions import FlatMapFunction, ReduceFunction
 from org.apache.flink.api.java.functions import KeySelector
 from org.apache.flink.streaming.api.windowing.time.Time import seconds
 
-from utils import constants
-from utils import utils
-from utils.python_test_base import TestBase
+from utils import constants, utils
 
 
 class SocketStringGenerator(threading.Thread):
@@ -66,30 +63,22 @@ class Selector(KeySelector):
     def getKey(self, input):
         return input[1]
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
+class Main:
+    def run(self, flink):
         f_port = utils.gen_free_port()
         SocketStringGenerator(host='', port=f_port, msg='Hello World', num_iters=constants.NUM_ITERATIONS_IN_TEST).start()
         time.sleep(0.5)
 
-        env = self._get_execution_environment()
+        env = flink.get_execution_environment()
         env.socket_text_stream('localhost', f_port) \
             .flat_map(Tokenizer()) \
             .key_by(Selector()) \
             .time_window(seconds(1)) \
             .reduce(Sum()) \
-            .print()
+            .output()
 
-        env.execute(True)
-
-
-def main():
-    Main().run()
+        env.execute()
 
 
-if __name__ == '__main__':
-    main()
-    print("Job completed ({})\n".format(sys.argv))
+def main(flink):
+    Main().run(flink)

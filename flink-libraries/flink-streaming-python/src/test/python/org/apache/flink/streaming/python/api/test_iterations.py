@@ -19,7 +19,6 @@ from org.apache.flink.api.common.functions import FilterFunction
 from org.apache.flink.api.common.functions import MapFunction
 
 from utils import constants
-from utils.python_test_base import TestBase
 
 
 class MinusOne(MapFunction):
@@ -37,12 +36,9 @@ class LessEquelToZero(FilterFunction):
         return value <= 0
 
 
-class Main(TestBase):
-    def __init__(self):
-        super(Main, self).__init__()
-
-    def run(self):
-        env = self._get_execution_environment()
+class Main:
+    def run(self, flink):
+        env = flink.get_execution_environment()
         some_integers = env.from_collection([2] * 5)
 
         iterative_stream = some_integers.iterate(constants.MAX_EXECUTION_TIME_MS)
@@ -55,15 +51,10 @@ class Main(TestBase):
 
         less_then_zero = minus_one_stream.filter(LessEquelToZero())
 
-        less_then_zero.print()
+        less_then_zero.output()
 
-        result = env.execute("MyJob", True)
-        print("Job completed, job_id={}".format(result.jobID))
-
-
-def main():
-    Main().run()
+        env.execute()
 
 
-if __name__ == '__main__':
-    main()
+def main(flink):
+    Main().run(flink)

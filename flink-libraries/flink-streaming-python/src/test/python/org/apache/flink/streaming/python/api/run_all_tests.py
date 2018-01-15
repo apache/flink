@@ -16,10 +16,9 @@
 # limitations under the License.
 ################################################################################
 import sys
-from os.path import dirname, join, basename
+import traceback
 from glob import glob
-from org.apache.flink.runtime.client import JobExecutionException
-
+from os.path import dirname, join, basename
 
 excluded_tests = [
     'test_kafka09',
@@ -30,46 +29,30 @@ class Main:
     def __init__(self):
         pass
 
-    def run(self):
+    def run(self, flink):
         tests = []
-        pwd = dirname(sys.argv[0])
-        print("Working directory: {}".format(pwd))
+
+        current_dir = dirname(sys.modules[__name__].__file__)
+        print("Working directory: {}".format(current_dir))
 
         if excluded_tests:
             print("Excluded tests: {}\n".format(excluded_tests))
 
-        for x in glob(join(pwd, 'test_*.py')):
+        for x in glob(join(current_dir, 'test_*.py')):
             if not x.startswith('__'):
                 test_module_name = basename(x)[:-3]
                 if test_module_name not in excluded_tests:
                     tests.append(__import__(test_module_name, globals(), locals()))
 
-        failed_tests = []
-        for test in tests:
-            print("Submitting job ... '{}'".format(test.__name__))
-            try:
-                test.main()
+        try:
+            for test in tests:
+                print("Submitting job ... '{}'".format(test.__name__))
+                test.main(flink)
                 print("Job completed ('{}')\n".format(test.__name__))
-            except JobExecutionException as ex:
-                failed_tests.append(test.__name__)
-                print("\n{}\n{}\n{}\n".format('#'*len(ex.message), ex.message, '#'*len(ex.message)))
-            except:
-                failed_tests.append(test.__name__)
-                ex_type = sys.exc_info()[0]
-                print("\n{}\n{}\n{}\n".format('#'*len(ex_type), ex_type, '#'*len(ex_type)))
-
-        if failed_tests:
-            print("\nThe following tests were failed:")
-            for failed_test in failed_tests:
-                print("\t* " + failed_test)
-            raise Exception("\nFailed test(s): {}".format(failed_tests))
-        else:
-            print("\n*** All tests passed successfully ***")
+        except Exception as ex:
+            print ("Test {} has failed\n".format(test.__name__))
+            traceback.print_exc()
 
 
-def main():
-    Main().run()
-
-
-if __name__ == "__main__":
-    main()
+def main(flink):
+    Main().run(flink)

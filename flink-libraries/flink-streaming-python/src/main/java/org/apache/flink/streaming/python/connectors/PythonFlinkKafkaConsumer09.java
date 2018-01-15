@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.python.connectors;
 
-import org.apache.flink.streaming.python.util.serialization.PythonDeserializationSchema;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer09;
-import org.apache.flink.streaming.util.serialization.DeserializationSchema;
+import org.apache.flink.streaming.python.util.serialization.PythonDeserializationSchema;
 
 import java.io.IOException;
 import java.util.Properties;
