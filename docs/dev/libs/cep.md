@@ -1596,8 +1596,8 @@ val alerts = patternStream.select(createAlert(_)))
 
 ### Migrating to 1.4+
 
-In Flink-1.4 the backward compatibility of CEP library with <= Flink 1.2 was dropped. To migrate old 
-version of your job you should first migrate to 1.3.x, take a savepoint and then migrate from 1.3.x to 1.4+
+In Flink-1.4 the backward compatibility of CEP library with <= Flink 1.2 was dropped. Unfortunately 
+it is not possible to restore a CEP job that was once run with 1.2.x
 
 ### Migrating to 1.3.x
 

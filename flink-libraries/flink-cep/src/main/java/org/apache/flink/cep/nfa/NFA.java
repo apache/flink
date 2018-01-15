@@ -60,6 +60,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.Stack;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Non-deterministic finite automaton implementation.
  *
@@ -129,7 +131,7 @@ public class NFA<T> implements Serializable {
 	public NFA(final TypeSerializer<T> eventSerializer,
 			final long windowTime,
 			final boolean handleTimeout) {
-		this.eventSerializer = eventSerializer;
+		this.eventSerializer = checkNotNull(eventSerializer);
 		this.windowTime = windowTime;
 		this.handleTimeout = handleTimeout;
 		this.eventSharedBuffer = new SharedBuffer<>();
