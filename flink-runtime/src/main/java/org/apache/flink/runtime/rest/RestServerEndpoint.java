@@ -168,7 +168,7 @@ public abstract class RestServerEndpoint {
 			String address = bindAddress.getAddress().getHostAddress();
 			int port = bindAddress.getPort();
 
-			log.info("Rest endpoint listening at {}" + ':' + "{}", address, port);
+			log.info("Rest endpoint listening at {}:{}", address, port);
 
 			final String protocol;
 
